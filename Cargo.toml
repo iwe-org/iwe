@@ -1,0 +1,35 @@
+[workspace]
+members = ["crates/lib", "crates/cmd", "crates/lsp"]
+resolver = "2"
+
+[workspace.package]
+authors = ["Dmytro Halichenko <dmytrohalichenko@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.82"
+repository = "https://github.com/iwe-org/iwe"
+version = "0.0.1"
+
+[workspace.dependencies]
+anyhow = "1.0.41"
+clap = { version = "4.0", features = ["derive"] }
+crossbeam-channel = "0.5.8"
+env_logger = "0.11.1"
+extend = "1.2.0"
+futures = "0.3.30"
+indoc = { version = "2", features = [] }
+itertools = { version = "0.12.0", features = [] }
+log = "0.4.20"
+lsp-server = "0.7.6"
+lsp-types = "0.95.1"
+markdown = "1.0.0-alpha.16"
+pretty_assertions = "1.4.0"
+pulldown-cmark = "0.12.2"
+rand = "0.8.4"
+rayon = { version = "1.5.1", features = [] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+sha2 = "0.10.8"
+assert-json-diff = "2.0.2"
+difference = "2.0"

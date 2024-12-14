@@ -1,0 +1,29 @@
+[package]
+name = "lib"
+include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
+
+version.workspace = true
+repository.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[dependencies]
+sha2.workspace = true
+indoc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+pretty_assertions.workspace = true
+env_logger.workspace = true
+itertools.workspace = true
+log.workspace = true
+futures.workspace = true
+rayon.workspace = true
+rand.workspace = true
+markdown.workspace = true
+pulldown-cmark.workspace = true

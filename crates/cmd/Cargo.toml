@@ -1,0 +1,26 @@
+[package]
+name = "cmd"
+include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
+
+version.workspace = true
+repository.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "iwe"
+path = "src/main.rs"
+
+[dependencies]
+lib = { path = "../lib" }
+indoc.workspace = true
+clap.workspace = true
+pretty_assertions.workspace = true
+env_logger.workspace = true
+itertools.workspace = true
+log.workspace = true
+futures.workspace = true
+rayon.workspace = true
+rand.workspace = true
