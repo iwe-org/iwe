@@ -1,8 +1,12 @@
-# Readme
+# IWE - Markdown LSP server
+
+![Demo](readme.iwe/demo.gif)
+
+# About
 
 IWE is a tool that helps you organize your notes. It treats notes like an interconnected graph, where each document acts as a sub-tree and the links are the edges connecting them. It supports various operations designed to assist with navigating and restructuring the graph.
 
-- **[Block-reference](ndjveztj)** is a key concept and building block for the documents graph
+- **[](ndjveztj)** is a key concept and building block for the documents graph
 
   In markdown, it's a paragraph that contains one link to a note. Like this:
 

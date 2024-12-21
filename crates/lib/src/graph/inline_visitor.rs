@@ -1,6 +1,6 @@
-use crate::model::{Key, NodeId};
-use crate::model::graph::Node;
 use super::{graph_node_visitor::GraphNodeVisitor, Graph, NodeIter};
+use crate::model::graph::Node;
+use crate::model::{Key, NodeId};
 
 pub struct InlineVisitor<'a> {
     id: NodeId,
