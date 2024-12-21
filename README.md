@@ -1,4 +1,8 @@
-# Readme
+# IWE - Markdown LSP server
+
+![Demo](readme.iwe/demo.gif)
+
+# About
 
 IWE is a tool that helps you organize your notes. It treats notes like an interconnected graph, where each document acts as a sub-tree and the links are the edges connecting them. It supports various operations designed to assist with navigating and restructuring the graph.
 
@@ -62,7 +66,6 @@ Readme - Features
 Readme - Features - Navigation
 Readme - Features - Search
 ..ets
-
 ```
 
 And provide this list to your text editor as Workspace Symbols.
@@ -73,13 +76,13 @@ The search results are ordered by page-rank which is based on the number of refe
 
 ### Text structure normalization / formatting
 
-LSP offers **auto-formatting**, which typically kicks in when you save your work. This feature helps tidy things up according to the guidelines detailed in this document. Here's what gets cleaned up:
+LSP offers **auto-formatting**, which typically kicks in when you save your work. This feature helps tidy things up. Here's what gets cleaned up:
 
-- Uprating link titles to the header of the linked document
-- Adjusting header levels to ensure tree structure
-- Cleaning up dead links by replacing them with title text
-- Updating the numbering of the ordered lists
-- Fixing spaces, newlines, and indentations in lists, and much more
+1.  Uprating link titles to the header of the linked document
+2.  Adjusting header levels to ensure tree structure
+3.  Cleaning up dead links by replacing them with title text
+4.  Updating the numbering of the ordered lists
+5.  Fixing newlines, indentations in lists, and much more
 
 ### Inlay hints
 

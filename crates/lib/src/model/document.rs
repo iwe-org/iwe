@@ -245,7 +245,7 @@ impl DocumentInline {
         match self {
             DocumentInline::Cite(cite) => todo!(),
             DocumentInline::Emph(emph) => emph.inlines.push(inline),
-            DocumentInline::Image(image) => todo!(),
+            DocumentInline::Image(image) => image.inlines.push(inline),
             DocumentInline::LineBreak(line_break) => todo!(),
             DocumentInline::Link(link) => link.inlines.push(inline),
             DocumentInline::Quoted(quoted) => todo!(),

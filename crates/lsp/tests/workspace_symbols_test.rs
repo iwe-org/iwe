@@ -204,8 +204,7 @@ fn nested_files() {
 }
 
 #[test]
-#[ignore]
-fn nested_nested_files() {
+fn two_nested_nested_files() {
     let fixture = Fixture::with(indoc! {"
             # test 1
             _
@@ -228,10 +227,10 @@ fn nested_nested_files() {
             SymbolInformation {
                 kind: lsp_types::SymbolKind::OBJECT,
                 location: lsp_types::Location {
-                    uri: uri(2),
+                    uri: uri(1),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
                 },
-                name: "test 2".to_string(),
+                name: "test 3 • test 2 • test 1".to_string(),
                 container_name: None,
                 tags: None,
                 deprecated: None,
@@ -239,25 +238,25 @@ fn nested_nested_files() {
             SymbolInformation {
                 kind: lsp_types::SymbolKind::OBJECT,
                 location: lsp_types::Location {
-                    uri: uri(1),
+                    uri: uri(2),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
                 },
-                name: "test 2 • test 1".to_string(),
+                name: "test 3 • test 2".to_string(),
                 container_name: None,
                 tags: None,
                 deprecated: None,
             },
-            // SymbolInformation {
-            //     kind: lsp_types::SymbolKind::OBJECT,
-            //     location: lsp_types::Location {
-            //         uri: uri(2),
-            //         range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-            //     },
-            //     name: "test 3 • test 2 • test 1".to_string(),
-            //     container_name: None,
-            //     tags: None,
-            //     deprecated: None,
-            // },
+            SymbolInformation {
+                kind: lsp_types::SymbolKind::OBJECT,
+                location: lsp_types::Location {
+                    uri: uri(3),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                name: "test 3".to_string(),
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
         ]),
     )
 }
