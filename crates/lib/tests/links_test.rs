@@ -3,6 +3,7 @@ use pretty_assertions::assert_str_eq;
 
 use lib::{
     graph::Graph,
+    model::graph::MarkdownOptions,
     state::{new_form_pairs, to_debug_string},
 };
 
@@ -160,7 +161,7 @@ fn compare(left: Vec<&str>, right: Vec<&str>) {
     let r = new_form_pairs(right.clone());
 
     let lstr = to_debug_string(&l);
-    let graph = &Graph::import(r);
+    let graph = &Graph::import(&r, MarkdownOptions::default());
 
     println!("{:#?}", graph);
 

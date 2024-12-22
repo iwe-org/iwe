@@ -1,6 +1,6 @@
 # Search
 
-Search is one of the key features. IWE, creates all possible document paths by considering the [Block-reference](ndjveztj)'s structure. This means it can come up with lists like:
+Search is one of the key features. IWE, creates all possible document paths by considering the block-references structure. This means it can come up with lists like:
 
 ```
 Readme - Features

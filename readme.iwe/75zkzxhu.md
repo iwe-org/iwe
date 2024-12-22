@@ -18,13 +18,16 @@ iwe [OPTIONS] <COMMAND>
 
 ### Commands
 
-- `iwe normalize`: Standardizes the graph data to ensure a uniform structure.
-- `iwe paths`: Lists all the paths present in the graph.
+- `iwe init`: Initialize the directory as documents root by adding `.iwe` marker directory and creating default `config.json` in it
+- `iwe normalize`: Standardizes the graph data to ensure a uniform structure
+- `iwe paths`: Lists all the paths present in the graph
 - `iwe squash`: Traverse the graph to the specified  depth combining nodes into single markdown document
-  - `-d`, `--depth <depth>`: Depth to squash to. Default is `2`.
+  - `-d`, `--depth <depth>`: Depth to squash to. Default is `2`
 
 > [!WARNING]
 >
 > Make sure that you have a copy of you files before you perform bulk-action such as `iwe normalize`.
 
-[Consolidated documents generation](bjeppfmk)
+#### Squash command
+
+IWE can "project" the graph into a single document by changing block-references into subsections (headers) and directly incorporating the block-references into the parent document.

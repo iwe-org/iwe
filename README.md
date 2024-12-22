@@ -6,15 +6,21 @@
 
 IWE is a tool that helps you organize your notes. It treats notes like an interconnected graph, where each document acts as a sub-tree and the links are the edges connecting them. It supports various operations designed to assist with navigating and restructuring the graph.
 
-- **[Block-reference](ndjveztj)** is a key concept and building block for the documents graph
+- **[Block-reference](https://github.com/iwe-org/iwe/blob/master/readme.iwe/block-reference.md)** is a key concept and building block for the documents graph
 
   In markdown, it's a paragraph that contains one link to a note. Like this:
 
-  [A block references](document-id)
+  ``` markdown
+  A paragraph...
+
+  [Block-reference](block-reference)
+
+  Another paragraph...
+  ```
 
   IWE uses these block references as if they're embedded notes. This lets you create a complex, layered document structure without having to mess with directories or overly large markdown files as well as 'reuse' a note in multiple context's. ([transclusion](https://en.wikipedia.org/wiki/Transclusion))
 
-Once you have arranged your notes, IWE enables you to merge them into a single, cohesive document, streamlining the process of document creation. (see [readme.iwe/README](https://github.com/iwe-org/iwe/blob/readme/readme.iwe/README.md) which is source for this file)
+Once you have arranged your notes, IWE enables you to merge them into a single, cohesive document, streamlining the process of document creation. (see [readme.iwe/README](https://github.com/iwe-org/iwe/blob/master/readme.iwe/README.md) which is source for this file)
 
 The main focus of IWE is to help you to keep your notes organized. It works with the graph at the semantic level, understanding the **headers**, **lists** and **links** defined structure of the documents.
 
@@ -59,7 +65,7 @@ IWE supports multiple way to navigate  your documents, including:
 
 ### Search
 
-Search is one of the key features. IWE, creates all possible document paths by considering the [Block-reference](ndjveztj)'s structure. This means it can come up with lists like:
+Search is one of the key features. IWE, creates all possible document paths by considering the block-references structure. This means it can come up with lists like:
 
 ```
 Readme - Features
@@ -116,10 +122,11 @@ iwe [OPTIONS] <COMMAND>
 
 #### Commands
 
-- `iwe normalize`: Standardizes the graph data to ensure a uniform structure.
-- `iwe paths`: Lists all the paths present in the graph.
+- `iwe init`: Initialize the directory as documents root by adding `.iwe` marker directory and creating default `config.json` in it
+- `iwe normalize`: Standardizes the graph data to ensure a uniform structure
+- `iwe paths`: Lists all the paths present in the graph
 - `iwe squash`: Traverse the graph to the specified  depth combining nodes into single markdown document
-  - `-d`, `--depth <depth>`: Depth to squash to. Default is `2`.
+  - `-d`, `--depth <depth>`: Depth to squash to. Default is `2`
 
 > [!WARNING]
 >
@@ -127,7 +134,7 @@ iwe [OPTIONS] <COMMAND>
 
 ##### Squash command
 
-IWE can "project" the graph into a single document by changing [Block-reference](ndjveztj) into subsections (headers) and directly incorporating the [Block-reference](ndjveztj) into the parent document.
+IWE can "project" the graph into a single document by changing block-references into subsections (headers) and directly incorporating the block-references into the parent document.
 
 ## How to install
 
@@ -184,7 +191,7 @@ Contributors are welcome.
 
 ## Configuration
 
-IWE doesn't have any configuration options at the moment, but it does come with some sensible defaults.
+IWE doesn't have much configuration options at the moment, but it does come with some sensible defaults.
 
 For instance:
 
@@ -192,6 +199,14 @@ For instance:
 - Links are generated without file extensions, with the default being `.md`.
 
 If you'd like to tweak anything, feel free to open a pull request or an issue.
+
+The only configuration option available lets you change the default extension for local links. For example:
+
+``` json
+{"markdown":{"refs_extension":".md"}}
+```
+
+By default, the extension is omitted.
 
 ## Help needed
 

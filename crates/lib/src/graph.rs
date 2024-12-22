@@ -16,6 +16,7 @@ use squash_visitor::SquashVisitor;
 use crate::{
     key::{with_extension, without_extension},
     markdown::MarkdownReader,
+    model::graph::MarkdownOptions,
 };
 use arena::Arena;
 use builder::GraphBuilder;
@@ -60,6 +61,7 @@ pub struct Graph {
     global_nodes_map: HashMap<NodeId, LineRange>,
     sequential_keys: bool,
     keys_to_ref_text: HashMap<Key, String>,
+    markdown_options: MarkdownOptions,
 }
 
 pub trait NodeIter<'a> {
@@ -77,6 +79,13 @@ pub trait Converter {}
 impl Graph {
     pub fn new() -> Graph {
         Graph {
+            ..Default::default()
+        }
+    }
+
+    pub fn new_with_options(markdown_options: MarkdownOptions) -> Graph {
+        Graph {
+            markdown_options,
             ..Default::default()
         }
     }
@@ -246,7 +255,7 @@ impl Graph {
     pub fn to_markdown(&self, key: &str) -> String {
         let id = self.keys.get(key).unwrap();
         let blocks = Projector::new(self, *id, 0, 0).project();
-        blocks_to_markdown_sparce(&blocks)
+        blocks_to_markdown_sparce(&blocks, &self.markdown_options)
     }
 
     pub fn paths(&self) -> Vec<NodePath> {
@@ -272,8 +281,8 @@ impl Graph {
         self.global_nodes_map.get(&id).cloned()
     }
 
-    pub fn import(content: State) -> Graph {
-        let mut graph = Graph::new();
+    pub fn import(content: &State, markdown_options: MarkdownOptions) -> Graph {
+        let mut graph = Graph::new_with_options(markdown_options);
 
         let reader = MarkdownReader::new();
 
@@ -304,7 +313,10 @@ impl Graph {
     }
 
     pub fn export_key(&self, key: &str) -> Option<String> {
-        Some(blocks_to_markdown_sparce(&self.project(key)))
+        Some(blocks_to_markdown_sparce(
+            &self.project(key),
+            &self.markdown_options,
+        ))
     }
 
     pub fn export(&self) -> State {
@@ -313,7 +325,7 @@ impl Graph {
             .map(|(k, v)| {
                 (
                     with_extension(k),
-                    blocks_to_markdown_sparce(&self.project(k)),
+                    blocks_to_markdown_sparce(&self.project(k), &self.markdown_options),
                 )
             })
             .collect()

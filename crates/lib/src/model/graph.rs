@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::key::without_extension;
 use crate::model;
 use crate::model::document::DocumentInlines;
@@ -53,6 +55,16 @@ pub enum Inline {
     Underline(Inlines),
 }
 
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+pub struct MarkdownOptions {
+    pub refs_extension: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+pub struct Settings {
+    pub markdown: MarkdownOptions,
+}
+
 impl Block {
     fn is_ref(&self) -> bool {
         match self {
@@ -89,23 +101,23 @@ impl Block {
         }
     }
 
-    pub fn to_markdown(&self) -> String {
+    pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
-            Block::Plain(inlines) => format!("{}\n", inlines_to_markdown(inlines)),
-            Block::Para(inlines) => format!("{}\n", inlines_to_markdown(inlines)),
+            Block::Plain(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
+            Block::Para(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
             Block::LineBlock(lines) => lines
                 .iter()
-                .map(|line| inlines_to_markdown(line))
+                .map(|line| inlines_to_markdown(line, options))
                 .collect::<Vec<String>>()
                 .join("\n"),
             Block::CodeBlock(lang, text) => lang
                 .clone()
                 .filter(|lang| !lang.trim().is_empty())
-                .map(|lang| format!("``` {}\n{}\n```\n", lang, text.trim()))
-                .unwrap_or_else(|| format!("```\n{}\n```\n", text.trim())),
+                .map(|lang| format!("``` {}\n{}\n```\n", lang, text.trim_matches('\n')))
+                .unwrap_or_else(|| format!("```\n{}\n```\n", text.trim_matches('\n'))),
             Block::RawBlock(_, text) => text.clone(),
             Block::BlockQuote(blocks) => {
-                blocks_to_markdown_sparce(blocks)
+                blocks_to_markdown_sparce(blocks, options)
                     .lines()
                     .map(|line| format!("> {}", line))
                     .map(|line| line.trim().to_string())
@@ -118,7 +130,7 @@ impl Block {
                 .enumerate()
                 .map(|(n, item)| {
                     left_pad_and_prefix_num(
-                        &blocks_to_markdown_and(item, self.is_sparce_list()),
+                        &blocks_to_markdown_and(item, self.is_sparce_list(), options),
                         n + 1,
                     )
                 })
@@ -127,7 +139,11 @@ impl Block {
             Block::BulletList(items) => items
                 .iter()
                 .map(|item| {
-                    left_pad_and_prefix(&blocks_to_markdown_and(item, self.is_sparce_list()))
+                    left_pad_and_prefix(&blocks_to_markdown_and(
+                        item,
+                        self.is_sparce_list(),
+                        options,
+                    ))
                 })
                 .collect::<Vec<String>>()
                 .join(if self.is_sparce_list() { "\n" } else { "" }),
@@ -135,7 +151,7 @@ impl Block {
                 format!(
                     "{} {}\n",
                     "#".repeat(*level as usize),
-                    inlines_to_markdown(inlines)
+                    inlines_to_markdown(inlines, options)
                 )
             }
             Block::HorizontalRule => format!("{}\n", "-".repeat(72)),
@@ -147,36 +163,38 @@ impl Inline {
     pub fn from_string(str: &str) -> Inlines {
         vec![Inline::Str(str.to_string())]
     }
-    pub fn to_markdown(&self) -> String {
+    pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
             Inline::Str(text) => text.clone(),
-            Inline::Emph(emph) => format!("*{}*", inlines_to_markdown(emph)),
-            Inline::Underline(underline) => inlines_to_markdown(underline),
-            Inline::Strong(strong) => format!("**{}**", inlines_to_markdown(strong)),
+            Inline::Emph(emph) => format!("*{}*", inlines_to_markdown(emph, options)),
+            Inline::Underline(underline) => inlines_to_markdown(underline, options),
+            Inline::Strong(strong) => format!("**{}**", inlines_to_markdown(strong, options)),
             Inline::Strikeout(strikeout) => {
-                format!("~~{}~~", inlines_to_markdown(strikeout))
+                format!("~~{}~~", inlines_to_markdown(strikeout, options))
             }
             Inline::Superscript(superscript) => {
-                format!("^{}^", inlines_to_markdown(superscript))
+                format!("^{}^", inlines_to_markdown(superscript, options))
             }
             Inline::Subscript(subscript) => {
-                format!("~{}~", inlines_to_markdown(subscript))
+                format!("~{}~", inlines_to_markdown(subscript, options))
             }
-            Inline::SmallCaps(small_caps) => inlines_to_markdown(small_caps),
+            Inline::SmallCaps(small_caps) => inlines_to_markdown(small_caps, options),
             Inline::Code(_, text) => format!("`{}`", text),
             Inline::Space => " ".into(),
             Inline::SoftBreak => "\n".into(),
             Inline::LineBreak => "\n".into(),
             Inline::Link(url, title, inlines) => {
-                let text = inlines_to_markdown(inlines);
+                let text = inlines_to_markdown(inlines, options);
                 if !self.is_ref() && text.eq_ignore_ascii_case(url) {
                     format!("<{}>", url)
+                } else if self.is_ref() {
+                    format!("[{}]({}{})", text, url, options.refs_extension)
                 } else {
                     format!("[{}]({})", text, url)
                 }
             }
             Inline::Image(url, title, inlines) => {
-                format!("![{}]({})", inlines_to_markdown(inlines), url)
+                format!("![{}]({})", inlines_to_markdown(inlines, options), url)
             }
             Inline::RawInline(lang, content) => format!("`{}`", content),
             Inline::Math(math) => format!("${}$", math),
@@ -338,7 +356,7 @@ fn left_pad_and_prefix_num(text: &str, num: usize) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::model::graph::blocks_to_markdown;
+    use crate::model::graph::{blocks_to_markdown, MarkdownOptions};
     use crate::model::graph::{Block, Inline};
     use indoc::indoc;
 
@@ -373,7 +391,7 @@ pub mod tests {
                 9.  item
                 10. item
                 "},
-            blocks_to_markdown(&list),
+            blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
 
@@ -389,7 +407,7 @@ pub mod tests {
 
                     para
                 "},
-            blocks_to_markdown(&list),
+            blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
 
@@ -404,7 +422,7 @@ pub mod tests {
                 - item1
                 - item2
                 "},
-            blocks_to_markdown(&list),
+            blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
 
@@ -419,7 +437,7 @@ pub mod tests {
                 - item1
                   - item2
                 "},
-            blocks_to_markdown(&list),
+            blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
 
@@ -432,7 +450,7 @@ pub mod tests {
 
                   para
                 "},
-            blocks_to_markdown(&list),
+            blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
 
@@ -452,7 +470,7 @@ pub mod tests {
 
                   para2
                 "},
-            blocks_to_markdown(&list),
+            blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
 
@@ -471,7 +489,7 @@ pub mod tests {
                   - item2
                     - item3
                 "},
-            blocks_to_markdown(&list),
+            blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
 }
@@ -484,34 +502,34 @@ pub fn to_plain_text(content: &Inlines) -> String {
         .join("")
 }
 
-pub fn inlines_to_markdown(content: &Inlines) -> String {
+pub fn inlines_to_markdown(content: &Inlines, options: &MarkdownOptions) -> String {
     content
         .iter()
-        .map(|i| i.to_markdown())
+        .map(|i| i.to_markdown(options))
         .collect::<Vec<String>>()
         .join("")
 }
 
-pub fn blocks_to_markdown_and(blocks: &Blocks, sparce: bool) -> String {
+pub fn blocks_to_markdown_and(blocks: &Blocks, sparce: bool, options: &MarkdownOptions) -> String {
     blocks
         .iter()
-        .map(|block| block.to_markdown())
+        .map(|block| block.to_markdown(options))
         .collect::<Vec<String>>()
         .join(if sparce { "\n" } else { "" })
 }
 
-pub fn blocks_to_markdown(blocks: &Blocks) -> String {
+pub fn blocks_to_markdown(blocks: &Blocks, options: &MarkdownOptions) -> String {
     blocks
         .iter()
-        .map(|block| block.to_markdown())
+        .map(|block| block.to_markdown(options))
         .collect::<Vec<String>>()
         .join("")
 }
 
-pub fn blocks_to_markdown_sparce(blocks: &Blocks) -> String {
+pub fn blocks_to_markdown_sparce(blocks: &Blocks, options: &MarkdownOptions) -> String {
     blocks
         .iter()
-        .map(|block| block.to_markdown())
+        .map(|block| block.to_markdown(options))
         .collect::<Vec<String>>()
         .join("\n")
 }

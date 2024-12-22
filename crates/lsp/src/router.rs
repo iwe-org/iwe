@@ -3,6 +3,7 @@ use std::time::Instant;
 use anyhow::{bail, Result};
 use crossbeam_channel::{select, Receiver, Sender};
 use itertools::Itertools;
+use lib::model::graph::MarkdownOptions;
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::request::DocumentSymbolRequest;
@@ -29,6 +30,7 @@ pub struct ServerConfig {
     pub base_path: String,
     pub state: State,
     pub sequential_ids: Option<bool>,
+    pub markdown_options: MarkdownOptions,
 }
 
 pub struct Router {

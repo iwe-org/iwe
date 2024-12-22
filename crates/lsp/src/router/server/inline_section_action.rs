@@ -1,6 +1,9 @@
 use lsp_types::*;
 
-use lib::graph::{Graph, GraphContext};
+use lib::{
+    graph::{Graph, GraphContext},
+    model::graph::MarkdownOptions,
+};
 
 use super::{extensions::*, BasePath};
 

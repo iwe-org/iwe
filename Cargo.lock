@@ -169,6 +169,8 @@ dependencies = [
  "pretty_assertions",
  "rand",
  "rayon",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
