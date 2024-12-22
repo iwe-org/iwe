@@ -8,6 +8,7 @@ use std::{
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
 use difference::Changeset;
+use lib::model::graph::MarkdownOptions;
 use lsp_server::{Connection, Message, Notification, Request};
 use lsp_types::{
     notification::{DidChangeTextDocument, Exit},
@@ -75,6 +76,7 @@ impl Fixture {
                     })
                     .unwrap(),
                     "/basepath".to_string(),
+                    MarkdownOptions::default(),
                 )
                 .unwrap()
             })

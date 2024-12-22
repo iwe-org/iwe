@@ -1,4 +1,5 @@
 use crate::graph::Graph;
+use crate::model::graph::MarkdownOptions;
 use crate::model::{Content, Key, State};
 
 use crate::parser::Parser;
@@ -27,8 +28,8 @@ impl DatabaseContext for &Database {
 }
 
 impl Database {
-    pub fn new(state: State, sequential_ids: bool) -> Self {
-        let mut graph = Graph::import(state.clone());
+    pub fn new(state: State, sequential_ids: bool, markdown_options: MarkdownOptions) -> Self {
+        let mut graph = Graph::import(&state, markdown_options);
         graph.set_sequential_keys(sequential_ids);
         Self {
             graph,

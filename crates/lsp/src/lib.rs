@@ -4,6 +4,7 @@ use std::{env, path::PathBuf};
 
 use anyhow::Result;
 use itertools::Itertools;
+use lib::model::graph::MarkdownOptions;
 use lsp_server::Connection;
 
 use lib::fs::new_for_path;
@@ -22,6 +23,7 @@ pub fn main_loop(
     connection: Connection,
     params_value: serde_json::Value,
     base_path: String,
+    markdown_options: MarkdownOptions,
 ) -> Result<()> {
     let initialize_params: InitializeParams = serde_json::from_value(params_value).unwrap();
 
@@ -32,6 +34,7 @@ pub fn main_loop(
                 base_path,
                 state: new_form_indoc(state),
                 sequential_ids: Some(true),
+                markdown_options,
             },
         )
     } else {
@@ -41,6 +44,7 @@ pub fn main_loop(
                 base_path,
                 state: new_for_path(&env::current_dir().expect("to get current dir")),
                 sequential_ids: None,
+                markdown_options,
             },
         )
     };

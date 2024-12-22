@@ -1,7 +1,7 @@
 use std::sync::Once;
 
 use indoc::indoc;
-use lib::markdown::MarkdownReader;
+use lib::{markdown::MarkdownReader, model::graph::MarkdownOptions};
 use pretty_assertions::assert_str_eq;
 
 use lib::graph::Graph;
@@ -373,6 +373,53 @@ fn raw_trim() {
 }
 
 #[test]
+fn raw_trim_keeps_spaces() {
+    setup();
+    compare(
+        indoc! {"
+        para
+
+        ```
+         raw block
+        ```
+    "},
+        indoc! {"
+        para
+
+        ```
+
+         raw block
+
+        ```
+    "},
+    );
+}
+
+#[test]
+fn raw_in_a_list_item() {
+    setup();
+    compare(
+        indoc! {"
+        - list item
+          ``` markdown
+          raw block line 1
+
+          raw block line 2
+          ```
+    "},
+        indoc! {"
+        - list item
+
+          ``` markdown
+          raw block line 1
+
+          raw block line 2
+          ```
+    "},
+    );
+}
+
+#[test]
 fn multiple_headers() {
     setup();
     compare(
@@ -436,10 +483,53 @@ fn definitions_list() {
     );
 }
 
+#[test]
+fn normalization_ref_extension() {
+    compare_with_extensions(
+        indoc! {"
+        [text](text.md)
+        "},
+        indoc! {"
+        [text](text)
+        "},
+    );
+}
+
+#[test]
+fn normalization_ref_existing_extension() {
+    compare_with_extensions(
+        indoc! {"
+        [text](text.md)
+        "},
+        indoc! {"
+        [text](text.md)
+        "},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 
     let mut graph = Graph::new();
+
+    graph.from_markdown("key", denormalized, MarkdownReader::new());
+
+    let normalized = graph.to_markdown("key");
+
+    println!("actual graph \n{:#?}", graph);
+    println!("{}", expected);
+    println!("normalized:");
+    println!("{}", normalized);
+
+    assert_str_eq!(expected, normalized);
+}
+
+fn compare_with_extensions(expected: &str, denormalized: &str) {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+    });
 
     graph.from_markdown("key", denormalized, MarkdownReader::new());
 

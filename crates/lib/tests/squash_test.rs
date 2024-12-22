@@ -3,6 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use lib::{
     graph::{Graph, GraphContext},
+    model::graph::MarkdownOptions,
     state::new_form_indoc,
 };
 
@@ -275,7 +276,7 @@ fn squash_infinite_recursion() {
 fn squash(source: &str, expected: &str) {
     setup();
 
-    let graph = &Graph::import(new_form_indoc(source));
+    let graph = &Graph::import(&new_form_indoc(source), MarkdownOptions::default());
     let mut patch = Graph::new();
     patch.build_key_from_iter("1", graph.squash_vistior("1", 2));
 

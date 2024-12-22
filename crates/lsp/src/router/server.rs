@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::default;
 
 use itertools::Itertools;
+use lib::model::graph::MarkdownOptions;
 use lib::model::rank::node_rank;
 use lib::parser::Pos;
 use lsp_types::request::GotoDeclarationParams;
@@ -81,7 +82,11 @@ impl Server {
             base_path: BasePath {
                 base_path: format!("file://{}/", config.base_path),
             },
-            database: Database::new(config.state, config.sequential_ids.unwrap_or(false)),
+            database: Database::new(
+                config.state,
+                config.sequential_ids.unwrap_or(false),
+                config.markdown_options,
+            ),
         }
     }
     pub fn database(&self) -> impl DatabaseContext + '_ {

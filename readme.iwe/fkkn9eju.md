@@ -1,15 +1,15 @@
 # LSP features
 
-[Extract/Inline Notes](zfrmpfzh)
+[Extract/Inline Notes](zfrmpfzh.md)
 
-[Navigation](jj0l3mdy)
+[Navigation](jj0l3mdy.md)
 
-[Search](j4y8qbhk)
+[Search](j4y8qbhk.md)
 
-[Text structure normalization / formatting](1nghafjv)
+[Text structure normalization / formatting](1nghafjv.md)
 
-[Inlay hints](vronji5a)
+[Inlay hints](vronji5a.md)
 
-[Auto-complete](jtunwgh1)
+[Auto-complete](jtunwgh1.md)
 
-[Text manipulation](u7o9lo15)
+[Text manipulation](u7o9lo15.md)

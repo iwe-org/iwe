@@ -5,7 +5,7 @@ use itertools::Itertools;
 use pulldown_cmark::{CodeBlockKind, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
 
-use crate::model::document::{Attributes, BlockQuote, BulletList, CodeBlock, DocumentBlock, DocumentBlocks, DocumentInline, Emph, Header, HorizontalRule, Image, Link, Math, MathType, OrderedList, Para, Strikeout, Strong, Target};
+use crate::model::document::*;
 use crate::model::*;
 
 pub struct MarkdownEventsReader {
@@ -44,10 +44,15 @@ impl MarkdownEventsReader {
                     self.end_tag(tag, range);
                 }
                 Text(text) => match self.top_block() {
-                    DocumentBlock::CodeBlock(code_block) => code_block.text = text.to_string(),
+                    DocumentBlock::CodeBlock(code_block) => {
+                        code_block.text = format!("{}{}", code_block.text, text.to_string())
+                    }
                     DocumentBlock::RawBlock(block) => block.text = text.to_string(),
                     default => {
-                        self.push_inline(DocumentInline::Str(text.to_string()), self.to_line_ranges(range));
+                        self.push_inline(
+                            DocumentInline::Str(text.to_string()),
+                            self.to_line_ranges(range),
+                        );
                         self.pop_inline();
                     }
                 },
@@ -142,18 +147,22 @@ impl MarkdownEventsReader {
                 level: level as u8,
                 inlines: vec![],
             })),
-            Tag::BlockQuote(block_quote_kind) => self.push_block(DocumentBlock::BlockQuote(BlockQuote {
-                line_range: self.to_line_ranges(range),
-                blocks: Vec::new(),
-            })),
-            Tag::CodeBlock(code_block_kind) => self.push_block(DocumentBlock::CodeBlock(CodeBlock {
-                line_range: self.to_line_ranges(range),
-                lang: match code_block_kind {
-                    CodeBlockKind::Fenced(lang) => Some(lang.to_string()),
-                    CodeBlockKind::Indented => None,
-                },
-                text: "".to_string(),
-            })),
+            Tag::BlockQuote(block_quote_kind) => {
+                self.push_block(DocumentBlock::BlockQuote(BlockQuote {
+                    line_range: self.to_line_ranges(range),
+                    blocks: Vec::new(),
+                }))
+            }
+            Tag::CodeBlock(code_block_kind) => {
+                self.push_block(DocumentBlock::CodeBlock(CodeBlock {
+                    line_range: self.to_line_ranges(range),
+                    lang: match code_block_kind {
+                        CodeBlockKind::Fenced(lang) => Some(lang.to_string()),
+                        CodeBlockKind::Indented => None,
+                    },
+                    text: "".to_string(),
+                }))
+            }
             Tag::HtmlBlock => todo!(),
             Tag::List(num) => {
                 if num.is_some() {
@@ -303,7 +312,7 @@ mod tests {
     use indoc::indoc;
 
     use crate::markdown::reader::{line_starts, MarkdownEventsReader};
-    use crate::model::document::{BulletList, DocumentBlock, DocumentInline, Header, OrderedList, Para};
+    use crate::model::document::*;
 
     #[test]
     fn test_list_nested_item_positions() {

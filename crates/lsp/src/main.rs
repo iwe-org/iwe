@@ -3,6 +3,7 @@
 use std::env;
 use std::error::Error;
 
+use lib::model::graph::Settings;
 use lsp::main_loop;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
@@ -12,6 +13,9 @@ use lsp_types::ServerCapabilities;
 
 use lsp_server::Connection;
 use lsp_types::TextDocumentSyncCapability;
+
+const CONFIG_FILE_NAME: &str = "config.json";
+const IWE_MARKER: &str = ".iwe";
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     eprintln!("starting IWE LSP server");
@@ -60,7 +64,30 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         .to_string_lossy()
         .to_string();
 
-    main_loop(connection, initialization_params, base_path)?;
+    let mut iwe_marker_path = env::current_dir().expect("to get current dir");
+    iwe_marker_path.push(IWE_MARKER);
+
+    let mut config_path = env::current_dir().expect("to get current dir");
+    config_path.push(IWE_MARKER);
+    config_path.push(CONFIG_FILE_NAME);
+
+    if !iwe_marker_path.exists() {
+        eprintln!("Use `iwe init` command to initilize IWE at this location");
+    }
+
+    let settings = {
+        std::fs::read_to_string(config_path)
+            .ok()
+            .and_then(|content| serde_json::from_str::<Settings>(&content).ok())
+            .unwrap_or(Settings::default())
+    };
+
+    main_loop(
+        connection,
+        initialization_params,
+        base_path,
+        settings.markdown,
+    )?;
     io_threads.join()?;
 
     // Shut down gracefully.
