@@ -2,6 +2,7 @@
 
 use std::env;
 use std::fs::create_dir;
+use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 use itertools::Itertools;
@@ -124,25 +125,37 @@ fn squash_command(args: Squash) {
 }
 
 fn write_graph(graph: Graph) {
-    lib::fs::write_store_at_path(&graph.export(), &env::current_dir().unwrap())
+    lib::fs::write_store_at_path(&graph.export(), &get_library_path())
         .expect("Failed to write graph")
 }
 
 fn load_graph() -> Graph {
-    let settings = {
-        let mut path = env::current_dir().expect("to get current dir");
-        path.push(IWE_MARKER);
-        path.push(CONFIG_FILE_NAME);
-        std::fs::read_to_string(path)
-            .ok()
-            .and_then(|content| serde_json::from_str::<Settings>(&content).ok())
-            .unwrap_or(Settings::default())
-    };
+    Graph::import(&new_for_path(&get_library_path()), get_settings().markdown)
+}
 
-    Graph::import(
-        &new_for_path(&env::current_dir().expect("to get current dir")),
-        settings.markdown,
-    )
+fn get_library_path() -> PathBuf {
+    let current_dir = env::current_dir().expect("to get current dir");
+
+    let settings = get_settings();
+    let mut library_path = current_dir;
+
+    if !settings.library.path.is_empty() {
+        library_path.push(settings.library.path);
+    }
+
+    library_path
+}
+
+fn get_settings() -> Settings {
+    let current_dir = env::current_dir().expect("to get current dir");
+
+    let mut path = current_dir.clone();
+    path.push(IWE_MARKER);
+    path.push(CONFIG_FILE_NAME);
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<Settings>(&content).ok())
+        .unwrap_or(Settings::default())
 }
 
 fn render(path: &NodePath, context: impl GraphContext) -> String {

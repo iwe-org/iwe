@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_imports, unused_variables, deprecated)]
 use std::error::Error;
+use std::str::FromStr;
 use std::{env, path::PathBuf};
 
 use anyhow::Result;
@@ -31,7 +32,7 @@ pub fn main_loop(
         Router::new(
             connection.sender,
             ServerConfig {
-                base_path,
+                base_path: base_path.clone(),
                 state: new_form_indoc(state),
                 sequential_ids: Some(true),
                 markdown_options,
@@ -41,8 +42,8 @@ pub fn main_loop(
         Router::new(
             connection.sender,
             ServerConfig {
-                base_path,
-                state: new_for_path(&env::current_dir().expect("to get current dir")),
+                base_path: base_path.clone(),
+                state: new_for_path(&PathBuf::from_str(&base_path).expect("to work")),
                 sequential_ids: None,
                 markdown_options,
             },

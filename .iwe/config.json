@@ -1,0 +1,4 @@
+{ 
+  "markdown": { "refs_extension": ".md" },
+  "library": { "path": "readme.iwe" } 
+}
