@@ -1,5 +1,4 @@
 target
 .idea
-.iwe
 *.vsix
 .DS_Store

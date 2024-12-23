@@ -59,21 +59,18 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         }
     };
 
-    let base_path = env::current_dir()
-        .expect("to get current dir")
-        .to_string_lossy()
-        .to_string();
-
-    let mut iwe_marker_path = env::current_dir().expect("to get current dir");
+    let current_dir = env::current_dir().expect("to get current dir");
+    let mut iwe_marker_path = current_dir.clone();
     iwe_marker_path.push(IWE_MARKER);
 
-    let mut config_path = env::current_dir().expect("to get current dir");
+    if !iwe_marker_path.is_dir() {
+        eprintln!("Use `iwe init` command to initilize IWE at this location");
+        return Ok(());
+    }
+
+    let mut config_path = current_dir.clone();
     config_path.push(IWE_MARKER);
     config_path.push(CONFIG_FILE_NAME);
-
-    if !iwe_marker_path.exists() {
-        eprintln!("Use `iwe init` command to initilize IWE at this location");
-    }
 
     let settings = {
         std::fs::read_to_string(config_path)
@@ -82,10 +79,16 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             .unwrap_or(Settings::default())
     };
 
+    let mut library_path = current_dir.clone();
+
+    if !settings.library.path.is_empty() {
+        library_path.push(settings.library.path);
+    }
+
     main_loop(
         connection,
         initialization_params,
-        base_path,
+        library_path.to_string_lossy().to_string(),
         settings.markdown,
     )?;
     io_threads.join()?;

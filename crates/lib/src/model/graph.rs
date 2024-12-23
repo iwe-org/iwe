@@ -61,8 +61,14 @@ pub struct MarkdownOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+pub struct LibraryOptions {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
 pub struct Settings {
     pub markdown: MarkdownOptions,
+    pub library: LibraryOptions,
 }
 
 impl Block {

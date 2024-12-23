@@ -200,10 +200,13 @@ For instance:
 
 If you'd like to tweak anything, feel free to open a pull request or an issue.
 
-The only configuration option available lets you change the default extension for local links. For example:
+The only configuration options available lets you change the default extension for local links and the path where you want to keep the files (relative to current directory). For example:
 
 ``` json
-{"markdown":{"refs_extension":".md"}}
+{
+  "markdown":{"refs_extension":".md"}
+  "library":{"path":"readme.iwe"}
+}
 ```
 
 By default, the extension is omitted.

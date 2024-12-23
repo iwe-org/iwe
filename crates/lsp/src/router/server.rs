@@ -297,10 +297,6 @@ impl Server {
             extract_section_action(self.database.graph(), &self.base_path, params),
             extract_sub_sections_action(self.database.graph(), &self.base_path, params),
             extract_list_action(self.database.graph(), &self.base_path, params),
-            // ---
-            //extract_sub_sections::code_action(self.database.graph(), &self.base_path, params),
-            //extract_selection::code_action(self.database.graph(), &self.base_path, params),
-            //debug_code_action::code_action(self.database.graph(), &self.base_path, params),
         ]
         .into_iter()
         .flatten()
