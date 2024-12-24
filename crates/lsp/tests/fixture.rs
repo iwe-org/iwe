@@ -57,6 +57,9 @@ impl Fixture {
         Self::with("\n")
     }
     pub fn with(indoc: &str) -> Fixture {
+        Self::with_options(indoc, MarkdownOptions::default())
+    }
+    pub fn with_options(indoc: &str, markdown_options: MarkdownOptions) -> Fixture {
         let (connection, client) = Connection::memory();
 
         let content = indoc.to_string();
@@ -76,7 +79,7 @@ impl Fixture {
                     })
                     .unwrap(),
                     "/basepath".to_string(),
-                    MarkdownOptions::default(),
+                    markdown_options,
                 )
                 .unwrap()
             })

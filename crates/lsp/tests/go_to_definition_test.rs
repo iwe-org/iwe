@@ -1,4 +1,5 @@
 use indoc::indoc;
+use lib::model::graph::MarkdownOptions;
 use lsp_types::request::GotoDefinition;
 use lsp_types::{
     GotoDefinitionParams, GotoDefinitionResponse, Location, Position, Range,
@@ -36,6 +37,36 @@ fn definition() {
             [test](link)
 
             "});
+
+    fixture.go_to_definition(
+        GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: uri(1) },
+                position: Position::new(2, 0),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        },
+        GotoDefinitionResponse::Scalar(Location::new(
+            Url::parse("file:///basepath/link.md").unwrap(),
+            Range::default(),
+        )),
+    )
+}
+
+#[test]
+fn definition_with_md_extension() {
+    let fixture = Fixture::with_options(
+        indoc! {"
+            # test
+
+            [test](link.md)
+
+            "},
+        MarkdownOptions {
+            refs_extension: ".md".to_string(),
+        },
+    );
 
     fixture.go_to_definition(
         GotoDefinitionParams {

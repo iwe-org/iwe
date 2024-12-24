@@ -43,6 +43,7 @@ pub trait CodeActionContext: GraphContext + ServerContext + DatabaseContext {}
 pub struct Server {
     base_path: BasePath,
     database: Database,
+    refs_extension: String,
 }
 
 pub struct BasePath {
@@ -85,8 +86,9 @@ impl Server {
             database: Database::new(
                 config.state,
                 config.sequential_ids.unwrap_or(false),
-                config.markdown_options,
+                config.markdown_options.clone(),
             ),
+            refs_extension: config.markdown_options.refs_extension.clone(),
         }
     }
     pub fn database(&self) -> impl DatabaseContext + '_ {
@@ -162,7 +164,8 @@ impl Server {
         .and_then(|parser| parser.link_at(to_pos((&params).text_document_position_params.position)))
         .map(|link| {
             GotoDefinitionResponse::Scalar(Location::new(
-                self.base_path.key_to_url(&link),
+                self.base_path
+                    .key_to_url(&link.trim_end_matches(&self.refs_extension).to_string()),
                 Range::default(),
             ))
         })

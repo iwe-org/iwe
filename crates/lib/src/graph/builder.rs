@@ -1,5 +1,5 @@
-use crate::model::graph::{Node, Inline};
 use super::*;
+use crate::model::graph::{Inline, Node};
 
 pub struct GraphBuilder<'a> {
     id: NodeId,
@@ -313,17 +313,16 @@ impl<'a> GraphBuilder<'a> {
 mod test {
     use super::Graph;
     use crate::markdown::MarkdownReader;
+    use crate::model::graph::{Inline, Node};
     use indoc::indoc;
-    use crate::model::graph::{Node, Inline};
 
     #[test]
     pub fn add_new_node_leaf() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").add_new_node_and(
-                    Node::Leaf(vec![Inline::Str("item".to_string())]),
-                    |f| {},
-                )
+                graph
+                    .build_key("key")
+                    .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |f| {})
             }),
             indoc! {"
             item
