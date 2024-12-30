@@ -21,7 +21,7 @@ mod fixture;
 
 #[test]
 fn unwrap_single_item_list_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             - test
             "},
@@ -32,7 +32,7 @@ fn unwrap_single_item_list_test() {
 
 #[test]
 fn unwrap_list_with_items_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             - test
               - test2
@@ -48,7 +48,7 @@ fn unwrap_list_with_items_test() {
 
 #[test]
 fn unwrap_list_after_para_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             para
 
@@ -65,7 +65,7 @@ fn unwrap_list_after_para_test() {
 
 #[test]
 fn unwrap_list_between_para_and_para_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             para
 
@@ -86,7 +86,7 @@ fn unwrap_list_between_para_and_para_test() {
 
 #[test]
 fn unwrap_list_with_items_after_para_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             para
 
@@ -106,7 +106,7 @@ fn unwrap_list_with_items_after_para_test() {
 
 #[test]
 fn unwrap_sub_list_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             # test
 
@@ -123,7 +123,7 @@ fn unwrap_sub_list_test() {
 
 #[test]
 fn unwrap_middle_list_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             # test
 
@@ -144,7 +144,7 @@ fn unwrap_middle_list_test() {
 
 #[test]
 fn unwrap_list_prior_to_level_two_header_test() {
-    assert_extracted(
+    assert_sections(
         indoc! {"
             # test
 
@@ -163,7 +163,7 @@ fn unwrap_list_prior_to_level_two_header_test() {
     );
 }
 
-fn assert_extracted(source: &str, line: u32, expected: &str) {
+fn assert_sections(source: &str, line: u32, expected: &str) {
     let fixture = Fixture::with(source);
 
     fixture.code_action(

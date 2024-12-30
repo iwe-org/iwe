@@ -28,6 +28,16 @@ iwe [OPTIONS] <COMMAND>
 >
 > Make sure that you have a copy of you files before you perform bulk-action such as `iwe normalize`.
 
-#### Squash command
+### Normalize command
+
+This command will performs batch normalization of the entire library. Including:
+
+- Uprating link titles to the header of the linked document
+- Adjusting header levels to ensure tree structure
+- Updating the numbering of the ordered lists
+- Fixing newlines, indentations in Lists
+- etc.
+
+### Squash command
 
 IWE can "project" the graph into a single document by changing block-references into subsections (headers) and directly incorporating the block-references into the parent document.

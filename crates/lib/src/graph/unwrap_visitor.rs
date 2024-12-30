@@ -1,17 +1,15 @@
-use crate::model::NodeId;
+use super::{graph_node_visitor::GraphNodeVisitor, Graph, NodeIter};
 use crate::model::graph::Node;
-use super::{
-    graph_node_visitor::GraphNodeVisitor, Graph, NodeIter,
-};
+use crate::model::NodeId;
 
-pub struct UnnestVisitor<'a> {
+pub struct UnwrapVisitor<'a> {
     id: NodeId,
     target_id: NodeId,
     resume_id: Option<NodeId>,
     graph: &'a Graph,
 }
 
-impl<'a> UnnestVisitor<'a> {
+impl<'a> UnwrapVisitor<'a> {
     pub fn new(graph: &'a Graph, key: &str, target_id: NodeId) -> Self {
         let start_id = graph.visit_key(key).unwrap().id();
         Self {
@@ -43,10 +41,10 @@ impl<'a> UnnestVisitor<'a> {
     }
 }
 
-impl<'a> NodeIter<'a> for UnnestVisitor<'a> {
+impl<'a> NodeIter<'a> for UnwrapVisitor<'a> {
     fn next(&self) -> Option<impl NodeIter> {
         if self.next_is_target() {
-            return Some(UnnestVisitor {
+            return Some(Self {
                 id: self.current().to_child().expect("target has child").id(),
                 target_id: self.target_id,
                 resume_id: self.graph.graph_node(self.id).next_id(),
@@ -62,7 +60,7 @@ impl<'a> NodeIter<'a> for UnnestVisitor<'a> {
                 .resume_id
                 .and_then(|id| self.graph.visit_node(id).to_next())
                 .map(|next| next.id())
-                .map(|resume_next_id| UnnestVisitor {
+                .map(|resume_next_id| Self {
                     id: resume_next_id,
                     target_id: self.target_id,
                     resume_id: None,
@@ -70,20 +68,17 @@ impl<'a> NodeIter<'a> for UnnestVisitor<'a> {
                 });
         }
 
-        self.graph
-            .graph_node(self.id)
-            .next_id()
-            .map(|id| UnnestVisitor {
-                id,
-                target_id: self.target_id,
-                resume_id: self.resume_id,
-                graph: self.graph,
-            })
+        self.graph.graph_node(self.id).next_id().map(|id| Self {
+            id,
+            target_id: self.target_id,
+            resume_id: self.resume_id,
+            graph: self.graph,
+        })
     }
 
     fn child(&self) -> Option<impl NodeIter> {
         if self.child_is_target() {
-            return self.current().to_child().map(|child| UnnestVisitor {
+            return self.current().to_child().map(|child| Self {
                 id: child.id(),
                 target_id: self.target_id,
                 resume_id: Some(self.target_id),
@@ -91,15 +86,12 @@ impl<'a> NodeIter<'a> for UnnestVisitor<'a> {
             });
         }
 
-        self.graph
-            .graph_node(self.id)
-            .child_id()
-            .map(|id| UnnestVisitor {
-                id,
-                target_id: self.target_id,
-                resume_id: None,
-                graph: self.graph,
-            })
+        self.graph.graph_node(self.id).child_id().map(|id| Self {
+            id,
+            target_id: self.target_id,
+            resume_id: None,
+            graph: self.graph,
+        })
     }
 
     fn node(&self) -> Option<Node> {
