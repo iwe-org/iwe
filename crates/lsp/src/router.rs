@@ -6,12 +6,12 @@ use itertools::Itertools;
 use lib::model::graph::MarkdownOptions;
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
-use lsp_types::request::DocumentSymbolRequest;
+use lsp_types::request::{DocumentSymbolRequest, PrepareRenameRequest};
 use lsp_types::{
     CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyOutgoingCallsParams,
     CodeActionParams, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
     DocumentFormattingParams, DocumentSymbolParams, InlayHintParams, InlineValueParams,
-    ReferenceParams, WorkspaceSymbolParams,
+    ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -151,6 +151,15 @@ impl Router {
             "textDocument/references" => ReferenceParams::deserialize(request.params)
                 .map(|params| self.server.handle_references(params))
                 .map(|response| to_value(response).unwrap()),
+            "textDocument/prepareRename" => TextDocumentPositionParams::deserialize(request.params)
+                .map(|params| self.server.handle_prepare_rename(params))
+                .map(|response| to_value(response).unwrap()),
+            "textDocument/rename" => RenameParams::deserialize(request.params).map(|params| {
+                match self.server.handle_rename(params) {
+                    Ok(response) => to_value(response).unwrap(),
+                    Err(err) => to_value(err).unwrap(),
+                }
+            }),
             default => {
                 panic!("unhandled request: {}", default)
             }

@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Formatter},
 };
 
+use change_key_visitor::ChangeKeyVisitor;
 use change_list_type_visitor::ChangeListTypeVisitor;
 use extract_visitor::ExtractVisitor;
 use graph_line::Line;
@@ -37,6 +38,7 @@ use crate::model::{Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
 mod arena;
 pub mod builder;
+mod change_key_visitor;
 mod change_list_type_visitor;
 mod extract_visitor;
 mod graph_line;
@@ -407,6 +409,7 @@ impl InlinesContext for &Graph {
 }
 
 pub trait GraphContext: Copy {
+    fn change_key_visitor(&self, key: &str, target_key: &str, updated_key: &str) -> impl NodeIter;
     fn extract_vistior(&self, key: &str, keys: HashMap<NodeId, Key>) -> impl NodeIter;
     fn get_container_doucment_ref_text(&self, id: NodeId) -> String;
     fn get_container_key(&self, id: NodeId) -> Key;
@@ -452,6 +455,10 @@ impl GraphContext for &Graph {
             .expect("to have child")
             .id();
         InlineVisitor::new(self, id, inline_id)
+    }
+
+    fn change_key_visitor(&self, key: &str, target_key: &str, updated_key: &str) -> impl NodeIter {
+        ChangeKeyVisitor::new(self, key, target_key, updated_key)
     }
 
     fn squash_vistior(&self, key: &str, depth: u8) -> impl NodeIter {
