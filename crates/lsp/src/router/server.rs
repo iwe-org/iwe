@@ -18,6 +18,7 @@ use super::ServerConfig;
 use lib::database::Database;
 use lib::database::DatabaseContext;
 
+use change_list_type_action::change_list_type_action;
 use extract_list_action::extract_list_action;
 use extract_section_action::extract_section_action;
 use extract_selection_action::code_action;
@@ -28,6 +29,7 @@ use section_to_list_action::section_to_list_action;
 
 use self::extensions::*;
 
+mod change_list_type_action;
 mod debug_code_action;
 mod extensions;
 mod extract_list_action;
@@ -300,6 +302,7 @@ impl Server {
             extract_section_action(self.database.graph(), &self.base_path, params),
             extract_sub_sections_action(self.database.graph(), &self.base_path, params),
             extract_list_action(self.database.graph(), &self.base_path, params),
+            change_list_type_action(self.database.graph(), &self.base_path, params),
         ]
         .into_iter()
         .flatten()

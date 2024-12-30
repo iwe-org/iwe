@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Formatter},
 };
 
+use change_list_type_visitor::ChangeListTypeVisitor;
 use extract_visitor::ExtractVisitor;
 use graph_line::Line;
 use index::RefIndex;
@@ -25,7 +26,7 @@ use graph_node_visitor::GraphNodeVisitor;
 use itertools::Itertools;
 use path::{graph_to_paths, NodePath};
 use rayon::prelude::*;
-use unwrap_visitor::UnnestVisitor;
+use unwrap_visitor::UnwrapVisitor;
 use wrap_visitor::WrapVisitor;
 
 use crate::graph::graph_node::GraphNode;
@@ -36,6 +37,7 @@ use crate::model::{Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
 mod arena;
 pub mod builder;
+mod change_list_type_visitor;
 mod extract_visitor;
 mod graph_line;
 pub mod graph_node;
@@ -223,7 +225,10 @@ impl Graph {
     }
 
     pub fn get_document_id(&self, key: &str) -> NodeId {
-        *self.keys.get(key).expect("node to exists")
+        *self
+            .keys
+            .get(key)
+            .expect(format!("to have key, {}", key).as_str())
     }
 
     pub fn visit_node(&self, id: NodeId) -> GraphNodeVisitor {
@@ -287,6 +292,9 @@ impl Graph {
         let reader = MarkdownReader::new();
 
         let blocks = content
+            .iter()
+            .sorted_by(|a, b| a.0.cmp(&b.0))
+            .collect_vec()
             .par_iter()
             .map(|(k, v)| (without_extension(k).clone(), reader.blocks(v)))
             .collect::<Vec<_>>();
@@ -413,6 +421,8 @@ pub trait GraphContext: Copy {
     fn inline_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter;
     fn is_header(&self, id: NodeId) -> bool;
     fn is_list(&self, id: NodeId) -> bool;
+    fn is_ordered_list(&self, id: NodeId) -> bool;
+    fn is_bullet_list(&self, id: NodeId) -> bool;
     fn is_reference(&self, id: NodeId) -> bool;
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
     fn node_visitor(&self, id: NodeId) -> impl NodeIter;
@@ -420,6 +430,7 @@ pub trait GraphContext: Copy {
     fn random_key(&self) -> String;
     fn squash_vistior(&self, key: &str, depth: u8) -> impl NodeIter;
     fn unwrap_vistior(&self, key: &str, target_id: NodeId) -> impl NodeIter;
+    fn change_list_type_visiton(&self, key: &str, target_id: NodeId) -> impl NodeIter;
     fn visitor(&self, key: &str) -> impl NodeIter;
     fn wrap_vistior(&self, target_id: NodeId) -> impl NodeIter;
 }
@@ -477,7 +488,11 @@ impl GraphContext for &Graph {
     }
 
     fn unwrap_vistior(&self, key: &str, target_id: NodeId) -> impl NodeIter {
-        UnnestVisitor::new(self, key, target_id)
+        UnwrapVisitor::new(self, key, target_id)
+    }
+
+    fn change_list_type_visiton(&self, key: &str, target_id: NodeId) -> impl NodeIter {
+        ChangeListTypeVisitor::new(self, key, target_id)
     }
 
     fn get_node_id_at(&self, key: &str, line: LineNumber) -> Option<NodeId> {
@@ -550,6 +565,14 @@ impl GraphContext for &Graph {
 
     fn is_list(&self, id: NodeId) -> bool {
         self.visit_node(id).is_in_list()
+    }
+
+    fn is_ordered_list(&self, id: NodeId) -> bool {
+        self.visit_node(id).is_ordered_list()
+    }
+
+    fn is_bullet_list(&self, id: NodeId) -> bool {
+        self.visit_node(id).is_bullet_list()
     }
 
     fn get_surrounding_list_id(&self, id: NodeId) -> Option<NodeId> {

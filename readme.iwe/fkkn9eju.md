@@ -1,4 +1,4 @@
-# LSP features
+# Text editor extension features
 
 [Extract/Inline Notes](zfrmpfzh.md)
 
@@ -13,3 +13,5 @@
 [Auto-complete](jtunwgh1.md)
 
 [Text manipulation](u7o9lo15.md)
+
+[Header levels normalization](heg7cj9t.md)

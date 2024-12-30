@@ -4,23 +4,7 @@
 
 # About
 
-IWE is a tool that helps you organize your notes. It treats notes like an interconnected graph, where each document acts as a sub-tree and the links are the edges connecting them. It supports various operations designed to assist with navigating and restructuring the graph.
-
-- **[Block-reference](https://github.com/iwe-org/iwe/blob/master/readme.iwe/block-reference.md)** is a key concept and building block for the documents graph
-
-  In markdown, it's a paragraph that contains one link to a note. Like this:
-
-  ``` markdown
-  A paragraph...
-
-  [Block-reference](block-reference)
-
-  Another paragraph...
-  ```
-
-  IWE uses these block references as if they're embedded notes. This lets you create a complex, layered document structure without having to mess with directories or overly large markdown files as well as 'reuse' a note in multiple context's. ([transclusion](https://en.wikipedia.org/wiki/Transclusion))
-
-Once you have arranged your notes, IWE enables you to merge them into a single, cohesive document, streamlining the process of document creation. (see [readme.iwe/README](https://github.com/iwe-org/iwe/blob/master/readme.iwe/README.md) which is source for this file)
+IWE is a tool that helps you organize your markdown notes. It treats notes as an interconnected graph, where each document acts as a sub-tree and the links are the edges connecting them. It supports various operations designed to assist with navigating and restructuring the graph.
 
 The main focus of IWE is to help you to keep your notes organized. It works with the graph at the semantic level, understanding the **headers**, **lists** and **links** defined structure of the documents.
 
@@ -30,17 +14,24 @@ The main focus of IWE is to help you to keep your notes organized. It works with
 
 IWE functions in two modes:
 
-1.  **Editor Extension Mode** as LSP server
+1.  **Editor Extension Mode** (LSP server)
 
-    It connect to your editor enabling documents navigation, searching, links auto-completion  and much more
+    IWE integrates seamlessly with your editor, letting you navigate documents, search, auto-complete links, and a whole lot more, like:
+
+    - Searching through your notes
+    - Following markdown links
+    - Auto-completing links
+    - Extracting or inlining a sub-note
+    - Formatting the document and updating link titles
+    - Selecting backlinks (find links that reference the current document)
+    - Transforming lists into headers and vice versa
+    - Showing inlay hints with parent note references and link counts
 
 2.  **Command Line Utility Mode**
 
-    Allows you to bulk process thousands of documents in matter of a seconds
+    This tool lets you process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. You can also use the CLI mode to combine multiple files into one extended document.
 
-Thanks to robust underlying components, IWE can process thousands of files in just a second. It unpacks the files into in-memory graph structure to perform transformations and produced updated markdown back when needed.
-
-## LSP features
+## Text editor extension features
 
 ### Extract/Inline Notes
 
@@ -100,7 +91,71 @@ IWE can suggest links as you type.
 
 ### Text manipulation
 
-There is a LSP action to perform context aware transformation from list to headers and vice-verse
+IWE offers a range of actions to help you perform context-aware transformations on your notes. The actions can be called with "code actions" LSP menu of your editor. Some of the actions available are:
+
+- Transforming list to headers/section
+- Transforming subsequent of the same level to list
+- Changing list type (bullet/ordered)
+
+### Header levels normalization
+
+IWE interprets nested structure created by the headers. It understands the relationships between the header. For example:
+
+``` markdown
+# First header
+
+## Second header
+```
+
+`Second header` is sub-header of the first one. Markdown allows any headers structure. Including the cases where nesting cannot be interpreted. Like:
+
+``` markdown
+## First header
+
+# Second header
+```
+
+IWE atomically fixes header levels for enforce correct nesting.
+
+------------------------------------------------------------------------
+
+IWE can also normalize the headers structure dropping unnecessary hedaer-levels, For example:
+
+``` markdown
+# First header
+
+### Second header
+```
+
+Will be normalized into dropping unnecessary levels.
+
+``` markdown
+# First header
+
+## Second header
+```
+
+------------------------------------------------------------------------
+
+First header of the document/section determines zero-level. In this case it is set to level 3 so all subsequent headers are going to be adjusted to follow the starting point.
+
+``` markdown
+### First header
+
+## Second header
+
+### Third header
+```
+
+Will result in:
+
+``` markdown
+# First header
+
+# Second header
+
+# Third header
+```
 
 ## CLI features
 
@@ -132,9 +187,41 @@ iwe [OPTIONS] <COMMAND>
 >
 > Make sure that you have a copy of you files before you perform bulk-action such as `iwe normalize`.
 
-##### Squash command
+#### Normalize command
+
+This command will performs batch normalization of the entire library. Including:
+
+- Uprating link titles to the header of the linked document
+- Adjusting header levels to ensure tree structure
+- Updating the numbering of the ordered lists
+- Fixing newlines, indentations in Lists
+- etc.
+
+#### Squash command
 
 IWE can "project" the graph into a single document by changing block-references into subsections (headers) and directly incorporating the block-references into the parent document.
+
+## Nested documents
+
+IWE has some cool features, like its support for nested documents through block-references. This is a type of [transclusion](https://en.wikipedia.org/wiki/Transclusion), where a sub-document is seamlessly incorporated into a parent document. Transclusion lets you reuse the same content across various contexts, making your work more efficient and interconnected.
+
+With IWE, you can treat these block-references like embedded notes. This means you can build complex, layered document structures without having to deal with massive markdown files.
+
+- **[Block-reference](https://github.com/iwe-org/iwe/blob/master/readme.iwe/block-reference.md)** is a key building block for the documents graph
+
+  In markdown, it's a paragraph that contains one link to a note. Like this:
+
+  ``` markdown
+  A paragraph...
+
+  [Block-reference](block-reference)
+
+  Another paragraph...
+  ```
+
+After you've organized your notes, IWE lets you merge them into one cohesive document. It automatically adjusts the header levels of the embedded documents based on where they're referenced in the main document.
+
+See [readme.iwe/README](https://github.com/iwe-org/iwe/blob/master/readme.iwe/README.md) which is source for this file.
 
 ## How to install
 
