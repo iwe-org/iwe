@@ -16,16 +16,17 @@ IWE functions in two modes:
 
 1.  **Editor Extension Mode** (LSP server)
 
-    IWE integrates seamlessly with your editor, letting you navigate documents, search, auto-complete links, and a whole lot more, like:
+    IWE integrates seamlessly with your editor, helping you to:
 
-    - Searching through your notes
-    - Following markdown links
-    - Auto-completing links
-    - Extracting or inlining a sub-note
-    - Formatting the document and updating link titles
-    - Selecting backlinks (find links that reference the current document)
-    - Transforming lists into headers and vice versa
-    - Showing inlay hints with parent note references and link counts
+    - Search through your notes
+    - Navigate through markdown links
+    - Auto-complete links as you type
+    - Extract or inline sub-notes seamlessly
+    - Format the document and refresh link titles
+    - Rename files and automatically update all related links
+    - Select backlinks to find references to the current document
+    - Convert lists into headers and vice versa smoothly
+    - Display inlay hints with parent note references and link counts
 
 2.  **Command Line Utility Mode**
 
