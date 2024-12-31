@@ -9,6 +9,7 @@ use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
 use lsp_types::OneOf;
+use lsp_types::RenameOptions;
 use lsp_types::ServerCapabilities;
 
 use lsp_server::Connection;
@@ -34,9 +35,13 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         )),
         inlay_hint_provider: Some(OneOf::Left(true)),
         inline_value_provider: Some(OneOf::Left(true)),
+        rename_provider: Some(OneOf::Right(RenameOptions {
+            prepare_provider: Some(true),
+            work_done_progress_options: Default::default(),
+        })),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
             code_action_kinds: Some(vec![
-                // lsp_types::CodeActionKind::QUICKFIX,
+                lsp_types::CodeActionKind::QUICKFIX,
                 // lsp_types::CodeActionKind::REFACTOR,
                 lsp_types::CodeActionKind::REFACTOR_EXTRACT,
                 lsp_types::CodeActionKind::REFACTOR_INLINE,

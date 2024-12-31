@@ -2,6 +2,8 @@
 
 use std::{
     cell::{Cell, RefCell},
+    error::Error,
+    io::ErrorKind,
     time::Duration,
 };
 
@@ -9,7 +11,7 @@ use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
 use difference::Changeset;
 use lib::model::graph::MarkdownOptions;
-use lsp_server::{Connection, Message, Notification, Request};
+use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{
     notification::{DidChangeTextDocument, Exit},
     request::{
@@ -18,7 +20,8 @@ use lsp_types::{
     },
     CodeAction, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
     DidChangeTextDocumentParams, DocumentFormattingParams, GotoDefinitionParams,
-    GotoDefinitionResponse, InlayHint, InlayHintParams, Location, ReferenceParams, TextEdit, Url,
+    GotoDefinitionResponse, InlayHint, InlayHintParams, Location, PrepareRenameResponse,
+    ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
     WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use serde::{Deserialize, Serialize};
@@ -50,6 +53,10 @@ pub struct ServerStatusParams {
 
 pub fn uri(number: u32) -> Url {
     Url::from_file_path(format!("/basepath/{}.md", number)).unwrap()
+}
+
+pub fn uri_from(key: &str) -> Url {
+    Url::from_file_path(format!("/basepath/{}.md", key)).unwrap()
 }
 
 impl Fixture {
@@ -143,6 +150,49 @@ impl Fixture {
 
     pub fn format_doucment(&self, params: DocumentFormattingParams, expected: Vec<TextEdit>) {
         self.assert_response::<Formatting>(params, Some(expected));
+    }
+
+    pub fn rename(&self, params: RenameParams, expected: WorkspaceEdit) {
+        let id = self.req_id.get();
+        self.req_id.set(id.wrapping_add(1));
+
+        let actual = self.send_request_(Request::new(
+            id.into(),
+            "textDocument/rename".to_string(),
+            params,
+        ));
+
+        assert_json_eq!(&expected, &actual);
+    }
+
+    pub fn rename_err(&self, params: RenameParams, expected: ResponseError) {
+        let id = self.req_id.get();
+        self.req_id.set(id.wrapping_add(1));
+
+        let actual = self.send_request_(Request::new(
+            id.into(),
+            "textDocument/rename".to_string(),
+            params,
+        ));
+
+        assert_json_eq!(&expected, &actual);
+    }
+
+    pub fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+        expected: PrepareRenameResponse,
+    ) {
+        let id = self.req_id.get();
+        self.req_id.set(id.wrapping_add(1));
+
+        let actual = self.send_request_(Request::new(
+            id.into(),
+            "textDocument/prepareRename".to_string(),
+            params,
+        ));
+
+        assert_json_eq!(&expected, &actual);
     }
 
     pub fn references(&self, params: ReferenceParams, expected: Vec<Location>) {

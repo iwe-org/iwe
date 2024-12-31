@@ -15,3 +15,5 @@
 [Text manipulation](u7o9lo15.md)
 
 [Header levels normalization](heg7cj9t.md)
+
+[Renaming files](rp4tn4hg.md)

@@ -40,7 +40,12 @@ impl Parser {
     pub fn link_at(&self, pos: Pos) -> Option<Key> {
         if let Some(node) = self.in_position(pos) {
             if let Node::Link(link) = node {
-                return Some(link.url.clone());
+                return Some(
+                    link.url
+                        .strip_suffix(".md")
+                        .unwrap_or(&link.url)
+                        .to_string(),
+                );
             }
         }
         None

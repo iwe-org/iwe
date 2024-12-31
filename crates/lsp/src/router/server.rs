@@ -1,18 +1,21 @@
 use std::cmp::Ordering;
-use std::default;
+use std::{default, path};
 
 use itertools::Itertools;
-use lib::model::graph::MarkdownOptions;
+use lib::model::document::Para;
+use lib::model::graph::{self, MarkdownOptions};
 use lib::model::rank::node_rank;
 use lib::parser::Pos;
+use lsp_server::ResponseError;
 use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
-use lib::graph::{Graph, GraphContext};
+use lib::graph::{Graph, GraphContext, NodeIter};
 use lib::model::Content;
 use lib::{key, model::Key};
 
 use lib::parser::Parser;
+use request::PrepareRenameRequest;
 
 use super::ServerConfig;
 use lib::database::Database;
@@ -246,6 +249,102 @@ impl Server {
             .filter(|p| p.ids().len() < 4)
             .map(|p| p.to_nested_symbol(self.database.graph(), &self.base_path))
             .collect_vec()
+    }
+
+    pub fn handle_prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Option<PrepareRenameResponse> {
+        self.parser(&params.text_document.uri.to_key(&self.base_path))
+            .and_then(|parser| parser.link_at(to_pos(params.position)))
+            .map(|key| PrepareRenameResponse::DefaultBehavior {
+                default_behavior: true,
+            })
+    }
+
+    pub fn handle_rename(
+        &self,
+        params: RenameParams,
+    ) -> Result<Option<WorkspaceEdit>, ResponseError> {
+        if self.database.graph().visit_key(&params.new_name).is_some() {
+            return Result::Err(ResponseError {
+                code: 1,
+                message: format!("The file name {} is already taken", params.new_name),
+                data: None,
+            });
+        }
+
+        Result::Ok(
+            self.parser(
+                &params
+                    .text_document_position
+                    .text_document
+                    .uri
+                    .to_key(&self.base_path),
+            )
+            .and_then(|parser| parser.link_at(to_pos(params.text_document_position.position)))
+            .map(|key| {
+                let affected_keys = self
+                    .database
+                    .graph()
+                    .get_block_references_to(&key)
+                    .into_iter()
+                    .chain(self.database.graph().get_inline_references_to(&key))
+                    .flat_map(|node_id| self.database.graph().visit_node(node_id).to_document())
+                    .flat_map(|doc| doc.key())
+                    .filter(|k| k != &key)
+                    .unique()
+                    .sorted()
+                    .collect_vec();
+
+                let mut patch = Graph::new();
+                patch.build_key(&params.new_name).insert_from_iter(
+                    self.database
+                        .graph()
+                        .change_key_visitor(&key, &key, &params.new_name)
+                        .child()
+                        .unwrap(),
+                );
+
+                affected_keys.iter().for_each(|affected_key| {
+                    patch.build_key(&affected_key).insert_from_iter(
+                        self.database
+                            .graph()
+                            .change_key_visitor(&affected_key, &key, &params.new_name)
+                            .child()
+                            .unwrap(),
+                    );
+                });
+
+                let document_changes = affected_keys
+                    .into_iter()
+                    .map(|affected_key| {
+                        self.base_path
+                            .key_to_url(&affected_key)
+                            .to_override_file_op(
+                                &self.base_path,
+                                patch.export_key(&affected_key).expect("to have key"),
+                            )
+                    })
+                    .chain(vec![key
+                        .clone()
+                        .to_url(&self.base_path)
+                        .to_delete_file_op()])
+                    .chain(vec![{
+                        params.new_name.to_url(&self.base_path).to_override_file_op(
+                            &self.base_path,
+                            patch.export_key(&params.new_name).expect("to have key"),
+                        )
+                    }])
+                    .collect();
+
+                WorkspaceEdit {
+                    changes: None,
+                    document_changes: Some(DocumentChanges::Operations(document_changes)),
+                    change_annotations: None,
+                }
+            }),
+        )
     }
 
     pub fn handle_references(&self, params: ReferenceParams) -> Vec<Location> {

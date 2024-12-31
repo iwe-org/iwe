@@ -314,6 +314,67 @@ impl Inline {
         }
     }
 
+    pub fn change_key(
+        &self,
+        target_key: &str,
+        updated_key: &str,
+        context: impl InlinesContext,
+    ) -> Inline {
+        match self {
+            Inline::Emph(emph) => Inline::Emph(
+                emph.iter()
+                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .collect(),
+            ),
+
+            Inline::Strong(emph) => Inline::Strong(
+                emph.iter()
+                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .collect(),
+            ),
+            Inline::Underline(emph) => Inline::Underline(
+                emph.iter()
+                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .collect(),
+            ),
+
+            Inline::Strikeout(emph) => Inline::Strikeout(
+                emph.iter()
+                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .collect(),
+            ),
+            Inline::Superscript(emph) => Inline::Superscript(
+                emph.iter()
+                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .collect(),
+            ),
+            Inline::Subscript(emph) => Inline::Subscript(
+                emph.iter()
+                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .collect(),
+            ),
+            Inline::SmallCaps(emph) => Inline::SmallCaps(
+                emph.iter()
+                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .collect(),
+            ),
+            Inline::Link(key, title, inlines) => {
+                if self.is_ref() && self.ref_key().map_or(false, |key| key.eq(target_key)) {
+                    return Inline::Link(
+                        updated_key.to_string(),
+                        context
+                            .get_ref_title(target_key.to_string())
+                            .unwrap_or(title.clone()),
+                        vec![],
+                    );
+                }
+
+                return self.clone();
+            }
+            default => self.clone(),
+        }
+    }
+
     fn is_ref(&self) -> bool {
         match self {
             Inline::Link(url, title, inlines) => model::is_ref_url(url),

@@ -95,7 +95,9 @@ fn init_command(init: Init) {
         return;
     }
     create_dir(&path).expect("to create .iwe directory");
-    let json = serde_json::to_string(&Settings::default()).expect("Serialization failed");
+
+    let json = serde_json::to_string(&default_settings()).unwrap();
+
     std::fs::write(path.join(CONFIG_FILE_NAME), json).expect("Failed to write to config.json");
     eprintln!("IWE initialized in the current location. Default config added to .iwe/config.json");
 }
@@ -165,4 +167,10 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(id.clone()).trim().to_string())
         .collect_vec()
         .join(" • ")
+}
+
+fn default_settings() -> Settings {
+    let mut settings = Settings::default();
+    settings.markdown.refs_extension = ".md".to_string();
+    settings
 }
