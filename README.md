@@ -297,7 +297,7 @@ Then run:
 hx --health markdown
 ```
 
-To see configuraed language servers.
+To see configured language servers.
 
 #### Visual Studio Code
 
