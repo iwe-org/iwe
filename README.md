@@ -277,6 +277,28 @@ And create `.iwe` directory as a marker in you notes root directory.
 
 It works best with [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim/tree/main)
 
+#### Helix integration
+
+Make sure you have the `iwes` binary in your path, then add to your `languages.toml` (usually in `~/.config/helix`, create file if needed):
+
+``` toml
+[language-server.iwe]
+command = "iwes"
+
+[[language]]
+name = "markdown"
+language-servers = [ "iwe" ] # you might want more LSP's in here
+auto-format = true # optional, enable format-on-save
+```
+
+Then run:
+
+``` sh
+hx --health markdown
+```
+
+To see configured language servers.
+
 #### Visual Studio Code
 
 Contributors are welcome.
