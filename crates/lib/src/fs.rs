@@ -6,7 +6,7 @@ use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::*;
 
 use crate::file::File;
-use crate::model::{Content, Document, Key, State};
+use crate::model::{Content, Key, State};
 
 pub fn write_file(key: &Key, content: &Content, to: &PathBuf) -> std::io::Result<()> {
     fs::write(to.clone().join(key.as_str()), content.as_str())
@@ -25,7 +25,7 @@ pub fn new_for_path(path: &PathBuf) -> State {
         .collect::<Vec<PathBuf>>()
         .par_iter()
         .flat_map(|path| read_file(path))
-        .collect::<Vec<Document>>()
+        .collect::<Vec<(Key, Content)>>()
         .into_iter()
         .collect();
 
@@ -39,7 +39,7 @@ pub fn write_store_at_path(store: &State, to: &PathBuf) -> std::io::Result<()> {
     Ok(())
 }
 
-fn read_file(path: &PathBuf) -> Option<Document> {
+fn read_file(path: &PathBuf) -> Option<(Key, Content)> {
     if !path.is_file() {
         return None;
     }

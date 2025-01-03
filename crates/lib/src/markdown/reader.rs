@@ -51,7 +51,7 @@ impl MarkdownEventsReader {
                     default => {
                         self.push_inline(
                             DocumentInline::Str(text.to_string()),
-                            self.to_line_ranges(range),
+                            self.to_line_range(range),
                         );
                         self.pop_inline();
                     }
@@ -61,8 +61,9 @@ impl MarkdownEventsReader {
                         DocumentInline::Code(document::Code {
                             attr: Attributes::default(),
                             text: text.to_string(),
+                            inline_range: self.to_inline_range(range.clone()),
                         }),
-                        self.to_line_ranges(range),
+                        self.to_line_range(range),
                     );
                     self.pop_inline();
                 }
@@ -71,8 +72,9 @@ impl MarkdownEventsReader {
                         DocumentInline::Math(Math {
                             math_type: MathType::InlineMath,
                             content: cow_str.to_string(),
+                            inline_range: self.to_inline_range(range.clone()),
                         }),
-                        self.to_line_ranges(range),
+                        self.to_line_range(range),
                     );
                     self.pop_inline();
                 }
@@ -84,7 +86,7 @@ impl MarkdownEventsReader {
                 HardBreak => {}
                 Rule => {
                     self.push_block(DocumentBlock::HorizontalRule(HorizontalRule {
-                        line_range: self.to_line_ranges(range),
+                        line_range: self.to_line_range(range),
                     }));
                     self.pop_block();
                 }
@@ -133,7 +135,7 @@ impl MarkdownEventsReader {
         match tag {
             Tag::Paragraph => {
                 self.push_block(DocumentBlock::Para(Para {
-                    line_range: self.to_line_ranges(range),
+                    line_range: self.to_line_range(range),
                     inlines: vec![],
                 }));
             }
@@ -143,19 +145,19 @@ impl MarkdownEventsReader {
                 classes,
                 attrs,
             } => self.push_block(DocumentBlock::Header(Header {
-                line_range: self.to_line_ranges(range),
+                line_range: self.to_line_range(range),
                 level: level as u8,
                 inlines: vec![],
             })),
             Tag::BlockQuote(block_quote_kind) => {
                 self.push_block(DocumentBlock::BlockQuote(BlockQuote {
-                    line_range: self.to_line_ranges(range),
+                    line_range: self.to_line_range(range),
                     blocks: Vec::new(),
                 }))
             }
             Tag::CodeBlock(code_block_kind) => {
                 self.push_block(DocumentBlock::CodeBlock(CodeBlock {
-                    line_range: self.to_line_ranges(range),
+                    line_range: self.to_line_range(range),
                     lang: match code_block_kind {
                         CodeBlockKind::Fenced(lang) => Some(lang.to_string()),
                         CodeBlockKind::Indented => None,
@@ -184,20 +186,29 @@ impl MarkdownEventsReader {
             Tag::TableCell => todo!(),
             Tag::Emphasis => {
                 self.push_inline(
-                    DocumentInline::Emph(Emph { inlines: vec![] }),
-                    self.to_line_ranges(range),
+                    DocumentInline::Emph(Emph {
+                        inlines: vec![],
+                        inline_range: self.to_inline_range(range.clone()),
+                    }),
+                    self.to_line_range(range),
                 );
             }
             Tag::Strong => {
                 self.push_inline(
-                    DocumentInline::Strong(Strong { inlines: vec![] }),
-                    self.to_line_ranges(range),
+                    DocumentInline::Strong(Strong {
+                        inlines: vec![],
+                        inline_range: self.to_inline_range(range.clone()),
+                    }),
+                    self.to_line_range(range),
                 );
             }
             Tag::Strikethrough => {
                 self.push_inline(
-                    DocumentInline::Strikeout(Strikeout { inlines: vec![] }),
-                    self.to_line_ranges(range),
+                    DocumentInline::Strikeout(Strikeout {
+                        inlines: vec![],
+                        inline_range: self.to_inline_range(range.clone()),
+                    }),
+                    self.to_line_range(range),
                 );
             }
             Tag::Link {
@@ -214,8 +225,9 @@ impl MarkdownEventsReader {
                             title: title.to_string(),
                         },
                         attr: Default::default(),
+                        inline_range: self.to_inline_range(range.clone()),
                     }),
-                    self.to_line_ranges(range),
+                    self.to_line_range(range),
                 );
             }
             Tag::Image {
@@ -232,8 +244,9 @@ impl MarkdownEventsReader {
                             title: title.to_string(),
                         },
                         attr: Default::default(),
+                        inline_range: self.to_inline_range(range.clone()),
                     }),
-                    self.to_line_ranges(range),
+                    self.to_line_range(range),
                 );
             }
             Tag::MetadataBlock(metadata_block_kind) => todo!(),
@@ -272,7 +285,33 @@ impl MarkdownEventsReader {
         }
     }
 
-    fn to_line_ranges(&self, range: Range<usize>) -> LineRange {
+    fn to_inline_range(&self, range: Range<usize>) -> InlineRange {
+        let mut start = 0;
+        let mut start_char = 0;
+        let mut end = 0;
+        let mut end_char = 0;
+
+        for (line, &line_start) in self.line_starts.iter().enumerate() {
+            if line_start <= range.start {
+                start = line;
+                start_char = range.start - line_start;
+            }
+            if line_start <= range.end {
+                end = line;
+                end_char = range.end - line_start;
+            }
+        }
+
+        Position {
+            line: start,
+            character: start_char,
+        }..Position {
+            line: end,
+            character: end_char,
+        }
+    }
+
+    fn to_line_range(&self, range: Range<usize>) -> LineRange {
         let mut start = 0;
         let mut end = 0;
 
@@ -311,8 +350,91 @@ fn line_starts(content: &str) -> Vec<usize> {
 mod tests {
     use indoc::indoc;
 
+    use crate::graph::graph_node::Document;
     use crate::markdown::reader::{line_starts, MarkdownEventsReader};
-    use crate::model::document::*;
+    use crate::model::{document::*, InlineRange, Position};
+
+    #[test]
+    fn test_link_positions() {
+        let content = indoc! {"
+        [link](to)
+        "};
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let expected = vec![DocumentBlock::Para(Para {
+            line_range: 0..1,
+            inlines: vec![DocumentInline::Link(Link {
+                inlines: vec![DocumentInline::Str("link".to_string())],
+                target: Target {
+                    url: "to".to_string(),
+                    title: "".to_string(),
+                },
+                attr: Default::default(),
+                inline_range: InlineRange {
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 10,
+                    },
+                },
+            })],
+        })];
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_link_position_inside_text() {
+        let content = indoc! {"
+            para
+
+            text [link](to) text
+
+            para
+            "};
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let expected = vec![
+            DocumentBlock::Para(Para {
+                line_range: 0..1,
+                inlines: vec![DocumentInline::Str("para".to_string())],
+            }),
+            DocumentBlock::Para(Para {
+                line_range: 2..3,
+                inlines: vec![
+                    DocumentInline::Str("text ".to_string()),
+                    DocumentInline::Link(Link {
+                        inlines: vec![DocumentInline::Str("link".to_string())],
+                        target: Target {
+                            url: "to".to_string(),
+                            title: "".to_string(),
+                        },
+                        attr: Default::default(),
+                        inline_range: InlineRange {
+                            start: Position {
+                                line: 2,
+                                character: 5,
+                            },
+                            end: Position {
+                                line: 2,
+                                character: 15,
+                            },
+                        },
+                    }),
+                    DocumentInline::Str(" text".to_string()),
+                ],
+            }),
+            DocumentBlock::Para(Para {
+                line_range: 4..5,
+                inlines: vec![DocumentInline::Str("para".to_string())],
+            }),
+        ];
+
+        assert_eq!(expected, actual);
+    }
 
     #[test]
     fn test_list_nested_item_positions() {

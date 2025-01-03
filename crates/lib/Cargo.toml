@@ -25,5 +25,4 @@ log.workspace = true
 futures.workspace = true
 rayon.workspace = true
 rand.workspace = true
-markdown.workspace = true
 pulldown-cmark.workspace = true

@@ -37,7 +37,7 @@ pub fn extract_section_action(
     let new_key = context.random_key();
     let new_url = new_key.to_url(base_path);
 
-    let mut patch = Graph::new();
+    let mut patch = context.patch();
 
     // create new version of the original key where section is replaced with ref
     patch.build_key_and(&key, |doc| {

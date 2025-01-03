@@ -7,7 +7,6 @@ pub type Key = String;
 pub type MaybeKey = Option<Key>;
 
 pub type Content = String;
-pub type Document = (Key, Content);
 pub type State = HashMap<Key, Content>;
 
 pub type NodeId = u64;
@@ -23,6 +22,24 @@ type MaybeString = Option<String>;
 
 pub type LineNumber = usize;
 pub type LineRange = Range<LineNumber>;
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Default, Hash)]
+pub struct Position {
+    pub line: usize,
+    pub character: usize,
+}
+
+impl From<(usize, usize)> for Position {
+    fn from(value: (usize, usize)) -> Self {
+        Position {
+            line: value.0,
+            character: value.1,
+        }
+    }
+}
+
+pub type InlineRange = Range<Position>;
+
 pub type NodesMap = Vec<(NodeId, LineRange)>;
 pub type DocumentNodesMap = (Key, NodesMap);
 

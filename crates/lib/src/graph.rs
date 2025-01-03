@@ -18,7 +18,7 @@ use squash_visitor::SquashVisitor;
 use crate::{
     key::{with_extension, without_extension},
     markdown::MarkdownReader,
-    model::graph::MarkdownOptions,
+    model::{document::Document, graph::MarkdownOptions},
 };
 use arena::Arena;
 use builder::GraphBuilder;
@@ -75,7 +75,7 @@ pub trait NodeIter<'a> {
 }
 
 pub trait Reader {
-    fn blocks<'a>(&self, content: &str) -> DocumentBlocks;
+    fn document<'a>(&self, content: &str) -> Document;
 }
 
 pub trait Converter {}
@@ -83,6 +83,13 @@ pub trait Converter {}
 impl Graph {
     pub fn new() -> Graph {
         Graph {
+            ..Default::default()
+        }
+    }
+
+    pub fn new_patch(&self) -> Graph {
+        Graph {
+            markdown_options: self.markdown_options.clone(),
             ..Default::default()
         }
     }
@@ -240,7 +247,7 @@ impl Graph {
     pub fn from_markdown(&mut self, key: &str, content: &str, reader: impl Reader) {
         let mut build_key = self.build_key(key);
         let id = build_key.id();
-        let blocks = reader.blocks(content);
+        let blocks = reader.document(content).blocks;
         let nodes_map = SectionsBuilder::new(&mut build_key, &blocks).nodes_map();
 
         self.nodes_map.insert(key.to_string(), nodes_map.clone());
@@ -298,7 +305,7 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| (without_extension(k).clone(), reader.blocks(v)))
+            .map(|(k, v)| (without_extension(k).clone(), reader.document(v).blocks))
             .collect::<Vec<_>>();
 
         for (key, block_vec) in blocks {
@@ -436,9 +443,14 @@ pub trait GraphContext: Copy {
     fn change_list_type_visiton(&self, key: &str, target_id: NodeId) -> impl NodeIter;
     fn visitor(&self, key: &str) -> impl NodeIter;
     fn wrap_vistior(&self, target_id: NodeId) -> impl NodeIter;
+    fn patch(&self) -> Graph;
 }
 
 impl GraphContext for &Graph {
+    fn patch(&self) -> Graph {
+        self.new_patch()
+    }
+
     fn node_visitor(&self, id: NodeId) -> impl NodeIter {
         NodeVisitor::new(self, id)
     }

@@ -1,4 +1,5 @@
 use crate::graph::Graph;
+use crate::markdown::MarkdownReader;
 use crate::model::graph::MarkdownOptions;
 use crate::model::{Content, Key, State};
 
@@ -23,7 +24,9 @@ impl DatabaseContext for &Database {
             panic!("Key should not end with .md")
         }
 
-        self.content.get(key).map(|content| Parser::new(&content))
+        self.content
+            .get(key)
+            .map(|content| Parser::new(&content, MarkdownReader::new()))
     }
 }
 

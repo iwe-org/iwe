@@ -1,7 +1,16 @@
+use std::default;
+
 use crate::key::without_extension;
 use crate::model;
 use crate::model::graph::Inline;
 use crate::model::{Key, Lang, LineRange};
+
+use super::graph::to_node_inlines;
+use super::{InlineRange, Position};
+
+pub struct Document {
+    pub blocks: DocumentBlocks,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DocumentBlock {
@@ -40,6 +49,25 @@ pub enum DocumentInline {
     Subscript(Subscript),
     Superscript(Superscript),
     Underline(Underline),
+}
+
+impl Document {
+    pub fn new(blocks: DocumentBlocks) -> Document {
+        Document { blocks }
+    }
+
+    pub fn link_at(&self, position: Position) -> Option<DocumentInline> {
+        self.block_at_positon(position)
+            .into_iter()
+            .flat_map(|block| block.child_inlines())
+            .find_map(|inline| inline.link_at_positon(position))
+    }
+
+    fn block_at_positon(&self, position: Position) -> Option<DocumentBlock> {
+        self.blocks
+            .iter()
+            .find_map(|block| block.block_at_positon(position))
+    }
 }
 
 impl DocumentBlock {
@@ -157,6 +185,65 @@ impl DocumentBlock {
             DocumentBlock::Header(header) => header.inlines.push(inline),
             DocumentBlock::HorizontalRule(_) => {}
             DocumentBlock::Div(div) => {}
+        }
+    }
+
+    pub fn line_range(&self) -> LineRange {
+        match self {
+            DocumentBlock::Plain(plain) => plain.line_range.clone(),
+            DocumentBlock::Para(para) => para.line_range.clone(),
+            DocumentBlock::LineBlock(line_block) => line_block.line_range.clone(),
+            DocumentBlock::CodeBlock(code) => code.line_range.clone(),
+            DocumentBlock::RawBlock(raw) => raw.line_range.clone(),
+            DocumentBlock::BlockQuote(quote) => quote.line_range.clone(),
+            DocumentBlock::OrderedList(list) => {
+                list.items.first().unwrap().first().unwrap().line_range()
+            }
+            DocumentBlock::BulletList(list) => {
+                list.items.first().unwrap().first().unwrap().line_range()
+            }
+            DocumentBlock::DefinitionList(definition_list) => definition_list.line_range.clone(),
+            DocumentBlock::Header(header) => header.line_range.clone(),
+            DocumentBlock::HorizontalRule(hr) => hr.line_range.clone(),
+            DocumentBlock::Div(div) => div.line_range.clone(),
+        }
+    }
+
+    fn child_blocks(&self) -> Vec<&DocumentBlock> {
+        match self {
+            DocumentBlock::Plain(_) => vec![],
+            DocumentBlock::Para(_) => vec![],
+            DocumentBlock::LineBlock(line_block) => vec![],
+            DocumentBlock::CodeBlock(_) => vec![],
+            DocumentBlock::RawBlock(_) => vec![],
+            DocumentBlock::BlockQuote(quote) => quote.blocks.iter().collect(),
+            DocumentBlock::OrderedList(list) => list.items.iter().flat_map(|i| i).collect(),
+            DocumentBlock::BulletList(list) => list.items.iter().flat_map(|i| i).collect(),
+            DocumentBlock::DefinitionList(definition_list) => vec![],
+            DocumentBlock::Header(_) => vec![],
+            DocumentBlock::HorizontalRule(_) => vec![],
+            DocumentBlock::Div(div) => div.blocks.iter().collect(),
+        }
+    }
+
+    fn block_at_positon(&self, position: Position) -> Option<DocumentBlock> {
+        if self.line_range().contains(&position.line) && self.child_blocks().is_empty() {
+            return Some(self.clone());
+        }
+        for child in self.child_blocks() {
+            if child.line_range().contains(&position.line) {
+                return child.block_at_positon(position);
+            }
+        }
+        None
+    }
+
+    pub fn child_inlines(&self) -> Vec<DocumentInline> {
+        match self {
+            DocumentBlock::Plain(plain) => plain.inlines.clone(),
+            DocumentBlock::Para(para) => para.inlines.clone(),
+            DocumentBlock::Header(header) => header.inlines.clone(),
+            default => vec![],
         }
     }
 }
@@ -347,7 +434,7 @@ impl DocumentInline {
         vec![DocumentInline::Str(s.to_string())]
     }
 
-    fn child_inlines(&self) -> Vec<&DocumentInline> {
+    pub fn child_inlines(&self) -> Vec<&DocumentInline> {
         match self {
             DocumentInline::Cite(cite) => cite.inlines.iter().collect(),
             DocumentInline::Code(_) => vec![],
@@ -385,11 +472,81 @@ impl DocumentInline {
         }
     }
 
-    fn ref_key(&self) -> Option<String> {
+    pub fn ref_key(&self) -> Option<String> {
         match self {
             DocumentInline::Link(link) => Some(without_extension(&link.target.url)),
             _ => None,
         }
+    }
+
+    pub fn key_range(&self) -> Option<InlineRange> {
+        match self {
+            DocumentInline::Link(link) => {
+                Some(InlineRange {
+                    start: Position {
+                        line: link.inline_range.start.line,
+                        // Exclude title and parentheses from the range
+                        character: link.inline_range.start.character
+                            + self.to_node_inline().to_plain_text().len()
+                            + 3,
+                    },
+                    end: Position {
+                        line: link.inline_range.end.line,
+                        // Exclude title and parentheses from the range
+                        character: link.inline_range.end.character - 1,
+                    },
+                })
+            }
+            _ => None,
+        }
+    }
+
+    pub fn inline_range(&self) -> InlineRange {
+        match self {
+            DocumentInline::Cite(cite) => cite.inline_range.clone(),
+            DocumentInline::Code(code) => code.inline_range.clone(),
+            DocumentInline::Emph(emph) => emph.inline_range.clone(),
+            DocumentInline::Image(image) => image.inline_range.clone(),
+            DocumentInline::LineBreak(line_break) => line_break.inline_range.clone(),
+            DocumentInline::Link(link) => link.inline_range.clone(),
+            DocumentInline::Math(math) => math.inline_range.clone(),
+            DocumentInline::Quoted(quoted) => quoted.inline_range.clone(),
+            DocumentInline::RawInline(raw_inline) => raw_inline.inline_range.clone(),
+            DocumentInline::SmallCaps(small_caps) => small_caps.inline_range.clone(),
+            DocumentInline::SoftBreak(soft_break) => soft_break.inline_range.clone(),
+            DocumentInline::Space(space) => space.inline_range.clone(),
+            DocumentInline::Span(span) => span.inline_range.clone(),
+            DocumentInline::Str(_) => InlineRange::default(),
+            DocumentInline::Strikeout(strikeout) => strikeout.inline_range.clone(),
+            DocumentInline::Strong(strong) => strong.inline_range.clone(),
+            DocumentInline::Subscript(subscript) => subscript.inline_range.clone(),
+            DocumentInline::Superscript(superscript) => superscript.inline_range.clone(),
+            DocumentInline::Underline(underline) => underline.inline_range.clone(),
+        }
+    }
+
+    pub fn is_link(&self) -> bool {
+        match self {
+            DocumentInline::Link(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn key(&self) -> Option<Key> {
+        match self {
+            DocumentInline::Link(link) => Some(without_extension(&link.target.url)),
+            _ => None,
+        }
+    }
+
+    pub fn link_at_positon(&self, position: Position) -> Option<DocumentInline> {
+        if self.inline_range().contains(&position) && self.is_link() {
+            return Some(self.clone());
+        }
+
+        self.child_inlines()
+            .iter()
+            .find_map(|child| child.link_at_positon(position))
     }
 }
 
@@ -398,25 +555,14 @@ pub struct Link {
     pub target: Target,
     pub attr: Attributes,
     pub inlines: DocumentInlines,
-}
-
-impl Link {
-    pub fn from_strings(target: &str, line: &str) -> DocumentInline {
-        DocumentInline::Link(Link {
-            target: Target {
-                url: target.to_string(),
-                title: "".to_string(),
-            },
-            attr: Attributes::default(),
-            inlines: DocumentInline::from_string(line),
-        })
-    }
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Ref {
     pub key: Key,
     pub title: String,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -424,18 +570,21 @@ pub struct Image {
     pub attr: Attributes,
     pub target: Target,
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Quoted {
     pub quote_type: QuoteType,
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Cite {
     pub citations: Vec<Citation>,
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -452,6 +601,7 @@ pub struct Citation {
     pub citation_mode: CitationMode,
     pub citation_note_num: i32,
     pub citation_hash: i32,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -466,6 +616,7 @@ pub struct Attributes {
     pub identifier: String,
     pub classes: Vec<String>,
     pub attributes: Vec<(String, String)>,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -476,52 +627,66 @@ pub struct Str {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Emph {
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Underline {
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Strong {
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Strikeout {
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Superscript {
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Subscript {
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SmallCaps {
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Code {
     pub attr: Attributes,
     pub text: String,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Space {}
+pub struct Space {
+    pub inline_range: InlineRange,
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SoftBreak {}
+pub struct SoftBreak {
+    pub inline_range: InlineRange,
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct LineBreak {}
+pub struct LineBreak {
+    pub inline_range: InlineRange,
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Target {
@@ -533,18 +698,21 @@ pub struct Target {
 pub struct Span {
     pub attr: Attributes,
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Math {
     pub math_type: MathType,
     pub content: String,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RawInline {
     pub format: Format,
     pub content: String,
+    pub inline_range: InlineRange,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -554,17 +722,6 @@ pub struct Format(pub String);
 pub enum MathType {
     DisplayMath,
     InlineMath,
-}
-
-pub fn link(line: &str, target: &str) -> DocumentInlines {
-    vec![DocumentInline::Link(Link {
-        target: Target {
-            url: target.to_string(),
-            title: "".to_string(),
-        },
-        attr: Attributes::default(),
-        inlines: DocumentInline::from_string(line),
-    })]
 }
 
 pub type DocumentInlines = Vec<DocumentInline>;

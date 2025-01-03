@@ -35,7 +35,7 @@ pub fn inline_section_action(
         return None;
     }
 
-    let mut patch = Graph::new();
+    let mut patch = context.patch();
 
     // create new version of the original key where reference is inlined
     patch

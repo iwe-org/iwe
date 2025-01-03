@@ -38,7 +38,7 @@ pub fn section_to_list_action(
         return None;
     }
 
-    let mut patch = Graph::new();
+    let mut patch = context.patch();
 
     patch.build_key_and(&key, |doc| {
         doc.insert_from_iter(

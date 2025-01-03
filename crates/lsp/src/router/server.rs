@@ -5,13 +5,12 @@ use itertools::Itertools;
 use lib::model::document::Para;
 use lib::model::graph::{self, MarkdownOptions};
 use lib::model::rank::node_rank;
-use lib::parser::Pos;
 use lsp_server::ResponseError;
 use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
 use lib::graph::{Graph, GraphContext, NodeIter};
-use lib::model::Content;
+use lib::model::{self, Content, InlineRange};
 use lib::{key, model::Key};
 
 use lib::parser::Parser;
@@ -33,7 +32,6 @@ use section_to_list_action::section_to_list_action;
 use self::extensions::*;
 
 mod change_list_type_action;
-mod debug_code_action;
 mod extensions;
 mod extract_list_action;
 mod extract_section_action;
@@ -166,7 +164,11 @@ impl Server {
                 .uri
                 .to_key(&self.base_path),
         )
-        .and_then(|parser| parser.link_at(to_pos((&params).text_document_position_params.position)))
+        .and_then(|parser| {
+            parser.key_at(to_position(
+                (&params).text_document_position_params.position,
+            ))
+        })
         .map(|link| {
             GotoDefinitionResponse::Scalar(Location::new(
                 self.base_path
@@ -180,7 +182,7 @@ impl Server {
     pub fn handle_document_formatting(&self, params: DocumentFormattingParams) -> Vec<TextEdit> {
         let key = params.text_document.uri.to_key(&self.base_path);
 
-        let mut patch = Graph::new();
+        let mut patch = self.database.graph().new_patch();
         patch
             .build_key(&key)
             .insert_from_iter(self.database.graph().visitor(&key));
@@ -256,9 +258,13 @@ impl Server {
         params: TextDocumentPositionParams,
     ) -> Option<PrepareRenameResponse> {
         self.parser(&params.text_document.uri.to_key(&self.base_path))
-            .and_then(|parser| parser.link_at(to_pos(params.position)))
-            .map(|key| PrepareRenameResponse::DefaultBehavior {
-                default_behavior: true,
+            .and_then(|parser| parser.link_at(to_position(params.position)))
+            .and_then(|link| {
+                link.key_range()
+                    .map(|range| PrepareRenameResponse::RangeWithPlaceholder {
+                        range: to_range(range),
+                        placeholder: link.ref_key().unwrap(),
+                    })
             })
     }
 
@@ -282,7 +288,7 @@ impl Server {
                     .uri
                     .to_key(&self.base_path),
             )
-            .and_then(|parser| parser.link_at(to_pos(params.text_document_position.position)))
+            .and_then(|parser| parser.key_at(to_position(params.text_document_position.position)))
             .map(|key| {
                 let affected_keys = self
                     .database
@@ -297,7 +303,8 @@ impl Server {
                     .sorted()
                     .collect_vec();
 
-                let mut patch = Graph::new();
+                let mut patch = self.database.graph().new_patch();
+
                 patch.build_key(&params.new_name).insert_from_iter(
                     self.database
                         .graph()
@@ -435,9 +442,16 @@ fn hint(text: &str) -> InlayHint {
     }
 }
 
-fn to_pos(value: lsp_types::Position) -> Pos {
-    Pos {
-        line: value.line as usize + 1,
-        column: value.character as usize + 1,
+fn to_position(value: lsp_types::Position) -> model::Position {
+    model::Position {
+        line: value.line as usize,
+        character: value.character as usize,
     }
+}
+
+fn to_range(value: InlineRange) -> Range {
+    Range::new(
+        Position::new(value.start.line as u32, value.start.character as u32),
+        Position::new(value.end.line as u32, value.end.character as u32),
+    )
 }
