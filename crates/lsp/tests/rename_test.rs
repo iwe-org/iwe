@@ -26,7 +26,7 @@ mod fixture;
 fn basic_prepare_rename() {
     assert_prepare_rename(
         indoc! {"
-            [](key)
+            [text text](key)
             "},
         "key",
     );
@@ -125,8 +125,9 @@ fn assert_prepare_rename(source: &str, placeholder: &str) {
             text_document: TextDocumentIdentifier { uri: uri(1) },
             position: Position::new(0, 0),
         },
-        PrepareRenameResponse::DefaultBehavior {
-            default_behavior: true,
+        PrepareRenameResponse::RangeWithPlaceholder {
+            range: Range::new(Position::new(0, 12), Position::new(0, 15)),
+            placeholder: "key".to_string(),
         },
     )
 }

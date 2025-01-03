@@ -86,6 +86,8 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     let mut library_path = current_dir.clone();
 
+    eprintln!("setttings: {:?}", settings);
+
     if !settings.library.path.is_empty() {
         library_path.push(settings.library.path);
     }

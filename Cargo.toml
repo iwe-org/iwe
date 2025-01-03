@@ -22,7 +22,6 @@ itertools = { version = "0.12.0", features = [] }
 log = "0.4.20"
 lsp-server = "0.7.6"
 lsp-types = "0.95.1"
-markdown = "1.0.0-alpha.16"
 pretty_assertions = "1.4.0"
 pulldown-cmark = "0.12.2"
 rand = "0.8.4"

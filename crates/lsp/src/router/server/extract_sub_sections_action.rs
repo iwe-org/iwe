@@ -36,7 +36,7 @@ pub fn extract_sub_sections_action(
 
     let sub_sections = context.get_sub_sections(node_id);
 
-    let mut patch = Graph::new();
+    let mut patch = context.patch();
     let mut extracted = HashMap::new();
 
     for section_id in sub_sections {

@@ -42,7 +42,7 @@ pub fn change_list_type_action(
         "Change to bullet list"
     };
 
-    let mut patch = Graph::new();
+    let mut patch = context.patch();
 
     patch.build_key_and(&key, |doc| {
         doc.insert_from_iter(
