@@ -1,6 +1,6 @@
 # Configuration
 
-IWE doesn't have much configuration options at the moment, but it does come with some sensible defaults.
+IWE have limited configuration options at the moment, but it does come with sensible defaults.
 
 For instance:
 
@@ -18,4 +18,4 @@ The only configuration options available lets you change the default extension f
 }
 ```
 
-By default, the extension is omitted.
+By default, IWE will add/keep `.md` extension to the local links.

@@ -6,7 +6,6 @@ Search is one of the key features. IWE, creates all possible document paths by c
 Readme - Features
 Readme - Features - Navigation
 Readme - Features - Search
-..ets
 ```
 
 And provide this list to your text editor as Workspace Symbols.

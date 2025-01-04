@@ -1,26 +1,24 @@
 # Header levels normalization
 
-IWE interprets nested structure created by the headers. It understands the relationships between the header. For example:
+IWE reads and understands nested structures based on headers. It identifies how sub-headers relationships. Markdown allows header structure where the nesting isn't clear, like:
 
 ``` markdown
-# First header
+## First Header
 
-## Second header
+# Second Header
 ```
 
-`Second header` is sub-header of the first one. Markdown allows any headers structure. Including the cases where nesting cannot be interpreted. Like:
+IWE automatically fixes the header levels to ensure they're nested correctly. So the example above corrects to:
 
 ``` markdown
-## First header
+# First Header
 
-# Second header
+# Second Header
 ```
 
-IWE atomically fixes header levels for enforce correct nesting.
+## Removing unnecessary levels
 
-------------------------------------------------------------------------
-
-IWE can also normalize the headers structure dropping unnecessary hedaer-levels, For example:
+IWE can normalize the headers structure dropping unnecessary header-levels, For example:
 
 ``` markdown
 # First header
@@ -28,32 +26,10 @@ IWE can also normalize the headers structure dropping unnecessary hedaer-levels,
 ### Second header
 ```
 
-Will be normalized into dropping unnecessary levels.
+Will be normalized into dropping unnecessary levels and will look like:
 
 ``` markdown
 # First header
 
 ## Second header
-```
-
-------------------------------------------------------------------------
-
-First header of the document/section determines zero-level. In this case it is set to level 3 so all subsequent headers are going to be adjusted to follow the starting point.
-
-``` markdown
-### First header
-
-## Second header
-
-### Third header
-```
-
-Will result in:
-
-``` markdown
-# First header
-
-# Second header
-
-# Third header
 ```
