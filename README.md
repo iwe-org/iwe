@@ -1,4 +1,4 @@
-# IWE - Personal Knowledge Managemnt (PKM) system
+# IWE - Personal Knowledge Management (PKM) system
 
 ![Demo](readme.iwe/demo.gif)
 
@@ -63,7 +63,6 @@ Search is one of the key features. IWE, creates all possible document paths by c
 Readme - Features
 Readme - Features - Navigation
 Readme - Features - Search
-..ets
 ```
 
 And provide this list to your text editor as Workspace Symbols.
@@ -100,27 +99,25 @@ IWE offers a range of actions to help you perform context-aware transformations 
 
 ### Header levels normalization
 
-IWE interprets nested structure created by the headers. It understands the relationships between the header. For example:
+IWE reads and understands nested structures based on headers. It identifies how sub-headers relationships. Markdown allows header structure where the nesting isn't clear, like:
 
 ``` markdown
-# First header
+## First Header
 
-## Second header
+# Second Header
 ```
 
-`Second header` is sub-header of the first one. Markdown allows any headers structure. Including the cases where nesting cannot be interpreted. Like:
+IWE automatically fixes the header levels to ensure they're nested correctly. So the example above corrects to:
 
 ``` markdown
-## First header
+# First Header
 
-# Second header
+# Second Header
 ```
 
-IWE atomically fixes header levels for enforce correct nesting.
+#### Removing unnecessary levels
 
-------------------------------------------------------------------------
-
-IWE can also normalize the headers structure dropping unnecessary hedaer-levels, For example:
+IWE can normalize the headers structure dropping unnecessary header-levels, For example:
 
 ``` markdown
 # First header
@@ -128,39 +125,17 @@ IWE can also normalize the headers structure dropping unnecessary hedaer-levels,
 ### Second header
 ```
 
-Will be normalized into dropping unnecessary levels.
+Will be normalized into dropping unnecessary levels and will look like:
 
 ``` markdown
 # First header
 
 ## Second header
-```
-
-------------------------------------------------------------------------
-
-First header of the document/section determines zero-level. In this case it is set to level 3 so all subsequent headers are going to be adjusted to follow the starting point.
-
-``` markdown
-### First header
-
-## Second header
-
-### Third header
-```
-
-Will result in:
-
-``` markdown
-# First header
-
-# Second header
-
-# Third header
 ```
 
 ### Renaming files
 
-IWE can rename the linked file and update all the references across your entire library with the new name using `rename` LSP refactoring.
+With IWE, you can rename the note file and automatically update all the references throughout your entire library using the `rename` LSP refactoring feature.
 
 ## CLI features
 
@@ -305,7 +280,7 @@ Contributors are welcome.
 
 ## Configuration
 
-IWE doesn't have much configuration options at the moment, but it does come with some sensible defaults.
+IWE have limited configuration options at the moment, but it does come with sensible defaults.
 
 For instance:
 
@@ -323,11 +298,17 @@ The only configuration options available lets you change the default extension f
 }
 ```
 
-By default, the extension is omitted.
+By default, IWE will add/keep `.md` extension to the local links.
 
 ## Help needed
 
-The IWE project is a work in progress and there's plenty of room for improvement. Check out the issues for specific areas that need attention. Help with documentation or editors integration is welcomed!
+The IWE project is still in development, and there's a lot of room for improvement.
+
+Feel free to create issues for specific areas that need attention.
+
+Contributions to documentation or integration with editors are welcome!
+
+Please share your feedback and recommendations in the discussions section.
 
 ## Inspired by many other opens-source projects
 

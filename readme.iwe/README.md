@@ -1,4 +1,4 @@
-# IWE - Personal Knowledge Managemnt (PKM) system
+# IWE - Personal Knowledge Management (PKM) system
 
 ![Demo](readme.iwe/demo.gif)
 
