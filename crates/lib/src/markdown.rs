@@ -14,17 +14,16 @@ impl MarkdownReader {
     pub fn new() -> MarkdownReader {
         MarkdownReader {}
     }
-
-    fn blocks(&self, content: &str) -> DocumentBlocks {
-        let mut reader = MarkdownEventsReader::new();
-        reader.read(content)
-    }
 }
 
 impl Reader for MarkdownReader {
     fn document(&self, content: &str) -> Document {
+        let mut reader = MarkdownEventsReader::new();
+        reader.read(content);
+
         Document {
-            blocks: self.blocks(content),
+            blocks: reader.blocks(),
+            metadata: reader.metadata(),
         }
     }
 }

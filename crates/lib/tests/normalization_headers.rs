@@ -297,6 +297,30 @@ fn normalization_headers_5() {
 }
 
 #[test]
+fn multiple_headers() {
+    setup();
+    normalize(indoc! {"
+            # header-1
+
+            ## header-2
+
+            para-1
+
+            ## header-3
+
+            para-2
+
+            ## header-4
+
+            para-3
+
+            ## header-5
+
+            para-4
+    "});
+}
+
+#[test]
 fn empty_document() {
     normalize(indoc! {""});
 }

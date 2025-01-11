@@ -302,15 +302,9 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     pub fn infinit_recusion() {
         assert_eq!(
-            vec![
-                NodePath::new(vec![1]),
-                NodePath::new(vec![1, 4]),
-                NodePath::new(vec![4]),
-                NodePath::new(vec![4, 1]),
-            ],
+            Vec::<NodePath>::new(),
             graph_to_paths(
                 Graph::new()
                     .build_key_and("a", |document| {

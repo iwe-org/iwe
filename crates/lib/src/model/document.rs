@@ -10,19 +10,18 @@ use super::{InlineRange, Position};
 
 pub struct Document {
     pub blocks: DocumentBlocks,
+    pub metadata: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DocumentBlock {
     Plain(Plain),
     Para(Para),
-    LineBlock(LineBlock),
     CodeBlock(CodeBlock),
     RawBlock(RawBlock),
     BlockQuote(BlockQuote),
     OrderedList(OrderedList),
     BulletList(BulletList),
-    DefinitionList(DefinitionList),
     Header(Header),
     HorizontalRule(HorizontalRule),
     Div(Div),
@@ -30,19 +29,16 @@ pub enum DocumentBlock {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum DocumentInline {
-    Cite(Cite),
     Code(Code),
     Emph(Emph),
     Image(Image),
     LineBreak(LineBreak),
     Link(Link),
     Math(Math),
-    Quoted(Quoted),
     RawInline(RawInline),
     SmallCaps(SmallCaps),
     SoftBreak(SoftBreak),
     Space(Space),
-    Span(Span),
     Str(String),
     Strikeout(Strikeout),
     Strong(Strong),
@@ -52,10 +48,6 @@ pub enum DocumentInline {
 }
 
 impl Document {
-    pub fn new(blocks: DocumentBlocks) -> Document {
-        Document { blocks }
-    }
-
     pub fn link_at(&self, position: Position) -> Option<DocumentInline> {
         self.block_at_positon(position)
             .into_iter()
@@ -96,13 +88,11 @@ impl DocumentBlock {
         match self {
             DocumentBlock::Plain(_) => false,
             DocumentBlock::Para(_) => false,
-            DocumentBlock::LineBlock(_) => false,
             DocumentBlock::CodeBlock(_) => false,
             DocumentBlock::RawBlock(_) => false,
             DocumentBlock::BlockQuote(_) => true,
             DocumentBlock::OrderedList(_) => true,
             DocumentBlock::BulletList(_) => true,
-            DocumentBlock::DefinitionList(_) => true,
             DocumentBlock::Header(_) => false,
             DocumentBlock::HorizontalRule(_) => false,
             DocumentBlock::Div(_) => true,
@@ -140,11 +130,6 @@ impl DocumentBlock {
         match self {
             DocumentBlock::Plain(plain) => plain.inlines.push(inline),
             DocumentBlock::Para(para) => para.inlines.push(inline),
-            DocumentBlock::LineBlock(line_block) => {
-                if let Some(last) = line_block.inlines.last_mut() {
-                    last.push(inline);
-                }
-            }
             DocumentBlock::CodeBlock(code) => {}
             DocumentBlock::RawBlock(_) => {}
             DocumentBlock::BlockQuote(block_quote) => {
@@ -181,7 +166,6 @@ impl DocumentBlock {
                 let last_block = item.last_mut().unwrap();
                 last_block.append_inline(inline, line_range.clone());
             }
-            DocumentBlock::DefinitionList(definition_list) => {}
             DocumentBlock::Header(header) => header.inlines.push(inline),
             DocumentBlock::HorizontalRule(_) => {}
             DocumentBlock::Div(div) => {}
@@ -192,7 +176,6 @@ impl DocumentBlock {
         match self {
             DocumentBlock::Plain(plain) => plain.line_range.clone(),
             DocumentBlock::Para(para) => para.line_range.clone(),
-            DocumentBlock::LineBlock(line_block) => line_block.line_range.clone(),
             DocumentBlock::CodeBlock(code) => code.line_range.clone(),
             DocumentBlock::RawBlock(raw) => raw.line_range.clone(),
             DocumentBlock::BlockQuote(quote) => quote.line_range.clone(),
@@ -202,7 +185,6 @@ impl DocumentBlock {
             DocumentBlock::BulletList(list) => {
                 list.items.first().unwrap().first().unwrap().line_range()
             }
-            DocumentBlock::DefinitionList(definition_list) => definition_list.line_range.clone(),
             DocumentBlock::Header(header) => header.line_range.clone(),
             DocumentBlock::HorizontalRule(hr) => hr.line_range.clone(),
             DocumentBlock::Div(div) => div.line_range.clone(),
@@ -213,13 +195,11 @@ impl DocumentBlock {
         match self {
             DocumentBlock::Plain(_) => vec![],
             DocumentBlock::Para(_) => vec![],
-            DocumentBlock::LineBlock(line_block) => vec![],
             DocumentBlock::CodeBlock(_) => vec![],
             DocumentBlock::RawBlock(_) => vec![],
             DocumentBlock::BlockQuote(quote) => quote.blocks.iter().collect(),
             DocumentBlock::OrderedList(list) => list.items.iter().flat_map(|i| i).collect(),
             DocumentBlock::BulletList(list) => list.items.iter().flat_map(|i| i).collect(),
-            DocumentBlock::DefinitionList(definition_list) => vec![],
             DocumentBlock::Header(_) => vec![],
             DocumentBlock::HorizontalRule(_) => vec![],
             DocumentBlock::Div(div) => div.blocks.iter().collect(),
@@ -330,21 +310,22 @@ impl DocumentInline {
 
     pub fn apppen(&mut self, inline: DocumentInline) {
         match self {
-            DocumentInline::Cite(cite) => todo!(),
             DocumentInline::Emph(emph) => emph.inlines.push(inline),
             DocumentInline::Image(image) => image.inlines.push(inline),
-            DocumentInline::LineBreak(line_break) => todo!(),
             DocumentInline::Link(link) => link.inlines.push(inline),
-            DocumentInline::Quoted(quoted) => todo!(),
-            DocumentInline::SmallCaps(small_caps) => todo!(),
-            DocumentInline::SoftBreak(soft_break) => todo!(),
-            DocumentInline::Span(span) => span.inlines.push(inline),
             DocumentInline::Strikeout(strikeout) => strikeout.inlines.push(inline),
             DocumentInline::Strong(strong) => strong.inlines.push(inline),
             DocumentInline::Subscript(subscript) => subscript.inlines.push(inline),
             DocumentInline::Superscript(superscript) => superscript.inlines.push(inline),
             DocumentInline::Underline(underline) => underline.inlines.push(inline),
-            default => panic!("cannot append to {:?}", default),
+            DocumentInline::SmallCaps(small_caps) => small_caps.inlines.push(inline),
+            DocumentInline::LineBreak(_) => panic!("cannot append inline to line break"),
+            DocumentInline::SoftBreak(_) => panic!("cannot append inline to soft break"),
+            DocumentInline::Code(_) => panic!("cannot append inline to code"),
+            DocumentInline::Math(_) => panic!("cannot append inline to math"),
+            DocumentInline::RawInline(_) => panic!("cannot append inline to raw inline"),
+            DocumentInline::Space(_) => panic!("cannot append inline to space"),
+            DocumentInline::Str(_) => panic!("cannot append inline to str"),
         }
     }
 
@@ -424,9 +405,6 @@ impl DocumentInline {
                     .collect(),
             ),
             DocumentInline::Math(math) => Inline::Math(math.content.clone()),
-            DocumentInline::Cite(cite) => todo!(),
-            DocumentInline::Quoted(quoted) => todo!(),
-            DocumentInline::Span(span) => todo!(),
         }
     }
 
@@ -436,19 +414,16 @@ impl DocumentInline {
 
     pub fn child_inlines(&self) -> Vec<&DocumentInline> {
         match self {
-            DocumentInline::Cite(cite) => cite.inlines.iter().collect(),
             DocumentInline::Code(_) => vec![],
             DocumentInline::Emph(emph) => emph.inlines.iter().collect(),
             DocumentInline::Image(image) => image.inlines.iter().collect(),
             DocumentInline::LineBreak(_) => vec![],
             DocumentInline::Link(link) => link.inlines.iter().collect(),
             DocumentInline::Math(_) => vec![],
-            DocumentInline::Quoted(quoted) => quoted.inlines.iter().collect(),
             DocumentInline::RawInline(_) => vec![],
             DocumentInline::SmallCaps(small_caps) => small_caps.inlines.iter().collect(),
             DocumentInline::SoftBreak(_) => vec![],
             DocumentInline::Space(_) => vec![],
-            DocumentInline::Span(span) => span.inlines.iter().collect(),
             DocumentInline::Str(_) => vec![],
             DocumentInline::Strikeout(strikeout) => strikeout.inlines.iter().collect(),
             DocumentInline::Strong(strong) => strong.inlines.iter().collect(),
@@ -503,19 +478,16 @@ impl DocumentInline {
 
     pub fn inline_range(&self) -> InlineRange {
         match self {
-            DocumentInline::Cite(cite) => cite.inline_range.clone(),
             DocumentInline::Code(code) => code.inline_range.clone(),
             DocumentInline::Emph(emph) => emph.inline_range.clone(),
             DocumentInline::Image(image) => image.inline_range.clone(),
             DocumentInline::LineBreak(line_break) => line_break.inline_range.clone(),
             DocumentInline::Link(link) => link.inline_range.clone(),
             DocumentInline::Math(math) => math.inline_range.clone(),
-            DocumentInline::Quoted(quoted) => quoted.inline_range.clone(),
             DocumentInline::RawInline(raw_inline) => raw_inline.inline_range.clone(),
             DocumentInline::SmallCaps(small_caps) => small_caps.inline_range.clone(),
             DocumentInline::SoftBreak(soft_break) => soft_break.inline_range.clone(),
             DocumentInline::Space(space) => space.inline_range.clone(),
-            DocumentInline::Span(span) => span.inline_range.clone(),
             DocumentInline::Str(_) => InlineRange::default(),
             DocumentInline::Strikeout(strikeout) => strikeout.inline_range.clone(),
             DocumentInline::Strong(strong) => strong.inline_range.clone(),

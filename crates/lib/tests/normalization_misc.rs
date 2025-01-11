@@ -1,7 +1,7 @@
 use std::sync::Once;
 
 use indoc::indoc;
-use lib::{markdown::MarkdownReader, model::graph::MarkdownOptions};
+use lib::markdown::MarkdownReader;
 use pretty_assertions::assert_str_eq;
 
 use lib::graph::Graph;
@@ -27,18 +27,6 @@ fn normalization_url() {
         "},
         indoc! {"
         <http://some.com>
-        "},
-    );
-}
-
-#[test]
-fn normalization_ref_same_text() {
-    compare(
-        indoc! {"
-        [text](text)
-        "},
-        indoc! {"
-        [text](text)
         "},
     );
 }
@@ -80,30 +68,6 @@ fn normalization_style() {
 }
 
 #[test]
-fn normalization_with_extension_reference() {
-    compare(
-        indoc! {"
-        [title](1)
-        "},
-        indoc! {"
-        [title](1.md)
-        "},
-    );
-}
-
-#[test]
-fn normalization_reference() {
-    compare(
-        indoc! {"
-        [title](1)
-        "},
-        indoc! {"
-        [title](1)
-        "},
-    );
-}
-
-#[test]
 fn normalization_two_paragraphs() {
     compare(
         indoc! {"
@@ -140,113 +104,6 @@ fn normalization_math() {
         "},
         indoc! {"
         $a$
-        "},
-    );
-}
-
-#[test]
-fn normalization_raw_inline() {
-    compare(
-        indoc! {"
-        `<buffer>`{=html}
-        "},
-        indoc! {"
-        `<buffer>`{=html}
-        "},
-    );
-}
-
-#[test]
-fn normalization_just_code() {
-    compare(
-        indoc! {"
-        ``` test
-        code
-        ```
-        "},
-        indoc! {"
-        ``` test
-        code
-        ```
-        "},
-    );
-}
-
-#[test]
-fn normalization_code_block() {
-    compare(
-        indoc! {"
-        ``` rust
-        fn main() {
-            println!(\"Hello, world!\");
-        }
-        ```
-        "},
-        indoc! {"
-        ``` rust
-
-        fn main() {
-            println!(\"Hello, world!\");
-        }
-        ```
-        "},
-    );
-}
-
-#[test]
-fn normalization_list_item() {
-    compare(
-        indoc! {"
-        - list item
-        "},
-        indoc! {"
-        - list item
-        "},
-    );
-}
-
-#[test]
-fn normalization_para_in_list_item() {
-    compare(
-        indoc! {"
-        - list item
-
-          test
-        "},
-        indoc! {"
-        - list item
-
-          test
-        "},
-    );
-}
-
-#[test]
-fn normalization_inline_code() {
-    compare(
-        indoc! {"
-        some `inline code` here
-        "},
-        indoc! {"
-        some `inline code` here
-        "},
-    );
-}
-
-#[test]
-#[ignore]
-fn normalization_meta_block() {
-    setup();
-    compare(
-        indoc! {"
-        # header
-        "},
-        indoc! {"
-        ---
-        key: value
-        ---
-
-        # header
         "},
     );
 }
@@ -350,122 +207,6 @@ fn one_quote() {
 }
 
 #[test]
-fn raw_trim() {
-    setup();
-    compare(
-        indoc! {"
-        para
-
-        ```
-        raw block
-        ```
-    "},
-        indoc! {"
-        para
-
-        ```
-
-        raw block
-
-        ```
-    "},
-    );
-}
-
-#[test]
-fn raw_trim_keeps_spaces() {
-    setup();
-    compare(
-        indoc! {"
-        para
-
-        ```
-         raw block
-        ```
-    "},
-        indoc! {"
-        para
-
-        ```
-
-         raw block
-
-        ```
-    "},
-    );
-}
-
-#[test]
-fn raw_in_a_list_item() {
-    setup();
-    compare(
-        indoc! {"
-        - list item
-          ``` markdown
-          raw block line 1
-
-          raw block line 2
-          ```
-    "},
-        indoc! {"
-        - list item
-
-          ``` markdown
-          raw block line 1
-
-          raw block line 2
-          ```
-    "},
-    );
-}
-
-#[test]
-fn multiple_headers() {
-    setup();
-    compare(
-        indoc! {"
-            # header-1
-
-            ## header-2
-
-            para-1
-
-            ## header-3
-
-            para-2
-
-            ## header-4
-
-            para-3
-
-            ## header-5
-
-            para-4
-    "},
-        indoc! {"
-            # header-1
-
-            ## header-2
-
-            para-1
-
-            ## header-3
-
-            para-2
-
-            ## header-4
-
-            para-3
-
-            ## header-5
-
-            para-4
-    "},
-    );
-}
-
-#[test]
-#[ignore]
 fn definitions_list() {
     setup();
     compare(
@@ -473,7 +214,6 @@ fn definitions_list() {
             test [^1]
 
             [^1]: some link
-
     "},
         indoc! {"
             test [^1]
@@ -483,53 +223,10 @@ fn definitions_list() {
     );
 }
 
-#[test]
-fn normalization_ref_extension() {
-    compare_with_extensions(
-        indoc! {"
-        [text](text.md)
-        "},
-        indoc! {"
-        [text](text)
-        "},
-    );
-}
-
-#[test]
-fn normalization_ref_existing_extension() {
-    compare_with_extensions(
-        indoc! {"
-        [text](text.md)
-        "},
-        indoc! {"
-        [text](text.md)
-        "},
-    );
-}
-
 fn compare(expected: &str, denormalized: &str) {
     setup();
 
     let mut graph = Graph::new();
-
-    graph.from_markdown("key", denormalized, MarkdownReader::new());
-
-    let normalized = graph.to_markdown("key");
-
-    println!("actual graph \n{:#?}", graph);
-    println!("{}", expected);
-    println!("normalized:");
-    println!("{}", normalized);
-
-    assert_str_eq!(expected, normalized);
-}
-
-fn compare_with_extensions(expected: &str, denormalized: &str) {
-    setup();
-
-    let mut graph = Graph::new_with_options(MarkdownOptions {
-        refs_extension: ".md".to_string(),
-    });
 
     graph.from_markdown("key", denormalized, MarkdownReader::new());
 

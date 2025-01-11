@@ -38,6 +38,26 @@ fn basic_format() {
 }
 
 #[test]
+fn metadata_format() {
+    assert_formatted(
+        indoc! {"
+            ---
+            key: value
+            ---
+
+            # test
+            "},
+        indoc! {"
+            ---
+            key: value
+            ---
+
+            # test
+        "},
+    );
+}
+
+#[test]
 fn update_ref_titles() {
     assert_formatted(
         indoc! {"
