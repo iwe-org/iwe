@@ -276,8 +276,6 @@ impl Graph {
         let blocks = Projector::new(self, *id, 0, 0).project();
         let text = blocks_to_markdown_sparce(&blocks, &self.markdown_options);
 
-        eprintln!("metadata: {:?}", self.metadata);
-
         if self.metadata.contains_key(key) {
             format!("---\n{}---\n\n{}", self.metadata.get(key).unwrap(), text)
         } else {
