@@ -20,6 +20,7 @@ pub struct Document {
     child: MaybeNodeId,
 
     key: Key,
+    metadata: Option<String>,
 }
 
 impl Document {
@@ -29,6 +30,10 @@ impl Document {
 
     pub fn key(&self) -> &str {
         &self.key
+    }
+
+    pub fn metadata(&self) -> Option<String> {
+        self.metadata.clone()
     }
 
     pub fn child_id(&self) -> MaybeNodeId {
@@ -549,11 +554,12 @@ impl GraphNode {
             line,
         })
     }
-    pub fn new_root(key: Key, id: NodeId) -> GraphNode {
+    pub fn new_root(key: Key, id: NodeId, metadata: Option<String>) -> GraphNode {
         GraphNode::Document(Document {
             id,
             child: None,
             key,
+            metadata,
         })
     }
 

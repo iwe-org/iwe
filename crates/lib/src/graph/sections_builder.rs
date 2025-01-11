@@ -4,13 +4,13 @@ use crate::{
 };
 use itertools::Itertools;
 
+use super::*;
 use crate::model::document::DocumentBlock::{
-    self, BlockQuote, BulletList, CodeBlock, Div, Header, HorizontalRule, OrderedList, Para,
-    Plain, RawBlock,
+    self, BlockQuote, BulletList, CodeBlock, Div, Header, HorizontalRule, OrderedList, Para, Plain,
+    RawBlock,
 };
 use crate::model::document::DocumentBlocks;
 use crate::model::graph::to_node_inlines;
-use super::*;
 
 type Range = std::ops::Range<usize>;
 
@@ -179,8 +179,8 @@ impl<'a> SectionsBuilder<'a> {
             Div(div) => {
                 self.section_block(div.blocks.first().unwrap());
             }
-            _ => {
-                todo!("block panic for: {:?}", block)
+            Header(header) => {
+                panic!("Unexpected block type, headers should be process outside of this block")
             }
         };
     }
@@ -229,11 +229,10 @@ mod test {
     use crate::model::NodeId;
 
     #[test]
-    #[ignore]
-    pub fn code_block() {
+    pub fn code_block_no_lang() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").raw("code", None);
+                graph.build_key("key").raw("code\n", None);
             }),
             indoc! {"
             ```
@@ -244,11 +243,12 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     pub fn code_block_with_lang() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").raw("code", Some("lang".to_string()));
+                graph
+                    .build_key("key")
+                    .raw("code\n", Some("lang".to_string()));
             }),
             indoc! {"
             ``` lang
@@ -350,7 +350,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     pub fn sub_header_before_top_level_header() {
         assert_eq(
             Graph::with(|graph| {

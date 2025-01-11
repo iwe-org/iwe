@@ -1,170 +1,162 @@
+use std::sync::Once;
+
 use indoc::indoc;
 use pretty_assertions::assert_str_eq;
 
 use lib::{
     graph::Graph,
+    markdown::MarkdownReader,
     model::graph::MarkdownOptions,
-    state::{new_form_pairs, to_debug_string},
+    state::{new_form_indoc, to_indoc},
 };
 
 #[test]
-#[ignore]
-fn links_text_updated_from_header() {
+fn links_text_updated_from_referenced_header() {
     compare(
-        vec![
-            "file1.md",
-            indoc! {"
-            link: [file 2 title](file2)
+        indoc! {"
+            [title](2)
+            _
+            # title
             "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
+        indoc! {"
+            [another title](2)
+            _
+            # title
             "},
-        ],
-        vec![
-            "file1.md",
-            indoc! {"
-            link: [another title](file2)
-
-            "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
-            "},
-        ],
     );
 }
 
 #[test]
-#[ignore]
-fn links_updated_two_way() {
+fn ref_links_updated_two_ways() {
     compare(
-        vec![
-            "file1.md",
-            indoc! {"
-            # file 1 title
+        indoc! {"
+            # title 1
 
-            link: [file 2 title](file2)
+            [title 2](2)
+            _
+            # title 2
+
+            [title 1](1)
             "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
+        indoc! {"
+            # title 1
 
-            link: [file 1 title](file1)
+            [another title](2)
+            _
+            # title 2
+
+            [another title](1)
+            "},
+    );
+}
+
+#[test]
+fn keep_unknow_refs_as_is() {
+    compare(
+        indoc! {"
+            [some title](key)
+            "},
+        indoc! {"
+            [some title](key)
+            "},
+    );
+}
+
+#[test]
+fn keep_title_there_is_no_title_in_referenced_file() {
+    compare(
+        indoc! {"
+        [title](2)
+        _
+        para
         "},
-        ],
-        vec![
-            "file1.md",
-            indoc! {"
-            # file 1 title
-
-            link: [another title](file2)
-
-            "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
-
-            link: [another title](file1)
-            "},
-        ],
-    );
-}
-
-#[test]
-#[ignore]
-fn ref_links_updated_one_way() {
-    compare(
-        vec![
-            "file1.md",
-            indoc! {"
-            [file 2 title](file2)
-            "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
+        indoc! {"
+        [title](2)
+        _
+        para
         "},
-        ],
-        vec![
-            "file1.md",
-            indoc! {"
-            [another title](file2)
-            "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
-            "},
-        ],
     );
 }
 
 #[test]
-fn ref_links_updated_two_way() {
+fn normalization_drop_extension() {
     compare(
-        vec![
-            "file1.md",
-            indoc! {"
-            # file 1 title
-
-            [file 2 title](file2)
-            "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
-
-            [file 1 title](file1)
+        indoc! {"
+        [title](1)
         "},
-        ],
-        vec![
-            "file1.md",
-            indoc! {"
-            # file 1 title
-
-            [old title](file2)
-
-            "},
-            "file2.md",
-            indoc! {"
-            # file 2 title
-
-            [old title](file1)
-            "},
-        ],
+        indoc! {"
+        [title](1.md)
+        "},
     );
 }
 
 #[test]
-#[ignore]
-fn drop_not_found_links_as_is() {
-    compare(
-        vec![
-            "file1.md",
-            indoc! {"
-            # file 1 title
-
-            link: file 2 title
-            "},
-        ],
-        vec![
-            "file1.md",
-            indoc! {"
-            # file 1 title
-
-            link: [file 2 title](file2)
-            "},
-        ],
+fn normalization_ref_extension() {
+    compare_with_extensions(
+        indoc! {"
+        [text](text.md)
+        "},
+        indoc! {"
+        [text](text)
+        "},
     );
 }
 
-fn compare(left: Vec<&str>, right: Vec<&str>) {
-    let l = new_form_pairs(left.clone());
-    let r = new_form_pairs(right.clone());
+#[test]
+fn normalization_ref_existing_extension() {
+    compare_with_extensions(
+        indoc! {"
+        [text](text.md)
+        "},
+        indoc! {"
+        [text](text.md)
+        "},
+    );
+}
 
-    let lstr = to_debug_string(&l);
-    let graph = &Graph::import(&r, MarkdownOptions::default());
+fn compare(expected: &str, denormalized: &str) {
+    setup();
 
-    println!("{:#?}", graph);
+    let graph = Graph::import(
+        &new_form_indoc(denormalized),
+        MarkdownOptions {
+            refs_extension: "".to_string(),
+        },
+    );
 
-    let rstr = to_debug_string(&graph.export());
-    assert_str_eq!(&lstr, &rstr,);
+    let normalized = to_indoc(&graph.export());
+
+    println!("actual graph \n{:#?}", graph);
+    println!("{}", expected);
+    println!("normalized:");
+    println!("{}", normalized);
+
+    assert_str_eq!(expected, normalized);
+}
+
+fn compare_with_extensions(expected: &str, denormalized: &str) {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+    });
+
+    graph.from_markdown("key", denormalized, MarkdownReader::new());
+
+    let normalized = graph.to_markdown("key");
+
+    println!("actual graph \n{:#?}", graph);
+    println!("{}", expected);
+    println!("normalized:");
+    println!("{}", normalized);
+
+    assert_str_eq!(expected, normalized);
+}
+
+static INIT: Once = Once::new();
+
+fn setup() {
+    INIT.call_once(|| {
+        env_logger::builder().init();
+    });
 }

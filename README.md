@@ -252,6 +252,12 @@ And create `.iwe` directory as a marker in you notes root directory.
 
 It works best with [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim/tree/main)
 
+#### Zed integration
+
+IWE Zed [extension](https://github.com/iwe-org/zed-iwe) can be installed from the editor extensions menu.
+
+The extension automatically fetches a pre-compiled binary of the LSP from a GitHub repository. If there is an LSP binary already installed on the system and it is accessible from the system's PATH, the extension will use that local binary instead of downloading a new one.
+
 #### Helix integration
 
 Make sure you have the `iwes` binary in your path, then add to your `languages.toml` (usually in `~/.config/helix`, create file if needed):

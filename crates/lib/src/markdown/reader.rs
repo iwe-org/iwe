@@ -2,7 +2,7 @@ use std::iter::once;
 use std::ops::Range;
 
 use itertools::Itertools;
-use pulldown_cmark::{CodeBlockKind, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
 
 use crate::model::document::*;
@@ -14,6 +14,8 @@ pub struct MarkdownEventsReader {
     blocks_stack: Vec<DocumentBlock>,
     blocks: DocumentBlocks,
     line_starts: Vec<usize>,
+    metadata_block: bool,
+    metadata: Option<String>,
 }
 
 impl MarkdownEventsReader {
@@ -24,7 +26,17 @@ impl MarkdownEventsReader {
             blocks_stack: Vec::new(),
             blocks: Vec::new(),
             line_starts: Vec::new(),
+            metadata_block: false,
+            metadata: None,
         }
+    }
+
+    pub fn blocks(&self) -> Vec<DocumentBlock> {
+        self.blocks.clone()
+    }
+
+    pub fn metadata(&self) -> Option<String> {
+        self.metadata.clone()
     }
 
     pub fn top_block(&mut self) -> &mut DocumentBlock {
@@ -32,7 +44,8 @@ impl MarkdownEventsReader {
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
-        let mut iter = Parser::new(content).into_offset_iter();
+        let mut iter =
+            Parser::new_ext(content, Options::ENABLE_YAML_STYLE_METADATA_BLOCKS).into_offset_iter();
         self.line_starts = line_starts(content);
 
         while let Some((event, range)) = iter.next() {
@@ -43,19 +56,25 @@ impl MarkdownEventsReader {
                 End(tag) => {
                     self.end_tag(tag, range);
                 }
-                Text(text) => match self.top_block() {
-                    DocumentBlock::CodeBlock(code_block) => {
-                        code_block.text = format!("{}{}", code_block.text, text.to_string())
+                Text(text) => {
+                    if !self.metadata_block {
+                        match self.top_block() {
+                            DocumentBlock::CodeBlock(code_block) => {
+                                code_block.text = format!("{}{}", code_block.text, text.to_string())
+                            }
+                            DocumentBlock::RawBlock(block) => block.text = text.to_string(),
+                            default => {
+                                self.push_inline(
+                                    DocumentInline::Str(text.to_string()),
+                                    self.to_line_range(range),
+                                );
+                                self.pop_inline();
+                            }
+                        }
+                    } else {
+                        self.metadata = Some(text.to_string());
                     }
-                    DocumentBlock::RawBlock(block) => block.text = text.to_string(),
-                    default => {
-                        self.push_inline(
-                            DocumentInline::Str(text.to_string()),
-                            self.to_line_range(range),
-                        );
-                        self.pop_inline();
-                    }
-                },
+                }
                 Code(text) => {
                     self.push_inline(
                         DocumentInline::Code(document::Code {
@@ -78,10 +97,16 @@ impl MarkdownEventsReader {
                     );
                     self.pop_inline();
                 }
-                DisplayMath(cow_str) => todo!(),
-                Html(cow_str) => todo!(),
-                InlineHtml(cow_str) => todo!(),
-                FootnoteReference(cow_str) => todo!(),
+                DisplayMath(cow_str) => {}
+                Html(cow_str) => {}
+                InlineHtml(text) => {
+                    self.push_inline(
+                        DocumentInline::Str(text.to_string()),
+                        self.to_line_range(range),
+                    );
+                    self.pop_inline();
+                }
+                FootnoteReference(cow_str) => {}
                 SoftBreak => {}
                 HardBreak => {}
                 Rule => {
@@ -90,7 +115,7 @@ impl MarkdownEventsReader {
                     }));
                     self.pop_block();
                 }
-                TaskListMarker(_) => todo!(),
+                TaskListMarker(_) => {}
             }
         }
 
@@ -159,13 +184,15 @@ impl MarkdownEventsReader {
                 self.push_block(DocumentBlock::CodeBlock(CodeBlock {
                     line_range: self.to_line_range(range),
                     lang: match code_block_kind {
-                        CodeBlockKind::Fenced(lang) => Some(lang.to_string()),
+                        CodeBlockKind::Fenced(lang) => {
+                            Some(lang.to_string()).filter(|f| !f.is_empty())
+                        }
                         CodeBlockKind::Indented => None,
                     },
                     text: "".to_string(),
                 }))
             }
-            Tag::HtmlBlock => todo!(),
+            Tag::HtmlBlock => {}
             Tag::List(num) => {
                 if num.is_some() {
                     self.push_block(DocumentBlock::OrderedList(OrderedList { items: vec![] }));
@@ -176,14 +203,14 @@ impl MarkdownEventsReader {
             Tag::Item => {
                 self.top_block().append_item();
             }
-            Tag::FootnoteDefinition(str) => todo!(),
-            Tag::DefinitionList => todo!(),
-            Tag::DefinitionListTitle => todo!(),
-            Tag::DefinitionListDefinition => todo!(),
-            Tag::Table(vec) => todo!(),
-            Tag::TableHead => todo!(),
-            Tag::TableRow => todo!(),
-            Tag::TableCell => todo!(),
+            Tag::FootnoteDefinition(str) => {}
+            Tag::DefinitionList => {}
+            Tag::DefinitionListTitle => {}
+            Tag::DefinitionListDefinition => {}
+            Tag::Table(vec) => {}
+            Tag::TableHead => {}
+            Tag::TableRow => {}
+            Tag::TableCell => {}
             Tag::Emphasis => {
                 self.push_inline(
                     DocumentInline::Emph(Emph {
@@ -249,7 +276,7 @@ impl MarkdownEventsReader {
                     self.to_line_range(range),
                 );
             }
-            Tag::MetadataBlock(metadata_block_kind) => todo!(),
+            Tag::MetadataBlock(metadata_block_kind) => self.metadata_block = true,
         }
     }
 
@@ -263,7 +290,7 @@ impl MarkdownEventsReader {
             TagEnd::CodeBlock => {
                 self.pop_block();
             }
-            TagEnd::HtmlBlock => todo!(),
+            TagEnd::HtmlBlock => {}
             TagEnd::List(_) => {
                 self.pop_block();
             }
@@ -272,16 +299,16 @@ impl MarkdownEventsReader {
             TagEnd::Strong => self.pop_inline(),
             TagEnd::Strikethrough => self.pop_inline(),
             TagEnd::Link => self.pop_inline(),
-            TagEnd::DefinitionList => todo!(),
-            TagEnd::DefinitionListDefinition => todo!(),
-            TagEnd::DefinitionListTitle => todo!(),
-            TagEnd::FootnoteDefinition => todo!(),
+            TagEnd::DefinitionList => {}
+            TagEnd::DefinitionListDefinition => {}
+            TagEnd::DefinitionListTitle => {}
+            TagEnd::FootnoteDefinition => {}
             TagEnd::Image => self.pop_inline(),
-            TagEnd::MetadataBlock(metadata_block_kind) => todo!(),
-            TagEnd::Table => todo!(),
-            TagEnd::TableCell => todo!(),
-            TagEnd::TableHead => todo!(),
-            TagEnd::TableRow => todo!(),
+            TagEnd::MetadataBlock(metadata_block_kind) => self.metadata_block = false,
+            TagEnd::Table => {}
+            TagEnd::TableCell => {}
+            TagEnd::TableHead => {}
+            TagEnd::TableRow => {}
         }
     }
 

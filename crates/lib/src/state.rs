@@ -3,14 +3,14 @@ use itertools::Itertools;
 
 use crate::{key::with_extension, model::State};
 
-pub fn to_debug_string(state: &State) -> String {
+pub fn to_indoc(state: &State) -> String {
     state
         .iter()
         .map(|(key, file)| (key, file))
         .sorted_by_key(|a| a.0)
-        .map(|file| format!("{}:\n{}", file.0, file.1))
+        .map(|file| file.1.to_string())
         .collect::<Vec<String>>()
-        .join("\n")
+        .join("_\n")
 }
 
 pub fn new_form_pairs(files: Vec<&str>) -> State {

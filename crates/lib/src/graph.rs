@@ -66,6 +66,7 @@ pub struct Graph {
     sequential_keys: bool,
     keys_to_ref_text: HashMap<Key, String>,
     markdown_options: MarkdownOptions,
+    metadata: HashMap<Key, String>,
 }
 
 pub trait NodeIter<'a> {
@@ -90,6 +91,7 @@ impl Graph {
     pub fn new_patch(&self) -> Graph {
         Graph {
             markdown_options: self.markdown_options.clone(),
+            metadata: self.metadata.clone(),
             ..Default::default()
         }
     }
@@ -182,7 +184,7 @@ impl Graph {
         let id = self.arena.new_node_id();
         self.keys.insert(key.to_string(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.to_string(), id));
+            .set_node(id, GraphNode::new_root(key.to_string(), id, None));
         GraphBuilder::new(self, id)
     }
 
@@ -205,7 +207,7 @@ impl Graph {
         let id = self.arena.new_node_id();
         self.keys.insert(key.to_string(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.to_string(), id));
+            .set_node(id, GraphNode::new_root(key.to_string(), id, None));
         f(&mut GraphBuilder::new(self, id));
 
         self.extract_ref_text(key)
@@ -245,10 +247,18 @@ impl Graph {
     }
 
     pub fn from_markdown(&mut self, key: &str, content: &str, reader: impl Reader) {
+        let document = reader.document(content);
+
+        if let Some(meta) = document.metadata {
+            self.metadata.insert(key.to_string(), meta);
+        } else {
+            self.metadata.remove(key);
+        }
+
         let mut build_key = self.build_key(key);
         let id = build_key.id();
-        let blocks = reader.document(content).blocks;
-        let nodes_map = SectionsBuilder::new(&mut build_key, &blocks).nodes_map();
+
+        let nodes_map = SectionsBuilder::new(&mut build_key, &document.blocks).nodes_map();
 
         self.nodes_map.insert(key.to_string(), nodes_map.clone());
         self.global_nodes_map.extend(nodes_map);
@@ -261,15 +271,16 @@ impl Graph {
             .map(|text| self.keys_to_ref_text.insert(key.to_string(), text));
     }
 
-    pub fn project(&self, key: &str) -> Vec<Block> {
-        let id = self.keys.get(key).unwrap();
-        Projector::new(self, *id, 0, 0).project()
-    }
-
     pub fn to_markdown(&self, key: &str) -> String {
         let id = self.keys.get(key).unwrap();
         let blocks = Projector::new(self, *id, 0, 0).project();
-        blocks_to_markdown_sparce(&blocks, &self.markdown_options)
+        let text = blocks_to_markdown_sparce(&blocks, &self.markdown_options);
+
+        if self.metadata.contains_key(key) {
+            format!("---\n{}---\n\n{}", self.metadata.get(key).unwrap(), text)
+        } else {
+            text
+        }
     }
 
     pub fn paths(&self) -> Vec<NodePath> {
@@ -305,12 +316,20 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| (without_extension(k).clone(), reader.document(v).blocks))
+            .map(|(k, v)| (without_extension(k).clone(), reader.document(v)))
             .collect::<Vec<_>>();
 
-        for (key, block_vec) in blocks {
+        for (key, document) in &blocks {
+            if let Some(meta) = document.metadata.clone() {
+                graph.metadata.insert(key.to_string(), meta);
+            } else {
+                graph.metadata.remove(key);
+            }
+        }
+
+        for (key, document) in blocks {
             let nodes_map =
-                SectionsBuilder::new(&mut graph.build_key(&key), &block_vec).nodes_map();
+                SectionsBuilder::new(&mut graph.build_key(&key), &document.blocks).nodes_map();
             graph.nodes_map.insert(key.to_string(), nodes_map.clone());
             graph.global_nodes_map.extend(nodes_map);
         }
@@ -330,21 +349,13 @@ impl Graph {
     }
 
     pub fn export_key(&self, key: &str) -> Option<String> {
-        Some(blocks_to_markdown_sparce(
-            &self.project(key),
-            &self.markdown_options,
-        ))
+        Some(self.to_markdown(key))
     }
 
     pub fn export(&self) -> State {
         self.keys
             .par_iter()
-            .map(|(k, v)| {
-                (
-                    with_extension(k),
-                    blocks_to_markdown_sparce(&self.project(k), &self.markdown_options),
-                )
-            })
+            .map(|(k, v)| (with_extension(k), self.to_markdown(k)))
             .collect()
     }
 
