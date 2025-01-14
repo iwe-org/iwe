@@ -1,6 +1,6 @@
-use crate::model::Content;
-use crate::model::graph::Node;
 use super::*;
+use crate::model::graph::Node;
+use crate::model::Content;
 
 #[derive(Debug, Clone)]
 pub struct GraphNodeVisitor<'a> {
@@ -100,7 +100,27 @@ impl<'a> GraphNodeVisitor<'a> {
         if self.node().is_document() {
             return None;
         }
-        self.to_parent().map(|p| p.get_list()).unwrap_or(None)
+        self.to_parent().and_then(|p| p.get_list())
+    }
+
+    pub fn get_top_level_list(&self) -> Option<Self> {
+        if self.node().is_list() && !self.to_parent().map(|p| p.is_in_list()).unwrap_or(false) {
+            return Some(Self::new(self.graph, self.id));
+        }
+        if self.node().is_document() {
+            return None;
+        }
+        self.to_parent().and_then(|p| p.get_top_level_list())
+    }
+
+    pub fn get_section(&self) -> Option<Self> {
+        if self.node().is_section() && !self.is_in_list() {
+            return Some(Self::new(self.graph, self.id));
+        }
+        if self.node().is_document() {
+            return None;
+        }
+        self.to_parent().and_then(|p| p.get_section())
     }
 
     pub fn is_primary_section(&self) -> bool {

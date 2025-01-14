@@ -13,7 +13,7 @@ use lsp_types::{
     WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 
-use fixture::uri;
+use fixture::{action_kind, action_kinds, uri};
 
 use crate::fixture::Fixture;
 
@@ -21,7 +21,7 @@ mod fixture;
 
 #[test]
 fn wrap_single_section() {
-    assert_extracted(
+    assert_list(
         indoc! {"
             # test
             "},
@@ -32,7 +32,7 @@ fn wrap_single_section() {
 
 #[test]
 fn wrap_parent_section() {
-    assert_extracted(
+    assert_list(
         indoc! {"
             # test
 
@@ -48,7 +48,7 @@ fn wrap_parent_section() {
 
 #[test]
 fn wrap_section_with_para() {
-    assert_extracted(
+    assert_list(
         indoc! {"
             # test
 
@@ -65,7 +65,7 @@ fn wrap_section_with_para() {
 
 #[test]
 fn wrap_nested_section() {
-    assert_extracted(
+    assert_list(
         indoc! {"
             # test
 
@@ -83,7 +83,7 @@ fn wrap_nested_section() {
 
 #[test]
 fn wrap_list_after_para_test() {
-    assert_extracted(
+    assert_list(
         indoc! {"
             para
 
@@ -100,7 +100,7 @@ fn wrap_list_after_para_test() {
 
 #[test]
 fn wrap_list_after_para_with_para_test() {
-    assert_extracted(
+    assert_list(
         indoc! {"
             para
 
@@ -121,7 +121,7 @@ fn wrap_list_after_para_with_para_test() {
 
 #[test]
 fn wrap_list_somehting() {
-    assert_extracted(
+    assert_list(
         indoc! {"
             # test1
 
@@ -144,7 +144,7 @@ fn wrap_list_somehting() {
     );
 }
 
-fn assert_extracted(source: &str, line: u32, expected: &str) {
+fn assert_list(source: &str, line: u32, expected: &str) {
     let fixture = Fixture::with(source);
 
     fixture.code_action(
@@ -153,15 +153,15 @@ fn assert_extracted(source: &str, line: u32, expected: &str) {
             range: Range::new(Position::new(line, 0), Position::new(line, 0)),
             context: CodeActionContext {
                 diagnostics: Default::default(),
-                only: Some(vec![CodeActionKind::REFACTOR_REWRITE]),
+                only: action_kinds("refactor.rewrite.secton.list"),
                 trigger_kind: None,
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
         vec![CodeActionOrCommand::CodeAction(CodeAction {
-            title: "Sections to list".to_string(),
-            kind: Some(CodeActionKind::REFACTOR_REWRITE),
+            title: "Section to list".to_string(),
+            kind: action_kind("refactor.rewrite.secton.list"),
             edit: Some(WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(vec![
                     DocumentChangeOperation::Edit(TextDocumentEdit {

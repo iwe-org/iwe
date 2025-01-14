@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::model::{Key, NodeId};
-use crate::model::graph::Node;
 use super::{Graph, NodeIter};
+use crate::model::graph::Node;
+use crate::model::{Key, NodeId};
 
 pub struct ExtractVisitor<'a> {
     id: NodeId,
@@ -17,7 +17,7 @@ impl<'a> ExtractVisitor<'a> {
 }
 
 impl<'a> NodeIter<'a> for ExtractVisitor<'a> {
-    fn next(&self) -> Option<impl NodeIter> {
+    fn next(&self) -> Option<Self> {
         self.graph
             .graph_node(self.id)
             .next_id()
@@ -28,7 +28,7 @@ impl<'a> NodeIter<'a> for ExtractVisitor<'a> {
             })
     }
 
-    fn child(&self) -> Option<impl NodeIter> {
+    fn child(&self) -> Option<Self> {
         if self.keys.contains_key(&self.id) {
             return None;
         }

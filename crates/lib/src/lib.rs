@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_imports, unused_variables)]
 
+pub mod action;
 pub mod database;
 pub mod file;
 pub mod fs;

@@ -2,14 +2,15 @@ use std::cmp::Ordering;
 use std::{default, path};
 
 use itertools::Itertools;
+use lib::action::ActionType;
 use lib::model::document::Para;
-use lib::model::graph::{self, MarkdownOptions};
+use lib::model::graph::{self, MarkdownOptions, NodeIter};
 use lib::model::rank::node_rank;
 use lsp_server::ResponseError;
 use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
-use lib::graph::{Graph, GraphContext, NodeIter};
+use lib::graph::{Graph, GraphContext};
 use lib::model::{self, Content, InlineRange};
 use lib::{key, model::Key};
 
@@ -20,28 +21,9 @@ use super::ServerConfig;
 use lib::database::Database;
 use lib::database::DatabaseContext;
 
-use change_list_type_action::change_list_type_action;
-use extract_list_action::extract_list_action;
-use extract_section_action::extract_section_action;
-use extract_selection_action::code_action;
-use extract_sub_sections_action::extract_sub_sections_action;
-use inline_section_action::inline_section_action;
-use list_to_section::list_to_section;
-use section_to_list_action::section_to_list_action;
-
 use self::extensions::*;
 
-mod change_list_type_action;
 mod extensions;
-mod extract_list_action;
-mod extract_section_action;
-mod extract_selection_action;
-mod extract_sub_sections_action;
-mod inline_section_action;
-mod list_to_section;
-mod section_to_list_action;
-
-pub trait CodeActionContext: GraphContext + ServerContext + DatabaseContext {}
 
 pub struct Server {
     base_path: BasePath,
@@ -185,7 +167,7 @@ impl Server {
         let mut patch = self.database.graph().new_patch();
         patch
             .build_key(&key)
-            .insert_from_iter(self.database.graph().visitor(&key));
+            .insert_from_iter(self.database.graph().visit(&key));
 
         vec![TextEdit {
             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
@@ -401,18 +383,42 @@ impl Server {
     }
 
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
-        vec![
-            section_to_list_action(self.database.graph(), &self.base_path, params),
-            list_to_section(self.database.graph(), &self.base_path, params),
-            inline_section_action(self.database.graph(), &self.base_path, params),
-            extract_section_action(self.database.graph(), &self.base_path, params),
-            extract_sub_sections_action(self.database.graph(), &self.base_path, params),
-            extract_list_action(self.database.graph(), &self.base_path, params),
-            change_list_type_action(self.database.graph(), &self.base_path, params),
-        ]
-        .into_iter()
-        .flatten()
-        .collect_vec()
+        let context = self.database.graph();
+        let base_path: &BasePath = &self.base_path;
+
+        eprintln!("code action requested");
+
+        context
+            .get_node_id_at(
+                &params.text_document.uri.to_key(base_path),
+                params.range.start.line as usize,
+            )
+            .filter(|_| params.range.empty())
+            .map(|node_id| {
+                vec![
+                    ActionType::SectionExtract,
+                    ActionType::SectionExtractSubsections,
+                    ActionType::ReferenceInlineSection,
+                    ActionType::ListToSections,
+                    ActionType::SectionToList,
+                    ActionType::ListChangeType,
+                    ActionType::ReferenceInlineQuote,
+                ]
+                .iter()
+                .filter(|action_type| params.only_includes(&action_type.action_kind()))
+                .chain(
+                    vec![ActionType::ReferenceInlineList, ActionType::ListDetach]
+                        .iter()
+                        .filter(|action_type| {
+                            params.only_includes_explicit(&action_type.action_kind())
+                        }),
+                )
+                .map(|action_type| action_type.apply(node_id, context))
+                .flatten()
+                .map(|action| action.to_code_action(base_path))
+                .collect_vec()
+            })
+            .unwrap_or_default()
     }
 }
 

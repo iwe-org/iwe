@@ -1,8 +1,8 @@
 use std::default;
 
-use super::{graph_node_visitor::GraphNodeVisitor, Graph, NodeIter};
+use super::{graph_node_visitor::GraphNodeVisitor, Graph};
 use crate::model::document::OrderedList;
-use crate::model::graph::Node;
+use crate::model::graph::{Node, NodeIter};
 use crate::model::NodeId;
 
 pub struct ChangeListTypeVisitor<'a> {
@@ -27,7 +27,7 @@ impl<'a> ChangeListTypeVisitor<'a> {
 }
 
 impl<'a> NodeIter<'a> for ChangeListTypeVisitor<'a> {
-    fn next(&self) -> Option<impl NodeIter> {
+    fn next(&self) -> Option<Self> {
         return self.current().to_next().map(|child| Self {
             id: child.id(),
             target_id: self.target_id,
@@ -35,7 +35,7 @@ impl<'a> NodeIter<'a> for ChangeListTypeVisitor<'a> {
         });
     }
 
-    fn child(&self) -> Option<impl NodeIter> {
+    fn child(&self) -> Option<Self> {
         return self.current().to_child().map(|child| Self {
             id: child.id(),
             target_id: self.target_id,

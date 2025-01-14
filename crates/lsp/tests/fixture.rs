@@ -18,11 +18,11 @@ use lsp_types::{
         CodeActionRequest, Completion, Formatting, GotoDefinition, GotoTypeDefinition,
         GotoTypeDefinitionResponse, InlayHintRequest, References, Shutdown, WorkspaceSymbolRequest,
     },
-    CodeAction, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    DidChangeTextDocumentParams, DocumentFormattingParams, GotoDefinitionParams,
-    GotoDefinitionResponse, InlayHint, InlayHintParams, Location, PrepareRenameResponse,
-    ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    CodeAction, CodeActionKind, CodeActionParams, CodeActionResponse, CompletionParams,
+    CompletionResponse, DidChangeTextDocumentParams, DocumentFormattingParams,
+    GotoDefinitionParams, GotoDefinitionResponse, InlayHint, InlayHintParams, Location,
+    PrepareRenameResponse, ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit,
+    Url, WorkspaceEdit, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{to_string_pretty, Value};
@@ -57,6 +57,14 @@ pub fn uri(number: u32) -> Url {
 
 pub fn uri_from(key: &str) -> Url {
     Url::from_file_path(format!("/basepath/{}.md", key)).unwrap()
+}
+
+pub fn action_kinds(name: &'static str) -> Option<Vec<CodeActionKind>> {
+    Some(vec![CodeActionKind::new(name)])
+}
+
+pub fn action_kind(name: &'static str) -> Option<CodeActionKind> {
+    Some(CodeActionKind::new(name))
 }
 
 impl Fixture {

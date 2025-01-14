@@ -13,7 +13,7 @@ use lsp_types::{
     WorkspaceSymbolResponse,
 };
 
-use fixture::uri;
+use fixture::{action_kind, action_kinds, uri};
 
 use crate::fixture::Fixture;
 
@@ -84,7 +84,7 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
             range: Range::new(Position::new(line, 0), Position::new(line, 0)),
             context: CodeActionContext {
                 diagnostics: Default::default(),
-                only: Some(vec![lsp_types::CodeActionKind::REFACTOR_EXTRACT]),
+                only: action_kinds("refactor.extract.list"),
                 trigger_kind: None,
             },
             work_done_progress_params: Default::default(),
@@ -92,7 +92,7 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
         },
         vec![CodeActionOrCommand::CodeAction(CodeAction {
             title: "Extract list".to_string(),
-            kind: Some(lsp_types::CodeActionKind::REFACTOR_EXTRACT),
+            kind: action_kind("refactor.extract.list"),
             edit: Some(lsp_types::WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(vec![
                     DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {

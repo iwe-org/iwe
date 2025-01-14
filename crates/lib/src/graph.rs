@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    f32::consts::E,
     fmt::{Debug, Formatter},
 };
 
@@ -8,6 +9,7 @@ use change_list_type_visitor::ChangeListTypeVisitor;
 use extract_visitor::ExtractVisitor;
 use graph_line::Line;
 use index::RefIndex;
+use inline_quote_visitor::InlineQuoteVisitor;
 use inline_visitor::InlineVisitor;
 use node_visitor::NodeVisitor;
 use projector::Projector;
@@ -18,7 +20,10 @@ use squash_visitor::SquashVisitor;
 use crate::{
     key::{with_extension, without_extension},
     markdown::MarkdownReader,
-    model::{document::Document, graph::MarkdownOptions},
+    model::{
+        document::Document,
+        graph::{MarkdownOptions, NodeIter},
+    },
 };
 use arena::Arena;
 use builder::GraphBuilder;
@@ -45,6 +50,7 @@ mod graph_line;
 pub mod graph_node;
 pub mod graph_node_visitor;
 mod index;
+mod inline_quote_visitor;
 mod inline_visitor;
 mod node_visitor;
 mod projector;
@@ -69,17 +75,9 @@ pub struct Graph {
     metadata: HashMap<Key, String>,
 }
 
-pub trait NodeIter<'a> {
-    fn next(&self) -> Option<impl NodeIter>;
-    fn child(&self) -> Option<impl NodeIter>;
-    fn node(&self) -> Option<Node>;
-}
-
 pub trait Reader {
     fn document<'a>(&self, content: &str) -> Document;
 }
-
-pub trait Converter {}
 
 impl Graph {
     pub fn new() -> Graph {
@@ -427,6 +425,7 @@ impl InlinesContext for &Graph {
 }
 
 pub trait GraphContext: Copy {
+    fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
     fn change_key_visitor(&self, key: &str, target_key: &str, updated_key: &str) -> impl NodeIter;
     fn extract_vistior(&self, key: &str, keys: HashMap<NodeId, Key>) -> impl NodeIter;
     fn get_container_doucment_ref_text(&self, id: NodeId) -> String;
@@ -437,9 +436,11 @@ pub trait GraphContext: Copy {
     fn get_ref_text(&self, key: &str) -> Option<String>;
     fn get_reference_key(&self, id: NodeId) -> Key;
     fn get_sub_sections(&self, node_id: NodeId) -> Vec<NodeId>;
+    fn get_surrounding_section_id(&self, node_id: NodeId) -> Option<NodeId>;
     fn get_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
     fn get_text(&self, id: NodeId) -> String;
     fn inline_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter;
+    fn inline_quote_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter;
     fn is_header(&self, id: NodeId) -> bool;
     fn is_list(&self, id: NodeId) -> bool;
     fn is_ordered_list(&self, id: NodeId) -> bool;
@@ -447,18 +448,39 @@ pub trait GraphContext: Copy {
     fn is_reference(&self, id: NodeId) -> bool;
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
     fn node_visitor(&self, id: NodeId) -> impl NodeIter;
-    fn node_visitor_cut(&self, id: NodeId) -> impl NodeIter;
+    fn node_visit_children_of(&self, id: NodeId) -> impl NodeIter;
     fn random_key(&self) -> String;
     fn squash_vistior(&self, key: &str, depth: u8) -> impl NodeIter;
     fn unwrap_vistior(&self, key: &str, target_id: NodeId) -> impl NodeIter;
-    fn change_list_type_visiton(&self, key: &str, target_id: NodeId) -> impl NodeIter;
-    fn visitor(&self, key: &str) -> impl NodeIter;
+    fn change_list_type_visitor(&self, key: &str, target_id: NodeId) -> impl NodeIter;
+    fn visit(&self, key: &str) -> NodeVisitor;
     fn wrap_vistior(&self, target_id: NodeId) -> impl NodeIter;
-    fn patch(&self) -> Graph;
+    fn patch(&self) -> impl GraphPatch;
+}
+
+pub trait GraphPatch<'a> {
+    fn markdown(&self, key: &Key) -> Option<String>;
+    fn add_key(&mut self, key: &Key, iter: impl NodeIter<'a>);
+}
+
+impl<'a> GraphPatch<'a> for Graph {
+    fn add_key(&mut self, key: &Key, iter: impl NodeIter<'a>) {
+        if iter.node().unwrap().is_doucment() {
+            self.build_key_and(&key, |doc| {
+                doc.insert_from_iter(iter.child().expect("to have child in document iter"))
+            });
+        } else {
+            self.build_key_and(&key, |doc| doc.insert_from_iter(iter));
+        }
+    }
+
+    fn markdown(&self, key: &Key) -> Option<String> {
+        self.export_key(key)
+    }
 }
 
 impl GraphContext for &Graph {
-    fn patch(&self) -> Graph {
+    fn patch(&self) -> impl GraphPatch {
         self.new_patch()
     }
 
@@ -466,8 +488,8 @@ impl GraphContext for &Graph {
         NodeVisitor::new(self, id)
     }
 
-    fn node_visitor_cut(&self, id: NodeId) -> impl NodeIter {
-        NodeVisitor::new_cut(self, id)
+    fn node_visit_children_of(&self, id: NodeId) -> impl NodeIter {
+        NodeVisitor::children_of(self, id)
     }
 
     fn inline_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter {
@@ -480,6 +502,16 @@ impl GraphContext for &Graph {
         InlineVisitor::new(self, id, inline_id)
     }
 
+    fn inline_quote_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter {
+        let id = self
+            .visit_key(key)
+            .expect("to have key")
+            .to_child()
+            .expect("to have child")
+            .id();
+        InlineQuoteVisitor::new(self, id, inline_id)
+    }
+
     fn change_key_visitor(&self, key: &str, target_key: &str, updated_key: &str) -> impl NodeIter {
         ChangeKeyVisitor::new(self, key, target_key, updated_key)
     }
@@ -489,7 +521,7 @@ impl GraphContext for &Graph {
         SquashVisitor::new(self, id, depth)
     }
 
-    fn visitor(&self, key: &str) -> impl NodeIter {
+    fn visit(&self, key: &str) -> NodeVisitor {
         let doc = *self.keys.get(key).expect("to have key");
 
         NodeVisitor::new(
@@ -521,7 +553,7 @@ impl GraphContext for &Graph {
         UnwrapVisitor::new(self, key, target_id)
     }
 
-    fn change_list_type_visiton(&self, key: &str, target_id: NodeId) -> impl NodeIter {
+    fn change_list_type_visitor(&self, key: &str, target_id: NodeId) -> impl NodeIter {
         ChangeListTypeVisitor::new(self, key, target_id)
     }
 
@@ -609,6 +641,10 @@ impl GraphContext for &Graph {
         self.visit_node(id).get_list().map(|v| v.id())
     }
 
+    fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId> {
+        self.visit_node(id).get_top_level_list().map(|v| v.id())
+    }
+
     fn is_reference(&self, id: NodeId) -> bool {
         self.graph_node(id).is_ref()
     }
@@ -623,5 +659,12 @@ impl GraphContext for &Graph {
 
     fn get_sub_sections(&self, node_id: NodeId) -> Vec<NodeId> {
         self.visit_node(node_id).get_sub_sections()
+    }
+
+    fn get_surrounding_section_id(&self, node_id: NodeId) -> Option<NodeId> {
+        self.visit_node(node_id)
+            .to_parent()?
+            .get_section()
+            .map(|v| v.id())
     }
 }

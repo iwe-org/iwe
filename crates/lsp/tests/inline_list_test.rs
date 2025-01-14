@@ -1,17 +1,14 @@
 #![allow(dead_code, unused_imports, unused_variables, deprecated)]
 
-use std::u32;
-
 use indoc::indoc;
-use lib::model::Title;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionKind, CodeActionOrCommand, CodeActionParams,
-    CompletionItem, CompletionList, CompletionParams, CompletionResponse, CreateFile,
-    CreateFileOptions, DocumentChangeOperation, DocumentChanges, Documentation, OneOf,
+    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, CompletionItem,
+    CompletionList, CompletionParams, CompletionResponse, CreateFile, CreateFileOptions,
+    DeleteFile, DocumentChangeOperation, DocumentChanges, Documentation, OneOf,
     OptionalVersionedTextDocumentIdentifier, PartialResultParams, Position, Range, ResourceOp,
     SymbolInformation, SymbolKind, TextDocumentEdit, TextDocumentIdentifier,
-    TextDocumentPositionParams, TextEdit, Url, WorkDoneProgressParams, WorkspaceEdit,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    TextDocumentPositionParams, TextEdit, Url, WorkDoneProgressParams, WorkspaceSymbolParams,
+    WorkspaceSymbolResponse,
 };
 
 use fixture::{action_kind, action_kinds, uri};
@@ -21,57 +18,80 @@ use crate::fixture::Fixture;
 mod fixture;
 
 #[test]
-fn change_to_ordered() {
-    assert_list_change(
+fn inline_test() {
+    assert_inlined(
         indoc! {"
-            - test
-            - test2
+            # test
+
+            [test2](2)
+            _
+            # test2
+
+            para
             "},
-        0,
+        2,
         indoc! {"
-            1.  test
-            2.  test2
+            # test
+
+            - test2
+
+              para
         "},
-        "Change to ordered list",
     );
 }
 
 #[test]
-fn change_to_bullet() {
-    assert_list_change(
+fn inline_with_content_after_ref() {
+    assert_inlined(
         indoc! {"
-            1.  test
-            2.  test2
+            # test
+
+            [test2](2)
+
+            ## test3
+            _
+            # test2
+
+            para
             "},
-        0,
+        2,
         indoc! {"
-            - test
+            # test
+
             - test2
+
+              para
+
+            ## test3
         "},
-        "Change to bullet list",
     );
 }
 
-fn assert_list_change(source: &str, line: u32, expected: &str, title: &str) {
+fn assert_inlined(source: &str, line: u32, inlined: &str) {
     let fixture = Fixture::with(source);
+
+    let delete = DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
+        uri: uri(2),
+        options: None,
+    }));
 
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
             range: Range::new(Position::new(line, 0), Position::new(line, 0)),
             context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.rewrite.list.type"),
-                trigger_kind: None,
+                only: action_kinds("refactor.inline.reference.list"),
+                ..Default::default()
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
         vec![CodeActionOrCommand::CodeAction(CodeAction {
-            title: title.to_string(),
-            kind: action_kind("refactor.rewrite.list.type"),
-            edit: Some(WorkspaceEdit {
+            title: "Inline list".to_string(),
+            kind: action_kind("refactor.inline.reference.list"),
+            edit: Some(lsp_types::WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(vec![
+                    delete,
                     DocumentChangeOperation::Edit(TextDocumentEdit {
                         text_document: OptionalVersionedTextDocumentIdentifier {
                             uri: uri(1),
@@ -79,7 +99,7 @@ fn assert_list_change(source: &str, line: u32, expected: &str, title: &str) {
                         },
                         edits: vec![OneOf::Left(TextEdit {
                             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: expected.to_string(),
+                            new_text: inlined.to_string(),
                         })],
                     }),
                 ])),

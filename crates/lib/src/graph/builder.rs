@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::graph::{Inline, Node};
+use crate::model::graph::{Inline, Node, NodeIter};
 
 pub struct GraphBuilder<'a> {
     id: NodeId,
@@ -311,10 +311,95 @@ impl<'a> GraphBuilder<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::Graph;
+    use super::{Graph, NodeVisitor};
     use crate::markdown::MarkdownReader;
-    use crate::model::graph::{Inline, Node};
+    use crate::model::graph::{GraphNodeIter, Inline, Node, TreeNode};
     use indoc::indoc;
+
+    #[test]
+    pub fn simple_tree() {
+        let graph = Graph::with(|graph| {
+            graph
+                .build_key("key")
+                .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |f| {})
+        });
+
+        let visitor = NodeVisitor::new(&graph, graph.get_document_id("key"));
+
+        assert_eq!(
+            TreeNode {
+                id: Some(0),
+                payload: Node::Document("key".to_string()),
+                children: vec![TreeNode {
+                    id: Some(1),
+                    payload: Node::Leaf(vec![Inline::Str("item".to_string())]),
+                    children: vec![]
+                }]
+            },
+            visitor.collect_tree()
+        )
+    }
+
+    #[test]
+    pub fn nested_tree() {
+        let graph = Graph::with(|graph| {
+            graph.build_key("key").add_new_node_and(
+                Node::Section(vec![Inline::Str("item".to_string())]),
+                |f| {
+                    f.add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |f| {});
+                },
+            )
+        });
+
+        let visitor = NodeVisitor::new(&graph, graph.get_document_id("key"));
+
+        assert_eq!(
+            TreeNode {
+                id: Some(0),
+                payload: Node::Document("key".to_string()),
+                children: vec![TreeNode {
+                    id: Some(1),
+                    payload: Node::Section(vec![Inline::Str("item".to_string())]),
+                    children: vec![TreeNode {
+                        id: Some(2),
+                        payload: Node::Leaf(vec![Inline::Str("item".to_string())]),
+                        children: vec![]
+                    }]
+                }]
+            },
+            visitor.collect_tree()
+        )
+    }
+
+    #[test]
+    pub fn graph_form_tree() {
+        let tree = TreeNode {
+            id: Some(0),
+            payload: Node::Document("key".to_string()),
+            children: vec![TreeNode {
+                id: Some(1),
+                payload: Node::Section(vec![Inline::Str("section".to_string())]),
+                children: vec![TreeNode {
+                    id: Some(2),
+                    payload: Node::Leaf(vec![Inline::Str("item".to_string())]),
+                    children: vec![],
+                }],
+            }],
+        };
+
+        let mut graph = Graph::new();
+
+        graph.build_key_from_iter("key", tree.iter());
+
+        assert_eq(
+            graph,
+            indoc! { "
+                # section
+
+                item
+                "},
+        );
+    }
 
     #[test]
     pub fn add_new_node_leaf() {
