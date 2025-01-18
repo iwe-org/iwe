@@ -1,5 +1,6 @@
 [package]
-name = "lsp"
+name = "iwes"
+description = "IWE LSP server"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 
 version.workspace = true
@@ -14,7 +15,7 @@ name = "iwes"
 path = "src/main.rs"
 
 [dependencies]
-lib = { path = "../lib" }
+liwe.workspace = true
 indoc.workspace = true
 clap.workspace = true
 pretty_assertions.workspace = true

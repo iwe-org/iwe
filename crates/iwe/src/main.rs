@@ -7,10 +7,10 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use itertools::Itertools;
 
-use lib::fs::new_for_path;
-use lib::graph::path::NodePath;
-use lib::graph::{Graph, GraphContext};
-use lib::model::graph::{MarkdownOptions, Settings};
+use liwe::fs::new_for_path;
+use liwe::graph::path::NodePath;
+use liwe::graph::{Graph, GraphContext};
+use liwe::model::graph::Settings;
 
 const CONFIG_FILE_NAME: &str = "config.json";
 const IWE_MARKER: &str = ".iwe";
@@ -127,7 +127,7 @@ fn squash_command(args: Squash) {
 }
 
 fn write_graph(graph: Graph) {
-    lib::fs::write_store_at_path(&graph.export(), &get_library_path())
+    liwe::fs::write_store_at_path(&graph.export(), &get_library_path())
         .expect("Failed to write graph")
 }
 

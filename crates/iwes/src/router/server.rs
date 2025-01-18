@@ -2,24 +2,24 @@ use std::cmp::Ordering;
 use std::{default, path};
 
 use itertools::Itertools;
-use lib::action::ActionType;
-use lib::model::document::Para;
-use lib::model::graph::{self, MarkdownOptions, NodeIter};
-use lib::model::rank::node_rank;
+use liwe::action::ActionType;
+use liwe::model::document::Para;
+use liwe::model::graph::{self, MarkdownOptions, NodeIter};
+use liwe::model::rank::node_rank;
 use lsp_server::ResponseError;
 use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
-use lib::graph::{Graph, GraphContext};
-use lib::model::{self, Content, InlineRange};
-use lib::{key, model::Key};
+use liwe::graph::{Graph, GraphContext};
+use liwe::model::{self, Content, InlineRange};
+use liwe::{key, model::Key};
 
-use lib::parser::Parser;
+use liwe::parser::Parser;
 use request::PrepareRenameRequest;
 
 use super::ServerConfig;
-use lib::database::Database;
-use lib::database::DatabaseContext;
+use liwe::database::Database;
+use liwe::database::DatabaseContext;
 
 use self::extensions::*;
 

@@ -3,7 +3,7 @@ use std::time::Instant;
 use anyhow::{bail, Result};
 use crossbeam_channel::{select, Receiver, Sender};
 use itertools::Itertools;
-use lib::model::graph::MarkdownOptions;
+use liwe::model::graph::MarkdownOptions;
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::request::{DocumentSymbolRequest, PrepareRenameRequest};
@@ -17,7 +17,7 @@ use lsp_types::{CompletionParams, GotoDefinitionParams};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::to_value;
 
-use lib::model::State;
+use liwe::model::State;
 
 use self::server::Server;
 

@@ -1,5 +1,6 @@
 [package]
-name = "lib"
+name = "iwe"
+description = "IWE CLI utility"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 
 version.workspace = true
@@ -9,15 +10,14 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
-[lib]
-name = "lib"
-path = "src/lib.rs"
+[[bin]]
+name = "iwe"
+path = "src/main.rs"
 
 [dependencies]
-sha2.workspace = true
+liwe.workspace = true
 indoc.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+clap.workspace = true
 pretty_assertions.workspace = true
 env_logger.workspace = true
 itertools.workspace = true
@@ -25,4 +25,5 @@ log.workspace = true
 futures.workspace = true
 rayon.workspace = true
 rand.workspace = true
-pulldown-cmark.workspace = true
+serde.workspace = true
+serde_json.workspace = true

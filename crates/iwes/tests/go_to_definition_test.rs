@@ -1,5 +1,5 @@
 use indoc::indoc;
-use lib::model::graph::MarkdownOptions;
+use liwe::model::graph::MarkdownOptions;
 use lsp_types::request::GotoDefinition;
 use lsp_types::{
     GotoDefinitionParams, GotoDefinitionResponse, Location, Position, Range,

@@ -10,7 +10,7 @@ use std::{
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
 use difference::Changeset;
-use lib::model::graph::MarkdownOptions;
+use liwe::model::graph::MarkdownOptions;
 use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{
     notification::{DidChangeTextDocument, Exit},
@@ -27,7 +27,7 @@ use lsp_types::{
 use serde::{Deserialize, Serialize};
 use serde_json::{to_string_pretty, Value};
 
-use lsp::{main_loop, InitializeParams};
+use iwes::{main_loop, InitializeParams};
 
 pub struct Fixture {
     req_id: Cell<i32>,
