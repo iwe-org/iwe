@@ -1,7 +1,7 @@
 use std::sync::Once;
 
 use indoc::indoc;
-use lib::{
+use liwe::{
     graph::{Graph, GraphContext},
     model::graph::MarkdownOptions,
     state::new_form_indoc,

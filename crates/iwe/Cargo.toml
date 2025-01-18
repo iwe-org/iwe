@@ -1,5 +1,5 @@
 [package]
-name = "cmd"
+name = "iwe"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 
 version.workspace = true
@@ -14,7 +14,7 @@ name = "iwe"
 path = "src/main.rs"
 
 [dependencies]
-lib = { path = "../lib" }
+liwe = { path = "../liwe" }
 indoc.workspace = true
 clap.workspace = true
 pretty_assertions.workspace = true

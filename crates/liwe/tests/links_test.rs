@@ -3,7 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use pretty_assertions::assert_str_eq;
 
-use lib::{
+use liwe::{
     graph::Graph,
     markdown::MarkdownReader,
     model::graph::MarkdownOptions,

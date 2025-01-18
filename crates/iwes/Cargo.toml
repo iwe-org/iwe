@@ -1,5 +1,5 @@
 [package]
-name = "lib"
+name = "iwes"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 
 version.workspace = true
@@ -9,20 +9,29 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
-[lib]
-name = "lib"
-path = "src/lib.rs"
+[[bin]]
+name = "iwes"
+path = "src/main.rs"
 
 [dependencies]
-sha2.workspace = true
+liwe = { path = "../liwe" }
 indoc.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+clap.workspace = true
 pretty_assertions.workspace = true
 env_logger.workspace = true
 itertools.workspace = true
 log.workspace = true
 futures.workspace = true
 rayon.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+lsp-server.workspace = true
+lsp-types.workspace = true
+crossbeam-channel.workspace = true
+anyhow.workspace = true
 rand.workspace = true
-pulldown-cmark.workspace = true
+extend.workspace = true
+
+[dev-dependencies]
+assert-json-diff.workspace = true
+difference.workspace = true

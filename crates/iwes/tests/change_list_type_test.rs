@@ -3,7 +3,7 @@
 use std::u32;
 
 use indoc::indoc;
-use lib::model::Title;
+use liwe::model::Title;
 use lsp_types::{
     CodeAction, CodeActionContext, CodeActionKind, CodeActionOrCommand, CodeActionParams,
     CompletionItem, CompletionList, CompletionParams, CompletionResponse, CreateFile,

@@ -1,10 +1,10 @@
 use std::sync::Once;
 
 use indoc::indoc;
-use lib::markdown::MarkdownReader;
+use liwe::markdown::MarkdownReader;
 use pretty_assertions::assert_str_eq;
 
-use lib::graph::Graph;
+use liwe::graph::Graph;
 
 #[test]
 fn normalization_meta_block() {

@@ -3,8 +3,8 @@
 use std::env;
 use std::error::Error;
 
-use lib::model::graph::Settings;
-use lsp::main_loop;
+use iwes::main_loop;
+use liwe::model::graph::Settings;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;

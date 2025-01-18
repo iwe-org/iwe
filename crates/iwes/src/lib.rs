@@ -5,11 +5,11 @@ use std::{env, path::PathBuf};
 
 use anyhow::Result;
 use itertools::Itertools;
-use lib::model::graph::MarkdownOptions;
+use liwe::model::graph::MarkdownOptions;
 use lsp_server::Connection;
 
-use lib::fs::new_for_path;
-use lib::state::new_form_indoc;
+use liwe::fs::new_for_path;
+use liwe::state::new_form_indoc;
 use router::{Router, ServerConfig};
 
 mod router;

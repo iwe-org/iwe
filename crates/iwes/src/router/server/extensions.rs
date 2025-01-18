@@ -2,12 +2,12 @@ use std::u32;
 
 use extend::ext;
 use itertools::Itertools;
-use lib::action::{Action, ActionType, Change};
-use lib::graph::path::NodePath;
+use liwe::action::{Action, ActionType, Change};
+use liwe::graph::path::NodePath;
 use lsp_types::*;
 
-use lib::model::{self, Content, Key};
-use lib::{graph::GraphContext, key};
+use liwe::model::{self, Content, Key};
+use liwe::{graph::GraphContext, key};
 
 use super::BasePath;
 
