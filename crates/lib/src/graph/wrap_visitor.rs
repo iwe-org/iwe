@@ -1,6 +1,6 @@
-use crate::model::{MaybeNodeId, NodeId};
-use crate::model::graph::Node;
 use super::{Graph, NodeIter};
+use crate::model::graph::Node;
+use crate::model::{MaybeNodeId, NodeId};
 
 pub struct WrapVisitor<'a> {
     id: NodeId,
@@ -50,7 +50,7 @@ impl<'a> WrapVisitor<'a> {
 }
 
 impl<'a> NodeIter<'a> for WrapVisitor<'a> {
-    fn next(&self) -> Option<impl NodeIter> {
+    fn next(&self) -> Option<Self> {
         if self.next_is_target() && !self.new_node {
             return Some(WrapVisitor {
                 id: self.id,
@@ -75,7 +75,7 @@ impl<'a> NodeIter<'a> for WrapVisitor<'a> {
             })
     }
 
-    fn child(&self) -> Option<impl NodeIter> {
+    fn child(&self) -> Option<Self> {
         if self.child_is_target() && !self.new_node {
             return Some(WrapVisitor {
                 id: self.id,

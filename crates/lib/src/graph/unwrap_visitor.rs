@@ -42,7 +42,7 @@ impl<'a> UnwrapVisitor<'a> {
 }
 
 impl<'a> NodeIter<'a> for UnwrapVisitor<'a> {
-    fn next(&self) -> Option<impl NodeIter> {
+    fn next(&self) -> Option<Self> {
         if self.next_is_target() {
             return Some(Self {
                 id: self.current().to_child().expect("target has child").id(),
@@ -76,7 +76,7 @@ impl<'a> NodeIter<'a> for UnwrapVisitor<'a> {
         })
     }
 
-    fn child(&self) -> Option<impl NodeIter> {
+    fn child(&self) -> Option<Self> {
         if self.child_is_target() {
             return self.current().to_child().map(|child| Self {
                 id: child.id(),

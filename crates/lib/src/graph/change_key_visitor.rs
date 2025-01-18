@@ -3,9 +3,9 @@ use std::default;
 use itertools::Itertools;
 
 use super::GraphContext;
-use super::{graph_node_visitor::GraphNodeVisitor, Graph, NodeIter};
+use super::{graph_node_visitor::GraphNodeVisitor, Graph};
 use crate::model::document::OrderedList;
-use crate::model::graph::{self, Node};
+use crate::model::graph::{self, GraphNodeIter, Node, NodeIter};
 use crate::model::NodeId;
 
 pub struct ChangeKeyVisitor<'a> {
@@ -32,7 +32,7 @@ impl<'a> ChangeKeyVisitor<'a> {
 }
 
 impl<'a> NodeIter<'a> for ChangeKeyVisitor<'a> {
-    fn next(&self) -> Option<impl NodeIter> {
+    fn next(&self) -> Option<Self> {
         return self.current().to_next().map(|child| Self {
             id: child.id(),
             graph: self.graph,
@@ -41,7 +41,7 @@ impl<'a> NodeIter<'a> for ChangeKeyVisitor<'a> {
         });
     }
 
-    fn child(&self) -> Option<impl NodeIter> {
+    fn child(&self) -> Option<Self> {
         return self.current().to_child().map(|child| Self {
             id: child.id(),
             graph: self.graph,

@@ -1,9 +1,13 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+use crate::graph::graph_node::GraphNode;
 use crate::key::without_extension;
 use crate::model;
 use crate::model::document::DocumentInlines;
 use crate::model::{InlinesContext, Key, Lang, Level, Title, Url};
+
+use super::NodeId;
 
 pub type Blocks = Vec<Block>;
 pub type Inlines = Vec<Inline>;
@@ -19,6 +23,21 @@ pub enum Node {
     Raw(Option<String>, String),
     HorizontalRule(),
     Reference(Key, String),
+}
+
+impl Node {
+    pub fn is_doucment(&self) -> bool {
+        match self {
+            Node::Document(_) => true,
+            _ => false,
+        }
+    }
+    pub fn is_section(&self) -> bool {
+        match self {
+            Node::Section(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,6 +72,160 @@ pub enum Inline {
     Subscript(Inlines),
     Superscript(Inlines),
     Underline(Inlines),
+}
+
+pub trait NodeIter<'a>: Sized {
+    fn next(&self) -> Option<Self>;
+    fn child(&self) -> Option<Self>;
+    fn node(&self) -> Option<Node>;
+}
+
+pub trait GraphNodeIter<'a>: NodeIter<'a> {
+    fn id(&self) -> Option<NodeId>;
+
+    fn collect_tree(self) -> TreeNode {
+        TreeNode::from_iter(self).expect("to have node")
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TreeNode {
+    pub id: Option<NodeId>,
+    pub payload: Node,
+    pub children: Vec<TreeNode>,
+}
+
+impl TreeNode {
+    pub fn iter(&self) -> TreeIter {
+        TreeIter::new(self)
+    }
+
+    pub fn pre_sub_header_position(&self) -> usize {
+        self.children
+            .iter()
+            .take_while(|child| !child.payload.is_section())
+            .count()
+    }
+
+    pub fn remove_node(&self, target_id: NodeId) -> TreeNode {
+        TreeNode {
+            id: self.id,
+            payload: self.payload.clone(),
+            children: self
+                .clone()
+                .children
+                .iter()
+                .filter(|child| !child.id_eq(target_id))
+                .map(|child| child.remove_node(target_id))
+                .collect(),
+        }
+    }
+
+    pub fn append_pre_header(&self, target_id: NodeId, new: TreeNode) -> TreeNode {
+        let mut children = self.children.clone();
+
+        if self.id_eq(target_id) {
+            children.insert(self.pre_sub_header_position(), new.clone());
+        }
+
+        TreeNode {
+            id: self.id,
+            payload: self.payload.clone(),
+            children: children
+                .into_iter()
+                .map(|child| child.append_pre_header(target_id, new.clone()))
+                .collect(),
+        }
+    }
+
+    pub fn id_eq(&self, id: NodeId) -> bool {
+        self.id == Some(id)
+    }
+
+    pub fn from_iter<'a>(iter: impl GraphNodeIter<'a>) -> Option<TreeNode> {
+        let id = iter.id();
+        let payload = iter.node()?;
+        let mut children = Vec::new();
+
+        iter.child().map(|child| children.push(child));
+
+        if let Some(child) = iter.child() {
+            let mut i = child;
+            while let Some(next) = i.next() {
+                children.push(next);
+                i = i.next().unwrap();
+            }
+        }
+
+        Some(TreeNode {
+            id,
+            payload,
+            children: children
+                .into_iter()
+                .map(|c| TreeNode::from_iter(c))
+                .flatten()
+                .collect_vec(),
+        })
+    }
+}
+
+pub struct TreeIter<'a> {
+    tree_node: &'a TreeNode,
+    path: Vec<usize>,
+}
+
+impl<'a> TreeIter<'a> {
+    pub fn new(tree_node: &'a TreeNode) -> TreeIter<'a> {
+        TreeIter {
+            tree_node: &tree_node,
+            path: vec![],
+        }
+    }
+}
+
+impl<'a, 'b> NodeIter<'a> for TreeIter<'b> {
+    fn next(&self) -> Option<Self> {
+        self.path.last().map(|n| {
+            let mut path = self.path.clone();
+            path.pop();
+            path.push(n + 1);
+
+            TreeIter {
+                tree_node: self.tree_node,
+                path,
+            }
+        })
+    }
+
+    fn child(&self) -> Option<Self> {
+        let mut path = self.path.clone();
+        path.push(0);
+
+        Some(TreeIter {
+            tree_node: self.tree_node,
+            path,
+        })
+    }
+
+    fn node(&self) -> Option<Node> {
+        let mut node = self.tree_node;
+
+        for n in self.path.iter() {
+            if let Some(n) = &node.children.get(*n) {
+                node = n;
+            } else {
+                return None;
+            }
+        }
+
+        Some(node.payload.clone())
+    }
+}
+
+impl<'a, 'b> GraphNodeIter<'a> for TreeIter<'b> {
+    fn id(&self) -> Option<NodeId> {
+        self.tree_node.id
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]

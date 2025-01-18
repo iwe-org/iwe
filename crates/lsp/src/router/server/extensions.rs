@@ -2,6 +2,7 @@ use std::u32;
 
 use extend::ext;
 use itertools::Itertools;
+use lib::action::{Action, ActionType, Change};
 use lib::graph::path::NodePath;
 use lsp_types::*;
 
@@ -19,6 +20,14 @@ pub impl CodeActionParams {
             .map(|only| only.contains(kind))
             .unwrap_or(true)
     }
+
+    fn only_includes_explicit(&self, kind: &CodeActionKind) -> bool {
+        self.clone()
+            .context
+            .only
+            .map(|only| only.contains(kind))
+            .unwrap_or(false)
+    }
 }
 
 #[ext]
@@ -29,6 +38,27 @@ pub impl Vec<DocumentChangeOperation> {
             kind: Some(kind),
             edit: Some(WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(self)),
+
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+    }
+}
+
+#[ext]
+pub impl Action {
+    fn to_code_action(&self, base_path: &BasePath) -> CodeActionOrCommand {
+        CodeActionOrCommand::CodeAction(CodeAction {
+            title: self.title.to_string(),
+            kind: Some(self.action_type.action_kind()),
+            edit: Some(WorkspaceEdit {
+                document_changes: Some(DocumentChanges::Operations(
+                    self.changes
+                        .iter()
+                        .map(|change| change.to_document_change(base_path))
+                        .collect(),
+                )),
                 ..Default::default()
             }),
             ..Default::default()
@@ -54,6 +84,48 @@ pub impl Range {
 
     fn empty(&self) -> bool {
         self.start.eq(&self.end)
+    }
+}
+
+#[ext]
+pub impl ActionType {
+    fn action_kind(&self) -> CodeActionKind {
+        CodeActionKind::new(self.identifier())
+    }
+}
+
+#[ext]
+pub impl Change {
+    fn to_document_change(&self, base_path: &BasePath) -> DocumentChangeOperation {
+        match self {
+            Change::Remove(remove) => DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
+                uri: remove.key.to_url(base_path),
+                options: None,
+            })),
+            Change::Create(create) => DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
+                uri: create.key.to_url(base_path),
+                options: Some(CreateFileOptions {
+                    overwrite: Some(false),
+                    ignore_if_exists: Some(false),
+                }),
+                annotation_id: None,
+            })),
+            Change::Update(update) => {
+                let insert_extracted_text = TextEdit {
+                    range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
+                    new_text: update.markdown.clone(),
+                };
+                let edit = TextDocumentEdit {
+                    text_document: OptionalVersionedTextDocumentIdentifier {
+                        uri: update.key.to_url(base_path),
+                        version: None,
+                    },
+                    edits: vec![OneOf::Left(insert_extracted_text)],
+                };
+
+                DocumentChangeOperation::Edit(edit)
+            }
+        }
     }
 }
 

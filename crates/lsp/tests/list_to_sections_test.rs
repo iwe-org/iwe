@@ -13,7 +13,7 @@ use lsp_types::{
     WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 
-use fixture::uri;
+use fixture::{action_kind, action_kinds, uri};
 
 use crate::fixture::Fixture;
 
@@ -38,6 +38,22 @@ fn unwrap_list_with_items_test() {
               - test2
             "},
         0,
+        indoc! {"
+            # test
+
+            - test2
+        "},
+    );
+}
+
+#[test]
+fn unwrap_list_takes_top_level_list() {
+    assert_sections(
+        indoc! {"
+            - test
+              - test2
+            "},
+        1,
         indoc! {"
             # test
 
@@ -172,7 +188,7 @@ fn assert_sections(source: &str, line: u32, expected: &str) {
             range: Range::new(Position::new(line, 0), Position::new(line, 0)),
             context: CodeActionContext {
                 diagnostics: Default::default(),
-                only: Some(vec![CodeActionKind::REFACTOR_REWRITE]),
+                only: action_kinds("refactor.rewrite.list.section"),
                 trigger_kind: None,
             },
             work_done_progress_params: Default::default(),
@@ -180,7 +196,7 @@ fn assert_sections(source: &str, line: u32, expected: &str) {
         },
         vec![CodeActionOrCommand::CodeAction(CodeAction {
             title: "List to sections".to_string(),
-            kind: Some(CodeActionKind::REFACTOR_REWRITE),
+            kind: action_kind("refactor.rewrite.list.section"),
             edit: Some(WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(vec![
                     DocumentChangeOperation::Edit(TextDocumentEdit {

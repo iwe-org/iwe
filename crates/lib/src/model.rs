@@ -3,6 +3,7 @@ use std::{collections::HashMap, ops::Range};
 use serde::Serialize;
 
 pub type Key = String;
+pub type Markdown = String;
 
 pub type MaybeKey = Option<Key>;
 

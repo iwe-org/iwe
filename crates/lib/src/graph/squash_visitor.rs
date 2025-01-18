@@ -1,8 +1,6 @@
-use crate::model::NodeId;
+use super::{Graph, NodeIter};
 use crate::model::graph::Node;
-use super::{
-    Graph, NodeIter,
-};
+use crate::model::NodeId;
 
 pub struct SquashVisitor<'a> {
     id: NodeId,
@@ -67,7 +65,7 @@ impl<'a> SquashVisitor<'a> {
 }
 
 impl<'a> NodeIter<'a> for SquashVisitor<'a> {
-    fn next(&self) -> Option<impl NodeIter> {
+    fn next(&self) -> Option<Self> {
         self.next_referenced_id()
             .filter(|id| self.depth > 0)
             .map(|id| SquashVisitor {
@@ -103,7 +101,7 @@ impl<'a> NodeIter<'a> for SquashVisitor<'a> {
             }))
     }
 
-    fn child(&self) -> Option<impl NodeIter> {
+    fn child(&self) -> Option<Self> {
         self.child_referenced_id()
             .filter(|id| self.depth > 0)
             .map(|id| SquashVisitor {
