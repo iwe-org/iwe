@@ -596,14 +596,14 @@ checksum = "d75a2a4b1b190afb6f5425f10f6a8f959d2ea0b9c2b1d79553551850539e4674"
 
 [[package]]
 name = "iwe"
-version = "0.0.1"
+version = "0.0.8"
 dependencies = [
  "clap",
  "env_logger",
  "futures",
  "indoc",
  "itertools",
- "liwe",
+ "liwe 0.0.1",
  "log",
  "pretty_assertions",
  "rand",
@@ -614,7 +614,7 @@ dependencies = [
 
 [[package]]
 name = "iwes"
-version = "0.0.1"
+version = "0.0.8"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -626,7 +626,7 @@ dependencies = [
  "futures",
  "indoc",
  "itertools",
- "liwe",
+ "liwe 0.0.1",
  "log",
  "lsp-server",
  "lsp-types",
@@ -652,6 +652,26 @@ checksum = "4ee93343901ab17bd981295f2cf0026d4ad018c7c31ba84549a4ddbb47a45104"
 [[package]]
 name = "liwe"
 version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7494dc4a5fadc7f3164d82f023769c4554af9e926d423cff4d8331b09debe936"
+dependencies = [
+ "env_logger",
+ "futures",
+ "indoc",
+ "itertools",
+ "log",
+ "pretty_assertions",
+ "pulldown-cmark",
+ "rand",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "liwe"
+version = "0.0.8"
 dependencies = [
  "env_logger",
  "futures",

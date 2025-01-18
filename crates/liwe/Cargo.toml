@@ -1,5 +1,6 @@
 [package]
 name = "liwe"
+description = "IWE core library"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 
 version.workspace = true

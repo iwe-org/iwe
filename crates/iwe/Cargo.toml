@@ -1,5 +1,6 @@
 [package]
 name = "iwe"
+description = "IWE CLI utility"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 
 version.workspace = true
@@ -14,7 +15,7 @@ name = "iwe"
 path = "src/main.rs"
 
 [dependencies]
-liwe = { path = "../liwe" }
+liwe.workspace = true
 indoc.workspace = true
 clap.workspace = true
 pretty_assertions.workspace = true
