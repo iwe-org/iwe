@@ -243,14 +243,8 @@ pub struct Settings {
     pub library: LibraryOptions,
 }
 
+#[allow(dead_code)]
 impl Block {
-    fn is_ref(&self) -> bool {
-        match self {
-            Block::Para(inlines) => inlines.len() == 1 && inlines[0].is_ref(),
-            _ => false,
-        }
-    }
-
     fn is_sparce_list(&self) -> bool {
         match self {
             Block::BulletList(items) => items
@@ -371,10 +365,10 @@ impl Inline {
                     format!("[{}]({})", text, url)
                 }
             }
-            Inline::Image(url, title, inlines) => {
+            Inline::Image(url, _, inlines) => {
                 format!("![{}]({})", inlines_to_markdown(inlines, options), url)
             }
-            Inline::RawInline(lang, content) => format!("`{}`", content),
+            Inline::RawInline(_, content) => format!("`{}`", content),
             Inline::Math(math) => format!("${}$", math),
         }
     }

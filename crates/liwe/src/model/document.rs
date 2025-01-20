@@ -1,11 +1,8 @@
-use std::default;
-
 use crate::key::without_extension;
 use crate::model;
 use crate::model::graph::Inline;
 use crate::model::{Key, Lang, LineRange};
 
-use super::graph::to_node_inlines;
 use super::{InlineRange, Position};
 
 pub struct Document {
@@ -301,13 +298,6 @@ pub struct HorizontalRule {
 }
 
 impl DocumentInline {
-    fn is_ref_inline(&self) -> bool {
-        match self {
-            DocumentInline::Link(link) => model::is_ref_url(&link.target.url),
-            _ => false,
-        }
-    }
-
     pub fn apppen(&mut self, inline: DocumentInline) {
         match self {
             DocumentInline::Emph(emph) => emph.inlines.push(inline),

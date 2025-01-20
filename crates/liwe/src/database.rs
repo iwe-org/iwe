@@ -13,6 +13,7 @@ pub struct Database {
 }
 
 pub trait DatabaseContext {
+    fn lines(&self, key: &Key) -> u32;
     fn parser(&self, key: &Key) -> Option<Parser>;
 }
 
@@ -25,6 +26,17 @@ impl DatabaseContext for &Database {
         self.content
             .get(key)
             .map(|content| Parser::new(&content, MarkdownReader::new()))
+    }
+
+    fn lines(&self, key: &Key) -> u32 {
+        if key.ends_with(".md") {
+            panic!("Key should not end with .md")
+        }
+
+        self.content
+            .get(key)
+            .map(|content| content.lines().count() as u32)
+            .unwrap_or(0)
     }
 }
 

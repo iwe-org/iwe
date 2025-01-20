@@ -342,39 +342,42 @@ pub fn inline_quote(target_id: NodeId, context: impl GraphContext) -> Option<Act
 pub fn inline_section(target_id: NodeId, context: impl GraphContext) -> Option<Action> {
     Some(target_id)
         .filter(|target_id| context.is_reference(*target_id))
-        .map(|target_id| {
+        .and_then(|target_id| {
             let key = context.get_key(target_id);
             let inline_key = context.get_reference_key(target_id);
             let mut patch = context.patch();
+            context
+                .get_surrounding_section_id(target_id)
+                .map(|section_id| {
+                    patch.add_key(
+                        &key,
+                        context
+                            .visit(&key)
+                            .collect_tree()
+                            .remove_node(target_id)
+                            .append_pre_header(
+                                section_id,
+                                context.visit(&inline_key).collect_tree(),
+                            )
+                            .iter(),
+                    );
 
-            patch.add_key(
-                &key,
-                context
-                    .visit(&key)
-                    .collect_tree()
-                    .remove_node(target_id)
-                    .append_pre_header(
-                        context.get_surrounding_section_id(target_id).unwrap(),
-                        context.visit(&inline_key).collect_tree(),
-                    )
-                    .iter(),
-            );
+                    let markdown = patch.markdown(&key).unwrap();
 
-            let markdown = patch.markdown(&key).unwrap();
-
-            Action {
-                title: "Inline section".to_string(),
-                changes: vec![
-                    Change::Remove(Remove {
-                        key: context.get_reference_key(target_id),
-                    }),
-                    Change::Update(Update {
-                        key: key,
-                        markdown: markdown,
-                    }),
-                ],
-                action_type: ActionType::ReferenceInlineSection,
-            }
+                    Action {
+                        title: "Inline section".to_string(),
+                        changes: vec![
+                            Change::Remove(Remove {
+                                key: context.get_reference_key(target_id),
+                            }),
+                            Change::Update(Update {
+                                key: key,
+                                markdown: markdown,
+                            }),
+                        ],
+                        action_type: ActionType::ReferenceInlineSection,
+                    }
+                })
         })
 }
 

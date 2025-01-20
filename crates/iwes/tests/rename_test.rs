@@ -1,9 +1,7 @@
-use std::u32;
-
 use indoc::indoc;
 use lsp_server::ResponseError;
 use lsp_types::{
-    DeleteFile, DocumentChangeOperation, DocumentChanges, OneOf,
+    CreateFile, CreateFileOptions, DeleteFile, DocumentChangeOperation, DocumentChanges, OneOf,
     OptionalVersionedTextDocumentIdentifier, Position, PrepareRenameResponse, Range, RenameParams,
     ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextDocumentPositionParams, TextEdit,
     WorkspaceEdit,
@@ -147,6 +145,14 @@ fn assert_rename_at(source: &str, expected: &str, position: Position, new_name: 
                     uri: uri(1),
                     options: None,
                 })),
+                DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
+                    uri: uri_from("new_name"),
+                    options: Some(CreateFileOptions {
+                        overwrite: Some(false),
+                        ignore_if_exists: Some(false),
+                    }),
+                    annotation_id: None,
+                })),
                 DocumentChangeOperation::Edit(TextDocumentEdit {
                     text_document: OptionalVersionedTextDocumentIdentifier {
                         uri: uri_from("new_name"),
@@ -154,7 +160,7 @@ fn assert_rename_at(source: &str, expected: &str, position: Position, new_name: 
                     },
                     edits: vec![OneOf::Left(TextEdit {
                         new_text: expected.to_string(),
-                        range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
+                        range: Range::new(Position::new(0, 0), Position::new(0, 0)),
                     })],
                 }),
             ])),
@@ -212,6 +218,14 @@ fn assert_rename_updates_second_file(source: &str, expected1: &str, expected2: &
                     uri: uri(1),
                     options: None,
                 })),
+                DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
+                    uri: uri_from("new_name"),
+                    options: Some(CreateFileOptions {
+                        overwrite: Some(false),
+                        ignore_if_exists: Some(false),
+                    }),
+                    annotation_id: None,
+                })),
                 DocumentChangeOperation::Edit(TextDocumentEdit {
                     text_document: OptionalVersionedTextDocumentIdentifier {
                         uri: uri_from("new_name"),
@@ -219,7 +233,7 @@ fn assert_rename_updates_second_file(source: &str, expected1: &str, expected2: &
                     },
                     edits: vec![OneOf::Left(TextEdit {
                         new_text: expected1.to_string(),
-                        range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
+                        range: Range::new(Position::new(0, 0), Position::new(0, 0)),
                     })],
                 }),
             ])),

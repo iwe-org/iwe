@@ -1,7 +1,6 @@
 use std::iter::once;
 use std::ops::Range;
 
-use itertools::Itertools;
 use pulldown_cmark::{CodeBlockKind, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
 
@@ -63,7 +62,7 @@ impl MarkdownEventsReader {
                                 code_block.text = format!("{}{}", code_block.text, text.to_string())
                             }
                             DocumentBlock::RawBlock(block) => block.text = text.to_string(),
-                            default => {
+                            _ => {
                                 self.push_inline(
                                     DocumentInline::Str(text.to_string()),
                                     self.to_line_range(range),
@@ -106,7 +105,7 @@ impl MarkdownEventsReader {
                     );
                     self.pop_inline();
                 }
-                FootnoteReference(cow_str) => {}
+                FootnoteReference(_) => {}
                 SoftBreak => {}
                 HardBreak => {}
                 Rule => {
@@ -164,22 +163,15 @@ impl MarkdownEventsReader {
                     inlines: vec![],
                 }));
             }
-            Tag::Heading {
-                level,
-                id,
-                classes,
-                attrs,
-            } => self.push_block(DocumentBlock::Header(Header {
+            Tag::Heading { level, .. } => self.push_block(DocumentBlock::Header(Header {
                 line_range: self.to_line_range(range),
                 level: level as u8,
                 inlines: vec![],
             })),
-            Tag::BlockQuote(block_quote_kind) => {
-                self.push_block(DocumentBlock::BlockQuote(BlockQuote {
-                    line_range: self.to_line_range(range),
-                    blocks: Vec::new(),
-                }))
-            }
+            Tag::BlockQuote(_) => self.push_block(DocumentBlock::BlockQuote(BlockQuote {
+                line_range: self.to_line_range(range),
+                blocks: Vec::new(),
+            })),
             Tag::CodeBlock(code_block_kind) => {
                 self.push_block(DocumentBlock::CodeBlock(CodeBlock {
                     line_range: self.to_line_range(range),
@@ -203,11 +195,11 @@ impl MarkdownEventsReader {
             Tag::Item => {
                 self.top_block().append_item();
             }
-            Tag::FootnoteDefinition(str) => {}
+            Tag::FootnoteDefinition(_) => {}
             Tag::DefinitionList => {}
             Tag::DefinitionListTitle => {}
             Tag::DefinitionListDefinition => {}
-            Tag::Table(vec) => {}
+            Tag::Table(_) => {}
             Tag::TableHead => {}
             Tag::TableRow => {}
             Tag::TableCell => {}
@@ -239,10 +231,7 @@ impl MarkdownEventsReader {
                 );
             }
             Tag::Link {
-                link_type,
-                dest_url,
-                title,
-                id,
+                dest_url, title, ..
             } => {
                 self.push_inline(
                     DocumentInline::Link(Link {
@@ -258,10 +247,7 @@ impl MarkdownEventsReader {
                 );
             }
             Tag::Image {
-                link_type,
-                dest_url,
-                title,
-                id,
+                dest_url, title, ..
             } => {
                 self.push_inline(
                     DocumentInline::Image(Image {
@@ -276,17 +262,17 @@ impl MarkdownEventsReader {
                     self.to_line_range(range),
                 );
             }
-            Tag::MetadataBlock(metadata_block_kind) => self.metadata_block = true,
+            Tag::MetadataBlock(_) => self.metadata_block = true,
         }
     }
 
-    fn end_tag(&mut self, tag: TagEnd, range: Range<usize>) {
+    fn end_tag(&mut self, tag: TagEnd, _: Range<usize>) {
         match tag {
             TagEnd::Paragraph => {
                 self.pop_block();
             }
-            TagEnd::Heading(heading_level) => self.pop_block(),
-            TagEnd::BlockQuote(block_quote_kind) => self.pop_block(),
+            TagEnd::Heading(_) => self.pop_block(),
+            TagEnd::BlockQuote(_) => self.pop_block(),
             TagEnd::CodeBlock => {
                 self.pop_block();
             }
@@ -304,7 +290,7 @@ impl MarkdownEventsReader {
             TagEnd::DefinitionListTitle => {}
             TagEnd::FootnoteDefinition => {}
             TagEnd::Image => self.pop_inline(),
-            TagEnd::MetadataBlock(metadata_block_kind) => self.metadata_block = false,
+            TagEnd::MetadataBlock(_) => self.metadata_block = false,
             TagEnd::Table => {}
             TagEnd::TableCell => {}
             TagEnd::TableHead => {}
@@ -377,7 +363,6 @@ fn line_starts(content: &str) -> Vec<usize> {
 mod tests {
     use indoc::indoc;
 
-    use crate::graph::graph_node::Document;
     use crate::markdown::reader::{line_starts, MarkdownEventsReader};
     use crate::model::{document::*, InlineRange, Position};
 
