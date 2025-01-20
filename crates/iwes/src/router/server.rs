@@ -33,10 +33,6 @@ pub struct BasePath {
 }
 
 impl BasePath {
-    fn new(base_path: String) -> Self {
-        Self { base_path }
-    }
-
     fn key_to_url(&self, key: &Key) -> Url {
         Url::parse(&format!("{}{}.md", self.base_path, key)).unwrap()
     }
@@ -73,7 +69,7 @@ impl Server {
         &self.database
     }
 
-    pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {}
+    pub fn handle_did_save_text_document(&mut self, _: DidSaveTextDocumentParams) {}
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
         self.database.update_document(
@@ -82,7 +78,7 @@ impl Server {
         );
     }
 
-    pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
+    pub fn handle_completion(&self, _: CompletionParams) -> CompletionResponse {
         CompletionResponse::List(CompletionList {
             is_incomplete: true,
             items: self
@@ -95,10 +91,7 @@ impl Server {
         })
     }
 
-    pub fn handle_workspace_symbols(
-        &self,
-        params: WorkspaceSymbolParams,
-    ) -> WorkspaceSymbolResponse {
+    pub fn handle_workspace_symbols(&self, _: WorkspaceSymbolParams) -> WorkspaceSymbolResponse {
         self.database
             .graph()
             .paths()
@@ -178,12 +171,12 @@ impl Server {
             .chain(
                 vec![hint(&format!("‹{}›", inline_refs))]
                     .into_iter()
-                    .filter(|h| inline_refs > 0),
+                    .filter(|_| inline_refs > 0),
             )
             .collect_vec()
     }
 
-    pub fn handle_inline_values(&self, params: InlineValueParams) -> Vec<InlineValue> {
+    pub fn handle_inline_values(&self, _: InlineValueParams) -> Vec<InlineValue> {
         vec![]
     }
 

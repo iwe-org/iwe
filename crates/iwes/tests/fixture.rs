@@ -1,4 +1,3 @@
-#[allow(unused, dead_code)]
 use std::{
     cell::{Cell, RefCell},
     time::Duration,
@@ -51,18 +50,22 @@ pub fn uri(number: u32) -> Url {
     Url::from_file_path(format!("/basepath/{}.md", number)).unwrap()
 }
 
+#[allow(unused, dead_code)]
 pub fn uri_from(key: &str) -> Url {
     Url::from_file_path(format!("/basepath/{}.md", key)).unwrap()
 }
 
+#[allow(unused, dead_code)]
 pub fn action_kinds(name: &'static str) -> Option<Vec<CodeActionKind>> {
     Some(vec![CodeActionKind::new(name)])
 }
 
+#[allow(unused, dead_code)]
 pub fn action_kind(name: &'static str) -> Option<CodeActionKind> {
     Some(CodeActionKind::new(name))
 }
 
+#[allow(unused, dead_code)]
 impl Fixture {
     pub fn new() -> Fixture {
         Self::with("\n")

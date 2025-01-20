@@ -1,5 +1,3 @@
-use std::u32;
-
 use indoc::indoc;
 use lsp_types::{
     InlayHint, InlayHintLabel, InlayHintParams, Position, Range, TextDocumentIdentifier,

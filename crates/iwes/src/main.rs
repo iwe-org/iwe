@@ -48,7 +48,10 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             )
             .init();
     } else {
-        tracing_subscriber::fmt::init()
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .with_writer(std::io::stderr)
+            .init();
     }
 
     info!("starting IWE LSP server");
