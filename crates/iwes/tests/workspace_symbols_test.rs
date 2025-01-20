@@ -10,6 +10,7 @@ use crate::fixture::Fixture;
 mod fixture;
 
 #[test]
+#[allow(deprecated)]
 fn one_file() {
     let fixture = Fixture::with(indoc! {"
             # test
@@ -36,6 +37,7 @@ fn one_file() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn one_file_two_headers() {
     let fixture = Fixture::with(indoc! {"
             # test
@@ -77,6 +79,7 @@ fn one_file_two_headers() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn one_file_two_headers_same_level() {
     let fixture = Fixture::with(indoc! {"
             # test
@@ -118,6 +121,7 @@ fn one_file_two_headers_same_level() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn two_files() {
     let fixture = Fixture::with(indoc! {"
             # test 1
@@ -159,6 +163,7 @@ fn two_files() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn nested_files() {
     let fixture = Fixture::with(indoc! {"
             # test 1
@@ -202,6 +207,7 @@ fn nested_files() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn two_nested_nested_files() {
     let fixture = Fixture::with(indoc! {"
             # test 1

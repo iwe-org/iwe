@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::panic;
 
 use anyhow::{bail, Result};
 use crossbeam_channel::{select, Receiver, Sender};
@@ -7,13 +7,12 @@ use log::{debug, error};
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::{
-    CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyOutgoingCallsParams,
     CodeActionParams, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
     DocumentFormattingParams, DocumentSymbolParams, InlayHintParams, InlineValueParams,
     ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::to_value;
 
 use liwe::model::State;
@@ -68,8 +67,21 @@ impl Router {
     }
 
     pub fn run(mut self, receiver: Receiver<Message>) -> Result<()> {
+        use std::panic::AssertUnwindSafe;
+
         while let Some(message) = self.next_event(&receiver) {
-            let shutdown = self.handle_message(message);
+            let shutdown = panic::catch_unwind(AssertUnwindSafe(|| self.handle_message(message)))
+                .unwrap_or_else(|err| {
+                    let error_message = if let Some(string) = err.downcast_ref::<&str>() {
+                        format!("Panic occurred with message: {}", string)
+                    } else if let Some(string) = err.downcast_ref::<String>() {
+                        format!("Panic occurred with message: {}", string)
+                    } else {
+                        "Panic occurred with unknown cause".to_string()
+                    };
+                    error!("Panic message: {}", error_message);
+                    false
+                });
 
             if shutdown {
                 return Ok(());
@@ -82,9 +94,7 @@ impl Router {
         match message {
             Message::Request(req) => self.on_request(req),
             Message::Notification(notification) => self.on_notification(notification),
-            Message::Response(_) => {
-                return false;
-            }
+            Message::Response(_) => false,
         }
     }
 

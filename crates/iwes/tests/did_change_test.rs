@@ -12,6 +12,7 @@ use crate::fixture::Fixture;
 mod fixture;
 
 #[test]
+#[allow(deprecated)]
 fn did_change_test_once() {
     let fixture = Fixture::with(indoc! {"
             # test
@@ -50,6 +51,7 @@ fn did_change_test_once() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn new_file() {
     let fixture = Fixture::new();
 
@@ -86,6 +88,7 @@ fn new_file() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn did_change_test_two_times() {
     let fixture = Fixture::with(indoc! {"
             # test

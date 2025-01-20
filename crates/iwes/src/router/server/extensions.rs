@@ -233,6 +233,7 @@ pub impl NodePath {
             + &last
     }
 
+    #[allow(deprecated)]
     fn to_symbol(&self, context: impl GraphContext, base_path: &BasePath) -> SymbolInformation {
         let target = self.target();
         let line = context.node_line_number(target).unwrap_or(0);
@@ -259,6 +260,7 @@ pub impl NodePath {
         }
     }
 
+    #[allow(deprecated)]
     fn to_nested_symbol(
         &self,
         context: impl GraphContext,
