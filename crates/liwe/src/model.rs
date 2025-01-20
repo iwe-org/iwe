@@ -1,7 +1,5 @@
 use std::{collections::HashMap, ops::Range};
 
-use serde::Serialize;
-
 pub type Key = String;
 pub type Markdown = String;
 
@@ -18,8 +16,6 @@ pub type MaybeLineId = Option<LineId>;
 
 pub type StrId = usize;
 pub type MaybeStrId = Option<StrId>;
-
-type MaybeString = Option<String>;
 
 pub type LineNumber = usize;
 pub type LineRange = Range<LineNumber>;

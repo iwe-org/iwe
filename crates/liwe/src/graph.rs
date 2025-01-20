@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    f32::consts::E,
     fmt::{Debug, Formatter},
 };
 
@@ -27,7 +26,6 @@ use crate::{
 };
 use arena::Arena;
 use builder::GraphBuilder;
-use futures::StreamExt;
 use graph_node_visitor::GraphNodeVisitor;
 use itertools::Itertools;
 use path::{graph_to_paths, NodePath};
@@ -36,8 +34,7 @@ use unwrap_visitor::UnwrapVisitor;
 use wrap_visitor::WrapVisitor;
 
 use crate::graph::graph_node::GraphNode;
-use crate::model::document::DocumentBlocks;
-use crate::model::graph::{blocks_to_markdown_sparce, Block, Inlines, Node};
+use crate::model::graph::{blocks_to_markdown_sparce, Inlines, Node};
 use crate::model::InlinesContext;
 use crate::model::{Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
@@ -54,7 +51,6 @@ mod inline_quote_visitor;
 mod inline_visitor;
 mod node_visitor;
 mod projector;
-mod source_map;
 mod squash_visitor;
 mod unwrap_visitor;
 mod wrap_visitor;
@@ -353,7 +349,7 @@ impl Graph {
     pub fn export(&self) -> State {
         self.keys
             .par_iter()
-            .map(|(k, v)| (with_extension(k), self.to_markdown(k)))
+            .map(|(k, _)| (with_extension(k), self.to_markdown(k)))
             .collect()
     }
 
@@ -407,7 +403,7 @@ impl Debug for Graph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.keys
             .iter()
-            .for_each(|(key, id)| self.node_fmt(*id, 0, f));
+            .for_each(|(_, id)| self.node_fmt(*id, 0, f));
         write!(f, "")
     }
 }
@@ -563,8 +559,8 @@ impl GraphContext for &Graph {
             .expect(&format!("to have key, {}", key))
             .iter()
             .rev()
-            .find(|(k, v)| (*v).contains(&line))
-            .map(|(k, v)| k.clone())
+            .find(|(_, v)| (*v).contains(&line))
+            .map(|(k, _)| k.clone())
     }
 
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber> {

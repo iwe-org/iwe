@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports, unused_variables, deprecated)]
-
 use indoc::indoc;
 use lsp_types::{
     DidChangeTextDocumentParams, Position, Range, SymbolInformation,

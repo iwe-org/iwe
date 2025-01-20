@@ -1,19 +1,12 @@
-#![allow(dead_code, unused_imports, unused_variables, deprecated)]
-
 use std::u32;
 
 use indoc::indoc;
 use lsp_server::ResponseError;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, CompletionItem,
-    CompletionList, CompletionParams, CompletionResponse, CreateFile, CreateFileOptions,
-    DeleteFile, DidChangeTextDocumentParams, DocumentChangeOperation, DocumentChanges,
-    DocumentFormattingParams, Documentation, OneOf, OptionalVersionedTextDocumentIdentifier,
-    PartialResultParams, Position, PrepareRenameResponse, Range, RenameParams, ResourceOp,
-    SymbolInformation, SymbolKind, TextDocumentContentChangeEvent, TextDocumentEdit,
-    TextDocumentIdentifier, TextDocumentPositionParams, TextEdit, Url,
-    VersionedTextDocumentIdentifier, WorkDoneProgressParams, WorkspaceEdit, WorkspaceSymbolParams,
-    WorkspaceSymbolResponse,
+    DeleteFile, DocumentChangeOperation, DocumentChanges, OneOf,
+    OptionalVersionedTextDocumentIdentifier, Position, PrepareRenameResponse, Range, RenameParams,
+    ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextDocumentPositionParams, TextEdit,
+    WorkspaceEdit,
 };
 
 use fixture::{uri, uri_from};
@@ -117,7 +110,7 @@ fn rename_inline_references() {
     );
 }
 
-fn assert_prepare_rename(source: &str, placeholder: &str) {
+fn assert_prepare_rename(source: &str, _: &str) {
     let fixture = Fixture::with(source);
 
     fixture.prepare_rename(

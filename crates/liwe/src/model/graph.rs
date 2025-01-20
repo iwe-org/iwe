@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::graph::graph_node::GraphNode;
 use crate::key::without_extension;
 use crate::model;
 use crate::model::document::DocumentInlines;
@@ -362,7 +361,7 @@ impl Inline {
             Inline::Space => " ".into(),
             Inline::SoftBreak => "\n".into(),
             Inline::LineBreak => "\n".into(),
-            Inline::Link(url, title, inlines) => {
+            Inline::Link(url, _, inlines) => {
                 let text = inlines_to_markdown(inlines, options);
                 if !self.is_ref() && text.eq_ignore_ascii_case(url) {
                     format!("<{}>", url)
@@ -424,7 +423,7 @@ impl Inline {
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            Inline::Link(_, _, inlines) => self.ref_key().map(|key| vec![key]).unwrap_or_default(),
+            Inline::Link(_, _, _) => self.ref_key().map(|key| vec![key]).unwrap_or_default(),
             Inline::Image(_, _, inlines) => inlines
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
@@ -472,7 +471,7 @@ impl Inline {
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::Link(key, title, inlines) => {
+            Inline::Link(key, title, _) => {
                 if self.is_ref() {
                     let title = context
                         .get_ref_title(key.clone())
@@ -483,7 +482,7 @@ impl Inline {
 
                 return self.clone();
             }
-            default => self.clone(),
+            _ => self.clone(),
         }
     }
 
@@ -531,7 +530,7 @@ impl Inline {
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
-            Inline::Link(key, title, inlines) => {
+            Inline::Link(_, title, _) => {
                 if self.is_ref() && self.ref_key().map_or(false, |key| key.eq(target_key)) {
                     return Inline::Link(
                         updated_key.to_string(),
@@ -544,20 +543,20 @@ impl Inline {
 
                 return self.clone();
             }
-            default => self.clone(),
+            _ => self.clone(),
         }
     }
 
     fn is_ref(&self) -> bool {
         match self {
-            Inline::Link(url, title, inlines) => model::is_ref_url(url),
+            Inline::Link(url, _, _) => model::is_ref_url(url),
             _ => false,
         }
     }
 
     fn ref_key(&self) -> Option<String> {
         match self {
-            Inline::Link(url, title, inlines) => Some(without_extension(url)),
+            Inline::Link(url, _, _) => Some(without_extension(url)),
             _ => None,
         }
     }

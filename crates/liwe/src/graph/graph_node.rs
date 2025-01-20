@@ -361,7 +361,7 @@ impl GraphNode {
 
     pub fn is_root(&self) -> bool {
         match self {
-            GraphNode::Document(document) => true,
+            GraphNode::Document(_) => true,
             _ => false,
         }
     }
@@ -463,11 +463,11 @@ impl GraphNode {
 
     pub fn insertable(&self) -> bool {
         match self {
-            GraphNode::Document(document) => true,
-            GraphNode::Section(section) => true,
-            GraphNode::Quote(quote) => true,
-            GraphNode::BulletList(list) => true,
-            GraphNode::OrderedList(list) => true,
+            GraphNode::Document(_) => true,
+            GraphNode::Section(_) => true,
+            GraphNode::Quote(_) => true,
+            GraphNode::BulletList(_) => true,
+            GraphNode::OrderedList(_) => true,
             GraphNode::Leaf(_) => false,
             GraphNode::Raw(_) => false,
             GraphNode::HorizontalRule(_) => false,
@@ -565,8 +565,8 @@ impl GraphNode {
 
     pub fn is_ordered(&self) -> bool {
         match self {
-            GraphNode::BulletList(list) => false,
-            GraphNode::OrderedList(list) => true,
+            GraphNode::BulletList(_) => false,
+            GraphNode::OrderedList(_) => true,
             _ => false,
         }
     }

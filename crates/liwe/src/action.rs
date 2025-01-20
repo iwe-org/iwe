@@ -208,7 +208,7 @@ pub fn extract_rec(
 pub fn extract_section(target_id: NodeId, context: impl GraphContext) -> Option<Action> {
     context
         .get_surrounding_section_id(target_id)
-        .filter(|parent_id| context.is_header(target_id))
+        .filter(|_| context.is_header(target_id))
         .map(|parent_id| {
             let key = context.get_key(target_id);
             let new_key = context.random_key();

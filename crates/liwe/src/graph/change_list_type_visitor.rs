@@ -1,7 +1,4 @@
-use std::default;
-
 use super::{graph_node_visitor::GraphNodeVisitor, Graph};
-use crate::model::document::OrderedList;
 use crate::model::graph::{Node, NodeIter};
 use crate::model::NodeId;
 
@@ -46,7 +43,7 @@ impl<'a> NodeIter<'a> for ChangeListTypeVisitor<'a> {
     fn node(&self) -> Option<Node> {
         self.graph
             .node(self.id)
-            .filter(|node| self.target_id == self.id)
+            .filter(|_| self.target_id == self.id)
             .map(|node| match node {
                 Node::BulletList() => Node::OrderedList(),
                 Node::OrderedList() => Node::BulletList(),

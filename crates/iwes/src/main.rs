@@ -1,10 +1,11 @@
-#![allow(clippy::print_stderr)]
-
 use std::env;
 use std::error::Error;
+use std::fs::OpenOptions;
 
 use iwes::main_loop;
+use liwe::action::ActionType;
 use liwe::model::graph::Settings;
+use lsp_types::CodeActionKind;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
@@ -15,11 +16,42 @@ use lsp_types::ServerCapabilities;
 use lsp_server::Connection;
 use lsp_types::TextDocumentSyncCapability;
 
+use log::{debug, info};
+
 const CONFIG_FILE_NAME: &str = "config.json";
 const IWE_MARKER: &str = ".iwe";
 
+pub fn all_action_types() -> Vec<ActionType> {
+    vec![
+        ActionType::ListChangeType,
+        ActionType::ListDetach,
+        ActionType::ListToSections,
+        ActionType::ReferenceInlineSection,
+        ActionType::ReferenceInlineList,
+        ActionType::ReferenceInlineQuote,
+        ActionType::SectionExtractSubsections,
+        ActionType::SectionToList,
+        ActionType::SectionExtract,
+    ]
+}
+
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
-    eprintln!("starting IWE LSP server");
+    if env::var("IWE_DEBUG").is_ok() {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_writer(
+                OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("iwe.log")
+                    .expect("to open log file"),
+            )
+            .init();
+    } else {
+        tracing_subscriber::fmt::init()
+    }
+
+    info!("starting IWE LSP server");
 
     let (connection, io_threads) = Connection::stdio();
 
@@ -40,15 +72,12 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             work_done_progress_options: Default::default(),
         })),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
-            code_action_kinds: Some(vec![
-                lsp_types::CodeActionKind::QUICKFIX,
-                // lsp_types::CodeActionKind::REFACTOR,
-                lsp_types::CodeActionKind::REFACTOR_EXTRACT,
-                lsp_types::CodeActionKind::REFACTOR_INLINE,
-                lsp_types::CodeActionKind::REFACTOR_REWRITE,
-                // lsp_types::CodeActionKind::SOURCE,
-                lsp_types::CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
-            ]),
+            code_action_kinds: Some(
+                all_action_types()
+                    .iter()
+                    .map(|it| CodeActionKind::new(it.identifier()))
+                    .collect(),
+            ),
             ..Default::default()
         })),
         ..Default::default()
@@ -65,13 +94,6 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     };
 
     let current_dir = env::current_dir().expect("to get current dir");
-    let mut iwe_marker_path = current_dir.clone();
-    iwe_marker_path.push(IWE_MARKER);
-
-    if !iwe_marker_path.is_dir() {
-        eprintln!("Use `iwe init` command to initilize IWE at this location");
-        return Ok(());
-    }
 
     let mut config_path = current_dir.clone();
     config_path.push(IWE_MARKER);
@@ -86,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     let mut library_path = current_dir.clone();
 
-    eprintln!("setttings: {:?}", settings);
+    debug!("setttings: {:?}", settings);
 
     if !settings.library.path.is_empty() {
         library_path.push(settings.library.path);
@@ -101,6 +123,6 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     io_threads.join()?;
 
     // Shut down gracefully.
-    eprintln!("shutting down server");
+    debug!("shutting down server");
     Ok(())
 }

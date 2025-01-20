@@ -6,7 +6,7 @@ use liwe::action::{Action, ActionType, Change};
 use liwe::graph::path::NodePath;
 use lsp_types::*;
 
-use liwe::model::{self, Content, Key};
+use liwe::model::{Content, Key};
 use liwe::{graph::GraphContext, key};
 
 use super::BasePath;
@@ -14,11 +14,11 @@ use super::BasePath;
 #[ext]
 pub impl CodeActionParams {
     fn only_includes(&self, kind: &CodeActionKind) -> bool {
-        self.clone()
-            .context
-            .only
-            .map(|only| only.contains(kind))
-            .unwrap_or(true)
+        if let Some(only) = self.clone().context.only {
+            only.contains(kind)
+        } else {
+            return true;
+        }
     }
 
     fn only_includes_explicit(&self, kind: &CodeActionKind) -> bool {
@@ -161,7 +161,7 @@ pub impl Url {
         DocumentChangeOperation::Edit(self.to_override_file(base_path, text))
     }
 
-    fn to_override_file(&self, base_path: &BasePath, text: Content) -> TextDocumentEdit {
+    fn to_override_file(&self, _: &BasePath, text: Content) -> TextDocumentEdit {
         let insert_extracted_text = TextEdit {
             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
             new_text: text,
@@ -227,7 +227,7 @@ pub impl NodePath {
         self.ids()
             .iter()
             .skip(1)
-            .map(|f| "  ")
+            .map(|_| "  ")
             .collect_vec()
             .join("")
             + &last
@@ -300,7 +300,7 @@ pub impl Key {
         format!("[{}]({})", text, key::without_extension(self))
     }
 
-    fn to_completion(&self, context: impl GraphContext, base_path: &BasePath) -> CompletionItem {
+    fn to_completion(&self, context: impl GraphContext, _: &BasePath) -> CompletionItem {
         CompletionItem {
             preselect: Some(true),
             label: context.get_ref_text(self).unwrap_or_default(),

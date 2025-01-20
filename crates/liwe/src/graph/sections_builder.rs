@@ -4,7 +4,6 @@ use crate::{
 };
 use itertools::Itertools;
 
-use super::*;
 use crate::model::document::DocumentBlock::{
     self, BlockQuote, BulletList, CodeBlock, Div, Header, HorizontalRule, OrderedList, Para, Plain,
     RawBlock,
@@ -17,7 +16,6 @@ type Range = std::ops::Range<usize>;
 pub struct SectionsBuilder<'a> {
     builder: &'a mut GraphBuilder<'a>,
     nodes_map: NodesMap,
-    last_position: Vec<LineRange>,
 }
 
 impl<'a> SectionsBuilder<'a> {
@@ -29,7 +27,6 @@ impl<'a> SectionsBuilder<'a> {
         let mut builder = SectionsBuilder {
             builder,
             nodes_map: vec![],
-            last_position: vec![],
         };
         builder.process_blocks(0..content.len(), content);
         builder
@@ -87,13 +84,6 @@ impl<'a> SectionsBuilder<'a> {
         let id = self.builder.id();
         self.process_blocks(range.start + 1..range.end, blocks);
         self.builder.set_id(id)
-    }
-
-    fn unwrap_div(block: &DocumentBlock) -> DocumentBlock {
-        match block {
-            Div(div) => div.blocks.first().unwrap().clone(),
-            _ => block.clone(),
-        }
     }
 
     pub fn section_block(&mut self, block: &DocumentBlock) {
@@ -179,7 +169,7 @@ impl<'a> SectionsBuilder<'a> {
             Div(div) => {
                 self.section_block(div.blocks.first().unwrap());
             }
-            Header(header) => {
+            Header(_) => {
                 panic!("Unexpected block type, headers should be process outside of this block")
             }
         };

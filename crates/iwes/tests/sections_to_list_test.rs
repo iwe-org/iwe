@@ -1,16 +1,10 @@
-#![allow(dead_code, unused_imports, unused_variables, deprecated)]
-
 use std::u32;
 
 use indoc::indoc;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionKind, CodeActionOrCommand, CodeActionParams,
-    CompletionItem, CompletionList, CompletionParams, CompletionResponse, CreateFile,
-    CreateFileOptions, DocumentChangeOperation, DocumentChanges, Documentation, OneOf,
-    OptionalVersionedTextDocumentIdentifier, PartialResultParams, Position, Range, ResourceOp,
-    SymbolInformation, SymbolKind, TextDocumentEdit, TextDocumentIdentifier,
-    TextDocumentPositionParams, TextEdit, Url, WorkDoneProgressParams, WorkspaceEdit,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, DocumentChangeOperation,
+    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range,
+    TextDocumentEdit, TextDocumentIdentifier, TextEdit, WorkspaceEdit,
 };
 
 use fixture::{action_kind, action_kinds, uri};

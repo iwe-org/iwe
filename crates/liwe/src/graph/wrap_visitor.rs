@@ -28,10 +28,6 @@ impl<'a> WrapVisitor<'a> {
         }
     }
 
-    fn is_on_target(&self) -> bool {
-        self.target_id.is_some() && self.id == self.target_id.unwrap()
-    }
-
     fn next_is_target(&self) -> bool {
         self.graph
             .visit_node(self.id)

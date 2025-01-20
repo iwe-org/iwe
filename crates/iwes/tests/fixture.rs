@@ -1,31 +1,27 @@
-#![allow(dead_code, unused_imports, unused_variables)]
-
+#[allow(unused, dead_code)]
 use std::{
     cell::{Cell, RefCell},
-    error::Error,
-    io::ErrorKind,
     time::Duration,
 };
 
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
-use difference::Changeset;
 use liwe::model::graph::MarkdownOptions;
 use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{
     notification::{DidChangeTextDocument, Exit},
     request::{
-        CodeActionRequest, Completion, Formatting, GotoDefinition, GotoTypeDefinition,
-        GotoTypeDefinitionResponse, InlayHintRequest, References, Shutdown, WorkspaceSymbolRequest,
+        CodeActionRequest, Completion, Formatting, GotoDefinition, InlayHintRequest, References,
+        Shutdown, WorkspaceSymbolRequest,
     },
-    CodeAction, CodeActionKind, CodeActionParams, CodeActionResponse, CompletionParams,
-    CompletionResponse, DidChangeTextDocumentParams, DocumentFormattingParams,
-    GotoDefinitionParams, GotoDefinitionResponse, InlayHint, InlayHintParams, Location,
-    PrepareRenameResponse, ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit,
-    Url, WorkspaceEdit, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    CodeActionKind, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
+    DidChangeTextDocumentParams, DocumentFormattingParams, GotoDefinitionParams,
+    GotoDefinitionResponse, InlayHint, InlayHintParams, Location, PrepareRenameResponse,
+    ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{to_string_pretty, Value};
+use serde_json::Value;
 
 use iwes::{main_loop, InitializeParams};
 

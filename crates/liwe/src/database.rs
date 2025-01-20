@@ -5,8 +5,6 @@ use crate::model::{Content, Key, State};
 
 use crate::parser::Parser;
 
-type FilePath = String;
-
 #[derive(Default)]
 pub struct Database {
     graph: Graph,

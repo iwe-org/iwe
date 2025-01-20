@@ -94,10 +94,7 @@ impl<'a> GraphBuilder<'a> {
     pub fn section_text(&mut self, text: &str) -> &mut Self {
         let line_id = self.graph.add_line(Inline::from_string(text));
         let new_id = self.graph.new_node_id();
-        self.add_node_and(
-            GraphNode::new_section(self.id, new_id, line_id),
-            |builder| {},
-        );
+        self.add_node_and(GraphNode::new_section(self.id, new_id, line_id), |_| {});
         self
     }
 
@@ -112,7 +109,7 @@ impl<'a> GraphBuilder<'a> {
     }
 
     pub fn section(&mut self, inlines: Inlines) {
-        self.section_and(inlines, |builder| {})
+        self.section_and(inlines, |_| {})
     }
 
     pub fn section_and<F>(&mut self, inlines: Inlines, f: F)
@@ -168,7 +165,7 @@ impl<'a> GraphBuilder<'a> {
     }
 
     fn add_node(&mut self, node: GraphNode) {
-        self.add_node_and(node, |builder| {});
+        self.add_node_and(node, |_| {});
     }
 
     fn add_node_and<F>(&mut self, node: GraphNode, f: F)
@@ -321,7 +318,7 @@ mod test {
         let graph = Graph::with(|graph| {
             graph
                 .build_key("key")
-                .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |f| {})
+                .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {})
         });
 
         let visitor = NodeVisitor::new(&graph, graph.get_document_id("key"));
@@ -346,7 +343,7 @@ mod test {
             graph.build_key("key").add_new_node_and(
                 Node::Section(vec![Inline::Str("item".to_string())]),
                 |f| {
-                    f.add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |f| {});
+                    f.add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {});
                 },
             )
         });
@@ -407,7 +404,7 @@ mod test {
             Graph::with(|graph| {
                 graph
                     .build_key("key")
-                    .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |f| {})
+                    .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {})
             }),
             indoc! {"
             item
@@ -424,7 +421,7 @@ mod test {
                     .add_new_node_and(Node::BulletList(), |f| {
                         f.add_new_node_and(
                             Node::Section(vec![Inline::Str("item".to_string())]),
-                            |f| {},
+                            |_| {},
                         )
                     })
             }),
@@ -447,7 +444,7 @@ mod test {
                                 section.add_new_node_and(Node::BulletList(), |list| {
                                     list.add_new_node_and(
                                         Node::Section(vec![Inline::Str("item2".to_string())]),
-                                        |f| {},
+                                        |_| {},
                                     );
                                 });
                             },

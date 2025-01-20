@@ -1,8 +1,7 @@
 use crate::{
     graph::Reader,
-    markdown::MarkdownReader,
     model::{
-        document::{Document, DocumentBlock, DocumentBlocks, DocumentInline},
+        document::{Document, DocumentInline},
         Key, Position,
     },
 };
@@ -38,7 +37,7 @@ pub fn link_in_paragraph() {
 
             test
             "},
-        MarkdownReader::new(),
+        crate::markdown::MarkdownReader::new(),
     );
 
     assert_eq!("link1", parser.key_at((2, 8).into()).unwrap());

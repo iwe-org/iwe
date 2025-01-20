@@ -97,8 +97,8 @@ impl MarkdownEventsReader {
                     );
                     self.pop_inline();
                 }
-                DisplayMath(cow_str) => {}
-                Html(cow_str) => {}
+                DisplayMath(_) => {}
+                Html(_) => {}
                 InlineHtml(text) => {
                     self.push_inline(
                         DocumentInline::Str(text.to_string()),

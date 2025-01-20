@@ -11,7 +11,7 @@ repository = "https://github.com/iwe-org/iwe"
 version = "0.0.8"
 
 [workspace.dependencies]
-liwe = "^0.0.1"
+liwe = { path = "./crates/liwe" }
 anyhow = "1.0.41"
 clap = { version = "4.0", features = ["derive"] }
 crossbeam-channel = "0.5.8"
@@ -30,7 +30,16 @@ rayon = { version = "1.5.1", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.12.12", features = ["blocking", "json"] }
-
 sha2 = "0.10.8"
 assert-json-diff = "2.0.2"
 difference = "2.0"
+tracing = "0.1.40"
+tracing-tree = "0.3.0"
+tracing-subscriber = { version = "0.3.18", default-features = false, features = [
+    "registry",
+    "fmt",
+    "local-time",
+    "std",
+    "time",
+    "tracing-log",
+] }

@@ -1,7 +1,5 @@
-#![allow(dead_code, unused_imports, unused_variables)]
-
 use std::env;
-use std::fs::create_dir;
+use std::fs::{create_dir, OpenOptions};
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
@@ -11,6 +9,8 @@ use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::graph::Settings;
+
+use log::{debug, error};
 
 const CONFIG_FILE_NAME: &str = "config.json";
 const IWE_MARKER: &str = ".iwe";
@@ -63,12 +63,28 @@ struct GlobalOpts {
 }
 
 fn main() {
-    env_logger::builder()
-        .filter(Some("iwe"), log::LevelFilter::Debug)
-        .init();
+    if env::var("IWE_DEBUG").is_ok() {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_writer(
+                OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("iwe.log")
+                    .expect("to open log file"),
+            )
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .with_writer(std::io::stderr)
+            .init();
+    }
 
+    debug!("parsing arguments");
     let app = App::parse();
 
+    debug!("starting command procesing");
     match app.command {
         Command::Normalize(normalize) => {
             normalize_command(normalize);
@@ -83,15 +99,18 @@ fn main() {
     }
 }
 
+#[tracing::instrument]
 fn init_command(init: Init) {
+    debug!("Initializing IWE");
+
     let mut path = env::current_dir().expect("to get current dir");
     path.push(IWE_MARKER);
     if path.is_dir() {
-        eprintln!("IWE is already initialized in the current location.");
+        error!("IWE is already initialized in the current location.");
         return;
     }
     if path.exists() {
-        eprintln!("Initialization failed: '.iwe' path already exists in the current location.");
+        error!("Initialization failed: '.iwe' path already exists in the current location.");
         return;
     }
     create_dir(&path).expect("to create .iwe directory");
@@ -99,13 +118,14 @@ fn init_command(init: Init) {
     let json = serde_json::to_string(&default_settings()).unwrap();
 
     std::fs::write(path.join(CONFIG_FILE_NAME), json).expect("Failed to write to config.json");
-    eprintln!("IWE initialized in the current location. Default config added to .iwe/config.json");
+    debug!("IWE initialized in the current location. Default config added to .iwe/config.json");
 }
 
+#[tracing::instrument]
 fn paths_command(args: Paths) {
     let graph = load_graph();
 
-    let all_paths = graph
+    graph
         .paths()
         .iter()
         .map(|n| render(&n, &graph))
@@ -113,10 +133,12 @@ fn paths_command(args: Paths) {
         .for_each(|string| println!("{}", string));
 }
 
+#[tracing::instrument]
 fn normalize_command(args: Normalize) {
     write_graph(load_graph());
 }
 
+#[tracing::instrument]
 fn squash_command(args: Squash) {
     let graph = &load_graph();
     let mut patch = Graph::new();
@@ -126,11 +148,13 @@ fn squash_command(args: Squash) {
     print!("{}", patch.export_key(&args.key).unwrap())
 }
 
+#[tracing::instrument]
 fn write_graph(graph: Graph) {
     liwe::fs::write_store_at_path(&graph.export(), &get_library_path())
         .expect("Failed to write graph")
 }
 
+#[tracing::instrument]
 fn load_graph() -> Graph {
     Graph::import(&new_for_path(&get_library_path()), get_settings().markdown)
 }
@@ -148,6 +172,7 @@ fn get_library_path() -> PathBuf {
     library_path
 }
 
+#[tracing::instrument]
 fn get_settings() -> Settings {
     let current_dir = env::current_dir().expect("to get current dir");
 

@@ -1,10 +1,6 @@
-use std::future::Future;
-use std::io::{Read, Write};
-
 use crate::graph::Reader;
-use crate::model::document::{Document, DocumentBlocks};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use crate::model::document::Document;
+
 pub mod reader;
 
 use reader::MarkdownEventsReader;

@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports, unused_variables, deprecated)]
-
 use std::u32;
 
 use indoc::indoc;

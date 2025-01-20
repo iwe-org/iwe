@@ -1,10 +1,7 @@
-#![allow(dead_code, unused_imports, unused_variables, deprecated)]
-use std::error::Error;
+use std::path::PathBuf;
 use std::str::FromStr;
-use std::{env, path::PathBuf};
 
 use anyhow::Result;
-use itertools::Itertools;
 use liwe::model::graph::MarkdownOptions;
 use lsp_server::Connection;
 

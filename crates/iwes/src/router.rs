@@ -2,11 +2,10 @@ use std::time::Instant;
 
 use anyhow::{bail, Result};
 use crossbeam_channel::{select, Receiver, Sender};
-use itertools::Itertools;
 use liwe::model::graph::MarkdownOptions;
+use log::{debug, error};
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
-use lsp_types::request::{DocumentSymbolRequest, PrepareRenameRequest};
 use lsp_types::{
     CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyOutgoingCallsParams,
     CodeActionParams, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
@@ -20,9 +19,6 @@ use serde_json::to_value;
 use liwe::model::State;
 
 use self::server::Server;
-
-pub type ReqHandler = fn(&mut Router, Response);
-type ReqQueue = lsp_server::ReqQueue<(String, Instant), ReqHandler>;
 
 pub mod server;
 
@@ -48,7 +44,7 @@ impl Router {
     }
 
     pub fn new(sender: Sender<Message>, config: ServerConfig) -> Self {
-        eprintln!(
+        debug!(
             "initializing LSP database at {}, with {} docs",
             config.base_path,
             config.state.len()
@@ -59,7 +55,7 @@ impl Router {
             sender,
         };
 
-        eprintln!("initializing LSP database complete");
+        debug!("initializing LSP database complete");
 
         db
     }
@@ -86,7 +82,7 @@ impl Router {
         match message {
             Message::Request(req) => self.on_request(req),
             Message::Notification(notification) => self.on_notification(notification),
-            Message::Response(res) => {
+            Message::Response(_) => {
                 return false;
             }
         }
@@ -105,7 +101,7 @@ impl Router {
                 DidSaveTextDocumentParams::deserialize(notification.params).unwrap(),
             ),
             default => {
-                eprintln!("unhandled notification: {}", default)
+                error!("unhandled notification: {}", default)
             }
         };
 
@@ -171,7 +167,7 @@ impl Router {
                 result: Some(value),
                 error: None,
             }),
-            Err(err) => self.respond(Response::new_err(
+            Err(_) => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::InternalError as i32,
                 "error handling request".to_string(),
