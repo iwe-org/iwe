@@ -49,6 +49,10 @@ impl DatabaseContext for &Server {
     fn parser(&self, id: &Key) -> Option<Parser> {
         self.database().parser(id)
     }
+
+    fn lines(&self, key: &Key) -> u32 {
+        self.database().lines(key)
+    }
 }
 
 impl Server {
@@ -295,12 +299,16 @@ impl Server {
                         .clone()
                         .to_url(&self.base_path)
                         .to_delete_file_op()])
-                    .chain(vec![{
-                        params.new_name.to_url(&self.base_path).to_override_file_op(
-                            &self.base_path,
-                            patch.export_key(&params.new_name).expect("to have key"),
-                        )
-                    }])
+                    .chain(vec![
+                        params.new_name.to_url(&self.base_path).to_create_file_op(),
+                        params
+                            .new_name
+                            .to_url(&self.base_path)
+                            .to_override_new_file_op(
+                                &self.base_path,
+                                patch.export_key(&params.new_name).expect("to have key"),
+                            ),
+                    ])
                     .collect();
 
                 WorkspaceEdit {

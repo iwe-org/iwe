@@ -5,7 +5,6 @@ use crate::{
         Key, Position,
     },
 };
-use indoc::indoc;
 pub struct Parser {
     document: Document,
 }
@@ -30,7 +29,7 @@ impl Parser {
 #[test]
 pub fn link_in_paragraph() {
     let parser = Parser::new(
-        indoc! {"
+        indoc::indoc! {"
             # test
 
             test [test](link1) test

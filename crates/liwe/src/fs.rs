@@ -21,6 +21,7 @@ pub fn new_for_path(path: &PathBuf) -> State {
         .unwrap()
         .into_iter()
         .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().map_or(false, |ex| ex.eq("md")))
         .collect::<Vec<PathBuf>>()
         .par_iter()
         .flat_map(|path| read_file(path))

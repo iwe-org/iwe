@@ -161,6 +161,28 @@ pub impl Url {
         DocumentChangeOperation::Edit(self.to_override_file(base_path, text))
     }
 
+    fn to_override_new_file_op(
+        &self,
+        base_path: &BasePath,
+        text: String,
+    ) -> DocumentChangeOperation {
+        DocumentChangeOperation::Edit(self.to_override_new_file(base_path, text))
+    }
+
+    fn to_override_new_file(&self, _: &BasePath, text: Content) -> TextDocumentEdit {
+        let insert_extracted_text = TextEdit {
+            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
+            new_text: text,
+        };
+        TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: self.clone(),
+                version: None,
+            },
+            edits: vec![OneOf::Left(insert_extracted_text)],
+        }
+    }
+
     fn to_override_file(&self, _: &BasePath, text: Content) -> TextDocumentEdit {
         let insert_extracted_text = TextEdit {
             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),

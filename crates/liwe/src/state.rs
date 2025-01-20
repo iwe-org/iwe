@@ -1,4 +1,3 @@
-use indoc::indoc;
 use itertools::Itertools;
 
 use crate::{key::with_extension, model::State};
@@ -47,7 +46,7 @@ pub fn new_form_indoc(indoc: &str) -> State {
 
 #[test]
 fn test_store_new_form_indoc() {
-    let store = new_form_indoc(indoc! {"
+    let store = new_form_indoc(indoc::indoc! {"
             a
             _
             b

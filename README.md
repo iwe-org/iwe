@@ -32,7 +32,7 @@ IWE functions in two modes:
 
     This tool lets you process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. You can also use the CLI mode to combine multiple files into one extended document.
 
-Please see the documenation at [IWE](https://iwe.md) for more information and setup instructions.
+Please see the [documenation](https://iwe.md/docs/) at [IWE](https://iwe.md) for more information and [setup instructions](https://iwe.md/docs/how-to-install/).
 
 ## Inspired by many other opens-source projects
 
