@@ -67,7 +67,7 @@ impl<'a> SquashVisitor<'a> {
 impl<'a> NodeIter<'a> for SquashVisitor<'a> {
     fn next(&self) -> Option<Self> {
         self.next_referenced_id()
-            .filter(|id| self.depth > 0)
+            .filter(|_| self.depth > 0)
             .map(|id| SquashVisitor {
                 id,
                 depth: self.depth - 1,
@@ -77,9 +77,9 @@ impl<'a> NodeIter<'a> for SquashVisitor<'a> {
             .or(self
                 .resume_id
                 .filter(|_| self.next_id().is_none())
-                .and_then(|resume_id| {
+                .and_then(|_| {
                     self.resume_next_referenced_id()
-                        .filter(|id| self.depth > 0)
+                        .filter(|_| self.depth > 0)
                         .map(|id| SquashVisitor {
                             id,
                             depth: self.depth + 1,
@@ -103,7 +103,7 @@ impl<'a> NodeIter<'a> for SquashVisitor<'a> {
 
     fn child(&self) -> Option<Self> {
         self.child_referenced_id()
-            .filter(|id| self.depth > 0)
+            .filter(|_| self.depth > 0)
             .map(|id| SquashVisitor {
                 id,
                 depth: self.depth - 1,

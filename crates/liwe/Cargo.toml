@@ -20,10 +20,12 @@ indoc.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 pretty_assertions.workspace = true
-env_logger.workspace = true
 itertools.workspace = true
 log.workspace = true
 futures.workspace = true
 rayon.workspace = true
 rand.workspace = true
 pulldown-cmark.workspace = true
+
+[dev-dependencies]
+env_logger.workspace = true

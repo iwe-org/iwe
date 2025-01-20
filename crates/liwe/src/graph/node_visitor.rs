@@ -1,5 +1,5 @@
 use super::Graph;
-use crate::model::graph::{GraphNodeIter, Node, NodeIter, TreeNode};
+use crate::model::graph::{GraphNodeIter, Node, NodeIter};
 use crate::model::NodeId;
 
 pub struct NodeVisitor<'a> {

@@ -1,10 +1,7 @@
-#![allow(dead_code, unused_imports, unused_variables, deprecated)]
-
 use indoc::indoc;
 use lsp_types::{
-    CompletionItem, CompletionList, CompletionParams, CompletionResponse, Documentation, Position,
-    Range, SymbolInformation, SymbolKind, TextDocumentIdentifier, TextDocumentPositionParams,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    CompletionItem, CompletionList, CompletionParams, CompletionResponse, Position,
+    TextDocumentIdentifier, TextDocumentPositionParams,
 };
 
 use fixture::uri;

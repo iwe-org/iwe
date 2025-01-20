@@ -110,7 +110,7 @@ impl DocumentBlock {
             DocumentBlock::BlockQuote(quote) => {
                 quote.blocks.push(block);
             }
-            default => panic!(),
+            _ => panic!(),
         }
     }
 
@@ -122,7 +122,7 @@ impl DocumentBlock {
             DocumentBlock::OrderedList(list) => {
                 list.items.push(Vec::new());
             }
-            default => panic!(),
+            _ => panic!(),
         }
     }
 
@@ -130,7 +130,7 @@ impl DocumentBlock {
         match self {
             DocumentBlock::Plain(plain) => plain.inlines.push(inline),
             DocumentBlock::Para(para) => para.inlines.push(inline),
-            DocumentBlock::CodeBlock(code) => {}
+            DocumentBlock::CodeBlock(_) => {}
             DocumentBlock::RawBlock(_) => {}
             DocumentBlock::BlockQuote(block_quote) => {
                 if block_quote.blocks.is_empty() {
@@ -168,7 +168,7 @@ impl DocumentBlock {
             }
             DocumentBlock::Header(header) => header.inlines.push(inline),
             DocumentBlock::HorizontalRule(_) => {}
-            DocumentBlock::Div(div) => {}
+            DocumentBlock::Div(_) => {}
         }
     }
 
@@ -223,7 +223,7 @@ impl DocumentBlock {
             DocumentBlock::Plain(plain) => plain.inlines.clone(),
             DocumentBlock::Para(para) => para.inlines.clone(),
             DocumentBlock::Header(header) => header.inlines.clone(),
-            default => vec![],
+            _ => vec![],
         }
     }
 }
@@ -442,7 +442,7 @@ impl DocumentInline {
 
     fn ref_title(&self) -> Option<String> {
         match self {
-            DocumentInline::Link(link) => Some(self.to_node_inline().to_plain_text()),
+            DocumentInline::Link(_) => Some(self.to_node_inline().to_plain_text()),
             _ => None,
         }
     }

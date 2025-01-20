@@ -1,11 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
-use std::thread::panicking;
 
+use log::error;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::*;
 
-use crate::file::File;
 use crate::model::{Content, Key, State};
 
 pub fn write_file(key: &Key, content: &Content, to: &PathBuf) -> std::io::Result<()> {
@@ -14,7 +13,7 @@ pub fn write_file(key: &Key, content: &Content, to: &PathBuf) -> std::io::Result
 
 pub fn new_for_path(path: &PathBuf) -> State {
     if !path.exists() {
-        eprintln!("path donsn't exist");
+        error!("path donsn't exist");
         return State::new();
     }
 

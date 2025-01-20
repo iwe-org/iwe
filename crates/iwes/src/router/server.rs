@@ -1,21 +1,18 @@
 use std::cmp::Ordering;
-use std::{default, path};
 
 use itertools::Itertools;
 use liwe::action::ActionType;
-use liwe::model::document::Para;
-use liwe::model::graph::{self, MarkdownOptions, NodeIter};
+use liwe::model::graph::NodeIter;
 use liwe::model::rank::node_rank;
 use lsp_server::ResponseError;
 use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
-use liwe::graph::{Graph, GraphContext};
-use liwe::model::{self, Content, InlineRange};
-use liwe::{key, model::Key};
+use liwe::graph::GraphContext;
+use liwe::model::Key;
+use liwe::model::{self, InlineRange};
 
 use liwe::parser::Parser;
-use request::PrepareRenameRequest;
 
 use super::ServerConfig;
 use liwe::database::Database;
@@ -52,10 +49,6 @@ impl BasePath {
     }
 }
 
-pub trait ServerContext {
-    fn selection(&self, url: &Url, range: &Range) -> String;
-}
-
 impl DatabaseContext for &Server {
     fn parser(&self, id: &Key) -> Option<Parser> {
         self.database().parser(id)
@@ -80,17 +73,9 @@ impl Server {
         &self.database
     }
 
-    pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
-        eprintln!(
-            "did change text document {}",
-            &params.text_document.uri.to_string()
-        );
-    }
+    pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {}
+
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
-        eprintln!(
-            "did change text document {}",
-            &params.text_document.uri.to_string()
-        );
         self.database.update_document(
             &self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.content_changes.first().unwrap().text.clone(),
@@ -114,8 +99,6 @@ impl Server {
         &self,
         params: WorkspaceSymbolParams,
     ) -> WorkspaceSymbolResponse {
-        eprintln!("workspace symbols reqested");
-
         self.database
             .graph()
             .paths()
@@ -386,8 +369,6 @@ impl Server {
         let context = self.database.graph();
         let base_path: &BasePath = &self.base_path;
 
-        eprintln!("code action requested");
-
         context
             .get_node_id_at(
                 &params.text_document.uri.to_key(base_path),
@@ -404,11 +385,11 @@ impl Server {
                     ActionType::ListChangeType,
                     ActionType::ReferenceInlineQuote,
                 ]
-                .iter()
+                .into_iter()
                 .filter(|action_type| params.only_includes(&action_type.action_kind()))
                 .chain(
                     vec![ActionType::ReferenceInlineList, ActionType::ListDetach]
-                        .iter()
+                        .into_iter()
                         .filter(|action_type| {
                             params.only_includes_explicit(&action_type.action_kind())
                         }),
@@ -419,19 +400,6 @@ impl Server {
                 .collect_vec()
             })
             .unwrap_or_default()
-    }
-}
-
-fn hint_at(text: &str, at: u32) -> InlayHint {
-    InlayHint {
-        label: InlayHintLabel::String(text.to_string()),
-        position: Position::new(at, 120),
-        kind: None,
-        text_edits: None,
-        tooltip: None,
-        padding_left: Some(true),
-        padding_right: None,
-        data: None,
     }
 }
 

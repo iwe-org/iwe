@@ -32,6 +32,9 @@ crossbeam-channel.workspace = true
 anyhow.workspace = true
 rand.workspace = true
 extend.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-tree.workspace = true
 
 [dev-dependencies]
 assert-json-diff.workspace = true

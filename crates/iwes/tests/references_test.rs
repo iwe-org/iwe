@@ -1,18 +1,10 @@
-#![allow(dead_code, unused_imports, unused_variables, deprecated)]
-
 use std::u32;
 
 use indoc::indoc;
 use itertools::Itertools;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, CompletionItem,
-    CompletionList, CompletionParams, CompletionResponse, CreateFile, CreateFileOptions,
-    DocumentChangeOperation, DocumentChanges, DocumentFormattingParams, Documentation, InlayHint,
-    InlayHintLabel, InlayHintParams, Location, OneOf, OptionalVersionedTextDocumentIdentifier,
-    PartialResultParams, Position, Range, ReferenceContext, ReferenceParams, ResourceOp,
-    SymbolInformation, SymbolKind, TextDocumentEdit, TextDocumentIdentifier,
-    TextDocumentPositionParams, TextEdit, Url, WorkDoneProgressParams, WorkspaceSymbolParams,
-    WorkspaceSymbolResponse,
+    Location, PartialResultParams, Position, Range, ReferenceContext, ReferenceParams,
+    TextDocumentIdentifier, TextDocumentPositionParams, WorkDoneProgressParams,
 };
 
 use fixture::uri;

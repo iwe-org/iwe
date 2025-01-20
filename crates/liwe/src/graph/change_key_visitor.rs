@@ -1,11 +1,8 @@
-use std::default;
-
 use itertools::Itertools;
 
 use super::GraphContext;
 use super::{graph_node_visitor::GraphNodeVisitor, Graph};
-use crate::model::document::OrderedList;
-use crate::model::graph::{self, GraphNodeIter, Node, NodeIter};
+use crate::model::graph::{Node, NodeIter};
 use crate::model::NodeId;
 
 pub struct ChangeKeyVisitor<'a> {
@@ -82,7 +79,7 @@ impl<'a> NodeIter<'a> for ChangeKeyVisitor<'a> {
                         node
                     }
                 }
-                default => node,
+                _ => node,
             })
             .or_else(|| self.graph.node(self.id))
     }

@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::graph::{
     LineId, NodeId,
     {graph_line::Line, graph_node::GraphNode},
@@ -13,12 +11,6 @@ pub struct Arena {
 }
 
 impl Arena {
-    fn new() -> Arena {
-        Arena {
-            ..Default::default()
-        }
-    }
-
     pub fn node(&self, id: NodeId) -> GraphNode {
         let node = self.nodes[id as usize].clone();
         node
@@ -56,10 +48,6 @@ impl Arena {
             .map(|id| self.delete_branch(id));
 
         self.set_node(from_id, GraphNode::Empty);
-    }
-
-    pub fn node_ids(&self) -> Vec<NodeId> {
-        (0..self.nodes.len() as NodeId).collect_vec()
     }
 
     pub fn nodes(&self) -> &Vec<GraphNode> {

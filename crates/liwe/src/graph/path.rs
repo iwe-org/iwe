@@ -1,12 +1,11 @@
 use std::collections::HashSet;
-use std::default;
 
 use itertools::Itertools;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
+use rayon::iter::IntoParallelIterator;
 
 use crate::graph::graph_node::GraphNode;
 use crate::graph::Graph;
-use crate::model::{Key, NodeId};
+use crate::model::NodeId;
 use rayon::prelude::*;
 
 #[derive(Clone, Default, Eq, PartialEq, Debug, PartialOrd, Ord)]
@@ -116,7 +115,7 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
             .map(|parent| paths_for_node(graph, parent.id(), nodes))
             .flatten()
             .collect_vec(),
-        GraphNode::Section(section) => graph
+        GraphNode::Section(_) => graph
             .visit_node(id)
             .to_parent()
             .map(|parent| paths_for_node(graph, parent.id(), nodes))
@@ -125,7 +124,7 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
             .map(|path| path.append(id))
             .chain(vec![NodePath::from_id(id)].into_iter())
             .collect_vec(),
-        default => {
+        _ => {
             vec![]
         }
     };
@@ -137,13 +136,9 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
 
 #[cfg(test)]
 mod test {
-    use std::collections::{HashMap, HashSet};
-
-    use itertools::Itertools;
 
     use crate::graph::path::{graph_to_paths, NodePath};
     use crate::graph::Graph;
-    use crate::key::with_extension;
 
     #[test]
     pub fn no_parents() {

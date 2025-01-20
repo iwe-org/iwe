@@ -1,5 +1,3 @@
-use std::thread::panicking;
-
 use crate::model::{self, Key};
 
 pub fn without_extension(key: &str) -> String {

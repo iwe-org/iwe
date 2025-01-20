@@ -1,7 +1,7 @@
 use crate::model::InlinesContext;
 
+use crate::model::graph::{to_plain_text, Inlines};
 use crate::model::{Key, LineId};
-use crate::model::graph::{to_plain_text, Inline, Inlines};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Line {
@@ -33,8 +33,4 @@ impl Line {
     pub fn normalize(&self, context: impl InlinesContext) -> Inlines {
         self.inlines.iter().map(|i| i.normalize(context)).collect()
     }
-}
-
-pub fn from_inlines(inlines: &[Inline]) -> Inlines {
-    inlines.to_vec()
 }

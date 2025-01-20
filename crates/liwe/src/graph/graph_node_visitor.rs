@@ -1,6 +1,5 @@
 use super::*;
 use crate::model::graph::Node;
-use crate::model::Content;
 
 #[derive(Debug, Clone)]
 pub struct GraphNodeVisitor<'a> {
@@ -195,19 +194,8 @@ impl<'a> GraphNodeVisitor<'a> {
         self.graph.graph_node(self.id)
     }
 
-    fn line_content(&self) -> Option<Content> {
-        self.graph
-            .graph_node(self.id)
-            .line_id()
-            .map(|id| self.graph.get_line(id).to_plain_text())
-    }
-
     fn prev(&self) -> Option<Self> {
         self.node().prev_id().map(|id| Self::new(self.graph, id))
-    }
-
-    fn next(&self) -> Option<Self> {
-        self.node().next_id().map(|id| Self::new(self.graph, id))
     }
 
     pub fn child(&self) -> Option<Self> {
