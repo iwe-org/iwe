@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.82"
 repository = "https://github.com/iwe-org/iwe"
-version = "0.0.8"
+version = "0.0.11"
 
 [workspace.dependencies]
 liwe = { path = "./crates/liwe" }
