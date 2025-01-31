@@ -73,7 +73,12 @@ impl Server {
         &self.database
     }
 
-    pub fn handle_did_save_text_document(&mut self, _: DidSaveTextDocumentParams) {}
+    pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
+        self.database.update_document(
+            &self.base_path.url_to_key(&params.text_document.uri.clone()),
+            params.text.unwrap().clone(),
+        );
+    }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
         self.database.update_document(

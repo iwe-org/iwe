@@ -8,16 +8,16 @@ use crossbeam_channel::{after, select, Receiver};
 use liwe::model::graph::MarkdownOptions;
 use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{
-    notification::{DidChangeTextDocument, Exit},
+    notification::{DidChangeTextDocument, DidSaveTextDocument, Exit},
     request::{
         CodeActionRequest, Completion, Formatting, GotoDefinition, InlayHintRequest, References,
         Shutdown, WorkspaceSymbolRequest,
     },
     CodeActionKind, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    DidChangeTextDocumentParams, DocumentFormattingParams, GotoDefinitionParams,
-    GotoDefinitionResponse, InlayHint, InlayHintParams, Location, PrepareRenameResponse,
-    ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    DidChangeTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
+    GotoDefinitionParams, GotoDefinitionResponse, InlayHint, InlayHintParams, Location,
+    PrepareRenameResponse, ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit,
+    Url, WorkspaceEdit, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -224,6 +224,10 @@ impl Fixture {
 
     pub fn did_change_text_document(&self, params: DidChangeTextDocumentParams) {
         self.notification::<DidChangeTextDocument>(params);
+    }
+
+    pub fn did_save_text_document(&self, params: DidSaveTextDocumentParams) {
+        self.notification::<DidSaveTextDocument>(params);
     }
 
     pub fn workspace_symbols(
