@@ -1,0 +1,4 @@
+[workspace]
+changelog_update = false 
+dependencies_update = false
+git_release_enable = false 

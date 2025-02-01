@@ -6,7 +6,7 @@ permissions:
 on:
   push:
     tags:
-      - v[0-9]+.*
+      - iwe-v[0-9]+.*
 
 jobs:
   create-release:
