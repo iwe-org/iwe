@@ -2,3 +2,9 @@
 changelog_update = false 
 dependencies_update = false
 git_release_enable = false 
+
+[[package]]
+name = "iwe"
+git_release_enable = true 
+git_release_name = "v{{ version }}"
+git_release_draft = true
