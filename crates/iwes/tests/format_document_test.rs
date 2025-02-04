@@ -69,6 +69,24 @@ fn update_ref_titles() {
 }
 
 #[test]
+fn format_extension() {
+    assert_formatted_with_extension(
+        indoc! {"
+            # test
+
+            [title](2.md)
+            _
+            # title
+            "},
+        indoc! {"
+            # test
+
+            [title](2.md)
+        "},
+    );
+}
+
+#[test]
 fn update_link_titles() {
     assert_formatted(
         indoc! {"
@@ -123,6 +141,27 @@ fn updte_ref_titles_after_new_file_change() {
 }
 fn assert_formatted(source: &str, formatted: &str) {
     let fixture = Fixture::with(source);
+
+    fixture.format_doucment(
+        DocumentFormattingParams {
+            text_document: TextDocumentIdentifier { uri: uri(1) },
+            options: Default::default(),
+            work_done_progress_params: Default::default(),
+        },
+        vec![TextEdit {
+            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
+            new_text: formatted.to_string(),
+        }],
+    )
+}
+
+fn assert_formatted_with_extension(source: &str, formatted: &str) {
+    let fixture = Fixture::with_options(
+        source,
+        liwe::model::graph::MarkdownOptions {
+            refs_extension: ".md".to_string(),
+        },
+    );
 
     fixture.format_doucment(
         DocumentFormattingParams {

@@ -54,7 +54,10 @@ struct Squash {
 }
 
 #[derive(Debug, Args)]
-struct Paths {}
+struct Paths {
+    #[clap(long, short, global = true, required = false, default_value = "4")]
+    depth: u8,
+}
 
 #[derive(Debug, Args)]
 struct GlobalOpts {
@@ -128,8 +131,10 @@ fn paths_command(args: Paths) {
     graph
         .paths()
         .iter()
+        .filter(|n| n.ids().len() <= args.depth as usize)
         .map(|n| render(&n, &graph))
         .sorted()
+        .unique()
         .for_each(|string| println!("{}", string));
 }
 

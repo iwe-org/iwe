@@ -34,6 +34,18 @@ IWE functions in two modes:
 
 Please visit [IWE.md](https://iwe.md) for more information.
 
+## Get Involved
+
+IWE fully depends on community support, which is essential for its growth and development. We encourage you to participate in [discussions](https://github.com/iwe-org/iwe/discussions) and report any [issues](https://github.com/iwe-org/iwe/issues) you encounter.
+
+## Debug Mode
+
+IWE includes a debug mode, which can be enabled by setting the `IWE_DEBUG` environment variable. In debug mode, IWE LSP will generate a detailed log file named `iwe.log` in the directory where you started it. Including logs with your [issue](https://github.com/iwe-org/iwe/issues) report will help us to resolve it faster.
+
+```
+export IWE_DEBUG=true; nvim
+```
+
 ## Inspired by many other open-source projects
 
 - [zk notes](https://github.com/zk-org/zk)

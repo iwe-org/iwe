@@ -260,9 +260,15 @@ pub impl NodePath {
         let target = self.target();
         let line = context.node_line_number(target).unwrap_or(0);
 
+        let kind = if self.ids().len() == 1 {
+            SymbolKind::NAMESPACE
+        } else {
+            SymbolKind::OBJECT
+        };
+
         SymbolInformation {
             name: self.render(context),
-            kind: SymbolKind::OBJECT,
+            kind,
             deprecated: None,
             tags: None,
             location: Location {
