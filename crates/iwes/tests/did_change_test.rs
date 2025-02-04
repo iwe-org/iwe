@@ -37,7 +37,7 @@ fn did_change_test_once() {
             query: "".to_string(),
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            kind: lsp_types::SymbolKind::OBJECT,
+            kind: lsp_types::SymbolKind::NAMESPACE,
             location: lsp_types::Location {
                 uri: uri(1),
                 range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -74,7 +74,7 @@ fn new_file() {
             query: "".to_string(),
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            kind: lsp_types::SymbolKind::OBJECT,
+            kind: lsp_types::SymbolKind::NAMESPACE,
             location: lsp_types::Location {
                 uri: uri(2),
                 range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -125,7 +125,7 @@ fn did_change_test_two_times() {
             query: "".to_string(),
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            kind: lsp_types::SymbolKind::OBJECT,
+            kind: lsp_types::SymbolKind::NAMESPACE,
             location: lsp_types::Location {
                 uri: uri(1),
                 range: Range::new(Position::new(0, 0), Position::new(1, 0)),

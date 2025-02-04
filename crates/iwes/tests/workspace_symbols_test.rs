@@ -24,7 +24,7 @@ fn one_file() {
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
             name: "test".to_string(),
-            kind: lsp_types::SymbolKind::OBJECT,
+            kind: lsp_types::SymbolKind::NAMESPACE,
             location: lsp_types::Location {
                 uri: uri(1),
                 range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -54,7 +54,7 @@ fn one_file_two_headers() {
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {
                 name: "test".to_string(),
-                kind: lsp_types::SymbolKind::OBJECT,
+                kind: lsp_types::SymbolKind::NAMESPACE,
                 location: lsp_types::Location {
                     uri: uri(1),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -96,7 +96,7 @@ fn one_file_two_headers_same_level() {
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {
                 name: "test".to_string(),
-                kind: lsp_types::SymbolKind::OBJECT,
+                kind: lsp_types::SymbolKind::NAMESPACE,
                 location: lsp_types::Location {
                     uri: uri(1),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -107,7 +107,7 @@ fn one_file_two_headers_same_level() {
             },
             SymbolInformation {
                 name: "test 2".to_string(),
-                kind: lsp_types::SymbolKind::OBJECT,
+                kind: lsp_types::SymbolKind::NAMESPACE,
                 location: lsp_types::Location {
                     uri: uri(1),
                     range: Range::new(Position::new(2, 0), Position::new(3, 0)),
@@ -137,7 +137,7 @@ fn two_files() {
         },
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {
-                kind: lsp_types::SymbolKind::OBJECT,
+                kind: lsp_types::SymbolKind::NAMESPACE,
                 location: lsp_types::Location {
                     uri: uri(1),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -148,7 +148,7 @@ fn two_files() {
                 deprecated: None,
             },
             SymbolInformation {
-                kind: lsp_types::SymbolKind::OBJECT,
+                kind: lsp_types::SymbolKind::NAMESPACE,
                 location: lsp_types::Location {
                     uri: uri(2),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -192,7 +192,7 @@ fn nested_files() {
                 deprecated: None,
             },
             SymbolInformation {
-                kind: lsp_types::SymbolKind::OBJECT,
+                kind: lsp_types::SymbolKind::NAMESPACE,
                 location: lsp_types::Location {
                     uri: uri(2),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
@@ -251,7 +251,7 @@ fn two_nested_nested_files() {
                 deprecated: None,
             },
             SymbolInformation {
-                kind: lsp_types::SymbolKind::OBJECT,
+                kind: lsp_types::SymbolKind::NAMESPACE,
                 location: lsp_types::Location {
                     uri: uri(3),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
