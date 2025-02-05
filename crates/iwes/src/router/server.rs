@@ -163,26 +163,59 @@ impl Server {
     pub fn handle_inlay_hints(&self, params: InlayHintParams) -> Vec<InlayHint> {
         let key = params.text_document.uri.to_key(&self.base_path);
 
-        let inline_refs = self
-            .database
-            .graph()
-            .get_inline_references_to(&key.clone())
-            .len();
+        self.container_hint(&key)
+            .into_iter()
+            .chain(self.refs_counter_hints(&key).into_iter())
+            .chain(self.block_reference_hints(&key))
+            .collect_vec()
+    }
 
+    pub fn block_reference_hints(&self, key: &str) -> Vec<InlayHint> {
         self.database
             .graph()
-            .get_block_references_to(&key.clone())
+            .get_block_references_in(key)
+            .into_iter()
+            .filter_map(|id| {
+                self.database
+                    .graph()
+                    .node_line_range(id)
+                    .map(|range| (id, range.start))
+            })
+            .map(|(id, line)| {
+                (
+                    self.database
+                        .graph()
+                        .visit_node(id)
+                        .ref_key()
+                        .map(|key| self.database.graph().get_block_references_to(&key).len())
+                        .unwrap_or_default(),
+                    line,
+                )
+            })
+            .map(|(count, line)| hint_at(&format!("⎘{}", number_substr(count)), line as u32))
+            .collect_vec()
+    }
+
+    pub fn container_hint(&self, key: &str) -> Vec<InlayHint> {
+        self.database
+            .graph()
+            .get_block_references_to(key)
             .iter()
             .map(|id| self.database.graph().get_container_doucment_ref_text(*id))
             .sorted()
             .dedup()
-            .map(|text| hint(&format!("↖{}", text)))
-            .chain(
-                vec![hint(&format!("‹{}›", inline_refs))]
-                    .into_iter()
-                    .filter(|_| inline_refs > 0),
-            )
+            .map(|text| hint_at(&format!("↖{}", text), 0))
             .collect_vec()
+    }
+
+    pub fn refs_counter_hints(&self, key: &str) -> Vec<InlayHint> {
+        let inline_refs = self.database.graph().get_inline_references_to(key).len();
+
+        if inline_refs > 0 {
+            vec![hint_at(&format!("‹{}›", inline_refs), 0)]
+        } else {
+            vec![]
+        }
     }
 
     pub fn handle_inline_values(&self, _: InlineValueParams) -> Vec<InlineValue> {
@@ -409,10 +442,10 @@ impl Server {
     }
 }
 
-fn hint(text: &str) -> InlayHint {
+fn hint_at(text: &str, line: u32) -> InlayHint {
     InlayHint {
         label: InlayHintLabel::String(text.to_string()),
-        position: Position::new(0, 120),
+        position: Position::new(line, 120),
         kind: None,
         text_edits: None,
         tooltip: None,
@@ -434,4 +467,20 @@ fn to_range(value: InlineRange) -> Range {
         Position::new(value.start.line as u32, value.start.character as u32),
         Position::new(value.end.line as u32, value.end.character as u32),
     )
+}
+
+pub fn number_substr(num: usize) -> &'static str {
+    match num {
+        0 => "",
+        1 => "",
+        2 => "²",
+        3 => "³",
+        4 => "⁴",
+        5 => "⁵",
+        6 => "⁶",
+        7 => "⁷",
+        8 => "⁸",
+        9 => "⁹",
+        _ => "+",
+    }
 }

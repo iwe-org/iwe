@@ -45,6 +45,20 @@ impl<'a> GraphNodeVisitor<'a> {
             .map_or(Vec::new(), |child| child.get_next_nodes())
     }
 
+    pub fn get_all_sub_nodes(&self) -> Vec<NodeId> {
+        let mut nodes = vec![self.id];
+        if let Some(child) = self.to_child() {
+            nodes.append(&mut child.get_all_sub_nodes());
+        }
+        nodes.append(
+            &mut self
+                .to_next()
+                .map(|n| n.get_all_sub_nodes())
+                .unwrap_or(vec![]),
+        );
+        nodes
+    }
+
     fn get_next_nodes(&self) -> Vec<NodeId> {
         let mut nodes = vec![];
         nodes.push(self.id);
