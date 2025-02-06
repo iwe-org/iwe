@@ -11,7 +11,7 @@ mod fixture;
 
 #[test]
 fn single_ref() {
-    assert_extracted(
+    assert_inlay_hints(
         indoc! {"
             # test
             _
@@ -19,13 +19,22 @@ fn single_ref() {
 
             [test](1)
             "},
-        "header hint",
+        "↖header hint",
     );
 }
 
 #[test]
+fn no_refs() {
+    assert_no_hints(indoc! {"
+            # test
+            _
+            # header hint
+            "});
+}
+
+#[test]
 fn multiple_refs() {
-    assert_extracted_multile(
+    assert_multiple_hints(
         indoc! {"
             # test
             _
@@ -37,14 +46,45 @@ fn multiple_refs() {
 
             [test](1)
             "},
-        "header hint",
-        "header hint 2",
+        "↖header hint",
+        "↖header hint 2",
     );
 }
 
-fn assert_extracted(source: &str, hint_text: &str) {
+#[test]
+fn block_reference() {
+    assert_inlay_hint_at(
+        indoc! {"
+            para
+
+            [test](2)
+            _
+            # test
+            "},
+        "⎘",
+        2,
+    );
+}
+
+#[test]
+fn block_reference_2() {
+    assert_inlay_hint_at(
+        indoc! {"
+            para
+
+            [test](2)
+            _
+            # test
+            _
+            [test](2)
+            "},
+        "⎘²",
+        2,
+    );
+}
+
+fn assert_inlay_hint_at(source: &str, hint_text: &str, line: u32) {
     let fixture = Fixture::with(source);
-    let text = &format!("↖{}", hint_text);
 
     fixture.inlay_hint(
         InlayHintParams {
@@ -53,7 +93,29 @@ fn assert_extracted(source: &str, hint_text: &str) {
             range: Range::new(Position::new(0, 0), Position::new(0, 0)),
         },
         vec![InlayHint {
-            label: InlayHintLabel::String(text.to_string()),
+            label: InlayHintLabel::String(hint_text.to_string()),
+            position: Position::new(line, 120),
+            kind: None,
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(true),
+            padding_right: None,
+            data: None,
+        }],
+    )
+}
+
+fn assert_inlay_hints(source: &str, hint_text: &str) {
+    let fixture = Fixture::with(source);
+
+    fixture.inlay_hint(
+        InlayHintParams {
+            text_document: TextDocumentIdentifier { uri: uri(1) },
+            work_done_progress_params: Default::default(),
+            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
+        },
+        vec![InlayHint {
+            label: InlayHintLabel::String(hint_text.to_string()),
             position: Position::new(0, 120),
             kind: None,
             text_edits: None,
@@ -65,10 +127,21 @@ fn assert_extracted(source: &str, hint_text: &str) {
     )
 }
 
-fn assert_extracted_multile(source: &str, hint_text: &str, hint_text2: &str) {
+fn assert_no_hints(source: &str) {
     let fixture = Fixture::with(source);
-    let text = &format!("↖{}", hint_text);
-    let text2 = &format!("↖{}", hint_text2);
+
+    fixture.inlay_hint(
+        InlayHintParams {
+            text_document: TextDocumentIdentifier { uri: uri(1) },
+            work_done_progress_params: Default::default(),
+            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
+        },
+        vec![],
+    )
+}
+
+fn assert_multiple_hints(source: &str, hint_text: &str, hint_text2: &str) {
+    let fixture = Fixture::with(source);
 
     fixture.inlay_hint(
         InlayHintParams {
@@ -78,7 +151,7 @@ fn assert_extracted_multile(source: &str, hint_text: &str, hint_text2: &str) {
         },
         vec![
             InlayHint {
-                label: InlayHintLabel::String(text.to_string()),
+                label: InlayHintLabel::String(hint_text.to_string()),
                 position: Position::new(0, 120),
                 kind: None,
                 text_edits: None,
@@ -88,7 +161,7 @@ fn assert_extracted_multile(source: &str, hint_text: &str, hint_text2: &str) {
                 data: None,
             },
             InlayHint {
-                label: InlayHintLabel::String(text2.to_string()),
+                label: InlayHintLabel::String(hint_text2.to_string()),
                 position: Position::new(0, 120),
                 kind: None,
                 text_edits: None,

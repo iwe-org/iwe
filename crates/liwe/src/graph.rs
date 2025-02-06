@@ -388,6 +388,16 @@ impl Graph {
             .collect()
     }
 
+    pub fn get_block_references_in(&self, key: &str) -> Vec<NodeId> {
+        self.visit_key(key)
+            .expect("to have key")
+            .get_all_sub_nodes()
+            .into_iter()
+            .filter(|id| !self.graph_node(*id).is_empty())
+            .filter(|id| self.graph_node(*id).is_ref())
+            .collect()
+    }
+
     pub fn get_inline_references_to(&self, key: &str) -> Vec<NodeId> {
         // remove empty node ids
         self.index
