@@ -29,6 +29,7 @@ rand = "0.8.4"
 rayon = { version = "1.5.1", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+toml = "0.8.20"
 reqwest = { version = "0.12.12", features = ["blocking", "json"] }
 sha2 = "0.10.8"
 assert-json-diff = "2.0.2"

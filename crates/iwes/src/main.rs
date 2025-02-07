@@ -4,7 +4,7 @@ use std::fs::OpenOptions;
 
 use iwes::main_loop;
 use liwe::action::ActionType;
-use liwe::model::graph::Settings;
+use liwe::model::graph::Configuration;
 use lsp_types::CodeActionKind;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
@@ -18,7 +18,7 @@ use lsp_types::TextDocumentSyncCapability;
 
 use log::{debug, info};
 
-const CONFIG_FILE_NAME: &str = "config.json";
+const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
 
 pub fn all_action_types() -> Vec<ActionType> {
@@ -102,26 +102,26 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     config_path.push(IWE_MARKER);
     config_path.push(CONFIG_FILE_NAME);
 
-    let settings = {
+    let config = {
         std::fs::read_to_string(config_path)
             .ok()
-            .and_then(|content| serde_json::from_str::<Settings>(&content).ok())
-            .unwrap_or(Settings::default())
+            .and_then(|content| toml::from_str::<Configuration>(&content).ok())
+            .unwrap_or(Configuration::default())
     };
 
     let mut library_path = current_dir.clone();
 
-    debug!("setttings: {:?}", settings);
+    debug!("config: {:?}", config);
 
-    if !settings.library.path.is_empty() {
-        library_path.push(settings.library.path);
+    if !config.library.path.is_empty() {
+        library_path.push(config.library.path);
     }
 
     main_loop(
         connection,
         initialization_params,
         library_path.to_string_lossy().to_string(),
-        settings.markdown,
+        config.markdown,
     )?;
     io_threads.join()?;
 
