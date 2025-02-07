@@ -238,7 +238,7 @@ pub struct LibraryOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
-pub struct Settings {
+pub struct Configuration {
     pub markdown: MarkdownOptions,
     pub library: LibraryOptions,
 }

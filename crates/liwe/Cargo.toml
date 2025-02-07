@@ -18,7 +18,6 @@ path = "src/lib.rs"
 sha2.workspace = true
 indoc.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 pretty_assertions.workspace = true
 itertools.workspace = true
 log.workspace = true
