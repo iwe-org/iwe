@@ -204,15 +204,10 @@ impl DocumentBlock {
     }
 
     fn block_at_positon(&self, position: Position) -> Option<DocumentBlock> {
-        if self.line_range().contains(&position.line) && self.child_blocks().is_empty() {
-            return Some(self.clone());
-        }
-        for child in self.child_blocks() {
-            if child.line_range().contains(&position.line) {
-                return child.block_at_positon(position);
-            }
-        }
-        None
+        self.child_blocks()
+            .iter()
+            .find_map(|child| child.block_at_positon(position))
+            .or(Some(self.clone()).filter(|block| block.line_range().contains(&position.line)))
     }
 
     pub fn child_inlines(&self) -> Vec<DocumentInline> {
