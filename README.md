@@ -38,15 +38,15 @@ IWE functions in two modes, as editor extension and CLI utility
 
 IWE integrates seamlessly with your editor, helping you to:
 
-- Search through your notes
-- Navigate through markdown links
-- Auto-complete links as you type
-- Extract or inline sub-notes seamlessly
-- Format the document and refresh link titles
-- Rename files and automatically update all related links
-- Select backlinks to find references to the current document
-- Convert lists into headers and vice versa smoothly
-- Display inlay hints with parent note references and link counts
+- **Search** through your notes
+- **Navigate** through markdown links
+- **Auto-complete** links as you type
+- **Extract** or **inline** sub-notes seamlessly
+- **Format** the document and refresh link titles
+- **Rename** files and automatically update all related links
+- Select **backlinks** to find references to the current document
+- **Convert** lists into headers and vice versa
+- Display **inlay hints** with parent note references and link counts
 
 Please visit [IWE.md](https://iwe.md) for more information.
 
