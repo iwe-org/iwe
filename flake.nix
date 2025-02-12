@@ -3,21 +3,24 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
+    iwe = {
+      url = "github:iwe-org/iwe";
+      flake = false;
+    };
   };
 
   outputs =
-    { self, nixpkgs }:
+    {
+      nixpkgs,
+      iwe,
+      ...
+    }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      version = "0.0.17";
+      version = iwe.lastModifiedDate;
       commonAttrs = {
-        src = pkgs.fetchFromGitHub {
-          owner = "iwe-org";
-          repo = "iwe";
-          tag = "iwe-v${version}";
-          hash = "sha256-eE84KzYJTJ39UDQt3VZpSIba/P+7VFR9K6+MSMlg0Wc=";
-        };
+        src = iwe;
         cargoHash = "sha256-K8RxVYHh0pStQyHMiLLeUakAoK1IMoUtCNg70/NfDiI=sha256-3+DZi5yP9VYy4RwWDDZy9DM/fkBwP8rKAtY+C6aVAPw=";
         useFetchCargoVendor = true;
       };
@@ -26,7 +29,7 @@
       packages.${system} = {
         iwe = pkgs.rustPlatform.buildRustPackage {
           pname = "iwe";
-          version = "0.0.17";
+          inherit version;
           inherit (commonAttrs)
             src
             cargoHash
@@ -52,7 +55,7 @@
         };
         iwes = pkgs.rustPlatform.buildRustPackage {
           pname = "iwes";
-          version = "0.0.17";
+          inherit version;
           inherit (commonAttrs)
             src
             cargoHash
@@ -77,7 +80,5 @@
           };
         };
       };
-
-      defaultPackages.${system} = self.packages.${system}.iwe;
     };
 }

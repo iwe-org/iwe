@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "iwe": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1739077443,
+        "narHash": "sha256-SXofPanz96yJY6unFXZl6zCO7uw+pM+HYqbbDxPdqJ0=",
+        "owner": "iwe-org",
+        "repo": "iwe",
+        "rev": "7830b7e7ab4fe5c11a678c2cce3de06d444f3ea4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "iwe-org",
+        "repo": "iwe",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1739185772,
@@ -17,6 +33,7 @@
     },
     "root": {
       "inputs": {
+        "iwe": "iwe",
         "nixpkgs": "nixpkgs"
       }
     }
