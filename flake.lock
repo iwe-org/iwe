@@ -1,0 +1,43 @@
+{
+  "nodes": {
+    "iwe": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1739077443,
+        "narHash": "sha256-SXofPanz96yJY6unFXZl6zCO7uw+pM+HYqbbDxPdqJ0=",
+        "owner": "iwe-org",
+        "repo": "iwe",
+        "rev": "7830b7e7ab4fe5c11a678c2cce3de06d444f3ea4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "iwe-org",
+        "repo": "iwe",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1739185772,
+        "narHash": "sha256-X+Dky73wlN9R+zcrV98yH6jvZkd/VxleZKtKtFglCGk=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "587efe0fd09a8675a0630910fa04043ec48a7036",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "iwe": "iwe",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
