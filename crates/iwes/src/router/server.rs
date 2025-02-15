@@ -413,7 +413,6 @@ impl Server {
                 &params.text_document.uri.to_key(base_path),
                 params.range.start.line as usize,
             )
-            .filter(|_| params.range.empty())
             .map(|node_id| {
                 vec![
                     ActionType::SectionExtract,

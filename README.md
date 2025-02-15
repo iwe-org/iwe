@@ -1,28 +1,6 @@
-# [IWE](https://iwe.md) - Markdown notes assistant
+# About
 
-## Quick demos
-
-#### Exract notes
-
-![Demo](https://iwe.md/images/extract.gif)
-
-<details>
-<summary>Search</summary>
-
-![Demo](https://iwe.md/images/search.gif)
-
-</details>
-
-<details>
-<summary>Normalization</summary>
-
-![Demo](https://iwe.md/images/normalization.gif)
-
-</details>
-
-## About
-
-IWE is a tool that helps you organize your markdown notes. It treats notes as an interconnected graph, where each document acts as a sub-tree and the links are the edges connecting them. It supports various operations designed to assist with navigating and restructuring the graph.
+[IWE](https://iwe.md) is a Markdown notes assistant for your favorite text editor. It's a tool that helps you organize your Markdown notes. It treats notes as an interconnected graph, where each document acts as a sub-tree and the links are the edges connecting them. It supports various operations designed to assist with navigating and restructuring the graph.
 
 The main focus of IWE is to help you keep your notes tidy and structured. It works with the graph at the semantic level, understanding the **headers**, **lists** and **links** defined structure of the documents.
 
@@ -48,7 +26,30 @@ IWE integrates seamlessly with your editor, helping you to:
 - **Convert** lists into headers and vice versa
 - Display **inlay hints** with parent note references and link counts
 
-Please visit [IWE.md](https://iwe.md) for more information.
+Please visit [IWE.md](https://iwe.md) for more information and [quick start guide](https://iwe.md/quick-start/).
+
+### Demos
+
+<details>
+<summary>Notes search</summary>
+
+![Demo](https://iwe.md/images/search.gif)
+
+</details>
+
+<details>
+<summary>Auto-formatting</summary>
+
+![Demo](https://iwe.md/images/normalization.gif)
+
+</details>
+
+<details>
+<summary>Extract note</summary>
+
+![Demo](https://iwe.md/images/extract.gif)
+
+</details>
 
 ## Command Line Utility Mode
 
