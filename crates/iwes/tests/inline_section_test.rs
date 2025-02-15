@@ -2,9 +2,10 @@ use std::u32;
 
 use indoc::indoc;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, DeleteFile,
-    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
-    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit,
+    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionTriggerKind,
+    DeleteFile, DocumentChangeOperation, DocumentChanges, OneOf,
+    OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp, TextDocumentEdit,
+    TextDocumentIdentifier, TextEdit,
 };
 
 use fixture::{action_kind, action_kinds, uri};
@@ -211,13 +212,17 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
+            range: Range::new(
+                Position::new(line, 0),
+                // helix editor provides range even if nothing selected.
+                Position::new(line + 1, 1),
+            ),
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
             context: CodeActionContext {
                 diagnostics: Default::default(),
                 only: action_kinds("refactor.inline.reference.section"),
-                trigger_kind: None,
+                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
             },
         },
         vec![CodeActionOrCommand::CodeAction(CodeAction {
