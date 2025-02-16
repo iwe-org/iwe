@@ -50,7 +50,7 @@ impl ReferenceType {
 }
 
 impl Node {
-    pub fn is_doucment(&self) -> bool {
+    pub fn is_document(&self) -> bool {
         match self {
             Node::Document(_) => true,
             _ => false,

@@ -10,7 +10,7 @@ use crate::fixture::Fixture;
 mod fixture;
 
 #[test]
-fn no_sub_sectins_to_extract() {
+fn no_sub_sections_to_extract() {
     assert_no_action(
         indoc! {"
             # test

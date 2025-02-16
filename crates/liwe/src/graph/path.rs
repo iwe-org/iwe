@@ -275,7 +275,7 @@ mod test {
     }
 
     #[test]
-    pub fn two_level_infinit_recursion_references() {
+    pub fn two_level_infinite_recursion_references() {
         let graph = Graph::with(|graph| {
             graph
                 .build_key_and("a", |document| {
@@ -297,7 +297,7 @@ mod test {
     }
 
     #[test]
-    pub fn infinit_recusion() {
+    pub fn infinite_recursion() {
         assert_eq!(
             Vec::<NodePath>::new(),
             graph_to_paths(

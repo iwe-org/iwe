@@ -13,7 +13,7 @@ use crate::fixture::Fixture;
 mod fixture;
 
 #[test]
-fn no_definiton() {
+fn no_definition() {
     let fixture = Fixture::new();
 
     fixture.assert_response::<GotoDefinition>(

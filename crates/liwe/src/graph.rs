@@ -444,7 +444,7 @@ pub trait GraphContext: Copy {
     fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
     fn change_key_visitor(&self, key: &str, target_key: &str, updated_key: &str) -> impl NodeIter;
     fn extract_vistior(&self, key: &str, keys: HashMap<NodeId, Key>) -> impl NodeIter;
-    fn get_container_doucment_ref_text(&self, id: NodeId) -> String;
+    fn get_container_document_ref_text(&self, id: NodeId) -> String;
     fn get_container_key(&self, id: NodeId) -> Key;
     fn get_key(&self, id: NodeId) -> String;
     fn get_node_id(&self, key: &str) -> Option<NodeId>;
@@ -481,7 +481,7 @@ pub trait GraphPatch<'a> {
 
 impl<'a> GraphPatch<'a> for Graph {
     fn add_key(&mut self, key: &Key, iter: impl NodeIter<'a>) {
-        if iter.node().unwrap().is_doucment() {
+        if iter.node().unwrap().is_document() {
             self.build_key_and(&key, |doc| {
                 doc.insert_from_iter(iter.child().expect("to have child in document iter"))
             });
@@ -599,12 +599,12 @@ impl GraphContext for &Graph {
         self.get_key_title(&key.to_string())
     }
 
-    fn get_container_doucment_ref_text(&self, id: NodeId) -> String {
+    fn get_container_document_ref_text(&self, id: NodeId) -> String {
         let container_key = self
             .visit_node(id)
             .to_document()
             .unwrap()
-            .doucment_key()
+            .document_key()
             .unwrap();
         self.get_key_title(&container_key)
             .unwrap_or_default()
@@ -615,7 +615,7 @@ impl GraphContext for &Graph {
         self.visit_node(id)
             .to_document()
             .unwrap()
-            .doucment_key()
+            .document_key()
             .unwrap()
     }
 

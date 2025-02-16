@@ -446,7 +446,7 @@ impl GraphNode {
             GraphNode::HorizontalRule(rule) => rule.next = Some(next),
             GraphNode::Raw(leaf) => leaf.next = Some(next),
             GraphNode::Reference(reference) => reference.next = Some(next),
-            GraphNode::Document(_) => panic!("cant set next for document"),
+            GraphNode::Document(_) => panic!("can't set next for document"),
             GraphNode::Empty => panic!(),
         }
     }
@@ -458,10 +458,10 @@ impl GraphNode {
             GraphNode::Quote(quote) => quote.child = Some(child),
             GraphNode::BulletList(list) => list.child = Some(child),
             GraphNode::OrderedList(list) => list.child = Some(child),
-            GraphNode::Leaf(_) => panic!("cant set child for leaf"),
-            GraphNode::Raw(_) => panic!("cant set child for raw"),
-            GraphNode::HorizontalRule(_) => panic!("cant set child for rule"),
-            GraphNode::Reference(_) => panic!("cant set child for reference"),
+            GraphNode::Leaf(_) => panic!("can't set child for leaf"),
+            GraphNode::Raw(_) => panic!("can't set child for raw"),
+            GraphNode::HorizontalRule(_) => panic!("can't set child for rule"),
+            GraphNode::Reference(_) => panic!("can't set child for reference"),
             GraphNode::Empty => panic!(),
         }
     }

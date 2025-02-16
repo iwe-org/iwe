@@ -42,7 +42,7 @@ fn toc_one_level_two_items() {
 }
 
 #[test]
-fn toc_one_recusive() {
+fn toc_one_recursive() {
     toc(
         indoc! {"
              # file 1 title

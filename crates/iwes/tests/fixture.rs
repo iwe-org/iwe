@@ -155,7 +155,7 @@ impl Fixture {
         assert_json_eq!(&expected, &actual);
     }
 
-    pub fn format_doucment(&self, params: DocumentFormattingParams, expected: Vec<TextEdit>) {
+    pub fn format_document(&self, params: DocumentFormattingParams, expected: Vec<TextEdit>) {
         self.assert_response::<Formatting>(params, Some(expected));
     }
 

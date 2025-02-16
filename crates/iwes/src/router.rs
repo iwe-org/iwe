@@ -137,14 +137,14 @@ impl Router {
                 .map(|params| self.server.handle_inline_values(params))
                 .map(|response| to_value(response).unwrap()),
             "textDocument/documentSymbol" => DocumentSymbolParams::deserialize(request.params)
-                .map(|params| self.server.handle_ducment_symbols(params))
+                .map(|params| self.server.handle_document_symbols(params))
                 .map(|response| to_value(response).unwrap()),
             "textDocument/definition" => GotoDefinitionParams::deserialize(request.params)
                 .map(|params| self.server.handle_goto_definition(params))
                 .map(|response| to_value(response).unwrap()),
             "workspace/symbol" => WorkspaceSymbolParams::deserialize(request.params)
                 .map(|params| self.server.handle_workspace_symbols(params)) // Completion::METHOD => {
-                .map(|respons| to_value(respons).unwrap()),
+                .map(|response| to_value(response).unwrap()),
             "textDocument/completion" => CompletionParams::deserialize(request.params)
                 .map(|params| self.server.handle_completion(params))
                 .map(|response| to_value(response).unwrap()),

@@ -47,16 +47,16 @@ pub enum DocumentInline {
 
 impl Document {
     pub fn link_at(&self, position: Position) -> Option<DocumentInline> {
-        self.block_at_positon(position)
+        self.block_at_position(position)
             .into_iter()
             .flat_map(|block| block.child_inlines())
-            .find_map(|inline| inline.link_at_positon(position))
+            .find_map(|inline| inline.link_at_position(position))
     }
 
-    fn block_at_positon(&self, position: Position) -> Option<DocumentBlock> {
+    fn block_at_position(&self, position: Position) -> Option<DocumentBlock> {
         self.blocks
             .iter()
-            .find_map(|block| block.block_at_positon(position))
+            .find_map(|block| block.block_at_position(position))
     }
 }
 
@@ -221,10 +221,10 @@ impl DocumentBlock {
         }
     }
 
-    fn block_at_positon(&self, position: Position) -> Option<DocumentBlock> {
+    fn block_at_position(&self, position: Position) -> Option<DocumentBlock> {
         self.child_blocks()
             .iter()
-            .find_map(|child| child.block_at_positon(position))
+            .find_map(|child| child.block_at_position(position))
             .or(Some(self.clone()).filter(|block| block.line_range().contains(&position.line)))
     }
 
@@ -522,14 +522,14 @@ impl DocumentInline {
         }
     }
 
-    pub fn link_at_positon(&self, position: Position) -> Option<DocumentInline> {
+    pub fn link_at_position(&self, position: Position) -> Option<DocumentInline> {
         if self.inline_range().contains(&position) && self.is_link() {
             return Some(self.clone());
         }
 
         self.child_inlines()
             .iter()
-            .find_map(|child| child.link_at_positon(position))
+            .find_map(|child| child.link_at_position(position))
     }
 }
 
