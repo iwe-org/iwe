@@ -92,6 +92,81 @@ fn definition_in_paragraph() {
 }
 
 #[test]
+fn definition_in_paragraph_wiki_link() {
+    let fixture = Fixture::with(indoc! {"
+            # test
+
+            text [[link]] text
+
+            "});
+
+    fixture.go_to_definition(
+        GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: uri(1) },
+                position: Position::new(2, 5),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        },
+        GotoDefinitionResponse::Scalar(Location::new(
+            Url::parse("file:///basepath/link.md").unwrap(),
+            Range::default(),
+        )),
+    );
+
+    fixture.go_to_definition(
+        GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: uri(1) },
+                position: Position::new(2, 17),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        },
+        GotoDefinitionResponse::Array(vec![]),
+    );
+}
+
+#[test]
+#[ignore]
+fn definition_in_paragraph_piped_wiki_link() {
+    let fixture = Fixture::with(indoc! {"
+            # test
+
+            text [[link|title]] text
+
+            "});
+
+    fixture.go_to_definition(
+        GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: uri(1) },
+                position: Position::new(2, 5),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        },
+        GotoDefinitionResponse::Scalar(Location::new(
+            Url::parse("file:///basepath/link.md").unwrap(),
+            Range::default(),
+        )),
+    );
+
+    fixture.go_to_definition(
+        GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: uri(1) },
+                position: Position::new(2, 17),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        },
+        GotoDefinitionResponse::Array(vec![]),
+    );
+}
+
+#[test]
 fn definition_in_list() {
     let fixture = Fixture::with(indoc! {"
             # test

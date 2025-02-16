@@ -27,6 +27,22 @@ fn links_text_updated_from_referenced_header() {
 }
 
 #[test]
+fn piped_wiki_links_text_not_updated_from_referenced_header() {
+    compare(
+        indoc! {"
+            [[2|custom title]]
+            _
+            # title
+            "},
+        indoc! {"
+            [[2|custom title]]
+            _
+            # title
+            "},
+    );
+}
+
+#[test]
 fn ref_links_updated_two_ways() {
     compare(
         indoc! {"
@@ -58,6 +74,30 @@ fn keep_unknow_refs_as_is() {
             "},
         indoc! {"
             [some title](key)
+            "},
+    );
+}
+
+#[test]
+fn keep_unknow_wiki_refs_as_is() {
+    compare(
+        indoc! {"
+            [[key]]
+            "},
+        indoc! {"
+            [[key]]
+            "},
+    );
+}
+
+#[test]
+fn keep_unknow_piped_wiki_refs_as_is() {
+    compare(
+        indoc! {"
+            [[key|title]]
+            "},
+        indoc! {"
+            [[key|title]]
             "},
     );
 }
@@ -120,7 +160,7 @@ fn compare(expected: &str, denormalized: &str) {
     let graph = Graph::import(
         &new_form_indoc(denormalized),
         MarkdownOptions {
-            refs_extension: "".to_string(),
+            refs_extension: String::default(),
         },
     );
 

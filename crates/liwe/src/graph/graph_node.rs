@@ -1,4 +1,4 @@
-use crate::model::{Key, LineId, MaybeLineId, MaybeNodeId, NodeId};
+use crate::model::{graph::ReferenceType, Key, LineId, MaybeLineId, MaybeNodeId, NodeId};
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphNode {
     Empty,
@@ -206,7 +206,8 @@ pub struct Reference {
     next: MaybeNodeId,
 
     key: Key,
-    title: String,
+    text: String,
+    reference_type: ReferenceType,
 }
 
 impl Reference {
@@ -218,12 +219,16 @@ impl Reference {
         &self.key
     }
 
-    pub fn title(&self) -> &str {
-        &self.title
+    pub fn text(&self) -> &str {
+        &self.text
     }
 
     pub fn next_id(&self) -> MaybeNodeId {
         self.next
+    }
+
+    pub fn reference_type(&self) -> ReferenceType {
+        self.reference_type
     }
 }
 
@@ -500,13 +505,20 @@ impl GraphNode {
         })
     }
 
-    pub fn new_ref(prev: NodeId, id: NodeId, key: Key, title: String) -> GraphNode {
+    pub fn new_ref(
+        prev: NodeId,
+        id: NodeId,
+        key: Key,
+        text: String,
+        reference_type: ReferenceType,
+    ) -> GraphNode {
         GraphNode::Reference(Reference {
             id,
             prev,
             next: None,
             key,
-            title,
+            text,
+            reference_type,
         })
     }
 
@@ -599,9 +611,16 @@ impl GraphNode {
         }
     }
 
-    pub fn ref_title(&self) -> String {
+    pub fn ref_type(&self) -> Option<ReferenceType> {
         match self {
-            GraphNode::Reference(reference) => reference.title.clone(),
+            GraphNode::Reference(reference) => Some(reference.reference_type),
+            _ => None,
+        }
+    }
+
+    pub fn ref_text(&self) -> String {
+        match self {
+            GraphNode::Reference(reference) => reference.text.clone(),
             _ => panic!(),
         }
     }

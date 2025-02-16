@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use super::GraphContext;
 use super::{graph_node_visitor::GraphNodeVisitor, Graph};
-use crate::model::graph::{Node, NodeIter};
+use crate::model::graph::{Node, NodeIter, Reference};
 use crate::model::NodeId;
 
 pub struct ChangeKeyVisitor<'a> {
@@ -69,12 +69,17 @@ impl<'a> NodeIter<'a> for ChangeKeyVisitor<'a> {
                         })
                         .collect_vec(),
                 ),
-                Node::Reference(key, title) => {
+                Node::Reference(Reference {
+                    key,
+                    text,
+                    reference_type,
+                }) => {
                     if key == self.target_key {
-                        Node::Reference(
-                            self.updated_key.clone(),
-                            self.graph.get_ref_text(&self.target_key).unwrap_or(title),
-                        )
+                        Node::Reference(Reference {
+                            key: self.updated_key.clone(),
+                            text: self.graph.get_ref_text(&self.target_key).unwrap_or(text),
+                            reference_type,
+                        })
                     } else {
                         node
                     }

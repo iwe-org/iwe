@@ -25,6 +25,7 @@ futures.workspace = true
 rayon.workspace = true
 rand.workspace = true
 pulldown-cmark.workspace = true
+pulldown-cmark-to-cmark.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

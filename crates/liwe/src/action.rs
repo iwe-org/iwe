@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     graph::{GraphContext, GraphPatch},
     model::{
-        graph::{GraphNodeIter, Node, TreeIter, TreeNode},
+        graph::{GraphNodeIter, Node, Reference, ReferenceType, TreeIter, TreeNode},
         Key, Markdown, NodeId,
     },
 };
@@ -181,7 +181,11 @@ pub fn extract_rec(
             node.pre_sub_header_position(),
             TreeNode {
                 id: None,
-                payload: Node::Reference(new_key.clone(), "".to_string()),
+                payload: Node::Reference(Reference {
+                    key: new_key.clone(),
+                    text: String::default(),
+                    reference_type: ReferenceType::Regular,
+                }),
                 children: vec![],
             },
         );

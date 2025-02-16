@@ -3,6 +3,7 @@ use crate::model;
 use crate::model::graph::Inline;
 use crate::model::{Key, Lang, LineRange};
 
+use super::graph::ReferenceType;
 use super::{InlineRange, Position};
 
 pub struct Document {
@@ -74,9 +75,26 @@ impl DocumentBlock {
         }
     }
 
+    pub fn ref_text(&self) -> Option<String> {
+        match self {
+            DocumentBlock::Para(para) => para
+                .inlines
+                .first()
+                .map(|inline| inline.to_node_inline().to_plain_text()),
+            _ => None,
+        }
+    }
+
     pub fn ref_key(&self) -> Option<String> {
         match self {
             DocumentBlock::Para(para) => para.inlines.first().and_then(|inline| inline.ref_key()),
+            _ => None,
+        }
+    }
+
+    pub fn ref_type(&self) -> Option<ReferenceType> {
+        match self {
+            DocumentBlock::Para(para) => para.inlines.first().and_then(|inline| inline.ref_type()),
             _ => None,
         }
     }
@@ -372,6 +390,7 @@ impl DocumentInline {
             DocumentInline::Link(link) => Inline::Link(
                 link.target.url.clone(),
                 link.target.title.clone(),
+                link.link_type,
                 link.inlines
                     .iter()
                     .map(|inline| inline.to_node_inline())
@@ -435,6 +454,13 @@ impl DocumentInline {
     pub fn ref_key(&self) -> Option<String> {
         match self {
             DocumentInline::Link(link) => Some(without_extension(&link.target.url)),
+            _ => None,
+        }
+    }
+
+    fn ref_type(&self) -> Option<ReferenceType> {
+        match self {
+            DocumentInline::Link(link) => Some(link.link_type.to_ref_type()),
             _ => None,
         }
     }
@@ -507,12 +533,31 @@ impl DocumentInline {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LinkType {
+    Regular,
+    WikiLink,
+    WikiLinkPiped,
+}
+
+impl LinkType {
+    pub fn to_ref_type(&self) -> ReferenceType {
+        match self {
+            LinkType::Regular => ReferenceType::Regular,
+            LinkType::WikiLink => ReferenceType::WikiLink,
+            LinkType::WikiLinkPiped => ReferenceType::WikiLinkPiped,
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     pub target: Target,
     pub attr: Attributes,
     pub inlines: DocumentInlines,
+    pub title: String,
     pub inline_range: InlineRange,
+    pub link_type: LinkType,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

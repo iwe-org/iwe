@@ -1,8 +1,8 @@
-use crate::model::NodeId;
 use crate::graph::graph_node::GraphNode;
+use crate::model::NodeId;
 
 use crate::graph::Graph;
-use crate::model::graph::{Block, Inline};
+use crate::model::graph::{Block, Inline, ReferenceType};
 
 pub struct Projector<'a> {
     id: NodeId,
@@ -197,16 +197,22 @@ impl<'a> Projector<'a> {
     fn project_ref(&self) -> Vec<Block> {
         let mut blocks: Vec<Block> = vec![];
 
-        let title = self
-            .graph
-            .get_key_title(&self.ref_key())
-            .filter(|title| !title.is_empty())
-            .unwrap_or(self.ref_title());
+        let inlines = match self.ref_type() {
+            ReferenceType::Regular => vec![Inline::Str(
+                self.graph
+                    .get_key_title(&self.ref_key())
+                    .filter(|title| !title.is_empty())
+                    .unwrap_or(self.ref_text()),
+            )],
+            ReferenceType::WikiLink => vec![],
+            ReferenceType::WikiLinkPiped => vec![Inline::Str(self.ref_text())],
+        };
 
         let link = Inline::Link(
             self.ref_key(),
             String::default(),
-            vec![Inline::Str(title)],
+            self.ref_type().to_link_type(),
+            inlines,
         );
 
         blocks.push(Block::Para(vec![link]));
@@ -224,8 +230,12 @@ impl<'a> Projector<'a> {
         self.node().ref_key().unwrap()
     }
 
-    fn ref_title(&self) -> String {
-        self.node().ref_title()
+    fn ref_type(&self) -> ReferenceType {
+        self.node().ref_type().unwrap()
+    }
+
+    fn ref_text(&self) -> String {
+        self.node().ref_text()
     }
 
     fn project_rule(&self) -> Vec<Block> {

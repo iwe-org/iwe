@@ -21,7 +21,7 @@ use crate::{
     markdown::MarkdownReader,
     model::{
         document::Document,
-        graph::{MarkdownOptions, NodeIter},
+        graph::{MarkdownOptions, NodeIter, Reference, ReferenceType},
     },
 };
 use arena::Arena;
@@ -140,11 +140,21 @@ impl Graph {
             }
             GraphNode::Raw(raw) => Some(Node::Raw(raw.lang(), raw.content().to_string())),
             GraphNode::HorizontalRule(_) => Some(Node::HorizontalRule()),
-            GraphNode::Reference(reference) => Some(Node::Reference(
-                reference.key().to_string(),
-                self.get_ref_text(reference.key())
-                    .unwrap_or(reference.title().to_string()),
-            )),
+            GraphNode::Reference(reference) => {
+                let text = match reference.reference_type() {
+                    ReferenceType::Regular => self
+                        .get_ref_text(reference.key())
+                        .unwrap_or(reference.text().to_string()),
+                    ReferenceType::WikiLink => String::default(),
+                    ReferenceType::WikiLinkPiped => reference.text().to_string(),
+                };
+
+                Some(Node::Reference(Reference {
+                    key: reference.key().to_string(),
+                    text,
+                    reference_type: reference.reference_type(),
+                }))
+            }
         }
     }
 
@@ -358,9 +368,9 @@ impl Graph {
             .graph_node(id)
             .line_id()
             .map(|id| self.get_line(id).to_plain_text())
-            .unwrap_or("".to_string());
+            .unwrap_or(String::default());
 
-        let ref_key = self.graph_node(id).ref_key().unwrap_or("".to_string());
+        let ref_key = self.graph_node(id).ref_key().unwrap_or(String::default());
 
         let _ = write!(
             f,

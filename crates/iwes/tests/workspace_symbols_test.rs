@@ -20,7 +20,7 @@ fn one_file() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
             name: "test".to_string(),
@@ -49,7 +49,7 @@ fn one_file_two_headers() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {
@@ -91,7 +91,7 @@ fn one_file_two_headers_same_level() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {
@@ -133,7 +133,7 @@ fn two_files() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {
@@ -177,7 +177,7 @@ fn nested_files() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {
@@ -225,7 +225,7 @@ fn two_nested_nested_files() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![
             SymbolInformation {

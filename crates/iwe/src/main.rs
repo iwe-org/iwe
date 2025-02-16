@@ -235,6 +235,6 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
 
 fn default_settings() -> Configuration {
     let mut settings = Configuration::default();
-    settings.markdown.refs_extension = "".to_string();
+    settings.markdown.refs_extension = String::default();
     settings
 }

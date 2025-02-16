@@ -69,6 +69,24 @@ fn update_ref_titles() {
 }
 
 #[test]
+fn custom_ref_text() {
+    assert_formatted(
+        indoc! {"
+            # test
+
+            [[2|something else]]
+            _
+            # new
+            "},
+        indoc! {"
+            # test
+
+            [[2|something else]]
+        "},
+    );
+}
+
+#[test]
 fn format_extension() {
     assert_formatted_with_extension(
         indoc! {"
