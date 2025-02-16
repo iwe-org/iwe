@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::{Graph, NodeIter};
-use crate::model::graph::Node;
+use crate::model::graph::{Node, Reference, ReferenceType};
 use crate::model::{Key, NodeId};
 
 pub struct ExtractVisitor<'a> {
@@ -44,10 +44,11 @@ impl<'a> NodeIter<'a> for ExtractVisitor<'a> {
 
     fn node(&self) -> Option<Node> {
         if self.keys.contains_key(&self.id) {
-            return Some(Node::Reference(
-                self.keys.get(&self.id).expect("to have key").clone(),
-                "".to_string(),
-            ));
+            return Some(Node::Reference(Reference {
+                key: self.keys.get(&self.id).expect("to have key").clone(),
+                text: String::default(),
+                reference_type: ReferenceType::Regular,
+            }));
         }
 
         self.graph.node(self.id)

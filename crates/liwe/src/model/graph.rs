@@ -6,6 +6,7 @@ use crate::model;
 use crate::model::document::DocumentInlines;
 use crate::model::{InlinesContext, Key, Lang, Level, Title, Url};
 
+use super::document::LinkType;
 use super::NodeId;
 
 pub type Blocks = Vec<Block>;
@@ -21,7 +22,31 @@ pub enum Node {
     Leaf(Inlines),
     Raw(Option<String>, String),
     HorizontalRule(),
-    Reference(Key, String),
+    Reference(Reference),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Reference {
+    pub key: Key,
+    pub text: String,
+    pub reference_type: ReferenceType,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ReferenceType {
+    Regular,
+    WikiLink,
+    WikiLinkPiped,
+}
+
+impl ReferenceType {
+    pub fn to_link_type(&self) -> LinkType {
+        match self {
+            ReferenceType::Regular => LinkType::Regular,
+            ReferenceType::WikiLink => LinkType::WikiLink,
+            ReferenceType::WikiLinkPiped => LinkType::WikiLinkPiped,
+        }
+    }
 }
 
 impl Node {
@@ -59,7 +84,7 @@ pub enum Inline {
     Emph(Inlines),
     Image(Url, Title, Inlines),
     LineBreak,
-    Link(Url, Title, Inlines),
+    Link(Url, Title, LinkType, Inlines),
     Math(String),
     RawInline(Lang, String),
     SmallCaps(Inlines),
@@ -355,8 +380,14 @@ impl Inline {
             Inline::Space => " ".into(),
             Inline::SoftBreak => "\n".into(),
             Inline::LineBreak => "\n".into(),
-            Inline::Link(url, _, inlines) => {
+            Inline::Link(url, _, link_type, inlines) => {
                 let text = inlines_to_markdown(inlines, options);
+                if *link_type == LinkType::WikiLinkPiped {
+                    return format!("[[{}|{}]]", url, text);
+                }
+                if *link_type == LinkType::WikiLink {
+                    return format!("[[{}]]", url);
+                }
                 if !self.is_ref() && text.eq_ignore_ascii_case(url) {
                     format!("<{}>", url)
                 } else if self.is_ref() {
@@ -386,7 +417,7 @@ impl Inline {
             Inline::Space => " ".into(),
             Inline::SoftBreak => "\n".into(),
             Inline::LineBreak => "\n".into(),
-            Inline::Link(_, _, inlines) => to_plain_text(inlines),
+            Inline::Link(_, _, _, inlines) => to_plain_text(inlines),
             Inline::Image(_, _, inlines) => to_plain_text(inlines),
             Inline::RawInline(_, content) => content.clone(),
             _ => "".into(),
@@ -417,7 +448,7 @@ impl Inline {
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            Inline::Link(_, _, _) => self.ref_key().map(|key| vec![key]).unwrap_or_default(),
+            Inline::Link(_, _, _, _) => self.ref_key().map(|key| vec![key]).unwrap_or_default(),
             Inline::Image(_, _, inlines) => inlines
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
@@ -465,13 +496,18 @@ impl Inline {
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::Link(key, title, _) => {
+            Inline::Link(key, title, link_type, inlines) => {
                 if self.is_ref() {
-                    let title = context
-                        .get_ref_title(key.clone())
-                        .unwrap_or(title.to_string());
+                    let new_inlines = match *link_type {
+                        LinkType::Regular => context
+                            .get_ref_title(key.clone())
+                            .map(|title| vec![Inline::Str(title)])
+                            .unwrap_or(inlines.clone()),
+                        LinkType::WikiLink => vec![],
+                        LinkType::WikiLinkPiped => inlines.clone(),
+                    };
 
-                    return Inline::Link(key.clone(), title.clone(), vec![Inline::Str(title)]);
+                    return Inline::Link(key.clone(), title.clone(), *link_type, new_inlines);
                 }
 
                 return self.clone();
@@ -524,13 +560,14 @@ impl Inline {
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
-            Inline::Link(_, title, _) => {
+            Inline::Link(_, title, link_type, _) => {
                 if self.is_ref() && self.ref_key().map_or(false, |key| key.eq(target_key)) {
                     return Inline::Link(
                         updated_key.to_string(),
                         context
                             .get_ref_title(target_key.to_string())
                             .unwrap_or(title.clone()),
+                        *link_type,
                         vec![],
                     );
                 }
@@ -543,14 +580,14 @@ impl Inline {
 
     fn is_ref(&self) -> bool {
         match self {
-            Inline::Link(url, _, _) => model::is_ref_url(url),
+            Inline::Link(url, _, _, _) => model::is_ref_url(url),
             _ => false,
         }
     }
 
     fn ref_key(&self) -> Option<String> {
         match self {
-            Inline::Link(url, _, _) => Some(without_extension(url)),
+            Inline::Link(url, _, _, _) => Some(without_extension(url)),
             _ => None,
         }
     }

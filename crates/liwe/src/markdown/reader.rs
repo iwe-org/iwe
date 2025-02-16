@@ -1,7 +1,7 @@
 use std::iter::once;
 use std::ops::Range;
 
-use pulldown_cmark::{CodeBlockKind, Options, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, LinkType, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
 
 use crate::model::document::*;
@@ -43,8 +43,11 @@ impl MarkdownEventsReader {
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
-        let mut iter =
-            Parser::new_ext(content, Options::ENABLE_YAML_STYLE_METADATA_BLOCKS).into_offset_iter();
+        let mut iter = Parser::new_ext(
+            content,
+            Options::ENABLE_YAML_STYLE_METADATA_BLOCKS | Options::ENABLE_WIKILINKS,
+        )
+        .into_offset_iter();
         self.line_starts = line_starts(content);
 
         while let Some((event, range)) = iter.next() {
@@ -181,7 +184,7 @@ impl MarkdownEventsReader {
                         }
                         CodeBlockKind::Indented => None,
                     },
-                    text: "".to_string(),
+                    text: String::default(),
                 }))
             }
             Tag::HtmlBlock => {}
@@ -231,7 +234,10 @@ impl MarkdownEventsReader {
                 );
             }
             Tag::Link {
-                dest_url, title, ..
+                dest_url,
+                title,
+                link_type,
+                id: _,
             } => {
                 self.push_inline(
                     DocumentInline::Link(Link {
@@ -240,8 +246,10 @@ impl MarkdownEventsReader {
                             url: dest_url.to_string(),
                             title: title.to_string(),
                         },
+                        title: title.to_string(),
                         attr: Default::default(),
                         inline_range: self.to_inline_range(range.clone()),
+                        link_type: to_link_type(link_type),
                     }),
                     self.to_line_range(range),
                 );
@@ -263,6 +271,8 @@ impl MarkdownEventsReader {
                 );
             }
             Tag::MetadataBlock(_) => self.metadata_block = true,
+            Tag::Superscript => {}
+            Tag::Subscript => {}
         }
     }
 
@@ -295,6 +305,8 @@ impl MarkdownEventsReader {
             TagEnd::TableCell => {}
             TagEnd::TableHead => {}
             TagEnd::TableRow => {}
+            TagEnd::Superscript => {}
+            TagEnd::Subscript => {}
         }
     }
 
@@ -359,6 +371,16 @@ fn line_starts(content: &str) -> Vec<usize> {
         .collect()
 }
 
+fn to_link_type(link_type: LinkType) -> document::LinkType {
+    match link_type {
+        LinkType::WikiLink { has_pothole } => match has_pothole {
+            true => document::LinkType::WikiLinkPiped,
+            false => document::LinkType::WikiLink,
+        },
+        _ => document::LinkType::Regular,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
@@ -379,9 +401,10 @@ mod tests {
                 inlines: vec![DocumentInline::Str("link".to_string())],
                 target: Target {
                     url: "to".to_string(),
-                    title: "".to_string(),
+                    title: String::default(),
                 },
                 attr: Default::default(),
+                title: String::default(),
                 inline_range: InlineRange {
                     start: Position {
                         line: 0,
@@ -392,6 +415,7 @@ mod tests {
                         character: 10,
                     },
                 },
+                link_type: LinkType::Regular,
             })],
         })];
 
@@ -422,9 +446,10 @@ mod tests {
                         inlines: vec![DocumentInline::Str("link".to_string())],
                         target: Target {
                             url: "to".to_string(),
-                            title: "".to_string(),
+                            title: String::default(),
                         },
                         attr: Default::default(),
+                        title: String::default(),
                         inline_range: InlineRange {
                             start: Position {
                                 line: 2,
@@ -435,6 +460,7 @@ mod tests {
                                 character: 15,
                             },
                         },
+                        link_type: LinkType::Regular,
                     }),
                     DocumentInline::Str(" text".to_string()),
                 ],

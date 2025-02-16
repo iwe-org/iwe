@@ -125,9 +125,10 @@ impl<'a> SectionsBuilder<'a> {
             }
             Para(para) => {
                 if block.is_ref() {
-                    self.builder.reference_with_title(
+                    self.builder.reference_with_text(
                         &block.ref_key().unwrap(),
-                        &block.ref_title().unwrap(),
+                        &block.ref_text().unwrap(),
+                        block.ref_type().unwrap(),
                     )
                 } else {
                     self.builder.leaf(to_node_inlines(&para.inlines))

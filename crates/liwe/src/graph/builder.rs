@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::graph::{Inline, Node, NodeIter};
+use crate::model::graph::{Inline, Node, NodeIter, Reference, ReferenceType};
 
 pub struct GraphBuilder<'a> {
     id: NodeId,
@@ -150,17 +150,19 @@ impl<'a> GraphBuilder<'a> {
             self.id,
             new_id,
             key.to_string(),
-            "".to_string(),
+            String::default(),
+            ReferenceType::Regular,
         ));
     }
 
-    pub fn reference_with_title(&mut self, key: &str, title: &str) {
+    pub fn reference_with_text(&mut self, key: &str, text: &str, reference_type: ReferenceType) {
         let new_id = self.graph().new_node_id();
         self.add_node(GraphNode::new_ref(
             self.id,
             new_id,
             key.to_string(),
-            title.to_string(),
+            text.to_string(),
+            reference_type,
         ));
     }
 
@@ -248,10 +250,20 @@ impl<'a> GraphBuilder<'a> {
                 let new_id = self.graph.new_node_id();
                 self.add_node_and2(GraphNode::new_rule(self.id, new_id), f);
             }
-            Node::Reference(key, title) => {
+            Node::Reference(Reference {
+                key,
+                text: title,
+                reference_type,
+            }) => {
                 let new_id = self.graph().new_node_id();
                 self.add_node_and2(
-                    GraphNode::new_ref(self.id, new_id, key.to_string(), title.to_string()),
+                    GraphNode::new_ref(
+                        self.id,
+                        new_id,
+                        key.to_string(),
+                        title.to_string(),
+                        reference_type,
+                    ),
                     f,
                 );
             }

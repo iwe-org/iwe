@@ -34,7 +34,7 @@ fn did_change_test_once() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
             kind: lsp_types::SymbolKind::NAMESPACE,
@@ -71,7 +71,7 @@ fn new_file() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
             kind: lsp_types::SymbolKind::NAMESPACE,
@@ -122,7 +122,7 @@ fn did_change_test_two_times() {
         WorkspaceSymbolParams {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
-            query: "".to_string(),
+            query: String::default(),
         },
         WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
             kind: lsp_types::SymbolKind::NAMESPACE,
