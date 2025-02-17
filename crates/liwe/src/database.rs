@@ -59,8 +59,18 @@ impl Database {
             })
             .collect::<Vec<_>>()
             .into_iter()
-            .sorted_by(|(path_a, a), (path_b, b)| {
-                (b + path_b.node_rank as i64).cmp(&(a + path_a.node_rank as i64))
+            .sorted_by(|(path_a, rank_a), (path_b, rank_b)| {
+                if query.is_empty() {
+                    path_b
+                        .node_rank
+                        .cmp(&path_a.node_rank)
+                        .then_with(|| path_a.search_text.len().cmp(&path_b.search_text.len()))
+                } else {
+                    rank_b
+                        .cmp(&rank_a)
+                        .then_with(|| path_a.search_text.len().cmp(&path_b.search_text.len()))
+                        .then_with(|| path_b.node_rank.cmp(&path_a.node_rank))
+                }
             })
             .map(|(path, _)| path)
             .take(100)
