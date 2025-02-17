@@ -230,7 +230,6 @@ pub impl Vec<SymbolInformation> {
 #[ext]
 pub impl NodePath {
     fn render(&self, context: impl GraphContext) -> String {
-        // for each fragment in the path, get the text and join them with a space
         self.ids()
             .iter()
             .map(|id| context.get_text(*id).trim().to_string())
@@ -239,7 +238,6 @@ pub impl NodePath {
     }
 
     fn nested_render(&self, context: impl GraphContext) -> String {
-        // for each fragment in the path, get the text and join them with a space
         let last = self
             .ids()
             .last()
@@ -253,39 +251,6 @@ pub impl NodePath {
             .collect_vec()
             .join("")
             + &last
-    }
-
-    #[allow(deprecated)]
-    fn to_symbol(&self, context: impl GraphContext, base_path: &BasePath) -> SymbolInformation {
-        let target = self.target();
-        let line = context.node_line_number(target).unwrap_or(0);
-
-        let kind = if self.ids().len() == 1 {
-            SymbolKind::NAMESPACE
-        } else {
-            SymbolKind::OBJECT
-        };
-
-        SymbolInformation {
-            name: self.render(context),
-            kind,
-            deprecated: None,
-            tags: None,
-            location: Location {
-                uri: base_path.key_to_url(&context.get_key(self.target())),
-                range: Range::new(
-                    Position {
-                        line: (line as u32),
-                        character: 0,
-                    },
-                    Position {
-                        line: (line as u32) + 1,
-                        character: 0,
-                    },
-                ),
-            },
-            container_name: None,
-        }
     }
 
     #[allow(deprecated)]

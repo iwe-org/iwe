@@ -1,14 +1,13 @@
-use std::cmp::Ordering;
-
 use itertools::Itertools;
 use liwe::action::ActionType;
+use liwe::graph::path::NodePath;
 use liwe::model::graph::NodeIter;
-use liwe::model::rank::node_rank;
 use lsp_server::ResponseError;
 use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
 use liwe::graph::GraphContext;
+use liwe::graph::SearchPath;
 use liwe::model::Key;
 use liwe::model::{self, InlineRange};
 
@@ -100,25 +99,14 @@ impl Server {
         })
     }
 
-    pub fn handle_workspace_symbols(&self, _: WorkspaceSymbolParams) -> WorkspaceSymbolResponse {
+    pub fn handle_workspace_symbols(
+        &self,
+        params: WorkspaceSymbolParams,
+    ) -> WorkspaceSymbolResponse {
         self.database
-            .graph()
-            .paths()
+            .global_search(&params.query)
             .iter()
-            .sorted_by(|a, b| {
-                let primary = node_rank(self.database.graph(), b.last_id())
-                    .cmp(&node_rank(self.database.graph(), a.last_id()));
-
-                if primary == Ordering::Equal {
-                    self.database
-                        .graph()
-                        .get_key(a.target())
-                        .cmp(&self.database.graph().get_key(b.target()))
-                } else {
-                    primary
-                }
-            })
-            .map(|p| p.to_symbol(self.database.graph(), &self.base_path))
+            .map(|p| path_to_symbol(p, self.database.graph(), &self.base_path))
             .collect_vec()
             .to_response()
     }
@@ -482,4 +470,46 @@ pub fn number_substr(num: usize) -> &'static str {
         9 => "⁹",
         _ => "+",
     }
+}
+
+#[allow(deprecated)]
+fn path_to_symbol(
+    path: &SearchPath,
+    context: impl GraphContext,
+    base_path: &BasePath,
+) -> SymbolInformation {
+    let kind = if path.root {
+        SymbolKind::NAMESPACE
+    } else {
+        SymbolKind::OBJECT
+    };
+
+    SymbolInformation {
+        name: render_path(&path.path, context),
+        kind,
+        deprecated: None,
+        tags: None,
+        location: Location {
+            uri: base_path.key_to_url(&path.key),
+            range: Range::new(
+                Position {
+                    line: (path.line),
+                    character: 0,
+                },
+                Position {
+                    line: (path.line) + 1,
+                    character: 0,
+                },
+            ),
+        },
+        container_name: None,
+    }
+}
+
+fn render_path(path: &NodePath, context: impl GraphContext) -> String {
+    path.ids()
+        .iter()
+        .map(|id| context.get_text(*id).trim().to_string())
+        .collect_vec()
+        .join(" • ")
 }
