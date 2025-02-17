@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.21](https://github.com/iwe-org/iwe/compare/iwes-v0.0.20...iwes-v0.0.21) - 2025-02-17
+
+### Added
+
+- better search results (#61)
+
 ## [0.0.20](https://github.com/iwe-org/iwe/compare/iwes-v0.0.19...iwes-v0.0.20) - 2025-02-17
 
 ### Added
