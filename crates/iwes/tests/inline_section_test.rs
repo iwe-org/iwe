@@ -215,7 +215,7 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
             range: Range::new(
                 Position::new(line, 0),
                 // helix editor provides range even if nothing selected.
-                Position::new(line + 1, 1),
+                Position::new(line, 0),
             ),
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),

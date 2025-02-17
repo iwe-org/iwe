@@ -21,11 +21,18 @@ use self::server::Server;
 
 pub mod server;
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum LspClient {
+    Unknown,
+    Helix,
+}
+
 pub struct ServerConfig {
     pub base_path: String,
     pub state: State,
     pub sequential_ids: Option<bool>,
     pub markdown_options: MarkdownOptions,
+    pub lsp_client: LspClient,
 }
 
 pub struct Router {

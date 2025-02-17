@@ -7,7 +7,7 @@ use lsp_server::Connection;
 
 use liwe::fs::new_for_path;
 use liwe::state::new_form_indoc;
-use router::{Router, ServerConfig};
+use router::{LspClient, Router, ServerConfig};
 
 mod router;
 
@@ -15,6 +15,7 @@ mod router;
 pub struct InitializeParams {
     pub state: Option<String>,
     pub sequential_ids: Option<bool>,
+    pub client_name: Option<String>,
 }
 
 pub fn main_loop(
@@ -25,6 +26,13 @@ pub fn main_loop(
 ) -> Result<()> {
     let initialize_params: InitializeParams = serde_json::from_value(params_value).unwrap();
 
+    let client = initialize_params
+        .clone()
+        .client_name
+        .filter(|name| name.eq("helix"))
+        .map(|_| LspClient::Helix)
+        .unwrap_or(LspClient::Unknown);
+
     let router = if let Some(state) = &(&initialize_params).state {
         Router::new(
             connection.sender,
@@ -32,6 +40,7 @@ pub fn main_loop(
                 base_path: base_path.clone(),
                 state: new_form_indoc(state),
                 sequential_ids: Some(true),
+                lsp_client: client,
                 markdown_options,
             },
         )
@@ -42,6 +51,7 @@ pub fn main_loop(
                 base_path: base_path.clone(),
                 state: new_for_path(&PathBuf::from_str(&base_path).expect("to work")),
                 sequential_ids: None,
+                lsp_client: client,
                 markdown_options,
             },
         )
