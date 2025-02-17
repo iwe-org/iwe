@@ -7,5 +7,5 @@ git_release_enable = false
 name = "iwe"
 git_release_enable = true
 git_release_name = "v{{ version }}"
-git_release_draft = false
+git_release_draft = true
 changelog_update = true
