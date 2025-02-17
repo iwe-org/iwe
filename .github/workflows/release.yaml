@@ -1,11 +1,11 @@
-name: Release
+name: Binaries
 
 permissions:
   contents: write
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 jobs:
   upload-assets:
