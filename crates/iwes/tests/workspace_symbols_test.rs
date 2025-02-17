@@ -265,7 +265,7 @@ fn two_files() {
 
 #[test]
 #[allow(deprecated)]
-fn nested_files() {
+fn two_nested_files() {
     let fixture = Fixture::with(indoc! {"
             # test 1
             _
@@ -309,7 +309,68 @@ fn nested_files() {
 
 #[test]
 #[allow(deprecated)]
-fn two_nested_nested_files() {
+fn page_rank_applied_after_fuzzy_score() {
+    let fixture = Fixture::with(indoc! {"
+            # test rank
+            _
+            # test rank
+            _
+            # another page
+
+            link to [test 1](1)
+
+            link to [test 2](2)
+
+            link to [test 2](2)
+            "});
+
+    fixture.workspace_symbols(
+        WorkspaceSymbolParams {
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+            query: "test".to_string(),
+        },
+        WorkspaceSymbolResponse::Flat(vec![
+            SymbolInformation {
+                kind: lsp_types::SymbolKind::NAMESPACE,
+                location: lsp_types::Location {
+                    uri: uri(2),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                name: "test rank".to_string(),
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
+            SymbolInformation {
+                kind: lsp_types::SymbolKind::NAMESPACE,
+                location: lsp_types::Location {
+                    uri: uri(1),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                name: "test rank".to_string(),
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
+            SymbolInformation {
+                kind: lsp_types::SymbolKind::NAMESPACE,
+                location: lsp_types::Location {
+                    uri: uri(3),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                name: "another page".to_string(),
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
+        ]),
+    )
+}
+
+#[test]
+#[allow(deprecated)]
+fn dual_nested_files() {
     let fixture = Fixture::with(indoc! {"
             # test 1
             _
@@ -332,10 +393,10 @@ fn two_nested_nested_files() {
             SymbolInformation {
                 kind: lsp_types::SymbolKind::OBJECT,
                 location: lsp_types::Location {
-                    uri: uri(1),
+                    uri: uri(2),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
                 },
-                name: "test 3 • test 2 • test 1".to_string(),
+                name: "test 3 • test 2".to_string(),
                 container_name: None,
                 tags: None,
                 deprecated: None,
@@ -343,10 +404,10 @@ fn two_nested_nested_files() {
             SymbolInformation {
                 kind: lsp_types::SymbolKind::OBJECT,
                 location: lsp_types::Location {
-                    uri: uri(2),
+                    uri: uri(1),
                     range: Range::new(Position::new(0, 0), Position::new(1, 0)),
                 },
-                name: "test 3 • test 2".to_string(),
+                name: "test 3 • test 2 • test 1".to_string(),
                 container_name: None,
                 tags: None,
                 deprecated: None,
