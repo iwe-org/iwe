@@ -59,7 +59,7 @@ This tool lets you process thousands of documents in just a second. With IWE, yo
 
 IWE fully depends on community support, which is essential for its growth and development. We encourage you to participate in [discussions](https://github.com/iwe-org/iwe/discussions) and report any [issues](https://github.com/iwe-org/iwe/issues) you encounter.
 
-## Debug Mode
+### Debug Mode
 
 IWE includes a debug mode, which can be enabled by setting the `IWE_DEBUG` environment variable. In debug mode, IWE LSP will generate a detailed log file named `iwe.log` in the directory where you started it. Including logs with your [issue](https://github.com/iwe-org/iwe/issues) report will help us to resolve it faster.
 
@@ -67,8 +67,23 @@ IWE includes a debug mode, which can be enabled by setting the `IWE_DEBUG` envir
 export IWE_DEBUG=true; nvim
 ```
 
+## Plugins / Packges
+
+This repository is for Rust code and crates publishing only. Plugins and packages are in separate repositories. If you are willing to help and with non-listed package type, I will add a repo for it.
+
+- VSCode plugin is avialbe [here](https://marketplace.visualstudio.com/items?itemName=IWE.iwe) ([repository](https://github.com/iwe-org/vscode-iwe))
+- Zed plugin [repository](https://github.com/iwe-org/zed-iwe)
+
+We're looking for a maintainer for the dedicated Neovim [plugin](https://github.com/iwe-org/iwe.nvim).
+
+## Special thanks to
+
+- A heartfelt thank you to [Sergej Podatelew](https://github.com/spodatelev) for his outstanding work on the VSCode plugin.
+- Deep appreciation to [Daniel Fichtinger](https://github.com/ficcdaf) for his contributions to the project documentation and community.
+
 ## Inspired by many other open-source projects
 
+- [pandoc](https://pandoc.org)
 - [zk notes](https://github.com/zk-org/zk)
 - [neuron](https://github.com/srid/neuron)
 - [rust-analyzer](https://rust-analyzer.github.io)
