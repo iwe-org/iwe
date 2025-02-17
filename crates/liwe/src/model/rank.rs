@@ -20,5 +20,5 @@ pub fn node_rank(graph: &Graph, id: NodeId) -> usize {
         .map(|key| graph.get_block_references_to(&key).len())
         .unwrap_or(0);
 
-    return inline_refs_count + block_refs_count * 2;
+    return inline_refs_count + block_refs_count;
 }

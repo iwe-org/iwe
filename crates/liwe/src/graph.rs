@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::HashMap,
     fmt::{Debug, Formatter},
 };
@@ -22,6 +23,7 @@ use crate::{
     model::{
         document::Document,
         graph::{MarkdownOptions, NodeIter, Reference, ReferenceType},
+        rank::node_rank,
     },
 };
 use arena::Arena;
@@ -71,6 +73,16 @@ pub struct Graph {
     metadata: HashMap<Key, String>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct SearchPath {
+    pub search_text: String,
+    pub node_rank: usize,
+    pub key: String,
+    pub root: bool,
+    pub line: u32,
+    pub path: NodePath,
+}
+
 pub trait Reader {
     fn document<'a>(&self, content: &str) -> Document;
 }
@@ -80,6 +92,30 @@ impl Graph {
         Graph {
             ..Default::default()
         }
+    }
+
+    pub fn search_paths(&self) -> Vec<SearchPath> {
+        self.paths()
+            .par_iter()
+            .map(|path| SearchPath {
+                search_text: render_search_text(path, self),
+                node_rank: node_rank(self, path.last_id()),
+                key: self.get_key(path.target()),
+                root: path.ids().len() == 1,
+                line: self.node_line_number(path.target()).unwrap_or(0) as u32,
+                path: path.clone(),
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .sorted_by(|a, b| {
+                let primary = b.node_rank.cmp(&a.node_rank);
+                if primary == Ordering::Equal {
+                    a.key.cmp(&b.key)
+                } else {
+                    primary
+                }
+            })
+            .collect::<Vec<_>>()
     }
 
     pub fn new_patch(&self) -> Graph {
@@ -683,4 +719,12 @@ impl GraphContext for &Graph {
             .get_section()
             .map(|v| v.id())
     }
+}
+
+fn render_search_text(path: &NodePath, context: impl GraphContext) -> String {
+    path.ids()
+        .iter()
+        .map(|id| context.get_text(*id).trim().to_string())
+        .collect_vec()
+        .join(" ")
 }

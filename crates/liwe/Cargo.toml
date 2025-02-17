@@ -26,6 +26,7 @@ rayon.workspace = true
 rand.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
+fuzzy-matcher.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

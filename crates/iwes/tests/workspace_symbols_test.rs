@@ -38,6 +38,107 @@ fn one_file() {
 
 #[test]
 #[allow(deprecated)]
+fn fuzzy_one_file() {
+    let fixture = Fixture::with(indoc! {"
+            # test
+            "});
+
+    fixture.workspace_symbols(
+        WorkspaceSymbolParams {
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+            query: "tst".to_string(),
+        },
+        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
+            name: "test".to_string(),
+            kind: lsp_types::SymbolKind::NAMESPACE,
+            location: lsp_types::Location {
+                uri: uri(1),
+                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+            },
+            container_name: None,
+            tags: None,
+            deprecated: None,
+        }]),
+    );
+}
+
+#[test]
+#[allow(deprecated)]
+fn fuzzy_two_files() {
+    let fixture = Fixture::with(indoc! {"
+            # similar
+            _
+            # not really
+            "});
+
+    fixture.workspace_symbols(
+        WorkspaceSymbolParams {
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+            query: "liar".to_string(),
+        },
+        WorkspaceSymbolResponse::Flat(vec![
+            SymbolInformation {
+                name: "similar".to_string(),
+                kind: lsp_types::SymbolKind::NAMESPACE,
+                location: lsp_types::Location {
+                    uri: uri(1),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
+            SymbolInformation {
+                name: "not really".to_string(),
+                kind: lsp_types::SymbolKind::NAMESPACE,
+                location: lsp_types::Location {
+                    uri: uri(2),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
+        ]),
+    );
+
+    fixture.workspace_symbols(
+        WorkspaceSymbolParams {
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+            query: "rel".to_string(),
+        },
+        WorkspaceSymbolResponse::Flat(vec![
+            SymbolInformation {
+                name: "not really".to_string(),
+                kind: lsp_types::SymbolKind::NAMESPACE,
+                location: lsp_types::Location {
+                    uri: uri(2),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
+            SymbolInformation {
+                name: "similar".to_string(),
+                kind: lsp_types::SymbolKind::NAMESPACE,
+                location: lsp_types::Location {
+                    uri: uri(1),
+                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+                },
+                container_name: None,
+                tags: None,
+                deprecated: None,
+            },
+        ]),
+    );
+}
+
+#[test]
+#[allow(deprecated)]
 fn one_file_two_headers() {
     let fixture = Fixture::with(indoc! {"
             # test
