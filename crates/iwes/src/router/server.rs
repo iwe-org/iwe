@@ -13,6 +13,7 @@ use liwe::model::{self, InlineRange};
 
 use liwe::parser::Parser;
 
+use super::LspClient;
 use super::ServerConfig;
 use liwe::database::Database;
 use liwe::database::DatabaseContext;
@@ -25,6 +26,7 @@ pub struct Server {
     base_path: BasePath,
     database: Database,
     refs_extension: String,
+    lsp_client: LspClient,
 }
 
 pub struct BasePath {
@@ -66,6 +68,7 @@ impl Server {
                 config.markdown_options.clone(),
             ),
             refs_extension: config.markdown_options.refs_extension.clone(),
+            lsp_client: config.lsp_client,
         }
     }
     pub fn database(&self) -> impl DatabaseContext + '_ {
@@ -396,11 +399,14 @@ impl Server {
         let context = self.database.graph();
         let base_path: &BasePath = &self.base_path;
 
+        dbg!(self.lsp_client);
+
         context
             .get_node_id_at(
                 &params.text_document.uri.to_key(base_path),
                 params.range.start.line as usize,
             )
+            .filter(|_| params.range.empty() || self.lsp_client == LspClient::Helix)
             .map(|node_id| {
                 vec![
                     ActionType::SectionExtract,

@@ -73,8 +73,22 @@ impl Fixture {
     pub fn with(indoc: &str) -> Fixture {
         Self::with_options(indoc, MarkdownOptions::default())
     }
+
     pub fn with_options(indoc: &str, markdown_options: MarkdownOptions) -> Fixture {
+        Self::with_options_and_client(indoc, markdown_options, "")
+    }
+
+    pub fn with_client(indoc: &str, client: &str) -> Fixture {
+        Self::with_options_and_client(indoc, MarkdownOptions::default(), client)
+    }
+
+    pub fn with_options_and_client(
+        indoc: &str,
+        markdown_options: MarkdownOptions,
+        lsp_client_name: &str,
+    ) -> Fixture {
         let (connection, client) = Connection::memory();
+        let client_name = Some(lsp_client_name.to_string());
 
         let content = indoc.to_string();
 
@@ -89,6 +103,7 @@ impl Fixture {
                         } else {
                             Some(content.clone())
                         },
+                        client_name,
                         sequential_ids: Some(true),
                     })
                     .unwrap(),
