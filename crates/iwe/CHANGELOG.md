@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.22](https://github.com/iwe-org/iwe/compare/iwe-v0.0.21...iwe-v0.0.22) - 2025-02-17
 
-### Other
+### Added
 
-- update Cargo.lock dependencies
+- better search results
+- helix specific lsp client handling
 
 ## [0.0.19](https://github.com/iwe-org/iwe/compare/iwe-v0.0.18...iwe-v0.0.19) - 2025-02-16
 
