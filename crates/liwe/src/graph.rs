@@ -351,7 +351,7 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| ((*k).clone(), reader.document(v)))
+            .map(|(k, v)| (Key::from_rel_link_url(k), reader.document(v)))
             .collect::<Vec<_>>();
 
         for (key, document) in blocks.into_iter() {
@@ -388,7 +388,7 @@ impl Graph {
     pub fn export(&self) -> State {
         self.keys
             .par_iter()
-            .map(|(k, _)| (k.clone(), self.to_markdown(k)))
+            .map(|(k, _)| (k.to_string(), self.to_markdown(k)))
             .collect()
     }
 
@@ -473,7 +473,7 @@ pub trait GraphContext: Copy {
     fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
     fn change_key_visitor(&self, key: &Key, target_key: &Key, updated_key: &Key) -> impl NodeIter;
     fn extract_vistior(&self, key: &Key, keys: HashMap<NodeId, Key>) -> impl NodeIter;
-    fn get_container_doucment_ref_text(&self, id: NodeId) -> String;
+    fn get_container_document_ref_text(&self, id: NodeId) -> String;
     fn get_container_key(&self, id: NodeId) -> Key;
     fn get_key(&self, id: NodeId) -> Key;
     fn get_node_id(&self, key: &Key) -> Option<NodeId>;
@@ -510,7 +510,7 @@ pub trait GraphPatch<'a> {
 
 impl<'a> GraphPatch<'a> for Graph {
     fn add_key(&mut self, key: &Key, iter: impl NodeIter<'a>) {
-        if iter.node().unwrap().is_doucment() {
+        if iter.node().unwrap().is_document() {
             self.build_key_and(key, |doc| {
                 doc.insert_from_iter(iter.child().expect("to have child in document iter"))
             });
@@ -628,12 +628,12 @@ impl GraphContext for &Graph {
         self.get_key_title(key)
     }
 
-    fn get_container_doucment_ref_text(&self, id: NodeId) -> String {
+    fn get_container_document_ref_text(&self, id: NodeId) -> String {
         let container_key = self
             .visit_node(id)
             .to_document()
             .unwrap()
-            .doucment_key()
+            .document_key()
             .unwrap();
         self.get_key_title(&container_key)
             .unwrap_or_default()
@@ -644,7 +644,7 @@ impl GraphContext for &Graph {
         self.visit_node(id)
             .to_document()
             .unwrap()
-            .doucment_key()
+            .document_key()
             .unwrap()
     }
 

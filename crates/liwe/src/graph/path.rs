@@ -282,7 +282,7 @@ mod test {
     }
 
     #[test]
-    pub fn two_level_infinit_recursion_references() {
+    pub fn two_level_infinite_recursion_references() {
         let graph = Graph::with(|graph| {
             graph
                 .build_key_and(&"a".into(), |document| {
@@ -304,7 +304,7 @@ mod test {
     }
 
     #[test]
-    pub fn infinit_recusion() {
+    pub fn infinite_recursion() {
         let a_key = "a".into();
         let b_key = "b".into();
         assert_eq!(

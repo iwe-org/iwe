@@ -3,7 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use liwe::{
     graph::{Graph, GraphContext},
-    model::{graph::MarkdownOptions, Key},
+    model::graph::MarkdownOptions,
 };
 
 #[test]
@@ -279,12 +279,7 @@ fn squash(source: &str, expected: &str) {
         &source
             .split("\n_\n")
             .enumerate()
-            .map(|(index, text)| {
-                (
-                    Key::from_file_name(&(index + 1).to_string()),
-                    text.trim().to_string(),
-                )
-            })
+            .map(|(index, text)| (format!("{}", index + 1), text.trim().to_string()))
             .collect(),
         MarkdownOptions::default(),
     );

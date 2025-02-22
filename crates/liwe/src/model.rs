@@ -5,7 +5,7 @@ pub type Markdown = String;
 pub type MaybeKey = Option<Key>;
 
 pub type Content = String;
-pub type State = HashMap<Key, Content>;
+pub type State = HashMap<String, String>;
 
 pub type NodeId = u64;
 pub type MaybeNodeId = Option<NodeId>;
@@ -52,6 +52,10 @@ impl Key {
     }
 
     pub fn to_rel_link_url(&self) -> String {
+        (&format!("{}", self.key)).to_string()
+    }
+
+    pub fn last_url_segment(&self) -> String {
         (&format!("{}", self.key)).to_string()
     }
 

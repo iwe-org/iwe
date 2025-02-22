@@ -123,7 +123,7 @@ fn update_link_titles() {
 }
 
 #[test]
-fn updte_ref_titles_after_change() {
+fn update_ref_titles_after_change() {
     assert_formatted_after_change(
         indoc! {"
             # test
@@ -142,7 +142,7 @@ fn updte_ref_titles_after_change() {
 }
 
 #[test]
-fn updte_ref_titles_after_new_file_change() {
+fn update_ref_titles_after_new_file_change() {
     assert_formatted_after_change(
         indoc! {"
             # test
@@ -160,7 +160,7 @@ fn updte_ref_titles_after_new_file_change() {
 fn assert_formatted(source: &str, formatted: &str) {
     let fixture = Fixture::with(source);
 
-    fixture.format_doucment(
+    fixture.format_document(
         DocumentFormattingParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
             options: Default::default(),
@@ -181,7 +181,7 @@ fn assert_formatted_with_extension(source: &str, formatted: &str) {
         },
     );
 
-    fixture.format_doucment(
+    fixture.format_document(
         DocumentFormattingParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
             options: Default::default(),
@@ -209,7 +209,7 @@ fn assert_formatted_after_change(source: &str, change: &str, formatted: &str) {
         }],
     });
 
-    fixture.format_doucment(
+    fixture.format_document(
         DocumentFormattingParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
             options: Default::default(),

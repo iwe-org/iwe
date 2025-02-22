@@ -199,7 +199,7 @@ impl Server {
             .graph()
             .get_block_references_to(key)
             .iter()
-            .map(|id| self.database.graph().get_container_doucment_ref_text(*id))
+            .map(|id| self.database.graph().get_container_document_ref_text(*id))
             .sorted()
             .dedup()
             .map(|text| hint_at(&format!("↖{}", text), 0))
@@ -220,7 +220,7 @@ impl Server {
         vec![]
     }
 
-    pub fn handle_ducment_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
+    pub fn handle_document_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
         let key = params.text_document.uri.to_key(&self.base_path);
         let id = self
             .database
@@ -261,7 +261,7 @@ impl Server {
                 link.key_range()
                     .map(|range| PrepareRenameResponse::RangeWithPlaceholder {
                         range: to_range(range),
-                        placeholder: link.ref_key().unwrap().to_rel_link_url(),
+                        placeholder: link.ref_key().unwrap().last_url_segment(),
                     })
             })
     }
@@ -418,8 +418,6 @@ impl Server {
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
         let context = self.database.graph();
         let base_path: &BasePath = &self.base_path;
-
-        dbg!(self.lsp_client);
 
         context
             .get_node_id_at(

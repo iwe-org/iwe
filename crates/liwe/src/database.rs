@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -9,9 +11,11 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use crate::parser::Parser;
 
+type Documents = HashMap<Key, Content>;
+
 pub struct Database {
     graph: Graph,
-    content: State,
+    content: Documents,
     pub sequential_ids: bool,
     paths: Vec<SearchPath>,
 }
@@ -78,7 +82,10 @@ impl Database {
             graph,
             sequential_ids,
             paths,
-            content: state,
+            content: state
+                .iter()
+                .map(|(k, v)| (Key::from_rel_link_url(k), v.clone()))
+                .collect(),
         }
     }
 

@@ -92,7 +92,7 @@ fn main() {
     debug!("parsing arguments");
     let app = App::parse();
 
-    debug!("starting command procesing");
+    debug!("starting command processing");
     match app.command {
         Command::Normalize(normalize) => {
             normalize_command(normalize);

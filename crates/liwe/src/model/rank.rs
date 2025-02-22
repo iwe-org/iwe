@@ -9,14 +9,14 @@ pub fn node_rank(graph: &Graph, id: NodeId) -> usize {
     let inline_refs_count = graph
         .visit_node(id)
         .to_document()
-        .and_then(|doc| doc.doucment_key())
+        .and_then(|doc| doc.document_key())
         .map(|key| graph.get_inline_references_to(&key).len())
         .unwrap_or(0);
 
     let block_refs_count = graph
         .visit_node(id)
         .to_document()
-        .and_then(|doc| doc.doucment_key())
+        .and_then(|doc| doc.document_key())
         .map(|key| graph.get_block_references_to(&key).len())
         .unwrap_or(0);
 

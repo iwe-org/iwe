@@ -67,7 +67,7 @@ IWE includes a debug mode, which can be enabled by setting the `IWE_DEBUG` envir
 export IWE_DEBUG=true; nvim
 ```
 
-## Plugins / Packges
+## Plugins / Packages
 
 This repository is for Rust code and crates publishing only. Plugins and packages are in separate repositories. If you are willing to help and with non-listed package type, I will add a repo for it.
 

@@ -180,7 +180,7 @@ impl<'a> GraphNodeVisitor<'a> {
         self.node().ref_key()
     }
 
-    pub fn doucment_key(&self) -> Option<Key> {
+    pub fn document_key(&self) -> Option<Key> {
         self.node().key()
     }
 

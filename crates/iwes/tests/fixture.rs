@@ -1,11 +1,12 @@
 use std::{
     cell::{Cell, RefCell},
+    collections::HashMap,
     time::Duration,
 };
 
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
-use liwe::model::graph::MarkdownOptions;
+use liwe::{model::graph::MarkdownOptions, state::from_indoc};
 use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{
     notification::{DidChangeTextDocument, DidSaveTextDocument, Exit},
@@ -70,27 +71,34 @@ impl Fixture {
     pub fn new() -> Fixture {
         Self::with("\n")
     }
+
+    pub fn with_kv(kv: Vec<(&str, &str)>) -> Fixture {
+        let state: HashMap<String, String> = kv
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        Self::with_options_and_client(state, MarkdownOptions::default(), "")
+    }
+
     pub fn with(indoc: &str) -> Fixture {
-        Self::with_options(indoc, MarkdownOptions::default())
+        Self::with_options_and_client(from_indoc(indoc), MarkdownOptions::default(), "")
     }
 
     pub fn with_options(indoc: &str, markdown_options: MarkdownOptions) -> Fixture {
-        Self::with_options_and_client(indoc, markdown_options, "")
+        Self::with_options_and_client(from_indoc(indoc), markdown_options, "")
     }
 
     pub fn with_client(indoc: &str, client: &str) -> Fixture {
-        Self::with_options_and_client(indoc, MarkdownOptions::default(), client)
+        Self::with_options_and_client(from_indoc(indoc), MarkdownOptions::default(), client)
     }
 
     pub fn with_options_and_client(
-        indoc: &str,
+        state: HashMap<String, String>,
         markdown_options: MarkdownOptions,
         lsp_client_name: &str,
     ) -> Fixture {
         let (connection, client) = Connection::memory();
         let client_name = Some(lsp_client_name.to_string());
-
-        let content = indoc.to_string();
 
         let _thread: std::thread::JoinHandle<()> = std::thread::Builder::new()
             .name("test server".to_owned())
@@ -98,10 +106,10 @@ impl Fixture {
                 main_loop(
                     connection,
                     serde_json::to_value(InitializeParams {
-                        state: if content.is_empty() {
+                        state: if state.is_empty() {
                             None
                         } else {
-                            Some(content.clone())
+                            Some(state.clone())
                         },
                         client_name,
                         sequential_ids: Some(true),
@@ -167,11 +175,10 @@ impl Fixture {
         R::Params: Serialize,
     {
         let actual: Value = self.send_request::<R>(params);
-        dbg!(actual.clone());
         assert_json_eq!(&expected, &actual);
     }
 
-    pub fn format_doucment(&self, params: DocumentFormattingParams, expected: Vec<TextEdit>) {
+    pub fn format_document(&self, params: DocumentFormattingParams, expected: Vec<TextEdit>) {
         self.assert_response::<Formatting>(params, Some(expected));
     }
 

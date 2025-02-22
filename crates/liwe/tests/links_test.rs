@@ -6,8 +6,8 @@ use pretty_assertions::assert_str_eq;
 use liwe::{
     graph::Graph,
     markdown::MarkdownReader,
-    model::{graph::MarkdownOptions, Key},
-    state::to_indoc,
+    model::graph::MarkdownOptions,
+    state::{from_indoc, to_indoc},
 };
 
 #[test]
@@ -158,16 +158,7 @@ fn compare(expected: &str, denormalized: &str) {
     setup();
 
     let graph = Graph::import(
-        &denormalized
-            .split("\n_\n")
-            .enumerate()
-            .map(|(index, text)| {
-                (
-                    Key::from_file_name(&(index + 1).to_string()),
-                    text.trim().to_string(),
-                )
-            })
-            .collect(),
+        &from_indoc(denormalized),
         MarkdownOptions {
             refs_extension: String::default(),
         },
