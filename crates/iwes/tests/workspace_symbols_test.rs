@@ -3,7 +3,7 @@ use lsp_types::{
     Position, Range, SymbolInformation, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 
-use fixture::uri;
+use fixture::{uri, uri_from};
 
 use crate::fixture::Fixture;
 
@@ -425,4 +425,29 @@ fn dual_nested_files() {
             },
         ]),
     )
+}
+
+#[test]
+#[allow(deprecated)]
+fn sub_one_file() {
+    let fixture = Fixture::with_documents(vec![("d/1", "# test")]);
+
+    fixture.workspace_symbols(
+        WorkspaceSymbolParams {
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+            query: String::default(),
+        },
+        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
+            name: "test".to_string(),
+            kind: lsp_types::SymbolKind::NAMESPACE,
+            location: lsp_types::Location {
+                uri: uri_from("d/1"),
+                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
+            },
+            container_name: None,
+            tags: None,
+            deprecated: None,
+        }]),
+    );
 }

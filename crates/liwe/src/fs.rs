@@ -34,7 +34,7 @@ pub fn new_for_path_rec(base_path: &PathBuf, sub_path: Vec<String>) -> State {
         .filter(|path| path.extension().map_or(false, |ex| ex.eq("md")))
         .collect::<Vec<PathBuf>>()
         .par_iter()
-        .flat_map(|path| read_file(path))
+        .flat_map(|path| read_file(path, &sub_path))
         .collect::<Vec<(String, Content)>>()
         .into_iter()
         .collect();
@@ -63,7 +63,7 @@ pub fn write_store_at_path(store: &State, to: &PathBuf) -> std::io::Result<()> {
     Ok(())
 }
 
-fn read_file(path: &PathBuf) -> Option<(String, Content)> {
+fn read_file(path: &PathBuf, sub: &Vec<String>) -> Option<(String, Content)> {
     if !path.is_file() {
         return None;
     }
@@ -72,9 +72,17 @@ fn read_file(path: &PathBuf) -> Option<(String, Content)> {
         return None;
     }
 
-    fs::read_to_string(path)
-        .ok()
-        .map(|content| (to_file_name(path), content))
+    let sub_path = sub.join("/");
+
+    if sub_path.is_empty() {
+        fs::read_to_string(path)
+            .ok()
+            .map(|content| (format!("{}", to_file_name(path)), content))
+    } else {
+        fs::read_to_string(path)
+            .ok()
+            .map(|content| (format!("{}/{}", sub_path, to_file_name(path)), content))
+    }
 }
 
 fn to_file_name(path: &PathBuf) -> String {

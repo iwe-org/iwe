@@ -66,13 +66,15 @@ pub fn action_kind(name: &'static str) -> Option<CodeActionKind> {
     Some(CodeActionKind::new(name))
 }
 
+pub type Documents = Vec<(&'static str, &'static str)>;
+
 #[allow(unused, dead_code)]
 impl Fixture {
     pub fn new() -> Fixture {
         Self::with("\n")
     }
 
-    pub fn with_kv(kv: Vec<(&str, &str)>) -> Fixture {
+    pub fn with_documents(kv: Documents) -> Fixture {
         let state: HashMap<String, String> = kv
             .into_iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -175,6 +177,7 @@ impl Fixture {
         R::Params: Serialize,
     {
         let actual: Value = self.send_request::<R>(params);
+        dbg!(actual.clone());
         assert_json_eq!(&expected, &actual);
     }
 
