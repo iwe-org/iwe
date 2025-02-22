@@ -335,9 +335,8 @@ fn normalize_to(expected: &str, denormalized: &str) {
 
     let mut graph = Graph::new();
 
-    graph.from_markdown("key", denormalized, MarkdownReader::new());
-
-    let normalized = graph.to_markdown("key");
+    graph.from_markdown("key".into(), denormalized, MarkdownReader::new());
+    let normalized = graph.to_markdown(&"key".into());
 
     println!("{:#?}", graph);
 

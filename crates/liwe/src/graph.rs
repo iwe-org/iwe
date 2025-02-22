@@ -18,7 +18,6 @@ use sections_builder::SectionsBuilder;
 use squash_visitor::SquashVisitor;
 
 use crate::{
-    key::{with_extension, without_extension},
     markdown::MarkdownReader,
     model::{
         document::Document,
@@ -77,7 +76,7 @@ pub struct Graph {
 pub struct SearchPath {
     pub search_text: String,
     pub node_rank: usize,
-    pub key: String,
+    pub key: Key,
     pub root: bool,
     pub line: u32,
     pub path: NodePath,
@@ -164,7 +163,7 @@ impl Graph {
     pub fn node(&self, id: NodeId) -> Option<Node> {
         match self.graph_node(id) {
             GraphNode::Empty => None,
-            GraphNode::Document(document) => Some(Node::Document(document.key().to_string())),
+            GraphNode::Document(document) => Some(Node::Document(document.key().clone())),
             GraphNode::Section(section) => Some(Node::Section(
                 self.get_line(section.line_id()).normalize(self),
             )),
@@ -186,7 +185,7 @@ impl Graph {
                 };
 
                 Some(Node::Reference(Reference {
-                    key: reference.key().to_string(),
+                    key: reference.key().clone(),
                     text,
                     reference_type: reference.reference_type(),
                 }))
@@ -220,15 +219,15 @@ impl Graph {
         self.arena.add_line(inlines)
     }
 
-    pub fn build_key(&mut self, key: &str) -> GraphBuilder {
+    pub fn build_key(&mut self, key: &Key) -> GraphBuilder {
         let id = self.arena.new_node_id();
-        self.keys.insert(key.to_string(), id);
+        self.keys.insert(key.clone(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.to_string(), id, None));
+            .set_node(id, GraphNode::new_root(key.clone(), id, None));
         GraphBuilder::new(self, id)
     }
 
-    pub fn build_key_from_iter<'b>(&mut self, key: &str, iter: impl NodeIter<'b>) {
+    pub fn build_key_from_iter<'b>(&mut self, key: &Key, iter: impl NodeIter<'b>) {
         self.build_key(key).insert_from_iter(iter.child().unwrap());
     }
 
@@ -240,18 +239,18 @@ impl Graph {
         self.keys_to_ref_text.get(key).cloned()
     }
 
-    pub fn build_key_and<F>(&mut self, key: &str, f: F) -> &mut Self
+    pub fn build_key_and<F>(&mut self, key: &Key, f: F) -> &mut Self
     where
         F: FnOnce(&mut GraphBuilder) -> (),
     {
         let id = self.arena.new_node_id();
-        self.keys.insert(key.to_string(), id);
+        self.keys.insert(key.clone(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.to_string(), id, None));
+            .set_node(id, GraphNode::new_root(key.clone(), id, None));
         f(&mut GraphBuilder::new(self, id));
 
         self.extract_ref_text(key)
-            .map(|text| self.keys_to_ref_text.insert(key.to_string(), text));
+            .map(|text| self.keys_to_ref_text.insert(key.clone(), text));
 
         let mut index = RefIndex::new();
         index.index_node(self, id);
@@ -260,7 +259,7 @@ impl Graph {
         self
     }
 
-    fn extract_ref_text(&self, key: &str) -> Option<String> {
+    fn extract_ref_text(&self, key: &Key) -> Option<String> {
         self.graph_node(self.get_document_id(key))
             .child_id()
             .map(|id| self.graph_node(id))
@@ -269,13 +268,13 @@ impl Graph {
             .map(|line_id| self.arena.get_line(line_id).to_plain_text())
     }
 
-    pub fn visit_key(&self, key: &str) -> Option<GraphNodeVisitor> {
+    pub fn visit_key(&self, key: &Key) -> Option<GraphNodeVisitor> {
         self.keys
             .get(key)
             .map(|id| GraphNodeVisitor::new(self, *id))
     }
 
-    pub fn get_document_id(&self, key: &str) -> NodeId {
+    pub fn get_document_id(&self, key: &Key) -> NodeId {
         *self
             .keys
             .get(key)
@@ -286,32 +285,32 @@ impl Graph {
         GraphNodeVisitor::new(self, id)
     }
 
-    pub fn from_markdown(&mut self, key: &str, content: &str, reader: impl Reader) {
+    pub fn from_markdown(&mut self, key: Key, content: &str, reader: impl Reader) {
         let document = reader.document(content);
 
         if let Some(meta) = document.metadata {
-            self.metadata.insert(key.to_string(), meta);
+            self.metadata.insert(key.clone(), meta);
         } else {
-            self.metadata.remove(key);
+            self.metadata.remove(&key);
         }
 
-        let mut build_key = self.build_key(key);
+        let mut build_key = self.build_key(&key);
         let id = build_key.id();
 
         let nodes_map = SectionsBuilder::new(&mut build_key, &document.blocks).nodes_map();
 
-        self.nodes_map.insert(key.to_string(), nodes_map.clone());
+        self.nodes_map.insert(key.clone(), nodes_map.clone());
         self.global_nodes_map.extend(nodes_map);
 
         let mut index = RefIndex::new();
         index.index_node(self, id);
         self.index.merge(index);
 
-        self.extract_ref_text(key)
-            .map(|text| self.keys_to_ref_text.insert(key.to_string(), text));
+        self.extract_ref_text(&key)
+            .map(|text| self.keys_to_ref_text.insert(key, text));
     }
 
-    pub fn to_markdown(&self, key: &str) -> String {
+    pub fn to_markdown(&self, key: &Key) -> String {
         let id = self.keys.get(key).unwrap();
         let blocks = Projector::new(self, *id, 0, 0).project();
         let text = blocks_to_markdown_sparce(&blocks, &self.markdown_options);
@@ -327,12 +326,8 @@ impl Graph {
         graph_to_paths(self)
     }
 
-    pub fn update_key(&mut self, key: &str, content: &str) -> &mut Graph {
-        if key.ends_with(".md") {
-            panic!();
-        }
-
-        let id = self.keys.get(key);
+    pub fn update_key(&mut self, key: Key, content: &str) -> &mut Graph {
+        let id = self.keys.get(&key);
         if id.is_some() {
             self.arena.delete_branch(*id.unwrap());
         }
@@ -356,21 +351,19 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| (without_extension(k).clone(), reader.document(v)))
+            .map(|(k, v)| ((*k).clone(), reader.document(v)))
             .collect::<Vec<_>>();
 
-        for (key, document) in &blocks {
+        for (key, document) in blocks.into_iter() {
             if let Some(meta) = document.metadata.clone() {
-                graph.metadata.insert(key.to_string(), meta);
+                graph.metadata.insert(key.clone(), meta);
             } else {
-                graph.metadata.remove(key);
+                graph.metadata.remove(&key);
             }
-        }
 
-        for (key, document) in blocks {
             let nodes_map =
                 SectionsBuilder::new(&mut graph.build_key(&key), &document.blocks).nodes_map();
-            graph.nodes_map.insert(key.to_string(), nodes_map.clone());
+            graph.nodes_map.insert(key.clone(), nodes_map.clone());
             graph.global_nodes_map.extend(nodes_map);
         }
 
@@ -383,19 +376,19 @@ impl Graph {
         for (key, _) in graph.keys.clone() {
             graph
                 .extract_ref_text(&key)
-                .map(|text| graph.keys_to_ref_text.insert(key.to_string(), text));
+                .map(|text| graph.keys_to_ref_text.insert(key.clone(), text));
         }
         graph
     }
 
-    pub fn export_key(&self, key: &str) -> Option<String> {
+    pub fn export_key(&self, key: &Key) -> Option<String> {
         Some(self.to_markdown(key))
     }
 
     pub fn export(&self) -> State {
         self.keys
             .par_iter()
-            .map(|(k, _)| (with_extension(k), self.to_markdown(k)))
+            .map(|(k, _)| (k.clone(), self.to_markdown(k)))
             .collect()
     }
 
@@ -406,7 +399,7 @@ impl Graph {
             .map(|id| self.get_line(id).to_plain_text())
             .unwrap_or(String::default());
 
-        let ref_key = self.graph_node(id).ref_key().unwrap_or(String::default());
+        let ref_key = self.graph_node(id).ref_key().unwrap_or(Key::default());
 
         let _ = write!(
             f,
@@ -424,7 +417,7 @@ impl Graph {
         node.next_id().map(|id| self.node_fmt(id, depth, f));
     }
 
-    pub fn get_block_references_to(&self, key: &str) -> Vec<NodeId> {
+    pub fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
         // remove empty node ids
         self.index
             .get_block_references_to(key)
@@ -434,7 +427,7 @@ impl Graph {
             .collect()
     }
 
-    pub fn get_block_references_in(&self, key: &str) -> Vec<NodeId> {
+    pub fn get_block_references_in(&self, key: &Key) -> Vec<NodeId> {
         self.visit_key(key)
             .expect("to have key")
             .get_all_sub_nodes()
@@ -444,7 +437,7 @@ impl Graph {
             .collect()
     }
 
-    pub fn get_inline_references_to(&self, key: &str) -> Vec<NodeId> {
+    pub fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
         // remove empty node ids
         self.index
             .get_inline_references_to(key)
@@ -471,28 +464,28 @@ impl PartialEq for Graph {
 }
 
 impl InlinesContext for &Graph {
-    fn get_ref_title(&self, key: Key) -> Option<String> {
+    fn get_ref_title(&self, key: &Key) -> Option<String> {
         self.get_key_title(&key)
     }
 }
 
 pub trait GraphContext: Copy {
     fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
-    fn change_key_visitor(&self, key: &str, target_key: &str, updated_key: &str) -> impl NodeIter;
-    fn extract_vistior(&self, key: &str, keys: HashMap<NodeId, Key>) -> impl NodeIter;
+    fn change_key_visitor(&self, key: &Key, target_key: &Key, updated_key: &Key) -> impl NodeIter;
+    fn extract_vistior(&self, key: &Key, keys: HashMap<NodeId, Key>) -> impl NodeIter;
     fn get_container_doucment_ref_text(&self, id: NodeId) -> String;
     fn get_container_key(&self, id: NodeId) -> Key;
-    fn get_key(&self, id: NodeId) -> String;
-    fn get_node_id(&self, key: &str) -> Option<NodeId>;
-    fn get_node_id_at(&self, key: &str, line: LineNumber) -> Option<NodeId>;
-    fn get_ref_text(&self, key: &str) -> Option<String>;
+    fn get_key(&self, id: NodeId) -> Key;
+    fn get_node_id(&self, key: &Key) -> Option<NodeId>;
+    fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId>;
+    fn get_ref_text(&self, key: &Key) -> Option<String>;
     fn get_reference_key(&self, id: NodeId) -> Key;
     fn get_sub_sections(&self, node_id: NodeId) -> Vec<NodeId>;
     fn get_surrounding_section_id(&self, node_id: NodeId) -> Option<NodeId>;
     fn get_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
     fn get_text(&self, id: NodeId) -> String;
-    fn inline_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter;
-    fn inline_quote_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter;
+    fn inline_vistior(&self, key: &Key, inline_id: NodeId) -> impl NodeIter;
+    fn inline_quote_vistior(&self, key: &Key, inline_id: NodeId) -> impl NodeIter;
     fn is_header(&self, id: NodeId) -> bool;
     fn is_list(&self, id: NodeId) -> bool;
     fn is_ordered_list(&self, id: NodeId) -> bool;
@@ -501,11 +494,11 @@ pub trait GraphContext: Copy {
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
     fn node_visitor(&self, id: NodeId) -> impl NodeIter;
     fn node_visit_children_of(&self, id: NodeId) -> impl NodeIter;
-    fn random_key(&self) -> String;
-    fn squash_vistior(&self, key: &str, depth: u8) -> impl NodeIter;
-    fn unwrap_vistior(&self, key: &str, target_id: NodeId) -> impl NodeIter;
-    fn change_list_type_visitor(&self, key: &str, target_id: NodeId) -> impl NodeIter;
-    fn visit(&self, key: &str) -> NodeVisitor;
+    fn random_key(&self) -> Key;
+    fn squash_vistior(&self, key: &Key, depth: u8) -> impl NodeIter;
+    fn unwrap_vistior(&self, key: &Key, target_id: NodeId) -> impl NodeIter;
+    fn change_list_type_visitor(&self, key: &Key, target_id: NodeId) -> impl NodeIter;
+    fn visit(&self, key: &Key) -> NodeVisitor;
     fn wrap_vistior(&self, target_id: NodeId) -> impl NodeIter;
     fn patch(&self) -> impl GraphPatch;
 }
@@ -518,11 +511,11 @@ pub trait GraphPatch<'a> {
 impl<'a> GraphPatch<'a> for Graph {
     fn add_key(&mut self, key: &Key, iter: impl NodeIter<'a>) {
         if iter.node().unwrap().is_doucment() {
-            self.build_key_and(&key, |doc| {
+            self.build_key_and(key, |doc| {
                 doc.insert_from_iter(iter.child().expect("to have child in document iter"))
             });
         } else {
-            self.build_key_and(&key, |doc| doc.insert_from_iter(iter));
+            self.build_key_and(key, |doc| doc.insert_from_iter(iter));
         }
     }
 
@@ -544,7 +537,7 @@ impl GraphContext for &Graph {
         NodeVisitor::children_of(self, id)
     }
 
-    fn inline_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter {
+    fn inline_vistior(&self, key: &Key, inline_id: NodeId) -> impl NodeIter {
         let id = self
             .visit_key(key)
             .expect("to have key")
@@ -554,7 +547,7 @@ impl GraphContext for &Graph {
         InlineVisitor::new(self, id, inline_id)
     }
 
-    fn inline_quote_vistior(&self, key: &str, inline_id: NodeId) -> impl NodeIter {
+    fn inline_quote_vistior(&self, key: &Key, inline_id: NodeId) -> impl NodeIter {
         let id = self
             .visit_key(key)
             .expect("to have key")
@@ -564,16 +557,16 @@ impl GraphContext for &Graph {
         InlineQuoteVisitor::new(self, id, inline_id)
     }
 
-    fn change_key_visitor(&self, key: &str, target_key: &str, updated_key: &str) -> impl NodeIter {
+    fn change_key_visitor(&self, key: &Key, target_key: &Key, updated_key: &Key) -> impl NodeIter {
         ChangeKeyVisitor::new(self, key, target_key, updated_key)
     }
 
-    fn squash_vistior(&self, key: &str, depth: u8) -> impl NodeIter {
+    fn squash_vistior(&self, key: &Key, depth: u8) -> impl NodeIter {
         let id = self.get_document_id(key);
         SquashVisitor::new(self, id, depth)
     }
 
-    fn visit(&self, key: &str) -> NodeVisitor {
+    fn visit(&self, key: &Key) -> NodeVisitor {
         let doc = *self.keys.get(key).expect("to have key");
 
         NodeVisitor::new(
@@ -585,7 +578,7 @@ impl GraphContext for &Graph {
         )
     }
 
-    fn extract_vistior(&self, key: &str, keys: HashMap<NodeId, Key>) -> impl NodeIter {
+    fn extract_vistior(&self, key: &Key, keys: HashMap<NodeId, Key>) -> impl NodeIter {
         let doc = *self.keys.get(key).expect("to have key");
         ExtractVisitor::new(
             self,
@@ -601,15 +594,15 @@ impl GraphContext for &Graph {
         WrapVisitor::new(self, target_id)
     }
 
-    fn unwrap_vistior(&self, key: &str, target_id: NodeId) -> impl NodeIter {
+    fn unwrap_vistior(&self, key: &Key, target_id: NodeId) -> impl NodeIter {
         UnwrapVisitor::new(self, key, target_id)
     }
 
-    fn change_list_type_visitor(&self, key: &str, target_id: NodeId) -> impl NodeIter {
+    fn change_list_type_visitor(&self, key: &Key, target_id: NodeId) -> impl NodeIter {
         ChangeListTypeVisitor::new(self, key, target_id)
     }
 
-    fn get_node_id_at(&self, key: &str, line: LineNumber) -> Option<NodeId> {
+    fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId> {
         self.nodes_map
             .get(key)
             .expect(&format!("to have key, {}", key))
@@ -631,8 +624,8 @@ impl GraphContext for &Graph {
             .to_string()
     }
 
-    fn get_ref_text(&self, key: &str) -> Option<String> {
-        self.get_key_title(&key.to_string())
+    fn get_ref_text(&self, key: &Key) -> Option<String> {
+        self.get_key_title(key)
     }
 
     fn get_container_doucment_ref_text(&self, id: NodeId) -> String {
@@ -659,16 +652,18 @@ impl GraphContext for &Graph {
         self.node_key(id)
     }
 
-    fn random_key(&self) -> String {
+    fn random_key(&self) -> Key {
         if self.sequential_keys {
-            return (self.keys().len() + 1).to_string();
+            let key = self.keys().len() + 1;
+            return Key::from_file_name(&key.to_string());
         }
 
         loop {
-            let key = format!("{}", Alphanumeric.sample_string(&mut rand::thread_rng(), 8))
+            let key = Alphanumeric
+                .sample_string(&mut rand::thread_rng(), 8)
                 .to_lowercase();
-            if self.keys.get(&key).is_none() {
-                return key;
+            if !self.keys.contains_key(&Key::from_file_name(&key)) {
+                return Key::from_file_name(&key);
             }
         }
     }
@@ -705,7 +700,7 @@ impl GraphContext for &Graph {
         self.graph_node(id).ref_key().unwrap().clone()
     }
 
-    fn get_node_id(&self, key: &str) -> Option<NodeId> {
+    fn get_node_id(&self, key: &Key) -> Option<NodeId> {
         self.keys.get(key).map(|v| *v)
     }
 

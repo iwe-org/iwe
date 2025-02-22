@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::key::without_extension;
 use crate::model;
 use crate::model::document::DocumentInlines;
 use crate::model::{InlinesContext, Key, Lang, Level, Title, Url};
@@ -496,18 +495,18 @@ impl Inline {
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::Link(key, title, link_type, inlines) => {
+            Inline::Link(url, title, link_type, inlines) => {
                 if self.is_ref() {
                     let new_inlines = match *link_type {
                         LinkType::Regular => context
-                            .get_ref_title(key.clone())
+                            .get_ref_title(&Key::from_rel_link_url(url))
                             .map(|title| vec![Inline::Str(title)])
                             .unwrap_or(inlines.clone()),
                         LinkType::WikiLink => vec![],
                         LinkType::WikiLinkPiped => inlines.clone(),
                     };
 
-                    return Inline::Link(key.clone(), title.clone(), *link_type, new_inlines);
+                    return Inline::Link(url.clone(), title.clone(), *link_type, new_inlines);
                 }
 
                 return self.clone();
@@ -518,8 +517,8 @@ impl Inline {
 
     pub fn change_key(
         &self,
-        target_key: &str,
-        updated_key: &str,
+        target_key: &Key,
+        updated_key: &Key,
         context: impl InlinesContext,
     ) -> Inline {
         match self {
@@ -564,9 +563,7 @@ impl Inline {
                 if self.is_ref() && self.ref_key().map_or(false, |key| key.eq(target_key)) {
                     return Inline::Link(
                         updated_key.to_string(),
-                        context
-                            .get_ref_title(target_key.to_string())
-                            .unwrap_or(title.clone()),
+                        context.get_ref_title(target_key).unwrap_or(title.clone()),
                         *link_type,
                         vec![],
                     );
@@ -585,9 +582,9 @@ impl Inline {
         }
     }
 
-    fn ref_key(&self) -> Option<String> {
+    fn ref_key(&self) -> Option<Key> {
         match self {
-            Inline::Link(url, _, _, _) => Some(without_extension(url)),
+            Inline::Link(url, _, _, _) => Some(Key::from_rel_link_url(url)),
             _ => None,
         }
     }

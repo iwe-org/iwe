@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use crate::model::{Content, Key, State};
 
 pub fn write_file(key: &Key, content: &Content, to: &PathBuf) -> std::io::Result<()> {
-    fs::write(to.clone().join(key.as_str()), content.as_str())
+    fs::write(to.clone().join(key.to_path()), content.as_str())
 }
 
 pub fn new_for_path(path: &PathBuf) -> State {
@@ -48,10 +48,7 @@ fn read_file(path: &PathBuf) -> Option<(Key, Content)> {
         return None;
     }
 
-    fs::read_to_string(path).ok().map(|content| {
-        (
-            path.file_name().unwrap().to_string_lossy().to_string(),
-            content,
-        )
-    })
+    fs::read_to_string(path)
+        .ok()
+        .map(|content| (Key::from_path(path), content))
 }

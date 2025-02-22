@@ -144,23 +144,23 @@ impl<'a> GraphBuilder<'a> {
         ));
     }
 
-    pub fn reference(&mut self, key: &str) {
+    pub fn reference(&mut self, key: &Key) {
         let new_id = self.graph().new_node_id();
         self.add_node(GraphNode::new_ref(
             self.id,
             new_id,
-            key.to_string(),
+            key.clone(),
             String::default(),
             ReferenceType::Regular,
         ));
     }
 
-    pub fn reference_with_text(&mut self, key: &str, text: &str, reference_type: ReferenceType) {
+    pub fn reference_with_text(&mut self, key: &Key, text: &str, reference_type: ReferenceType) {
         let new_id = self.graph().new_node_id();
         self.add_node(GraphNode::new_ref(
             self.id,
             new_id,
-            key.to_string(),
+            key.clone(),
             text.to_string(),
             reference_type,
         ));
@@ -260,7 +260,7 @@ impl<'a> GraphBuilder<'a> {
                     GraphNode::new_ref(
                         self.id,
                         new_id,
-                        key.to_string(),
+                        key.clone(),
                         title.to_string(),
                         reference_type,
                     ),
@@ -329,16 +329,16 @@ mod test {
     pub fn simple_tree() {
         let graph = Graph::with(|graph| {
             graph
-                .build_key("key")
+                .build_key(&"key".into())
                 .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {})
         });
 
-        let visitor = NodeVisitor::new(&graph, graph.get_document_id("key"));
+        let visitor = NodeVisitor::new(&graph, graph.get_document_id(&"key".into()));
 
         assert_eq!(
             TreeNode {
                 id: Some(0),
-                payload: Node::Document("key".to_string()),
+                payload: Node::Document("key".into()),
                 children: vec![TreeNode {
                     id: Some(1),
                     payload: Node::Leaf(vec![Inline::Str("item".to_string())]),
@@ -352,7 +352,7 @@ mod test {
     #[test]
     pub fn nested_tree() {
         let graph = Graph::with(|graph| {
-            graph.build_key("key").add_new_node_and(
+            graph.build_key(&"key".into()).add_new_node_and(
                 Node::Section(vec![Inline::Str("item".to_string())]),
                 |f| {
                     f.add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {});
@@ -360,12 +360,12 @@ mod test {
             )
         });
 
-        let visitor = NodeVisitor::new(&graph, graph.get_document_id("key"));
+        let visitor = NodeVisitor::new(&graph, graph.get_document_id(&"key".into()));
 
         assert_eq!(
             TreeNode {
                 id: Some(0),
-                payload: Node::Document("key".to_string()),
+                payload: Node::Document("key".into()),
                 children: vec![TreeNode {
                     id: Some(1),
                     payload: Node::Section(vec![Inline::Str("item".to_string())]),
@@ -384,7 +384,7 @@ mod test {
     pub fn graph_form_tree() {
         let tree = TreeNode {
             id: Some(0),
-            payload: Node::Document("key".to_string()),
+            payload: Node::Document("key".into()),
             children: vec![TreeNode {
                 id: Some(1),
                 payload: Node::Section(vec![Inline::Str("section".to_string())]),
@@ -398,7 +398,7 @@ mod test {
 
         let mut graph = Graph::new();
 
-        graph.build_key_from_iter("key", tree.iter());
+        graph.build_key_from_iter(&"key".into(), tree.iter());
 
         assert_eq(
             graph,
@@ -415,7 +415,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {})
             }),
             indoc! {"
@@ -429,7 +429,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .add_new_node_and(Node::BulletList(), |f| {
                         f.add_new_node_and(
                             Node::Section(vec![Inline::Str("item".to_string())]),
@@ -448,7 +448,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .add_new_node_and(Node::BulletList(), |list| {
                         list.add_new_node_and(
                             Node::Section(vec![Inline::Str("item".to_string())]),
@@ -472,7 +472,7 @@ mod test {
 
     fn assert_eq(expected: Graph, actual: &str) {
         let mut actual_graph = Graph::new();
-        actual_graph.from_markdown("key", actual, MarkdownReader::new());
+        actual_graph.from_markdown("key".into(), actual, MarkdownReader::new());
 
         assert_eq!(expected, actual_graph);
     }

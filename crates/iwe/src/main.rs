@@ -10,6 +10,7 @@ use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::graph::Configuration;
 
+use liwe::model::Key;
 use log::{debug, error};
 
 const CONFIG_FILE_NAME: &str = "config.toml";
@@ -170,9 +171,12 @@ fn squash_command(args: Squash) {
     let graph = &load_graph();
     let mut patch = Graph::new();
 
-    patch.build_key_from_iter(&args.key, graph.squash_vistior(&args.key, args.depth));
+    patch.build_key_from_iter(
+        &args.key.clone().into(),
+        graph.squash_vistior(&args.key.clone().into(), args.depth),
+    );
 
-    print!("{}", patch.export_key(&args.key).unwrap())
+    print!("{}", patch.export_key(&args.key.into()).unwrap())
 }
 
 #[tracing::instrument]
@@ -215,17 +219,17 @@ fn get_configuration() -> Configuration {
         .unwrap_or(Configuration::default())
 }
 
-fn render_block_reference(key: &str, context: impl GraphContext) -> String {
+fn render_block_reference(key: &Key, context: impl GraphContext) -> String {
     format!(
         "[{}]({})",
-        context.get_ref_text(&key).unwrap_or_default(),
+        context.get_ref_text(key).unwrap_or_default(),
         key
     )
     .to_string()
 }
 
 fn render(path: &NodePath, context: impl GraphContext) -> String {
-    // for each fragment in the path, get the text and join them with a space
+    // For each fragment in the path, get the text and join them with a space
     path.ids()
         .iter()
         .map(|id| context.get_text(id.clone()).trim().to_string())

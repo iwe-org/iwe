@@ -1,5 +1,5 @@
 use crate::graph::graph_node::GraphNode;
-use crate::model::NodeId;
+use crate::model::{Key, NodeId};
 
 use crate::graph::Graph;
 use crate::model::graph::{Block, Inline, ReferenceType};
@@ -209,7 +209,7 @@ impl<'a> Projector<'a> {
         };
 
         let link = Inline::Link(
-            self.ref_key(),
+            self.ref_key().to_rel_link_url(),
             String::default(),
             self.ref_type().to_link_type(),
             inlines,
@@ -226,7 +226,7 @@ impl<'a> Projector<'a> {
         blocks
     }
 
-    fn ref_key(&self) -> String {
+    fn ref_key(&self) -> Key {
         self.node().ref_key().unwrap()
     }
 

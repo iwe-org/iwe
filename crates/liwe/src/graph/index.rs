@@ -30,14 +30,14 @@ impl RefIndex {
         }
     }
 
-    pub fn get_block_references_to(&self, key: &str) -> Vec<NodeId> {
+    pub fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
         self.block_references
             .get(key)
             .map(|set| set.iter().cloned().collect())
             .unwrap_or(Vec::new())
     }
 
-    pub fn get_inline_references_to(&self, key: &str) -> Vec<NodeId> {
+    pub fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
         self.inline_references
             .get(key)
             .map(|set| set.iter().cloned().collect())
@@ -48,7 +48,7 @@ impl RefIndex {
         match graph.graph_node(node_id) {
             GraphNode::Reference(reference) => {
                 self.block_references
-                    .entry(reference.key().to_string())
+                    .entry(reference.key().clone())
                     .or_insert_with(HashSet::new)
                     .insert(reference.id());
 
@@ -59,7 +59,7 @@ impl RefIndex {
             GraphNode::Section(section) => {
                 for key in graph.get_line(section.line_id()).ref_keys() {
                     self.inline_references
-                        .entry(key.to_string())
+                        .entry(key.clone())
                         .or_insert_with(HashSet::new)
                         .insert(section.id());
                 }
@@ -74,7 +74,7 @@ impl RefIndex {
             GraphNode::Leaf(leaf) => {
                 for key in graph.get_line(leaf.line_id()).ref_keys() {
                     self.inline_references
-                        .entry(key.to_string())
+                        .entry(key.clone())
                         .or_insert_with(HashSet::new)
                         .insert(leaf.id());
                 }

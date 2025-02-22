@@ -167,6 +167,7 @@ impl Fixture {
         R::Params: Serialize,
     {
         let actual: Value = self.send_request::<R>(params);
+        dbg!(actual.clone());
         assert_json_eq!(&expected, &actual);
     }
 

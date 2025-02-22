@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
 
-use crate::{key::with_extension, model::State};
+use crate::model::{Key, State};
 
 pub fn to_indoc(state: &State) -> String {
     state
@@ -27,33 +29,32 @@ pub fn new_form_pairs(files: Vec<&str>) -> State {
         );
 
     pairs
-        .map(|(name, content)| (name.to_string(), content.to_string()))
-        .collect()
-}
-
-pub fn new_form_indoc(indoc: &str) -> State {
-    indoc
-        .split("\n_\n")
-        .enumerate()
-        .map(|(index, text)| {
-            (
-                with_extension(&(index + 1).to_string()),
-                text.trim().to_string(),
-            )
-        })
+        .map(|(name, content)| (Key::from_file_name(name), content.to_string()))
         .collect()
 }
 
 #[test]
 fn test_store_new_form_indoc() {
-    let store = new_form_indoc(indoc::indoc! {"
+    let store: HashMap<Key, String> = {
+        let indoc: &str = indoc::indoc! {"
             a
             _
             b
             _
             c
-            "});
-    assert_eq!(store["1.md"], "a");
-    assert_eq!(store["2.md"], "b");
-    assert_eq!(store["3.md"], "c");
+            "};
+        indoc
+            .split("\n_\n")
+            .enumerate()
+            .map(|(index, text)| {
+                (
+                    Key::from_file_name(&(index + 1).to_string()),
+                    text.trim().to_string(),
+                )
+            })
+            .collect()
+    };
+    assert_eq!(store[&"1.md".into()], "a");
+    assert_eq!(store[&"2.md".into()], "b");
+    assert_eq!(store[&"3.md".into()], "c");
 }

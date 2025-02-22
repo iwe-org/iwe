@@ -1,4 +1,3 @@
-use crate::key::without_extension;
 use crate::model;
 use crate::model::graph::Inline;
 use crate::model::{Key, Lang, LineRange};
@@ -85,7 +84,7 @@ impl DocumentBlock {
         }
     }
 
-    pub fn ref_key(&self) -> Option<String> {
+    pub fn ref_key(&self) -> Option<Key> {
         match self {
             DocumentBlock::Para(para) => para.inlines.first().and_then(|inline| inline.ref_key()),
             _ => None,
@@ -451,9 +450,9 @@ impl DocumentInline {
         }
     }
 
-    pub fn ref_key(&self) -> Option<String> {
+    pub fn ref_key(&self) -> Option<Key> {
         match self {
-            DocumentInline::Link(link) => Some(without_extension(&link.target.url)),
+            DocumentInline::Link(link) => Some(Key::from_rel_link_url(&link.target.url)),
             _ => None,
         }
     }
@@ -517,7 +516,7 @@ impl DocumentInline {
 
     pub fn key(&self) -> Option<Key> {
         match self {
-            DocumentInline::Link(link) => Some(without_extension(&link.target.url)),
+            DocumentInline::Link(link) => Some(Key::from_rel_link_url(&link.target.url)),
             _ => None,
         }
     }

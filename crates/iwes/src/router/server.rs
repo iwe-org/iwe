@@ -35,14 +35,22 @@ pub struct BasePath {
 
 impl BasePath {
     fn key_to_url(&self, key: &Key) -> Url {
+        Url::parse(&self.base_path)
+            .unwrap()
+            .join(&key.to_path())
+            .expect("to work")
+    }
+
+    fn name_to_url(&self, key: &str) -> Url {
         Url::parse(&format!("{}{}.md", self.base_path, key)).unwrap()
     }
 
     fn url_to_key(&self, url: &Url) -> Key {
-        url.to_string()
-            .trim_start_matches(&self.base_path)
-            .trim_end_matches(".md")
-            .to_string()
+        Key::from_rel_link_url(
+            &url.to_string()
+                .trim_start_matches(&self.base_path)
+                .to_string(),
+        )
     }
 }
 
@@ -77,14 +85,14 @@ impl Server {
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
         self.database.update_document(
-            &self.base_path.url_to_key(&params.text_document.uri.clone()),
+            self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.text.unwrap().clone(),
         );
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
         self.database.update_document(
-            &self.base_path.url_to_key(&params.text_document.uri.clone()),
+            self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.content_changes.first().unwrap().text.clone(),
         );
     }
@@ -127,10 +135,9 @@ impl Server {
                 (&params).text_document_position_params.position,
             ))
         })
-        .map(|link| {
+        .map(|key| {
             GotoDefinitionResponse::Scalar(Location::new(
-                self.base_path
-                    .key_to_url(&link.trim_end_matches(&self.refs_extension).to_string()),
+                self.base_path.key_to_url(&key),
                 Range::default(),
             ))
         })
@@ -161,7 +168,7 @@ impl Server {
             .collect_vec()
     }
 
-    pub fn block_reference_hints(&self, key: &str) -> Vec<InlayHint> {
+    pub fn block_reference_hints(&self, key: &Key) -> Vec<InlayHint> {
         self.database
             .graph()
             .get_block_references_in(key)
@@ -187,7 +194,7 @@ impl Server {
             .collect_vec()
     }
 
-    pub fn container_hint(&self, key: &str) -> Vec<InlayHint> {
+    pub fn container_hint(&self, key: &Key) -> Vec<InlayHint> {
         self.database
             .graph()
             .get_block_references_to(key)
@@ -199,7 +206,7 @@ impl Server {
             .collect_vec()
     }
 
-    pub fn refs_counter_hints(&self, key: &str) -> Vec<InlayHint> {
+    pub fn refs_counter_hints(&self, key: &Key) -> Vec<InlayHint> {
         let inline_refs = self.database.graph().get_inline_references_to(key).len();
 
         if inline_refs > 0 {
@@ -254,7 +261,7 @@ impl Server {
                 link.key_range()
                     .map(|range| PrepareRenameResponse::RangeWithPlaceholder {
                         range: to_range(range),
-                        placeholder: link.ref_key().unwrap(),
+                        placeholder: link.ref_key().unwrap().to_rel_link_url(),
                     })
             })
     }
@@ -263,7 +270,12 @@ impl Server {
         &self,
         params: RenameParams,
     ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-        if self.database.graph().visit_key(&params.new_name).is_some() {
+        if self
+            .database
+            .graph()
+            .visit_key(&params.new_name.clone().into())
+            .is_some()
+        {
             return Result::Err(ResponseError {
                 code: 1,
                 message: format!("The file name {} is already taken", params.new_name),
@@ -284,9 +296,9 @@ impl Server {
                 let affected_keys = self
                     .database
                     .graph()
-                    .get_block_references_to(&key)
+                    .get_block_references_to(&key.clone())
                     .into_iter()
-                    .chain(self.database.graph().get_inline_references_to(&key))
+                    .chain(self.database.graph().get_inline_references_to(&key.clone()))
                     .flat_map(|node_id| self.database.graph().visit_node(node_id).to_document())
                     .flat_map(|doc| doc.key())
                     .filter(|k| k != &key)
@@ -296,19 +308,25 @@ impl Server {
 
                 let mut patch = self.database.graph().new_patch();
 
-                patch.build_key(&params.new_name).insert_from_iter(
-                    self.database
-                        .graph()
-                        .change_key_visitor(&key, &key, &params.new_name)
-                        .child()
-                        .unwrap(),
-                );
+                patch
+                    .build_key(&params.new_name.clone().into())
+                    .insert_from_iter(
+                        self.database
+                            .graph()
+                            .change_key_visitor(&key, &key, &params.new_name.clone().into())
+                            .child()
+                            .unwrap(),
+                    );
 
                 affected_keys.iter().for_each(|affected_key| {
                     patch.build_key(&affected_key).insert_from_iter(
                         self.database
                             .graph()
-                            .change_key_visitor(&affected_key, &key, &params.new_name)
+                            .change_key_visitor(
+                                &affected_key,
+                                &key,
+                                &params.new_name.clone().into(),
+                            )
                             .child()
                             .unwrap(),
                     );
@@ -326,7 +344,7 @@ impl Server {
                     })
                     .chain(vec![key
                         .clone()
-                        .to_url(&self.base_path)
+                        .to_full_url(&self.base_path)
                         .to_delete_file_op()])
                     .chain(vec![
                         params.new_name.to_url(&self.base_path).to_create_file_op(),
@@ -335,7 +353,9 @@ impl Server {
                             .to_url(&self.base_path)
                             .to_override_new_file_op(
                                 &self.base_path,
-                                patch.export_key(&params.new_name).expect("to have key"),
+                                patch
+                                    .export_key(&Key::from_rel_link_url(&params.new_name.clone()))
+                                    .expect("to have key"),
                             ),
                     ])
                     .collect();
@@ -370,7 +390,7 @@ impl Server {
             .dedup()
             .map(|(id, key)| {
                 Location::new(
-                    key.to_url(&self.base_path),
+                    key.to_full_url(&self.base_path),
                     Range::new(
                         Position::new(
                             self.database

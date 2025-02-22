@@ -3,8 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use liwe::{
     graph::{Graph, GraphContext},
-    model::graph::MarkdownOptions,
-    state::new_form_indoc,
+    model::{graph::MarkdownOptions, Key},
 };
 
 #[test]
@@ -276,14 +275,26 @@ fn squash_infinite_recursion() {
 fn squash(source: &str, expected: &str) {
     setup();
 
-    let graph = &Graph::import(&new_form_indoc(source), MarkdownOptions::default());
+    let graph = &Graph::import(
+        &source
+            .split("\n_\n")
+            .enumerate()
+            .map(|(index, text)| {
+                (
+                    Key::from_file_name(&(index + 1).to_string()),
+                    text.trim().to_string(),
+                )
+            })
+            .collect(),
+        MarkdownOptions::default(),
+    );
     let mut patch = Graph::new();
-    patch.build_key_from_iter("1", graph.squash_vistior("1", 2));
+    patch.build_key_from_iter(&"1".into(), graph.squash_vistior(&"1".into(), 2));
 
     eprintln!("graph {:#?}", graph);
     eprintln!("patch {:#?}", patch);
 
-    assert_eq!(expected, patch.export_key("1").unwrap());
+    assert_eq!(expected, patch.export_key(&"1".into()).unwrap());
 }
 
 static INIT: Once = Once::new();

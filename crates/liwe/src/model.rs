@@ -1,6 +1,5 @@
-use std::{collections::HashMap, ops::Range};
+use std::{collections::HashMap, fmt::Display, ops::Range, path::PathBuf, sync::Arc};
 
-pub type Key = String;
 pub type Markdown = String;
 
 pub type MaybeKey = Option<Key>;
@@ -19,6 +18,64 @@ pub type MaybeStrId = Option<StrId>;
 
 pub type LineNumber = usize;
 pub type LineRange = Range<LineNumber>;
+
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Default, Hash)]
+pub struct Key {
+    pub key: Arc<String>,
+}
+
+impl Display for Key {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.key)
+    }
+}
+
+impl Key {
+    pub fn from_file_name(name: &str) -> Self {
+        let key = if !name.ends_with(".md") {
+            name.to_string()
+        } else {
+            name.trim_end_matches(".md").to_string()
+        };
+
+        Key { key: Arc::new(key) }
+    }
+
+    pub fn from_rel_link_url(url: &str) -> Self {
+        let key = if !url.ends_with(".md") {
+            url.to_string()
+        } else {
+            url.trim_end_matches(".md").to_string()
+        };
+
+        Key { key: Arc::new(key) }
+    }
+
+    pub fn to_rel_link_url(&self) -> String {
+        (&format!("{}", self.key)).to_string()
+    }
+
+    pub fn to_path(&self) -> String {
+        (&format!("{}.md", self.key)).to_string()
+    }
+
+    pub fn from_path(path: &PathBuf) -> Key {
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        Key::from_file_name(&name)
+    }
+}
+
+impl From<&str> for Key {
+    fn from(value: &str) -> Self {
+        Key::from_file_name(value)
+    }
+}
+
+impl From<String> for Key {
+    fn from(value: String) -> Self {
+        Key::from_file_name(&value)
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Default, Hash)]
 pub struct Position {
@@ -51,7 +108,7 @@ pub mod graph;
 pub mod rank;
 
 pub trait InlinesContext: Copy {
-    fn get_ref_title(&self, key: Key) -> Option<String>;
+    fn get_ref_title(&self, key: &Key) -> Option<String>;
 }
 
 pub fn is_ref_url(url: &str) -> bool {

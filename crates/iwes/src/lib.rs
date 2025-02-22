@@ -2,11 +2,10 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::Result;
-use liwe::model::graph::MarkdownOptions;
+use liwe::model::{graph::MarkdownOptions, Key};
 use lsp_server::Connection;
 
 use liwe::fs::new_for_path;
-use liwe::state::new_form_indoc;
 use router::{LspClient, Router, ServerConfig};
 
 mod router;
@@ -38,7 +37,16 @@ pub fn main_loop(
             connection.sender,
             ServerConfig {
                 base_path: base_path.clone(),
-                state: new_form_indoc(state),
+                state: state
+                    .split("\n_\n")
+                    .enumerate()
+                    .map(|(index, text)| {
+                        (
+                            Key::from_file_name(&(index + 1).to_string()),
+                            text.trim().to_string(),
+                        )
+                    })
+                    .collect(),
                 sequential_ids: Some(true),
                 lsp_client: client,
                 markdown_options,

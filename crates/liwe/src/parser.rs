@@ -39,7 +39,10 @@ pub fn link_in_paragraph() {
         crate::markdown::MarkdownReader::new(),
     );
 
-    assert_eq!("link1", parser.key_at((2, 8).into()).unwrap());
+    assert_eq!(
+        Key::from_file_name("link1"),
+        parser.key_at((2, 8).into()).unwrap()
+    );
     assert_eq!(None, parser.key_at((1, 8).into()));
     assert_eq!(None, parser.key_at((3, 8).into()));
     assert_eq!(None, parser.key_at((2, 2).into()));

@@ -23,20 +23,12 @@ pub trait DatabaseContext {
 
 impl DatabaseContext for &Database {
     fn parser(&self, key: &Key) -> Option<Parser> {
-        if key.ends_with(".md") {
-            panic!("Key should not end with .md")
-        }
-
         self.content
             .get(key)
             .map(|content| Parser::new(&content, MarkdownReader::new()))
     }
 
     fn lines(&self, key: &Key) -> u32 {
-        if key.ends_with(".md") {
-            panic!("Key should not end with .md")
-        }
-
         self.content
             .get(key)
             .map(|content| content.lines().count() as u32)
@@ -86,10 +78,7 @@ impl Database {
             graph,
             sequential_ids,
             paths,
-            content: state
-                .iter()
-                .map(|(k, v)| (k.trim_end_matches(".md").to_string(), v.clone()))
-                .collect(),
+            content: state,
         }
     }
 
@@ -101,23 +90,15 @@ impl Database {
         self.content.get(key).cloned()
     }
 
-    pub fn insert_document(&mut self, key: &Key, content: Content) -> () {
-        if key.ends_with(".md") {
-            panic!("Key should not end with .md")
-        }
-
-        self.graph.update_key(key, &content);
+    pub fn insert_document(&mut self, key: Key, content: Content) -> () {
+        self.graph.update_key(key.clone(), &content);
         self.content.insert(key.clone(), content);
         self.paths = self.graph.search_paths();
     }
 
-    pub fn update_document(&mut self, key: &Key, content: Content) -> () {
-        if key.ends_with(".md") {
-            panic!("Key should not end with .md")
-        }
-
-        self.graph.update_key(key, &content);
-        self.content.insert(key.to_string(), content);
+    pub fn update_document(&mut self, key: Key, content: Content) -> () {
+        self.graph.update_key(key.clone(), &content);
+        self.content.insert(key.clone(), content);
         self.paths = self.graph.search_paths();
     }
 }
