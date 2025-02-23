@@ -84,7 +84,7 @@ impl Database {
             paths,
             content: state
                 .iter()
-                .map(|(k, v)| (Key::from_rel_link_url(k), v.clone()))
+                .map(|(k, v)| (Key::from_file_name(k), v.clone()))
                 .collect(),
         }
     }

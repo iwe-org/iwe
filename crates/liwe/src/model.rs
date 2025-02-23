@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt::Display, ops::Range, path::PathBuf, sync::Arc};
 
+use relative_path::RelativePath;
+
 pub type Markdown = String;
 
 pub type MaybeKey = Option<Key>;
@@ -21,51 +23,57 @@ pub type LineRange = Range<LineNumber>;
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Default, Hash)]
 pub struct Key {
-    pub key: Arc<String>,
+    pub relative_path: Arc<String>,
 }
 
 impl Display for Key {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.key)
+        write!(f, "{}", self.relative_path)
     }
 }
 
 impl Key {
+    pub fn parent(&self) -> String {
+        RelativePath::new(&self.relative_path.to_string())
+            .parent()
+            .map(|p| p.to_string())
+            .unwrap_or_default()
+    }
+
     pub fn from_file_name(name: &str) -> Self {
-        let key = if !name.ends_with(".md") {
-            name.to_string()
-        } else {
-            name.trim_end_matches(".md").to_string()
-        };
+        let key = name.trim_end_matches(".md").to_string();
 
-        Key { key: Arc::new(key) }
+        Key {
+            relative_path: Arc::new(key),
+        }
     }
 
-    pub fn from_rel_link_url(url: &str) -> Self {
-        let key = if !url.ends_with(".md") {
-            url.to_string()
-        } else {
-            url.trim_end_matches(".md").to_string()
-        };
-
-        Key { key: Arc::new(key) }
+    pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
+        let key = url.trim_end_matches(".md").to_string();
+        let path = RelativePath::new(relative_to).join(key).to_string();
+        Key {
+            relative_path: Arc::new(path),
+        }
     }
 
-    pub fn to_rel_link_url(&self) -> String {
-        (&format!("{}", self.key)).to_string()
+    pub fn to_rel_link_url(&self, relative_to: &str) -> String {
+        RelativePath::new(relative_to)
+            .relative(self.relative_path.to_string())
+            .to_string()
     }
 
     pub fn last_url_segment(&self) -> String {
-        (&format!("{}", self.key)).to_string()
+        (&format!("{}", self.relative_path)).to_string()
     }
 
     pub fn to_path(&self) -> String {
-        (&format!("{}.md", self.key)).to_string()
+        (&format!("{}.md", self.relative_path)).to_string()
     }
 
     pub fn from_path(path: &PathBuf) -> Key {
         let name = path.file_name().unwrap().to_string_lossy().to_string();
-        Key::from_file_name(&name)
+        let key = name.trim_end_matches(".md").to_string();
+        Key::from_file_name(&key)
     }
 }
 
@@ -102,7 +110,7 @@ pub type NodesMap = Vec<(NodeId, LineRange)>;
 pub type DocumentNodesMap = (Key, NodesMap);
 
 pub type Lang = String;
-pub type Url = String;
+pub type LibraryUrl = String;
 
 pub type Level = u8;
 pub type Title = String;

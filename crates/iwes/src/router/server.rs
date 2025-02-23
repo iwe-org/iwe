@@ -12,6 +12,7 @@ use liwe::model::Key;
 use liwe::model::{self, InlineRange};
 
 use liwe::parser::Parser;
+use relative_path::RelativePath;
 
 use super::LspClient;
 use super::ServerConfig;
@@ -41,12 +42,26 @@ impl BasePath {
             .expect("to work")
     }
 
+    fn relative_to_full_path(&self, url: &str) -> Url {
+        Url::parse(&self.base_path)
+            .unwrap()
+            .join(&format!("{}.md", url.trim_end_matches(".md")))
+            .expect("to work")
+    }
+
+    fn key_to_relative_url(&self, key: &Key, relative_to: &str) -> Url {
+        Url::parse(&self.base_path)
+            .unwrap()
+            .join(&key.to_rel_link_url(relative_to))
+            .expect("to work")
+    }
+
     fn name_to_url(&self, key: &str) -> Url {
         Url::parse(&format!("{}{}.md", self.base_path, key)).unwrap()
     }
 
     fn url_to_key(&self, url: &Url) -> Key {
-        Key::from_rel_link_url(
+        Key::from_file_name(
             &url.to_string()
                 .trim_start_matches(&self.base_path)
                 .to_string(),
@@ -97,7 +112,14 @@ impl Server {
         );
     }
 
-    pub fn handle_completion(&self, _: CompletionParams) -> CompletionResponse {
+    pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
+        let relative_to = params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
+
         CompletionResponse::List(CompletionList {
             is_incomplete: true,
             items: self
@@ -105,7 +127,8 @@ impl Server {
                 .graph()
                 .keys()
                 .iter()
-                .map(|key| key.to_completion(self.database.graph(), &self.base_path))
+                .map(|key| key.to_completion(&relative_to, self.database.graph(), &self.base_path))
+                .sorted_by(|a, b| a.label.cmp(&b.label))
                 .collect_vec(),
         })
     }
@@ -122,7 +145,14 @@ impl Server {
             .to_response()
     }
 
-    pub fn handle_goto_definition(&self, params: GotoDeclarationParams) -> GotoDefinitionResponse {
+    pub fn handle_goto_definition(&self, params: GotoDefinitionParams) -> GotoDefinitionResponse {
+        let relative_to = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
+
         self.parser(
             &params
                 .text_document_position_params
@@ -131,13 +161,14 @@ impl Server {
                 .to_key(&self.base_path),
         )
         .and_then(|parser| {
-            parser.key_at(to_position(
+            parser.url_at(to_position(
                 (&params).text_document_position_params.position,
             ))
         })
-        .map(|key| {
+        .map(|url| {
+            let relative_url = RelativePath::new(&relative_to).join(url).to_string();
             GotoDefinitionResponse::Scalar(Location::new(
-                self.base_path.key_to_url(&key),
+                self.base_path.relative_to_full_path(&relative_url),
                 Range::default(),
             ))
         })
@@ -261,7 +292,7 @@ impl Server {
                 link.key_range()
                     .map(|range| PrepareRenameResponse::RangeWithPlaceholder {
                         range: to_range(range),
-                        placeholder: link.ref_key().unwrap().last_url_segment(),
+                        placeholder: link.url().unwrap_or("".to_string()),
                     })
             })
     }
@@ -283,6 +314,13 @@ impl Server {
             });
         }
 
+        let relative_to = &params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
+
         Result::Ok(
             self.parser(
                 &params
@@ -291,8 +329,10 @@ impl Server {
                     .uri
                     .to_key(&self.base_path),
             )
-            .and_then(|parser| parser.key_at(to_position(params.text_document_position.position)))
-            .map(|key| {
+            .and_then(|parser| parser.url_at(to_position(params.text_document_position.position)))
+            .map(|url| {
+                let key = Key::from_rel_link_url(&url, relative_to);
+
                 let affected_keys = self
                     .database
                     .graph()
@@ -332,6 +372,8 @@ impl Server {
                     );
                 });
 
+                let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
+
                 let document_changes = affected_keys
                     .into_iter()
                     .map(|affected_key| {
@@ -353,9 +395,7 @@ impl Server {
                             .to_url(&self.base_path)
                             .to_override_new_file_op(
                                 &self.base_path,
-                                patch
-                                    .export_key(&Key::from_rel_link_url(&params.new_name.clone()))
-                                    .expect("to have key"),
+                                patch.export_key(&new_key).expect("to have key"),
                             ),
                     ])
                     .collect();

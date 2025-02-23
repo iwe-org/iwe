@@ -1,16 +1,16 @@
 use crate::model::InlinesContext;
 
-use crate::model::graph::{to_plain_text, Inlines};
+use crate::model::graph::{to_plain_text, GraphInlines};
 use crate::model::{Key, LineId};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Line {
     id: LineId,
-    inlines: Inlines,
+    inlines: GraphInlines,
 }
 
 impl Line {
-    pub fn new(id: LineId, inlines: Inlines) -> Line {
+    pub fn new(id: LineId, inlines: GraphInlines) -> Line {
         Line { id, inlines }
     }
 
@@ -22,7 +22,7 @@ impl Line {
         to_plain_text(&self.inlines)
     }
 
-    pub fn inlines(&self) -> &Inlines {
+    pub fn inlines(&self) -> &GraphInlines {
         &self.inlines
     }
 
@@ -30,7 +30,7 @@ impl Line {
         self.inlines.iter().flat_map(|i| i.ref_keys()).collect()
     }
 
-    pub fn normalize(&self, context: impl InlinesContext) -> Inlines {
+    pub fn normalize(&self, context: impl InlinesContext) -> GraphInlines {
         self.inlines.iter().map(|i| i.normalize(context)).collect()
     }
 }

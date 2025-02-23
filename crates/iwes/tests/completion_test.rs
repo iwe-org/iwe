@@ -4,7 +4,7 @@ use lsp_types::{
     TextDocumentIdentifier, TextDocumentPositionParams,
 };
 
-use fixture::uri;
+use fixture::{uri, uri_from};
 
 use crate::fixture::Fixture;
 
@@ -36,6 +36,59 @@ fn completion_test() {
                 preselect: Some(true),
                 ..Default::default()
             }],
+        }),
+    )
+}
+
+#[test]
+fn completion_relative_test() {
+    let fixture = Fixture::with_documents(vec![
+        (
+            "dir/sub",
+            indoc! {"
+            # sub-document
+            "},
+        ),
+        (
+            "top",
+            indoc! {"
+                # top-level
+                "},
+        ),
+    ]);
+
+    fixture.completion(
+        CompletionParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: uri_from("dir/sub"),
+                },
+                position: Position::new(2, 0),
+            },
+            context: None,
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        },
+        CompletionResponse::List(CompletionList {
+            is_incomplete: true,
+            items: vec![
+                CompletionItem {
+                    documentation: None,
+                    filter_text: Some("sub-document".to_string()),
+                    insert_text: Some("[sub-document](sub)".to_string()),
+                    label: "sub-document".to_string(),
+                    preselect: Some(true),
+                    ..Default::default()
+                },
+                CompletionItem {
+                    documentation: None,
+                    filter_text: Some("top-level".to_string()),
+                    insert_text: Some("[top-level](../top)".to_string()),
+                    label: "top-level".to_string(),
+                    preselect: Some(true),
+                    ..Default::default()
+                },
+            ],
         }),
     )
 }

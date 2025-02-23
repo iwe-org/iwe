@@ -6,7 +6,7 @@ use lsp_types::{
     TextDocumentIdentifier, TextDocumentPositionParams, Url,
 };
 
-use fixture::uri;
+use fixture::{uri, uri_from};
 
 use crate::fixture::Fixture;
 
@@ -129,7 +129,6 @@ fn definition_in_paragraph_wiki_link() {
 }
 
 #[test]
-#[ignore]
 fn definition_in_paragraph_piped_wiki_link() {
     let fixture = Fixture::with(indoc! {"
             # test
@@ -142,7 +141,7 @@ fn definition_in_paragraph_piped_wiki_link() {
         GotoDefinitionParams {
             text_document_position_params: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier { uri: uri(1) },
-                position: Position::new(2, 5),
+                position: Position::new(2, 7),
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
@@ -157,7 +156,7 @@ fn definition_in_paragraph_piped_wiki_link() {
         GotoDefinitionParams {
             text_document_position_params: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier { uri: uri(1) },
-                position: Position::new(2, 17),
+                position: Position::new(2, 1),
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
@@ -246,4 +245,26 @@ fn definition_with_md_extension() {
             Range::default(),
         )),
     )
+}
+
+#[test]
+fn definition_with_relative_path() {
+    let fixture = Fixture::with_documents(vec![("d/1", "[](2)")]);
+
+    fixture.go_to_definition(
+        GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: uri_from("d/1"),
+                },
+                position: Position::new(0, 0),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        },
+        GotoDefinitionResponse::Scalar(Location::new(
+            Url::parse("file:///basepath/d/2.md").unwrap(),
+            Range::default(),
+        )),
+    );
 }

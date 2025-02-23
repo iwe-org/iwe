@@ -3,22 +3,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::model;
 use crate::model::document::DocumentInlines;
-use crate::model::{InlinesContext, Key, Lang, Level, Title, Url};
+use crate::model::{InlinesContext, Key, Lang, Level, LibraryUrl, Title};
 
 use super::document::LinkType;
 use super::NodeId;
 
-pub type Blocks = Vec<Block>;
-pub type Inlines = Vec<Inline>;
+pub type Blocks = Vec<GraphBlock>;
+pub type GraphInlines = Vec<GraphInline>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
     Document(Key),
-    Section(Inlines),
+    Section(GraphInlines),
     Quote(),
     BulletList(),
     OrderedList(),
-    Leaf(Inlines),
+    Leaf(GraphInlines),
     Raw(Option<String>, String),
     HorizontalRule(),
     Reference(Reference),
@@ -64,37 +64,37 @@ impl Node {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Block {
-    Plain(Inlines),
-    Para(Inlines),
-    LineBlock(Vec<Inlines>),
+pub enum GraphBlock {
+    Plain(GraphInlines),
+    Para(GraphInlines),
+    LineBlock(Vec<GraphInlines>),
     CodeBlock(Option<Lang>, String),
     RawBlock(String, String),
     BlockQuote(Blocks),
     OrderedList(Vec<Blocks>),
     BulletList(Vec<Blocks>),
-    Header(Level, Inlines),
+    Header(Level, GraphInlines),
     HorizontalRule,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Inline {
+pub enum GraphInline {
     Code(Option<Lang>, String),
-    Emph(Inlines),
-    Image(Url, Title, Inlines),
+    Emph(GraphInlines),
+    Image(LibraryUrl, Title, GraphInlines),
     LineBreak,
-    Link(Url, Title, LinkType, Inlines),
+    Link(LibraryUrl, Title, LinkType, GraphInlines),
     Math(String),
     RawInline(Lang, String),
-    SmallCaps(Inlines),
+    SmallCaps(GraphInlines),
     SoftBreak,
     Space,
     Str(String),
-    Strikeout(Inlines),
-    Strong(Inlines),
-    Subscript(Inlines),
-    Superscript(Inlines),
-    Underline(Inlines),
+    Strikeout(GraphInlines),
+    Strong(GraphInlines),
+    Subscript(GraphInlines),
+    Superscript(GraphInlines),
+    Underline(GraphInlines),
 }
 
 pub trait NodeIter<'a>: Sized {
@@ -268,13 +268,13 @@ pub struct Configuration {
 }
 
 #[allow(dead_code)]
-impl Block {
+impl GraphBlock {
     fn is_sparce_list(&self) -> bool {
         match self {
-            Block::BulletList(items) => items
+            GraphBlock::BulletList(items) => items
                 .iter()
                 .any(|item| item.iter().filter(|block| block.is_paragraph()).count() > 1),
-            Block::OrderedList(items) => items
+            GraphBlock::OrderedList(items) => items
                 .iter()
                 .any(|item| item.iter().filter(|block| block.is_paragraph()).count() > 1),
             _ => false,
@@ -283,36 +283,36 @@ impl Block {
 
     fn is_list(&self) -> bool {
         match self {
-            Block::BulletList(_) => true,
-            Block::OrderedList(_) => true,
+            GraphBlock::BulletList(_) => true,
+            GraphBlock::OrderedList(_) => true,
             _ => false,
         }
     }
 
     fn is_paragraph(&self) -> bool {
         match self {
-            Block::Plain(_) => true,
-            Block::Para(_) => true,
+            GraphBlock::Plain(_) => true,
+            GraphBlock::Para(_) => true,
             _ => false,
         }
     }
 
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
-            Block::Plain(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
-            Block::Para(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
-            Block::LineBlock(lines) => lines
+            GraphBlock::Plain(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
+            GraphBlock::Para(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
+            GraphBlock::LineBlock(lines) => lines
                 .iter()
                 .map(|line| inlines_to_markdown(line, options))
                 .collect::<Vec<String>>()
                 .join("\n"),
-            Block::CodeBlock(lang, text) => lang
+            GraphBlock::CodeBlock(lang, text) => lang
                 .clone()
                 .filter(|lang| !lang.trim().is_empty())
                 .map(|lang| format!("``` {}\n{}\n```\n", lang, text.trim_matches('\n')))
                 .unwrap_or_else(|| format!("```\n{}\n```\n", text.trim_matches('\n'))),
-            Block::RawBlock(_, text) => text.clone(),
-            Block::BlockQuote(blocks) => {
+            GraphBlock::RawBlock(_, text) => text.clone(),
+            GraphBlock::BlockQuote(blocks) => {
                 blocks_to_markdown_sparce(blocks, options)
                     .lines()
                     .map(|line| format!("> {}", line))
@@ -321,7 +321,7 @@ impl Block {
                     .join("\n")
                     + "\n"
             }
-            Block::OrderedList(items) => items
+            GraphBlock::OrderedList(items) => items
                 .iter()
                 .enumerate()
                 .map(|(n, item)| {
@@ -332,7 +332,7 @@ impl Block {
                 })
                 .collect::<Vec<String>>()
                 .join(if self.is_sparce_list() { "\n" } else { "" }),
-            Block::BulletList(items) => items
+            GraphBlock::BulletList(items) => items
                 .iter()
                 .map(|item| {
                     left_pad_and_prefix(&blocks_to_markdown_and(
@@ -343,43 +343,43 @@ impl Block {
                 })
                 .collect::<Vec<String>>()
                 .join(if self.is_sparce_list() { "\n" } else { "" }),
-            Block::Header(level, inlines) => {
+            GraphBlock::Header(level, inlines) => {
                 format!(
                     "{} {}\n",
                     "#".repeat(*level as usize),
                     inlines_to_markdown(inlines, options)
                 )
             }
-            Block::HorizontalRule => format!("{}\n", "-".repeat(72)),
+            GraphBlock::HorizontalRule => format!("{}\n", "-".repeat(72)),
         }
     }
 }
 
-impl Inline {
-    pub fn from_string(str: &str) -> Inlines {
-        vec![Inline::Str(str.to_string())]
+impl GraphInline {
+    pub fn from_string(str: &str) -> GraphInlines {
+        vec![GraphInline::Str(str.to_string())]
     }
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
-            Inline::Str(text) => text.clone(),
-            Inline::Emph(emph) => format!("*{}*", inlines_to_markdown(emph, options)),
-            Inline::Underline(underline) => inlines_to_markdown(underline, options),
-            Inline::Strong(strong) => format!("**{}**", inlines_to_markdown(strong, options)),
-            Inline::Strikeout(strikeout) => {
+            GraphInline::Str(text) => text.clone(),
+            GraphInline::Emph(emph) => format!("*{}*", inlines_to_markdown(emph, options)),
+            GraphInline::Underline(underline) => inlines_to_markdown(underline, options),
+            GraphInline::Strong(strong) => format!("**{}**", inlines_to_markdown(strong, options)),
+            GraphInline::Strikeout(strikeout) => {
                 format!("~~{}~~", inlines_to_markdown(strikeout, options))
             }
-            Inline::Superscript(superscript) => {
+            GraphInline::Superscript(superscript) => {
                 format!("^{}^", inlines_to_markdown(superscript, options))
             }
-            Inline::Subscript(subscript) => {
+            GraphInline::Subscript(subscript) => {
                 format!("~{}~", inlines_to_markdown(subscript, options))
             }
-            Inline::SmallCaps(small_caps) => inlines_to_markdown(small_caps, options),
-            Inline::Code(_, text) => format!("`{}`", text),
-            Inline::Space => " ".into(),
-            Inline::SoftBreak => "\n".into(),
-            Inline::LineBreak => "\n".into(),
-            Inline::Link(url, _, link_type, inlines) => {
+            GraphInline::SmallCaps(small_caps) => inlines_to_markdown(small_caps, options),
+            GraphInline::Code(_, text) => format!("`{}`", text),
+            GraphInline::Space => " ".into(),
+            GraphInline::SoftBreak => "\n".into(),
+            GraphInline::LineBreak => "\n".into(),
+            GraphInline::Link(url, _, link_type, inlines) => {
                 let text = inlines_to_markdown(inlines, options);
                 if *link_type == LinkType::WikiLinkPiped {
                     return format!("[[{}|{}]]", url, text);
@@ -395,60 +395,64 @@ impl Inline {
                     format!("[{}]({})", text, url)
                 }
             }
-            Inline::Image(url, _, inlines) => {
+            GraphInline::Image(url, _, inlines) => {
                 format!("![{}]({})", inlines_to_markdown(inlines, options), url)
             }
-            Inline::RawInline(_, content) => format!("`{}`", content),
-            Inline::Math(math) => format!("${}$", math),
+            GraphInline::RawInline(_, content) => format!("`{}`", content),
+            GraphInline::Math(math) => format!("${}$", math),
         }
     }
     pub fn to_plain_text(&self) -> String {
         match self {
-            Inline::Str(text) => text.clone(),
-            Inline::Emph(emph) => to_plain_text(emph),
-            Inline::Underline(underline) => to_plain_text(underline),
-            Inline::Strong(strong) => to_plain_text(strong),
-            Inline::Strikeout(strikeout) => to_plain_text(strikeout),
-            Inline::Superscript(superscript) => to_plain_text(superscript),
-            Inline::Subscript(subscript) => to_plain_text(subscript),
-            Inline::SmallCaps(small_caps) => to_plain_text(small_caps),
-            Inline::Code(_, text) => text.clone(),
-            Inline::Space => " ".into(),
-            Inline::SoftBreak => "\n".into(),
-            Inline::LineBreak => "\n".into(),
-            Inline::Link(_, _, _, inlines) => to_plain_text(inlines),
-            Inline::Image(_, _, inlines) => to_plain_text(inlines),
-            Inline::RawInline(_, content) => content.clone(),
+            GraphInline::Str(text) => text.clone(),
+            GraphInline::Emph(emph) => to_plain_text(emph),
+            GraphInline::Underline(underline) => to_plain_text(underline),
+            GraphInline::Strong(strong) => to_plain_text(strong),
+            GraphInline::Strikeout(strikeout) => to_plain_text(strikeout),
+            GraphInline::Superscript(superscript) => to_plain_text(superscript),
+            GraphInline::Subscript(subscript) => to_plain_text(subscript),
+            GraphInline::SmallCaps(small_caps) => to_plain_text(small_caps),
+            GraphInline::Code(_, text) => text.clone(),
+            GraphInline::Space => " ".into(),
+            GraphInline::SoftBreak => "\n".into(),
+            GraphInline::LineBreak => "\n".into(),
+            GraphInline::Link(_, _, _, inlines) => to_plain_text(inlines),
+            GraphInline::Image(_, _, inlines) => to_plain_text(inlines),
+            GraphInline::RawInline(_, content) => content.clone(),
             _ => "".into(),
         }
     }
 
     pub fn ref_keys(&self) -> Vec<Key> {
         match self {
-            Inline::Emph(emph) => emph.iter().flat_map(|inline| inline.ref_keys()).collect(),
-            Inline::Underline(underline) => underline
+            GraphInline::Emph(emph) => emph.iter().flat_map(|inline| inline.ref_keys()).collect(),
+            GraphInline::Underline(underline) => underline
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            Inline::Strong(strong) => strong.iter().flat_map(|inline| inline.ref_keys()).collect(),
-            Inline::Strikeout(strikeout) => strikeout
+            GraphInline::Strong(strong) => {
+                strong.iter().flat_map(|inline| inline.ref_keys()).collect()
+            }
+            GraphInline::Strikeout(strikeout) => strikeout
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            Inline::Superscript(superscript) => superscript
+            GraphInline::Superscript(superscript) => superscript
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            Inline::Subscript(subscript) => subscript
+            GraphInline::Subscript(subscript) => subscript
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            Inline::SmallCaps(small_caps) => small_caps
+            GraphInline::SmallCaps(small_caps) => small_caps
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            Inline::Link(_, _, _, _) => self.ref_key().map(|key| vec![key]).unwrap_or_default(),
-            Inline::Image(_, _, inlines) => inlines
+            GraphInline::Link(_, _, _, _) => {
+                self.ref_key().map(|key| vec![key]).unwrap_or_default()
+            }
+            GraphInline::Image(_, _, inlines) => inlines
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
@@ -456,57 +460,57 @@ impl Inline {
         }
     }
 
-    pub fn normalize(&self, context: impl InlinesContext) -> Inline {
+    pub fn normalize(&self, context: impl InlinesContext) -> GraphInline {
         match self {
-            Inline::Emph(emph) => Inline::Emph(
+            GraphInline::Emph(emph) => GraphInline::Emph(
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
 
-            Inline::Strong(emph) => Inline::Strong(
+            GraphInline::Strong(emph) => GraphInline::Strong(
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::Underline(emph) => Inline::Underline(
+            GraphInline::Underline(emph) => GraphInline::Underline(
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
 
-            Inline::Strikeout(emph) => Inline::Strikeout(
+            GraphInline::Strikeout(emph) => GraphInline::Strikeout(
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::Superscript(emph) => Inline::Superscript(
+            GraphInline::Superscript(emph) => GraphInline::Superscript(
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::Subscript(emph) => Inline::Subscript(
+            GraphInline::Subscript(emph) => GraphInline::Subscript(
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::SmallCaps(emph) => Inline::SmallCaps(
+            GraphInline::SmallCaps(emph) => GraphInline::SmallCaps(
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            Inline::Link(url, title, link_type, inlines) => {
+            GraphInline::Link(url, title, link_type, inlines) => {
                 if self.is_ref() {
                     let new_inlines = match *link_type {
                         LinkType::Regular => context
-                            .get_ref_title(&Key::from_rel_link_url(url))
-                            .map(|title| vec![Inline::Str(title)])
+                            .get_ref_title(&Key::from_file_name(url))
+                            .map(|title| vec![GraphInline::Str(title)])
                             .unwrap_or(inlines.clone()),
                         LinkType::WikiLink => vec![],
                         LinkType::WikiLinkPiped => inlines.clone(),
                     };
 
-                    return Inline::Link(url.clone(), title.clone(), *link_type, new_inlines);
+                    return GraphInline::Link(url.clone(), title.clone(), *link_type, new_inlines);
                 }
 
                 return self.clone();
@@ -520,48 +524,48 @@ impl Inline {
         target_key: &Key,
         updated_key: &Key,
         context: impl InlinesContext,
-    ) -> Inline {
+    ) -> GraphInline {
         match self {
-            Inline::Emph(emph) => Inline::Emph(
+            GraphInline::Emph(emph) => GraphInline::Emph(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
 
-            Inline::Strong(emph) => Inline::Strong(
+            GraphInline::Strong(emph) => GraphInline::Strong(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
-            Inline::Underline(emph) => Inline::Underline(
+            GraphInline::Underline(emph) => GraphInline::Underline(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
 
-            Inline::Strikeout(emph) => Inline::Strikeout(
+            GraphInline::Strikeout(emph) => GraphInline::Strikeout(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
-            Inline::Superscript(emph) => Inline::Superscript(
+            GraphInline::Superscript(emph) => GraphInline::Superscript(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
-            Inline::Subscript(emph) => Inline::Subscript(
+            GraphInline::Subscript(emph) => GraphInline::Subscript(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
-            Inline::SmallCaps(emph) => Inline::SmallCaps(
+            GraphInline::SmallCaps(emph) => GraphInline::SmallCaps(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key, context))
                     .collect(),
             ),
-            Inline::Link(_, title, link_type, _) => {
+            GraphInline::Link(_, title, link_type, _) => {
                 if self.is_ref() && self.ref_key().map_or(false, |key| key.eq(target_key)) {
-                    return Inline::Link(
+                    return GraphInline::Link(
                         updated_key.to_string(),
                         context.get_ref_title(target_key).unwrap_or(title.clone()),
                         *link_type,
@@ -577,14 +581,14 @@ impl Inline {
 
     fn is_ref(&self) -> bool {
         match self {
-            Inline::Link(url, _, _, _) => model::is_ref_url(url),
+            GraphInline::Link(url, _, _, _) => model::is_ref_url(url),
             _ => false,
         }
     }
 
     fn ref_key(&self) -> Option<Key> {
         match self {
-            Inline::Link(url, _, _, _) => Some(Key::from_rel_link_url(url)),
+            GraphInline::Link(url, _, _, _) => Some(Key::from_file_name(url)),
             _ => None,
         }
     }
@@ -624,16 +628,16 @@ fn left_pad_and_prefix_num(text: &str, num: usize) -> String {
 #[cfg(test)]
 pub mod tests {
     use crate::model::graph::{blocks_to_markdown, MarkdownOptions};
-    use crate::model::graph::{Block, Inline};
+    use crate::model::graph::{GraphBlock, GraphInline};
     use indoc::indoc;
 
-    fn plain(text: &str) -> Block {
-        Block::Plain(vec![Inline::Str(text.into())])
+    fn plain(text: &str) -> GraphBlock {
+        GraphBlock::Plain(vec![GraphInline::Str(text.into())])
     }
 
     #[test]
     fn test_ordered_list_to_markdown() {
-        let list = vec![Block::OrderedList(vec![
+        let list = vec![GraphBlock::OrderedList(vec![
             vec![plain("item")],
             vec![plain("item")],
             vec![plain("item")],
@@ -664,7 +668,7 @@ pub mod tests {
 
     #[test]
     fn test_ordered_list_with_para() {
-        let list = vec![Block::OrderedList(vec![vec![
+        let list = vec![GraphBlock::OrderedList(vec![vec![
             plain("item1"),
             plain("para"),
         ]])];
@@ -680,7 +684,7 @@ pub mod tests {
 
     #[test]
     fn test_list_to_markdown() {
-        let list = vec![Block::BulletList(vec![
+        let list = vec![GraphBlock::BulletList(vec![
             vec![plain("item1")],
             vec![plain("item2")],
         ])];
@@ -695,9 +699,9 @@ pub mod tests {
 
     #[test]
     fn test_sub_list() {
-        let list = vec![Block::BulletList(vec![vec![
+        let list = vec![GraphBlock::BulletList(vec![vec![
             plain("item1"),
-            Block::BulletList(vec![vec![plain("item2")]]),
+            GraphBlock::BulletList(vec![vec![plain("item2")]]),
         ]])];
         assert_eq!(
             indoc! {"
@@ -710,7 +714,10 @@ pub mod tests {
 
     #[test]
     fn test_list_with_para() {
-        let list = vec![Block::BulletList(vec![vec![plain("item1"), plain("para")]])];
+        let list = vec![GraphBlock::BulletList(vec![vec![
+            plain("item1"),
+            plain("para"),
+        ]])];
         assert_eq!(
             indoc! {"
                 - item1
@@ -723,7 +730,7 @@ pub mod tests {
 
     #[test]
     fn test_list_with_para2() {
-        let list = vec![Block::BulletList(vec![
+        let list = vec![GraphBlock::BulletList(vec![
             vec![plain("item1"), plain("para1")],
             vec![plain("item2"), plain("para2")],
         ])];
@@ -743,11 +750,11 @@ pub mod tests {
 
     #[test]
     fn test_sub_sub_list() {
-        let list = vec![Block::BulletList(vec![vec![
+        let list = vec![GraphBlock::BulletList(vec![vec![
             plain("item1"),
-            Block::BulletList(vec![vec![
+            GraphBlock::BulletList(vec![vec![
                 plain("item2"),
-                Block::BulletList(vec![vec![plain("item3")]]),
+                GraphBlock::BulletList(vec![vec![plain("item3")]]),
             ]]),
         ]])];
         assert_eq!(
@@ -761,7 +768,7 @@ pub mod tests {
     }
 }
 
-pub fn to_plain_text(content: &Inlines) -> String {
+pub fn to_plain_text(content: &GraphInlines) -> String {
     content
         .iter()
         .map(|i| i.to_plain_text())
@@ -769,7 +776,7 @@ pub fn to_plain_text(content: &Inlines) -> String {
         .join("")
 }
 
-pub fn inlines_to_markdown(content: &Inlines, options: &MarkdownOptions) -> String {
+pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) -> String {
     content
         .iter()
         .map(|i| i.to_markdown(options))
@@ -801,6 +808,9 @@ pub fn blocks_to_markdown_sparce(blocks: &Blocks, options: &MarkdownOptions) -> 
         .join("\n")
 }
 
-pub fn to_node_inlines(content: &DocumentInlines) -> Vec<Inline> {
-    content.iter().map(|i| i.to_node_inline()).collect()
+pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<GraphInline> {
+    content
+        .iter()
+        .map(|i| i.to_graph_inline(relative_to))
+        .collect()
 }

@@ -38,6 +38,8 @@ difference = "2.0"
 tracing = "0.1.40"
 tracing-tree = "0.3.0"
 fuzzy-matcher = "0.3.7"
+relative-path = "1.9.3"
+relative-path-utils = "0.2.0"
 tracing-subscriber = { version = "0.3.18", default-features = false, features = [
     "registry",
     "fmt",

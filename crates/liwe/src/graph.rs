@@ -35,7 +35,7 @@ use unwrap_visitor::UnwrapVisitor;
 use wrap_visitor::WrapVisitor;
 
 use crate::graph::graph_node::GraphNode;
-use crate::model::graph::{blocks_to_markdown_sparce, Inlines, Node};
+use crate::model::graph::{blocks_to_markdown_sparce, GraphInlines, Node};
 use crate::model::InlinesContext;
 use crate::model::{Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
@@ -215,7 +215,7 @@ impl Graph {
         self.arena.get_line(id)
     }
 
-    fn add_line(&mut self, inlines: Inlines) -> LineId {
+    fn add_line(&mut self, inlines: GraphInlines) -> LineId {
         self.arena.add_line(inlines)
     }
 
@@ -297,7 +297,7 @@ impl Graph {
         let mut build_key = self.build_key(&key);
         let id = build_key.id();
 
-        let nodes_map = SectionsBuilder::new(&mut build_key, &document.blocks).nodes_map();
+        let nodes_map = SectionsBuilder::new(&mut build_key, &document.blocks, &key).nodes_map();
 
         self.nodes_map.insert(key.clone(), nodes_map.clone());
         self.global_nodes_map.extend(nodes_map);
@@ -351,7 +351,7 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| (Key::from_rel_link_url(k), reader.document(v)))
+            .map(|(k, v)| (Key::from_file_name(k), reader.document(v)))
             .collect::<Vec<_>>();
 
         for (key, document) in blocks.into_iter() {
@@ -362,7 +362,8 @@ impl Graph {
             }
 
             let nodes_map =
-                SectionsBuilder::new(&mut graph.build_key(&key), &document.blocks).nodes_map();
+                SectionsBuilder::new(&mut graph.build_key(&key), &document.blocks, &key)
+                    .nodes_map();
             graph.nodes_map.insert(key.clone(), nodes_map.clone());
             graph.global_nodes_map.extend(nodes_map);
         }

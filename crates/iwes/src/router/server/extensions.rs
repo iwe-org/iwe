@@ -298,15 +298,22 @@ pub impl Key {
         base_path.key_to_url(&self.clone())
     }
 
-    fn to_link(&self, text: String) -> String {
-        format!("[{}]({})", text, self.to_rel_link_url())
+    fn to_link(&self, text: String, relative_to: &str) -> String {
+        format!("[{}]({})", text, self.to_rel_link_url(relative_to))
     }
 
-    fn to_completion(&self, context: impl GraphContext, _: &BasePath) -> CompletionItem {
+    fn to_completion(
+        &self,
+        relative_to: &str,
+        context: impl GraphContext,
+        _: &BasePath,
+    ) -> CompletionItem {
         CompletionItem {
             preselect: Some(true),
             label: context.get_ref_text(self).unwrap_or_default(),
-            insert_text: Some(self.to_link(context.get_ref_text(self).unwrap_or_default())),
+            insert_text: Some(
+                self.to_link(context.get_ref_text(self).unwrap_or_default(), relative_to),
+            ),
             filter_text: Some(
                 context
                     .get_ref_text(self)
