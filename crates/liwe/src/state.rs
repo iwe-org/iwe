@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use itertools::Itertools;
 
 use crate::model::State;
@@ -58,6 +56,7 @@ pub fn new_form_pairs(files: Vec<&str>) -> State {
 
 #[test]
 fn test_store_new_form_indoc() {
+    use std::collections::HashMap;
     let store: HashMap<String, String> = {
         let indoc: &str = indoc::indoc! {"
             a

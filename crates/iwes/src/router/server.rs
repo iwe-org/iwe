@@ -3,7 +3,6 @@ use liwe::action::ActionType;
 use liwe::graph::path::NodePath;
 use liwe::model::graph::NodeIter;
 use lsp_server::ResponseError;
-use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
 use liwe::graph::GraphContext;
@@ -26,7 +25,6 @@ mod extensions;
 pub struct Server {
     base_path: BasePath,
     database: Database,
-    refs_extension: String,
     lsp_client: LspClient,
 }
 
@@ -46,13 +44,6 @@ impl BasePath {
         Url::parse(&self.base_path)
             .unwrap()
             .join(&format!("{}.md", url.trim_end_matches(".md")))
-            .expect("to work")
-    }
-
-    fn key_to_relative_url(&self, key: &Key, relative_to: &str) -> Url {
-        Url::parse(&self.base_path)
-            .unwrap()
-            .join(&key.to_rel_link_url(relative_to))
             .expect("to work")
     }
 
@@ -90,7 +81,6 @@ impl Server {
                 config.sequential_ids.unwrap_or(false),
                 config.markdown_options.clone(),
             ),
-            refs_extension: config.markdown_options.refs_extension.clone(),
             lsp_client: config.lsp_client,
         }
     }
