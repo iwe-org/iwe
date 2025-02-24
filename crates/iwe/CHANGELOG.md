@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.25](https://github.com/iwe-org/iwe/compare/iwe-v0.0.24...iwe-v0.0.25) - 2025-02-24
+
+### Added
+
+- sub-directories support (#71)
+
 ## [0.0.24](https://github.com/iwe-org/iwe/compare/iwe-v0.0.23...iwe-v0.0.24) - 2025-02-17
 
 ### Other
