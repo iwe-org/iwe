@@ -13,6 +13,8 @@ use crate::fixture::Fixture;
 
 mod fixture;
 
+// TODO: rename in a sub-directory
+
 #[test]
 fn basic_prepare_rename() {
     assert_prepare_rename(

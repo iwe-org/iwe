@@ -6,8 +6,8 @@ use liwe::action::{Action, ActionType, Change};
 use liwe::graph::path::NodePath;
 use lsp_types::*;
 
+use liwe::graph::GraphContext;
 use liwe::model::{Content, Key};
-use liwe::{graph::GraphContext, key};
 
 use super::BasePath;
 
@@ -99,11 +99,11 @@ pub impl Change {
     fn to_document_change(&self, base_path: &BasePath) -> DocumentChangeOperation {
         match self {
             Change::Remove(remove) => DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
-                uri: remove.key.to_url(base_path),
+                uri: remove.key.to_full_url(base_path),
                 options: None,
             })),
             Change::Create(create) => DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                uri: create.key.to_url(base_path),
+                uri: create.key.to_full_url(base_path),
                 options: Some(CreateFileOptions {
                     overwrite: Some(false),
                     ignore_if_exists: Some(false),
@@ -117,7 +117,7 @@ pub impl Change {
                 };
                 let edit = TextDocumentEdit {
                     text_document: OptionalVersionedTextDocumentIdentifier {
-                        uri: update.key.to_url(base_path),
+                        uri: update.key.to_full_url(base_path),
                         version: None,
                     },
                     edits: vec![OneOf::Left(insert_extracted_text)],
@@ -286,20 +286,34 @@ pub impl NodePath {
 }
 
 #[ext]
-pub impl Key {
+pub impl String {
     fn to_url(&self, base_path: &BasePath) -> Url {
+        base_path.name_to_url(&self.clone())
+    }
+}
+
+#[ext]
+pub impl Key {
+    fn to_full_url(&self, base_path: &BasePath) -> Url {
         base_path.key_to_url(&self.clone())
     }
 
-    fn to_link(&self, text: String) -> String {
-        format!("[{}]({})", text, key::without_extension(self))
+    fn to_link(&self, text: String, relative_to: &str) -> String {
+        format!("[{}]({})", text, self.to_rel_link_url(relative_to))
     }
 
-    fn to_completion(&self, context: impl GraphContext, _: &BasePath) -> CompletionItem {
+    fn to_completion(
+        &self,
+        relative_to: &str,
+        context: impl GraphContext,
+        _: &BasePath,
+    ) -> CompletionItem {
         CompletionItem {
             preselect: Some(true),
             label: context.get_ref_text(self).unwrap_or_default(),
-            insert_text: Some(self.to_link(context.get_ref_text(self).unwrap_or_default())),
+            insert_text: Some(
+                self.to_link(context.get_ref_text(self).unwrap_or_default(), relative_to),
+            ),
             filter_text: Some(
                 context
                     .get_ref_text(self)

@@ -144,7 +144,12 @@ mod test {
     pub fn no_parents() {
         assert_eq!(
             vec![NodePath::from_id(1)],
-            graph_to_paths(Graph::new().build_key("1").section_text("test").graph())
+            graph_to_paths(
+                Graph::new()
+                    .build_key(&"key".into())
+                    .section_text("test")
+                    .graph()
+            )
         );
     }
 
@@ -154,7 +159,7 @@ mod test {
             vec![NodePath::from_id(1), NodePath::from_id(2)],
             graph_to_paths(
                 Graph::new()
-                    .build_key("1")
+                    .build_key(&"key".into())
                     .section_text("test")
                     .section_text("test2")
                     .graph()
@@ -167,11 +172,13 @@ mod test {
         assert_eq!(
             vec![NodePath::from_id(1)],
             graph_to_paths(&Graph::with(|graph| {
-                graph.build_key("1").section_text_and("test", |s| {
-                    s.bullet_list_and(|l| {
-                        l.section_text("test2");
+                graph
+                    .build_key(&"key".into())
+                    .section_text_and("test", |s| {
+                        s.bullet_list_and(|l| {
+                            l.section_text("test2");
+                        });
                     });
-                });
             }))
         );
     }
@@ -182,7 +189,7 @@ mod test {
             vec![NodePath::new(vec![1]), NodePath::new(vec![1, 2])],
             graph_to_paths(
                 Graph::new()
-                    .build_key("a")
+                    .build_key(&"a".into())
                     .section_text_and("1", |s| {
                         s.section_text("2");
                     })
@@ -199,7 +206,7 @@ mod test {
                 NodePath::new(vec![1, 2]),
                 NodePath::new(vec![1, 3])
             ],
-            graph_to_paths(Graph::new().build_key_and("a", |a| {
+            graph_to_paths(Graph::new().build_key_and(&"a".into(), |a| {
                 a.section_text_and("1", |s1| {
                     s1.section_text("2").section_text("3");
                 });
@@ -215,7 +222,7 @@ mod test {
                 NodePath::new(vec![1, 2]),
                 NodePath::new(vec![1, 2, 3])
             ],
-            graph_to_paths(Graph::new().build_key_and("a", |a| {
+            graph_to_paths(Graph::new().build_key_and(&"a".into(), |a| {
                 a.section_text_and("1", |s1| {
                     s1.section_text_and("2", |s2| {
                         s2.section_text("3");
@@ -229,12 +236,12 @@ mod test {
     pub fn reference_parent() {
         let graph = Graph::with(|graph| {
             graph
-                .build_key_and("a", |document| {
+                .build_key_and(&"a".into(), |document| {
                     document.section_text("1");
                 })
-                .build_key_and("b", |document| {
+                .build_key_and(&"b".into(), |document| {
                     document.section_text_and("3", |s| {
-                        s.reference("a");
+                        s.reference(&"a".into());
                     });
                 });
         });
@@ -249,17 +256,17 @@ mod test {
     pub fn two_level_references() {
         let graph = Graph::with(|graph| {
             graph
-                .build_key_and("a", |document| {
+                .build_key_and(&"a".into(), |document| {
                     document.section_text("1");
                 })
-                .build_key_and("b", |document| {
+                .build_key_and(&"b".into(), |document| {
                     document.section_text_and("3", |s| {
-                        s.reference("a");
+                        s.reference(&"a".into());
                     });
                 })
-                .build_key_and("c", |document| {
+                .build_key_and(&"c".into(), |document| {
                     document.section_text_and("6", |s| {
-                        s.reference("b");
+                        s.reference(&"b".into());
                     });
                 });
         });
@@ -275,20 +282,20 @@ mod test {
     }
 
     #[test]
-    pub fn two_level_infinit_recursion_references() {
+    pub fn two_level_infinite_recursion_references() {
         let graph = Graph::with(|graph| {
             graph
-                .build_key_and("a", |document| {
-                    document.reference("c");
+                .build_key_and(&"a".into(), |document| {
+                    document.reference(&"c".into());
                 })
-                .build_key_and("b", |document| {
+                .build_key_and(&"b".into(), |document| {
                     document.section_text_and("3", |s| {
-                        s.reference("a");
+                        s.reference(&"a".into());
                     });
                 })
-                .build_key_and("c", |document| {
+                .build_key_and(&"c".into(), |document| {
                     document.section_text_and("6", |s| {
-                        s.reference("b");
+                        s.reference(&"b".into());
                     });
                 });
         });
@@ -297,16 +304,18 @@ mod test {
     }
 
     #[test]
-    pub fn infinit_recusion() {
+    pub fn infinite_recursion() {
+        let a_key = "a".into();
+        let b_key = "b".into();
         assert_eq!(
             Vec::<NodePath>::new(),
             graph_to_paths(
                 Graph::new()
-                    .build_key_and("a", |document| {
-                        document.section_text("1").reference("b");
+                    .build_key_and(&a_key, |document| {
+                        document.section_text("1").reference(&b_key);
                     })
-                    .build_key_and("b", |document| {
-                        document.section_text("4").reference("a");
+                    .build_key_and(&b_key, |document| {
+                        document.section_text("4").reference(&a_key);
                     })
             )
         );

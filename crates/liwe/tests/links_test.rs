@@ -6,8 +6,8 @@ use pretty_assertions::assert_str_eq;
 use liwe::{
     graph::Graph,
     markdown::MarkdownReader,
-    model::graph::MarkdownOptions,
-    state::{new_form_indoc, to_indoc},
+    model::{graph::MarkdownOptions, State},
+    state::{from_indoc, to_indoc},
 };
 
 #[test]
@@ -154,11 +154,19 @@ fn normalization_ref_existing_extension() {
     );
 }
 
+#[test]
+fn sub_links_text_updated_from_referenced_header() {
+    compare_state(
+        vec![("1", "[title](d/2)\n"), ("d/2", "# title\n")],
+        vec![("1", "[old title](d/2)"), ("d/2", "# title")],
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 
     let graph = Graph::import(
-        &new_form_indoc(denormalized),
+        &from_indoc(denormalized),
         MarkdownOptions {
             refs_extension: String::default(),
         },
@@ -166,12 +174,45 @@ fn compare(expected: &str, denormalized: &str) {
 
     let normalized = to_indoc(&graph.export());
 
-    println!("actual graph \n{:#?}", graph);
-    println!("{}", expected);
-    println!("normalized:");
-    println!("{}", normalized);
+    dbg!(graph.clone());
+    dbg!(expected);
+    dbg!(normalized.clone());
 
     assert_str_eq!(expected, normalized);
+}
+
+pub type Documents = Vec<(&'static str, &'static str)>;
+
+fn compare_state(exp: Documents, den: Documents) {
+    setup();
+
+    let expected: State = exp
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+
+    let denormalized: State = den
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+
+    let graph = Graph::import(
+        &denormalized
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
+        MarkdownOptions {
+            refs_extension: String::default(),
+        },
+    );
+
+    let normalized = &graph.export();
+
+    dbg!(graph.clone());
+    dbg!(expected.clone());
+    dbg!(normalized.clone());
+
+    assert_eq!(&expected, normalized);
 }
 
 fn compare_with_extensions(expected: &str, denormalized: &str) {
@@ -181,14 +222,13 @@ fn compare_with_extensions(expected: &str, denormalized: &str) {
         refs_extension: ".md".to_string(),
     });
 
-    graph.from_markdown("key", denormalized, MarkdownReader::new());
+    graph.from_markdown("key".into(), denormalized, MarkdownReader::new());
 
-    let normalized = graph.to_markdown("key");
+    let normalized = graph.to_markdown(&"key".into());
 
-    println!("actual graph \n{:#?}", graph);
-    println!("{}", expected);
-    println!("normalized:");
-    println!("{}", normalized);
+    dbg!(graph.clone());
+    dbg!(expected);
+    dbg!(normalized.clone());
 
     assert_str_eq!(expected, normalized);
 }

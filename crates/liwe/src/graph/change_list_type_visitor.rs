@@ -1,6 +1,6 @@
 use super::{graph_node_visitor::GraphNodeVisitor, Graph};
 use crate::model::graph::{Node, NodeIter};
-use crate::model::NodeId;
+use crate::model::{Key, NodeId};
 
 pub struct ChangeListTypeVisitor<'a> {
     id: NodeId,
@@ -9,7 +9,7 @@ pub struct ChangeListTypeVisitor<'a> {
 }
 
 impl<'a> ChangeListTypeVisitor<'a> {
-    pub fn new(graph: &'a Graph, key: &str, target_id: NodeId) -> Self {
+    pub fn new(graph: &'a Graph, key: &Key, target_id: NodeId) -> Self {
         let start_id = graph.visit_key(key).unwrap().id();
         Self {
             id: start_id,

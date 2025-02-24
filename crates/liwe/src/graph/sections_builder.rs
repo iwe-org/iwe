@@ -1,6 +1,6 @@
 use crate::{
     graph::builder::GraphBuilder,
-    model::{LineRange, NodesMap},
+    model::{Key, LineRange, NodesMap},
 };
 use itertools::Itertools;
 
@@ -9,13 +9,14 @@ use crate::model::document::DocumentBlock::{
     RawBlock,
 };
 use crate::model::document::DocumentBlocks;
-use crate::model::graph::to_node_inlines;
+use crate::model::graph::to_graph_inlines;
 
 type Range = std::ops::Range<usize>;
 
 pub struct SectionsBuilder<'a> {
     builder: &'a mut GraphBuilder<'a>,
     nodes_map: NodesMap,
+    key: Key,
 }
 
 impl<'a> SectionsBuilder<'a> {
@@ -23,10 +24,15 @@ impl<'a> SectionsBuilder<'a> {
         self.nodes_map.clone()
     }
 
-    pub fn new(builder: &'a mut GraphBuilder<'a>, content: &DocumentBlocks) -> SectionsBuilder<'a> {
+    pub fn new(
+        builder: &'a mut GraphBuilder<'a>,
+        content: &DocumentBlocks,
+        key: &Key,
+    ) -> SectionsBuilder<'a> {
         let mut builder = SectionsBuilder {
             builder,
             nodes_map: vec![],
+            key: key.clone(),
         };
         builder.process_blocks(0..content.len(), content);
         builder
@@ -89,15 +95,18 @@ impl<'a> SectionsBuilder<'a> {
     pub fn section_block(&mut self, block: &DocumentBlock) {
         match block.clone() {
             Para(para) => {
-                self.builder.section(to_node_inlines(&para.inlines));
+                self.builder
+                    .section(to_graph_inlines(&para.inlines, &self.key.parent()));
                 self.set_lines(para.line_range);
             }
             Plain(plain) => {
-                self.builder.section(to_node_inlines(&plain.inlines));
+                self.builder
+                    .section(to_graph_inlines(&plain.inlines, &self.key.parent()));
                 self.set_lines(plain.line_range);
             }
             Header(header) => {
-                self.builder.section(to_node_inlines(&header.inlines));
+                self.builder
+                    .section(to_graph_inlines(&header.inlines, &self.key.parent()));
                 self.set_lines(header.line_range);
             }
             Div(div) => {
@@ -120,18 +129,20 @@ impl<'a> SectionsBuilder<'a> {
                 self.set_lines(raw_block.line_range);
             }
             Plain(plain) => {
-                self.builder.leaf(to_node_inlines(&plain.inlines));
+                self.builder
+                    .leaf(to_graph_inlines(&plain.inlines, &self.key.parent()));
                 self.set_lines(plain.line_range);
             }
             Para(para) => {
                 if block.is_ref() {
                     self.builder.reference_with_text(
-                        &block.ref_key().unwrap(),
+                        &Key::from_rel_link_url(&block.url().unwrap(), &self.key.parent()),
                         &block.ref_text().unwrap(),
                         block.ref_type().unwrap(),
                     )
                 } else {
-                    self.builder.leaf(to_node_inlines(&para.inlines))
+                    self.builder
+                        .leaf(to_graph_inlines(&para.inlines, &self.key.parent()))
                 }
                 self.set_lines(para.line_range);
             }
@@ -161,7 +172,11 @@ impl<'a> SectionsBuilder<'a> {
                 self.builder.quote();
                 self.set_lines(quote.line_range);
                 let id = self.builder.id();
-                SectionsBuilder::new(&mut self.builder.graph().builder(id), &quote.blocks);
+                SectionsBuilder::new(
+                    &mut self.builder.graph().builder(id),
+                    &quote.blocks,
+                    &self.key,
+                );
             }
             HorizontalRule(rule) => {
                 self.builder.horizontal_rule();
@@ -217,13 +232,13 @@ mod test {
 
     use crate::{graph::Graph, markdown::MarkdownReader, model::LineRange};
 
-    use crate::model::NodeId;
+    use crate::model::{Key, NodeId};
 
     #[test]
     pub fn code_block_no_lang() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").raw("code\n", None);
+                graph.build_key(&"key".into()).raw("code\n", None);
             }),
             indoc! {"
             ```
@@ -238,7 +253,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .raw("code\n", Some("lang".to_string()));
             }),
             indoc! {"
@@ -253,7 +268,7 @@ mod test {
     pub fn header2() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").section_text("header");
+                graph.build_key(&"key".into()).section_text("header");
             }),
             indoc! {"
             # header
@@ -265,9 +280,11 @@ mod test {
     pub fn sub_header_section() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").section_text_and("header", |s| {
-                    s.section_text("sub-header");
-                });
+                graph
+                    .build_key(&"key".into())
+                    .section_text_and("header", |s| {
+                        s.section_text("sub-header");
+                    });
             }),
             indoc! {"
             # header
@@ -282,7 +299,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .section_text_and("header", |s| {
                         s.section_text("sub-header");
                     })
@@ -303,7 +320,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .section_text_and("header", |s| {
                         s.section_text("sub-header");
                     })
@@ -324,7 +341,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .section_text_and("header", |s| {
                         s.leaf_text("item");
                     })
@@ -345,7 +362,7 @@ mod test {
         assert_eq(
             Graph::with(|graph| {
                 graph
-                    .build_key("key")
+                    .build_key(&"key".into())
                     .section_text("header")
                     .section_text("header-2");
             }),
@@ -361,7 +378,7 @@ mod test {
     pub fn list_item_item() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").bullet_list_and(|l| {
+                graph.build_key(&"key".into()).bullet_list_and(|l| {
                     l.section_text("item-1");
                 });
             }),
@@ -375,7 +392,7 @@ mod test {
     pub fn two_items_list() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key("key").bullet_list_and(|l| {
+                graph.build_key(&"key".into()).bullet_list_and(|l| {
                     l.section_text("item-1").section_text("item-2");
                 });
             }),
@@ -494,14 +511,14 @@ mod test {
 
     fn assert_eq(expected: Graph, actual: &str) {
         let mut actual_graph = Graph::new();
-        actual_graph.from_markdown("key", actual, MarkdownReader::new());
+        actual_graph.from_markdown(Key::from_file_name("key"), actual, MarkdownReader::new());
 
         assert_eq!(expected, actual_graph);
     }
 
     fn assert_position_eq(actual: &str, node_id: NodeId, range: LineRange) {
         let mut actual_graph = Graph::new();
-        actual_graph.from_markdown("key", actual, MarkdownReader::new());
+        actual_graph.from_markdown(Key::from_file_name("key"), actual, MarkdownReader::new());
 
         assert_eq!(
             range,

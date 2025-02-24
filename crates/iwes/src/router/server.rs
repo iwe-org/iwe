@@ -3,7 +3,6 @@ use liwe::action::ActionType;
 use liwe::graph::path::NodePath;
 use liwe::model::graph::NodeIter;
 use lsp_server::ResponseError;
-use lsp_types::request::GotoDeclarationParams;
 use lsp_types::*;
 
 use liwe::graph::GraphContext;
@@ -12,6 +11,7 @@ use liwe::model::Key;
 use liwe::model::{self, InlineRange};
 
 use liwe::parser::Parser;
+use relative_path::RelativePath;
 
 use super::LspClient;
 use super::ServerConfig;
@@ -25,7 +25,6 @@ mod extensions;
 pub struct Server {
     base_path: BasePath,
     database: Database,
-    refs_extension: String,
     lsp_client: LspClient,
 }
 
@@ -35,14 +34,29 @@ pub struct BasePath {
 
 impl BasePath {
     fn key_to_url(&self, key: &Key) -> Url {
+        Url::parse(&self.base_path)
+            .unwrap()
+            .join(&key.to_path())
+            .expect("to work")
+    }
+
+    fn relative_to_full_path(&self, url: &str) -> Url {
+        Url::parse(&self.base_path)
+            .unwrap()
+            .join(&format!("{}.md", url.trim_end_matches(".md")))
+            .expect("to work")
+    }
+
+    fn name_to_url(&self, key: &str) -> Url {
         Url::parse(&format!("{}{}.md", self.base_path, key)).unwrap()
     }
 
     fn url_to_key(&self, url: &Url) -> Key {
-        url.to_string()
-            .trim_start_matches(&self.base_path)
-            .trim_end_matches(".md")
-            .to_string()
+        Key::from_file_name(
+            &url.to_string()
+                .trim_start_matches(&self.base_path)
+                .to_string(),
+        )
     }
 }
 
@@ -67,7 +81,6 @@ impl Server {
                 config.sequential_ids.unwrap_or(false),
                 config.markdown_options.clone(),
             ),
-            refs_extension: config.markdown_options.refs_extension.clone(),
             lsp_client: config.lsp_client,
         }
     }
@@ -77,19 +90,26 @@ impl Server {
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
         self.database.update_document(
-            &self.base_path.url_to_key(&params.text_document.uri.clone()),
+            self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.text.unwrap().clone(),
         );
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
         self.database.update_document(
-            &self.base_path.url_to_key(&params.text_document.uri.clone()),
+            self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.content_changes.first().unwrap().text.clone(),
         );
     }
 
-    pub fn handle_completion(&self, _: CompletionParams) -> CompletionResponse {
+    pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
+        let relative_to = params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
+
         CompletionResponse::List(CompletionList {
             is_incomplete: true,
             items: self
@@ -97,7 +117,8 @@ impl Server {
                 .graph()
                 .keys()
                 .iter()
-                .map(|key| key.to_completion(self.database.graph(), &self.base_path))
+                .map(|key| key.to_completion(&relative_to, self.database.graph(), &self.base_path))
+                .sorted_by(|a, b| a.label.cmp(&b.label))
                 .collect_vec(),
         })
     }
@@ -114,7 +135,14 @@ impl Server {
             .to_response()
     }
 
-    pub fn handle_goto_definition(&self, params: GotoDeclarationParams) -> GotoDefinitionResponse {
+    pub fn handle_goto_definition(&self, params: GotoDefinitionParams) -> GotoDefinitionResponse {
+        let relative_to = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
+
         self.parser(
             &params
                 .text_document_position_params
@@ -123,14 +151,14 @@ impl Server {
                 .to_key(&self.base_path),
         )
         .and_then(|parser| {
-            parser.key_at(to_position(
+            parser.url_at(to_position(
                 (&params).text_document_position_params.position,
             ))
         })
-        .map(|link| {
+        .map(|url| {
+            let relative_url = RelativePath::new(&relative_to).join(url).to_string();
             GotoDefinitionResponse::Scalar(Location::new(
-                self.base_path
-                    .key_to_url(&link.trim_end_matches(&self.refs_extension).to_string()),
+                self.base_path.relative_to_full_path(&relative_url),
                 Range::default(),
             ))
         })
@@ -161,7 +189,7 @@ impl Server {
             .collect_vec()
     }
 
-    pub fn block_reference_hints(&self, key: &str) -> Vec<InlayHint> {
+    pub fn block_reference_hints(&self, key: &Key) -> Vec<InlayHint> {
         self.database
             .graph()
             .get_block_references_in(key)
@@ -187,19 +215,19 @@ impl Server {
             .collect_vec()
     }
 
-    pub fn container_hint(&self, key: &str) -> Vec<InlayHint> {
+    pub fn container_hint(&self, key: &Key) -> Vec<InlayHint> {
         self.database
             .graph()
             .get_block_references_to(key)
             .iter()
-            .map(|id| self.database.graph().get_container_doucment_ref_text(*id))
+            .map(|id| self.database.graph().get_container_document_ref_text(*id))
             .sorted()
             .dedup()
             .map(|text| hint_at(&format!("↖{}", text), 0))
             .collect_vec()
     }
 
-    pub fn refs_counter_hints(&self, key: &str) -> Vec<InlayHint> {
+    pub fn refs_counter_hints(&self, key: &Key) -> Vec<InlayHint> {
         let inline_refs = self.database.graph().get_inline_references_to(key).len();
 
         if inline_refs > 0 {
@@ -213,7 +241,7 @@ impl Server {
         vec![]
     }
 
-    pub fn handle_ducment_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
+    pub fn handle_document_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
         let key = params.text_document.uri.to_key(&self.base_path);
         let id = self
             .database
@@ -254,7 +282,7 @@ impl Server {
                 link.key_range()
                     .map(|range| PrepareRenameResponse::RangeWithPlaceholder {
                         range: to_range(range),
-                        placeholder: link.ref_key().unwrap(),
+                        placeholder: link.url().unwrap_or("".to_string()),
                     })
             })
     }
@@ -263,13 +291,25 @@ impl Server {
         &self,
         params: RenameParams,
     ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-        if self.database.graph().visit_key(&params.new_name).is_some() {
+        if self
+            .database
+            .graph()
+            .visit_key(&params.new_name.clone().into())
+            .is_some()
+        {
             return Result::Err(ResponseError {
                 code: 1,
                 message: format!("The file name {} is already taken", params.new_name),
                 data: None,
             });
         }
+
+        let relative_to = &params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
 
         Result::Ok(
             self.parser(
@@ -279,14 +319,16 @@ impl Server {
                     .uri
                     .to_key(&self.base_path),
             )
-            .and_then(|parser| parser.key_at(to_position(params.text_document_position.position)))
-            .map(|key| {
+            .and_then(|parser| parser.url_at(to_position(params.text_document_position.position)))
+            .map(|url| {
+                let key = Key::from_rel_link_url(&url, relative_to);
+
                 let affected_keys = self
                     .database
                     .graph()
-                    .get_block_references_to(&key)
+                    .get_block_references_to(&key.clone())
                     .into_iter()
-                    .chain(self.database.graph().get_inline_references_to(&key))
+                    .chain(self.database.graph().get_inline_references_to(&key.clone()))
                     .flat_map(|node_id| self.database.graph().visit_node(node_id).to_document())
                     .flat_map(|doc| doc.key())
                     .filter(|k| k != &key)
@@ -296,23 +338,31 @@ impl Server {
 
                 let mut patch = self.database.graph().new_patch();
 
-                patch.build_key(&params.new_name).insert_from_iter(
-                    self.database
-                        .graph()
-                        .change_key_visitor(&key, &key, &params.new_name)
-                        .child()
-                        .unwrap(),
-                );
+                patch
+                    .build_key(&params.new_name.clone().into())
+                    .insert_from_iter(
+                        self.database
+                            .graph()
+                            .change_key_visitor(&key, &key, &params.new_name.clone().into())
+                            .child()
+                            .unwrap(),
+                    );
 
                 affected_keys.iter().for_each(|affected_key| {
                     patch.build_key(&affected_key).insert_from_iter(
                         self.database
                             .graph()
-                            .change_key_visitor(&affected_key, &key, &params.new_name)
+                            .change_key_visitor(
+                                &affected_key,
+                                &key,
+                                &params.new_name.clone().into(),
+                            )
                             .child()
                             .unwrap(),
                     );
                 });
+
+                let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
 
                 let document_changes = affected_keys
                     .into_iter()
@@ -326,7 +376,7 @@ impl Server {
                     })
                     .chain(vec![key
                         .clone()
-                        .to_url(&self.base_path)
+                        .to_full_url(&self.base_path)
                         .to_delete_file_op()])
                     .chain(vec![
                         params.new_name.to_url(&self.base_path).to_create_file_op(),
@@ -335,7 +385,7 @@ impl Server {
                             .to_url(&self.base_path)
                             .to_override_new_file_op(
                                 &self.base_path,
-                                patch.export_key(&params.new_name).expect("to have key"),
+                                patch.export_key(&new_key).expect("to have key"),
                             ),
                     ])
                     .collect();
@@ -370,7 +420,7 @@ impl Server {
             .dedup()
             .map(|(id, key)| {
                 Location::new(
-                    key.to_url(&self.base_path),
+                    key.to_full_url(&self.base_path),
                     Range::new(
                         Position::new(
                             self.database
@@ -398,8 +448,6 @@ impl Server {
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
         let context = self.database.graph();
         let base_path: &BasePath = &self.base_path;
-
-        dbg!(self.lsp_client);
 
         context
             .get_node_id_at(

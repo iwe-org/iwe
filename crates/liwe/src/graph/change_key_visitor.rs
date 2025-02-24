@@ -3,23 +3,23 @@ use itertools::Itertools;
 use super::GraphContext;
 use super::{graph_node_visitor::GraphNodeVisitor, Graph};
 use crate::model::graph::{Node, NodeIter, Reference};
-use crate::model::NodeId;
+use crate::model::{Key, NodeId};
 
 pub struct ChangeKeyVisitor<'a> {
     id: NodeId,
     graph: &'a Graph,
-    target_key: String,
-    updated_key: String,
+    target_key: Key,
+    updated_key: Key,
 }
 
 impl<'a> ChangeKeyVisitor<'a> {
-    pub fn new(graph: &'a Graph, key: &str, target_key: &str, updated_key: &str) -> Self {
+    pub fn new(graph: &'a Graph, key: &Key, target_key: &Key, updated_key: &Key) -> Self {
         let start_id = graph.visit_key(key).unwrap().id();
         Self {
             id: start_id,
             graph,
-            target_key: target_key.to_string(),
-            updated_key: updated_key.to_string(),
+            target_key: target_key.clone(),
+            updated_key: updated_key.clone(),
         }
     }
 

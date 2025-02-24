@@ -2,7 +2,7 @@ use crate::{
     graph::Reader,
     model::{
         document::{Document, DocumentInline},
-        Key, Position,
+        Position,
     },
 };
 pub struct Parser {
@@ -19,10 +19,8 @@ impl Parser {
         self.document.link_at(position)
     }
 
-    pub fn key_at(&self, position: Position) -> Option<Key> {
-        self.document
-            .link_at(position)
-            .and_then(|link| link.ref_key())
+    pub fn url_at(&self, position: Position) -> Option<String> {
+        self.document.link_at(position).and_then(|link| link.url())
     }
 }
 
@@ -39,9 +37,9 @@ pub fn link_in_paragraph() {
         crate::markdown::MarkdownReader::new(),
     );
 
-    assert_eq!("link1", parser.key_at((2, 8).into()).unwrap());
-    assert_eq!(None, parser.key_at((1, 8).into()));
-    assert_eq!(None, parser.key_at((3, 8).into()));
-    assert_eq!(None, parser.key_at((2, 2).into()));
-    assert_eq!(None, parser.key_at((2, 21).into()));
+    assert_eq!("link1", parser.url_at((2, 8).into()).unwrap());
+    assert_eq!(None, parser.url_at((1, 8).into()));
+    assert_eq!(None, parser.url_at((3, 8).into()));
+    assert_eq!(None, parser.url_at((2, 2).into()));
+    assert_eq!(None, parser.url_at((2, 21).into()));
 }

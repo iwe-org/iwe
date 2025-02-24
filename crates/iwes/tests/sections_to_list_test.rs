@@ -114,7 +114,7 @@ fn wrap_list_after_para_with_para_test() {
 }
 
 #[test]
-fn wrap_list_somehting() {
+fn wrap_list_something() {
     assert_list(
         indoc! {"
             # test1
@@ -147,7 +147,7 @@ fn assert_list(source: &str, line: u32, expected: &str) {
             range: Range::new(Position::new(line, 0), Position::new(line, 0)),
             context: CodeActionContext {
                 diagnostics: Default::default(),
-                only: action_kinds("refactor.rewrite.secton.list"),
+                only: action_kinds("refactor.rewrite.section.list"),
                 trigger_kind: None,
             },
             work_done_progress_params: Default::default(),
@@ -155,7 +155,7 @@ fn assert_list(source: &str, line: u32, expected: &str) {
         },
         vec![CodeActionOrCommand::CodeAction(CodeAction {
             title: "Section to list".to_string(),
-            kind: action_kind("refactor.rewrite.secton.list"),
+            kind: action_kind("refactor.rewrite.section.list"),
             edit: Some(WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(vec![
                     DocumentChangeOperation::Edit(TextDocumentEdit {

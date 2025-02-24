@@ -1,8 +1,10 @@
 use crate::graph::graph_node::GraphNode;
-use crate::model::NodeId;
+use crate::model::{Key, NodeId};
 
 use crate::graph::Graph;
-use crate::model::graph::{Block, Inline, ReferenceType};
+use crate::model::graph::{GraphBlock, GraphInline, ReferenceType};
+
+use super::GraphContext;
 
 pub struct Projector<'a> {
     id: NodeId,
@@ -26,7 +28,7 @@ impl<'a> Projector<'a> {
         }
     }
 
-    pub fn project(&self) -> Vec<Block> {
+    pub fn project(&self) -> Vec<GraphBlock> {
         if self.node().is_root() {
             self.project_root()
         } else if self.node().is_rule() {
@@ -46,7 +48,7 @@ impl<'a> Projector<'a> {
         }
     }
 
-    fn project_root(&self) -> Vec<Block> {
+    fn project_root(&self) -> Vec<GraphBlock> {
         let mut blocks = vec![];
 
         self.child()
@@ -58,9 +60,9 @@ impl<'a> Projector<'a> {
         blocks
     }
 
-    fn project_section(&self) -> Vec<Block> {
+    fn project_section(&self) -> Vec<GraphBlock> {
         let mut blocks = vec![];
-        blocks.push(Block::Header(
+        blocks.push(GraphBlock::Header(
             self.header_level as u8 + 1,
             self.project_line(),
         ));
@@ -80,13 +82,13 @@ impl<'a> Projector<'a> {
         blocks
     }
 
-    fn project_list_item(&self) -> Vec<Vec<Block>> {
-        let mut items: Vec<Vec<Block>> = vec![];
+    fn project_list_item(&self) -> Vec<Vec<GraphBlock>> {
+        let mut items: Vec<Vec<GraphBlock>> = vec![];
 
         if self.child().map(|n| n.is_leaf()).unwrap_or(false) {
-            items.push(vec![Block::Para(self.project_line())]);
+            items.push(vec![GraphBlock::Para(self.project_line())]);
         } else {
-            items.push(vec![Block::Plain(self.project_line())]);
+            items.push(vec![GraphBlock::Plain(self.project_line())]);
         }
 
         self.child()
@@ -106,7 +108,7 @@ impl<'a> Projector<'a> {
         items
     }
 
-    fn project_list(&self) -> Vec<Block> {
+    fn project_list(&self) -> Vec<GraphBlock> {
         let mut blocks = vec![];
         let mut items = vec![];
 
@@ -120,9 +122,9 @@ impl<'a> Projector<'a> {
             });
 
         if self.node().is_ordered() {
-            blocks.push(Block::OrderedList(items));
+            blocks.push(GraphBlock::OrderedList(items));
         } else {
-            blocks.push(Block::BulletList(items));
+            blocks.push(GraphBlock::BulletList(items));
         }
 
         self.next()
@@ -134,7 +136,7 @@ impl<'a> Projector<'a> {
         blocks
     }
 
-    fn project_quote(&self) -> Vec<Block> {
+    fn project_quote(&self) -> Vec<GraphBlock> {
         let mut blocks = vec![];
         let mut items = vec![];
 
@@ -142,7 +144,7 @@ impl<'a> Projector<'a> {
             .map(|child| Projector::new(self.graph, child.id(), 0, 0).project())
             .map(|item| items.append(item.clone().as_mut()));
 
-        blocks.push(Block::BlockQuote(items));
+        blocks.push(GraphBlock::BlockQuote(items));
 
         self.next()
             .map(|next| Projector::new(self.graph, next.id(), self.header_level, 0).project())
@@ -153,7 +155,7 @@ impl<'a> Projector<'a> {
         blocks
     }
 
-    fn project_line(&self) -> Vec<Inline> {
+    fn project_line(&self) -> Vec<GraphInline> {
         self.node()
             .line_id()
             .map(|id| self.graph.get_line(id))
@@ -161,16 +163,16 @@ impl<'a> Projector<'a> {
             .unwrap_or_default()
     }
 
-    fn project_leaf(&self) -> Vec<Block> {
+    fn project_leaf(&self) -> Vec<GraphBlock> {
         let mut blocks = vec![];
 
         if self.node().is_raw_leaf() {
-            blocks.push(Block::CodeBlock(
+            blocks.push(GraphBlock::CodeBlock(
                 self.node().lang(),
                 self.node().content().unwrap_or_default(),
             ));
         } else {
-            blocks.push(Block::Para(self.project_line()));
+            blocks.push(GraphBlock::Para(self.project_line()));
         }
 
         self.next()
@@ -194,28 +196,29 @@ impl<'a> Projector<'a> {
         self.node().next_id().map(|id| self.graph.graph_node(id))
     }
 
-    fn project_ref(&self) -> Vec<Block> {
-        let mut blocks: Vec<Block> = vec![];
+    fn project_ref(&self) -> Vec<GraphBlock> {
+        let mut blocks: Vec<GraphBlock> = vec![];
 
         let inlines = match self.ref_type() {
-            ReferenceType::Regular => vec![Inline::Str(
+            ReferenceType::Regular => vec![GraphInline::Str(
                 self.graph
                     .get_key_title(&self.ref_key())
                     .filter(|title| !title.is_empty())
                     .unwrap_or(self.ref_text()),
             )],
             ReferenceType::WikiLink => vec![],
-            ReferenceType::WikiLinkPiped => vec![Inline::Str(self.ref_text())],
+            ReferenceType::WikiLinkPiped => vec![GraphInline::Str(self.ref_text())],
         };
 
-        let link = Inline::Link(
-            self.ref_key(),
+        let link = GraphInline::Link(
+            self.ref_key()
+                .to_rel_link_url(&self.graph.get_key(self.id).parent()),
             String::default(),
             self.ref_type().to_link_type(),
             inlines,
         );
 
-        blocks.push(Block::Para(vec![link]));
+        blocks.push(GraphBlock::Para(vec![link]));
 
         self.next()
             .map(|next| Projector::new(self.graph, next.id(), self.header_level, 0).project())
@@ -226,7 +229,7 @@ impl<'a> Projector<'a> {
         blocks
     }
 
-    fn ref_key(&self) -> String {
+    fn ref_key(&self) -> Key {
         self.node().ref_key().unwrap()
     }
 
@@ -238,10 +241,10 @@ impl<'a> Projector<'a> {
         self.node().ref_text()
     }
 
-    fn project_rule(&self) -> Vec<Block> {
+    fn project_rule(&self) -> Vec<GraphBlock> {
         let mut blocks = vec![];
 
-        blocks.push(Block::HorizontalRule);
+        blocks.push(GraphBlock::HorizontalRule);
 
         self.next()
             .map(|next| Projector::new(self.graph, next.id(), self.header_level, 0).project())

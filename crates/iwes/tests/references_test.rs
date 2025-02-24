@@ -15,7 +15,7 @@ mod fixture;
 
 #[test]
 fn single_reference() {
-    assert_extracted(
+    assert_references(
         indoc! {"
             # test
             _
@@ -29,7 +29,7 @@ fn single_reference() {
 
 #[test]
 fn two_references() {
-    assert_extracted(
+    assert_references(
         indoc! {"
             # test
             _
@@ -47,7 +47,7 @@ fn two_references() {
 
 #[test]
 fn link() {
-    assert_extracted(
+    assert_references(
         indoc! {"
             # test
             _
@@ -59,7 +59,7 @@ fn link() {
     );
 }
 
-fn assert_extracted(source: &str, urls: Vec<u32>) {
+fn assert_references(source: &str, urls: Vec<u32>) {
     let fixture = Fixture::with(source);
 
     fixture.references(

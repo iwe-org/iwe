@@ -28,7 +28,7 @@ impl Document {
         self.id
     }
 
-    pub fn key(&self) -> &str {
+    pub fn key(&self) -> &Key {
         &self.key
     }
 
@@ -215,7 +215,7 @@ impl Reference {
         self.id
     }
 
-    pub fn key(&self) -> &str {
+    pub fn key(&self) -> &Key {
         &self.key
     }
 
@@ -371,7 +371,7 @@ impl GraphNode {
         }
     }
 
-    pub fn is_reference_to(&self, key: &str) -> bool {
+    pub fn is_reference_to(&self, key: &Key) -> bool {
         match self {
             GraphNode::Reference(reference) => reference.key.eq(key),
             _ => false,
@@ -583,7 +583,7 @@ impl GraphNode {
         }
     }
 
-    pub fn key(&self) -> Option<String> {
+    pub fn key(&self) -> Option<Key> {
         match self {
             GraphNode::Document(document) => Some(document.key.clone()),
             _ => None,
@@ -604,7 +604,7 @@ impl GraphNode {
         }
     }
 
-    pub fn ref_key(&self) -> Option<String> {
+    pub fn ref_key(&self) -> Option<Key> {
         match self {
             GraphNode::Reference(reference) => Some(reference.key.clone()),
             _ => None,

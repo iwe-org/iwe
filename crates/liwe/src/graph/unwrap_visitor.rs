@@ -1,6 +1,6 @@
 use super::{graph_node_visitor::GraphNodeVisitor, Graph, NodeIter};
 use crate::model::graph::Node;
-use crate::model::NodeId;
+use crate::model::{Key, NodeId};
 
 pub struct UnwrapVisitor<'a> {
     id: NodeId,
@@ -10,7 +10,7 @@ pub struct UnwrapVisitor<'a> {
 }
 
 impl<'a> UnwrapVisitor<'a> {
-    pub fn new(graph: &'a Graph, key: &str, target_id: NodeId) -> Self {
+    pub fn new(graph: &'a Graph, key: &Key, target_id: NodeId) -> Self {
         let start_id = graph.visit_key(key).unwrap().id();
         Self {
             id: start_id,

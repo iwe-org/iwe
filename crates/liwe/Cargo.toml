@@ -27,6 +27,8 @@ rand.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
 fuzzy-matcher.workspace = true
+relative-path.workspace = true
+relative-path-utils.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

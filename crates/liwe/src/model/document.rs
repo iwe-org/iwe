@@ -1,6 +1,5 @@
-use crate::key::without_extension;
 use crate::model;
-use crate::model::graph::Inline;
+use crate::model::graph::GraphInline;
 use crate::model::{Key, Lang, LineRange};
 
 use super::graph::ReferenceType;
@@ -47,16 +46,16 @@ pub enum DocumentInline {
 
 impl Document {
     pub fn link_at(&self, position: Position) -> Option<DocumentInline> {
-        self.block_at_positon(position)
+        self.block_at_position(position)
             .into_iter()
             .flat_map(|block| block.child_inlines())
-            .find_map(|inline| inline.link_at_positon(position))
+            .find_map(|inline| inline.link_at_position(position))
     }
 
-    fn block_at_positon(&self, position: Position) -> Option<DocumentBlock> {
+    fn block_at_position(&self, position: Position) -> Option<DocumentBlock> {
         self.blocks
             .iter()
-            .find_map(|block| block.block_at_positon(position))
+            .find_map(|block| block.block_at_position(position))
     }
 }
 
@@ -65,6 +64,13 @@ impl DocumentBlock {
         match self {
             DocumentBlock::Para(para) => para.inlines.len() == 1 && para.inlines[0].is_ref(),
             _ => false,
+        }
+    }
+
+    pub fn url(&self) -> Option<String> {
+        match self {
+            DocumentBlock::Para(para) => para.inlines[0].url(),
+            _ => None,
         }
     }
 
@@ -77,17 +83,7 @@ impl DocumentBlock {
 
     pub fn ref_text(&self) -> Option<String> {
         match self {
-            DocumentBlock::Para(para) => para
-                .inlines
-                .first()
-                .map(|inline| inline.to_node_inline().to_plain_text()),
-            _ => None,
-        }
-    }
-
-    pub fn ref_key(&self) -> Option<String> {
-        match self {
-            DocumentBlock::Para(para) => para.inlines.first().and_then(|inline| inline.ref_key()),
+            DocumentBlock::Para(para) => para.inlines.first().map(|inline| inline.to_plain_text()),
             _ => None,
         }
     }
@@ -221,10 +217,10 @@ impl DocumentBlock {
         }
     }
 
-    fn block_at_positon(&self, position: Position) -> Option<DocumentBlock> {
+    fn block_at_position(&self, position: Position) -> Option<DocumentBlock> {
         self.child_blocks()
             .iter()
-            .find_map(|child| child.block_at_positon(position))
+            .find_map(|child| child.block_at_position(position))
             .or(Some(self.clone()).filter(|block| block.line_range().contains(&position.line)))
     }
 
@@ -332,83 +328,83 @@ impl DocumentInline {
         }
     }
 
-    pub fn to_node_inline(&self) -> Inline {
+    pub fn to_graph_inline(&self, relative_to: &str) -> GraphInline {
         match self {
-            DocumentInline::Str(text) => Inline::Str(text.clone()),
-            DocumentInline::Emph(emph) => Inline::Emph(
+            DocumentInline::Str(text) => GraphInline::Str(text.clone()),
+            DocumentInline::Emph(emph) => GraphInline::Emph(
                 emph.inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::Underline(underline) => Inline::Underline(
+            DocumentInline::Underline(underline) => GraphInline::Underline(
                 underline
                     .inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::Strong(strong) => Inline::Strong(
+            DocumentInline::Strong(strong) => GraphInline::Strong(
                 strong
                     .inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::Strikeout(strikeout) => Inline::Strikeout(
+            DocumentInline::Strikeout(strikeout) => GraphInline::Strikeout(
                 strikeout
                     .inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::Superscript(superscript) => Inline::Superscript(
+            DocumentInline::Superscript(superscript) => GraphInline::Superscript(
                 superscript
                     .inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::Subscript(subscript) => Inline::Subscript(
+            DocumentInline::Subscript(subscript) => GraphInline::Subscript(
                 subscript
                     .inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::SmallCaps(small_caps) => Inline::SmallCaps(
+            DocumentInline::SmallCaps(small_caps) => GraphInline::SmallCaps(
                 small_caps
                     .inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::Code(code) => Inline::Code(None, code.text.clone()),
-            DocumentInline::Space(_) => Inline::Space,
-            DocumentInline::SoftBreak(_) => Inline::SoftBreak,
-            DocumentInline::LineBreak(_) => Inline::LineBreak,
-            DocumentInline::Link(link) => Inline::Link(
-                link.target.url.clone(),
+            DocumentInline::Code(code) => GraphInline::Code(None, code.text.clone()),
+            DocumentInline::Space(_) => GraphInline::Space,
+            DocumentInline::SoftBreak(_) => GraphInline::SoftBreak,
+            DocumentInline::LineBreak(_) => GraphInline::LineBreak,
+            DocumentInline::Link(link) => GraphInline::Link(
+                link.target.url.clone(), // relative path
                 link.target.title.clone(),
                 link.link_type,
                 link.inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
             DocumentInline::RawInline(raw_inline) => {
-                Inline::RawInline(raw_inline.format.0.clone(), raw_inline.content.clone())
+                GraphInline::RawInline(raw_inline.format.0.clone(), raw_inline.content.clone())
             }
-            DocumentInline::Image(image) => Inline::Image(
+            DocumentInline::Image(image) => GraphInline::Image(
                 image.target.url.clone(),
                 image.target.title.clone(),
                 image
                     .inlines
                     .iter()
-                    .map(|inline| inline.to_node_inline())
+                    .map(|inline| inline.to_graph_inline(relative_to))
                     .collect(),
             ),
-            DocumentInline::Math(math) => Inline::Math(math.content.clone()),
+            DocumentInline::Math(math) => GraphInline::Math(math.content.clone()),
         }
     }
 
@@ -446,14 +442,14 @@ impl DocumentInline {
 
     fn ref_title(&self) -> Option<String> {
         match self {
-            DocumentInline::Link(_) => Some(self.to_node_inline().to_plain_text()),
+            DocumentInline::Link(_) => Some(self.to_plain_text()),
             _ => None,
         }
     }
 
-    pub fn ref_key(&self) -> Option<String> {
+    pub fn url(&self) -> Option<String> {
         match self {
-            DocumentInline::Link(link) => Some(without_extension(&link.target.url)),
+            DocumentInline::Link(link) => Some(link.target.url.clone()),
             _ => None,
         }
     }
@@ -465,6 +461,39 @@ impl DocumentInline {
         }
     }
 
+    pub fn to_plain_text(&self) -> String {
+        match self {
+            DocumentInline::Str(text) => text.clone(),
+            DocumentInline::Emph(emph) => Self::inlines_to_plain_text(&emph.inlines),
+            DocumentInline::Underline(underline) => Self::inlines_to_plain_text(&underline.inlines),
+            DocumentInline::Strong(strong) => Self::inlines_to_plain_text(&strong.inlines),
+            DocumentInline::Strikeout(strikeout) => Self::inlines_to_plain_text(&strikeout.inlines),
+            DocumentInline::Superscript(superscript) => {
+                Self::inlines_to_plain_text(&superscript.inlines)
+            }
+            DocumentInline::Subscript(subscript) => Self::inlines_to_plain_text(&subscript.inlines),
+            DocumentInline::SmallCaps(small_caps) => {
+                Self::inlines_to_plain_text(&small_caps.inlines)
+            }
+            DocumentInline::Code(code) => code.text.clone(),
+            DocumentInline::Space(_) => " ".into(),
+            DocumentInline::SoftBreak(_) => "\n".into(),
+            DocumentInline::LineBreak(_) => "\n".into(),
+            DocumentInline::Link(link) => Self::inlines_to_plain_text(&link.inlines),
+            DocumentInline::Image(image) => Self::inlines_to_plain_text(&image.inlines),
+            DocumentInline::RawInline(raw_inline) => raw_inline.content.clone(),
+            _ => "".into(),
+        }
+    }
+
+    fn inlines_to_plain_text(content: &DocumentInlines) -> String {
+        content
+            .iter()
+            .map(|i| i.to_plain_text())
+            .collect::<Vec<String>>()
+            .join("")
+    }
+
     pub fn key_range(&self) -> Option<InlineRange> {
         match self {
             DocumentInline::Link(link) => {
@@ -473,7 +502,7 @@ impl DocumentInline {
                         line: link.inline_range.start.line,
                         // Exclude title and parentheses from the range
                         character: link.inline_range.start.character
-                            + self.to_node_inline().to_plain_text().len()
+                            + self.to_plain_text().len()
                             + 3,
                     },
                     end: Position {
@@ -515,21 +544,14 @@ impl DocumentInline {
         }
     }
 
-    pub fn key(&self) -> Option<Key> {
-        match self {
-            DocumentInline::Link(link) => Some(without_extension(&link.target.url)),
-            _ => None,
-        }
-    }
-
-    pub fn link_at_positon(&self, position: Position) -> Option<DocumentInline> {
+    pub fn link_at_position(&self, position: Position) -> Option<DocumentInline> {
         if self.inline_range().contains(&position) && self.is_link() {
             return Some(self.clone());
         }
 
         self.child_inlines()
             .iter()
-            .find_map(|child| child.link_at_positon(position))
+            .find_map(|child| child.link_at_position(position))
     }
 }
 

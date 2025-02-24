@@ -2,7 +2,7 @@ use crate::graph::{
     LineId, NodeId,
     {graph_line::Line, graph_node::GraphNode},
 };
-use crate::model::graph::Inlines;
+use crate::model::graph::GraphInlines;
 
 #[derive(Clone, Default)]
 pub struct Arena {
@@ -20,7 +20,7 @@ impl Arena {
         self.lines[id as usize].clone()
     }
 
-    pub fn add_line(&mut self, inlines: Inlines) -> LineId {
+    pub fn add_line(&mut self, inlines: GraphInlines) -> LineId {
         let id = self.new_line_id();
         self.lines.push(Line::new(id, inlines));
         id
@@ -36,7 +36,7 @@ impl Arena {
 
     pub fn delete_branch(&mut self, from_id: NodeId) {
         if let Some(line_id) = self.node(from_id).line_id() {
-            self.lines[line_id as usize] = Line::new(line_id, Inlines::new());
+            self.lines[line_id as usize] = Line::new(line_id, GraphInlines::new());
         }
 
         self.node(from_id)

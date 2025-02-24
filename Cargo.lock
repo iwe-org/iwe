@@ -676,6 +676,7 @@ dependencies = [
  "pretty_assertions",
  "rand",
  "rayon",
+ "relative-path",
  "serde",
  "serde_json",
  "toml",
@@ -717,6 +718,8 @@ dependencies = [
  "pulldown-cmark-to-cmark",
  "rand",
  "rayon",
+ "relative-path",
+ "relative-path-utils",
  "serde",
  "sha2",
 ]
@@ -967,6 +970,21 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "relative-path"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba39f3699c378cd8970968dcbff9c43159ea4cfbd88d43c00b22f2ef10a435d2"
+
+[[package]]
+name = "relative-path-utils"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "395e55310ee3b2c7259d501447f3a25faca3cdaa1e9e61e3cabbc98a6d7e67f8"
+dependencies = [
+ "relative-path",
+]
 
 [[package]]
 name = "ryu"

@@ -15,7 +15,7 @@ pub enum ActionType {
     ListToSections,            // action for top-level list surrounding cursor
     ReferenceInlineSection,    // action for reference under cursor
     ReferenceInlineQuote,      // action for reference under cursor
-    SectionExtract,            // acton for secion under cursor
+    SectionExtract,            // acton for section under cursor
     SectionExtractSubsections, // action for section under cursor
     SectionToList,             // action for section under cursor
 
@@ -34,7 +34,7 @@ impl ActionType {
             ActionType::ReferenceInlineList => "refactor.inline.reference.list",
             ActionType::ReferenceInlineQuote => "refactor.inline.reference.quote",
             ActionType::SectionExtractSubsections => "refactor.extract.subsections",
-            ActionType::SectionToList => "refactor.rewrite.secton.list",
+            ActionType::SectionToList => "refactor.rewrite.section.list",
             ActionType::SectionExtract => "refactor.extract.section",
         }
     }
