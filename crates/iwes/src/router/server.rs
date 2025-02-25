@@ -131,6 +131,7 @@ impl Server {
             .global_search(&params.query)
             .iter()
             .map(|p| path_to_symbol(p, self.database.graph(), &self.base_path))
+            .filter(|p| !p.name.is_empty())
             .collect_vec()
             .to_response()
     }
@@ -269,6 +270,7 @@ impl Server {
             .map(|p| p.drop_first())
             .filter(|p| p.ids().len() < 4)
             .map(|p| p.to_nested_symbol(self.database.graph(), &self.base_path))
+            .filter(|p| !p.name.is_empty())
             .collect_vec()
     }
 
