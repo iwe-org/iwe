@@ -495,7 +495,7 @@ pub trait GraphContext: Copy {
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
     fn node_visitor(&self, id: NodeId) -> impl NodeIter;
     fn node_visit_children_of(&self, id: NodeId) -> impl NodeIter;
-    fn random_key(&self) -> Key;
+    fn random_key(&self, relative_to: &str) -> Key;
     fn squash_vistior(&self, key: &Key, depth: u8) -> impl NodeIter;
     fn unwrap_vistior(&self, key: &Key, target_id: NodeId) -> impl NodeIter;
     fn change_list_type_visitor(&self, key: &Key, target_id: NodeId) -> impl NodeIter;
@@ -653,18 +653,21 @@ impl GraphContext for &Graph {
         self.node_key(id)
     }
 
-    fn random_key(&self) -> Key {
+    fn random_key(&self, relative_to: &str) -> Key {
         if self.sequential_keys {
             let key = self.keys().len() + 1;
-            return Key::from_file_name(&key.to_string());
+            return Key::from_rel_link_url(&key.to_string(), relative_to);
         }
 
         loop {
             let key = Alphanumeric
                 .sample_string(&mut rand::thread_rng(), 8)
                 .to_lowercase();
-            if !self.keys.contains_key(&Key::from_file_name(&key)) {
-                return Key::from_file_name(&key);
+            if !self
+                .keys
+                .contains_key(&Key::from_rel_link_url(&key, relative_to))
+            {
+                return Key::from_rel_link_url(&key, relative_to);
             }
         }
     }

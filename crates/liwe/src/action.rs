@@ -123,7 +123,7 @@ pub fn list_to_sections(target_id: NodeId, context: impl GraphContext) -> Option
 pub fn extract_list(target_id: NodeId, context: impl GraphContext) -> Option<Action> {
     context.get_surrounding_list_id(target_id).map(|scope_id| {
         let key = context.get_key(scope_id);
-        let new_key = context.random_key();
+        let new_key = context.random_key(&key.parent());
 
         let mut patch = context.patch();
         patch.add_key(
@@ -215,7 +215,7 @@ pub fn extract_section(target_id: NodeId, context: impl GraphContext) -> Option<
         .filter(|_| context.is_header(target_id))
         .map(|parent_id| {
             let key = context.get_key(target_id);
-            let new_key = context.random_key();
+            let new_key = context.random_key(&key.parent());
 
             let mut patch = context.patch();
 
@@ -261,7 +261,8 @@ pub fn extract_sub_sections(target_id: NodeId, context: impl GraphContext) -> Op
             let mut extracted = HashMap::new();
 
             for section_id in sub_sections {
-                let new_key = context.random_key();
+                let new_key = context.random_key(&key.parent());
+
                 extracted.insert(section_id, new_key.clone());
                 patch.add_key(&new_key, context.node_visit_children_of(section_id));
             }
