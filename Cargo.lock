@@ -636,7 +636,7 @@ checksum = "d75a2a4b1b190afb6f5425f10f6a8f959d2ea0b9c2b1d79553551850539e4674"
 
 [[package]]
 name = "iwe"
-version = "0.0.26"
+version = "0.0.27"
 dependencies = [
  "clap",
  "env_logger",
@@ -657,7 +657,7 @@ dependencies = [
 
 [[package]]
 name = "iwes"
-version = "0.0.26"
+version = "0.0.27"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -705,7 +705,7 @@ checksum = "4ee93343901ab17bd981295f2cf0026d4ad018c7c31ba84549a4ddbb47a45104"
 
 [[package]]
 name = "liwe"
-version = "0.0.26"
+version = "0.0.27"
 dependencies = [
  "env_logger",
  "futures",
