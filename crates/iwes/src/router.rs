@@ -8,9 +8,10 @@ use log::{debug, error};
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::{
-    CodeActionParams, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, DocumentSymbolParams, InlayHintParams, InlineValueParams,
-    ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
+    CodeActionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams, InlayHintParams,
+    InlineValueParams, ReferenceParams, RenameParams, TextDocumentPositionParams,
+    WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 use serde::Deserialize;
@@ -115,6 +116,9 @@ impl Router {
             ),
             "textDocument/didSave" => self.server.handle_did_save_text_document(
                 DidSaveTextDocumentParams::deserialize(notification.params).unwrap(),
+            ),
+            "textDocument/didOpen" => self.server.handle_did_open_text_document(
+                DidOpenTextDocumentParams::deserialize(notification.params).unwrap(),
             ),
             default => {
                 error!("unhandled notification: {}", default)

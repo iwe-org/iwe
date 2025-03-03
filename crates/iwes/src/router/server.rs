@@ -102,6 +102,10 @@ impl Server {
         );
     }
 
+    pub fn handle_did_open_text_document(&mut self, _params: DidOpenTextDocumentParams) {
+        // NOP
+    }
+
     pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
         let relative_to = params
             .text_document_position
