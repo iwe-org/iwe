@@ -2,9 +2,8 @@ use crate::graph::graph_node::GraphNode;
 use crate::model::{Key, NodeId};
 
 use crate::graph::Graph;
-use crate::model::graph::{GraphBlock, GraphInline, ReferenceType};
-
-use super::GraphContext;
+use crate::model::graph::{GraphBlock, GraphInline};
+use crate::model::node::ReferenceType;
 
 pub struct Projector<'a> {
     id: NodeId,
@@ -33,6 +32,8 @@ impl<'a> Projector<'a> {
             self.project_root()
         } else if self.node().is_rule() {
             self.project_rule()
+        } else if self.node().is_table() {
+            self.project_table()
         } else if self.node().is_quote() {
             self.project_quote()
         } else if self.node().is_list() {
@@ -184,6 +185,40 @@ impl<'a> Projector<'a> {
         blocks
     }
 
+    fn project_table(&self) -> Vec<GraphBlock> {
+        let mut blocks = vec![];
+
+        blocks.push(GraphBlock::Table(
+            self.node()
+                .table_header()
+                .unwrap_or_default()
+                .iter()
+                .map(|id| self.graph.get_line(*id))
+                .map(|line| line.inlines().clone())
+                .collect(),
+            self.node().table_alignment().unwrap_or_default(),
+            self.node()
+                .table_rows()
+                .unwrap_or_default()
+                .iter()
+                .map(|row| {
+                    row.iter()
+                        .map(|id| self.graph.get_line(*id))
+                        .map(|line| line.inlines().clone())
+                        .collect()
+                })
+                .collect(),
+        ));
+
+        self.next()
+            .map(|next| Projector::new(self.graph, next.id(), self.header_level, 0).project())
+            .unwrap_or_default()
+            .iter()
+            .for_each(|block| blocks.push(block.clone()));
+
+        blocks
+    }
+
     fn node(&self) -> GraphNode {
         self.graph.graph_node(self.id)
     }
@@ -212,7 +247,7 @@ impl<'a> Projector<'a> {
 
         let link = GraphInline::Link(
             self.ref_key()
-                .to_rel_link_url(&self.graph.get_key(self.id).parent()),
+                .to_rel_link_url(&self.graph.node_key(self.id).parent()),
             String::default(),
             self.ref_type().to_link_type(),
             inlines,

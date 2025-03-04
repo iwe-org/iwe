@@ -97,17 +97,17 @@ impl<'a> SectionsBuilder<'a> {
             Para(para) => {
                 self.builder
                     .section(to_graph_inlines(&para.inlines, &self.key.parent()));
-                self.set_lines(para.line_range);
+                self.set_lines_range(para.line_range);
             }
             Plain(plain) => {
                 self.builder
                     .section(to_graph_inlines(&plain.inlines, &self.key.parent()));
-                self.set_lines(plain.line_range);
+                self.set_lines_range(plain.line_range);
             }
             Header(header) => {
                 self.builder
                     .section(to_graph_inlines(&header.inlines, &self.key.parent()));
-                self.set_lines(header.line_range);
+                self.set_lines_range(header.line_range);
             }
             Div(div) => {
                 self.section_block(div.blocks.first().unwrap());
@@ -122,16 +122,16 @@ impl<'a> SectionsBuilder<'a> {
         match block.clone() {
             CodeBlock(code_block) => {
                 self.builder.raw(&code_block.text, code_block.lang);
-                self.set_lines(code_block.line_range);
+                self.set_lines_range(code_block.line_range);
             }
             RawBlock(raw_block) => {
                 self.builder.raw(&raw_block.text, Some(raw_block.format));
-                self.set_lines(raw_block.line_range);
+                self.set_lines_range(raw_block.line_range);
             }
             Plain(plain) => {
                 self.builder
                     .leaf(to_graph_inlines(&plain.inlines, &self.key.parent()));
-                self.set_lines(plain.line_range);
+                self.set_lines_range(plain.line_range);
             }
             Para(para) => {
                 if block.is_ref() {
@@ -144,7 +144,7 @@ impl<'a> SectionsBuilder<'a> {
                     self.builder
                         .leaf(to_graph_inlines(&para.inlines, &self.key.parent()))
                 }
-                self.set_lines(para.line_range);
+                self.set_lines_range(para.line_range);
             }
             BulletList(list) => {
                 self.builder.bullet_list();
@@ -170,7 +170,7 @@ impl<'a> SectionsBuilder<'a> {
             }
             BlockQuote(quote) => {
                 self.builder.quote();
-                self.set_lines(quote.line_range);
+                self.set_lines_range(quote.line_range);
                 let id = self.builder.id();
                 SectionsBuilder::new(
                     &mut self.builder.graph().builder(id),
@@ -180,7 +180,7 @@ impl<'a> SectionsBuilder<'a> {
             }
             HorizontalRule(rule) => {
                 self.builder.horizontal_rule();
-                self.set_lines(rule.line_range);
+                self.set_lines_range(rule.line_range);
             }
             Div(div) => {
                 self.section_block(div.blocks.first().unwrap());
@@ -188,10 +188,32 @@ impl<'a> SectionsBuilder<'a> {
             Header(_) => {
                 panic!("Unexpected block type, headers should be process outside of this block")
             }
+            DocumentBlock::Table(table) => {
+                let header = table
+                    .header
+                    .iter()
+                    .map(|cell| to_graph_inlines(&cell, &self.key.parent()))
+                    .map(|inlines| self.builder.graph().add_line(inlines))
+                    .collect_vec();
+
+                let rows = table
+                    .rows
+                    .iter()
+                    .map(|row| {
+                        row.iter()
+                            .map(|cell| to_graph_inlines(&cell, &self.key.parent()))
+                            .map(|inlines| self.builder.graph().add_line(inlines))
+                            .collect_vec()
+                    })
+                    .collect_vec();
+
+                self.builder.table(header, table.alignment, rows);
+                self.set_lines_range(table.line_range);
+            }
         };
     }
 
-    fn set_lines(&mut self, line_range: LineRange) {
+    fn set_lines_range(&mut self, line_range: LineRange) {
         self.nodes_map.push((self.builder.node().id(), line_range));
     }
 }

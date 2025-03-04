@@ -3,12 +3,14 @@ use std::error::Error;
 use std::fs::OpenOptions;
 
 use iwes::main_loop;
+use iwes::ServerParams;
 use liwe::action::ActionType;
 use liwe::model::graph::Configuration;
 use lsp_types::CodeActionKind;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
+use lsp_types::InitializeParams;
 use lsp_types::OneOf;
 use lsp_types::RenameOptions;
 use lsp_types::ServerCapabilities;
@@ -86,7 +88,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         ..Default::default()
     })
     .unwrap();
-    let initialization_params = match connection.initialize(server_capabilities) {
+    let initialization_params_value = match connection.initialize(server_capabilities) {
         Ok(it) => it,
         Err(e) => {
             if e.channel_is_disconnected() {
@@ -95,6 +97,9 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             return Err(e.into());
         }
     };
+
+    let initialize_params: InitializeParams =
+        serde_json::from_value(initialization_params_value).unwrap();
 
     let current_dir = env::current_dir().expect("to get current dir");
 
@@ -119,9 +124,12 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     main_loop(
         connection,
-        initialization_params,
-        library_path.to_string_lossy().to_string(),
-        config.markdown,
+        ServerParams {
+            client_name: initialize_params.client_info.map(|it| it.name),
+            markdown_options: Some(config.markdown),
+            base_path: library_path.to_string_lossy().to_string(),
+            ..Default::default()
+        },
     )?;
     io_threads.join()?;
 

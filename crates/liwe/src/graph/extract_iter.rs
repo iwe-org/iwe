@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use super::{Graph, NodeIter};
-use crate::model::graph::{Node, Reference, ReferenceType};
+use super::Graph;
+use crate::model::node::Reference;
 use crate::model::{Key, NodeId};
+use crate::model::node::{Node, NodeIter, ReferenceType};
 
 pub struct ExtractVisitor<'a> {
     id: NodeId,

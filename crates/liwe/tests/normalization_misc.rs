@@ -150,7 +150,7 @@ fn normalization_rule() {
         ------------------------------------------------------------------------
         "},
         indoc! {"
-        ---
+        ------------------------------------------------------------------------
         "},
     );
 }
@@ -165,7 +165,7 @@ fn rule_and_text() {
         text
         "},
         indoc! {"
-        ------------------------------------------------------------------------
+        ---
 
         text
         "},
@@ -186,7 +186,7 @@ fn header_line_header() {
         indoc! {"
             # header
 
-            ------------------------------------------------------------------------
+            ---
 
             # header 2
         "},
@@ -207,6 +207,24 @@ fn one_quote() {
 }
 
 #[test]
+fn dual_para_quate() {
+    setup();
+    compare(
+        indoc! {"
+        > q1
+        >
+        > q2
+    "},
+        indoc! {"
+        > q1
+        >
+        >
+        > q2
+    "},
+    );
+}
+
+#[test]
 fn definitions_list() {
     setup();
     compare(
@@ -219,6 +237,48 @@ fn definitions_list() {
             test [^1]
 
             [^1]: some link
+    "},
+    );
+}
+
+#[test]
+fn table() {
+    setup();
+    compare(
+        indoc! {"
+        para
+
+        |header|
+        |------|
+        |row|
+    "},
+        indoc! {"
+        para
+
+        |header|
+        | - |
+        |row|
+    "},
+    );
+}
+
+#[test]
+fn two_column_table() {
+    setup();
+    compare(
+        indoc! {"
+        para
+
+        |header1|header2|
+        |-------|-------|
+        |row1|row2|
+    "},
+        indoc! {"
+        para
+
+        |header1   | header2|
+        | - | - |
+        |row1 | row2 |
     "},
     );
 }

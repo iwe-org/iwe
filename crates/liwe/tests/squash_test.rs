@@ -284,7 +284,7 @@ fn squash(source: &str, expected: &str) {
         MarkdownOptions::default(),
     );
     let mut patch = Graph::new();
-    patch.build_key_from_iter(&"1".into(), graph.squash_vistior(&"1".into(), 2));
+    patch.build_key_from_iter(&"1".into(), graph.squash_iter(&"1".into(), 2));
 
     eprintln!("graph {:#?}", graph);
     eprintln!("patch {:#?}", patch);

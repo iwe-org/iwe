@@ -1,7 +1,8 @@
 use itertools::Itertools;
 use liwe::action::ActionType;
 use liwe::graph::path::NodePath;
-use liwe::model::graph::NodeIter;
+use liwe::model::node::NodeIter;
+use liwe::model::node::NodePointer;
 use lsp_server::ResponseError;
 use lsp_types::*;
 
@@ -172,7 +173,7 @@ impl Server {
         let mut patch = self.database.graph().new_patch();
         patch
             .build_key(&key)
-            .insert_from_iter(self.database.graph().visit(&key));
+            .insert_from_iter(self.database.graph().key(&key));
 
         vec![TextEdit {
             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
@@ -251,8 +252,9 @@ impl Server {
             .unwrap()
             .to_child()
             .expect("to have child")
-            .id();
-        let id2 = self.database.graph().visit_key(&key).unwrap().id();
+            .id()
+            .unwrap();
+        let id2 = self.database.graph().visit_key(&key).unwrap().id().unwrap();
         let paths = self.database.graph().paths();
 
         paths
@@ -332,7 +334,7 @@ impl Server {
                     .into_iter()
                     .chain(self.database.graph().get_inline_references_to(&key.clone()))
                     .flat_map(|node_id| self.database.graph().visit_node(node_id).to_document())
-                    .flat_map(|doc| doc.key())
+                    .flat_map(|doc| doc.document_key())
                     .filter(|k| k != &key)
                     .unique()
                     .sorted()
@@ -418,7 +420,7 @@ impl Server {
                     .get_inline_references_to(&key.clone())
                     .iter(),
             )
-            .map(|id| (id, self.database.graph().get_container_key(*id)))
+            .map(|id| (id, self.database.graph().node_key(*id)))
             .dedup()
             .map(|(id, key)| {
                 Location::new(

@@ -1,14 +1,15 @@
-use super::{graph_node_visitor::GraphNodeVisitor, Graph, NodeIter};
-use crate::model::graph::Node;
+use super::Graph;
+use crate::model::node::Node;
 use crate::model::{Key, NodeId};
+use crate::model::node::{NodeIter, NodePointer};
 
-pub struct InlineVisitor<'a> {
+pub struct InlineIter<'a> {
     id: NodeId,
     inline_id: NodeId,
     graph: &'a Graph,
 }
 
-impl<'a> InlineVisitor<'a> {
+impl<'a> InlineIter<'a> {
     pub fn new(graph: &'a Graph, id: NodeId, inline_id: NodeId) -> Self {
         Self {
             id,
@@ -24,7 +25,7 @@ impl<'a> InlineVisitor<'a> {
             .expect("Inline node should have ref key")
     }
 
-    fn target(&self) -> GraphNodeVisitor {
+    fn target(&self) -> impl NodePointer {
         self.graph.visit_key(&self.ref_key()).expect("to have key")
     }
 
@@ -33,12 +34,12 @@ impl<'a> InlineVisitor<'a> {
     }
 }
 
-impl<'a> NodeIter<'a> for InlineVisitor<'a> {
+impl<'a> NodeIter<'a> for InlineIter<'a> {
     fn next(&self) -> Option<Self> {
         self.graph
             .graph_node(self.id)
             .next_id()
-            .map(|id| InlineVisitor {
+            .map(|id| InlineIter {
                 id,
                 inline_id: self.inline_id,
                 graph: self.graph,
@@ -47,8 +48,8 @@ impl<'a> NodeIter<'a> for InlineVisitor<'a> {
 
     fn child(&self) -> Option<Self> {
         if self.is_on_target() {
-            return self.target().to_child().map(|child| InlineVisitor {
-                id: child.id(),
+            return self.target().to_child().map(|child| InlineIter {
+                id: child.id().unwrap(),
                 inline_id: self.inline_id,
                 graph: self.graph,
             });
@@ -57,7 +58,7 @@ impl<'a> NodeIter<'a> for InlineVisitor<'a> {
         self.graph
             .graph_node(self.id)
             .child_id()
-            .map(|id| InlineVisitor {
+            .map(|id| InlineIter {
                 id,
                 inline_id: self.inline_id,
                 graph: self.graph,

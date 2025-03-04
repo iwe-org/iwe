@@ -1,7 +1,8 @@
 use std::iter::once;
 use std::ops::Range;
 
-use pulldown_cmark::{CodeBlockKind, LinkType, Options, Tag, TagEnd};
+use crate::model::node::ColumnAlignment;
+use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
 
 use crate::model::document::*;
@@ -45,7 +46,9 @@ impl MarkdownEventsReader {
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
         let mut iter = Parser::new_ext(
             content,
-            Options::ENABLE_YAML_STYLE_METADATA_BLOCKS | Options::ENABLE_WIKILINKS,
+            Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+                | Options::ENABLE_WIKILINKS
+                | Options::ENABLE_TABLES,
         )
         .into_offset_iter();
         self.line_starts = line_starts(content);
@@ -202,10 +205,29 @@ impl MarkdownEventsReader {
             Tag::DefinitionList => {}
             Tag::DefinitionListTitle => {}
             Tag::DefinitionListDefinition => {}
-            Tag::Table(_) => {}
+            Tag::Table(alignment) => {
+                self.push_block(DocumentBlock::Table(Table {
+                    line_range: self.to_line_range(range),
+                    alignment: alignment
+                        .iter()
+                        .map(|a| match a {
+                            Alignment::None => ColumnAlignment::None,
+                            Alignment::Left => ColumnAlignment::Left,
+                            Alignment::Center => ColumnAlignment::Center,
+                            Alignment::Right => ColumnAlignment::Right,
+                        })
+                        .collect(),
+                    rows: vec![],
+                    header: vec![],
+                }));
+            }
             Tag::TableHead => {}
-            Tag::TableRow => {}
-            Tag::TableCell => {}
+            Tag::TableRow => {
+                self.top_block().append_row();
+            }
+            Tag::TableCell => {
+                self.top_block().append_cell();
+            }
             Tag::Emphasis => {
                 self.push_inline(
                     DocumentInline::Emph(Emph {
@@ -301,7 +323,9 @@ impl MarkdownEventsReader {
             TagEnd::FootnoteDefinition => {}
             TagEnd::Image => self.pop_inline(),
             TagEnd::MetadataBlock(_) => self.metadata_block = false,
-            TagEnd::Table => {}
+            TagEnd::Table => {
+                self.pop_block();
+            }
             TagEnd::TableCell => {}
             TagEnd::TableHead => {}
             TagEnd::TableRow => {}

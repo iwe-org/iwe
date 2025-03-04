@@ -23,7 +23,7 @@ use lsp_types::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use iwes::{main_loop, InitializeParams};
+use iwes::{main_loop, ServerParams};
 
 pub struct Fixture {
     req_id: Cell<i32>,
@@ -107,7 +107,7 @@ impl Fixture {
             .spawn(move || {
                 main_loop(
                     connection,
-                    serde_json::to_value(InitializeParams {
+                    ServerParams {
                         state: if state.is_empty() {
                             None
                         } else {
@@ -115,10 +115,9 @@ impl Fixture {
                         },
                         client_name,
                         sequential_ids: Some(true),
-                    })
-                    .unwrap(),
-                    "/basepath".to_string(),
-                    markdown_options,
+                        base_path: "/basepath".to_string(),
+                        markdown_options: Some(markdown_options),
+                    },
                 )
                 .unwrap()
             })
@@ -177,7 +176,6 @@ impl Fixture {
         R::Params: Serialize,
     {
         let actual: Value = self.send_request::<R>(params);
-        dbg!(actual.clone());
         assert_json_eq!(&expected, &actual);
     }
 

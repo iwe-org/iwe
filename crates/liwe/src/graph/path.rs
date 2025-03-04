@@ -5,6 +5,7 @@ use rayon::iter::IntoParallelIterator;
 
 use crate::graph::graph_node::GraphNode;
 use crate::graph::Graph;
+use crate::model::node::{NodeIter, NodePointer};
 use crate::model::NodeId;
 use rayon::prelude::*;
 
@@ -112,13 +113,13 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
             .iter()
             .map(|node_id| graph.visit_node(*node_id))
             .flat_map(|reference| reference.to_parent())
-            .map(|parent| paths_for_node(graph, parent.id(), nodes))
+            .map(|parent| paths_for_node(graph, parent.id().unwrap(), nodes))
             .flatten()
             .collect_vec(),
         GraphNode::Section(_) => graph
             .visit_node(id)
             .to_parent()
-            .map(|parent| paths_for_node(graph, parent.id(), nodes))
+            .map(|parent| paths_for_node(graph, parent.id().unwrap(), nodes))
             .unwrap_or_default()
             .iter()
             .map(|path| path.append(id))
