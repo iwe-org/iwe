@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.27](https://github.com/iwe-org/iwe/compare/iwe-v0.0.26...iwe-v0.0.27) - 2025-03-08
+
+### Added
+
+- tables support ([#77](https://github.com/iwe-org/iwe/pull/77))
+
 ## [0.0.25](https://github.com/iwe-org/iwe/compare/iwe-v0.0.24...iwe-v0.0.25) - 2025-02-24
 
 ### Added
