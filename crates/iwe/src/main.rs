@@ -154,7 +154,7 @@ fn contents_command(args: Contents) {
         .paths()
         .iter()
         .filter(|n| n.ids().len() <= 1 as usize)
-        .map(|n| (&graph).get_container_key(n.first_id()))
+        .map(|n| (&graph).node_key(n.first_id()))
         .map(|key| render_block_reference(&key, &graph))
         .sorted()
         .unique()
@@ -173,7 +173,7 @@ fn squash_command(args: Squash) {
 
     patch.build_key_from_iter(
         &args.key.clone().into(),
-        graph.squash_vistior(&args.key.clone().into(), args.depth),
+        graph.squash_iter(&args.key.clone().into(), args.depth),
     );
 
     print!("{}", patch.export_key(&args.key.into()).unwrap())

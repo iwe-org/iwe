@@ -1,5 +1,6 @@
 use super::*;
-use crate::model::graph::{GraphInline, Node, NodeIter, Reference, ReferenceType};
+use crate::model::graph::GraphInline;
+use crate::model::node::{ColumnAlignment, Node, Reference, ReferenceType};
 
 pub struct GraphBuilder<'a> {
     id: NodeId,
@@ -54,12 +55,37 @@ impl<'a> GraphBuilder<'a> {
         self.quote_and(|_| {})
     }
 
+    pub fn table(
+        &mut self,
+        header: Vec<LineId>,
+        alignment: Vec<ColumnAlignment>,
+        rows: Vec<Vec<LineId>>,
+    ) {
+        self.table_and(header, alignment, rows, |_| {});
+    }
+
     pub fn quote_and<F>(&mut self, f: F)
     where
         F: FnOnce(&mut GraphBuilder) -> (),
     {
         let new_id = self.graph.new_node_id();
         self.add_node_and(GraphNode::new_quote(self.id, new_id), f);
+    }
+
+    pub fn table_and<F>(
+        &mut self,
+        header: Vec<LineId>,
+        alignment: Vec<ColumnAlignment>,
+        rows: Vec<Vec<LineId>>,
+        f: F,
+    ) where
+        F: FnOnce(&mut GraphBuilder) -> (),
+    {
+        let new_id = self.graph.new_node_id();
+        self.add_node_and(
+            GraphNode::new_table(self.id, new_id, header, alignment, rows),
+            f,
+        );
     }
 
     pub fn horizontal_rule(&mut self) {
@@ -267,6 +293,36 @@ impl<'a> GraphBuilder<'a> {
                     f,
                 );
             }
+            Node::Table(table) => {
+                let new_id = self.graph().new_node_id();
+
+                let header_line_ids = table
+                    .header
+                    .iter()
+                    .map(|inlines| self.graph.add_line(inlines.clone()))
+                    .collect();
+
+                let rows = table
+                    .rows
+                    .iter()
+                    .map(|row| {
+                        row.iter()
+                            .map(|inlines| self.graph.add_line(inlines.clone()))
+                            .collect()
+                    })
+                    .collect();
+
+                self.add_node_and2(
+                    GraphNode::new_table(
+                        self.id,
+                        new_id,
+                        header_line_ids,
+                        table.alignment.clone(),
+                        rows,
+                    ),
+                    f,
+                );
+            }
         }
     }
 
@@ -320,9 +376,10 @@ impl<'a> GraphBuilder<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::{Graph, NodeVisitor};
+    use super::{Graph, GraphNodePointer};
     use crate::markdown::MarkdownReader;
-    use crate::model::graph::{GraphInline, GraphNodeIter, Node, TreeNode};
+    use crate::model::graph::GraphInline;
+    use crate::model::node::{Node, NodePointer, TreeNode};
     use indoc::indoc;
 
     #[test]
@@ -334,7 +391,7 @@ mod test {
             )
         });
 
-        let visitor = NodeVisitor::new(&graph, graph.get_document_id(&"key".into()));
+        let visitor = GraphNodePointer::new(&graph, graph.get_document_id(&"key".into()));
 
         assert_eq!(
             TreeNode {
@@ -364,7 +421,7 @@ mod test {
             )
         });
 
-        let visitor = NodeVisitor::new(&graph, graph.get_document_id(&"key".into()));
+        let visitor = GraphNodePointer::new(&graph, graph.get_document_id(&"key".into()));
 
         assert_eq!(
             TreeNode {

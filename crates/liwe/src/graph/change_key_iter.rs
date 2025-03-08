@@ -1,9 +1,10 @@
 use itertools::Itertools;
 
+use super::Graph;
 use super::GraphContext;
-use super::{graph_node_visitor::GraphNodeVisitor, Graph};
-use crate::model::graph::{Node, NodeIter, Reference};
+use crate::model::node::Reference;
 use crate::model::{Key, NodeId};
+use crate::model::node::{Node, NodeIter, NodePointer};
 
 pub struct ChangeKeyVisitor<'a> {
     id: NodeId,
@@ -14,7 +15,7 @@ pub struct ChangeKeyVisitor<'a> {
 
 impl<'a> ChangeKeyVisitor<'a> {
     pub fn new(graph: &'a Graph, key: &Key, target_key: &Key, updated_key: &Key) -> Self {
-        let start_id = graph.visit_key(key).unwrap().id();
+        let start_id = graph.visit_key(key).unwrap().id().unwrap();
         Self {
             id: start_id,
             graph,
@@ -23,7 +24,7 @@ impl<'a> ChangeKeyVisitor<'a> {
         }
     }
 
-    fn current(&self) -> GraphNodeVisitor {
+    fn current(&self) -> impl NodePointer {
         self.graph.visit_node(self.id)
     }
 }
@@ -31,7 +32,7 @@ impl<'a> ChangeKeyVisitor<'a> {
 impl<'a> NodeIter<'a> for ChangeKeyVisitor<'a> {
     fn next(&self) -> Option<Self> {
         return self.current().to_next().map(|child| Self {
-            id: child.id(),
+            id: child.id().unwrap(),
             graph: self.graph,
             target_key: self.target_key.clone(),
             updated_key: self.updated_key.clone(),
@@ -40,7 +41,7 @@ impl<'a> NodeIter<'a> for ChangeKeyVisitor<'a> {
 
     fn child(&self) -> Option<Self> {
         return self.current().to_child().map(|child| Self {
-            id: child.id(),
+            id: child.id().unwrap(),
             graph: self.graph,
             target_key: self.target_key.clone(),
             updated_key: self.updated_key.clone(),

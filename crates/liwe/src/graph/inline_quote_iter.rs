@@ -1,6 +1,7 @@
-use super::{graph_node_visitor::GraphNodeVisitor, Graph, NodeIter};
-use crate::model::graph::Node;
+use super::Graph;
+use crate::model::node::Node;
 use crate::model::{Key, NodeId};
+use crate::model::node::{NodeIter, NodePointer};
 
 pub struct InlineQuoteVisitor<'a> {
     id: NodeId,
@@ -24,7 +25,7 @@ impl<'a> InlineQuoteVisitor<'a> {
             .expect("Inline node should have ref key")
     }
 
-    fn target(&self) -> GraphNodeVisitor {
+    fn target(&self) -> impl NodePointer {
         self.graph.visit_key(&self.ref_key()).expect("to have key")
     }
 
@@ -45,7 +46,7 @@ impl<'a> NodeIter<'a> for InlineQuoteVisitor<'a> {
     fn child(&self) -> Option<Self> {
         if self.is_on_target() {
             return self.target().to_child().map(|child| Self {
-                id: child.id(),
+                id: child.id().unwrap(),
                 inline_id: self.inline_id,
                 graph: self.graph,
             });

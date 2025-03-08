@@ -1,6 +1,7 @@
-use super::{graph_node_visitor::GraphNodeVisitor, Graph};
-use crate::model::graph::{Node, NodeIter};
+use super::Graph;
+use crate::model::node::Node;
 use crate::model::{Key, NodeId};
+use crate::model::node::{NodeIter, NodePointer};
 
 pub struct ChangeListTypeVisitor<'a> {
     id: NodeId,
@@ -10,7 +11,7 @@ pub struct ChangeListTypeVisitor<'a> {
 
 impl<'a> ChangeListTypeVisitor<'a> {
     pub fn new(graph: &'a Graph, key: &Key, target_id: NodeId) -> Self {
-        let start_id = graph.visit_key(key).unwrap().id();
+        let start_id = graph.visit_key(key).unwrap().id().unwrap();
         Self {
             id: start_id,
             target_id,
@@ -18,7 +19,7 @@ impl<'a> ChangeListTypeVisitor<'a> {
         }
     }
 
-    fn current(&self) -> GraphNodeVisitor {
+    fn current(&self) -> impl NodePointer {
         self.graph.visit_node(self.id)
     }
 }
@@ -26,7 +27,7 @@ impl<'a> ChangeListTypeVisitor<'a> {
 impl<'a> NodeIter<'a> for ChangeListTypeVisitor<'a> {
     fn next(&self) -> Option<Self> {
         return self.current().to_next().map(|child| Self {
-            id: child.id(),
+            id: child.id().unwrap(),
             target_id: self.target_id,
             graph: self.graph,
         });
@@ -34,7 +35,7 @@ impl<'a> NodeIter<'a> for ChangeListTypeVisitor<'a> {
 
     fn child(&self) -> Option<Self> {
         return self.current().to_child().map(|child| Self {
-            id: child.id(),
+            id: child.id().unwrap(),
             target_id: self.target_id,
             graph: self.graph,
         });

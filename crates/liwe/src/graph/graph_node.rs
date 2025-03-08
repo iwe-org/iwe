@@ -1,4 +1,8 @@
-use crate::model::{graph::ReferenceType, Key, LineId, MaybeLineId, MaybeNodeId, NodeId};
+use crate::model::{
+    Key, LineId, MaybeLineId, MaybeNodeId, NodeId,
+};
+use crate::model::node::{ColumnAlignment, ReferenceType};
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphNode {
     Empty,
@@ -11,6 +15,7 @@ pub enum GraphNode {
     Raw(RawLeaf),
     HorizontalRule(HorizontalRule),
     Reference(Reference),
+    Table(Table),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -171,6 +176,40 @@ pub struct RawLeaf {
     content: String,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Table {
+    id: NodeId,
+
+    prev: NodeId,
+    next: MaybeNodeId,
+
+    header: Vec<LineId>,
+    alignment: Vec<ColumnAlignment>,
+    rows: Vec<Vec<LineId>>,
+}
+
+impl Table {
+    pub fn id(&self) -> NodeId {
+        self.id
+    }
+
+    pub fn header(&self) -> &Vec<LineId> {
+        &self.header
+    }
+
+    pub fn alignment(&self) -> &Vec<ColumnAlignment> {
+        &self.alignment
+    }
+
+    pub fn rows(&self) -> &Vec<Vec<LineId>> {
+        &self.rows
+    }
+
+    pub fn next_id(&self) -> MaybeNodeId {
+        self.next
+    }
+}
+
 impl RawLeaf {
     pub fn lang(&self) -> Option<String> {
         self.lang.clone()
@@ -243,6 +282,7 @@ impl GraphNode {
             GraphNode::Reference(reference) => Some(reference.prev),
             GraphNode::HorizontalRule(rule) => Some(rule.prev),
             GraphNode::Raw(raw) => Some(raw.prev),
+            GraphNode::Table(table) => Some(table.prev),
             GraphNode::Document(_) => None,
             GraphNode::Empty => None,
         }
@@ -258,6 +298,7 @@ impl GraphNode {
             GraphNode::OrderedList(list) => list.id,
             GraphNode::Leaf(leaf) => leaf.id,
             GraphNode::Raw(leaf) => leaf.id,
+            GraphNode::Table(table) => table.id,
             GraphNode::Reference(reference) => reference.id,
             GraphNode::Empty => panic!(),
         }
@@ -282,6 +323,13 @@ impl GraphNode {
             GraphNode::Raw(_) => true,
             GraphNode::Reference(_) => true,
             GraphNode::HorizontalRule(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_table(&self) -> bool {
+        match self {
+            GraphNode::Table(_) => true,
             _ => false,
         }
     }
@@ -395,6 +443,7 @@ impl GraphNode {
             GraphNode::OrderedList(list) => list.next,
             GraphNode::Leaf(leaf) => leaf.next,
             GraphNode::Raw(leaf) => leaf.next,
+            GraphNode::Table(table) => table.next,
             GraphNode::Reference(reference) => reference.next,
             GraphNode::Document(_) => None,
             GraphNode::Empty => panic!(),
@@ -412,6 +461,7 @@ impl GraphNode {
             GraphNode::Raw(_) => "C",
             GraphNode::Reference(_) => "R",
             GraphNode::Document(_) => "D",
+            GraphNode::Table(_) => "T",
             GraphNode::Empty => "-",
         }
         .to_string()
@@ -445,6 +495,7 @@ impl GraphNode {
             GraphNode::Leaf(leaf) => leaf.next = Some(next),
             GraphNode::HorizontalRule(rule) => rule.next = Some(next),
             GraphNode::Raw(leaf) => leaf.next = Some(next),
+            GraphNode::Table(table) => table.next = Some(next),
             GraphNode::Reference(reference) => reference.next = Some(next),
             GraphNode::Document(_) => panic!("cant set next for document"),
             GraphNode::Empty => panic!(),
@@ -460,6 +511,7 @@ impl GraphNode {
             GraphNode::OrderedList(list) => list.child = Some(child),
             GraphNode::Leaf(_) => panic!("cant set child for leaf"),
             GraphNode::Raw(_) => panic!("cant set child for raw"),
+            GraphNode::Table(_) => panic!("cant set child for table"),
             GraphNode::HorizontalRule(_) => panic!("cant set child for rule"),
             GraphNode::Reference(_) => panic!("cant set child for reference"),
             GraphNode::Empty => panic!(),
@@ -477,6 +529,7 @@ impl GraphNode {
             GraphNode::Raw(_) => false,
             GraphNode::HorizontalRule(_) => false,
             GraphNode::Reference(_) => false,
+            GraphNode::Table(_) => false,
             GraphNode::Empty => false,
         }
     }
@@ -502,6 +555,23 @@ impl GraphNode {
             next: None,
             lang,
             content,
+        })
+    }
+
+    pub fn new_table(
+        prev: NodeId,
+        id: NodeId,
+        header: Vec<LineId>,
+        alignment: Vec<ColumnAlignment>,
+        rows: Vec<Vec<LineId>>,
+    ) -> GraphNode {
+        GraphNode::Table(Table {
+            id,
+            prev,
+            next: None,
+            header,
+            alignment,
+            rows,
         })
     }
 
@@ -600,6 +670,27 @@ impl GraphNode {
     pub fn lang(&self) -> Option<String> {
         match self {
             GraphNode::Raw(document) => document.lang.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn table_header(&self) -> Option<Vec<LineId>> {
+        match self {
+            GraphNode::Table(table) => Some(table.header.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn table_rows(&self) -> Option<Vec<Vec<LineId>>> {
+        match self {
+            GraphNode::Table(table) => Some(table.rows.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn table_alignment(&self) -> Option<Vec<ColumnAlignment>> {
+        match self {
+            GraphNode::Table(table) => Some(table.alignment.clone()),
             _ => None,
         }
     }

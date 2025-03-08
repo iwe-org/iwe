@@ -2,6 +2,11 @@ use std::{collections::HashMap, fmt::Display, ops::Range, path::PathBuf, sync::A
 
 use relative_path::RelativePath;
 
+pub mod document;
+pub mod graph;
+pub mod node;
+pub mod rank;
+
 pub type Markdown = String;
 
 pub type MaybeKey = Option<Key>;
@@ -114,10 +119,6 @@ pub type LibraryUrl = String;
 
 pub type Level = u8;
 pub type Title = String;
-
-pub mod document;
-pub mod graph;
-pub mod rank;
 
 pub trait InlinesContext: Copy {
     fn get_ref_title(&self, key: &Key) -> Option<String>;

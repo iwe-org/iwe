@@ -268,7 +268,7 @@ pub impl NodePath {
             deprecated: None,
             tags: None,
             location: Location {
-                uri: base_path.key_to_url(&context.get_key(self.target())),
+                uri: base_path.key_to_url(&context.node_key(self.target())),
                 range: Range::new(
                     Position {
                         line: (line as u32),

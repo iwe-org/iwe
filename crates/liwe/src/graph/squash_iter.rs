@@ -1,15 +1,16 @@
-use super::{Graph, NodeIter};
-use crate::model::graph::Node;
+use super::Graph;
+use crate::model::node::Node;
 use crate::model::NodeId;
+use crate::model::node::{NodeIter, NodePointer};
 
-pub struct SquashVisitor<'a> {
+pub struct SquashIter<'a> {
     id: NodeId,
     depth: u8,
     graph: &'a Graph,
     resume_id: Option<NodeId>,
 }
 
-impl<'a> SquashVisitor<'a> {
+impl<'a> SquashIter<'a> {
     pub fn new(graph: &'a Graph, id: NodeId, depth: u8) -> Self {
         Self {
             id,
@@ -26,7 +27,7 @@ impl<'a> SquashVisitor<'a> {
             .and_then(|n| n.ref_key())
             .and_then(|key| self.graph.visit_key(&key))
             .and_then(|doc| doc.to_child())
-            .map(|node| node.id())
+            .and_then(|node| node.id())
     }
 
     fn resume_next_referenced_id(&self) -> Option<NodeId> {
@@ -36,13 +37,13 @@ impl<'a> SquashVisitor<'a> {
             .and_then(|n| n.ref_key())
             .and_then(|key| self.graph.visit_key(&key))
             .and_then(|doc| doc.to_child())
-            .map(|node| node.id())
+            .and_then(|node| node.id())
     }
 
     fn resume_next_id(&self) -> Option<NodeId> {
         self.resume_id
             .and_then(|resume_id| self.graph.visit_node(resume_id).to_next())
-            .map(|resume_next| resume_next.id())
+            .and_then(|resume_next| resume_next.id())
     }
 
     fn child_referenced_id(&self) -> Option<NodeId> {
@@ -52,7 +53,7 @@ impl<'a> SquashVisitor<'a> {
             .and_then(|n| n.ref_key())
             .and_then(|key| self.graph.visit_key(&key))
             .and_then(|doc| doc.to_child())
-            .map(|node| node.id())
+            .and_then(|node| node.id())
     }
 
     fn next_id(&self) -> Option<NodeId> {
@@ -64,11 +65,11 @@ impl<'a> SquashVisitor<'a> {
     }
 }
 
-impl<'a> NodeIter<'a> for SquashVisitor<'a> {
+impl<'a> NodeIter<'a> for SquashIter<'a> {
     fn next(&self) -> Option<Self> {
         self.next_referenced_id()
             .filter(|_| self.depth > 0)
-            .map(|id| SquashVisitor {
+            .map(|id| SquashIter {
                 id,
                 depth: self.depth - 1,
                 resume_id: self.next_id(),
@@ -80,20 +81,20 @@ impl<'a> NodeIter<'a> for SquashVisitor<'a> {
                 .and_then(|_| {
                     self.resume_next_referenced_id()
                         .filter(|_| self.depth > 0)
-                        .map(|id| SquashVisitor {
+                        .map(|id| SquashIter {
                             id,
                             depth: self.depth + 1,
                             resume_id: self.resume_next_id(),
                             graph: self.graph,
                         })
-                        .or(self.resume_next_id().map(|id| SquashVisitor {
+                        .or(self.resume_next_id().map(|id| SquashIter {
                             id,
                             depth: self.depth + 1,
                             resume_id: None,
                             graph: self.graph,
                         }))
                 }))
-            .or(self.next_id().map(|id| SquashVisitor {
+            .or(self.next_id().map(|id| SquashIter {
                 id,
                 depth: self.depth,
                 resume_id: self.resume_id,
@@ -104,13 +105,13 @@ impl<'a> NodeIter<'a> for SquashVisitor<'a> {
     fn child(&self) -> Option<Self> {
         self.child_referenced_id()
             .filter(|_| self.depth > 0)
-            .map(|id| SquashVisitor {
+            .map(|id| SquashIter {
                 id,
                 depth: self.depth - 1,
                 resume_id: self.child_id(),
                 graph: self.graph,
             })
-            .or(self.child_id().map(|id| SquashVisitor {
+            .or(self.child_id().map(|id| SquashIter {
                 id,
                 depth: self.depth,
                 resume_id: None,

@@ -117,7 +117,7 @@ impl Router {
                 DidSaveTextDocumentParams::deserialize(notification.params).unwrap(),
             ),
             default => {
-                error!("unhandled notification: {}", default)
+                debug!("unhandled request: {}", default)
             }
         };
 

@@ -5,10 +5,10 @@ use itertools::Itertools;
 use crate::{
     graph::{GraphContext, GraphPatch},
     model::{
-        graph::{GraphNodeIter, Node, Reference, ReferenceType, TreeIter, TreeNode},
         Key, Markdown, NodeId,
     },
 };
+use crate::model::node::{Node, NodePointer, Reference, ReferenceType, TreeIter, TreeNode};
 
 pub enum ActionType {
     ListChangeType,            // action for nearest list surround cursor
@@ -80,9 +80,9 @@ pub struct Action {
 pub fn change_list_type(target_id: NodeId, context: impl GraphContext) -> Option<Action> {
     context.get_surrounding_list_id(target_id).map(|scope_id| {
         let mut patch = context.patch();
-        let key = context.get_key(target_id);
+        let key = context.node_key(target_id);
 
-        patch.add_key(&key, context.change_list_type_visitor(&key, scope_id));
+        patch.add_key(&key, context.change_list_type_iter(&key, scope_id));
         let update = patch.markdown(&key).unwrap();
 
         Action {
@@ -104,9 +104,9 @@ pub fn list_to_sections(target_id: NodeId, context: impl GraphContext) -> Option
         .get_top_level_surrounding_list_id(target_id)
         .map(|scope_id| {
             let mut patch = context.patch();
-            let key = context.get_key(scope_id);
+            let key = context.node_key(scope_id);
 
-            patch.add_key(&key, context.unwrap_vistior(&key, scope_id));
+            patch.add_key(&key, context.unwrap_iter(&key, scope_id));
             let update = patch.markdown(&key).unwrap();
 
             Action {
@@ -122,16 +122,16 @@ pub fn list_to_sections(target_id: NodeId, context: impl GraphContext) -> Option
 
 pub fn extract_list(target_id: NodeId, context: impl GraphContext) -> Option<Action> {
     context.get_surrounding_list_id(target_id).map(|scope_id| {
-        let key = context.get_key(scope_id);
+        let key = context.node_key(scope_id);
         let new_key = context.random_key(&key.parent());
 
         let mut patch = context.patch();
         patch.add_key(
             &key,
-            context.extract_vistior(&key, HashMap::from([(scope_id, new_key.clone())])),
+            context.extract_iter(&key, HashMap::from([(scope_id, new_key.clone())])),
         );
 
-        patch.add_key(&new_key, context.node_visitor(target_id));
+        patch.add_key(&new_key, context.node(target_id));
 
         let markdown = patch.markdown(&key).unwrap();
         let new_markdown = patch.markdown(&new_key).unwrap();
@@ -214,17 +214,17 @@ pub fn extract_section(target_id: NodeId, context: impl GraphContext) -> Option<
         .get_surrounding_section_id(target_id)
         .filter(|_| context.is_header(target_id))
         .map(|parent_id| {
-            let key = context.get_key(target_id);
+            let key = context.node_key(target_id);
             let new_key = context.random_key(&key.parent());
 
             let mut patch = context.patch();
 
-            let tree = TreeNode::from_iter(context.visit(&key)).unwrap();
+            let tree = TreeNode::from_iter(context.key(&key)).unwrap();
 
             let updated_tree = extract(&tree, target_id, parent_id, &new_key);
             patch.add_key(&key, TreeIter::new(&updated_tree));
 
-            patch.add_key(&new_key, context.node_visit_children_of(target_id));
+            patch.add_key(&new_key, context.children_iter(target_id));
 
             let markdown = patch.markdown(&key).unwrap();
             let new_markdown = patch.markdown(&new_key).unwrap();
@@ -254,7 +254,7 @@ pub fn extract_sub_sections(target_id: NodeId, context: impl GraphContext) -> Op
         .filter(|node_id| context.is_header(*node_id))
         .filter(|node_id| context.get_sub_sections(*node_id).len() > 0)
         .map(|header_id| {
-            let key = context.get_key(target_id);
+            let key = context.node_key(target_id);
             let sub_sections = context.get_sub_sections(header_id);
 
             let mut patch = context.patch();
@@ -264,10 +264,10 @@ pub fn extract_sub_sections(target_id: NodeId, context: impl GraphContext) -> Op
                 let new_key = context.random_key(&key.parent());
 
                 extracted.insert(section_id, new_key.clone());
-                patch.add_key(&new_key, context.node_visit_children_of(section_id));
+                patch.add_key(&new_key, context.children_iter(section_id));
             }
 
-            patch.add_key(&key, context.extract_vistior(&key, extracted.clone()));
+            patch.add_key(&key, context.extract_iter(&key, extracted.clone()));
 
             let mut changes = vec![];
 
@@ -298,9 +298,9 @@ pub fn inline_list(target_id: NodeId, context: impl GraphContext) -> Option<Acti
     Some(target_id)
         .filter(|node_id| context.is_reference(*node_id))
         .map(|reference_id| {
-            let key = context.get_key(target_id);
+            let key = context.node_key(target_id);
             let mut patch = context.patch();
-            patch.add_key(&key, context.inline_vistior(&key, reference_id));
+            patch.add_key(&key, context.inline_iter(&key, reference_id));
             let markdown = patch.markdown(&key).unwrap();
 
             Action {
@@ -323,9 +323,9 @@ pub fn inline_quote(target_id: NodeId, context: impl GraphContext) -> Option<Act
     Some(target_id)
         .filter(|node_id| context.is_reference(*node_id))
         .map(|reference_id| {
-            let key = context.get_key(target_id);
+            let key = context.node_key(target_id);
             let mut patch = context.patch();
-            patch.add_key(&key, context.inline_quote_vistior(&key, reference_id));
+            patch.add_key(&key, context.inline_quote_iter(&key, reference_id));
             let markdown = patch.markdown(&key).unwrap();
 
             Action {
@@ -348,7 +348,7 @@ pub fn inline_section(target_id: NodeId, context: impl GraphContext) -> Option<A
     Some(target_id)
         .filter(|target_id| context.is_reference(*target_id))
         .and_then(|target_id| {
-            let key = context.get_key(target_id);
+            let key = context.node_key(target_id);
             let inline_key = context.get_reference_key(target_id);
             let mut patch = context.patch();
             context
@@ -357,13 +357,10 @@ pub fn inline_section(target_id: NodeId, context: impl GraphContext) -> Option<A
                     patch.add_key(
                         &key,
                         context
-                            .visit(&key)
+                            .key(&key)
                             .collect_tree()
                             .remove_node(target_id)
-                            .append_pre_header(
-                                section_id,
-                                context.visit(&inline_key).collect_tree(),
-                            )
+                            .append_pre_header(section_id, context.key(&inline_key).collect_tree())
                             .iter(),
                     );
 
@@ -391,9 +388,9 @@ pub fn section_to_list(target_id: NodeId, context: impl GraphContext) -> Option<
         .filter(|node_id| context.is_header(*node_id))
         .map(|scope_id| {
             let mut patch = context.patch();
-            let key = context.get_key(target_id);
+            let key = context.node_key(target_id);
 
-            patch.add_key(&key, context.wrap_vistior(scope_id));
+            patch.add_key(&key, context.wrap_iter(scope_id));
             let update = patch.markdown(&key).unwrap();
 
             Action {

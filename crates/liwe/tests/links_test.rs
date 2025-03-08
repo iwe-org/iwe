@@ -174,10 +174,6 @@ fn compare(expected: &str, denormalized: &str) {
 
     let normalized = to_indoc(&graph.export());
 
-    dbg!(graph.clone());
-    dbg!(expected);
-    dbg!(normalized.clone());
-
     assert_str_eq!(expected, normalized);
 }
 
@@ -208,10 +204,6 @@ fn compare_state(exp: Documents, den: Documents) {
 
     let normalized = &graph.export();
 
-    dbg!(graph.clone());
-    dbg!(expected.clone());
-    dbg!(normalized.clone());
-
     assert_eq!(&expected, normalized);
 }
 
@@ -225,10 +217,6 @@ fn compare_with_extensions(expected: &str, denormalized: &str) {
     graph.from_markdown("key".into(), denormalized, MarkdownReader::new());
 
     let normalized = graph.to_markdown(&"key".into());
-
-    dbg!(graph.clone());
-    dbg!(expected);
-    dbg!(normalized.clone());
 
     assert_str_eq!(expected, normalized);
 }

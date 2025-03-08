@@ -1,8 +1,8 @@
 use crate::model;
 use crate::model::graph::GraphInline;
 use crate::model::{Key, Lang, LineRange};
-
-use super::graph::ReferenceType;
+use crate::model::node::ReferenceType;
+use crate::model::node::ColumnAlignment;
 use super::{InlineRange, Position};
 
 pub struct Document {
@@ -22,6 +22,7 @@ pub enum DocumentBlock {
     Header(Header),
     HorizontalRule(HorizontalRule),
     Div(Div),
+    Table(Table),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -107,6 +108,7 @@ impl DocumentBlock {
             DocumentBlock::Header(_) => false,
             DocumentBlock::HorizontalRule(_) => false,
             DocumentBlock::Div(_) => true,
+            DocumentBlock::Table(_) => false,
         }
     }
 
@@ -122,6 +124,28 @@ impl DocumentBlock {
                 quote.blocks.push(block);
             }
             _ => panic!(),
+        }
+    }
+
+    pub fn append_row(&mut self) {
+        match self {
+            DocumentBlock::Table(table) => {
+                table.rows.push(Vec::new());
+            }
+            _ => panic!("cannot append row to non table block"),
+        }
+    }
+
+    pub fn append_cell(&mut self) {
+        match self {
+            DocumentBlock::Table(table) => {
+                if table.rows.is_empty() {
+                    table.header.push(Vec::new());
+                } else if let Some(row) = table.rows.last_mut() {
+                    row.push(Vec::new());
+                }
+            }
+            _ => panic!("cannot append cell to non table block"),
         }
     }
 
@@ -180,6 +204,17 @@ impl DocumentBlock {
             DocumentBlock::Header(header) => header.inlines.push(inline),
             DocumentBlock::HorizontalRule(_) => {}
             DocumentBlock::Div(_) => {}
+            DocumentBlock::Table(table) => {
+                if table.rows.is_empty() {
+                    if let Some(last_cell) = table.header.last_mut() {
+                        last_cell.push(inline.clone());
+                    }
+                } else if let Some(last_row) = table.rows.last_mut() {
+                    if let Some(last_cell) = last_row.last_mut() {
+                        last_cell.push(inline.clone());
+                    }
+                }
+            }
         }
     }
 
@@ -199,6 +234,7 @@ impl DocumentBlock {
             DocumentBlock::Header(header) => header.line_range.clone(),
             DocumentBlock::HorizontalRule(hr) => hr.line_range.clone(),
             DocumentBlock::Div(div) => div.line_range.clone(),
+            DocumentBlock::Table(table) => table.line_range.clone(),
         }
     }
 
@@ -214,6 +250,7 @@ impl DocumentBlock {
             DocumentBlock::Header(_) => vec![],
             DocumentBlock::HorizontalRule(_) => vec![],
             DocumentBlock::Div(div) => div.blocks.iter().collect(),
+            DocumentBlock::Table(_) => vec![],
         }
     }
 
@@ -264,6 +301,14 @@ pub struct RawBlock {
     pub line_range: LineRange,
     pub format: String,
     pub text: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Table {
+    pub line_range: LineRange,
+    pub header: Vec<DocumentInlines>,
+    pub rows: Vec<Vec<DocumentInlines>>,
+    pub alignment: Vec<ColumnAlignment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

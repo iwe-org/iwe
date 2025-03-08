@@ -10,48 +10,43 @@ use router::{LspClient, Router, ServerConfig};
 
 mod router;
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
-pub struct InitializeParams {
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Default)]
+pub struct ServerParams {
     pub state: Option<HashMap<String, String>>,
     pub sequential_ids: Option<bool>,
     pub client_name: Option<String>,
+    pub markdown_options: Option<MarkdownOptions>,
+    pub base_path: String,
 }
 
-pub fn main_loop(
-    connection: Connection,
-    params_value: serde_json::Value,
-    base_path: String,
-    markdown_options: MarkdownOptions,
-) -> Result<()> {
-    let initialize_params: InitializeParams = serde_json::from_value(params_value).unwrap();
-
-    let client = initialize_params
+pub fn main_loop(connection: Connection, params: ServerParams) -> Result<()> {
+    let client = params
         .clone()
         .client_name
         .filter(|name| name.eq("helix"))
         .map(|_| LspClient::Helix)
         .unwrap_or(LspClient::Unknown);
 
-    let router = if let Some(state) = initialize_params.state {
+    let router = if let Some(state) = params.state {
         Router::new(
             connection.sender,
             ServerConfig {
-                base_path: base_path.clone(),
+                base_path: params.base_path.clone(),
                 state: new_from_hashmap(state),
                 sequential_ids: Some(true),
                 lsp_client: client,
-                markdown_options,
+                markdown_options: params.markdown_options.unwrap_or_default(),
             },
         )
     } else {
         Router::new(
             connection.sender,
             ServerConfig {
-                base_path: base_path.clone(),
-                state: new_for_path(&PathBuf::from_str(&base_path).expect("to work")),
+                base_path: params.base_path.clone(),
+                state: new_for_path(&PathBuf::from_str(&params.base_path).expect("to work")),
                 sequential_ids: None,
                 lsp_client: client,
-                markdown_options,
+                markdown_options: params.markdown_options.unwrap_or_default(),
             },
         )
     };

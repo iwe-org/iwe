@@ -123,6 +123,7 @@ impl RefIndex {
                     self.index_node(graph, child_id);
                 });
             }
+            GraphNode::Table(_) => {}
         }
     }
 }

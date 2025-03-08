@@ -6,6 +6,8 @@ pub mod reader;
 use reader::MarkdownEventsReader;
 pub struct MarkdownReader {}
 
+pub mod writer;
+
 impl MarkdownReader {
     pub fn new() -> MarkdownReader {
         MarkdownReader {}

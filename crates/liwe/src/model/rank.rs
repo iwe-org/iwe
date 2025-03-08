@@ -1,5 +1,6 @@
 use super::NodeId;
 use crate::graph::Graph;
+use crate::model::node::NodePointer;
 
 pub fn node_rank(graph: &Graph, id: NodeId) -> usize {
     if !graph.visit_node(id).is_primary_section() {
