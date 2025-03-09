@@ -2,10 +2,13 @@ use std::{collections::HashMap, fmt::Display, ops::Range, path::PathBuf, sync::A
 
 use relative_path::RelativePath;
 
+pub mod config;
 pub mod document;
 pub mod graph;
 pub mod node;
+pub mod projector;
 pub mod rank;
+pub mod tree;
 
 pub type Markdown = String;
 
@@ -65,6 +68,10 @@ impl Key {
         RelativePath::new(relative_to)
             .relative(self.relative_path.to_string())
             .to_string()
+    }
+
+    pub fn to_library_url(&self) -> String {
+        self.relative_path.to_string()
     }
 
     pub fn last_url_segment(&self) -> String {

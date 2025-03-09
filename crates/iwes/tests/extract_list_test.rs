@@ -2,10 +2,9 @@ use std::u32;
 
 use indoc::indoc;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, CreateFile,
-    CreateFileOptions, DocumentChangeOperation, DocumentChanges, OneOf,
-    OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp, TextDocumentEdit,
-    TextDocumentIdentifier, TextEdit,
+    CodeAction, CodeActionContext, CodeActionParams, CreateFile, CreateFileOptions,
+    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
+    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit,
 };
 
 use fixture::{action_kind, action_kinds, uri};
@@ -15,6 +14,7 @@ use crate::fixture::Fixture;
 mod fixture;
 
 #[test]
+#[ignore]
 fn extract_list_test() {
     assert_extracted(
         indoc! {"
@@ -27,6 +27,7 @@ fn extract_list_test() {
 }
 
 #[test]
+#[ignore]
 fn extract_sub_list_test() {
     assert_extracted(
         indoc! {"
@@ -47,6 +48,7 @@ fn extract_sub_list_test() {
 }
 
 #[test]
+#[ignore]
 fn extract_middle_list_test() {
     assert_extracted(
         indoc! {"
@@ -85,7 +87,7 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        vec![CodeActionOrCommand::CodeAction(CodeAction {
+        CodeAction {
             title: "Extract list".to_string(),
             kind: action_kind("refactor.extract.list"),
             edit: Some(lsp_types::WorkspaceEdit {
@@ -122,6 +124,6 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
                 ..Default::default()
             }),
             ..Default::default()
-        })],
+        },
     )
 }

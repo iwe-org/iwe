@@ -1,14 +1,15 @@
 use std::panic;
+use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use crossbeam_channel::{select, Receiver, Sender};
-use liwe::model::graph::MarkdownOptions;
+use liwe::model::config::Configuration;
 use liwe::model::State;
 use log::{debug, error};
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::{
-    CodeActionParams, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
+    CodeAction, CodeActionParams, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
     DocumentFormattingParams, DocumentSymbolParams, InlayHintParams, InlineValueParams,
     ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
@@ -30,17 +31,18 @@ pub struct ServerConfig {
     pub base_path: String,
     pub state: State,
     pub sequential_ids: Option<bool>,
-    pub markdown_options: MarkdownOptions,
+    pub configuration: Configuration,
     pub lsp_client: LspClient,
 }
 
+#[derive(Clone)]
 pub struct Router {
-    server: Server,
+    server: Arc<Server>,
     sender: Sender<Message>,
 }
 
 impl Router {
-    pub fn respond(&mut self, response: Response) {
+    pub fn respond(&self, response: Response) {
         self.send(response.into());
     }
 
@@ -55,14 +57,14 @@ impl Router {
             config.state.len()
         );
 
-        let db = Self {
-            server: Server::new(config),
+        let router = Self {
+            server: Arc::new(Server::new(config)),
             sender,
         };
 
         debug!("initializing LSP database complete");
 
-        db
+        router
     }
 
     fn next_event(&self, inbox: &Receiver<Message>) -> Option<Message> {
@@ -98,7 +100,12 @@ impl Router {
 
     fn handle_message(&mut self, message: Message) -> bool {
         match message {
-            Message::Request(req) => self.on_request(req),
+            Message::Request(req) => {
+                let request = req;
+                let self_clone = self.clone();
+                let _ = std::thread::spawn(move || self_clone.on_request(request));
+                false
+            }
             Message::Notification(notification) => self.on_notification(notification),
             Message::Response(_) => false,
         }
@@ -110,12 +117,18 @@ impl Router {
         }
 
         match notification.method.as_str() {
-            "textDocument/didChange" => self.server.handle_did_change_text_document(
-                DidChangeTextDocumentParams::deserialize(notification.params).unwrap(),
-            ),
-            "textDocument/didSave" => self.server.handle_did_save_text_document(
-                DidSaveTextDocumentParams::deserialize(notification.params).unwrap(),
-            ),
+            "textDocument/didChange" => {
+                let params = DidChangeTextDocumentParams::deserialize(notification.params).unwrap();
+                Arc::get_mut(&mut self.server)
+                    .unwrap()
+                    .handle_did_change_text_document(params);
+            }
+            "textDocument/didSave" => {
+                let params = DidSaveTextDocumentParams::deserialize(notification.params).unwrap();
+                Arc::get_mut(&mut self.server)
+                    .unwrap()
+                    .handle_did_save_text_document(params);
+            }
             default => {
                 debug!("unhandled request: {}", default)
             }
@@ -124,7 +137,7 @@ impl Router {
         false
     }
 
-    fn on_request(&mut self, request: Request) -> bool {
+    fn on_request(&self, request: Request) -> bool {
         if request.method == "shutdown" {
             self.respond(Response {
                 id: request.id.clone(),
@@ -156,6 +169,9 @@ impl Router {
                 .map(|response| to_value(response).unwrap()),
             "textDocument/codeAction" => CodeActionParams::deserialize(request.params)
                 .map(|params| self.server.handle_code_action(&params))
+                .map(|response| to_value(response).unwrap()),
+            "codeAction/resolve" => CodeAction::deserialize(request.params)
+                .map(|params| self.server.handle_code_action_resolve(&params))
                 .map(|response| to_value(response).unwrap()),
             "textDocument/formatting" => DocumentFormattingParams::deserialize(request.params)
                 .map(|params| self.server.handle_document_formatting(params))

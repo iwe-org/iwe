@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
-
 use super::document::LinkType;
 use crate::markdown::writer::MarkdownWriter;
 use crate::model;
+use crate::model::config::MarkdownOptions;
 use crate::model::document::DocumentInlines;
 use crate::model::node::ColumnAlignment;
 use crate::model::{InlinesContext, Key, Lang, Level, LibraryUrl, Title};
+
 pub type Blocks = Vec<GraphBlock>;
 pub type GraphInlines = Vec<GraphInline>;
 
@@ -46,22 +46,6 @@ pub enum GraphInline {
     Subscript(GraphInlines),
     Superscript(GraphInlines),
     Underline(GraphInlines),
-}
-
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
-pub struct MarkdownOptions {
-    pub refs_extension: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
-pub struct LibraryOptions {
-    pub path: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
-pub struct Configuration {
-    pub markdown: MarkdownOptions,
-    pub library: LibraryOptions,
 }
 
 #[allow(dead_code)]
@@ -203,7 +187,7 @@ impl GraphInline {
             GraphInline::Math(math) => format!("${}$", math),
         }
     }
-    pub fn to_plain_text(&self) -> String {
+    pub fn plain_text(&self) -> String {
         match self {
             GraphInline::Str(text) => text.clone(),
             GraphInline::Emph(emph) => to_plain_text(emph),
@@ -320,55 +304,50 @@ impl GraphInline {
         }
     }
 
-    pub fn change_key(
-        &self,
-        target_key: &Key,
-        updated_key: &Key,
-        context: impl InlinesContext,
-    ) -> GraphInline {
+    pub fn change_key(&self, target_key: &Key, updated_key: &Key) -> GraphInline {
         match self {
             GraphInline::Emph(emph) => GraphInline::Emph(
                 emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
 
             GraphInline::Strong(emph) => GraphInline::Strong(
                 emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
             GraphInline::Underline(emph) => GraphInline::Underline(
                 emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
 
             GraphInline::Strikeout(emph) => GraphInline::Strikeout(
                 emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
             GraphInline::Superscript(emph) => GraphInline::Superscript(
                 emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
             GraphInline::Subscript(emph) => GraphInline::Subscript(
                 emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
             GraphInline::SmallCaps(emph) => GraphInline::SmallCaps(
                 emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key, context))
+                    .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
             GraphInline::Link(_, title, link_type, _) => {
                 if self.is_ref() && self.ref_key().map_or(false, |key| key.eq(target_key)) {
                     return GraphInline::Link(
                         updated_key.to_string(),
-                        context.get_ref_title(target_key).unwrap_or(title.clone()),
+                        title.clone(),
                         *link_type,
                         vec![],
                     );
@@ -428,7 +407,8 @@ fn left_pad_and_prefix_num(text: &str, num: usize) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::model::graph::{blocks_to_markdown, MarkdownOptions};
+    use crate::model::config::MarkdownOptions;
+    use crate::model::graph::blocks_to_markdown;
     use crate::model::graph::{GraphBlock, GraphInline};
     use indoc::indoc;
 
@@ -572,7 +552,7 @@ pub mod tests {
 pub fn to_plain_text(content: &GraphInlines) -> String {
     content
         .iter()
-        .map(|i| i.to_plain_text())
+        .map(|i| i.plain_text())
         .collect::<Vec<String>>()
         .join("")
 }

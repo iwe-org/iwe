@@ -8,8 +8,10 @@ use itertools::Itertools;
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
-use liwe::model::graph::Configuration;
+use liwe::model::config::Configuration;
 
+use liwe::model::node::NodePointer;
+use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use log::{debug, error};
 
@@ -124,7 +126,7 @@ fn init_command(init: Init) {
     }
     create_dir(&path).expect("to create .iwe directory");
 
-    let toml = toml::to_string(&default_settings()).unwrap();
+    let toml = toml::to_string(&Configuration::template()).unwrap();
 
     std::fs::write(path.join(CONFIG_FILE_NAME), toml).expect("Failed to write to config.json");
     debug!("IWE initialized in the current location. Default config added to .iwe/config.json");
@@ -154,7 +156,7 @@ fn contents_command(args: Contents) {
         .paths()
         .iter()
         .filter(|n| n.ids().len() <= 1 as usize)
-        .map(|n| (&graph).node_key(n.first_id()))
+        .map(|n| (&graph).node(n.first_id()).node_key())
         .map(|key| render_block_reference(&key, &graph))
         .sorted()
         .unique()
@@ -170,11 +172,9 @@ fn normalize_command(args: Normalize) {
 fn squash_command(args: Squash) {
     let graph = &load_graph();
     let mut patch = Graph::new();
+    let squashed = graph.squash(&Key::from_file_name(&args.key), args.depth);
 
-    patch.build_key_from_iter(
-        &args.key.clone().into(),
-        graph.squash_iter(&args.key.clone().into(), args.depth),
-    );
+    patch.build_key_from_iter(&args.key.clone().into(), TreeIter::new(&squashed));
 
     print!("{}", patch.export_key(&args.key.into()).unwrap())
 }
@@ -235,10 +235,4 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(id.clone()).trim().to_string())
         .collect_vec()
         .join(" • ")
-}
-
-fn default_settings() -> Configuration {
-    let mut settings = Configuration::default();
-    settings.markdown.refs_extension = String::default();
-    settings
 }

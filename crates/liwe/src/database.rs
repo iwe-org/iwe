@@ -5,7 +5,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::graph::{Graph, SearchPath};
 use crate::markdown::MarkdownReader;
-use crate::model::graph::MarkdownOptions;
+use crate::model::config::MarkdownOptions;
 use crate::model::{Content, Key, State};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 

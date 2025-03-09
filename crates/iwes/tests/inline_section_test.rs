@@ -2,10 +2,9 @@ use std::u32;
 
 use indoc::indoc;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionTriggerKind,
-    DeleteFile, DocumentChangeOperation, DocumentChanges, OneOf,
-    OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp, TextDocumentEdit,
-    TextDocumentIdentifier, TextEdit,
+    CodeAction, CodeActionContext, CodeActionParams, CodeActionTriggerKind, DeleteFile,
+    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
+    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit,
 };
 
 use fixture::{action_kind, action_kinds, uri};
@@ -225,7 +224,7 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
                 trigger_kind: Some(CodeActionTriggerKind::INVOKED),
             },
         },
-        vec![CodeActionOrCommand::CodeAction(CodeAction {
+        CodeAction {
             title: "Inline section".to_string(),
             kind: action_kind("refactor.inline.reference.section"),
             edit: Some(lsp_types::WorkspaceEdit {
@@ -245,25 +244,22 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
                 ..Default::default()
             }),
             ..Default::default()
-        })],
+        },
     )
 }
 
 fn assert_no_action(source: &str, line: u32) {
     let fixture = Fixture::with(source);
 
-    fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.extract.section"),
-                trigger_kind: None,
-            },
+    fixture.no_code_action(CodeActionParams {
+        text_document: TextDocumentIdentifier { uri: uri(1) },
+        range: Range::new(Position::new(line, 0), Position::new(line, 0)),
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+        context: CodeActionContext {
+            diagnostics: Default::default(),
+            only: action_kinds("refactor.extract.section"),
+            trigger_kind: None,
         },
-        vec![],
-    )
+    })
 }

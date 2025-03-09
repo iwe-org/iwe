@@ -5,10 +5,10 @@ use crate::model::{
     document,
     graph::{
         inlines_to_markdown, GraphBlock, GraphInline, GraphInlines,
-        MarkdownOptions,
     },
     is_ref_url,
 };
+use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
 
 pub struct MarkdownWriter {

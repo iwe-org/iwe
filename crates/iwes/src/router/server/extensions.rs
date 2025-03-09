@@ -2,13 +2,14 @@ use std::u32;
 
 use extend::ext;
 use itertools::Itertools;
-use liwe::action::{Action, ActionType, Change};
 use liwe::graph::path::NodePath;
+use liwe::model::node::NodePointer;
 use lsp_types::*;
 
 use liwe::graph::GraphContext;
 use liwe::model::{Content, Key};
 
+use super::action::Change;
 use super::BasePath;
 
 #[ext]
@@ -47,26 +48,6 @@ pub impl Vec<DocumentChangeOperation> {
 }
 
 #[ext]
-pub impl Action {
-    fn to_code_action(&self, base_path: &BasePath) -> CodeActionOrCommand {
-        CodeActionOrCommand::CodeAction(CodeAction {
-            title: self.title.to_string(),
-            kind: Some(self.action_type.action_kind()),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(
-                    self.changes
-                        .iter()
-                        .map(|change| change.to_document_change(base_path))
-                        .collect(),
-                )),
-                ..Default::default()
-            }),
-            ..Default::default()
-        })
-    }
-}
-
-#[ext]
 pub impl Range {
     fn just_lines(&self) -> Range {
         Range::new(
@@ -84,13 +65,6 @@ pub impl Range {
 
     fn empty(&self) -> bool {
         self.start.eq(&self.end)
-    }
-}
-
-#[ext]
-pub impl ActionType {
-    fn action_kind(&self) -> CodeActionKind {
-        CodeActionKind::new(self.identifier())
     }
 }
 
@@ -268,7 +242,7 @@ pub impl NodePath {
             deprecated: None,
             tags: None,
             location: Location {
-                uri: base_path.key_to_url(&context.node_key(self.target())),
+                uri: base_path.key_to_url(&context.node(self.target()).node_key()),
                 range: Range::new(
                     Position {
                         line: (line as u32),

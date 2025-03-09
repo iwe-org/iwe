@@ -1,7 +1,7 @@
-use super::Graph;
+use super::{Graph, GraphContext};
 use crate::model::node::Node;
-use crate::model::NodeId;
 use crate::model::node::{NodeIter, NodePointer};
+use crate::model::NodeId;
 
 pub struct SquashIter<'a> {
     id: NodeId,
@@ -11,6 +11,7 @@ pub struct SquashIter<'a> {
 }
 
 impl<'a> SquashIter<'a> {
+    #[allow(dead_code)]
     pub fn new(graph: &'a Graph, id: NodeId, depth: u8) -> Self {
         Self {
             id,
@@ -22,36 +23,36 @@ impl<'a> SquashIter<'a> {
 
     fn next_referenced_id(&self) -> Option<NodeId> {
         self.graph
-            .visit_node(self.id)
+            .node(self.id)
             .to_next()
             .and_then(|n| n.ref_key())
-            .and_then(|key| self.graph.visit_key(&key))
+            .and_then(|key| self.graph.maybe_key(&key))
             .and_then(|doc| doc.to_child())
             .and_then(|node| node.id())
     }
 
     fn resume_next_referenced_id(&self) -> Option<NodeId> {
         self.resume_id
-            .map(|id| self.graph.visit_node(id))
+            .map(|id| self.graph.node(id))
             .and_then(|n| n.to_next())
             .and_then(|n| n.ref_key())
-            .and_then(|key| self.graph.visit_key(&key))
+            .and_then(|key| self.graph.maybe_key(&key))
             .and_then(|doc| doc.to_child())
             .and_then(|node| node.id())
     }
 
     fn resume_next_id(&self) -> Option<NodeId> {
         self.resume_id
-            .and_then(|resume_id| self.graph.visit_node(resume_id).to_next())
+            .and_then(|resume_id| self.graph.node(resume_id).to_next())
             .and_then(|resume_next| resume_next.id())
     }
 
     fn child_referenced_id(&self) -> Option<NodeId> {
         self.graph
-            .visit_node(self.id)
+            .node(self.id)
             .to_child()
             .and_then(|n| n.ref_key())
-            .and_then(|key| self.graph.visit_key(&key))
+            .and_then(|key| self.graph.maybe_key(&key))
             .and_then(|doc| doc.to_child())
             .and_then(|node| node.id())
     }
@@ -120,6 +121,10 @@ impl<'a> NodeIter<'a> for SquashIter<'a> {
     }
 
     fn node(&self) -> Option<Node> {
-        self.graph.node(self.id)
+        {
+            let this = &self.graph;
+            let id = self.id;
+            this.node(id).node()
+        }
     }
 }
