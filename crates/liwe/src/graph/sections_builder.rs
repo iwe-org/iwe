@@ -112,6 +112,16 @@ impl<'a> SectionsBuilder<'a> {
             Div(div) => {
                 self.section_block(div.blocks.first().unwrap());
             }
+            BulletList(list) => {
+                for b in list.items.iter() {
+                    self.process_section(0..b.len(), b);
+                }
+            }
+            OrderedList(list) => {
+                for b in list.items.iter() {
+                    self.process_section(0..b.len(), b);
+                }
+            }
             _ => {
                 panic!("section block panic for: {:?}", block)
             }
