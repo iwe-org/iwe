@@ -19,6 +19,74 @@ fn normalization_list_item() {
 }
 
 #[test]
+fn normalization_dual_dash_list_item() {
+    compare(
+        indoc! {"
+        - item 1
+        "},
+        indoc! {"
+        - - item 1
+        "},
+    );
+}
+
+#[test]
+fn normalization_dual_dash_list_item2() {
+    compare(
+        indoc! {"
+        - item 1
+        - item 2
+        "},
+        indoc! {"
+        - - item 1
+        - item 2
+        "},
+    );
+}
+
+#[test]
+fn normalization_dual_dash_two_items_list_item() {
+    compare(
+        indoc! {"
+        - item 1
+        - item 2
+        "},
+        indoc! {"
+        - - item 1
+          - item 2
+        "},
+    );
+}
+
+#[test]
+fn normalization_dual_dash_three_items_list_item() {
+    compare(
+        indoc! {"
+        - item 1
+        - item 2
+        "},
+        indoc! {"
+        - - - item 1
+          - item 2
+        "},
+    );
+}
+
+#[test]
+fn normalization_dual_dash_two_items_ordered_list_item() {
+    compare(
+        indoc! {"
+        1.  item 1
+        2.  item 2
+        "},
+        indoc! {"
+        1.  1.  item 1
+            2.  item 2
+        "},
+    );
+}
+
+#[test]
 fn normalization_list_items_with_text() {
     compare(
         indoc! {"
