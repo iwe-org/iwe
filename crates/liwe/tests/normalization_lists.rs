@@ -31,6 +31,20 @@ fn normalization_dual_dash_list_item() {
 }
 
 #[test]
+fn normalization_dual_dash_list_item2() {
+    compare(
+        indoc! {"
+        - item 1
+        - item 2
+        "},
+        indoc! {"
+        - - item 1
+        - item 2
+        "},
+    );
+}
+
+#[test]
 fn normalization_dual_dash_two_items_list_item() {
     compare(
         indoc! {"
