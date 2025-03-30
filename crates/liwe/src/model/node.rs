@@ -1,7 +1,11 @@
 use crate::model::document::LinkType;
 use crate::model::graph::GraphInlines;
 use crate::model::{Key, NodeId};
-use itertools::Itertools;
+
+use super::config::MarkdownOptions;
+use super::graph::{blocks_to_markdown_sparce, GraphInline};
+use super::projector::Projector;
+use super::tree::Tree;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
@@ -15,6 +19,32 @@ pub enum Node {
     HorizontalRule(),
     Reference(Reference),
     Table(Table),
+}
+
+impl Node {
+    pub fn plain_text(&self) -> String {
+        match self {
+            Node::Section(inlines) => inlines.iter().map(|i| i.plain_text()).collect(),
+            Node::Leaf(inlines) => inlines.iter().map(|i| i.plain_text()).collect(),
+            Node::Reference(reference) => reference.text.clone(),
+            Node::Raw(_, content) => content.clone(),
+            _ => "".to_string(),
+        }
+    }
+
+    pub fn reference_key(&self) -> Option<Key> {
+        match self {
+            Node::Reference(reference) => Some(reference.key.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn is_reference(&self) -> bool {
+        match self {
+            Node::Reference(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -61,6 +91,110 @@ pub trait NodeIter<'a>: Sized {
     fn child(&self) -> Option<Self>;
     fn node(&self) -> Option<Node>;
 
+    fn to_markdown(self, parent: &str, options: &MarkdownOptions) -> String {
+        let blocks = Projector::project(self, parent);
+        blocks_to_markdown_sparce(&blocks, options)
+    }
+
+    fn plain_text(&self) -> String {
+        self.inlines().iter().map(|i| i.plain_text()).collect()
+    }
+
+    fn to_default_markdown(self) -> String {
+        self.to_markdown("", &MarkdownOptions::default())
+    }
+
+    fn ref_type(&self) -> Option<ReferenceType> {
+        self.node().and_then(|node| {
+            if let Node::Reference(reference) = node {
+                Some(reference.reference_type)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn lang(&self) -> Option<String> {
+        self.node().and_then(|node| {
+            if let Node::Raw(lang, _) = node {
+                lang.clone()
+            } else {
+                None
+            }
+        })
+    }
+
+    fn table_header(&self) -> Option<Vec<GraphInlines>> {
+        self.node().and_then(|node| {
+            if let Node::Table(table) = node {
+                Some(table.header.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn table_alignment(&self) -> Option<Vec<ColumnAlignment>> {
+        self.node().and_then(|node| {
+            if let Node::Table(table) = node {
+                Some(table.alignment.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn table_rows(&self) -> Option<Vec<Vec<GraphInlines>>> {
+        self.node().and_then(|node| {
+            if let Node::Table(table) = node {
+                Some(table.rows.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn content(&self) -> Option<String> {
+        self.node().and_then(|node| {
+            if let Node::Raw(_, content) = node {
+                Some(content.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn ref_text(&self) -> Option<String> {
+        self.node().and_then(|node| {
+            if let Node::Reference(reference) = node {
+                Some(reference.text.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn ref_key2(&self) -> Option<Key> {
+        self.node().and_then(|node| {
+            if let Node::Reference(reference) = node {
+                Some(reference.key.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn inlines(&self) -> GraphInlines {
+        self.node()
+            .map(|node| match node {
+                Node::Section(inlines) => inlines.clone(),
+                Node::Leaf(inlines) => inlines.clone(),
+                Node::Reference(reference) => vec![GraphInline::Str(reference.text)],
+                _ => vec![],
+            })
+            .unwrap_or_default()
+    }
+
     fn is_list(&self) -> bool {
         self.is_ordered_list() || self.is_bullet_list()
     }
@@ -75,6 +209,20 @@ pub trait NodeIter<'a>: Sized {
     fn is_section(&self) -> bool {
         match self.node() {
             Some(Node::Section(_)) => true,
+            _ => false,
+        }
+    }
+
+    fn is_ordered_list(&self) -> bool {
+        match self.node() {
+            Some(Node::OrderedList()) => true,
+            _ => false,
+        }
+    }
+
+    fn is_bullet_list(&self) -> bool {
+        match self.node() {
+            Some(Node::BulletList()) => true,
             _ => false,
         }
     }
@@ -113,59 +261,6 @@ pub trait NodeIter<'a>: Sized {
             _ => false,
         }
     }
-
-    fn is_ordered_list(&self) -> bool {
-        match self.node() {
-            Some(Node::OrderedList()) => true,
-            _ => false,
-        }
-    }
-
-    fn is_bullet_list(&self) -> bool {
-        match self.node() {
-            Some(Node::BulletList()) => true,
-            _ => false,
-        }
-    }
-}
-
-impl<'a, 'b> NodeIter<'a> for TreeIter<'b> {
-    fn next(&self) -> Option<Self> {
-        self.path.last().map(|n| {
-            let mut path = self.path.clone();
-            path.pop();
-            path.push(n + 1);
-
-            TreeIter {
-                tree_node: self.tree_node,
-                path,
-            }
-        })
-    }
-
-    fn child(&self) -> Option<Self> {
-        let mut path = self.path.clone();
-        path.push(0);
-
-        Some(TreeIter {
-            tree_node: self.tree_node,
-            path,
-        })
-    }
-
-    fn node(&self) -> Option<Node> {
-        let mut node = self.tree_node;
-
-        for n in self.path.iter() {
-            if let Some(n) = &node.children.get(*n) {
-                node = n;
-            } else {
-                return None;
-            }
-        }
-
-        Some(node.payload.clone())
-    }
 }
 
 pub trait NodePointer<'a>: NodeIter<'a> {
@@ -173,26 +268,42 @@ pub trait NodePointer<'a>: NodeIter<'a> {
     fn next_id(&self) -> Option<NodeId>;
     fn child_id(&self) -> Option<NodeId>;
     fn prev_id(&self) -> Option<NodeId>;
-    fn to(&self, id: NodeId) -> Self;
+    fn to_node(&self, id: NodeId) -> Self;
+    fn to_key(&self, key: Key) -> Self;
 
     fn at(&self, id: NodeId) -> bool {
         self.id() == Some(id)
     }
 
-    fn collect_tree(self) -> TreeNode {
-        TreeNode::from_iter(self).expect("to have node")
+    fn node_key(&self) -> Key {
+        self.to_document().and_then(|v| v.document_key()).unwrap()
+    }
+
+    fn is_header(&self) -> bool {
+        !self.is_in_list() && self.is_section()
+    }
+
+    fn collect_tree(self) -> Tree {
+        Tree::from_pointer(self).expect("to have node")
+    }
+
+    fn squash_tree(self, depth: u8) -> Tree {
+        Tree::squash_from_pointer(self, depth)
+            .first()
+            .cloned()
+            .unwrap()
     }
 
     fn to_prev(&self) -> Option<Self> {
-        self.prev_id().map(|id| self.to(id))
+        self.prev_id().map(|id| self.to_node(id))
     }
 
     fn to_next(&self) -> Option<Self> {
-        self.next_id().map(|id| self.to(id))
+        self.next_id().map(|id| self.to_node(id))
     }
 
     fn to_child(&self) -> Option<Self> {
-        self.child_id().map(|id| self.to(id))
+        self.child_id().map(|id| self.to_node(id))
     }
 
     fn get_next_sections(&self) -> Vec<NodeId> {
@@ -246,7 +357,7 @@ pub trait NodePointer<'a>: NodeIter<'a> {
     }
 
     fn to_self(&self) -> Option<Self> {
-        self.id().map(|id| self.to(id))
+        self.id().map(|id| self.to_node(id))
     }
 
     fn get_list(&self) -> Option<Self> {
@@ -271,7 +382,7 @@ pub trait NodePointer<'a>: NodeIter<'a> {
 
     fn to_document(&self) -> Option<Self> {
         if self.is_document() {
-            Some(self.to(self.id()?))
+            Some(self.to_node(self.id()?))
         } else {
             self.to_prev().and_then(|prev| prev.to_document())
         }
@@ -323,7 +434,7 @@ pub trait NodePointer<'a>: NodeIter<'a> {
         self.to_prev()
             .filter(|p| p.is_section() && p.is_prev_of(self.id().expect("Expected node ID")))
             .map(|p| p.to_first_section_at_the_same_level())
-            .unwrap_or_else(|| self.id().map(|id| self.to(id)).unwrap())
+            .unwrap_or_else(|| self.id().map(|id| self.to_node(id)).unwrap())
     }
 
     fn is_prev_of(&self, other: NodeId) -> bool {
@@ -342,113 +453,11 @@ pub trait NodePointer<'a>: NodeIter<'a> {
 
     fn get_section(&self) -> Option<Self> {
         if self.is_section() && !self.is_in_list() {
-            return self.id().map(|id| self.to(id));
+            return self.id().map(|id| self.to_node(id));
         }
         if self.is_document() {
             return None;
         }
         self.to_parent().and_then(|p| p.get_section())
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct TreeNode {
-    pub id: Option<NodeId>,
-    pub payload: Node,
-    pub children: Vec<TreeNode>,
-}
-
-impl TreeNode {
-    pub fn iter(&self) -> TreeIter {
-        TreeIter::new(self)
-    }
-
-    pub fn is_section(&self) -> bool {
-        match self.payload {
-            Node::Section(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn pre_sub_header_position(&self) -> usize {
-        self.children
-            .iter()
-            .take_while(|child| !child.is_section())
-            .count()
-    }
-
-    pub fn remove_node(&self, target_id: NodeId) -> TreeNode {
-        TreeNode {
-            id: self.id,
-            payload: self.payload.clone(),
-            children: self
-                .clone()
-                .children
-                .iter()
-                .filter(|child| !child.id_eq(target_id))
-                .map(|child| child.remove_node(target_id))
-                .collect(),
-        }
-    }
-
-    pub fn append_pre_header(&self, target_id: NodeId, new: TreeNode) -> TreeNode {
-        let mut children = self.children.clone();
-
-        if self.id_eq(target_id) {
-            children.insert(self.pre_sub_header_position(), new.clone());
-        }
-
-        TreeNode {
-            id: self.id,
-            payload: self.payload.clone(),
-            children: children
-                .into_iter()
-                .map(|child| child.append_pre_header(target_id, new.clone()))
-                .collect(),
-        }
-    }
-
-    pub fn id_eq(&self, id: NodeId) -> bool {
-        self.id == Some(id)
-    }
-
-    pub fn from_iter<'a>(iter: impl NodePointer<'a>) -> Option<TreeNode> {
-        let id = iter.id();
-        let payload = iter.node()?;
-        let mut children = Vec::new();
-
-        iter.child().map(|child| children.push(child));
-
-        if let Some(child) = iter.child() {
-            let mut i = child;
-            while let Some(next) = i.next() {
-                children.push(next);
-                i = i.next().unwrap();
-            }
-        }
-
-        Some(TreeNode {
-            id,
-            payload,
-            children: children
-                .into_iter()
-                .map(|c| TreeNode::from_iter(c))
-                .flatten()
-                .collect_vec(),
-        })
-    }
-}
-
-pub struct TreeIter<'a> {
-    tree_node: &'a TreeNode,
-    path: Vec<usize>,
-}
-
-impl<'a> TreeIter<'a> {
-    pub fn new(tree_node: &'a TreeNode) -> TreeIter<'a> {
-        TreeIter {
-            tree_node: &tree_node,
-            path: vec![],
-        }
     }
 }

@@ -1,12 +1,13 @@
 use std::env;
 use std::error::Error;
+use std::fs::read_to_string;
 use std::fs::OpenOptions;
 
 use iwes::main_loop;
+use iwes::router::server::action::all_action_types;
+use iwes::router::server::action::ActionProvider;
 use iwes::ServerParams;
-use liwe::action::ActionType;
-use liwe::model::graph::Configuration;
-use lsp_types::CodeActionKind;
+use liwe::model::config::Configuration;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
@@ -22,20 +23,6 @@ use log::{debug, info};
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
-
-pub fn all_action_types() -> Vec<ActionType> {
-    vec![
-        ActionType::ListChangeType,
-        ActionType::ListDetach,
-        ActionType::ListToSections,
-        ActionType::ReferenceInlineSection,
-        ActionType::ReferenceInlineList,
-        ActionType::ReferenceInlineQuote,
-        ActionType::SectionExtractSubsections,
-        ActionType::SectionToList,
-        ActionType::SectionExtract,
-    ]
-}
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     if env::var("IWE_DEBUG").is_ok() {
@@ -58,6 +45,26 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     info!("starting IWE LSP server");
 
+    let current_dir = env::current_dir().expect("to get current dir");
+    let mut config_path = current_dir.clone();
+    config_path.push(IWE_MARKER);
+    config_path.push(CONFIG_FILE_NAME);
+
+    let configuration = if config_path.exists() {
+        info!("reading config from path: {:?}", config_path);
+
+        toml::from_str::<Configuration>(
+            &read_to_string(config_path)
+                .ok()
+                .expect("to read config file"),
+        )
+        .expect("to parse config file")
+    } else {
+        info!("using default configuration");
+
+        Configuration::default()
+    };
+
     let (connection, io_threads) = Connection::stdio();
 
     let server_capabilities = serde_json::to_value(&ServerCapabilities {
@@ -78,11 +85,12 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         })),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
             code_action_kinds: Some(
-                all_action_types()
+                all_action_types(&configuration)
                     .iter()
-                    .map(|it| CodeActionKind::new(it.identifier()))
+                    .map(|it| it.action_kind())
                     .collect(),
             ),
+            resolve_provider: Some(true),
             ..Default::default()
         })),
         ..Default::default()
@@ -101,32 +109,19 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     let initialize_params: InitializeParams =
         serde_json::from_value(initialization_params_value).unwrap();
 
-    let current_dir = env::current_dir().expect("to get current dir");
-
-    let mut config_path = current_dir.clone();
-    config_path.push(IWE_MARKER);
-    config_path.push(CONFIG_FILE_NAME);
-
-    let config = {
-        std::fs::read_to_string(config_path)
-            .ok()
-            .and_then(|content| toml::from_str::<Configuration>(&content).ok())
-            .unwrap_or(Configuration::default())
-    };
-
     let mut library_path = current_dir.clone();
 
-    debug!("config: {:?}", config);
+    debug!("config: {:?}", configuration);
 
-    if !config.library.path.is_empty() {
-        library_path.push(config.library.path);
+    if !configuration.library.path.is_empty() {
+        library_path.push(configuration.clone().library.path);
     }
 
     main_loop(
         connection,
         ServerParams {
             client_name: initialize_params.client_info.map(|it| it.name),
-            markdown_options: Some(config.markdown),
+            configuration: configuration.clone(),
             base_path: library_path.to_string_lossy().to_string(),
             ..Default::default()
         },

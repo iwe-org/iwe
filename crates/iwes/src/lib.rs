@@ -2,20 +2,20 @@ use std::str::FromStr;
 use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
-use liwe::model::graph::MarkdownOptions;
+use liwe::model::config::Configuration;
 use lsp_server::Connection;
 
 use liwe::fs::{new_for_path, new_from_hashmap};
 use router::{LspClient, Router, ServerConfig};
 
-mod router;
+pub mod router;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Default)]
 pub struct ServerParams {
     pub state: Option<HashMap<String, String>>,
     pub sequential_ids: Option<bool>,
     pub client_name: Option<String>,
-    pub markdown_options: Option<MarkdownOptions>,
+    pub configuration: Configuration,
     pub base_path: String,
 }
 
@@ -35,7 +35,7 @@ pub fn main_loop(connection: Connection, params: ServerParams) -> Result<()> {
                 state: new_from_hashmap(state),
                 sequential_ids: Some(true),
                 lsp_client: client,
-                markdown_options: params.markdown_options.unwrap_or_default(),
+                configuration: params.configuration,
             },
         )
     } else {
@@ -46,7 +46,7 @@ pub fn main_loop(connection: Connection, params: ServerParams) -> Result<()> {
                 state: new_for_path(&PathBuf::from_str(&params.base_path).expect("to work")),
                 sequential_ids: None,
                 lsp_client: client,
-                markdown_options: params.markdown_options.unwrap_or_default(),
+                configuration: params.configuration,
             },
         )
     };

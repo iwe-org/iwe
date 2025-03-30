@@ -2,9 +2,9 @@ use std::u32;
 
 use indoc::indoc;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, DocumentChangeOperation,
-    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range,
-    TextDocumentEdit, TextDocumentIdentifier, TextEdit, WorkspaceEdit,
+    CodeAction, CodeActionContext, CodeActionParams, DocumentChangeOperation, DocumentChanges,
+    OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, TextDocumentEdit,
+    TextDocumentIdentifier, TextEdit, WorkspaceEdit,
 };
 
 use fixture::{action_kind, action_kinds, uri};
@@ -60,7 +60,7 @@ fn assert_list_change(source: &str, line: u32, expected: &str, title: &str) {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        vec![CodeActionOrCommand::CodeAction(CodeAction {
+        CodeAction {
             title: title.to_string(),
             kind: action_kind("refactor.rewrite.list.type"),
             edit: Some(WorkspaceEdit {
@@ -79,6 +79,6 @@ fn assert_list_change(source: &str, line: u32, expected: &str, title: &str) {
                 ..Default::default()
             }),
             ..Default::default()
-        })],
+        },
     )
 }

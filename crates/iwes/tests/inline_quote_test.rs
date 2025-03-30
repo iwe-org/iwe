@@ -1,8 +1,8 @@
 use indoc::indoc;
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionOrCommand, CodeActionParams, DeleteFile,
-    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
-    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit,
+    CodeAction, CodeActionContext, CodeActionParams, DeleteFile, DocumentChangeOperation,
+    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp,
+    TextDocumentEdit, TextDocumentIdentifier, TextEdit,
 };
 
 use fixture::{action_kind, action_kinds, uri};
@@ -80,7 +80,7 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        vec![CodeActionOrCommand::CodeAction(CodeAction {
+        CodeAction {
             title: "Inline quote".to_string(),
             kind: action_kind("refactor.inline.reference.quote"),
             edit: Some(lsp_types::WorkspaceEdit {
@@ -100,6 +100,6 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
                 ..Default::default()
             }),
             ..Default::default()
-        })],
+        },
     )
 }

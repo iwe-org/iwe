@@ -3,16 +3,17 @@ use std::sync::Once;
 use indoc::indoc;
 use pretty_assertions::assert_str_eq;
 
+use liwe::model::config::MarkdownOptions;
 use liwe::{
     graph::Graph,
     markdown::MarkdownReader,
-    model::{graph::MarkdownOptions, State},
+    model::State,
     state::{from_indoc, to_indoc},
 };
 
 #[test]
 fn links_text_updated_from_referenced_header() {
-    compare(
+    normalize(
         indoc! {"
             [title](2)
             _
@@ -28,7 +29,7 @@ fn links_text_updated_from_referenced_header() {
 
 #[test]
 fn piped_wiki_links_text_not_updated_from_referenced_header() {
-    compare(
+    normalize(
         indoc! {"
             [[2|custom title]]
             _
@@ -44,7 +45,7 @@ fn piped_wiki_links_text_not_updated_from_referenced_header() {
 
 #[test]
 fn ref_links_updated_two_ways() {
-    compare(
+    normalize(
         indoc! {"
             # title 1
 
@@ -68,7 +69,7 @@ fn ref_links_updated_two_ways() {
 
 #[test]
 fn keep_unknow_refs_as_is() {
-    compare(
+    normalize(
         indoc! {"
             [some title](key)
             "},
@@ -80,7 +81,7 @@ fn keep_unknow_refs_as_is() {
 
 #[test]
 fn keep_unknow_wiki_refs_as_is() {
-    compare(
+    normalize(
         indoc! {"
             [[key]]
             "},
@@ -92,7 +93,7 @@ fn keep_unknow_wiki_refs_as_is() {
 
 #[test]
 fn keep_unknow_piped_wiki_refs_as_is() {
-    compare(
+    normalize(
         indoc! {"
             [[key|title]]
             "},
@@ -104,7 +105,7 @@ fn keep_unknow_piped_wiki_refs_as_is() {
 
 #[test]
 fn keep_title_there_is_no_title_in_referenced_file() {
-    compare(
+    normalize(
         indoc! {"
         [title](2)
         _
@@ -120,7 +121,7 @@ fn keep_title_there_is_no_title_in_referenced_file() {
 
 #[test]
 fn normalization_drop_extension() {
-    compare(
+    normalize(
         indoc! {"
         [title](1)
         "},
@@ -162,7 +163,7 @@ fn sub_links_text_updated_from_referenced_header() {
     );
 }
 
-fn compare(expected: &str, denormalized: &str) {
+fn normalize(expected: &str, denormalized: &str) {
     setup();
 
     let graph = Graph::import(

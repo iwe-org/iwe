@@ -1,8 +1,17 @@
+use std::fs::write;
+use std::path::Path;
+
+use action::all_action_types;
+use action::ActionContext;
+use action::ActionProvider;
+
 use itertools::Itertools;
-use liwe::action::ActionType;
 use liwe::graph::path::NodePath;
-use liwe::model::node::NodeIter;
+use liwe::model::config::Configuration;
+use liwe::model::config::MarkdownOptions;
 use liwe::model::node::NodePointer;
+use liwe::model::tree::Tree;
+use liwe::model::NodeId;
 use lsp_server::ResponseError;
 use lsp_types::*;
 
@@ -21,12 +30,16 @@ use liwe::database::DatabaseContext;
 
 use self::extensions::*;
 
+pub mod action;
 mod extensions;
+mod llm;
 
 pub struct Server {
     base_path: BasePath,
     database: Database,
     lsp_client: LspClient,
+    #[allow(dead_code)]
+    configuration: Configuration,
 }
 
 pub struct BasePath {
@@ -80,9 +93,10 @@ impl Server {
             database: Database::new(
                 config.state,
                 config.sequential_ids.unwrap_or(false),
-                config.markdown_options.clone(),
+                config.configuration.markdown.clone(),
             ),
             lsp_client: config.lsp_client,
+            configuration: config.configuration,
         }
     }
     pub fn database(&self) -> impl DatabaseContext + '_ {
@@ -173,7 +187,7 @@ impl Server {
         let mut patch = self.database.graph().new_patch();
         patch
             .build_key(&key)
-            .insert_from_iter(self.database.graph().key(&key));
+            .insert_from_iter(self.database.graph().collect(&key).iter());
 
         vec![TextEdit {
             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
@@ -206,7 +220,7 @@ impl Server {
                 (
                     self.database
                         .graph()
-                        .visit_node(id)
+                        .node(id)
                         .ref_key()
                         .map(|key| self.database.graph().get_block_references_to(&key).len())
                         .unwrap_or_default(),
@@ -248,13 +262,13 @@ impl Server {
         let id = self
             .database
             .graph()
-            .visit_key(&key)
+            .maybe_key(&key)
             .unwrap()
             .to_child()
             .expect("to have child")
             .id()
             .unwrap();
-        let id2 = self.database.graph().visit_key(&key).unwrap().id().unwrap();
+        let id2 = self.database.graph().maybe_key(&key).unwrap().id().unwrap();
         let paths = self.database.graph().paths();
 
         paths
@@ -298,7 +312,7 @@ impl Server {
         if self
             .database
             .graph()
-            .visit_key(&params.new_name.clone().into())
+            .maybe_key(&params.new_name.clone().into())
             .is_some()
         {
             return Result::Err(ResponseError {
@@ -333,8 +347,7 @@ impl Server {
                     .get_block_references_to(&key.clone())
                     .into_iter()
                     .chain(self.database.graph().get_inline_references_to(&key.clone()))
-                    .flat_map(|node_id| self.database.graph().visit_node(node_id).to_document())
-                    .flat_map(|doc| doc.document_key())
+                    .map(|node_id| self.database.graph().node(node_id).node_key())
                     .filter(|k| k != &key)
                     .unique()
                     .sorted()
@@ -347,22 +360,18 @@ impl Server {
                     .insert_from_iter(
                         self.database
                             .graph()
-                            .change_key_visitor(&key, &key, &params.new_name.clone().into())
-                            .child()
-                            .unwrap(),
+                            .collect(&key)
+                            .change_key(&key, &params.new_name.clone().into())
+                            .iter(),
                     );
 
                 affected_keys.iter().for_each(|affected_key| {
                     patch.build_key(&affected_key).insert_from_iter(
                         self.database
                             .graph()
-                            .change_key_visitor(
-                                &affected_key,
-                                &key,
-                                &params.new_name.clone().into(),
-                            )
-                            .child()
-                            .unwrap(),
+                            .collect(&affected_key)
+                            .change_key(&key, &params.new_name.clone().into())
+                            .iter(),
                     );
                 });
 
@@ -420,7 +429,7 @@ impl Server {
                     .get_inline_references_to(&key.clone())
                     .iter(),
             )
-            .map(|id| (id, self.database.graph().node_key(*id)))
+            .map(|id| (id, self.database.graph().node(*id).node_key()))
             .dedup()
             .map(|(id, key)| {
                 Location::new(
@@ -460,30 +469,46 @@ impl Server {
             )
             .filter(|_| params.range.empty() || self.lsp_client == LspClient::Helix)
             .map(|node_id| {
-                vec![
-                    ActionType::SectionExtract,
-                    ActionType::SectionExtractSubsections,
-                    ActionType::ReferenceInlineSection,
-                    ActionType::ListToSections,
-                    ActionType::SectionToList,
-                    ActionType::ListChangeType,
-                    ActionType::ReferenceInlineQuote,
-                ]
-                .into_iter()
-                .filter(|action_type| params.only_includes(&action_type.action_kind()))
-                .chain(
-                    vec![ActionType::ReferenceInlineList, ActionType::ListDetach]
-                        .into_iter()
-                        .filter(|action_type| {
-                            params.only_includes_explicit(&action_type.action_kind())
-                        }),
-                )
-                .map(|action_type| action_type.apply(node_id, context))
-                .flatten()
-                .map(|action| action.to_code_action(base_path))
-                .collect_vec()
+                all_action_types(&self.configuration)
+                    .into_iter()
+                    .filter(|action_provider| params.only_includes(&action_provider.action_kind()))
+                    .flat_map(|action_type| action_type.action(node_id, self))
+                    .map(|action| action.to_code_action())
+                    .collect_vec()
             })
             .unwrap_or_default()
+    }
+
+    pub fn handle_code_action_resolve(&self, code_action: &CodeAction) -> CodeAction {
+        let base_path: &BasePath = &self.base_path;
+
+        let target_node_id = code_action.clone().data.unwrap().as_u64().unwrap();
+
+        let all_types = all_action_types(&self.configuration);
+
+        let action_provider = all_types
+            .iter()
+            .find(|action_provider| {
+                action_provider
+                    .action_kind()
+                    .eq(&code_action.clone().kind.unwrap())
+            })
+            .unwrap();
+
+        let changes = action_provider.changes(target_node_id, self).unwrap();
+
+        let mut action = code_action.clone();
+        action.edit = Some(WorkspaceEdit {
+            document_changes: Some(DocumentChanges::Operations(
+                changes
+                    .iter()
+                    .map(|change| change.to_document_change(base_path))
+                    .collect_vec(),
+            )),
+            ..Default::default()
+        });
+
+        action
     }
 }
 
@@ -570,4 +595,43 @@ fn render_path(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(*id).trim().to_string())
         .collect_vec()
         .join(" • ")
+}
+
+impl ActionContext for &Server {
+    fn key_of(&self, node_id: NodeId) -> Key {
+        self.database.graph().node(node_id).node_key()
+    }
+
+    fn collect(&self, key: &Key) -> Tree {
+        self.database.graph().collect(key)
+    }
+
+    fn squash(&self, key: &Key, depth: u8) -> Tree {
+        self.database.graph().squash(key, depth)
+    }
+
+    fn random_key(&self, parent: &str) -> Key {
+        self.database.graph().random_key(parent)
+    }
+
+    fn markdown_options(&self) -> &MarkdownOptions {
+        &self.configuration.markdown
+    }
+
+    fn llm_query(&self, prompt: String) -> String {
+        if Path::new("./.iwe").exists() {
+            write("./.iwe/prompt.md", &prompt).expect("Unable to write file");
+        }
+
+        if self
+            .configuration
+            .models
+            .iter()
+            .all(|(_, model)| model.api_key_env.is_empty())
+        {
+            "".to_string()
+        } else {
+            llm::apply_prompt(prompt)
+        }
+    }
 }

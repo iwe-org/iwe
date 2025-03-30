@@ -1,10 +1,8 @@
 use std::sync::Once;
 
 use indoc::indoc;
-use liwe::{
-    graph::{Graph, GraphContext},
-    model::graph::MarkdownOptions,
-};
+use liwe::graph::{Graph, GraphContext};
+use liwe::model::config::MarkdownOptions;
 
 #[test]
 fn squash_text() {
@@ -266,8 +264,6 @@ fn squash_infinite_recursion() {
             ### file 1 title
 
             text 1
-
-            [file 2 title](2)
             "},
     );
 }
@@ -284,7 +280,8 @@ fn squash(source: &str, expected: &str) {
         MarkdownOptions::default(),
     );
     let mut patch = Graph::new();
-    patch.build_key_from_iter(&"1".into(), graph.squash_iter(&"1".into(), 2));
+    let document_tree = graph.squash(&"1".into(), 2);
+    patch.build_key_from_iter(&"1".into(), document_tree.iter());
 
     eprintln!("graph {:#?}", graph);
     eprintln!("patch {:#?}", patch);

@@ -9,6 +9,8 @@ use crate::model::node::{NodeIter, NodePointer};
 use crate::model::NodeId;
 use rayon::prelude::*;
 
+use super::GraphContext;
+
 #[derive(Clone, Default, Eq, PartialEq, Debug, PartialOrd, Ord)]
 pub struct NodePath {
     // parent 1, parent 2, ..., parent n, target
@@ -80,7 +82,7 @@ pub fn graph_to_paths(graph: &Graph) -> Vec<NodePath> {
         .nodes()
         .into_par_iter()
         .filter(|node| !matches!(node, GraphNode::Empty))
-        .filter(|node| !graph.visit_node(node.id()).is_in_list())
+        .filter(|node| !graph.node(node.id()).is_in_list())
         .flat_map(|node| paths_for_node(graph, node.id(), &mut HashSet::new()))
         .filter(|path| !path.ids.is_empty())
         .filter(|path| {
@@ -89,7 +91,7 @@ pub fn graph_to_paths(graph: &Graph) -> Vec<NodePath> {
                 .get_block_references_to(&graph.node_key(path.first_id()))
                 .is_empty()
                 && graph
-                    .visit_node(path.first_id())
+                    .node(path.first_id())
                     .to_parent()
                     .unwrap()
                     .is_document()
@@ -111,13 +113,13 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
             .index
             .get_block_references_to(document.key())
             .iter()
-            .map(|node_id| graph.visit_node(*node_id))
+            .map(|node_id| graph.node(*node_id))
             .flat_map(|reference| reference.to_parent())
             .map(|parent| paths_for_node(graph, parent.id().unwrap(), nodes))
             .flatten()
             .collect_vec(),
         GraphNode::Section(_) => graph
-            .visit_node(id)
+            .node(id)
             .to_parent()
             .map(|parent| paths_for_node(graph, parent.id().unwrap(), nodes))
             .unwrap_or_default()

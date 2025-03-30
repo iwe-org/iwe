@@ -5,34 +5,25 @@ use std::{
 };
 
 use basic_iter::GraphNodePointer;
-use change_key_iter::ChangeKeyVisitor;
-use change_list_type_iter::ChangeListTypeVisitor;
-use cut_iter::CutIter;
-use extract_iter::ExtractVisitor;
 use graph_line::Line;
 use index::RefIndex;
-use inline_iter::InlineIter;
-use inline_quote_iter::InlineQuoteVisitor;
-use projector::Projector;
 use rand::distributions::{Alphanumeric, DistString};
 use sections_builder::SectionsBuilder;
-use squash_iter::SquashIter;
 
 use crate::{
     markdown::MarkdownReader,
-    model::{document::Document, graph::MarkdownOptions, rank::node_rank},
+    model::{document::Document, rank::node_rank, tree::Tree},
 };
 use arena::Arena;
 use builder::GraphBuilder;
 use itertools::Itertools;
 use path::{graph_to_paths, NodePath};
 use rayon::prelude::*;
-use unwrap_iter::UnwrapIter;
-use wrap_iter::WrapIter;
 
 use crate::graph::graph_node::GraphNode;
-use crate::model::graph::{blocks_to_markdown_sparce, GraphInlines};
-use crate::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType, Table};
+use crate::model::config::MarkdownOptions;
+use crate::model::graph::GraphInlines;
+use crate::model::node::{NodeIter, NodePointer};
 use crate::model::InlinesContext;
 use crate::model::{Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
@@ -42,21 +33,10 @@ pub mod builder;
 mod graph_line;
 pub mod graph_node;
 mod index;
-mod projector;
-
-// iters
-mod change_key_iter;
-mod change_list_type_iter;
-mod cut_iter;
-mod extract_iter;
-mod inline_iter;
-mod inline_quote_iter;
-mod squash_iter;
-mod unwrap_iter;
-mod wrap_iter;
 
 pub mod path;
 pub mod sections_builder;
+mod squash_iter;
 
 #[derive(Clone, Default)]
 pub struct Graph {
@@ -159,56 +139,6 @@ impl Graph {
         self.arena.node(id)
     }
 
-    pub fn node(&self, id: NodeId) -> Option<Node> {
-        match self.graph_node(id) {
-            GraphNode::Empty => None,
-            GraphNode::Document(document) => Some(Node::Document(document.key().clone())),
-            GraphNode::Section(section) => Some(Node::Section(
-                self.get_line(section.line_id()).normalize(self),
-            )),
-            GraphNode::Quote(_) => Some(Node::Quote()),
-            GraphNode::BulletList(_) => Some(Node::BulletList()),
-            GraphNode::OrderedList(_) => Some(Node::OrderedList()),
-            GraphNode::Leaf(leaf) => {
-                Some(Node::Leaf(self.get_line(leaf.line_id()).normalize(self)))
-            }
-            GraphNode::Raw(raw) => Some(Node::Raw(raw.lang(), raw.content().to_string())),
-            GraphNode::HorizontalRule(_) => Some(Node::HorizontalRule()),
-            GraphNode::Reference(reference) => {
-                let text = match reference.reference_type() {
-                    ReferenceType::Regular => self
-                        .get_ref_text(reference.key())
-                        .unwrap_or(reference.text().to_string()),
-                    ReferenceType::WikiLink => String::default(),
-                    ReferenceType::WikiLinkPiped => reference.text().to_string(),
-                };
-
-                Some(Node::Reference(Reference {
-                    key: reference.key().clone(),
-                    text,
-                    reference_type: reference.reference_type(),
-                }))
-            }
-            GraphNode::Table(table) => Some(Node::Table(Table {
-                header: table
-                    .header()
-                    .iter()
-                    .map(|id| self.get_line(*id).normalize(self))
-                    .collect(),
-                rows: table
-                    .rows()
-                    .iter()
-                    .map(|row| {
-                        row.iter()
-                            .map(|id| self.get_line(*id).normalize(self))
-                            .collect()
-                    })
-                    .collect(),
-                alignment: table.alignment().clone(),
-            })),
-        }
-    }
-
     pub fn nodes(&self) -> &Vec<GraphNode> {
         self.arena.nodes()
     }
@@ -244,7 +174,7 @@ impl Graph {
     }
 
     pub fn build_key_from_iter<'b>(&mut self, key: &Key, iter: impl NodeIter<'b>) {
-        self.build_key(key).insert_from_iter(iter.child().unwrap());
+        self.build_key(key).insert_from_iter(iter);
     }
 
     pub fn builder(&mut self, id: NodeId) -> GraphBuilder {
@@ -284,7 +214,7 @@ impl Graph {
             .map(|line_id| self.arena.get_line(line_id).to_plain_text())
     }
 
-    pub fn visit_key(&self, key: &Key) -> Option<impl NodePointer> {
+    pub fn maybe_key(&self, key: &Key) -> Option<impl NodePointer> {
         self.keys
             .get(key)
             .map(|id| GraphNodePointer::new(self, *id))
@@ -295,14 +225,6 @@ impl Graph {
             .keys
             .get(key)
             .expect(format!("to have key, {}", key).as_str())
-    }
-
-    pub fn visit_node(&self, id: NodeId) -> impl NodePointer {
-        GraphNodePointer::new(self, id)
-    }
-
-    pub fn node_visitor(&self, id: NodeId) -> impl NodeIter {
-        GraphNodePointer::new(self, id)
     }
 
     pub fn from_markdown(&mut self, key: Key, content: &str, reader: impl Reader) {
@@ -331,15 +253,19 @@ impl Graph {
     }
 
     pub fn to_markdown(&self, key: &Key) -> String {
-        let id = self.keys.get(key).unwrap();
-        let blocks = Projector::new(self, *id, 0, 0).project();
-
-        let text = blocks_to_markdown_sparce(&blocks, &self.markdown_options);
+        let markdown = self
+            .collect(key)
+            .iter()
+            .to_markdown(&key.parent(), &self.markdown_options);
 
         if self.metadata.contains_key(key) {
-            format!("---\n{}---\n\n{}", self.metadata.get(key).unwrap(), text)
+            format!(
+                "---\n{}---\n\n{}",
+                self.metadata.get(key).unwrap(),
+                markdown
+            )
         } else {
-            format!("{}", text)
+            format!("{}", markdown)
         }
     }
 
@@ -450,7 +376,7 @@ impl Graph {
     }
 
     pub fn get_block_references_in(&self, key: &Key) -> Vec<NodeId> {
-        self.visit_key(key)
+        self.maybe_key(key)
             .expect("to have key")
             .get_all_sub_nodes()
             .into_iter()
@@ -492,51 +418,24 @@ impl InlinesContext for &Graph {
 }
 
 pub trait GraphContext: Copy {
-    // Methods returning Option<NodeId>
-    fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
     fn get_node_id(&self, key: &Key) -> Option<NodeId>;
     fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId>;
-    fn get_surrounding_section_id(&self, node_id: NodeId) -> Option<NodeId>;
-    fn get_surrounding_list_id(&self, id: NodeId) -> Option<NodeId>;
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
 
-    // Methods returning Key
-    fn node_key(&self, id: NodeId) -> Key;
-    fn get_reference_key(&self, id: NodeId) -> Key;
     fn random_key(&self, relative_to: &str) -> Key;
 
-    // NodeIter
-    fn change_key_visitor(&self, key: &Key, target_key: &Key, updated_key: &Key) -> impl NodeIter;
-    fn extract_iter(&self, key: &Key, keys: HashMap<NodeId, Key>) -> impl NodeIter;
-    fn inline_iter(&self, key: &Key, inline_id: NodeId) -> impl NodeIter;
-    fn inline_quote_iter(&self, key: &Key, inline_id: NodeId) -> impl NodeIter;
-    fn children_iter(&self, id: NodeId) -> impl NodeIter;
-    fn squash_iter(&self, key: &Key, depth: u8) -> impl NodeIter;
-    fn unwrap_iter(&self, key: &Key, target_id: NodeId) -> impl NodeIter;
-    fn change_list_type_iter(&self, key: &Key, target_id: NodeId) -> impl NodeIter;
-    fn wrap_iter(&self, target_id: NodeId) -> impl NodeIter;
+    fn key_of(&self, id: NodeId) -> Key;
+    fn collect(&self, key: &Key) -> Tree;
+    fn squash(&self, key: &Key, depth: u8) -> Tree;
 
-    // Methods returning Options<String>
     fn get_ref_text(&self, key: &Key) -> Option<String>;
 
-    // Methods returning Vec<NodeId>
-    fn get_sub_sections(&self, node_id: NodeId) -> Vec<NodeId>;
-
-    // Methods returning bool
-    fn is_header(&self, id: NodeId) -> bool;
-    fn is_list(&self, id: NodeId) -> bool;
-    fn is_ordered_list(&self, id: NodeId) -> bool;
-    fn is_bullet_list(&self, id: NodeId) -> bool;
-    fn is_reference(&self, id: NodeId) -> bool;
-
-    // Methods returning String
     fn get_container_document_ref_text(&self, id: NodeId) -> String;
     fn get_text(&self, id: NodeId) -> String;
 
-    // Special methods
     fn node(&self, id: NodeId) -> impl NodePointer;
-    fn key(&self, key: &Key) -> impl NodePointer;
-    fn patch(&self) -> impl GraphPatch;
+
+    fn markdown_options(&self) -> &MarkdownOptions;
 }
 
 pub trait GraphPatch<'a> {
@@ -561,83 +460,16 @@ impl<'a> GraphPatch<'a> for Graph {
 }
 
 impl GraphContext for &Graph {
-    fn patch(&self) -> impl GraphPatch {
-        self.new_patch()
-    }
-
     fn node(&self, id: NodeId) -> impl NodePointer {
         GraphNodePointer::new(self, id)
     }
 
-    fn children_iter(&self, id: NodeId) -> impl NodeIter {
-        CutIter::children_of(self, id)
+    fn collect(&self, key: &Key) -> Tree {
+        GraphNodePointer::new(self, *self.keys.get(key).expect("to have key")).collect_tree()
     }
 
-    fn inline_iter(&self, key: &Key, inline_id: NodeId) -> impl NodeIter {
-        let id = self
-            .visit_key(key)
-            .expect("to have key")
-            .to_child()
-            .expect("to have child")
-            .id()
-            .unwrap();
-        InlineIter::new(self, id, inline_id)
-    }
-
-    fn inline_quote_iter(&self, key: &Key, inline_id: NodeId) -> impl NodeIter {
-        let id = self
-            .visit_key(key)
-            .expect("to have key")
-            .to_child()
-            .expect("to have child")
-            .id()
-            .unwrap();
-        InlineQuoteVisitor::new(self, id, inline_id)
-    }
-
-    fn change_key_visitor(&self, key: &Key, target_key: &Key, updated_key: &Key) -> impl NodeIter {
-        ChangeKeyVisitor::new(self, key, target_key, updated_key)
-    }
-
-    fn squash_iter(&self, key: &Key, depth: u8) -> impl NodeIter {
-        let id = self.get_document_id(key);
-        SquashIter::new(self, id, depth)
-    }
-
-    fn key(&self, key: &Key) -> impl NodePointer {
-        let doc = *self.keys.get(key).expect("to have key");
-
-        GraphNodePointer::new(
-            self,
-            self.graph_node(doc)
-                .child_id()
-                .expect("to have child")
-                .clone(),
-        )
-    }
-
-    fn extract_iter(&self, key: &Key, keys: HashMap<NodeId, Key>) -> impl NodeIter {
-        let doc = *self.keys.get(key).expect("to have key");
-        ExtractVisitor::new(
-            self,
-            self.graph_node(doc)
-                .child_id()
-                .expect("to have child")
-                .clone(),
-            keys,
-        )
-    }
-
-    fn wrap_iter(&self, target_id: NodeId) -> impl NodeIter {
-        WrapIter::new(self, target_id)
-    }
-
-    fn unwrap_iter(&self, key: &Key, target_id: NodeId) -> impl NodeIter {
-        UnwrapIter::new(self, key, target_id)
-    }
-
-    fn change_list_type_iter(&self, key: &Key, target_id: NodeId) -> impl NodeIter {
-        ChangeListTypeVisitor::new(self, key, target_id)
+    fn squash(&self, key: &Key, depth: u8) -> Tree {
+        GraphNodePointer::new(self, self.get_node_id(&key).expect("to have key")).squash_tree(depth)
     }
 
     fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId> {
@@ -667,22 +499,10 @@ impl GraphContext for &Graph {
     }
 
     fn get_container_document_ref_text(&self, id: NodeId) -> String {
-        let container_key = self
-            .visit_node(id)
-            .to_document()
-            .unwrap()
-            .document_key()
-            .unwrap();
+        let container_key = self.node(id).to_document().unwrap().document_key().unwrap();
         self.get_key_title(&container_key)
             .unwrap_or_default()
             .to_string()
-    }
-
-    fn node_key(&self, id: NodeId) -> Key {
-        self.visit_node(id)
-            .to_document()
-            .and_then(|v| v.document_key())
-            .unwrap()
     }
 
     fn random_key(&self, relative_to: &str) -> Key {
@@ -704,53 +524,16 @@ impl GraphContext for &Graph {
         }
     }
 
-    fn is_header(&self, id: NodeId) -> bool {
-        !self.visit_node(id).is_in_list() && self.graph_node(id).is_section()
-    }
-
-    fn is_list(&self, id: NodeId) -> bool {
-        self.visit_node(id).is_in_list()
-    }
-
-    fn is_ordered_list(&self, id: NodeId) -> bool {
-        self.visit_node(id).is_ordered_list()
-    }
-
-    fn is_bullet_list(&self, id: NodeId) -> bool {
-        self.visit_node(id).is_bullet_list()
-    }
-
-    fn get_surrounding_list_id(&self, id: NodeId) -> Option<NodeId> {
-        self.visit_node(id).get_list().and_then(|v| v.id())
-    }
-
-    fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId> {
-        self.visit_node(id)
-            .get_top_level_list()
-            .and_then(|v| v.id())
-    }
-
-    fn is_reference(&self, id: NodeId) -> bool {
-        self.graph_node(id).is_ref()
-    }
-
-    fn get_reference_key(&self, id: NodeId) -> Key {
-        self.graph_node(id).ref_key().unwrap().clone()
-    }
-
     fn get_node_id(&self, key: &Key) -> Option<NodeId> {
         self.keys.get(key).map(|v| *v)
     }
 
-    fn get_sub_sections(&self, node_id: NodeId) -> Vec<NodeId> {
-        self.visit_node(node_id).get_sub_sections()
+    fn key_of(&self, id: NodeId) -> Key {
+        self.node_key(id)
     }
 
-    fn get_surrounding_section_id(&self, node_id: NodeId) -> Option<NodeId> {
-        self.visit_node(node_id)
-            .to_parent()?
-            .get_section()
-            .and_then(|v| v.id())
+    fn markdown_options(&self) -> &MarkdownOptions {
+        &self.markdown_options
     }
 }
 

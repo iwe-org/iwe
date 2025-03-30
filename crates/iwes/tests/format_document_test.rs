@@ -176,7 +176,7 @@ fn assert_formatted(source: &str, formatted: &str) {
 fn assert_formatted_with_extension(source: &str, formatted: &str) {
     let fixture = Fixture::with_options(
         source,
-        liwe::model::graph::MarkdownOptions {
+        liwe::model::config::MarkdownOptions {
             refs_extension: ".md".to_string(),
         },
     );

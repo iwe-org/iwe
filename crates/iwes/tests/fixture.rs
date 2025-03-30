@@ -6,7 +6,7 @@ use std::{
 
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
-use liwe::{model::graph::MarkdownOptions, state::from_indoc};
+use liwe::{model::config::Configuration, state::from_indoc};
 use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{
     notification::{DidChangeTextDocument, DidSaveTextDocument, Exit},
@@ -14,16 +14,18 @@ use lsp_types::{
         CodeActionRequest, Completion, Formatting, GotoDefinition, InlayHintRequest, References,
         Shutdown, WorkspaceSymbolRequest,
     },
-    CodeActionKind, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    DidChangeTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    GotoDefinitionParams, GotoDefinitionResponse, InlayHint, InlayHintParams, Location,
-    PrepareRenameResponse, ReferenceParams, RenameParams, TextDocumentPositionParams, TextEdit,
-    Url, WorkspaceEdit, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CompletionParams,
+    CompletionResponse, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentFormattingParams, GotoDefinitionParams, GotoDefinitionResponse, InlayHint,
+    InlayHintParams, Location, PrepareRenameResponse, ReferenceParams, RenameParams,
+    TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit, WorkspaceSymbolParams,
+    WorkspaceSymbolResponse,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use iwes::{main_loop, ServerParams};
+use liwe::model::config::MarkdownOptions;
 
 pub struct Fixture {
     req_id: Cell<i32>,
@@ -79,24 +81,33 @@ impl Fixture {
             .into_iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
-        Self::with_options_and_client(state, MarkdownOptions::default(), "")
+        Self::with_options_and_client(state, Configuration::default(), "")
     }
 
     pub fn with(indoc: &str) -> Fixture {
-        Self::with_options_and_client(from_indoc(indoc), MarkdownOptions::default(), "")
+        Self::with_options_and_client(from_indoc(indoc), Configuration::default(), "")
     }
 
     pub fn with_options(indoc: &str, markdown_options: MarkdownOptions) -> Fixture {
-        Self::with_options_and_client(from_indoc(indoc), markdown_options, "")
+        let config = Configuration {
+            markdown: markdown_options,
+            ..Default::default()
+        };
+
+        Self::with_options_and_client(from_indoc(indoc), config, "")
+    }
+
+    pub fn with_config(indoc: &str, config: Configuration) -> Fixture {
+        Self::with_options_and_client(from_indoc(indoc), config, "")
     }
 
     pub fn with_client(indoc: &str, client: &str) -> Fixture {
-        Self::with_options_and_client(from_indoc(indoc), MarkdownOptions::default(), client)
+        Self::with_options_and_client(from_indoc(indoc), Configuration::default(), client)
     }
 
     pub fn with_options_and_client(
         state: HashMap<String, String>,
-        markdown_options: MarkdownOptions,
+        configuration: Configuration,
         lsp_client_name: &str,
     ) -> Fixture {
         let (connection, client) = Connection::memory();
@@ -116,7 +127,7 @@ impl Fixture {
                         client_name,
                         sequential_ids: Some(true),
                         base_path: "/basepath".to_string(),
-                        markdown_options: Some(markdown_options),
+                        configuration,
                     },
                 )
                 .unwrap()
@@ -234,8 +245,49 @@ impl Fixture {
         self.assert_response::<InlayHintRequest>(params, Some(expected));
     }
 
-    pub fn code_action(&self, params: CodeActionParams, expected: CodeActionResponse) {
-        self.assert_response::<CodeActionRequest>(params, Some(expected));
+    pub fn no_code_action(&self, params: CodeActionParams) {
+        let mut actual: Value = self.send_request::<CodeActionRequest>(params);
+        assert_json_eq!(&Some::<Vec<CodeActionOrCommand>>(vec![]), &actual);
+    }
+
+    pub fn code_action_menu(&self, params: CodeActionParams, expected: CodeAction) {
+        let mut expected_no_edits = expected.clone();
+        expected_no_edits.edit.take();
+
+        let actual: Value = self.send_request::<CodeActionRequest>(params);
+        let actual_action = actual.as_array().unwrap().first().unwrap();
+        let mut actual_no_data = actual_action.as_object().unwrap().clone();
+
+        actual_no_data.remove("data");
+
+        assert_json_eq!(&expected_no_edits, &actual_no_data);
+    }
+
+    pub fn code_action(&self, params: CodeActionParams, expected: CodeAction) {
+        let mut expected_no_edits = expected.clone();
+        expected_no_edits.edit.take();
+
+        let actual: Value = self.send_request::<CodeActionRequest>(params);
+        let actual_action = actual.as_array().unwrap().first().unwrap();
+        let mut actual_no_data = actual_action.as_object().unwrap().clone();
+
+        actual_no_data.remove("data");
+
+        assert_json_eq!(&expected_no_edits, &actual_no_data);
+
+        let id = self.req_id.get();
+        self.req_id.set(id.wrapping_add(1));
+
+        let actual_with_edits = self.send_request_(Request::new(
+            id.into(),
+            "codeAction/resolve".to_string(),
+            actual_action,
+        ));
+
+        let mut actual_with_edits_no_data = actual_with_edits.as_object().unwrap().clone();
+        actual_with_edits_no_data.remove("data");
+
+        assert_json_eq!(&expected, &actual_with_edits_no_data);
     }
 
     pub fn completion(&self, params: CompletionParams, expected: CompletionResponse) {

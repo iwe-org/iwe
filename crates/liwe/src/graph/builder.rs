@@ -326,28 +326,40 @@ impl<'a> GraphBuilder<'a> {
         }
     }
 
-    fn append_from_visitor<'b>(&mut self, visitor: impl NodeIter<'b>) {
+    fn append_from_visitor<'b>(&mut self, iter: impl NodeIter<'b>) {
         self.insert = false;
-        visitor.node().map(|node| {
+
+        if iter.is_document() {
+            self.append_from_visitor(iter.child().unwrap());
+            return;
+        }
+
+        iter.node().map(|node| {
             self.add_new_node_and(node, |builder| {
-                visitor.child().map(|child| {
+                iter.child().map(|child| {
                     builder.insert_from_iter(child);
                 });
-                visitor.next().map(|next| {
+                iter.next().map(|next| {
                     builder.append_from_visitor(next);
                 });
             });
         });
     }
 
-    pub fn insert_from_iter<'b>(&mut self, visitor: impl NodeIter<'b>) {
+    pub fn insert_from_iter<'b>(&mut self, iter: impl NodeIter<'b>) {
         self.insert = true;
-        visitor.node().map(|node| {
+
+        if iter.is_document() {
+            self.insert_from_iter(iter.child().unwrap());
+            return;
+        }
+
+        iter.node().map(|node| {
             self.add_new_node_and(node, |builder| {
-                visitor.child().map(|child| {
+                iter.child().map(|child| {
                     builder.insert_from_iter(child);
                 });
-                visitor.next().map(|next| {
+                iter.next().map(|next| {
                     builder.append_from_visitor(next);
                 });
             });
@@ -376,10 +388,10 @@ impl<'a> GraphBuilder<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::{Graph, GraphNodePointer};
+    use super::{Graph, GraphNodePointer, Tree};
     use crate::markdown::MarkdownReader;
     use crate::model::graph::GraphInline;
-    use crate::model::node::{Node, NodePointer, TreeNode};
+    use crate::model::node::{Node, NodePointer};
     use indoc::indoc;
 
     #[test]
@@ -394,12 +406,12 @@ mod test {
         let visitor = GraphNodePointer::new(&graph, graph.get_document_id(&"key".into()));
 
         assert_eq!(
-            TreeNode {
+            Tree {
                 id: Some(0),
-                payload: Node::Document("key".into()),
-                children: vec![TreeNode {
+                node: Node::Document("key".into()),
+                children: vec![Tree {
                     id: Some(1),
-                    payload: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
+                    node: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
                     children: vec![]
                 }]
             },
@@ -424,15 +436,15 @@ mod test {
         let visitor = GraphNodePointer::new(&graph, graph.get_document_id(&"key".into()));
 
         assert_eq!(
-            TreeNode {
+            Tree {
                 id: Some(0),
-                payload: Node::Document("key".into()),
-                children: vec![TreeNode {
+                node: Node::Document("key".into()),
+                children: vec![Tree {
                     id: Some(1),
-                    payload: Node::Section(vec![GraphInline::Str("item".to_string())]),
-                    children: vec![TreeNode {
+                    node: Node::Section(vec![GraphInline::Str("item".to_string())]),
+                    children: vec![Tree {
                         id: Some(2),
-                        payload: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
+                        node: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
                         children: vec![]
                     }]
                 }]
@@ -443,15 +455,15 @@ mod test {
 
     #[test]
     pub fn graph_form_tree() {
-        let tree = TreeNode {
+        let tree = Tree {
             id: Some(0),
-            payload: Node::Document("key".into()),
-            children: vec![TreeNode {
+            node: Node::Document("key".into()),
+            children: vec![Tree {
                 id: Some(1),
-                payload: Node::Section(vec![GraphInline::Str("section".to_string())]),
-                children: vec![TreeNode {
+                node: Node::Section(vec![GraphInline::Str("section".to_string())]),
+                children: vec![Tree {
                     id: Some(2),
-                    payload: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
+                    node: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
                     children: vec![],
                 }],
             }],
