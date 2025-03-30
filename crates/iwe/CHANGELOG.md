@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.28](https://github.com/iwe-org/iwe/compare/iwe-v0.0.27...iwe-v0.0.28) - 2025-03-30
+
+### Other
+
+- Custom LLM code actions support for context aware updates ([#90](https://github.com/iwe-org/iwe/pull/90))
+
 ## [0.0.27](https://github.com/iwe-org/iwe/compare/iwe-v0.0.26...iwe-v0.0.27) - 2025-03-08
 
 ### Added
