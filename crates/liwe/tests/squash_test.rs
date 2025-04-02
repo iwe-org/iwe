@@ -19,6 +19,18 @@ fn squash_text() {
 }
 
 #[test]
+fn squash_invalid_ref_text() {
+    squash(
+        indoc! {"
+            [](2)
+            "},
+        indoc! {"
+            [](2)
+            "},
+    );
+}
+
+#[test]
 fn squash_after_text() {
     squash(
         indoc! {"
@@ -264,6 +276,8 @@ fn squash_infinite_recursion() {
             ### file 1 title
 
             text 1
+
+            [file 2 title](2)
             "},
     );
 }

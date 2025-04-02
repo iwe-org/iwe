@@ -35,6 +35,13 @@ impl Tree {
         }
     }
 
+    pub fn is_quote(&self) -> bool {
+        match self.node {
+            Node::Quote() => true,
+            _ => false,
+        }
+    }
+
     pub fn extract_sections(&self, keys: HashMap<NodeId, (Key, String)>) -> Tree {
         self.id
             .filter(|id| keys.contains_key(&id))
@@ -86,26 +93,33 @@ impl Tree {
     }
 
     pub fn mark_node(&self, node_id: NodeId, start: &str, end: &str) -> Tree {
-        if self.id_eq(node_id) {
-            return Tree {
-                id: self.id,
-                node: match &self.node {
-                    Node::Section(inlines) => {
-                        let mut result = vec![GraphInline::Str(start.to_string())];
-                        result.extend(inlines.iter().cloned());
-                        result.push(GraphInline::Str(end.to_string()));
-                        Node::Section(result)
-                    }
-                    Node::Leaf(inlines) => {
-                        let mut result = vec![GraphInline::Str(start.to_string())];
-                        result.extend(inlines.iter().cloned());
-                        result.push(GraphInline::Str(end.to_string()));
-                        Node::Leaf(result)
-                    }
-                    _ => self.node.clone(),
+        if self.parent_of(node_id) {
+            let pos = self.position(node_id);
+
+            let mut children = self.children.clone();
+
+            children.insert(
+                pos + 1,
+                Tree {
+                    id: None,
+                    node: Node::Leaf(vec![GraphInline::Str(end.to_string())]),
+                    children: vec![],
                 },
-                children: self.children.clone(),
-            };
+            );
+            children.insert(
+                pos,
+                Tree {
+                    id: None,
+                    node: Node::Leaf(vec![GraphInline::Str(start.to_string())]),
+                    children: vec![],
+                },
+            );
+
+            Tree {
+                id: self.id,
+                children,
+                node: self.node.clone(),
+            }
         } else {
             self.map_children(|child| child.mark_node(node_id, start, end))
         }
@@ -129,17 +143,17 @@ impl Tree {
         }
     }
 
-    pub fn content(&self) -> Self {
-        match self.node.clone() {
-            Node::Document(_) => self.children.first().unwrap().clone(),
-            _ => self.clone(),
-        }
-    }
-
     pub fn pre_sub_header_position(&self) -> usize {
         self.children
             .iter()
             .take_while(|child| !child.is_section())
+            .count()
+    }
+
+    pub fn position(&self, id: NodeId) -> usize {
+        self.children
+            .iter()
+            .take_while(|child| !child.id_eq(id))
             .count()
     }
 
@@ -162,6 +176,23 @@ impl Tree {
 
         if self.id_eq(target_id) {
             children.insert(self.pre_sub_header_position(), new.clone());
+        }
+
+        Tree {
+            id: self.id,
+            node: self.node.clone(),
+            children: children
+                .into_iter()
+                .map(|child| child.append_pre_header(target_id, new.clone()))
+                .collect(),
+        }
+    }
+
+    pub fn append_after(&self, target_id: NodeId, new: Tree) -> Tree {
+        let mut children = self.children.clone();
+
+        if self.parent_of(target_id) {
+            children.insert(self.position(target_id), new.clone());
         }
 
         Tree {
@@ -290,6 +321,17 @@ impl Tree {
             .and_then(|child| child.get_top_level_surrounding_list_id(id))
     }
 
+    pub fn get_surrounding_top_level_block(&self, id: NodeId) -> Option<NodeId> {
+        if self.contains(id) && (self.is_list() || self.is_list()) {
+            return self.id;
+        }
+
+        self.children
+            .iter()
+            .find(|child| child.contains(id))
+            .and_then(|child| child.get_surrounding_top_level_block(id))
+    }
+
     pub fn get_surrounding_list_id(&self, id: NodeId) -> Option<NodeId> {
         if self.is_list() && self.parent_of(id) {
             return self.id;
@@ -350,9 +392,10 @@ impl Tree {
                         child
                             .ref_key()
                             .filter(|_| depth > 0)
-                            .map(|key| Tree::squash_from_pointer(child.to_key(key), depth - 1))
+                            .and_then(|key| child.to_key(key))
+                            .map(|pointer| Tree::squash_from_pointer(pointer, depth - 1))
                             .map(|r| r.first().unwrap().children.clone())
-                            .unwrap_or_default()
+                            .unwrap_or(Tree::squash_from_pointer(child, 0))
                     } else {
                         Tree::squash_from_pointer(child, depth)
                     }
@@ -458,5 +501,167 @@ impl<'a, 'b> NodeIter<'a> for TreeIter<'b> {
         }
 
         Some(node.node.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_section() {
+        let section_node = Tree {
+            id: None,
+            node: Node::Section(vec![]),
+            children: vec![],
+        };
+        let non_section_node = Tree {
+            id: None,
+            node: Node::Quote(),
+            children: vec![],
+        };
+
+        assert!(section_node.is_section());
+        assert!(!non_section_node.is_section());
+    }
+
+    #[test]
+    fn test_is_list() {
+        let bullet_list_node = Tree {
+            id: None,
+            node: Node::BulletList(),
+            children: vec![],
+        };
+        let ordered_list_node = Tree {
+            id: None,
+            node: Node::OrderedList(),
+            children: vec![],
+        };
+        let non_list_node = Tree {
+            id: None,
+            node: Node::Section(vec![]),
+            children: vec![],
+        };
+
+        assert!(bullet_list_node.is_list());
+        assert!(ordered_list_node.is_list());
+        assert!(!non_list_node.is_list());
+    }
+
+    #[test]
+    fn test_replace() {
+        let replacer = Tree {
+            id: Some(2),
+            node: Node::Section(vec![]),
+            children: vec![],
+        };
+        let root = Tree {
+            id: Some(1),
+            node: Node::Quote(),
+            children: vec![Tree {
+                id: Some(2),
+                node: Node::BulletList(),
+                children: vec![],
+            }],
+        };
+
+        let result = root.replace(2, &replacer);
+
+        assert_eq!(result.children[0], replacer);
+    }
+
+    #[test]
+    fn test_update_node() {
+        let inlines = vec![GraphInline::Str("Updated".to_string())];
+        let root = Tree {
+            id: Some(1),
+            node: Node::Quote(),
+            children: vec![Tree {
+                id: Some(2),
+                node: Node::Section(vec![GraphInline::Str("Old".to_string())]),
+                children: vec![],
+            }],
+        };
+
+        let result = root.update_node(2, &inlines);
+
+        if let Node::Section(updated_inlines) = &result.children[0].node {
+            assert_eq!(*updated_inlines, inlines);
+        } else {
+            panic!("The node was not updated properly");
+        }
+    }
+
+    #[test]
+    fn test_find() {
+        let child_tree = Tree {
+            id: Some(2),
+            node: Node::Quote(),
+            children: vec![],
+        };
+        let root = Tree {
+            id: Some(1),
+            node: Node::Section(vec![]),
+            children: vec![child_tree.clone()],
+        };
+
+        let found_tree = root.find(2);
+        assert_eq!(found_tree, Some(child_tree));
+    }
+
+    #[test]
+    fn test_get() {
+        let root = Tree {
+            id: Some(1),
+            node: Node::Section(vec![]),
+            children: vec![Tree {
+                id: Some(2),
+                node: Node::Quote(),
+                children: vec![],
+            }],
+        };
+
+        let child = root.get(2);
+        assert_eq!(child.id, Some(2));
+        assert!(matches!(child.node, Node::Quote()));
+    }
+
+    #[cfg(test)]
+    mod get_top_level_surrounding_list_id_tests {
+        use super::*;
+
+        #[test]
+        fn test_with_list_containing_node() {
+            let list_node = Tree {
+                id: Some(1),
+                node: Node::BulletList(),
+                children: vec![Tree {
+                    id: Some(2),
+                    node: Node::Quote(),
+                    children: vec![],
+                }],
+            };
+
+            assert_eq!(list_node.get_top_level_surrounding_list_id(2), Some(1));
+        }
+
+        #[test]
+        fn test_with_no_list_containing_node() {
+            let root = Tree {
+                id: Some(1),
+                node: Node::Section(vec![]),
+                children: vec![Tree {
+                    id: Some(2),
+                    node: Node::Quote(),
+                    children: vec![Tree {
+                        id: Some(3),
+                        node: Node::Leaf(vec![GraphInline::Str("Test".to_string())]),
+                        children: vec![],
+                    }],
+                }],
+            };
+
+            assert_eq!(root.get_top_level_surrounding_list_id(3), None);
+        }
     }
 }

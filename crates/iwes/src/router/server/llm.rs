@@ -1,6 +1,7 @@
+use liwe::model::config::Model;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env::var};
+use std::{collections::HashMap, env::var, time::Duration};
 
 pub mod templates;
 
@@ -80,93 +81,71 @@ impl Default for Role {
     }
 }
 
-pub fn apply_prompt<'a>(prompt: String) -> String {
+pub fn apply_prompt<'a>(prompt: String, model: &Model) -> String {
     let client = reqwest::blocking::Client::new();
 
-    let token = var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set");
+    let token = var(model.api_key_env.clone())
+        .expect(&format!("{} env var must be set", model.api_key_env));
 
     let request = ChatCompletionRequest {
-        model: "gpt-3.5-turbo".to_string(),
+        model: model.name.clone(),
         messages: vec![ChatCompletionMessage {
             role: Role::User,
             content: Some(prompt),
-            name: Some("User".to_string()),
+            name: Some("user".to_string()),
         }],
-        temperature: Some(0.7),
+        temperature: model.temperature,
         top_p: Some(1.0),
         n: Some(1),
         stream: Some(false),
-        stop: vec!["\n".to_string()],
-        seed: Some(0),
-        max_tokens: Some(100),
-        presence_penalty: Some(0.0),
-        frequency_penalty: Some(0.0),
+        stop: vec![], // can stop on a new line
+        seed: None,
+        max_tokens: model.max_tokens,
+        presence_penalty: None,
+        frequency_penalty: None,
         logit_bias: None,
-        user: "user-id-123".to_string(),
+        user: "user".to_string(),
         response_format: None,
-        max_completion_tokens: None,
+        max_completion_tokens: model.max_completion_tokens,
     };
 
     let response = client
-        .request(Method::POST, "https://api.openai.com/v1/chat/completions")
+        .request(
+            Method::POST,
+            format!("{}/v1/chat/completions", model.base_url),
+        )
+        .timeout(Duration::from_secs(60))
         .json(&request)
         .bearer_auth(token)
         .send()
         .unwrap()
         .json::<ChatCompletion>();
 
-    response.ok().unwrap().choices[0]
-        .message
-        .content
-        .as_ref()
-        .unwrap()
-        .clone()
+    match response {
+        Ok(ok) => ok.choices[0].message.content.as_ref().unwrap().clone(),
+        Err(err) => {
+            format!("Error: {:?}", err)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Method;
-
     use super::*;
-    use std::env;
 
     #[test]
     #[ignore]
     fn test_chat() {
-        let client = reqwest::blocking::Client::new();
-
-        let token = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set");
-
-        let request = ChatCompletionRequest {
-            model: "gpt-3.5-turbo".to_string(),
-            messages: vec![ChatCompletionMessage {
-                role: Role::User,
-                content: Some("Hello, world!".to_string()),
-                name: Some("User".to_string()),
-            }],
-            temperature: Some(0.7),
-            top_p: Some(1.0),
-            n: Some(1),
-            stream: Some(false),
-            stop: vec!["\n".to_string()],
-            seed: Some(0),
-            max_tokens: Some(100),
-            presence_penalty: Some(0.0),
-            frequency_penalty: Some(0.0),
-            logit_bias: None,
-            user: "user-id-123".to_string(),
-            response_format: None,
-            max_completion_tokens: None,
-        };
-
-        let response = client
-            .request(Method::POST, "https://api.openai.com/v1/chat/completions")
-            .json(&request)
-            .bearer_auth(token)
-            .send()
-            .unwrap()
-            .json::<ChatCompletion>();
-
-        println!("{:?}", response);
+        dbg!(apply_prompt(
+            "test".to_string(),
+            &Model {
+                api_key_env: "OPENAI_API_KEY".to_string(),
+                base_url: "https://api.openai.com".to_string(),
+                name: "gpt-4o".to_string(),
+                max_tokens: None,
+                max_completion_tokens: None,
+                temperature: None,
+            }
+        ));
     }
 }

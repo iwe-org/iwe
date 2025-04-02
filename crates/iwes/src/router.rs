@@ -9,13 +9,15 @@ use log::{debug, error};
 use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::{
-    CodeAction, CodeActionParams, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, DocumentSymbolParams, InlayHintParams, InlineValueParams,
-    ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
+    CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams,
+    ExecuteCommandParams, InlayHintParams, InlineValueParams, ReferenceParams, RenameParams,
+    TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 use serde::Deserialize;
 use serde_json::to_value;
+use uuid::Uuid;
 
 use self::server::Server;
 
@@ -148,6 +150,19 @@ impl Router {
             return true;
         }
 
+        if request.method.eq("workspace/executeCommand") {
+            let params = ExecuteCommandParams::deserialize(request.params).unwrap();
+            let result = self.server.handle_workspace_command(params);
+
+            self.send(Message::Request(Request {
+                id: Uuid::new_v4().to_string().into(),
+                method: "workspace/applyEdit".to_string(),
+                params: to_value(result).unwrap(),
+            }));
+
+            return false;
+        }
+
         let response = match request.method.as_str() {
             "textDocument/inlayHint" => InlayHintParams::deserialize(request.params)
                 .map(|params| self.server.handle_inlay_hints(params))
@@ -162,10 +177,13 @@ impl Router {
                 .map(|params| self.server.handle_goto_definition(params))
                 .map(|response| to_value(response).unwrap()),
             "workspace/symbol" => WorkspaceSymbolParams::deserialize(request.params)
-                .map(|params| self.server.handle_workspace_symbols(params)) // Completion::METHOD => {
+                .map(|params| self.server.handle_workspace_symbols(params))
                 .map(|response| to_value(response).unwrap()),
             "textDocument/completion" => CompletionParams::deserialize(request.params)
                 .map(|params| self.server.handle_completion(params))
+                .map(|response| to_value(response).unwrap()),
+            "completionItem/resolve" => CompletionItem::deserialize(request.params)
+                .map(|params| self.server.resolve_completion(params))
                 .map(|response| to_value(response).unwrap()),
             "textDocument/codeAction" => CodeActionParams::deserialize(request.params)
                 .map(|params| self.server.handle_code_action(&params))
@@ -192,6 +210,8 @@ impl Router {
                 panic!("unhandled request: {}", default)
             }
         };
+
+        // schedule update
 
         match response {
             Ok(value) => self.respond(Response {

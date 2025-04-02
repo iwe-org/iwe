@@ -39,7 +39,6 @@ pub impl Vec<DocumentChangeOperation> {
             kind: Some(kind),
             edit: Some(WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(self)),
-
                 ..Default::default()
             }),
             ..Default::default()
@@ -284,7 +283,8 @@ pub impl Key {
     ) -> CompletionItem {
         CompletionItem {
             preselect: Some(true),
-            label: context.get_ref_text(self).unwrap_or_default(),
+            label: format!("🔗 {}", context.get_ref_text(self).unwrap_or_default()),
+            sort_text: Some(context.get_ref_text(self).unwrap_or_default()),
             insert_text: Some(
                 self.to_link(context.get_ref_text(self).unwrap_or_default(), relative_to),
             ),
@@ -295,6 +295,7 @@ pub impl Key {
                     .replace(" ", "")
                     .to_lowercase(),
             ),
+            command: None,
             documentation: None,
             ..Default::default()
         }

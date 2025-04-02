@@ -269,7 +269,7 @@ pub trait NodePointer<'a>: NodeIter<'a> {
     fn child_id(&self) -> Option<NodeId>;
     fn prev_id(&self) -> Option<NodeId>;
     fn to_node(&self, id: NodeId) -> Self;
-    fn to_key(&self, key: Key) -> Self;
+    fn to_key(&self, key: Key) -> Option<Self>;
 
     fn at(&self, id: NodeId) -> bool {
         self.id() == Some(id)
