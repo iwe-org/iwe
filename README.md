@@ -1,13 +1,16 @@
-
 # About IWE
 
 [IWE](https://iwe.md) is an open-source, local-first, markdown-based note-taking tool. It serves as a personal knowledge management (PKM) solution **designed for developers**.
 
-IWE integrates seamlessly with popular developer text editors such as VSCode, Zed, Neovim, Helix, and others. It connects with your editor through the Language Server Protocol (LSP) to assist you in writing and maintaining your Markdown documents.
+IWE integrates seamlessly with popular developer text editors such as VSCode, Neovim, Zed, Helix, and others. It connects with your editor through the Language Server Protocol (LSP) to assist you in writing and maintaining your Markdown documents.
 
 IWE offers powerful features such as **search**, **auto-complete**, **go to definition**, **find references**, **rename refactoring**, and more. In addition to standard Markdown, it also supports wiki-style links, tables, and other Markdown extensions.
 
-The primary focus of IWE is to help you keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as extract/embed note and many other via LSP **code actions**.
+IWE includes **AI** capabilities that can be accessed right from your text editor. You can effortlessly **rewrite** text, **expand** on ideas, **highlight** important words, or even add some **emojis**. Want to customize your AI experience? You can easily add your own AI commands by updating the config file with your custom prompts.
+
+Looking to spark creativity in your writing? You can designate certain notes as "prompts" to inspire and develop fresh content. Simply apply these prompts to your other notes (using LSP completions menu) to help generate new ideas and insights.
+
+The primary focus of IWE is to be your ultimate writing assistant and keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as **extract/embed** note and many other via LSP **code actions**.
 
 While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using Map of Content ([MOC](https://github.com/iwe-org/iwe/wiki/Map-of-content)) documents.
 
@@ -17,14 +20,16 @@ While IWE supports sub-directories and relative links, it also allows you to org
 
 The main LSP features are:
 
+- 🤖 *Generate* or **Modify** text using AI commands
 - 🔍 **Search** through your notes
 - 🧭 **Navigate** through markdown links
 - ✨ **Auto-complete** links as you type
 - 📥 **Extract** or **inline** sub-notes seamlessly
-- 📝 **Format** the document and refresh link titles
+- 📝 **Format** the document and update link titles automatically
 - 🔄 **Rename** files and automatically update all the links
 - 🔗 Search for **backlinks** to find references to the current document
 - 💡 Display **inlay hints** with parent note references and link counts
+- 🔹 Change outline type from headers to list and vice-versa
 
 You can learn more on the [LPS Features](https://github.com/iwe-org/iwe/wiki/LSP-features) page.
 
@@ -65,6 +70,34 @@ IWE fully depends on community support, which is essential for its growth and de
 
 Contributions to the project [documentation](https://github.com/iwe-org/iwe/wiki) are also highly appreciated.
 
+<br />
+<a href="https://discord.gg/UVKfZH9UuT">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/ad185fac-3b48-446d-863c-2bcb0724abee">
+<source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/aa23f503-f3bf-444a-9080-8eaa19fa2fa8">
+<img alt="Discord" src="https://github.com/user-attachments/assets/aa23f503-f3bf-444a-9080-8eaa19fa2fa8" width="48" height="48">
+</picture>
+</a>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://www.reddit.com/r/iwe/">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/d8c05686-2eb9-4ac1-8149-728c12b4e71a">
+<source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/6f32329a-4d6f-42d8-9a2f-42977c0b3c05">
+<img alt="Reddit" src="https://github.com/user-attachments/assets/6f32329a-4d6f-42d8-9a2f-42977c0b3c05" width="48" height="48">
+</picture>
+</a>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://twitter.com/gimalay">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/115f04cc-e3c2-4f90-ac35-eb9edd3ca9be">
+<source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/4ed4185d-a622-418c-bbf4-a0419e690ca9">
+<img alt="Twitter" src="https://github.com/user-attachments/assets/4ed4185d-a622-418c-bbf4-a0419e690ca9" width="48" height="48">
+</picture>
+</a>
+<br /><br />
+
+Remember to give this repository a ⭐!
+
 ### Plugins / Packages
 
 This repository is for Rust code and crates publishing only. Plugins and packages are in separate repositories. If you are willing to help with a non-listed package type, I'm happy to add a repo for it.
@@ -93,9 +126,3 @@ export IWE_DEBUG=true; nvim
 - [zk notes](https://github.com/zk-org/zk)
 - [neuron](https://github.com/srid/neuron)
 - [rust-analyzer](https://rust-analyzer.github.io)
-
-### PS
-
-A huge thank you to my wife, Iryna ❤️, for all her support and for giving me the time I needed to finish this over the weekends!
-
-Thanks to the Rust community for creating such amazing software development tools. I've really enjoyed learning and using them in the process of building IWE.

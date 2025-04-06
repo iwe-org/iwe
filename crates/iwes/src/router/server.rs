@@ -1,14 +1,19 @@
-use std::fs::write;
+use std::fs;
 use std::path::Path;
 
 use action::all_action_types;
 use action::ActionContext;
 use action::ActionProvider;
 
+use command::CommandType;
+use command::GenerateCommand;
 use itertools::Itertools;
 use liwe::graph::path::NodePath;
+
+use liwe::graph::Graph;
 use liwe::model::config::Configuration;
 use liwe::model::config::MarkdownOptions;
+use liwe::model::config::Model;
 use liwe::model::node::NodePointer;
 use liwe::model::tree::Tree;
 use liwe::model::NodeId;
@@ -31,6 +36,7 @@ use liwe::database::DatabaseContext;
 use self::extensions::*;
 
 pub mod action;
+pub mod command;
 mod extensions;
 mod llm;
 
@@ -38,7 +44,6 @@ pub struct Server {
     base_path: BasePath,
     database: Database,
     lsp_client: LspClient,
-    #[allow(dead_code)]
     configuration: Configuration,
 }
 
@@ -104,10 +109,12 @@ impl Server {
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
-        self.database.update_document(
-            self.base_path.url_to_key(&params.text_document.uri.clone()),
-            params.text.unwrap().clone(),
-        );
+        params.text.map(|text| {
+            self.database.update_document(
+                self.base_path.url_to_key(&params.text_document.uri.clone()),
+                text,
+            )
+        });
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
@@ -117,25 +124,99 @@ impl Server {
         );
     }
 
-    pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
-        let relative_to = params
+    fn handle_plus_completions(&self, params: CompletionParams) -> Vec<CompletionItem> {
+        let current_key = params
             .text_document_position
             .text_document
             .uri
-            .to_key(&self.base_path)
-            .parent();
+            .to_key(&self.base_path);
 
+        let new_key = self.database.graph().random_key(&current_key.parent());
+        let keys = self.database.graph().keys();
+        keys.iter()
+            .filter(|key| {
+                self.configuration
+                    .prompt_key_prefix
+                    .clone()
+                    .map(|prefix| key.relative_path.starts_with(&prefix))
+                    .unwrap_or(false)
+            })
+            .map(|key| {
+                let command = GenerateCommand {
+                    new_key: new_key.to_string(),
+                    prompt_key: key.to_string(),
+                    target_key: current_key.to_string(),
+                };
+
+                CompletionItem {
+                    preselect: Some(true),
+                    label: format!(
+                        "🤖 {}",
+                        self.database.graph().get_ref_text(key).unwrap_or_default()
+                    ),
+                    insert_text: Some(format!("[⏳]({})", new_key)),
+                    filter_text: Some(format!(
+                        "_{}",
+                        self.database.graph().get_ref_text(key).unwrap_or_default()
+                    )),
+                    sort_text: Some(self.database.graph().get_ref_text(key).unwrap_or_default()),
+                    command: Some(Command {
+                        title: "generate".into(),
+                        command: CommandType::Generate.to_string().into(),
+                        arguments: Some(vec![serde_json::to_value(command).unwrap()]),
+                    }),
+                    documentation: None,
+                    ..Default::default()
+                }
+            })
+            .sorted_by(|a, b| a.label.cmp(&b.label))
+            .collect_vec()
+    }
+
+    pub fn handle_link_completion(&self, params: CompletionParams) -> Vec<CompletionItem> {
+        let current_key = params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path);
+
+        self.database
+            .graph()
+            .keys()
+            .iter()
+            .map(|key| {
+                key.to_completion(
+                    &current_key.parent(),
+                    self.database.graph(),
+                    &self.base_path,
+                )
+            })
+            .sorted_by(|a, b| a.label.cmp(&b.label))
+            .collect_vec()
+    }
+
+    pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
         CompletionResponse::List(CompletionList {
-            is_incomplete: true,
+            is_incomplete: false,
             items: self
-                .database
-                .graph()
-                .keys()
-                .iter()
-                .map(|key| key.to_completion(&relative_to, self.database.graph(), &self.base_path))
-                .sorted_by(|a, b| a.label.cmp(&b.label))
+                .handle_plus_completions(params.clone())
+                .into_iter()
+                .chain(self.handle_link_completion(params).into_iter())
                 .collect_vec(),
         })
+    }
+
+    pub fn resolve_completion(&self, completion: CompletionItem) -> CompletionItem {
+        completion
+    }
+
+    pub fn handle_workspace_command(
+        &self,
+        params: ExecuteCommandParams,
+    ) -> ApplyWorkspaceEditParams {
+        command::Command::from_params(params)
+            .execute(self)
+            .to_workspace_edit(&self.base_path)
     }
 
     pub fn handle_workspace_symbols(
@@ -259,16 +340,25 @@ impl Server {
 
     pub fn handle_document_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
         let key = params.text_document.uri.to_key(&self.base_path);
-        let id = self
+        let id_opt = self
             .database
             .graph()
             .maybe_key(&key)
-            .unwrap()
-            .to_child()
-            .expect("to have child")
-            .id()
-            .unwrap();
-        let id2 = self.database.graph().maybe_key(&key).unwrap().id().unwrap();
+            .and_then(|key_node| key_node.to_child().and_then(|child| child.id()));
+
+        let id2_opt = self
+            .database
+            .graph()
+            .maybe_key(&key)
+            .and_then(|key_node| key_node.id());
+
+        if id_opt.is_none() || id2_opt.is_none() {
+            return vec![];
+        }
+
+        let id = id_opt.unwrap();
+        let id2 = id2_opt.unwrap();
+
         let paths = self.database.graph().paths();
 
         paths
@@ -618,9 +708,17 @@ impl ActionContext for &Server {
         &self.configuration.markdown
     }
 
-    fn llm_query(&self, prompt: String) -> String {
+    fn default_model(&self) -> &Model {
+        self.configuration.models.get("default").unwrap()
+    }
+
+    fn patch(&self) -> Graph {
+        self.database.graph().new_patch()
+    }
+
+    fn llm_query(&self, prompt: String, model: &Model) -> String {
         if Path::new("./.iwe").exists() {
-            write("./.iwe/prompt.md", &prompt).expect("Unable to write file");
+            fs::write("./.iwe/prompt.md", &prompt).expect("Unable to write file");
         }
 
         if self
@@ -631,7 +729,13 @@ impl ActionContext for &Server {
         {
             "".to_string()
         } else {
-            llm::apply_prompt(prompt)
+            let response = llm::apply_prompt(prompt, model);
+
+            if Path::new("./.iwe").exists() {
+                fs::write("./.iwe/generated.md", &response).expect("Unable to write file");
+            }
+
+            response
         }
     }
 }

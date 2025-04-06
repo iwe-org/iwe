@@ -143,6 +143,79 @@ fn inline_after_para() {
 }
 
 #[test]
+fn inline_two_paras() {
+    assert_inlined(
+        indoc! {"
+            # test
+
+            [test2](2)
+            _
+            para 1
+
+            para 2
+            "},
+        2,
+        indoc! {"
+            # test
+
+            para 1
+
+            para 2
+            "},
+    );
+}
+
+#[test]
+fn inline_para_and_header() {
+    assert_inlined(
+        indoc! {"
+            # test
+
+            [test2](2)
+            _
+            para 1
+
+            # header
+            "},
+        2,
+        indoc! {"
+            # test
+
+            para 1
+
+            ## header
+            "},
+    );
+}
+
+#[test]
+fn inline_para_and_header_before_para() {
+    assert_inlined(
+        indoc! {"
+            # test
+
+            [test2](2)
+
+            para 1
+            _
+            para 2
+
+            # header
+            "},
+        2,
+        indoc! {"
+            # test
+
+            para 1
+
+            para 2
+
+            ## header
+            "},
+    );
+}
+
+#[test]
 fn inline_third_level_section_test() {
     assert_inlined(
         indoc! {"
@@ -166,7 +239,7 @@ fn inline_third_level_section_test() {
 }
 
 #[test]
-fn extract_one_of_sub_level_section() {
+fn inline_one_of_sub_level_section() {
     assert_inlined(
         indoc! {"
             # test

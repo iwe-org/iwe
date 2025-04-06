@@ -44,11 +44,11 @@ impl<'a> NodePointer<'a> for GraphNodePointer<'a> {
         }
     }
 
-    fn to_key(&self, key: crate::model::Key) -> Self {
-        GraphNodePointer {
-            id: self.graph.get_node_id(&key).unwrap(),
+    fn to_key(&self, key: crate::model::Key) -> Option<Self> {
+        self.graph.get_node_id(&key).map(|id| GraphNodePointer {
+            id,
             graph: self.graph,
-        }
+        })
     }
 }
 

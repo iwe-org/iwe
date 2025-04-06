@@ -40,6 +40,7 @@ relative-path.workspace = true
 reqwest.workspace = true
 once_cell.workspace = true
 minijinja.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 assert-json-diff.workspace = true

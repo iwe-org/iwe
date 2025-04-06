@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 
+use liwe::graph::Graph;
+use liwe::markdown::MarkdownReader;
 use liwe::model::config::{Configuration, Context, MarkdownOptions, Model};
-use liwe::model::graph::GraphInline;
-use liwe::model::node::{Node, NodeIter, Reference, ReferenceType};
+use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
 
@@ -23,7 +24,9 @@ pub trait ActionContext {
     fn squash(&self, key: &Key, depth: u8) -> Tree;
     fn random_key(&self, parent: &str) -> Key;
     fn markdown_options(&self) -> &MarkdownOptions;
-    fn llm_query(&self, prompt: String) -> String;
+    fn llm_query(&self, prompt: String, model: &Model) -> String;
+    fn default_model(&self) -> &Model;
+    fn patch(&self) -> Graph;
 }
 
 pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
@@ -38,7 +41,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
     ];
 
     actions.extend(configuration.actions.iter().map(|(identifier, action)| {
-        let action = ActionEnum::UpdateNodeAction(UpdateNodeAction {
+        let action = ActionEnum::UpdateNodeAction(UpdateBlockAction {
             title: action.title.clone(),
             identifier: identifier.clone(),
             model_parameters: configuration
@@ -66,7 +69,7 @@ pub enum ActionEnum {
     SectionToList(SectionToList),
     SectionExtract(SectionExtract),
     SubSectionsExtract(SubSectionsExtract),
-    UpdateNodeAction(UpdateNodeAction),
+    UpdateNodeAction(UpdateBlockAction),
 }
 
 impl ActionEnum {}
@@ -199,7 +202,7 @@ pub trait ActionProvider {
     }
 }
 
-pub struct UpdateNodeAction {
+pub struct UpdateBlockAction {
     pub title: String,
     pub identifier: String,
 
@@ -209,7 +212,7 @@ pub struct UpdateNodeAction {
     pub context: Context,
 }
 
-impl ActionProvider for UpdateNodeAction {
+impl ActionProvider for UpdateBlockAction {
     fn identifier(&self) -> String {
         format!("custom.{}", self.identifier.to_string())
     }
@@ -225,17 +228,24 @@ impl ActionProvider for UpdateNodeAction {
     fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
         let key = context.key_of(target_id);
 
-        let prompt = templates::block_action_prompt(
-            &self.prompt_template,
-            target_id,
-            &context.collect(&key),
-        );
+        let tree = &context.collect(&key);
 
-        let generated = context.llm_query(prompt);
+        let target_id = tree
+            .get_surrounding_top_level_block(target_id)
+            .unwrap_or(target_id);
+
+        let prompt = templates::block_action_prompt(&self.prompt_template, target_id, tree);
+
+        let generated = context.llm_query(prompt, &self.model_parameters);
+
+        let mut patch = context.patch();
+
+        patch.from_markdown("new".into(), &generated, MarkdownReader::new());
+        let tree = patch.maybe_key(&"new".into()).unwrap().collect_tree();
 
         let markdown = context
             .collect(&key)
-            .update_node(target_id, &vec![GraphInline::Str(generated.clone())])
+            .replace(target_id, &tree)
             .iter()
             .to_default_markdown();
 
@@ -547,7 +557,7 @@ impl ActionProvider for ReferenceInlineSection {
                         let markdown = context
                             .collect(&key)
                             .remove_node(target_id)
-                            .append_pre_header(section_id, context.collect(&inline_key).content())
+                            .append_pre_header(section_id, context.collect(&inline_key))
                             .iter()
                             .to_markdown(&key.parent(), context.markdown_options());
 

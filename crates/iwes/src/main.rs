@@ -11,6 +11,7 @@ use liwe::model::config::Configuration;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
+use lsp_types::ExecuteCommandOptions;
 use lsp_types::InitializeParams;
 use lsp_types::OneOf;
 use lsp_types::RenameOptions;
@@ -71,7 +72,13 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         references_provider: Some(OneOf::Left(true)),
         document_formatting_provider: Some(OneOf::Left(true)),
         definition_provider: Some(OneOf::Left(true)),
-        completion_provider: Some(CompletionOptions::default()),
+        completion_provider: Some(CompletionOptions {
+            resolve_provider: Some(true),
+            trigger_characters: Some(vec!["+".to_string()]),
+            all_commit_characters: None,
+            work_done_progress_options: Default::default(),
+            completion_item: None,
+        }),
         workspace_symbol_provider: Some(OneOf::Left(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
@@ -93,6 +100,10 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             resolve_provider: Some(true),
             ..Default::default()
         })),
+        execute_command_provider: Some(ExecuteCommandOptions {
+            commands: vec!["generate".to_string()],
+            work_done_progress_options: Default::default(),
+        }),
         ..Default::default()
     })
     .unwrap();

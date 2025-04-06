@@ -3,3 +3,4 @@ target
 *.vsix
 .DS_Store
 iwe.log
+.iwe

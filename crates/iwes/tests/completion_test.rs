@@ -27,12 +27,13 @@ fn completion_test() {
             partial_result_params: Default::default(),
         },
         CompletionResponse::List(CompletionList {
-            is_incomplete: true,
+            is_incomplete: false,
             items: vec![CompletionItem {
                 documentation: None,
                 filter_text: Some("test".to_string()),
+                sort_text: Some("test".to_string()),
                 insert_text: Some("[test](1)".to_string()),
-                label: "test".to_string(),
+                label: "🔗 test".to_string(),
                 preselect: Some(true),
                 ..Default::default()
             }],
@@ -70,21 +71,23 @@ fn completion_relative_test() {
             partial_result_params: Default::default(),
         },
         CompletionResponse::List(CompletionList {
-            is_incomplete: true,
+            is_incomplete: false,
             items: vec![
                 CompletionItem {
                     documentation: None,
                     filter_text: Some("sub-document".to_string()),
+                    sort_text: Some("sub-document".to_string()),
                     insert_text: Some("[sub-document](sub)".to_string()),
-                    label: "sub-document".to_string(),
+                    label: "🔗 sub-document".to_string(),
                     preselect: Some(true),
                     ..Default::default()
                 },
                 CompletionItem {
                     documentation: None,
                     filter_text: Some("top-level".to_string()),
+                    sort_text: Some("top-level".to_string()),
                     insert_text: Some("[top-level](../top)".to_string()),
-                    label: "top-level".to_string(),
+                    label: "🔗 top-level".to_string(),
                     preselect: Some(true),
                     ..Default::default()
                 },
