@@ -20,7 +20,7 @@ While IWE supports sub-directories and relative links, it also allows you to org
 
 The main LSP features are:
 
-- 🤖 *Generate* or **Modify** text using AI commands
+- 🤖 **Generate** or **Modify** text using AI commands
 - 🔍 **Search** through your notes
 - 🧭 **Navigate** through markdown links
 - ✨ **Auto-complete** links as you type
