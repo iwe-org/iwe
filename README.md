@@ -70,34 +70,6 @@ IWE fully depends on community support, which is essential for its growth and de
 
 Contributions to the project [documentation](https://github.com/iwe-org/iwe/wiki) are also highly appreciated.
 
-<br />
-<a href="https://discord.gg/UVKfZH9UuT">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/ad185fac-3b48-446d-863c-2bcb0724abee">
-<source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/aa23f503-f3bf-444a-9080-8eaa19fa2fa8">
-<img alt="Discord" src="https://github.com/user-attachments/assets/aa23f503-f3bf-444a-9080-8eaa19fa2fa8" width="48" height="48">
-</picture>
-</a>
-&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://www.reddit.com/r/iwe/">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/d8c05686-2eb9-4ac1-8149-728c12b4e71a">
-<source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/6f32329a-4d6f-42d8-9a2f-42977c0b3c05">
-<img alt="Reddit" src="https://github.com/user-attachments/assets/6f32329a-4d6f-42d8-9a2f-42977c0b3c05" width="48" height="48">
-</picture>
-</a>
-&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://twitter.com/gimalay">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/115f04cc-e3c2-4f90-ac35-eb9edd3ca9be">
-<source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/4ed4185d-a622-418c-bbf4-a0419e690ca9">
-<img alt="Twitter" src="https://github.com/user-attachments/assets/4ed4185d-a622-418c-bbf4-a0419e690ca9" width="48" height="48">
-</picture>
-</a>
-<br /><br />
-
-Remember to give this repository a ⭐!
-
 ### Plugins / Packages
 
 This repository is for Rust code and crates publishing only. Plugins and packages are in separate repositories. If you are willing to help with a non-listed package type, I'm happy to add a repo for it.
