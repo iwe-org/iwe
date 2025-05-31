@@ -7,7 +7,7 @@ use std::{
 use basic_iter::GraphNodePointer;
 use graph_line::Line;
 use index::RefIndex;
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 use sections_builder::SectionsBuilder;
 
 use crate::{
@@ -513,7 +513,7 @@ impl GraphContext for &Graph {
 
         loop {
             let key = Alphanumeric
-                .sample_string(&mut rand::thread_rng(), 8)
+                .sample_string(&mut rand::rng(), 8)
                 .to_lowercase();
             if !self
                 .keys
