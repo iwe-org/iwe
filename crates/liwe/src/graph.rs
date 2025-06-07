@@ -28,7 +28,7 @@ use crate::model::InlinesContext;
 use crate::model::{Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
 mod arena;
-mod basic_iter;
+pub mod basic_iter;
 pub mod builder;
 mod graph_line;
 pub mod graph_node;

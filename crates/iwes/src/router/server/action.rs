@@ -61,10 +61,8 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
 
 pub enum ActionEnum {
     ListChangeType(ListChangeType),
-    ListDetach(ListDetach),
     ListToSections(ListToSections),
     ReferenceInlineSection(ReferenceInlineSection),
-    ReferenceInlineList(ReferenceInlineList),
     ReferenceInlineQuote(ReferenceInlineQuote),
     SectionToList(SectionToList),
     SectionExtract(SectionExtract),
@@ -77,10 +75,8 @@ impl ActionEnum {}
 pub fn all_actions() -> Vec<ActionEnum> {
     vec![
         ActionEnum::ListChangeType(ListChangeType {}),
-        ActionEnum::ListDetach(ListDetach {}),
         ActionEnum::ListToSections(ListToSections {}),
         ActionEnum::ReferenceInlineSection(ReferenceInlineSection {}),
-        ActionEnum::ReferenceInlineList(ReferenceInlineList {}),
         ActionEnum::ReferenceInlineQuote(ReferenceInlineQuote {}),
         ActionEnum::SectionToList(SectionToList {}),
         ActionEnum::SectionExtract(SectionExtract {}),
@@ -92,10 +88,8 @@ impl ActionProvider for ActionEnum {
     fn identifier(&self) -> String {
         match self {
             ActionEnum::ListChangeType(inner) => inner.identifier(),
-            ActionEnum::ListDetach(inner) => inner.identifier(),
             ActionEnum::ListToSections(inner) => inner.identifier(),
             ActionEnum::ReferenceInlineSection(inner) => inner.identifier(),
-            ActionEnum::ReferenceInlineList(inner) => inner.identifier(),
             ActionEnum::ReferenceInlineQuote(inner) => inner.identifier(),
             ActionEnum::SectionToList(inner) => inner.identifier(),
             ActionEnum::SectionExtract(inner) => inner.identifier(),
@@ -107,10 +101,8 @@ impl ActionProvider for ActionEnum {
     fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
         match self {
             ActionEnum::ListChangeType(inner) => inner.action(target_id, context),
-            ActionEnum::ListDetach(inner) => inner.action(target_id, context),
             ActionEnum::ListToSections(inner) => inner.action(target_id, context),
             ActionEnum::ReferenceInlineSection(inner) => inner.action(target_id, context),
-            ActionEnum::ReferenceInlineList(inner) => inner.action(target_id, context),
             ActionEnum::ReferenceInlineQuote(inner) => inner.action(target_id, context),
             ActionEnum::SectionToList(inner) => inner.action(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.action(target_id, context),
@@ -122,10 +114,8 @@ impl ActionProvider for ActionEnum {
     fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
         match self {
             ActionEnum::ListChangeType(inner) => inner.changes(target_id, context),
-            ActionEnum::ListDetach(inner) => inner.changes(target_id, context),
             ActionEnum::ListToSections(inner) => inner.changes(target_id, context),
             ActionEnum::ReferenceInlineSection(inner) => inner.changes(target_id, context),
-            ActionEnum::ReferenceInlineList(inner) => inner.changes(target_id, context),
             ActionEnum::ReferenceInlineQuote(inner) => inner.changes(target_id, context),
             ActionEnum::SectionToList(inner) => inner.changes(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.changes(target_id, context),
@@ -661,119 +651,6 @@ impl ActionProvider for SectionToList {
                         .iter()
                         .to_markdown(&key.parent(), context.markdown_options()),
                 })]
-            })
-    }
-}
-
-pub struct ListDetach {}
-impl ActionProvider for ListDetach {
-    fn identifier(&self) -> String {
-        return "refactor.extract.list".to_string();
-    }
-
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
-        let key = context.key_of(target_id);
-        context
-            .collect(&key)
-            .get_surrounding_list_id(target_id)
-            .map(|_| Action {
-                title: "Extract list".to_string(),
-                identifier: self.identifier(),
-                target_id,
-            })
-    }
-
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
-        let key = context.key_of(target_id);
-        let tree = context.collect(&key);
-
-        context
-            .collect(&key)
-            .get_surrounding_list_id(target_id)
-            .map(|scope_id| {
-                let new_key = context.random_key(&key.parent());
-
-                let pair = (new_key.clone(), tree.get(scope_id).node.plain_text());
-
-                let markdown = context
-                    .collect(&key)
-                    .extract_sections(HashMap::from([(scope_id, pair)]))
-                    .iter()
-                    .to_markdown(&key.parent(), context.markdown_options());
-
-                let new_markdown = tree
-                    .get(target_id)
-                    .iter()
-                    .to_markdown(&new_key.parent(), context.markdown_options());
-
-                vec![
-                    Change::Create(Create {
-                        key: new_key.clone(),
-                    }),
-                    Change::Update(Update {
-                        key: new_key,
-                        markdown: new_markdown,
-                    }),
-                    Change::Update(Update {
-                        key: key,
-                        markdown: markdown,
-                    }),
-                ]
-            })
-    }
-}
-
-pub struct ReferenceInlineList {}
-impl ActionProvider for ReferenceInlineList {
-    fn identifier(&self) -> String {
-        return "refactor.inline.reference.list".to_string();
-    }
-
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
-        let key = context.key_of(target_id);
-        let tree = context.collect(&key);
-
-        Some(target_id)
-            .filter(|node_id| {
-                tree.find(*node_id)
-                    .map(|n| n.is_reference())
-                    .unwrap_or(false)
-            })
-            .map(|_| Action {
-                title: "Inline list".to_string(),
-                identifier: self.identifier(),
-                target_id,
-            })
-    }
-
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
-        let key = context.key_of(target_id);
-        let tree = context.collect(&key);
-
-        Some(target_id)
-            .filter(|node_id| {
-                tree.find(*node_id)
-                    .map(|n| n.is_reference())
-                    .unwrap_or(false)
-            })
-            .map(|reference_id| {
-                let inline_key = context.collect(&key).reference_key(reference_id);
-
-                let markdown = context
-                    .collect(&key)
-                    .replace(reference_id, &context.collect(&inline_key))
-                    .iter()
-                    .to_markdown(&key.parent(), context.markdown_options());
-
-                vec![
-                    Change::Remove(Remove {
-                        key: context.collect(&key).reference_key(reference_id),
-                    }),
-                    Change::Update(Update {
-                        key: key,
-                        markdown: markdown,
-                    }),
-                ]
             })
     }
 }
