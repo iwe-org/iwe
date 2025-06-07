@@ -1,6 +1,6 @@
 use crate::{
     graph::builder::GraphBuilder,
-    model::{Key, LineRange, NodesMap},
+    model::{document::DocumentInline, Key, LineRange, NodesMap},
 };
 use itertools::Itertools;
 
@@ -123,7 +123,11 @@ impl<'a> SectionsBuilder<'a> {
                 }
             }
             _ => {
-                panic!("section block panic for: {:?}", block)
+                self.builder.section(to_graph_inlines(
+                    &vec![DocumentInline::Str(block.to_section_plain_text())],
+                    &self.key.parent(),
+                ));
+                self.set_lines_range(block.line_range());
             }
         };
     }

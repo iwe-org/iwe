@@ -1,9 +1,9 @@
+use super::{InlineRange, Position};
 use crate::model;
 use crate::model::graph::GraphInline;
-use crate::model::{Key, Lang, LineRange};
-use crate::model::node::ReferenceType;
 use crate::model::node::ColumnAlignment;
-use super::{InlineRange, Position};
+use crate::model::node::ReferenceType;
+use crate::model::{Key, Lang, LineRange};
 
 pub struct Document {
     pub blocks: DocumentBlocks,
@@ -65,6 +65,120 @@ impl DocumentBlock {
         match self {
             DocumentBlock::Para(para) => para.inlines.len() == 1 && para.inlines[0].is_ref(),
             _ => false,
+        }
+    }
+
+    pub fn to_section_plain_text(&self) -> String {
+        match self {
+            DocumentBlock::Plain(plain) => plain
+                .inlines
+                .iter()
+                .map(|inline| inline.to_plain_text())
+                .collect(),
+            DocumentBlock::Para(para) => para
+                .inlines
+                .iter()
+                .map(|inline| inline.to_plain_text())
+                .collect(),
+            DocumentBlock::CodeBlock(code_block) => {
+                format!(
+                    "```{}\n{}\n```",
+                    code_block.lang.as_ref().map(|l| l.as_str()).unwrap_or(""),
+                    code_block.text
+                )
+            }
+            DocumentBlock::RawBlock(raw_block) => raw_block.text.clone(),
+            DocumentBlock::BlockQuote(block_quote) => block_quote
+                .blocks
+                .iter()
+                .map(|block| block.to_section_plain_text())
+                .map(|text| format!("> {}", text))
+                .collect::<Vec<String>>()
+                .join("\n"),
+            DocumentBlock::OrderedList(ordered_list) => ordered_list
+                .items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    let item_text = item
+                        .iter()
+                        .map(|block| block.to_section_plain_text())
+                        .collect::<Vec<String>>()
+                        .join("\n");
+                    format!("{}. {}", index + 1, item_text)
+                })
+                .collect::<Vec<String>>()
+                .join("\n"),
+            DocumentBlock::BulletList(bullet_list) => bullet_list
+                .items
+                .iter()
+                .map(|item| {
+                    let item_text = item
+                        .iter()
+                        .map(|block| block.to_section_plain_text())
+                        .collect::<Vec<String>>()
+                        .join("\n");
+                    format!("• {}", item_text)
+                })
+                .collect::<Vec<String>>()
+                .join("\n"),
+            DocumentBlock::Header(header) => {
+                let header_text: String = header
+                    .inlines
+                    .iter()
+                    .map(|inline| inline.to_plain_text())
+                    .collect();
+                format!("{} {}", "#".repeat(header.level as usize), header_text)
+            }
+            DocumentBlock::HorizontalRule(_) => "---".to_string(),
+            DocumentBlock::Div(div) => div
+                .blocks
+                .iter()
+                .map(|block| block.to_section_plain_text())
+                .collect::<Vec<String>>()
+                .join("\n"),
+            DocumentBlock::Table(table) => {
+                let mut result = Vec::new();
+
+                // Add header
+                let header_text = table
+                    .header
+                    .iter()
+                    .map(|cell| {
+                        cell.iter()
+                            .map(|inline| inline.to_plain_text())
+                            .collect::<String>()
+                    })
+                    .collect::<Vec<String>>()
+                    .join(" | ");
+                if !header_text.is_empty() {
+                    result.push(format!("| {} |", header_text));
+                    // Add separator row
+                    let separator = table
+                        .header
+                        .iter()
+                        .map(|_| "---")
+                        .collect::<Vec<&str>>()
+                        .join(" | ");
+                    result.push(format!("| {} |", separator));
+                }
+
+                // Add rows
+                for row in &table.rows {
+                    let row_text = row
+                        .iter()
+                        .map(|cell| {
+                            cell.iter()
+                                .map(|inline| inline.to_plain_text())
+                                .collect::<String>()
+                        })
+                        .collect::<Vec<String>>()
+                        .join(" | ");
+                    result.push(format!("| {} |", row_text));
+                }
+
+                result.join("\n")
+            }
         }
     }
 

@@ -19,6 +19,35 @@ fn normalization_list_item() {
 }
 
 #[test]
+fn normalization_list_item_with_quote() {
+    compare(
+        indoc! {"
+        - > item 1
+        - > item 2
+        "},
+        indoc! {"
+        - > item 1
+        - > item 2
+        "},
+    );
+}
+
+#[test]
+fn normalization_list_item_with_line() {
+    compare(
+        indoc! {"
+        ------------------------------------------------------------------------
+
+        - --- test
+        "},
+        indoc! {"
+        - ---
+        - --- test
+        "},
+    );
+}
+
+#[test]
 fn normalization_dual_dash_list_item() {
     compare(
         indoc! {"
