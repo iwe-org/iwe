@@ -31,7 +31,7 @@ The main LSP features are:
 - 💡 Display **inlay hints** with parent note references and link counts
 - 🔹 Change outline type from headers to list and vice-versa
 
-You can learn more on the [LPS Features](https://github.com/iwe-org/iwe/wiki/LSP-features) page.
+You can learn more on the [LSP Features](https://github.com/iwe-org/iwe/wiki/LSP-features) page.
 
 IWE also provides a CLI utility that allows you to process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. Additionally, you can use the CLI mode to combine multiple files into one comprehensive document. More information is available [here](https://github.com/iwe-org/iwe/wiki/CLI-features).
 
