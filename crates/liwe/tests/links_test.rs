@@ -68,7 +68,7 @@ fn ref_links_updated_two_ways() {
 }
 
 #[test]
-fn keep_unknow_refs_as_is() {
+fn keep_unknown_refs_as_is() {
     normalize(
         indoc! {"
             [some title](key)
@@ -80,7 +80,7 @@ fn keep_unknow_refs_as_is() {
 }
 
 #[test]
-fn keep_unknow_wiki_refs_as_is() {
+fn keep_unknown_wiki_refs_as_is() {
     normalize(
         indoc! {"
             [[key]]
@@ -92,7 +92,7 @@ fn keep_unknow_wiki_refs_as_is() {
 }
 
 #[test]
-fn keep_unknow_piped_wiki_refs_as_is() {
+fn keep_unknown_piped_wiki_refs_as_is() {
     normalize(
         indoc! {"
             [[key|title]]
