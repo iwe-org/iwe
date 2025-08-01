@@ -62,7 +62,7 @@ struct Contents {}
 struct ExportJson {}
 
 #[derive(Debug, Args)]
-#[clap(about = "Export the graph structure as Graphviz DOT format")]
+#[clap(about = "Export graph as Graphviz DOT (circular layout)")]
 struct ExportGraphviz {}
 
 #[derive(Debug, Args)]
@@ -319,6 +319,12 @@ fn export_json_command(args: ExportJson) {
 fn export_graphviz_command(args: ExportGraphviz) {
     let graph = load_graph();
 
+    // This function exports a graph optimized for circular layouts.
+    // Recommended usage:
+    //   circo -Tpng graph.dot -o graph.png    (circular layout, best for clusters)
+    //   neato -Tpng graph.dot -o graph.png    (spring model, good for relationships)
+    //   fdp -Tpng graph.dot -o graph.png      (force-directed, balanced layout)
+
     // Build a map of all nodes and their children
     let mut nodes: std::collections::HashMap<u64, GraphNode> = std::collections::HashMap::new();
     let paths = graph.paths();
@@ -360,6 +366,19 @@ fn export_graphviz_command(args: ExportGraphviz) {
         count
     }
 
+    // Find root nodes (nodes that are not children of any other node)
+    let mut child_nodes: std::collections::HashSet<i64> = std::collections::HashSet::new();
+    for node in nodes.values() {
+        for &child_id in &node.subnodes {
+            child_nodes.insert(child_id);
+        }
+    }
+    let root_nodes: Vec<i64> = nodes
+        .values()
+        .map(|node| node.id)
+        .filter(|id| !child_nodes.contains(id))
+        .collect();
+
     // Calculate ranks for all nodes before moving
     let node_ranks: std::collections::HashMap<i64, usize> = nodes
         .iter()
@@ -370,35 +389,79 @@ fn export_graphviz_command(args: ExportGraphviz) {
     let mut node_list: Vec<GraphNode> = nodes.into_values().collect();
     node_list.sort_by_key(|node| node.id);
 
-    // Output as beautiful Graphviz DOT format
+    // Output as beautiful Graphviz DOT format optimized for circular layout
     println!("digraph G {{");
-    println!("  label=\"IWE Knowledge Graph\";");
+    println!("  label=\"IWE Knowledge Graph\\nRecommended: circo -Tpng graph.dot -o graph.png\\nAlternatives: neato, fdp\";");
     println!("  labelloc=t;");
-    println!("  fontsize=20;");
+    println!("  fontsize=16;");
     println!("  fontname=\"Helvetica,Arial,sans-serif\";");
     println!("  fontcolor=\"#2c3e50\";");
-    println!("  rankdir=TB;");
     println!("  bgcolor=\"#f8f9fa\";");
     println!("  node [fontname=\"Helvetica,Arial,sans-serif\"];");
     println!("  edge [color=\"#6c757d\", penwidth=1.5];");
-    println!("  splines=true;");
-    println!("  concentrate=true;");
-    println!("  nodesep=1.0;");
-    println!("  ranksep=1.5;");
+    println!("  splines=curved;");
     println!("  overlap=false;");
+    println!("  mindist=2.0;");
+    println!("  K=2.5;");
     println!();
 
-    // Add a legend
+    // Add root node constraints for better circular arrangement
+    if !root_nodes.is_empty() {
+        println!("  // Root nodes - place at center/key positions");
+        for (i, &root_id) in root_nodes.iter().enumerate() {
+            if i == 0 {
+                println!("  {} [root=true];", root_id);
+            }
+        }
+        println!();
+    }
+
+    // Simple clustering by grouping nodes with similar ranks
+    let mut rank_groups: std::collections::HashMap<usize, Vec<&GraphNode>> =
+        std::collections::HashMap::new();
+
+    // Group nodes by their rank for better circular organization
+    for node in &node_list {
+        let rank = *node_ranks.get(&node.id).unwrap_or(&0);
+        let rank_category = match rank {
+            0 => 0,      // Leaf nodes
+            1..=2 => 1,  // Small branches
+            3..=5 => 2,  // Medium branches
+            6..=10 => 3, // Large branches
+            _ => 4,      // Major nodes
+        };
+        rank_groups
+            .entry(rank_category)
+            .or_insert_with(Vec::new)
+            .push(node);
+    }
+
+    // Output rank-based clusters as subgraphs for better organization
+    for (rank_category, cluster_nodes) in rank_groups.iter() {
+        if cluster_nodes.len() > 3 {
+            println!("  subgraph cluster_rank_{} {{", rank_category);
+            println!("    style=invis;"); // Invisible cluster boundaries for circular layout
+            println!("    // Nodes with similar importance levels");
+            for node in cluster_nodes.iter().take(20) {
+                // Limit to prevent too many clusters
+                println!("    {};", node.id);
+            }
+            println!("  }}");
+            println!();
+        }
+    }
+
+    // Add a compact legend
     println!("  subgraph cluster_legend {{");
-    println!("    label=\"Node Size Legend\";");
-    println!("    fontsize=12;");
+    println!("    rank=sink;");
+    println!("    label=\"Legend\";");
+    println!("    fontsize=10;");
     println!("    fontcolor=\"#6c757d\";");
     println!("    style=dashed;");
     println!("    bgcolor=\"#ffffff\";");
     println!("    color=\"#dee2e6\";");
-    println!("    legend_leaf [label=\"Leaf (0 children)\", width=0.4, height=0.4, fillcolor=\"#e3f2fd\", shape=ellipse, style=\"filled,solid\", fontsize=9];");
-    println!("    legend_small [label=\"Small (1-2 children)\", width=0.6, height=0.6, fillcolor=\"#bbdefb\", shape=box, style=\"filled,rounded\", fontsize=9];");
-    println!("    legend_large [label=\"Large (11+ children)\", width=1.2, height=1.2, fillcolor=\"#42a5f5\", shape=box, style=\"filled,rounded,bold\", fontsize=9, fontcolor=\"#ffffff\"];");
+    println!("    legend_leaf [label=\"Leaf\", width=0.3, height=0.3, fillcolor=\"#e3f2fd\", shape=ellipse, style=\"filled,solid\", fontsize=8];");
+    println!("    legend_large [label=\"Major\", width=0.8, height=0.8, fillcolor=\"#42a5f5\", shape=box, style=\"filled,rounded,bold\", fontsize=8, fontcolor=\"#ffffff\"];");
     println!("  }}");
     println!();
 
