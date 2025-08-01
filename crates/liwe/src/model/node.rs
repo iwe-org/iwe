@@ -430,6 +430,25 @@ pub trait NodePointer<'a>: NodeIter<'a> {
             .unwrap_or(vec![])
     }
 
+    fn get_all_sub_headers(&self) -> Vec<NodeId> {
+        if !self.is_section() {
+            panic!("get_all_sub_headers called on non-section node")
+        }
+        let mut headers = vec![];
+        if let Some(id) = self.id() {
+            headers.push(id);
+        }
+        if let Some(child) = self.to_child() {
+            headers.extend(child.get_all_sub_headers());
+        }
+        headers.extend(
+            self.to_next()
+                .map(|n| n.get_all_sub_headers())
+                .unwrap_or_else(Vec::new),
+        );
+        headers
+    }
+
     fn to_first_section_at_the_same_level(&self) -> Self {
         self.to_prev()
             .filter(|p| p.is_section() && p.is_prev_of(self.id().expect("Expected node ID")))

@@ -92,6 +92,16 @@ impl Tree {
         }
     }
 
+    pub fn get_all_block_reference_keys(&self) -> Vec<Key> {
+        if self.is_reference() {
+            return self.node.reference_key().into_iter().collect();
+        }
+        self.children
+            .iter()
+            .flat_map(|child| child.get_all_block_reference_keys())
+            .collect()
+    }
+
     pub fn mark_node(&self, node_id: NodeId, start: &str, end: &str) -> Tree {
         if self.parent_of(node_id) {
             let pos = self.position(node_id);
