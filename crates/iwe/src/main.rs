@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 use itertools::Itertools;
+use serde_json;
 
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
@@ -35,6 +36,8 @@ enum Command {
     Paths(Paths),
     Squash(Squash),
     Contents(Contents),
+    /// Export the graph structure as JSON
+    ExportJson(ExportJson),
 }
 
 #[derive(Debug, Args)]
@@ -51,6 +54,10 @@ struct Init {}
 
 #[derive(Debug, Args)]
 struct Contents {}
+
+#[derive(Debug, Args)]
+#[clap(about = "Export the graph structure as JSON")]
+struct ExportJson {}
 
 #[derive(Debug, Args)]
 struct Squash {
@@ -70,6 +77,27 @@ struct Paths {
 struct GlobalOpts {
     #[clap(long, short, global = true, required = false, default_value = "0")]
     verbose: usize,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct GraphNode {
+    id: i64,
+    title: String,
+    subnodes: Vec<i64>,
+}
+
+impl GraphNode {
+    fn new(id: i64, title: &str) -> Self {
+        GraphNode {
+            id,
+            title: title.to_string(),
+            subnodes: Vec::new(),
+        }
+    }
+
+    fn add_subnode(&mut self, subnode_id: i64) {
+        self.subnodes.push(subnode_id);
+    }
 }
 
 fn main() {
@@ -107,6 +135,7 @@ fn main() {
         }
         Command::Init(init) => init_command(init),
         Command::Contents(contents) => contents_command(contents),
+        Command::ExportJson(export_json) => export_json_command(export_json),
     }
 }
 
@@ -235,4 +264,46 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(id.clone()).trim().to_string())
         .collect_vec()
         .join(" • ")
+}
+
+#[tracing::instrument]
+fn export_json_command(args: ExportJson) {
+    let graph = load_graph();
+
+    // Build a map of all nodes and their children
+    let mut nodes: std::collections::HashMap<u64, GraphNode> = std::collections::HashMap::new();
+    let paths = graph.paths();
+
+    // First, create all nodes
+    for path in &paths {
+        for &node_id in path.ids().iter() {
+            if !nodes.contains_key(&node_id) {
+                let title = (&graph).get_text(node_id).trim().to_string();
+                nodes.insert(node_id, GraphNode::new(node_id as i64, &title));
+            }
+        }
+    }
+
+    // Then, establish parent-child relationships
+    for path in &paths {
+        let ids = path.ids();
+        for i in 0..ids.len() - 1 {
+            let parent_id = ids[i];
+            let child_id = ids[i + 1];
+
+            if let Some(parent_node) = nodes.get_mut(&parent_id) {
+                if !parent_node.subnodes.contains(&(child_id as i64)) {
+                    parent_node.add_subnode(child_id as i64);
+                }
+            }
+        }
+    }
+
+    // Convert to vector and sort by id for consistent output
+    let mut node_list: Vec<GraphNode> = nodes.into_values().collect();
+    node_list.sort_by_key(|node| node.id);
+
+    // Output as JSON
+    let json = serde_json::to_string_pretty(&node_list).expect("Failed to serialize to JSON");
+    println!("{}", json);
 }

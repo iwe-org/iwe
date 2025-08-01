@@ -853,6 +853,7 @@ dependencies = [
  "rand 0.9.1",
  "rayon",
  "serde",
+ "serde_json",
  "toml",
  "tracing",
  "tracing-subscriber",
