@@ -15,6 +15,10 @@ use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use log::{debug, error};
 
+mod graph_processor;
+mod graphviz_export;
+mod json_export;
+
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
 
@@ -35,6 +39,10 @@ enum Command {
     Paths(Paths),
     Squash(Squash),
     Contents(Contents),
+    /// Export the graph structure as JSON
+    ExportJson(ExportJson),
+    /// Export the graph structure as Graphviz DOT format
+    ExportGraphviz(ExportGraphviz),
 }
 
 #[derive(Debug, Args)]
@@ -51,6 +59,23 @@ struct Init {}
 
 #[derive(Debug, Args)]
 struct Contents {}
+
+#[derive(Debug, Args)]
+#[clap(about = "Export the graph structure as JSON")]
+struct ExportJson {}
+
+#[derive(Debug, Args)]
+#[clap(about = "Export graph as Graphviz format (gvmap compatible)")]
+struct ExportGraphviz {
+    #[clap(
+        long,
+        short = 'k',
+        help = "Filter nodes by key (searches in both key and title)"
+    )]
+    key: Option<String>,
+    #[clap(long, short, global = true, required = false, default_value = "0")]
+    depth: u8,
+}
 
 #[derive(Debug, Args)]
 struct Squash {
@@ -107,6 +132,8 @@ fn main() {
         }
         Command::Init(init) => init_command(init),
         Command::Contents(contents) => contents_command(contents),
+        Command::ExportJson(export_json) => export_json_command(export_json),
+        Command::ExportGraphviz(export_graphviz) => export_graphviz_command(export_graphviz),
     }
 }
 
@@ -235,4 +262,24 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(id.clone()).trim().to_string())
         .collect_vec()
         .join(" • ")
+}
+
+#[tracing::instrument]
+fn export_json_command(args: ExportJson) {
+    let graph = load_graph();
+
+    let exporter = json_export::JsonExporter::new();
+    let output = exporter.export(&graph);
+
+    print!("{}", output);
+}
+
+#[tracing::instrument]
+fn export_graphviz_command(args: ExportGraphviz) {
+    let graph = load_graph();
+
+    let exporter = graphviz_export::GraphvizExporter::new(args.key, args.depth);
+    let output = exporter.export(&graph);
+
+    print!("{}", output);
 }
