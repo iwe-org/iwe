@@ -7,6 +7,8 @@ use crate::model::{Key, Lang, LineRange};
 
 pub struct Document {
     pub blocks: DocumentBlocks,
+    pub tasks: Vec<String>,
+    pub tags: Vec<String>,
     pub metadata: Option<String>,
 }
 
