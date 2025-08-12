@@ -960,6 +960,7 @@ dependencies = [
  "pulldown-cmark-to-cmark",
  "rand 0.9.1",
  "rayon",
+ "regex",
  "relative-path",
  "relative-path-utils",
  "serde",
