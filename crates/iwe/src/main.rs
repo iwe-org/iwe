@@ -15,6 +15,10 @@ use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use log::{debug, error};
 
+mod graph_processor;
+mod graphviz_export;
+mod json_export;
+
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
 
@@ -35,6 +39,7 @@ enum Command {
     Paths(Paths),
     Squash(Squash),
     Contents(Contents),
+    Export(Export),
 }
 
 #[derive(Debug, Args)]
@@ -51,6 +56,27 @@ struct Init {}
 
 #[derive(Debug, Args)]
 struct Contents {}
+
+#[derive(Debug, Args)]
+#[clap(about = "Export the graph structure in various formats")]
+struct Export {
+    /// Output format (json or graphviz)
+    format: ExportFormat,
+    #[clap(
+        long,
+        short = 'k',
+        help = "Filter nodes by key (searches in both key and title)"
+    )]
+    key: Option<String>,
+    #[clap(long, short, global = true, required = false, default_value = "0")]
+    depth: u8,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum ExportFormat {
+    Json,
+    Graphviz,
+}
 
 #[derive(Debug, Args)]
 struct Squash {
@@ -107,6 +133,7 @@ fn main() {
         }
         Command::Init(init) => init_command(init),
         Command::Contents(contents) => contents_command(contents),
+        Command::Export(export) => export_command(export),
     }
 }
 
@@ -235,4 +262,22 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(id.clone()).trim().to_string())
         .collect_vec()
         .join(" • ")
+}
+
+#[tracing::instrument]
+fn export_command(args: Export) {
+    let graph = load_graph();
+
+    let output = match args.format {
+        ExportFormat::Json => {
+            let exporter = json_export::JsonExporter::new(args.key.clone(), args.depth);
+            exporter.export(&graph)
+        }
+        ExportFormat::Graphviz => {
+            let exporter = graphviz_export::GraphvizExporter::new(args.key, args.depth);
+            exporter.export(&graph)
+        }
+    };
+
+    print!("{}", output);
 }
