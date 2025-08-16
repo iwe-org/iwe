@@ -278,14 +278,16 @@ fn run_export_graphviz_command(temp_dir: &TempDir, args: &[&str]) -> std::proces
     let binary_path = get_binary_path();
 
     let mut cmd = Command::new(binary_path);
-    cmd.current_dir(temp_dir.path()).arg("export-graphviz");
+    cmd.current_dir(temp_dir.path())
+        .arg("export")
+        .arg("graphviz");
 
     for arg in args {
         cmd.arg(arg);
     }
 
     cmd.output()
-        .expect("Failed to execute export-graphviz command")
+        .expect("Failed to execute export graphviz command")
 }
 
 fn get_binary_path() -> PathBuf {

@@ -39,10 +39,7 @@ enum Command {
     Paths(Paths),
     Squash(Squash),
     Contents(Contents),
-    /// Export the graph structure as JSON
-    ExportJson(ExportJson),
-    /// Export the graph structure as Graphviz DOT format
-    ExportGraphviz(ExportGraphviz),
+    Export(Export),
 }
 
 #[derive(Debug, Args)]
@@ -61,12 +58,10 @@ struct Init {}
 struct Contents {}
 
 #[derive(Debug, Args)]
-#[clap(about = "Export the graph structure as JSON")]
-struct ExportJson {}
-
-#[derive(Debug, Args)]
-#[clap(about = "Export graph as Graphviz format (gvmap compatible)")]
-struct ExportGraphviz {
+#[clap(about = "Export the graph structure in various formats")]
+struct Export {
+    /// Output format (json or graphviz)
+    format: ExportFormat,
     #[clap(
         long,
         short = 'k',
@@ -75,6 +70,12 @@ struct ExportGraphviz {
     key: Option<String>,
     #[clap(long, short, global = true, required = false, default_value = "0")]
     depth: u8,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum ExportFormat {
+    Json,
+    Graphviz,
 }
 
 #[derive(Debug, Args)]
@@ -132,8 +133,7 @@ fn main() {
         }
         Command::Init(init) => init_command(init),
         Command::Contents(contents) => contents_command(contents),
-        Command::ExportJson(export_json) => export_json_command(export_json),
-        Command::ExportGraphviz(export_graphviz) => export_graphviz_command(export_graphviz),
+        Command::Export(export) => export_command(export),
     }
 }
 
@@ -265,21 +265,19 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
 }
 
 #[tracing::instrument]
-fn export_json_command(args: ExportJson) {
+fn export_command(args: Export) {
     let graph = load_graph();
 
-    let exporter = json_export::JsonExporter::new();
-    let output = exporter.export(&graph);
-
-    print!("{}", output);
-}
-
-#[tracing::instrument]
-fn export_graphviz_command(args: ExportGraphviz) {
-    let graph = load_graph();
-
-    let exporter = graphviz_export::GraphvizExporter::new(args.key, args.depth);
-    let output = exporter.export(&graph);
+    let output = match args.format {
+        ExportFormat::Json => {
+            let exporter = json_export::JsonExporter::new(args.key.clone(), args.depth);
+            exporter.export(&graph)
+        }
+        ExportFormat::Graphviz => {
+            let exporter = graphviz_export::GraphvizExporter::new(args.key, args.depth);
+            exporter.export(&graph)
+        }
+    };
 
     print!("{}", output);
 }

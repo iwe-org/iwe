@@ -16,13 +16,6 @@ impl GraphProcessor {
         }
     }
 
-    pub fn new_unfiltered() -> Self {
-        Self {
-            key_filter: None,
-            depth_limit: 0,
-        }
-    }
-
     pub fn process_graph(&self, graph: &Graph) -> Vec<GraphNode> {
         let filtered_paths = self.filter_paths(graph);
         let mut nodes = self.build_nodes(graph, &filtered_paths);
