@@ -1,5 +1,4 @@
 use liwe::graph::Graph;
-use std::collections::HashSet;
 
 use crate::graph_processor::GraphProcessor;
 
@@ -57,7 +56,7 @@ impl GraphvizExporter {
 
     fn generate_graph_opening(&self) -> String {
         let mut opening = String::new();
-        opening.push_str("graph {\n");
+        opening.push_str("digraph {\n");
         opening.push_str("    graph [overlap_scaling=3, pack=90, label=\"IWE Knowledge Graph - Self-contained with embedded CSS\"];\n");
         opening.push_str("    node [label=\"\\N\"];\n\n");
         opening
@@ -98,20 +97,10 @@ impl GraphvizExporter {
 
     fn generate_edges(&self, node_list: &[GraphNode]) -> String {
         let mut edges_output = String::new();
-        let mut edge_set: HashSet<(i64, i64)> = HashSet::new();
 
         for node in node_list {
             for &link_id in &node.links {
-                let edge = if node.id < link_id {
-                    (node.id, link_id)
-                } else {
-                    (link_id, node.id)
-                };
-
-                if !edge_set.contains(&edge) {
-                    edge_set.insert(edge);
-                    edges_output.push_str(&format!("    {} -- {};\n", edge.0, edge.1));
-                }
+                edges_output.push_str(&format!("    {} -> {};\n", node.id, link_id));
             }
         }
 
