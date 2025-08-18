@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.34](https://github.com/iwe-org/iwe/compare/iwe-v0.0.33...iwe-v0.0.34) - 2025-08-18
+
+### Other
+
+- Add Graphviz DOT format export support ([#109](https://github.com/iwe-org/iwe/pull/109))
+
 ## [0.0.32](https://github.com/iwe-org/iwe/compare/iwe-v0.0.31...iwe-v0.0.32) - 2025-05-31
 
 ### Other
