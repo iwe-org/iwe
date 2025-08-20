@@ -4,6 +4,7 @@ use liwe::{
     model::{node::NodePointer, tree::Tree, Key, NodeId},
 };
 use std::{
+    cmp::max,
     collections::{HashMap, HashSet},
     hash::Hash,
 };
@@ -32,6 +33,8 @@ pub struct Section {
     pub id: NodeId,
     pub title: String,
     pub key: String,
+    pub key_depth: u8,
+    pub depth: u8,
 }
 
 #[derive(PartialEq, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -69,8 +72,8 @@ impl DotExporter {
     fn graph_data(&self, graph: &Graph) -> GraphData {
         let keys = self.filter_keys(graph);
         keys.iter()
-            .map(|key| {
-                let graph_data = DotExporter::build_graph_data(graph, key);
+            .map(|pair| {
+                let graph_data = DotExporter::build_graph_data(graph, pair.0, *pair.1);
                 graph_data
             })
             .fold(
@@ -92,7 +95,7 @@ impl DotExporter {
 
             graph [
               rankdir=LR
-              fontname="Verdana"
+fontname="Verdana"
               fontsize=13
               nodesep=0.7
               splines=polyline
@@ -132,10 +135,11 @@ impl DotExporter {
                 .replace("\r", " ")
                 .replace("\t", " ");
 
+            let font_size = max(12, 16 + section.key_depth * 8 - max(0, 8 * section.depth));
             let colors = key_colors(&section.key);
             nodes_output.push_str(&format!(
-                "  {} [label=\"{}\", fillcolor=\"{}\"];\n",
-                section.id, escaped_title, colors.node_background
+                "  {} [label=\"{}\", fillcolor=\"{}\", fontsize=\"{}\"];\n",
+                section.id, escaped_title, colors.node_background, font_size,
             ));
         }
 
@@ -190,6 +194,8 @@ impl DotExporter {
 
     fn build_sections(
         key: &str,
+        key_depth: u8,
+        depth: u8,
         tree: &Tree,
         sections: &mut HashMap<NodeId, Section>,
         sub_sections: &mut HashSet<(NodeId, NodeId)>,
@@ -204,6 +210,8 @@ impl DotExporter {
                 sections.insert(
                     child.id.unwrap(),
                     Section {
+                        key_depth: key_depth,
+                        depth: depth,
                         id: child.id.unwrap(),
                         title: child.node.plain_text(),
                         key: key.to_string(),
@@ -212,7 +220,15 @@ impl DotExporter {
                 if tree.is_section() {
                     sub_sections.insert((tree.id.unwrap(), child.id.unwrap()));
                 }
-                DotExporter::build_sections(key, child, sections, sub_sections, references);
+                DotExporter::build_sections(
+                    key,
+                    key_depth,
+                    depth + 1,
+                    child,
+                    sections,
+                    sub_sections,
+                    references,
+                );
             }
 
             if child.is_reference() {
@@ -223,35 +239,52 @@ impl DotExporter {
         })
     }
 
-    fn filter_keys(&self, graph: &Graph) -> Vec<Key> {
+    fn filter_keys(&self, graph: &Graph) -> HashMap<Key, u8> {
         self.key
             .clone()
             .map(|key| {
                 if graph.maybe_key(&key).is_none() {
-                    return Vec::new();
+                    return HashMap::new();
                 }
-                let mut keys = HashSet::<Key>::new();
+                let mut keys = HashMap::new();
                 DotExporter::get_keys_for_depth(graph, &key, self.depth, &mut keys);
-                keys.into_iter().collect_vec()
+                keys
             })
-            .unwrap_or_else(|| graph.keys().clone())
+            .unwrap_or_else(|| {
+                graph
+                    .keys()
+                    .into_iter()
+                    .filter_map(|key| {
+                        if graph.maybe_key(&key).is_some() {
+                            Some((key, 0))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
     }
 
-    fn get_keys_for_depth(graph: &Graph, key: &Key, depth: u8, collected_keys: &mut HashSet<Key>) {
-        collected_keys.insert(key.clone());
+    fn get_keys_for_depth(
+        graph: &Graph,
+        key: &Key,
+        depth: u8,
+        collected_keys: &mut HashMap<Key, u8>,
+    ) {
+        collected_keys.insert(key.clone(), depth);
 
         if depth == 0 {
             return;
         }
         let keys = graph.collect(key).get_all_block_reference_keys();
         for k in keys {
-            if collected_keys.insert(k.clone()) {
+            if !collected_keys.contains_key(&k) {
                 DotExporter::get_keys_for_depth(graph, &k, depth - 1, collected_keys);
             }
         }
     }
 
-    fn build_graph_data(graph: &Graph, key: &Key) -> GraphData {
+    fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
         let mut sections = HashMap::<NodeId, Section>::new();
         let mut sub_sections = HashSet::<(NodeId, NodeId)>::new();
         let mut references = HashSet::<(NodeId, Key)>::new();
@@ -261,6 +294,8 @@ impl DotExporter {
 
         DotExporter::build_sections(
             &key.to_string(),
+            key_depth,
+            0,
             &tree,
             &mut sections,
             &mut sub_sections,
@@ -351,6 +386,8 @@ mod tests {
                 (
                     1,
                     Section {
+                        key_depth: 0,
+                        depth: 1,
                         id: 1,
                         title: "test 1".to_string(),
                         key: "test".to_string(),
@@ -359,6 +396,8 @@ mod tests {
                 (
                     4,
                     Section {
+                        key_depth: 0,
+                        depth: 1,
                         id: 4,
                         title: "test 2".to_string(),
                         key: "test".to_string(),
@@ -400,124 +439,94 @@ fn key_colors(key: &str) -> SubgraphColor {
 }
 #[derive(Debug, Clone, Copy)]
 pub struct SubgraphColor {
-    pub subgraph_border: &'static str,
     pub subgraph_fill: &'static str,   // fillcolor
     pub subgraph_text: &'static str,   // fontcolor
     pub node_background: &'static str, // fillcolor for node
-    pub arrow: &'static str,           // arrow color (slightly darker shade)
 }
 
 pub const SUBGRAPH_COLORS: [SubgraphColor; 14] = [
     SubgraphColor {
         // Pastel Blue
-        subgraph_border: "#d1eaff",
         subgraph_fill: "#eff8fd",
         subgraph_text: "#283747",
         node_background: "#e1f5fe",
-        arrow: "#82bde4",
     },
     SubgraphColor {
         // Pastel Green
-        subgraph_border: "#e0f7e9",
         subgraph_fill: "#f6fcf5",
         subgraph_text: "#185c37",
         node_background: "#e9f9ef",
-        arrow: "#7ccfa8",
     },
     SubgraphColor {
         // Pastel Pink
-        subgraph_border: "#fad6e0",
         subgraph_fill: "#fff4fa",
         subgraph_text: "#a7475a",
         node_background: "#fae1ee",
-        arrow: "#df8ea3",
     },
     SubgraphColor {
         // Pastel Yellow
-        subgraph_border: "#fff6cf",
         subgraph_fill: "#fffbea",
         subgraph_text: "#a67c00",
         node_background: "#fff9de",
-        arrow: "#d8c15c",
     },
     SubgraphColor {
         // Pastel Lavender
-        subgraph_border: "#e3e4fa",
         subgraph_fill: "#f8f8ff",
         subgraph_text: "#442b7e",
         node_background: "#eeebfa",
-        arrow: "#a8a1e5",
     },
     SubgraphColor {
         // Pastel Mint
-        subgraph_border: "#c5f7dd",
         subgraph_fill: "#f3fcf7",
         subgraph_text: "#257257",
         node_background: "#d9fae7",
-        arrow: "#75d0b0",
     },
     SubgraphColor {
         // Pastel Peach
-        subgraph_border: "#ffe2c6",
         subgraph_fill: "#fff6eb",
         subgraph_text: "#b36a36",
         node_background: "#ffeee0",
-        arrow: "#efbb85",
     },
     SubgraphColor {
         // Pastel Aqua
-        subgraph_border: "#bae8e8",
         subgraph_fill: "#f0fbfc",
         subgraph_text: "#1d4c56",
         node_background: "#dcf7f7",
-        arrow: "#8fd3ce",
     },
     SubgraphColor {
         // Pastel Lilac
-        subgraph_border: "#f5d6e2",
         subgraph_fill: "#fdf7fa",
         subgraph_text: "#764470",
         node_background: "#f6e5ee",
-        arrow: "#c99eb9",
     },
     SubgraphColor {
         // Pastel Lemon
-        subgraph_border: "#fcfac0",
         subgraph_fill: "#fefeec",
         subgraph_text: "#96902d",
         node_background: "#fbfbda",
-        arrow: "#f7ec8b",
     },
     SubgraphColor {
         // Pastel Coral
-        subgraph_border: "#ffd6d6",
         subgraph_fill: "#fef7f7",
         subgraph_text: "#c35151",
         node_background: "#ffeaea",
-        arrow: "#eeaea6",
     },
     SubgraphColor {
         // Pastel Teal
-        subgraph_border: "#bbdedd",
         subgraph_fill: "#f0fafb",
         subgraph_text: "#225c5a",
         node_background: "#e2f6f6",
-        arrow: "#81baba",
     },
     SubgraphColor {
         // Pastel Grey
-        subgraph_border: "#dde2e7",
         subgraph_fill: "#f7f9fa",
         subgraph_text: "#4a525a",
         node_background: "#eef2f5",
-        arrow: "#aab7bf",
     },
     SubgraphColor {
         // Pastel Olive
-        subgraph_border: "#eaf6bd",
         subgraph_fill: "#faffef",
         subgraph_text: "#847c36",
         node_background: "#f2fadf",
-        arrow: "#cad57e",
     },
 ];
