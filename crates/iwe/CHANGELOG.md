@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.35](https://github.com/iwe-org/iwe/compare/iwe-v0.0.34...iwe-v0.0.35) - 2025-08-21
+
+### Other
+
+- Add DOT styles ([#114](https://github.com/iwe-org/iwe/pull/114))
+
 ## [0.0.34](https://github.com/iwe-org/iwe/compare/iwe-v0.0.33...iwe-v0.0.34) - 2025-08-18
 
 ### Other
