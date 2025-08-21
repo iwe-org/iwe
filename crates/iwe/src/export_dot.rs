@@ -92,10 +92,9 @@ impl DotExporter {
 
     fn generate_graph_opening(&self) -> String {
         r###"digraph G {
-
             graph [
               rankdir=LR
-fontname="Verdana"
+              fontname="Verdana"
               fontsize=13
               nodesep=0.7
               splines=polyline
@@ -278,7 +277,7 @@ fontname="Verdana"
         }
         let keys = graph.collect(key).get_all_block_reference_keys();
         for k in keys {
-            if !collected_keys.contains_key(&k) {
+            if !collected_keys.contains_key(&k) && graph.maybe_key(&k).is_some() {
                 DotExporter::get_keys_for_depth(graph, &k, depth - 1, collected_keys);
             }
         }
