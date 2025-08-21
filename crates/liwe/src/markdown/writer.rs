@@ -1,15 +1,13 @@
 use pulldown_cmark::{Alignment, Event, HeadingLevel, Tag, TagEnd};
 use pulldown_cmark_to_cmark::{cmark_with_options, Options};
 
-use crate::model::{
-    document,
-    graph::{
-        inlines_to_markdown, GraphBlock, GraphInline, GraphInlines,
-    },
-    is_ref_url,
-};
 use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
+use crate::model::{
+    document,
+    graph::{inlines_to_markdown, GraphBlock, GraphInline, GraphInlines},
+    is_ref_url,
+};
 
 pub struct MarkdownWriter {
     options: MarkdownOptions,
@@ -49,13 +47,13 @@ impl MarkdownWriter {
         buf
     }
 
-    fn blocks_events(&self, iter: Vec<GraphBlock>) -> Vec<Event> {
+    fn blocks_events(&self, iter: Vec<GraphBlock>) -> Vec<Event<'_>> {
         iter.into_iter()
             .flat_map(|block| self.block_events(block))
             .collect()
     }
 
-    fn block_events(&self, block: GraphBlock) -> Vec<Event> {
+    fn block_events(&self, block: GraphBlock) -> Vec<Event<'_>> {
         let mut events = Vec::new();
         match block {
             GraphBlock::Header(level, inlines) => {
@@ -147,7 +145,7 @@ impl MarkdownWriter {
         events
     }
 
-    fn inlines_to_events<'a>(&self, inlines: GraphInlines) -> Vec<Event> {
+    fn inlines_to_events<'a>(&self, inlines: GraphInlines) -> Vec<Event<'_>> {
         let mut events = Vec::new();
         for inline in inlines {
             match inline {

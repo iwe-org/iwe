@@ -165,7 +165,7 @@ impl Graph {
         self.arena.add_line(inlines)
     }
 
-    pub fn build_key(&mut self, key: &Key) -> GraphBuilder {
+    pub fn build_key(&mut self, key: &Key) -> GraphBuilder<'_> {
         let id = self.arena.new_node_id();
         self.keys.insert(key.clone(), id);
         self.arena
@@ -177,7 +177,7 @@ impl Graph {
         self.build_key(key).insert_from_iter(iter);
     }
 
-    pub fn builder(&mut self, id: NodeId) -> GraphBuilder {
+    pub fn builder(&mut self, id: NodeId) -> GraphBuilder<'_> {
         GraphBuilder::new(self, id)
     }
 
@@ -214,7 +214,7 @@ impl Graph {
             .map(|line_id| self.arena.get_line(line_id).to_plain_text())
     }
 
-    pub fn maybe_key(&self, key: &Key) -> Option<impl NodePointer> {
+    pub fn maybe_key(&self, key: &Key) -> Option<impl NodePointer<'_>> {
         self.keys
             .get(key)
             .map(|id| GraphNodePointer::new(self, *id))
@@ -433,7 +433,7 @@ pub trait GraphContext: Copy {
     fn get_container_document_ref_text(&self, id: NodeId) -> String;
     fn get_text(&self, id: NodeId) -> String;
 
-    fn node(&self, id: NodeId) -> impl NodePointer;
+    fn node(&self, id: NodeId) -> impl NodePointer<'_>;
 
     fn markdown_options(&self) -> &MarkdownOptions;
 }
@@ -460,7 +460,7 @@ impl<'a> GraphPatch<'a> for Graph {
 }
 
 impl GraphContext for &Graph {
-    fn node(&self, id: NodeId) -> impl NodePointer {
+    fn node(&self, id: NodeId) -> impl NodePointer<'_> {
         GraphNodePointer::new(self, id)
     }
 

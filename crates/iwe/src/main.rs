@@ -3,7 +3,7 @@ use std::fs::{create_dir, OpenOptions};
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use export_dot::DotExporter;
+use dot_exporter::DotExporter;
 use itertools::Itertools;
 
 use liwe::fs::new_for_path;
@@ -16,7 +16,8 @@ use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use log::{debug, error};
 
-mod export_dot;
+mod graph_data;
+mod dot_exporter;
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";

@@ -1,3 +1,4 @@
-pub mod export_dot;
+pub mod graph_data;
+pub mod dot_exporter;
 
-pub use export_dot::DotExporter;
+pub use dot_exporter::DotExporter;

@@ -17,7 +17,7 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn iter(&self) -> TreeIter {
+    pub fn iter(&self) -> TreeIter<'_> {
         TreeIter::new(self)
     }
 

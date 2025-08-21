@@ -362,11 +362,11 @@ iwe squash --key meetings --depth 2 > combined-meetings.md
 ### Integration with Other Tools
 
 ```bash
-# Generate JSON for processing with jq
-iwe export json | jq '.[] | select(.title | contains("project"))'
+# Create SVG visualization using Graphviz
+iwe export dot | neato -Tsvg -o output.svg
 
-# Create visualization
-iwe export dot | neato -Tsvg > knowledge-graph.svg
+# Create filtered SVG visualization with depth limit starting from specific key
+iwe export dot -k YOUR_FILE -d 2 | neato -Tsvg -o output.svg
 
 # Batch processing
 for key in $(ls *.md | sed 's/.md//'); do
