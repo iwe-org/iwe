@@ -138,11 +138,16 @@ impl DotExporter {
     fn generate_edges(&self, graph_data: &GraphData) -> String {
         let mut edges_output = String::new();
 
-        for (from_id, to_id) in &graph_data.sub_sections {
-            edges_output.push_str(&format!("  {} -> {};\n", from_id, to_id));
+        for (from_id, to_id) in &graph_data.references {
+            if graph_data.sections.contains_key(to_id) {
+                edges_output.push_str(&format!(
+                    "  {} -> {} [arrowsize=1.5, arrowhead=\"empty\", style=\"dashed\"]; \n",
+                    from_id, to_id
+                ));
+            }
         }
 
-        for (from_id, to_id) in &graph_data.references {
+        for (from_id, to_id) in &graph_data.sub_sections {
             edges_output.push_str(&format!("  {} -> {};\n", from_id, to_id));
         }
         edges_output
