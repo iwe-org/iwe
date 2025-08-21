@@ -72,12 +72,14 @@ The main CLI features are:
 - 📊 **Export** note structure as DOT graph for visualization
 - 🎯 **Filter** exports by key to focus on specific topics
 
-More information is available in [CLI_COMMANDS.md](CLI_COMMANDS.md).
+More information is available in:
+
+[CLI_COMMANDS.md](CLI_COMMANDS.md)
 
 <details>
 <summary>Graphviz export example</summary>
 
-![Graphviz Example](graphviz-example.png)
+![Graphviz Example](graphviz.png)
 
 </details>
 
