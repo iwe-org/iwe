@@ -35,24 +35,6 @@ The main LSP features are:
 
 You can learn more on the [LSP Features](https://github.com/iwe-org/iwe/wiki/LSP-features) page.
 
-## CLI Features
-
-IWE also provides a CLI utility that allows you to process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. Additionally, you can use the CLI mode to combine multiple files into one comprehensive document and export your note structure as a graph in DOT format for visualization.
-
-The main CLI features are:
-
-- 🏗️ **Initialize** workspace with `init` command
-- 📝 **Normalize** documents and update link titles automatically
-- 🔍 **List paths** of all markdown files in the workspace
-- 📋 **Extract contents** from specific notes and sections
-- 🔗 **Squash** multiple files into one comprehensive document
-- 📊 **Export** note structure as DOT graph for visualization
-- 🎯 **Filter** exports by key to focus on specific topics
-
-![Graphviz Example](graphviz-example.png)
-
-More information is available in [CLI_COMMANDS.md](CLI_COMMANDS.md).
-
 Quick Demos:
 
 <details>
@@ -73,6 +55,29 @@ Quick Demos:
 <summary>Extract note</summary>
 
 ![Demo](https://iwe.md/images/extract.gif)
+
+</details>
+
+## CLI Features
+
+IWE also provides a CLI utility that allows you to process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. Additionally, you can use the CLI mode to combine multiple files into one comprehensive document and export your note structure as a graph in DOT format for visualization.
+
+The main CLI features are:
+
+- 🏗️ **Initialize** workspace with `init` command
+- 📝 **Normalize** documents and update link titles automatically
+- 🔍 **List paths** of all markdown files in the workspace
+- 📋 **Extract contents** from specific notes and sections
+- 🔗 **Squash** multiple files into one comprehensive document
+- 📊 **Export** note structure as DOT graph for visualization
+- 🎯 **Filter** exports by key to focus on specific topics
+
+More information is available in [CLI_COMMANDS.md](CLI_COMMANDS.md).
+
+<details>
+<summary>Graphviz export example</summary>
+
+![Graphviz Example](graphviz-example.png)
 
 </details>
 
