@@ -18,6 +18,8 @@ While IWE supports sub-directories and relative links, it also allows you to org
 >
 > The goal of the project is to make managing knowledge as seamless as managing code, enabling your PMK system to function like an IDE for Writing (IWE).
 
+## LSP Features
+
 The main LSP features are:
 
 - 🤖 **Generate** or **Modify** text using AI commands
@@ -33,7 +35,23 @@ The main LSP features are:
 
 You can learn more on the [LSP Features](https://github.com/iwe-org/iwe/wiki/LSP-features) page.
 
-IWE also provides a CLI utility that allows you to process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. Additionally, you can use the CLI mode to combine multiple files into one comprehensive document. More information is available [here](https://github.com/iwe-org/iwe/wiki/CLI-features).
+## CLI Features
+
+IWE also provides a CLI utility that allows you to process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. Additionally, you can use the CLI mode to combine multiple files into one comprehensive document and export your note structure as a graph in DOT format for visualization.
+
+The main CLI features are:
+
+- 🏗️ **Initialize** workspace with `init` command
+- 📝 **Normalize** documents and update link titles automatically
+- 🔍 **List paths** of all markdown files in the workspace
+- 📋 **Extract contents** from specific notes and sections
+- 🔗 **Squash** multiple files into one comprehensive document
+- 📊 **Export** note structure as DOT graph for visualization
+- 🎯 **Filter** exports by key to focus on specific topics
+
+![Graphviz Example](graphviz-example.png)
+
+More information is available in [CLI_COMMANDS.md](CLI_COMMANDS.md).
 
 Quick Demos:
 
