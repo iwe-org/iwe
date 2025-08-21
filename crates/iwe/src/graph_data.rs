@@ -55,7 +55,7 @@ pub fn build_sections(
             sections.insert(
                 child.id.unwrap(),
                 Section {
-                    key_depth: key_depth,
+                    key_depth,
                     depth: depth,
                     id: child.id.unwrap(),
                     title: child.node.plain_text(),
