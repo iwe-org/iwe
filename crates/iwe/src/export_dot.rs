@@ -387,20 +387,20 @@ mod tests {
                     1,
                     Section {
                         key_depth: 0,
-                        depth: 1,
+                        depth: 0,
                         id: 1,
                         title: "test 1".to_string(),
-                        key: "test".to_string(),
+                        key: "1".to_string(),
                     },
                 ),
                 (
                     4,
                     Section {
                         key_depth: 0,
-                        depth: 1,
+                        depth: 0,
                         id: 4,
                         title: "test 2".to_string(),
-                        key: "test".to_string(),
+                        key: "2".to_string(),
                     },
                 ),
             ]
