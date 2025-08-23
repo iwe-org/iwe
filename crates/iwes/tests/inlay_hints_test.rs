@@ -61,7 +61,7 @@ fn block_reference() {
             _
             # test
             "},
-        "⎘",
+        "",
         2,
     );
 }
@@ -78,7 +78,7 @@ fn block_reference_2() {
             _
             [test](2)
             "},
-        "⎘²",
+        "↖",
         2,
     );
 }
