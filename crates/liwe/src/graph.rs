@@ -418,6 +418,7 @@ impl InlinesContext for &Graph {
 }
 
 pub trait GraphContext: Copy {
+    fn get_node_key(&self, id: NodeId) -> Key;
     fn get_node_id(&self, key: &Key) -> Option<NodeId>;
     fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId>;
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
@@ -503,6 +504,10 @@ impl GraphContext for &Graph {
         self.get_key_title(&container_key)
             .unwrap_or_default()
             .to_string()
+    }
+
+    fn get_node_key(&self, id: NodeId) -> Key {
+        self.node(id).to_document().unwrap().document_key().unwrap()
     }
 
     fn random_key(&self, relative_to: &str) -> Key {

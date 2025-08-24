@@ -303,12 +303,20 @@ impl Server {
                         .graph()
                         .node(id)
                         .ref_key()
-                        .map(|key| self.database.graph().get_block_references_to(&key).len())
+                        .map(|key| self.database.graph().get_block_references_to(&key))
+                        .map(|refs| {
+                            refs.into_iter()
+                                .filter(|id| !self.database.graph().get_node_key(*id).eq(key))
+                                .map(|id| self.database.graph().get_container_document_ref_text(id))
+                                .sorted()
+                                .map(|s| format!("↖{}", s))
+                                .join(" ")
+                        })
                         .unwrap_or_default(),
                     line,
                 )
             })
-            .map(|(count, line)| hint_at(&format!("⎘{}", number_substr(count)), line as u32))
+            .map(|(refs, line)| hint_at(&refs, line as u32))
             .collect_vec()
     }
 
@@ -627,22 +635,6 @@ fn to_range(value: InlineRange) -> Range {
         Position::new(value.start.line as u32, value.start.character as u32),
         Position::new(value.end.line as u32, value.end.character as u32),
     )
-}
-
-pub fn number_substr(num: usize) -> &'static str {
-    match num {
-        0 => "",
-        1 => "",
-        2 => "²",
-        3 => "³",
-        4 => "⁴",
-        5 => "⁵",
-        6 => "⁶",
-        7 => "⁷",
-        8 => "⁸",
-        9 => "⁹",
-        _ => "+",
-    }
 }
 
 #[allow(deprecated)]
