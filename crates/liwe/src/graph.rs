@@ -548,4 +548,7 @@ fn render_search_text(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(*id).trim().to_string())
         .collect_vec()
         .join(" ")
+        .chars()
+        .filter(|c| c.is_alphabetic() || c.is_numeric())
+        .collect::<String>()
 }
