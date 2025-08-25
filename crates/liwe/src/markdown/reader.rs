@@ -1,9 +1,11 @@
 use std::iter::once;
 use std::ops::Range;
+use std::sync::LazyLock;
 
 use crate::model::node::ColumnAlignment;
 use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
-use pulldown_cmark::{Event::*, Parser};
+use pulldown_cmark::{CowStr, Event::*, Parser};
+use regex::Regex;
 
 use crate::model::document::*;
 use crate::model::*;
@@ -13,7 +15,10 @@ pub struct MarkdownEventsReader {
     inlines_stack: Vec<DocumentInline>,
     blocks_stack: Vec<DocumentBlock>,
     blocks: DocumentBlocks,
+    tasks: Vec<String>,
+    hashtags: Vec<String>,
     line_starts: Vec<usize>,
+    tasklist_block: bool,
     metadata_block: bool,
     metadata: Option<String>,
 }
@@ -25,7 +30,10 @@ impl MarkdownEventsReader {
             inlines_stack: Vec::new(),
             blocks_stack: Vec::new(),
             blocks: Vec::new(),
+            tasks: Vec::new(),
+            hashtags: Vec::new(),
             line_starts: Vec::new(),
+            tasklist_block: false,
             metadata_block: false,
             metadata: None,
         }
@@ -33,6 +41,14 @@ impl MarkdownEventsReader {
 
     pub fn blocks(&self) -> Vec<DocumentBlock> {
         self.blocks.clone()
+    }
+
+    pub fn tasks(&self) -> Vec<String> {
+        self.tasks.clone()
+    }
+
+    pub fn hashtags(&self) -> Vec<String> {
+        self.hashtags.clone()
     }
 
     pub fn metadata(&self) -> Option<String> {
@@ -48,7 +64,8 @@ impl MarkdownEventsReader {
             content,
             Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
                 | Options::ENABLE_WIKILINKS
-                | Options::ENABLE_TABLES,
+                | Options::ENABLE_TABLES
+                | Options::ENABLE_TASKLISTS,
         )
         .into_offset_iter();
         self.line_starts = line_starts(content);
@@ -62,23 +79,7 @@ impl MarkdownEventsReader {
                     self.end_tag(tag, range);
                 }
                 Text(text) => {
-                    if !self.metadata_block {
-                        match self.top_block() {
-                            DocumentBlock::CodeBlock(code_block) => {
-                                code_block.text = format!("{}{}", code_block.text, text.to_string())
-                            }
-                            DocumentBlock::RawBlock(block) => block.text = text.to_string(),
-                            _ => {
-                                self.push_inline(
-                                    DocumentInline::Str(text.to_string()),
-                                    self.to_line_range(range),
-                                );
-                                self.pop_inline();
-                            }
-                        }
-                    } else {
-                        self.metadata = Some(text.to_string());
-                    }
+                    self.text(text, range);
                 }
                 Code(text) => {
                     self.push_inline(
@@ -120,7 +121,14 @@ impl MarkdownEventsReader {
                     }));
                     self.pop_block();
                 }
-                TaskListMarker(_) => {}
+                TaskListMarker(checked) => {
+                    self.tasklist_block = true;
+                    self.push_inline(
+                        DocumentInline::Str(if checked { "[x] " } else { "[ ] " }.to_string()),
+                        self.to_line_range(range),
+                    );
+                    self.pop_inline();
+                }
             }
         }
 
@@ -334,6 +342,44 @@ impl MarkdownEventsReader {
         }
     }
 
+    fn text(&mut self, text: CowStr, range: Range<usize>) {
+        // https://help.obsidian.md/tags#Tag+format
+        static RE_TAG: LazyLock<Regex> =
+            // Check for tag ending with whitespace or line end is not included, because we would
+            // loose tags with a single whitespace in between.
+            LazyLock::new(|| {
+                Regex::new(r"(?:^|[\t ])#([a-zA-Z0-9_\-/]+)").expect("Invalid regex")
+            });
+
+        if !self.metadata_block {
+            match self.top_block() {
+                DocumentBlock::CodeBlock(code_block) => {
+                    code_block.text = format!("{}{}", code_block.text, text.to_string())
+                }
+                DocumentBlock::RawBlock(block) => block.text = text.to_string(),
+                _ => {
+                    self.push_inline(
+                        DocumentInline::Str(text.to_string()),
+                        self.to_line_range(range),
+                    );
+                    self.pop_inline();
+                }
+            }
+            if self.tasklist_block {
+                self.tasks.push(text.to_string());
+                self.tasklist_block = false;
+            }
+            for tag in RE_TAG
+                .captures_iter(text.chars().as_str())
+                .filter_map(|c| c.get(1))
+            {
+                self.hashtags.push(tag.as_str().to_string());
+            }
+        } else {
+            self.metadata = Some(text.to_string());
+        }
+    }
+
     fn to_inline_range(&self, range: Range<usize>) -> InlineRange {
         let mut start = 0;
         let mut start_char = 0;
@@ -528,7 +574,7 @@ mod tests {
     fn test_list_item_positions() {
         let content = indoc! {"
         - line1
-        - line1
+        - line2
         "};
         let mut reader = MarkdownEventsReader::new();
         let actual = reader.read(content);
@@ -540,12 +586,67 @@ mod tests {
                 })],
                 vec![DocumentBlock::Para(Para {
                     line_range: 1..2,
-                    inlines: vec![DocumentInline::Str("line1".to_string())],
+                    inlines: vec![DocumentInline::Str("line2".to_string())],
                 })],
             ],
         })];
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_task_items() {
+        let content = indoc! {"
+        - [ ] todo1
+              second line
+        - [x] todo2
+        * [ ] todo3
+        "};
+        let mut reader = MarkdownEventsReader::new();
+        let _ = reader.read(content);
+        assert_eq!(reader.tasks, vec!["todo1", "todo2", "todo3"]);
+    }
+
+    #[test]
+    fn test_hastags() {
+        let content = indoc! {"
+        Text #tag1 end
+        #tag2
+        no#tag
+        no # tag
+        #invalid#tag
+        #multple #tags in line
+        #nested/tag
+        #tag_with-delimiters
+        #invalid.tag
+        - [ ] todo #tag3
+        - [x] #tag4
+        # Tag in #title
+        ## Tag in #title2
+        `ignored code #tag`
+        End #tag5
+        "};
+        let mut reader = MarkdownEventsReader::new();
+        let _ = reader.read(content);
+        assert_eq!(
+            reader.hashtags,
+            vec![
+                "tag1",
+                "tag2",
+                "invalid",
+                "multple",
+                "tags",
+                "nested/tag",
+                "tag_with-delimiters",
+                "invalid",
+                "tag3",
+                "tag4",
+                "title",
+                "title2",
+                "tag5"
+            ]
+        );
+        assert_eq!(reader.tasks, vec!["todo #tag3", "#tag4"]);
     }
 
     #[test]
