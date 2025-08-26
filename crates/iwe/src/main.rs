@@ -16,8 +16,10 @@ use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use log::{debug, error};
 
-mod graph_data;
+use crate::graph_data::graph_data;
+
 mod dot_exporter;
+mod graph_data;
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
@@ -265,11 +267,16 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
 #[tracing::instrument]
 fn export_command(args: Export) {
     let graph = load_graph();
+    let data = graph_data(
+        args.key.clone().map(|s| Key::from_file_name(&s)).clone(),
+        args.depth,
+        &graph,
+    );
 
     let output = match args.format {
         Format::Dot => {
-            let exporter = DotExporter::new(args.key.map(|a| Key::from_file_name(&a)), args.depth);
-            exporter.export(&graph)
+            let exporter = DotExporter::new();
+            exporter.export(&data)
         }
     };
 

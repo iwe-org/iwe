@@ -45,7 +45,29 @@ struct GraphCache {
     keys_to_keys: HashSet<(Key, Key)>,
 }
 
-pub fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
+pub fn graph_data(key_filter: Option<Key>, depth: u8, graph: &Graph) -> GraphData {
+    let keys = filter_keys(graph, key_filter.clone(), depth);
+    keys.iter()
+        .map(|pair| {
+            let graph_data = build_graph_data(graph, pair.0, *pair.1);
+            graph_data
+        })
+        .fold(
+            GraphData {
+                sections: HashMap::new(),
+                documents: HashMap::new(),
+                section_to_section: Vec::new(),
+                section_to_key: Vec::new(),
+                key_to_key: Vec::new(),
+            },
+            |mut acc, data| {
+                acc.merge(data);
+                acc
+            },
+        )
+}
+
+fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
     let tree = graph.collect(key);
 
     let mut cache = GraphCache {
@@ -119,7 +141,7 @@ fn build_sections(key: &str, cache: &mut GraphCache, key_depth: u8, depth: u8, t
     })
 }
 
-pub fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> HashMap<Key, u8> {
+fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> HashMap<Key, u8> {
     key_filter
         .clone()
         .map(|key| {

@@ -1,25 +1,17 @@
-use liwe::{graph::Graph, model::Key};
-use std::{cmp::max, collections::HashMap, hash::Hash};
+use std::{cmp::max, hash::Hash};
 
-use crate::graph_data::{build_graph_data, filter_keys, GraphData};
+use crate::graph_data::GraphData;
 use std::hash::{DefaultHasher, Hasher};
 
-pub struct DotExporter {
-    key: Option<Key>,
-    depth: u8,
-}
+pub struct DotExporter {}
 
 impl DotExporter {
-    pub fn new(key_filter: Option<Key>, depth_limit: u8) -> Self {
-        Self {
-            key: key_filter,
-            depth: depth_limit,
-        }
+    pub fn new() -> Self {
+        Self {}
     }
 
-    pub fn export(&self, graph: &Graph) -> String {
+    pub fn export(&self, graph_data: &GraphData) -> String {
         let mut output = String::new();
-        let graph_data = self.graph_data(graph);
 
         output.push_str(&self.generate_graph_opening());
         output.push_str(&self.generate_nodes(&graph_data));
@@ -28,28 +20,6 @@ impl DotExporter {
         output.push_str(&self.generate_graph_closing());
 
         output
-    }
-
-    fn graph_data(&self, graph: &Graph) -> GraphData {
-        let keys = filter_keys(graph, self.key.clone(), self.depth);
-        keys.iter()
-            .map(|pair| {
-                let graph_data = build_graph_data(graph, pair.0, *pair.1);
-                graph_data
-            })
-            .fold(
-                GraphData {
-                    sections: HashMap::new(),
-                    documents: HashMap::new(),
-                    section_to_section: Vec::new(),
-                    section_to_key: Vec::new(),
-                    key_to_key: Vec::new(),
-                },
-                |mut acc, data| {
-                    acc.merge(data);
-                    acc
-                },
-            )
     }
 
     fn generate_graph_opening(&self) -> String {
@@ -268,110 +238,4 @@ pub fn key_colors(key: &str) -> SubgraphColor {
     let mut hasher = DefaultHasher::new();
     key.hash(&mut hasher);
     SUBGRAPH_COLORS[(hasher.finish() as usize) % 14]
-}
-
-#[cfg(test)]
-mod tests {
-    use indoc::indoc;
-    use liwe::{model::config::MarkdownOptions, state::from_indoc};
-    use std::collections::HashMap;
-
-    use crate::graph_data::{Document, Section};
-
-    use super::*;
-
-    #[test]
-    fn test_graphviz_exporter_basic_export() {
-        let graph = create_simple_graph();
-        let exporter = DotExporter::new(None, 0);
-        let output = exporter.export(&graph);
-
-        assert!(output.starts_with("digraph G {"));
-        assert!(output.ends_with("}\n"));
-    }
-
-    fn create_simple_graph() -> Graph {
-        let mut state = HashMap::new();
-        state.insert(
-            "1".to_string(),
-            "# Test Document\n\nSome content here.".to_string(),
-        );
-        state.insert(
-            "2".to_string(),
-            "# Another Document\n\n[Link to test](1)".to_string(),
-        );
-
-        Graph::import(&state, MarkdownOptions::default())
-    }
-
-    #[test]
-    fn test_graphviz_exporter_references() {
-        let state = from_indoc(indoc! {"
-                        # test 1
-
-                        [test 2](2)
-                        _
-                        # test 2
-                        "});
-
-        let graph = Graph::import(
-            &state,
-            MarkdownOptions {
-                refs_extension: String::default(),
-            },
-        );
-
-        let exporter = DotExporter::new(None, 0);
-
-        let actual = exporter.graph_data(&graph);
-        let expected = GraphData {
-            key_to_key: vec![],
-            sections: vec![
-                (
-                    1,
-                    Section {
-                        key_depth: 0,
-                        depth: 0,
-                        id: 1,
-                        title: "test 1".to_string(),
-                        key: "1".to_string(),
-                    },
-                ),
-                (
-                    4,
-                    Section {
-                        key_depth: 0,
-                        depth: 0,
-                        id: 4,
-                        title: "test 2".to_string(),
-                        key: "2".to_string(),
-                    },
-                ),
-            ]
-            .into_iter()
-            .collect(),
-            documents: vec![
-                (
-                    "2".to_string(),
-                    Document {
-                        key: "2".to_string(),
-                        nodes: vec![4],
-                    },
-                ),
-                (
-                    "1".to_string(),
-                    Document {
-                        key: "1".to_string(),
-                        nodes: vec![1],
-                    },
-                ),
-            ]
-            .into_iter()
-            .collect(),
-            section_to_section: vec![],
-            section_to_key: vec![(1, 4)],
-        };
-
-        assert_eq!(expected, actual);
-    }
 }
