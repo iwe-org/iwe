@@ -65,11 +65,8 @@ impl DotExporter {
 
             ];
             node [
-              style="filled,rounded"
-              fillcolor="#ffffff"
               fontname="Verdana"
               fontsize=11
-              shape=box
               color="#b3b3b3"
               penwidth=1.5
             ];
@@ -97,10 +94,24 @@ impl DotExporter {
 
             let font_size = max(12, 16 + section.key_depth * 8 - max(0, 8 * section.depth));
             let colors = key_colors(&section.key);
-            nodes_output.push_str(&format!(
-                "  {} [label=\"{}\", fillcolor=\"{}\", fontsize=\"{}\"];\n",
-                section.id, escaped_title, colors.node_background, font_size,
-            ));
+
+            if section.depth == 0 {
+                nodes_output.push_str(&format!(
+                    r###"
+                    {} [label="{}", fillcolor="{}", fontsize="{}", shape="note", style="filled,rounded"];
+                    "###,
+                    section.id, escaped_title, colors.node_background, font_size,
+                ));
+            } else {
+                nodes_output.push_str(&format!(
+                    r###"
+                    {} [label="{}", fontsize="{}", shape="plain"];
+                    "###,
+                    section.id,
+                    escaped_title,
+                    font_size - 2,
+                ));
+            }
         }
 
         nodes_output.push_str("\n");
