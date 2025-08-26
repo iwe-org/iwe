@@ -71,7 +71,7 @@ impl BasePath {
     }
 
     fn url_to_key(&self, url: &Url) -> Key {
-        Key::from_file_name(
+        Key::name(
             &url.to_string()
                 .trim_start_matches(&self.base_path)
                 .to_string(),

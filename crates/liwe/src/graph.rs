@@ -298,7 +298,7 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| (Key::from_file_name(k), reader.document(v)))
+            .map(|(k, v)| (Key::name(k), reader.document(v)))
             .collect::<Vec<_>>();
 
         for (key, document) in blocks.into_iter() {

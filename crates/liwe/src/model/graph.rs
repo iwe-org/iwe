@@ -48,6 +48,18 @@ pub enum GraphInline {
     Underline(GraphInlines),
 }
 
+impl From<&str> for GraphInline {
+    fn from(s: &str) -> Self {
+        GraphInline::Str(s.to_string())
+    }
+}
+
+impl From<String> for GraphInline {
+    fn from(s: String) -> Self {
+        GraphInline::Str(s)
+    }
+}
+
 #[allow(dead_code)]
 impl GraphBlock {
     fn is_sparce_list(&self) -> bool {
@@ -288,7 +300,7 @@ impl GraphInline {
                 if self.is_ref() {
                     let new_inlines = match *link_type {
                         LinkType::Regular => context
-                            .get_ref_title(&Key::from_file_name(url))
+                            .get_ref_title(&Key::name(url))
                             .map(|title| vec![GraphInline::Str(title)])
                             .unwrap_or(inlines.clone()),
                         LinkType::WikiLink => vec![],
@@ -368,7 +380,7 @@ impl GraphInline {
 
     fn ref_key(&self) -> Option<Key> {
         match self {
-            GraphInline::Link(url, _, _, _) => Some(Key::from_file_name(url)),
+            GraphInline::Link(url, _, _, _) => Some(Key::name(url)),
             _ => None,
         }
     }

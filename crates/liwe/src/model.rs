@@ -48,7 +48,7 @@ impl Key {
             .unwrap_or_default()
     }
 
-    pub fn from_file_name(name: &str) -> Self {
+    pub fn name(name: &str) -> Self {
         let key = name.trim_end_matches(".md").to_string();
 
         Key {
@@ -85,19 +85,19 @@ impl Key {
     pub fn from_path(path: &PathBuf) -> Key {
         let name = path.file_name().unwrap().to_string_lossy().to_string();
         let key = name.trim_end_matches(".md").to_string();
-        Key::from_file_name(&key)
+        Key::name(&key)
     }
 }
 
 impl From<&str> for Key {
     fn from(value: &str) -> Self {
-        Key::from_file_name(value)
+        Key::name(value)
     }
 }
 
 impl From<String> for Key {
     fn from(value: String) -> Self {
-        Key::from_file_name(&value)
+        Key::name(&value)
     }
 }
 

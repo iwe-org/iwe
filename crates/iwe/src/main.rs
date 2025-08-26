@@ -199,7 +199,7 @@ fn normalize_command(args: Normalize) {
 fn squash_command(args: Squash) {
     let graph = &load_graph();
     let mut patch = Graph::new();
-    let squashed = graph.squash(&Key::from_file_name(&args.key), args.depth);
+    let squashed = graph.squash(&Key::name(&args.key), args.depth);
 
     patch.build_key_from_iter(&args.key.clone().into(), TreeIter::new(&squashed));
 
@@ -268,7 +268,7 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
 fn export_command(args: Export) {
     let graph = load_graph();
     let data = graph_data(
-        args.key.clone().map(|s| Key::from_file_name(&s)).clone(),
+        args.key.clone().map(|s| Key::name(&s)).clone(),
         args.depth,
         &graph,
     );

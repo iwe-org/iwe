@@ -54,35 +54,29 @@ impl DotExporter {
     fn generate_nodes(&self, graph_data: &GraphData) -> String {
         let mut nodes_output = String::new();
 
+        for document in graph_data.documents.values() {
+            let font_size = max(12, 16 + document.depth * 8 - max(0, 8 * document.depth));
+            let colors = key_colors(&document.key);
+
+            nodes_output.push_str(&format!(
+                r###"
+                {} [label="{}", fillcolor="{}", fontsize="{}", shape="note", style="filled,rounded"];
+                "###,
+                document.id, document.title, colors.node_background, font_size,
+            ));
+        }
+
         for section in graph_data.sections.values() {
-            let escaped_title = section
-                .title
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", " ")
-                .replace("\r", " ")
-                .replace("\t", " ");
+            let font_size = max(12, 16 + section.depth * 8 - max(0, 8 * section.depth));
 
-            let font_size = max(12, 16 + section.key_depth * 8 - max(0, 8 * section.depth));
-            let colors = key_colors(&section.key);
-
-            if section.depth == 0 {
-                nodes_output.push_str(&format!(
-                    r###"
-                    {} [label="{}", fillcolor="{}", fontsize="{}", shape="note", style="filled,rounded"];
-                    "###,
-                    section.id, escaped_title, colors.node_background, font_size,
-                ));
-            } else {
-                nodes_output.push_str(&format!(
-                    r###"
-                    {} [label="{}", fontsize="{}", shape="plain"];
-                    "###,
-                    section.id,
-                    escaped_title,
-                    font_size - 2,
-                ));
-            }
+            nodes_output.push_str(&format!(
+                r###"
+                {} [label="{}", fontsize="{}", shape="plain"];
+                "###,
+                section.id,
+                section.title,
+                font_size - 2,
+            ));
         }
 
         nodes_output.push_str("\n");
@@ -107,7 +101,13 @@ impl DotExporter {
             ));
 
             subgraphs_output.push_str("");
-            for &node_id in &subgraph.nodes {
+            for node_id in graph_data
+                .sections
+                .values()
+                .into_iter()
+                .filter(|s| s.key == subgraph.key)
+                .map(|s| s.id)
+            {
                 subgraphs_output.push_str(&format!("    {};\n", node_id));
             }
             subgraphs_output.push_str("  }\n");
@@ -120,8 +120,8 @@ impl DotExporter {
     fn generate_edges(&self, graph_data: &GraphData) -> String {
         let mut edges_output = String::new();
 
-        for (from_id, to_id) in &graph_data.section_to_key {
-            if graph_data.sections.contains_key(to_id) {
+        for (from_id, to_id) in &graph_data.section_to_document {
+            if graph_data.sections.contains_key(to_id) || graph_data.documents.contains_key(to_id) {
                 edges_output.push_str(&format!(
                     "  {} -> {} [arrowsize=1.5, arrowhead=\"empty\", style=\"dashed\"]; \n",
                     from_id, to_id
@@ -130,6 +130,10 @@ impl DotExporter {
         }
 
         for (from_id, to_id) in &graph_data.section_to_section {
+            edges_output.push_str(&format!("  {} -> {};\n", from_id, to_id));
+        }
+
+        for (from_id, to_id) in &graph_data.document_to_document {
             edges_output.push_str(&format!("  {} -> {};\n", from_id, to_id));
         }
         edges_output
