@@ -9,16 +9,17 @@ use std::collections::{HashMap, HashSet};
 pub struct GraphData {
     pub sections: HashMap<NodeId, Section>,
     pub documents: HashMap<String, Document>,
-    pub sub_sections: Vec<(NodeId, NodeId)>,
-    pub references: Vec<(NodeId, NodeId)>,
+    pub section_to_section: Vec<(NodeId, NodeId)>,
+    pub section_to_key: Vec<(NodeId, NodeId)>,
+    pub key_to_key: Vec<(NodeId, NodeId)>,
 }
 
 impl GraphData {
     pub fn merge(&mut self, other: GraphData) {
         self.sections.extend(other.sections);
         self.documents.extend(other.documents);
-        self.sub_sections.extend(other.sub_sections);
-        self.references.extend(other.references);
+        self.section_to_section.extend(other.section_to_section);
+        self.section_to_key.extend(other.section_to_key);
     }
 }
 
@@ -37,22 +38,58 @@ pub struct Document {
     pub nodes: Vec<NodeId>,
 }
 
-pub fn build_sections(
-    key: &str,
-    key_depth: u8,
-    depth: u8,
-    tree: &Tree,
-    sections: &mut HashMap<NodeId, Section>,
-    sub_sections: &mut HashSet<(NodeId, NodeId)>,
-    references: &mut HashSet<(NodeId, Key)>,
-) {
+struct GraphCache {
+    sections: HashMap<NodeId, Section>,
+    section_to_sections: HashSet<(NodeId, NodeId)>,
+    sections_to_keys: HashSet<(NodeId, Key)>,
+    keys_to_keys: HashSet<(Key, Key)>,
+}
+
+pub fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
+    let tree = graph.collect(key);
+
+    let mut cache = GraphCache {
+        sections: HashMap::new(),
+        section_to_sections: HashSet::new(),
+        sections_to_keys: HashSet::new(),
+        keys_to_keys: HashSet::new(),
+    };
+
+    build_sections(&key.to_string(), &mut cache, key_depth, 0, &tree);
+
+    GraphData {
+        sections: cache.sections.clone(),
+        documents: [(
+            key.to_string(),
+            Document {
+                key: key.to_string(),
+                nodes: cache.sections.into_keys().collect_vec(),
+            },
+        )]
+        .into_iter()
+        .collect(),
+        section_to_section: cache.section_to_sections.into_iter().collect_vec(),
+        section_to_key: cache
+            .sections_to_keys
+            .into_iter()
+            .map(|r| (r.0, resolve_key(graph, &r.1)))
+            .collect_vec(),
+        key_to_key: cache
+            .keys_to_keys
+            .into_iter()
+            .map(|r| (resolve_key(graph, &r.0), resolve_key(graph, &r.1)))
+            .collect_vec(),
+    }
+}
+
+fn build_sections(key: &str, cache: &mut GraphCache, key_depth: u8, depth: u8, tree: &Tree) {
     tree.children.iter().for_each(|child| {
         if child.is_list() {
             return;
         }
 
         if child.is_section() {
-            sections.insert(
+            cache.sections.insert(
                 child.id.unwrap(),
                 Section {
                     key_depth,
@@ -63,22 +100,20 @@ pub fn build_sections(
                 },
             );
             if tree.is_section() {
-                sub_sections.insert((tree.id.unwrap(), child.id.unwrap()));
+                cache
+                    .section_to_sections
+                    .insert((tree.id.unwrap(), child.id.unwrap()));
             }
-            build_sections(
-                key,
-                key_depth,
-                depth + 1,
-                child,
-                sections,
-                sub_sections,
-                references,
-            );
+            build_sections(key, cache, key_depth, depth + 1, child);
         }
 
         if child.is_reference() {
-            if let Some(key) = child.node.reference_key() {
-                references.insert((tree.id.unwrap(), key));
+            if let Some(ref_key) = child.node.reference_key() {
+                cache
+                    .sections_to_keys
+                    .insert((tree.id.unwrap(), ref_key.clone()));
+
+                cache.keys_to_keys.insert((key.into(), ref_key));
             }
         }
     })
@@ -110,12 +145,7 @@ pub fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> H
         })
 }
 
-pub fn get_keys_for_depth(
-    graph: &Graph,
-    key: &Key,
-    depth: u8,
-    collected_keys: &mut HashMap<Key, u8>,
-) {
+fn get_keys_for_depth(graph: &Graph, key: &Key, depth: u8, collected_keys: &mut HashMap<Key, u8>) {
     collected_keys.insert(key.clone(), depth);
 
     if depth == 0 {
@@ -129,47 +159,9 @@ pub fn get_keys_for_depth(
     }
 }
 
-pub fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
-    let mut sections = HashMap::<NodeId, Section>::new();
-    let mut sub_sections = HashSet::<(NodeId, NodeId)>::new();
-    let mut references = HashSet::<(NodeId, Key)>::new();
-    let mut subgraphs = HashMap::new();
-
-    let tree = graph.collect(key);
-
-    build_sections(
-        &key.to_string(),
-        key_depth,
-        0,
-        &tree,
-        &mut sections,
-        &mut sub_sections,
-        &mut references,
-    );
-
-    subgraphs.insert(
-        key.to_string(),
-        Document {
-            key: key.to_string(),
-            nodes: sections.clone().into_keys().collect_vec(),
-        },
-    );
-
-    GraphData {
-        sections,
-        documents: subgraphs,
-        sub_sections: sub_sections.into_iter().collect_vec(),
-        references: references
-            .into_iter()
-            .map(|r| {
-                (
-                    r.0,
-                    graph
-                        .get_node_id(&r.1.clone())
-                        .map(|doc_id| graph.node(doc_id).child_id().unwrap_or_default())
-                        .unwrap_or_default(),
-                )
-            })
-            .collect_vec(),
-    }
+fn resolve_key(graph: &Graph, key: &Key) -> NodeId {
+    graph
+        .get_node_id(&key.clone())
+        .map(|doc_id| graph.node(doc_id).child_id().unwrap_or_default())
+        .unwrap_or_default()
 }

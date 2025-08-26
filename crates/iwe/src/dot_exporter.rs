@@ -41,8 +41,9 @@ impl DotExporter {
                 GraphData {
                     sections: HashMap::new(),
                     documents: HashMap::new(),
-                    sub_sections: Vec::new(),
-                    references: Vec::new(),
+                    section_to_section: Vec::new(),
+                    section_to_key: Vec::new(),
+                    key_to_key: Vec::new(),
                 },
                 |mut acc, data| {
                     acc.merge(data);
@@ -149,7 +150,7 @@ impl DotExporter {
     fn generate_edges(&self, graph_data: &GraphData) -> String {
         let mut edges_output = String::new();
 
-        for (from_id, to_id) in &graph_data.references {
+        for (from_id, to_id) in &graph_data.section_to_key {
             if graph_data.sections.contains_key(to_id) {
                 edges_output.push_str(&format!(
                     "  {} -> {} [arrowsize=1.5, arrowhead=\"empty\", style=\"dashed\"]; \n",
@@ -158,7 +159,7 @@ impl DotExporter {
             }
         }
 
-        for (from_id, to_id) in &graph_data.sub_sections {
+        for (from_id, to_id) in &graph_data.section_to_section {
             edges_output.push_str(&format!("  {} -> {};\n", from_id, to_id));
         }
         edges_output
@@ -324,6 +325,7 @@ mod tests {
 
         let actual = exporter.graph_data(&graph);
         let expected = GraphData {
+            key_to_key: vec![],
             sections: vec![
                 (
                     1,
@@ -366,8 +368,8 @@ mod tests {
             ]
             .into_iter()
             .collect(),
-            sub_sections: vec![],
-            references: vec![(1, 4)],
+            section_to_section: vec![],
+            section_to_key: vec![(1, 4)],
         };
 
         assert_eq!(expected, actual);
