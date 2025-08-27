@@ -47,6 +47,7 @@ struct GraphCache {
     section_to_section: HashSet<(NodeId, NodeId)>,
     section_to_document: HashSet<(NodeId, Key)>,
     document_to_document: HashSet<(Key, Key)>,
+    backlinks: HashSet<(Key, Key)>,
 }
 
 pub fn graph_data(key_filter: Option<Key>, depth: u8, graph: &Graph) -> GraphData {
@@ -81,9 +82,10 @@ fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
         section_to_section: HashSet::new(),
         section_to_document: HashSet::new(),
         document_to_document: HashSet::new(),
+        backlinks: HashSet::new(),
     };
 
-    build_sections(&key.to_string(), &mut cache, key_depth, 0, &tree);
+    build_sections(&key.to_string(), &mut cache, key_depth, 0, 100, &tree);
 
     GraphData {
         sections: cache.sections.clone(),
@@ -102,7 +104,14 @@ fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
     }
 }
 
-fn build_sections(key: &str, cache: &mut GraphCache, key_depth: u8, depth: u8, tree: &Tree) {
+fn build_sections(
+    key: &str,
+    cache: &mut GraphCache,
+    key_depth: u8,
+    depth: u8,
+    max_depth: u8,
+    tree: &Tree,
+) {
     tree.children.iter().for_each(|child| {
         if child.is_list() {
             return;
@@ -116,7 +125,7 @@ fn build_sections(key: &str, cache: &mut GraphCache, key_depth: u8, depth: u8, t
                     key: key.to_string(),
                 },
             );
-            build_sections(key, cache, key_depth, depth + 1, child);
+            build_sections(key, cache, key_depth, depth + 1, max_depth, child);
         } else if child.is_section() {
             cache.sections.insert(
                 child.id.unwrap(),
@@ -132,7 +141,7 @@ fn build_sections(key: &str, cache: &mut GraphCache, key_depth: u8, depth: u8, t
                     .section_to_section
                     .insert((tree.id.unwrap(), child.id.unwrap()));
             }
-            build_sections(key, cache, key_depth, depth + 1, child);
+            build_sections(key, cache, key_depth, depth + 1, max_depth, child);
         } else if child.is_reference() {
             if let Some(ref_key) = child.node.reference_key() {
                 cache
@@ -146,7 +155,7 @@ fn build_sections(key: &str, cache: &mut GraphCache, key_depth: u8, depth: u8, t
 }
 
 fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> HashMap<Key, u8> {
-    key_filter
+    let mut keys = key_filter
         .clone()
         .map(|key| {
             if graph.maybe_key(&key).is_none() {
@@ -168,7 +177,17 @@ fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> HashM
                     }
                 })
                 .collect()
-        })
+        });
+
+    for key in keys.keys().cloned().collect::<Vec<_>>() {
+        let references = graph.get_block_references_to(&key);
+        for node_id in &references {
+            let ref_key = graph.node(*node_id).node_key();
+            keys.entry(ref_key).or_insert(0);
+        }
+    }
+
+    keys
 }
 
 fn get_keys_for_depth(graph: &Graph, key: &Key, depth: u8, collected_keys: &mut HashMap<Key, u8>) {
@@ -240,10 +259,11 @@ mod tests {
 
         let mut cache = GraphCache::default();
 
-        build_sections("1", &mut cache, 2, 0, &doc1);
+        build_sections("1", &mut cache, 2, 0, 100, &doc1);
 
         assert_eq!(
             GraphCache {
+                backlinks: HashSet::new(),
                 sections: vec![
                     (
                         3,

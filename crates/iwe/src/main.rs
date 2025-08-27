@@ -3,9 +3,9 @@ use std::fs::{create_dir, OpenOptions};
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use dot_exporter_2::DotExporter;
 use itertools::Itertools;
 
+use iwe::{dot_details_exporter, dot_exporter, graph_data};
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
@@ -15,13 +15,6 @@ use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use log::{debug, error};
-
-use crate::graph_data::graph_data;
-
-mod dot_exporter;
-mod dot_exporter_2;
-
-mod graph_data;
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
@@ -71,8 +64,16 @@ struct Export {
         help = "Filter nodes by key (searches in both key and title)"
     )]
     key: Option<String>,
-    #[clap(long, short, global = true, required = false, default_value = "0")]
+    #[clap(
+        long,
+        short = 'd',
+        global = true,
+        required = false,
+        default_value = "0"
+    )]
     depth: u8,
+    #[clap(long, global = true, required = false, default_value = "false")]
+    include_headers: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -269,7 +270,7 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
 #[tracing::instrument]
 fn export_command(args: Export) {
     let graph = load_graph();
-    let data = graph_data(
+    let data = graph_data::graph_data(
         args.key.clone().map(|s| Key::name(&s)).clone(),
         args.depth,
         &graph,
@@ -277,8 +278,11 @@ fn export_command(args: Export) {
 
     let output = match args.format {
         Format::Dot => {
-            let exporter = DotExporter::new();
-            exporter.export(&data)
+            if args.include_headers {
+                dot_details_exporter::export_dot_with_headers(&data)
+            } else {
+                dot_exporter::export_dot(&data)
+            }
         }
     };
 
