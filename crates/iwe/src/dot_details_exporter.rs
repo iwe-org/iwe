@@ -1,135 +1,132 @@
+use graphviz_rust::dot_generator::*;
+use graphviz_rust::dot_structures::*;
+use graphviz_rust::printer::{DotPrinter, PrinterContext};
 use std::cmp::max;
 
 use crate::{graph_colors::key_colors, graph_data::GraphData};
 
 pub fn export_dot_with_headers(graph_data: &GraphData) -> String {
-    let mut output = String::new();
+    let mut statements = Vec::new();
 
-    output.push_str(&generate_graph_opening());
-    output.push_str(&generate_nodes(&graph_data));
-    output.push_str(&generate_subgraphs(&graph_data));
-    output.push_str(&generate_edges(&graph_data));
-    output.push_str(&generate_graph_closing());
-
-    output
-}
-
-fn generate_graph_opening() -> String {
-    r###"digraph G {
-            graph [
-              rankdir=LR
-              fontname="Verdana"
-              fontsize=13
-              nodesep=0.7
-              splines=polyline
-              pad="0.5,0.2"
-              ranksep=1.2
-              overlap=false
-
-            ];
-            node [
-              fontname="Verdana"
-              fontsize=11
-              color="#b3b3b3"
-              penwidth=1.5
-            ];
-            edge [
-              color="#38546c66"
-              arrowhead=normal
-              penwidth=1.2
-            ];
-
-            "###
-    .to_string()
-}
-
-fn generate_nodes(graph_data: &GraphData) -> String {
-    let mut nodes_output = String::new();
-
+    // Add document nodes
     for document in graph_data.documents.values() {
         let font_size = max(12, 16 + document.depth * 8);
         let colors = key_colors(&document.key);
 
-        nodes_output.push_str(&format!(
-                r###"
-                {} [label="{}", fillcolor="{}", fontsize="{}", shape="note", style="filled,rounded"];
-                "###,
-                document.id, document.title, colors.node_background, font_size,
-            ));
+        let node = node!(
+            document.id.to_string();
+            attr!("label", &quoted(&document.title)),
+            attr!("fillcolor", &quoted(colors.node_background)),
+            attr!("fontsize", font_size),
+            attr!("fontname", "Verdana"),
+            attr!("color", &quoted("#b3b3b3")),
+            attr!("penwidth", "1.5"),
+            attr!("shape", "note"),
+            attr!("style", "filled")
+        );
+        statements.push(Stmt::Node(node));
     }
 
+    // Add section nodes
     for section in graph_data.sections.values() {
         let font_size = max(12, 16 + section.depth * 8 - max(0, 8 * section.depth));
+        let section_font_size = font_size - 2;
 
-        nodes_output.push_str(&format!(
-            r###"
-                {} [label="{}", fontsize="{}", shape="plain"];
-                "###,
-            section.id,
-            section.title,
-            font_size - 2,
-        ));
+        let node = node!(
+            section.id.to_string();
+            attr!("label", &quoted(&section.title)),
+            attr!("fontsize", section_font_size),
+            attr!("fontname", "Verdana"),
+            attr!("color", &quoted("#b3b3b3")),
+            attr!("penwidth", "1.5"),
+            attr!("shape", "plain")
+        );
+        statements.push(Stmt::Node(node));
     }
 
-    nodes_output.push_str("\n");
-    nodes_output
-}
+    // Add subgraphs for each document
+    for (i, subgraph_doc) in graph_data.documents.values().enumerate() {
+        let colors = key_colors(&subgraph_doc.key);
 
-fn generate_subgraphs(graph_data: &GraphData) -> String {
-    let mut subgraphs_output = String::new();
-    for (i, subgraph) in graph_data.documents.values().enumerate() {
-        let colors = key_colors(&subgraph.key);
-        subgraphs_output.push_str(&format!("  subgraph cluster_{} {{\n", i));
-        subgraphs_output.push_str(&format!(
-            r###"
-                labeljust="l"
-                style="filled,rounded"
-                color="{}"
-                fillcolor="{}"
-                fontcolor="{}"
-                penwidth=40
-                "###,
-            colors.subgraph_fill, colors.subgraph_fill, colors.subgraph_text
-        ));
-
-        subgraphs_output.push_str("");
-        for node_id in graph_data
+        // Collect section nodes that belong to this document
+        let section_nodes: Vec<Stmt> = graph_data
             .sections
             .values()
-            .into_iter()
-            .filter(|s| s.key == subgraph.key)
-            .map(|s| s.id)
-        {
-            subgraphs_output.push_str(&format!("    {};\n", node_id));
+            .filter(|s| s.key == subgraph_doc.key)
+            .map(|s| Stmt::Node(node!(s.id.to_string())))
+            .collect();
+
+        if !section_nodes.is_empty() {
+            let subgraph_name = format!("cluster_{}", i);
+            let subgraph = subgraph!(
+                subgraph_name;
+                attr!("labeljust", &quoted("l")),
+                attr!("style", "filled"),
+                attr!("color", &quoted(colors.subgraph_fill)),
+                attr!("fillcolor", &quoted(colors.subgraph_fill)),
+                attr!("fontcolor", &quoted(colors.subgraph_text)),
+                attr!("penwidth", "40")
+            );
+
+            let mut subgraph_with_nodes = subgraph;
+            for node_stmt in section_nodes {
+                subgraph_with_nodes.add_stmt(node_stmt);
+            }
+
+            statements.push(Stmt::Subgraph(subgraph_with_nodes));
         }
-        subgraphs_output.push_str("  }\n");
     }
 
-    subgraphs_output.push_str("\n");
-    subgraphs_output
-}
-
-fn generate_edges(graph_data: &GraphData) -> String {
-    let mut edges_output = String::new();
-
+    // Add section_to_document edges
     for (from_id, to_id) in &graph_data.section_to_document {
         if graph_data.sections.contains_key(to_id) || graph_data.documents.contains_key(to_id) {
-            edges_output.push_str(&format!(
-                "  {} -> {} [arrowsize=1.5, arrowhead=\"empty\", style=\"dashed\"]; \n",
-                from_id, to_id
-            ));
+            let edge = edge!(
+                node_id!(from_id.to_string()) => node_id!(to_id.to_string());
+                attr!("arrowsize", "1.5"),
+                attr!("arrowhead", &quoted("empty")),
+                attr!("style", &quoted("dashed")),
+                attr!("color", &quoted("#38546c66")),
+                attr!("penwidth", "1.2")
+            );
+            statements.push(Stmt::Edge(edge));
         }
     }
 
+    // Add section_to_section edges
     for (from_id, to_id) in &graph_data.section_to_section {
         if graph_data.sections.contains_key(to_id) || graph_data.documents.contains_key(to_id) {
-            edges_output.push_str(&format!("  {} -> {};\n", from_id, to_id));
+            let edge = edge!(
+                node_id!(from_id.to_string()) => node_id!(to_id.to_string());
+                attr!("color", &quoted("#38546c66")),
+                attr!("arrowhead", "normal"),
+                attr!("penwidth", "1.2")
+            );
+            statements.push(Stmt::Edge(edge));
         }
     }
 
-    edges_output
+    let g = graph!(
+        di id!("G");
+        attr!("rankdir", "LR"),
+        attr!("fontname", "Verdana"),
+        attr!("fontsize", "13"),
+        attr!("nodesep", "0.7"),
+        attr!("splines", "polyline"),
+        attr!("pad", &quoted("0.5,0.2")),
+        attr!("ranksep", "1.2"),
+        attr!("overlap", "false")
+    );
+
+    // Add statements to graph
+    let mut final_graph = g;
+    for stmt in statements {
+        final_graph.add_stmt(stmt);
+    }
+
+    let output = final_graph.print(&mut PrinterContext::default());
+    format!("{}\n", output)
 }
 
-fn generate_graph_closing() -> String {
-    "}\n".to_string()
+fn quoted(s: &str) -> String {
+    format!("\"{}\"", s.replace('"', "\\\""))
 }

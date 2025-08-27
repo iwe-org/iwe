@@ -19,6 +19,8 @@ pub fn export_dot(graph_data: &GraphData) -> String {
             attr!("fillcolor", &quoted(colors.node_background)),
             attr!("fontsize", font_size),
             attr!("fontname", "Verdana"),
+            attr!("color", &quoted("#b3b3b3")),
+            attr!("penwidth", "1.5"),
             attr!("shape", "note"),
             attr!("style", "filled")
         );
@@ -30,7 +32,9 @@ pub fn export_dot(graph_data: &GraphData) -> String {
         if graph_data.documents.contains_key(to_id) {
             let edge = edge!(
                 node_id!(from_id.to_string()) => node_id!(to_id.to_string());
-                attr!("color", &quoted("#38546c66"))
+                attr!("color", &quoted("#38546c66")),
+                attr!("arrowhead", "normal"),
+                attr!("penwidth", "1.2")
             );
             statements.push(Stmt::Edge(edge));
         }
@@ -54,7 +58,8 @@ pub fn export_dot(graph_data: &GraphData) -> String {
         final_graph.add_stmt(stmt);
     }
 
-    format!("{}\n", final_graph.print(&mut PrinterContext::default()))
+    let output = final_graph.print(&mut PrinterContext::default());
+    format!("{}\n", output)
 }
 
 fn quoted(s: &str) -> String {
