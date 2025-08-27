@@ -61,7 +61,7 @@ struct Export {
     #[clap(
         long,
         short = 'k',
-        help = "Filter nodes by key (searches in both key and title)"
+        help = "Filter nodes by specific key. If not provided, exports all root notes by default"
     )]
     key: Option<String>,
     #[clap(
@@ -72,7 +72,13 @@ struct Export {
         default_value = "0"
     )]
     depth: u8,
-    #[clap(long, global = true, required = false, default_value = "false")]
+    #[clap(
+        long,
+        global = true,
+        required = false,
+        default_value = "false",
+        help = "Include section headers and create subgraphs for detailed visualization. When enabled, shows document structure with sections grouped in colored subgraphs"
+    )]
     include_headers: bool,
 }
 

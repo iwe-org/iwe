@@ -99,8 +99,8 @@ Contributions to the project [documentation](https://github.com/iwe-org/iwe/wiki
 
 This repository is for Rust code and crates publishing only. Plugins and packages are in separate repositories. If you are willing to help with a non-listed package type, I'm happy to add a repo for it.
 
-- Neovim plugin is aviable [here](https://github.com/iwe-org/iwe.nvim).
-- VSCode plugin is avialbe [here](https://marketplace.visualstudio.com/items?itemName=IWE.iwe) ([repository](https://github.com/iwe-org/vscode-iwe))
+- Neovim plugin is in a separated [repository](https://github.com/iwe-org/iwe.nvim).
+- VSCode plugin is [here](https://marketplace.visualstudio.com/items?itemName=IWE.iwe) ([repository](https://github.com/iwe-org/vscode-iwe))
 - Zed plugin [repository](https://github.com/iwe-org/zed-iwe)
 
 ### Debug Mode

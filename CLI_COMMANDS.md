@@ -235,46 +235,87 @@ iwe export [OPTIONS] <FORMAT>
 Exports the knowledge graph in different formats for visualization, analysis, or integration with other tools.
 
 **Arguments:**
-- `<FORMAT>`: Output format, either `json` or `dot`
+- `<FORMAT>`: Output format (currently only `dot` is supported)
 
 **Options:**
-- `-k, --key <KEY>`: Filter nodes by key (searches in both key and title)
+- `-k, --key <KEY>`: Filter nodes by specific key. If not provided, exports all root notes by default
 - `-d, --depth <DEPTH>`: Maximum depth to include (default: 0, meaning no limit)
+- `--include-headers`: Include section headers and create subgraphs for detailed visualization. When enabled, shows document structure with sections grouped in colored subgraphs
 - `-v, --verbose <VERBOSE>`: Set verbosity level (default: 0)
 
 **Examples:**
 ```bash
-# Export as JSON
-iwe export json
-
-# Export as DOT format
+# Export all root documents as DOT format
 iwe export dot
 
-# Export filtered by key
-iwe export json --key project
+# Export specific document by key
+iwe export dot --key project-notes
 
 # Export with depth limit
 iwe export dot --depth 3
 
-# Export with multiple options
-iwe export json --key meeting --depth 2 --verbose 1
+# Export with detailed section visualization
+iwe export dot --include-headers
+
+# Export specific key with sections and depth limit
+iwe export dot --key meetings --depth 2 --include-headers
+
+# Export with verbose output
+iwe export dot --key documentation --verbose 1
 ```
 
-**JSON Output:**
-Produces a JSON array representing the graph structure with nodes and relationships.
+**DOT Output Modes:**
 
-**DOT Output:**
-Produces a DOT format file suitable for visualization with DOT/Graphviz tools:
+**Basic Mode (default):**
+Produces a DOT format file showing document relationships:
 ```dot
-digraph {
-    graph [label="IWE Knowledge Graph"]
-    node [shape=box]
-
-    "node1" [label="Document Title"]
-    "node2" [label="Section"]
-    "node1" -> "node2"
+digraph G {
+  rankdir=LR
+  fontname=Verdana
+  fontsize=13
+  nodesep=0.7
+  splines=polyline
+  
+  1[label="Project Notes",fillcolor="#ffeaea",fontsize=16,shape=note,style=filled]
+  2[label="Meeting Notes",fillcolor="#f6e5ee",fontsize=16,shape=note,style=filled]
+  1 -> 2 [color="#38546c66",arrowhead=normal,penwidth=1.2]
 }
 ```
+
+**Detailed Mode (--include-headers):**
+Shows document structure with sections grouped in colored subgraphs:
+```dot
+digraph G {
+  rankdir=LR
+  
+  1[label="Project Notes",shape=note,style=filled]
+  2[label="Introduction",shape=plain]
+  3[label="Details",shape=plain]
+  
+  subgraph cluster_0 {
+    labeljust="l"
+    style=filled
+    color="#fff9de"
+    fillcolor="#fff9de"
+    2
+    3
+  }
+  
+  2 -> 1 [arrowhead="empty",style="dashed"]
+  3 -> 1 [arrowhead="empty",style="dashed"]
+}
+```
+
+**Key Features:**
+- **Colors**: Each document key gets a unique color scheme
+- **Shapes**: Documents use `note` shape, sections use `plain` shape
+- **Subgraphs**: When using `--include-headers`, sections are grouped in colored clusters
+- **Edge Types**: Different edge styles for document-to-document vs section-to-document connections
+
+**Default Behavior:**
+- Without `--key`: Exports all root documents in the workspace
+- Without `--include-headers`: Shows only documents and their direct relationships
+- With `--include-headers`: Includes document sections and creates visual grouping
 
 ---
 
@@ -363,10 +404,16 @@ iwe squash --key meetings --depth 2 > combined-meetings.md
 
 ```bash
 # Create SVG visualization using Graphviz
-iwe export dot | neato -Tsvg -o output.svg
+iwe export dot | dot -Tsvg -o output.svg
 
 # Create filtered SVG visualization with depth limit starting from specific key
-iwe export dot -k YOUR_FILE -d 2 | neato -Tsvg -o output.svg
+iwe export dot --key YOUR_KEY --depth 2 | dot -Tsvg -o output.svg
+
+# Create detailed visualization with sections
+iwe export dot --include-headers | dot -Tsvg -o detailed-output.svg
+
+# Create PNG visualization
+iwe export dot --key project-notes --include-headers | dot -Tpng -o project-graph.png
 
 # Batch processing
 for key in $(ls *.md | sed 's/.md//'); do
