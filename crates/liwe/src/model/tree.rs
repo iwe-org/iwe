@@ -17,6 +17,10 @@ pub struct Tree {
 }
 
 impl Tree {
+    pub fn new(id: Option<NodeId>, node: Node, children: Vec<Tree>) -> Tree {
+        Tree { id, node, children }
+    }
+
     pub fn iter(&self) -> TreeIter<'_> {
         TreeIter::new(self)
     }

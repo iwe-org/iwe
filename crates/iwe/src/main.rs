@@ -3,9 +3,9 @@ use std::fs::{create_dir, OpenOptions};
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use dot_exporter::DotExporter;
 use itertools::Itertools;
 
+use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
@@ -15,9 +15,6 @@ use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use log::{debug, error};
-
-mod graph_data;
-mod dot_exporter;
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
@@ -64,11 +61,25 @@ struct Export {
     #[clap(
         long,
         short = 'k',
-        help = "Filter nodes by key (searches in both key and title)"
+        help = "Filter nodes by specific key. If not provided, exports all root notes by default"
     )]
     key: Option<String>,
-    #[clap(long, short, global = true, required = false, default_value = "0")]
+    #[clap(
+        long,
+        short = 'd',
+        global = true,
+        required = false,
+        default_value = "0"
+    )]
     depth: u8,
+    #[clap(
+        long,
+        global = true,
+        required = false,
+        default_value = "false",
+        help = "Include section headers and create subgraphs for detailed visualization. When enabled, shows document structure with sections grouped in colored subgraphs"
+    )]
+    include_headers: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -197,7 +208,7 @@ fn normalize_command(args: Normalize) {
 fn squash_command(args: Squash) {
     let graph = &load_graph();
     let mut patch = Graph::new();
-    let squashed = graph.squash(&Key::from_file_name(&args.key), args.depth);
+    let squashed = graph.squash(&Key::name(&args.key), args.depth);
 
     patch.build_key_from_iter(&args.key.clone().into(), TreeIter::new(&squashed));
 
@@ -265,11 +276,19 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
 #[tracing::instrument]
 fn export_command(args: Export) {
     let graph = load_graph();
+    let data = graph_data::graph_data(
+        args.key.clone().map(|s| Key::name(&s)).clone(),
+        args.depth,
+        &graph,
+    );
 
     let output = match args.format {
         Format::Dot => {
-            let exporter = DotExporter::new(args.key.map(|a| Key::from_file_name(&a)), args.depth);
-            exporter.export(&graph)
+            if args.include_headers {
+                dot_details_exporter::export_dot_with_headers(&data)
+            } else {
+                dot_exporter::export_dot(&data)
+            }
         }
     };
 

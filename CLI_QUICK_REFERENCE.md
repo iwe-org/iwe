@@ -21,7 +21,7 @@ iwe init
 | `paths` | List knowledge paths | `--depth <N>` |
 | `squash` | Combine content | `--key <KEY>` `--depth <N>` |
 | `contents` | Generate TOC | - |
-| `export` | Export graph data | `json`/`dot` `--key <KEY>` `--depth <N>` |
+| `export` | Export graph data | `dot` `--key <KEY>` `--depth <N>` `--include-headers` |
 
 ## Commands
 
@@ -63,15 +63,13 @@ iwe contents > TOC.md       # Save to file
 
 ### `iwe export`
 ```bash
-# JSON format
-iwe export json                        # All nodes
-iwe export json --key project          # Filter by key
-iwe export json --depth 3              # Limit depth
-
-# DOT format
-iwe export dot                     # DOT format
-iwe export dot --key docs          # Filtered
-iwe export dot > graph.dot         # Save for visualization
+# DOT format (default - exports all root notes)
+iwe export dot                                  # All root documents
+iwe export dot --key project-notes             # Filter by specific key
+iwe export dot --depth 3                       # Limit depth
+iwe export dot --include-headers                # Include sections and subgraphs
+iwe export dot --key docs --include-headers     # Detailed view of specific key
+iwe export dot > graph.dot                     # Save for visualization
 ```
 
 ## Common Workflows
@@ -99,14 +97,24 @@ iwe squash --key project --depth 3 > project-summary.md
 
 ### Visualize Structure
 ```bash
+# Basic structure
 iwe export dot > graph.dot
 dot -Tpng graph.dot -o structure.png
+
+# Detailed structure with sections
+iwe export dot --include-headers > detailed.dot
+dot -Tpng detailed.dot -o detailed-structure.png
+
+# Focus on specific topic
+iwe export dot --key project --include-headers > project.dot
+dot -Tpng project.dot -o project-structure.png
 ```
 
 ### Analyze Content
 ```bash
-iwe paths --depth 2        # See relationships
-iwe export json | jq '.[]' # Process with jq
+iwe paths --depth 2                    # See relationships
+iwe export dot --key topic             # Export specific key
+iwe export dot --include-headers        # Detailed structure analysis
 ```
 
 ## Configuration
@@ -139,8 +147,9 @@ All commands support:
 - **File Organization**: Use descriptive filenames (they become keys for squashing)
 - **Regular Normalization**: Run `iwe normalize` before commits or on save
 - **Depth Control**: Use `--depth` to limit processing for large repositories
-- **Key Matching**: Keys match filenames without `.md` extension
+- **Key Matching**: Keys match filenames without `.md` extension (not document titles)
 - **Link Management**: Normalize updates link titles automatically
+- **Detailed Exports**: Use `--include-headers` to show document structure with sections in colored subgraphs
 
 ## Integration Examples
 

@@ -547,14 +547,14 @@ mod test {
 
     fn assert_eq(expected: Graph, actual: &str) {
         let mut actual_graph = Graph::new();
-        actual_graph.from_markdown(Key::from_file_name("key"), actual, MarkdownReader::new());
+        actual_graph.from_markdown(Key::name("key"), actual, MarkdownReader::new());
 
         assert_eq!(expected, actual_graph);
     }
 
     fn assert_position_eq(actual: &str, node_id: NodeId, range: LineRange) {
         let mut actual_graph = Graph::new();
-        actual_graph.from_markdown(Key::from_file_name("key"), actual, MarkdownReader::new());
+        actual_graph.from_markdown(Key::name("key"), actual, MarkdownReader::new());
 
         assert_eq!(
             range,
