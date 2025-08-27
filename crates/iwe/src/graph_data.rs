@@ -20,6 +20,7 @@ impl GraphData {
         self.documents.extend(other.documents);
         self.section_to_section.extend(other.section_to_section);
         self.section_to_document.extend(other.section_to_document);
+        self.document_to_document.extend(other.document_to_document);
     }
 }
 
@@ -50,6 +51,7 @@ struct GraphCache {
 
 pub fn graph_data(key_filter: Option<Key>, depth: u8, graph: &Graph) -> GraphData {
     let keys = filter_keys(graph, key_filter.clone(), depth);
+
     keys.iter()
         .map(|pair| {
             let graph_data = build_graph_data(graph, pair.0, *pair.1);
@@ -238,7 +240,7 @@ mod tests {
 
         let mut cache = GraphCache::default();
 
-        build_sections("1", &mut cache, 1, 0, &doc1);
+        build_sections("1", &mut cache, 2, 0, &doc1);
 
         assert_eq!(
             GraphCache {
@@ -270,7 +272,7 @@ mod tests {
                         id: 2,
                         title: "title".into(),
                         key: "1".into(),
-                        depth: 1,
+                        depth: 2,
                     }
                 )]
                 .into_iter()

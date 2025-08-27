@@ -3,7 +3,7 @@ use std::fs::{create_dir, OpenOptions};
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use dot_exporter::DotExporter;
+use dot_exporter_2::DotExporter;
 use itertools::Itertools;
 
 use liwe::fs::new_for_path;
@@ -19,6 +19,8 @@ use log::{debug, error};
 use crate::graph_data::graph_data;
 
 mod dot_exporter;
+mod dot_exporter_2;
+
 mod graph_data;
 
 const CONFIG_FILE_NAME: &str = "config.toml";
