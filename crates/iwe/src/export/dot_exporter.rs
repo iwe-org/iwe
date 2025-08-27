@@ -3,7 +3,7 @@ use graphviz_rust::dot_structures::*;
 use graphviz_rust::printer::{DotPrinter, PrinterContext};
 use std::cmp::max;
 
-use crate::{graph_colors::key_colors, graph_data::GraphData};
+use crate::export::{graph_colors::key_colors, graph_data::GraphData};
 
 pub fn export_dot(graph_data: &GraphData) -> String {
     let mut statements = Vec::new();

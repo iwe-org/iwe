@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use itertools::Itertools;
 
-use iwe::{dot_details_exporter, dot_exporter, graph_data};
+use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
