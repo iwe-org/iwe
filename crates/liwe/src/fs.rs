@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::thread::panicking;
 use std::{collections::HashMap, fs};
 
 use log::error;

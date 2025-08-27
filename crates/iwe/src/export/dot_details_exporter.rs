@@ -105,6 +105,19 @@ pub fn export_dot_with_headers(graph_data: &GraphData) -> String {
         }
     }
 
+    // Add edges
+    for (from_id, to_id) in &graph_data.document_to_document {
+        if graph_data.documents.contains_key(to_id) {
+            let edge = edge!(
+                node_id!(from_id.to_string()) => node_id!(to_id.to_string());
+                attr!("color", &quoted("#38546c66")),
+                attr!("arrowhead", "normal"),
+                attr!("penwidth", "1.2")
+            );
+            statements.push(Stmt::Edge(edge));
+        }
+    }
+
     let g = graph!(
         di id!("G");
         attr!("rankdir", "LR"),
