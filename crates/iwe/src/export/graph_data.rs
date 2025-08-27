@@ -155,29 +155,37 @@ fn build_sections(
 }
 
 fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> HashMap<Key, u8> {
-    let mut keys = key_filter
+    key_filter
         .clone()
-        .map(|key| {
-            if graph.maybe_key(&key).is_none() {
-                return HashMap::new();
+        .map(|key| filter_key(graph, key, depth_limit))
+        .unwrap_or_else(|| top_level_keys(graph, depth_limit))
+}
+
+fn top_level_keys(graph: &Graph, depth_limit: u8) -> HashMap<Key, u8> {
+    let top_level = graph
+        .paths()
+        .into_iter()
+        .filter(|n| n.ids().len() <= 1 as usize)
+        .map(|n| (&graph).node(n.first_id()).node_key())
+        .filter_map(|key| {
+            if graph.maybe_key(&key).is_some() {
+                Some((key, 0))
+            } else {
+                None
             }
-            let mut keys = HashMap::new();
-            get_keys_for_depth(graph, &key, depth_limit, &mut keys);
-            keys
-        })
-        .unwrap_or_else(|| {
-            graph
-                .keys()
-                .into_iter()
-                .filter_map(|key| {
-                    if graph.maybe_key(&key).is_some() {
-                        Some((key, 0))
-                    } else {
-                        None
-                    }
-                })
-                .collect()
         });
+
+    let mut keys = HashMap::new();
+    top_level.for_each(|k| get_keys_for_depth(graph, &k.0, depth_limit, &mut keys));
+    keys
+}
+
+fn filter_key(graph: &Graph, key: Key, depth_limit: u8) -> HashMap<Key, u8> {
+    if graph.maybe_key(&key).is_none() {
+        return HashMap::new();
+    }
+    let mut keys = HashMap::new();
+    get_keys_for_depth(graph, &key, depth_limit, &mut keys);
 
     for key in keys.keys().cloned().collect::<Vec<_>>() {
         let references = graph.get_block_references_to(&key);
@@ -186,7 +194,6 @@ fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> HashM
             keys.entry(ref_key).or_insert(0);
         }
     }
-
     keys
 }
 
