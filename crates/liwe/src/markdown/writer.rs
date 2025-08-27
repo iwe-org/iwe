@@ -1,15 +1,13 @@
 use pulldown_cmark::{Alignment, Event, HeadingLevel, Tag, TagEnd};
 use pulldown_cmark_to_cmark::{cmark_with_options, Options};
 
-use crate::model::{
-    document,
-    graph::{
-        inlines_to_markdown, GraphBlock, GraphInline, GraphInlines,
-    },
-    is_ref_url,
-};
 use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
+use crate::model::{
+    document,
+    graph::{inlines_to_markdown, GraphBlock, GraphInline, GraphInlines},
+    is_ref_url,
+};
 
 pub struct MarkdownWriter {
     options: MarkdownOptions,
@@ -213,6 +211,9 @@ impl MarkdownWriter {
                 }
                 GraphInline::Str(text) => {
                     events.push(Event::Text(text.into()));
+                }
+                GraphInline::Tag(text) => {
+                    events.push(Event::Text(format!("#{text}").into()));
                 }
                 GraphInline::Strikeout(vec) => {
                     events.push(Event::Start(Tag::Strikethrough));
