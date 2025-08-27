@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::thread::panicking;
 use std::{collections::HashMap, fs};
 
 use log::error;
@@ -31,7 +32,14 @@ pub fn new_for_path_rec(base_path: &PathBuf, sub_path: Vec<String>) -> State {
         .unwrap()
         .into_iter()
         .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().map_or(false, |ex| ex.eq("md")))
+        .filter(|path| {
+            // Skip hidden files (starting with .)
+            !path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map_or(false, |name| name.starts_with("."))
+                && path.extension().map_or(false, |ex| ex.eq("md"))
+        })
         .collect::<Vec<PathBuf>>()
         .par_iter()
         .flat_map(|path| read_file(path, &sub_path))
@@ -43,7 +51,14 @@ pub fn new_for_path_rec(base_path: &PathBuf, sub_path: Vec<String>) -> State {
         .unwrap()
         .into_iter()
         .map(|entry| entry.unwrap().path())
-        .filter(|path| path.is_dir())
+        .filter(|path| {
+            // Skip hidden directories (starting with .)
+            path.is_dir()
+                && !path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map_or(false, |name| name.starts_with("."))
+        })
         .flat_map(|path| {
             let mut sub = sub_path.clone();
             sub.push(path.file_name().unwrap().to_str().unwrap().to_string());
