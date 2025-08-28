@@ -9,7 +9,7 @@ use super::tree::Tree;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
-    Document(Key),
+    Document(Key, Option<String>),
     Section(GraphInlines),
     Quote(),
     BulletList(),
@@ -201,7 +201,7 @@ pub trait NodeIter<'a>: Sized {
 
     fn is_document(&self) -> bool {
         match self.node() {
-            Some(Node::Document(_)) => true,
+            Some(Node::Document(_, _)) => true,
             _ => false,
         }
     }
@@ -331,7 +331,7 @@ pub trait NodePointer<'a>: NodeIter<'a> {
 
     fn document_key(&self) -> Option<Key> {
         self.node().and_then(|node| {
-            if let Node::Document(key) = node {
+            if let Node::Document(key, _) = node {
                 Some(key.clone())
             } else {
                 None

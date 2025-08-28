@@ -242,7 +242,7 @@ impl<'a> GraphBuilder<'a> {
         F: FnOnce(&mut GraphBuilder) -> (),
     {
         match node {
-            Node::Document(_) => panic!("Document node is not allowed"),
+            Node::Document(_, _) => panic!("Document node is not allowed"),
             Node::Section(inlines) => {
                 let line_id = self.graph.add_line(inlines);
                 let new_id = self.graph.new_node_id();
@@ -408,7 +408,7 @@ mod test {
         assert_eq!(
             Tree {
                 id: Some(0),
-                node: Node::Document("key".into()),
+                node: Node::Document("key".into(), None),
                 children: vec![Tree {
                     id: Some(1),
                     node: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
@@ -438,7 +438,7 @@ mod test {
         assert_eq!(
             Tree {
                 id: Some(0),
-                node: Node::Document("key".into()),
+                node: Node::Document("key".into(), None),
                 children: vec![Tree {
                     id: Some(1),
                     node: Node::Section(vec![GraphInline::Str("item".to_string())]),
@@ -457,7 +457,7 @@ mod test {
     pub fn graph_form_tree() {
         let tree = Tree {
             id: Some(0),
-            node: Node::Document("key".into()),
+            node: Node::Document("key".into(), None),
             children: vec![Tree {
                 id: Some(1),
                 node: Node::Section(vec![GraphInline::Str("section".to_string())]),
