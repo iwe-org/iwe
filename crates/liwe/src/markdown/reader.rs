@@ -265,7 +265,7 @@ impl MarkdownEventsReader {
                     DocumentInline::Link(Link {
                         inlines: vec![],
                         target: Target {
-                            url: dest_url.to_string(),
+                            url: normalize_url(&dest_url.to_string()),
                             title: title.to_string(),
                         },
                         title: title.to_string(),

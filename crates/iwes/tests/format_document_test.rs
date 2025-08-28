@@ -105,6 +105,24 @@ fn format_extension() {
 }
 
 #[test]
+fn format_extension_inline() {
+    assert_formatted_with_extension(
+        indoc! {"
+            # test
+
+            test [title](2.md)
+            _
+            # title
+            "},
+        indoc! {"
+            # test
+
+            test [title](2.md)
+        "},
+    );
+}
+
+#[test]
 fn update_link_titles() {
     assert_formatted(
         indoc! {"
