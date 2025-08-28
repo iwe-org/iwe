@@ -115,14 +115,6 @@ This repository is for Rust code and crates publishing only. Plugins and package
 - VSCode plugin is [here](https://marketplace.visualstudio.com/items?itemName=IWE.iwe) ([repository](https://github.com/iwe-org/vscode-iwe))
 - Zed plugin [repository](https://github.com/iwe-org/zed-iwe)
 
-### Debug Mode
-
-IWE includes a debug mode, which can be enabled by setting the `IWE_DEBUG` environment variable. In debug mode, IWE LSP will generate a detailed log file named `iwe.log` in the directory where you started it. Including logs with your [issue](https://github.com/iwe-org/iwe/issues) report will help us to resolve it faster.
-
-```
-export IWE_DEBUG=true; nvim
-```
-
 ### Special thanks to
 
 - A heartfelt thank you to [Sergej Podatelew](https://github.com/spodatelev) for his outstanding work on the VSCode plugin.
