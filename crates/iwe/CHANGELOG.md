@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.39](https://github.com/iwe-org/iwe/compare/iwe-v0.0.38...iwe-v0.0.39) - 2025-08-28
+
+### Fixed
+
+- Code action should not remove YAML metadata ([#127](https://github.com/iwe-org/iwe/pull/127))
+
 ## [0.0.37](https://github.com/iwe-org/iwe/compare/iwe-v0.0.36...iwe-v0.0.37) - 2025-08-27
 
 ### Added
