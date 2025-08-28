@@ -77,9 +77,16 @@ More information is available in:
 [CLI Features Documentation](docs/features-cli.md)
 
 <details>
-<summary>Graphviz export example</summary>
+<summary>Detailed visualization example</summary>
 
-![Graphviz Example](graphviz.png)
+![Graphviz Example](docs/docs-detailed.svg)
+
+</details>
+
+<details>
+<summary>Basic visualization example</summary>
+
+![Graphviz Example](docs/docs-basic.svg)
 
 </details>
 
