@@ -7,7 +7,6 @@ use crate::model::{Key, Lang, LineRange};
 
 pub struct Document {
     pub blocks: DocumentBlocks,
-    pub tasks: Vec<String>,
     pub tags: Vec<String>,
     pub metadata: Option<String>,
 }
@@ -45,6 +44,7 @@ pub enum DocumentInline {
     Subscript(Subscript),
     Superscript(Superscript),
     Tag(String),
+    Task(bool),
     Underline(Underline),
 }
 
@@ -488,6 +488,7 @@ impl DocumentInline {
             DocumentInline::Space(_) => panic!("cannot append inline to space"),
             DocumentInline::Str(_) => panic!("cannot append inline to str"),
             DocumentInline::Tag(_) => panic!("cannot append inline to tag"),
+            DocumentInline::Task(_) => panic!("cannot append inline to task"),
         }
     }
 
@@ -495,6 +496,7 @@ impl DocumentInline {
         match self {
             DocumentInline::Str(text) => GraphInline::Str(text.clone()),
             DocumentInline::Tag(text) => GraphInline::Tag(text.clone()),
+            DocumentInline::Task(checked) => GraphInline::Task(*checked),
             DocumentInline::Emph(emph) => GraphInline::Emph(
                 emph.inlines
                     .iter()
@@ -594,6 +596,7 @@ impl DocumentInline {
             DocumentInline::Subscript(subscript) => subscript.inlines.iter().collect(),
             DocumentInline::Superscript(superscript) => superscript.inlines.iter().collect(),
             DocumentInline::Tag(_) => vec![],
+            DocumentInline::Task(_) => vec![],
             DocumentInline::Underline(underline) => underline.inlines.iter().collect(),
         }
     }
@@ -699,6 +702,7 @@ impl DocumentInline {
             DocumentInline::Subscript(subscript) => subscript.inline_range.clone(),
             DocumentInline::Superscript(superscript) => superscript.inline_range.clone(),
             DocumentInline::Tag(_) => InlineRange::default(),
+            DocumentInline::Task(_) => InlineRange::default(),
             DocumentInline::Underline(underline) => underline.inline_range.clone(),
         }
     }

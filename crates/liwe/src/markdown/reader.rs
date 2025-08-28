@@ -15,10 +15,8 @@ pub struct MarkdownEventsReader {
     inlines_stack: Vec<DocumentInline>,
     blocks_stack: Vec<DocumentBlock>,
     blocks: DocumentBlocks,
-    tasks: Vec<String>,
     hashtags: Vec<String>,
     line_starts: Vec<usize>,
-    tasklist_block: bool,
     metadata_block: bool,
     metadata: Option<String>,
 }
@@ -30,10 +28,8 @@ impl MarkdownEventsReader {
             inlines_stack: Vec::new(),
             blocks_stack: Vec::new(),
             blocks: Vec::new(),
-            tasks: Vec::new(),
             hashtags: Vec::new(),
             line_starts: Vec::new(),
-            tasklist_block: false,
             metadata_block: false,
             metadata: None,
         }
@@ -41,10 +37,6 @@ impl MarkdownEventsReader {
 
     pub fn blocks(&self) -> Vec<DocumentBlock> {
         self.blocks.clone()
-    }
-
-    pub fn tasks(&self) -> Vec<String> {
-        self.tasks.clone()
     }
 
     pub fn hashtags(&self) -> Vec<String> {
@@ -122,11 +114,7 @@ impl MarkdownEventsReader {
                     self.pop_block();
                 }
                 TaskListMarker(checked) => {
-                    self.tasklist_block = true;
-                    self.push_inline(
-                        DocumentInline::Str(if checked { "[x] " } else { "[ ] " }.to_string()),
-                        self.to_line_range(range),
-                    );
+                    self.push_inline(DocumentInline::Task(checked), self.to_line_range(range));
                     self.pop_inline();
                 }
             }
@@ -390,10 +378,6 @@ impl MarkdownEventsReader {
                     }
                 }
             }
-            if self.tasklist_block {
-                self.tasks.push(text.to_string());
-                self.tasklist_block = false;
-            }
         } else {
             self.metadata = Some(text.to_string());
         }
@@ -619,11 +603,43 @@ mod tests {
         - [ ] todo1
               second line
         - [x] todo2
-        * [ ] todo3
+        - no task
+        - [X] todo3
         "};
         let mut reader = MarkdownEventsReader::new();
-        let _ = reader.read(content);
-        assert_eq!(reader.tasks, vec!["todo1", "todo2", "todo3"]);
+        let actual = reader.read(content);
+        let expected = vec![DocumentBlock::BulletList(BulletList {
+            items: vec![
+                vec![DocumentBlock::Para(Para {
+                    line_range: 0..1,
+                    inlines: vec![
+                        DocumentInline::Task(false),
+                        DocumentInline::Str("todo1".to_string()),
+                        DocumentInline::Str("second line".to_string()),
+                    ],
+                })],
+                vec![DocumentBlock::Para(Para {
+                    line_range: 2..3,
+                    inlines: vec![
+                        DocumentInline::Task(true),
+                        DocumentInline::Str("todo2".to_string()),
+                    ],
+                })],
+                vec![DocumentBlock::Para(Para {
+                    line_range: 3..4,
+                    inlines: vec![DocumentInline::Str("no task".to_string())],
+                })],
+                vec![DocumentBlock::Para(Para {
+                    line_range: 4..5,
+                    inlines: vec![
+                        DocumentInline::Task(true),
+                        DocumentInline::Str("todo3".to_string()),
+                    ],
+                })],
+            ],
+        })];
+
+        assert_eq!(expected, actual);
     }
 
     #[test]
@@ -674,7 +690,7 @@ mod tests {
                     vec![DocumentBlock::Para(Para {
                         line_range: 9..10,
                         inlines: vec![
-                            DocumentInline::Str("[ ] ".to_string()),
+                            DocumentInline::Task(false),
                             DocumentInline::Str("todo ".to_string()),
                             DocumentInline::Tag("tag3".to_string()),
                         ],
@@ -682,7 +698,7 @@ mod tests {
                     vec![DocumentBlock::Para(Para {
                         line_range: 10..11,
                         inlines: vec![
-                            DocumentInline::Str("[x] ".to_string()),
+                            DocumentInline::Task(true),
                             DocumentInline::Tag("tag4".to_string()),
                         ],
                     })],
@@ -750,7 +766,6 @@ mod tests {
                 "tag5"
             ]
         );
-        assert_eq!(reader.tasks, vec!["todo #tag3", "#tag4"]);
     }
 
     #[test]
