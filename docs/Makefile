@@ -19,7 +19,7 @@ all:
 	@echo "Converting basic DOT to SVG..."
 	neato -Tsvg $(BASIC_DOT) -o $(BASIC_SVG)
 	@echo "Generating detailed DOT export focused on index document..."
-	$(IWE_BIN) export dot --key index --include-headers --depth 10 > $(DETAILED_DOT)
+	$(IWE_BIN) export dot --key index --include-headers --depth 3 > $(DETAILED_DOT)
 	@echo "Converting detailed DOT to SVG..."
 	neato -Tsvg $(DETAILED_DOT) -o $(DETAILED_SVG)
 	@echo "✓ All visualizations generated successfully"
