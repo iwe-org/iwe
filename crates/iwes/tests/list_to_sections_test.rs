@@ -25,6 +25,27 @@ fn unwrap_single_item_list_test() {
 }
 
 #[test]
+fn keep_frontmatter() {
+    assert_sections(
+        indoc! {"
+            ---
+            frontmatter: true
+            ---
+
+            - test
+            "},
+        4,
+        indoc! {"
+            ---
+            frontmatter: true
+            ---
+
+            # test
+            "},
+    );
+}
+
+#[test]
 fn unwrap_list_with_items_test() {
     assert_sections(
         indoc! {"

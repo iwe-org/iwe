@@ -258,15 +258,7 @@ impl Graph {
             .iter()
             .to_markdown(&key.parent(), &self.markdown_options);
 
-        if self.metadata.contains_key(key) {
-            format!(
-                "---\n{}---\n\n{}",
-                self.metadata.get(key).unwrap(),
-                markdown
-            )
-        } else {
-            format!("{}", markdown)
-        }
+        format!("{}", markdown)
     }
 
     pub fn paths(&self) -> Vec<NodePath> {

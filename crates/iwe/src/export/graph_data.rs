@@ -229,7 +229,7 @@ mod tests {
     fn build_sections_one_doc() {
         let doc1 = Tree::new(
             Some(1),
-            Node::Document(Key::name("1")),
+            Node::Document(Key::name("1"), None),
             vec![Tree::new(
                 Some(2),
                 Node::Section(vec!["title".to_string().into()]),

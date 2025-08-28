@@ -1,4 +1,4 @@
-use pulldown_cmark::{Alignment, Event, HeadingLevel, Tag, TagEnd};
+use pulldown_cmark::{Alignment, Event, HeadingLevel, MetadataBlockKind, Tag, TagEnd};
 use pulldown_cmark_to_cmark::{cmark_with_options, Options};
 
 use crate::model::config::MarkdownOptions;
@@ -56,6 +56,11 @@ impl MarkdownWriter {
     fn block_events(&self, block: GraphBlock) -> Vec<Event<'_>> {
         let mut events = Vec::new();
         match block {
+            GraphBlock::Frontmatter(content) => {
+                events.push(Event::Start(Tag::MetadataBlock(MetadataBlockKind::YamlStyle)));
+                events.push(Event::Text(content.into()));
+                events.push(Event::End(TagEnd::MetadataBlock(MetadataBlockKind::YamlStyle)));
+            }
             GraphBlock::Header(level, inlines) => {
                 events.push(Event::Start(Tag::Heading {
                     level: header_level(level),

@@ -11,6 +11,7 @@ pub type GraphInlines = Vec<GraphInline>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GraphBlock {
+    Frontmatter(String),
     Plain(GraphInlines),
     Para(GraphInlines),
     LineBlock(Vec<GraphInlines>),
@@ -92,6 +93,7 @@ impl GraphBlock {
 
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
+            GraphBlock::Frontmatter(content) => format!("---\n{}---\n", content),
             GraphBlock::Plain(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
             GraphBlock::Para(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
             GraphBlock::LineBlock(lines) => lines
