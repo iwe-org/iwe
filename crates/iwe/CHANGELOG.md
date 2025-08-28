@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.37](https://github.com/iwe-org/iwe/compare/iwe-v0.0.36...iwe-v0.0.37) - 2025-08-27
+
+### Added
+
+- Include/exclude headers structure in DOT exports ([#120](https://github.com/iwe-org/iwe/pull/120))
+
 ## [0.0.35](https://github.com/iwe-org/iwe/compare/iwe-v0.0.34...iwe-v0.0.35) - 2025-08-21
 
 ### Other
