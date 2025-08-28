@@ -7,7 +7,6 @@ use crate::model::{Key, Lang, LineRange};
 
 pub struct Document {
     pub blocks: DocumentBlocks,
-    pub tags: Vec<String>,
     pub metadata: Option<String>,
 }
 
@@ -60,6 +59,21 @@ impl Document {
         self.blocks
             .iter()
             .find_map(|block| block.block_at_position(position))
+    }
+
+    /// Iterator over all hashtags in document
+    pub fn tags(&self) -> impl Iterator<Item = String> + use<'_> {
+        self.blocks
+            .iter()
+            .map(|b| b.child_inlines())
+            .flatten()
+            .filter_map(|inl| {
+                if let DocumentInline::Tag(tag) = inl {
+                    Some(tag)
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -383,6 +397,16 @@ impl DocumentBlock {
             DocumentBlock::Plain(plain) => plain.inlines.clone(),
             DocumentBlock::Para(para) => para.inlines.clone(),
             DocumentBlock::Header(header) => header.inlines.clone(),
+            DocumentBlock::OrderedList(_) => self
+                .child_blocks()
+                .iter()
+                .flat_map(|i| i.child_inlines())
+                .collect(),
+            DocumentBlock::BulletList(_) => self
+                .child_blocks()
+                .iter()
+                .flat_map(|i| i.child_inlines())
+                .collect(),
             _ => vec![],
         }
     }

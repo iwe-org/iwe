@@ -21,7 +21,6 @@ impl Reader for MarkdownReader {
 
         Document {
             blocks: reader.blocks(),
-            tags: reader.hashtags(),
             metadata: reader.metadata(),
         }
     }
