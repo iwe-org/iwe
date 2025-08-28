@@ -633,6 +633,17 @@ mod tests {
         })];
 
         assert_eq!(expected, actual);
+
+        let doc = Document {
+            blocks: reader.blocks(),
+            metadata: reader.metadata(),
+        };
+        assert_eq!(
+            doc.tasks()
+                .map(|t| t.to_section_plain_text())
+                .collect::<Vec<String>>(),
+            vec!["todo1second line", "todo2", "todo3"]
+        );
     }
 
     #[test]

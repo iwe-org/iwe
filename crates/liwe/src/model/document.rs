@@ -65,8 +65,7 @@ impl Document {
     pub fn tags(&self) -> impl Iterator<Item = String> + use<'_> {
         self.blocks
             .iter()
-            .map(|b| b.child_inlines())
-            .flatten()
+            .flat_map(|b| b.child_inlines())
             .filter_map(|inl| {
                 if let DocumentInline::Tag(tag) = inl {
                     Some(tag)
@@ -74,6 +73,25 @@ impl Document {
                     None
                 }
             })
+    }
+
+    /// Iterator over all tasks in document
+    pub fn tasks(&self) -> impl Iterator<Item = DocumentBlock> + use<'_> {
+        self.blocks
+            .iter()
+            .filter_map(|blk| match blk {
+                DocumentBlock::BulletList(list) => Some(list.items.clone()),
+                DocumentBlock::OrderedList(list) => Some(list.items.clone()),
+                _ => None,
+            })
+            .flatten()
+            .filter(|list_blk| {
+                list_blk
+                    .iter()
+                    .flat_map(|b| b.child_inlines())
+                    .any(|inl| matches!(&inl, DocumentInline::Task(_)))
+            })
+            .flatten()
     }
 }
 
