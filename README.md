@@ -12,7 +12,7 @@ Looking to spark creativity in your writing? You can designate certain notes as 
 
 The primary focus of IWE is to be your ultimate writing assistant and keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as **extract/embed** note and many other via LSP **code actions**.
 
-While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using Map of Content ([MOC](https://github.com/iwe-org/iwe/wiki/Map-of-content)) documents.
+While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using Map of Content ([MOC](docs/maps-of-content.md)) documents.
 
 > [!NOTE]
 >
@@ -33,7 +33,7 @@ The main LSP features are:
 - 💡 Display **inlay hints** with parent note references and link counts
 - 🔹 Change outline type from headers to list and vice-versa
 
-You can learn more on the [LSP Features](https://github.com/iwe-org/iwe/wiki/LSP-features) page.
+You can learn more on the [LSP Features](docs/how-to-use.md) page.
 
 Quick Demos:
 
@@ -74,7 +74,7 @@ The main CLI features are:
 
 More information is available in:
 
-[CLI_COMMANDS.md](CLI_COMMANDS.md)
+[CLI Features Documentation](docs/features-cli.md)
 
 <details>
 <summary>Graphviz export example</summary>
@@ -85,15 +85,27 @@ More information is available in:
 
 ## How to install
 
-You can find the installation instructions in the [Quick Start Guide](https://iwe.md/quick-start).
+You can find the installation instructions in the [Quick Start Guide](https://iwe.md/quick-start) or see [local installation docs](docs/how-to-install.md).
 
-Check [usage guide](https://github.com/iwe-org/iwe/wiki/Usage) for more information.
+Check [usage guide](docs/how-to-use.md) for more information.
+
+## Documentation
+
+For comprehensive documentation, see the [docs](docs/) directory:
+
+- **[Getting Started](docs/how-to-install.md)** - Installation and setup
+- **[Usage Guide](docs/how-to-use.md)** - LSP features and how to use them
+- **[Configuration](docs/Configuration.md)** - Configuration options and AI setup
+- **[CLI Features](docs/features-cli.md)** - Command-line interface documentation
+- **[Maps of Content](docs/maps-of-content.md)** - Hierarchical note organization
+- **[Editor Integration](docs/index.md)** - Editor-specific guides for [VSCode](docs/vscode.md), [Neovim](docs/neovim.md), and [Helix](docs/helix.md)
+- **[Debug Mode](docs/debug-mode.md)** - Troubleshooting and debugging
 
 ## Get Involved
 
 IWE fully depends on community support, which is essential for its growth and development. We encourage you to participate in [discussions](https://github.com/iwe-org/iwe/discussions) and report any [issues](https://github.com/iwe-org/iwe/issues) you encounter.
 
-Contributions to the project [documentation](https://github.com/iwe-org/iwe/wiki) are also highly appreciated.
+Contributions to the project [documentation](docs/index.md) are also highly appreciated.
 
 ### Plugins / Packages
 
@@ -102,14 +114,6 @@ This repository is for Rust code and crates publishing only. Plugins and package
 - Neovim plugin is in a separated [repository](https://github.com/iwe-org/iwe.nvim).
 - VSCode plugin is [here](https://marketplace.visualstudio.com/items?itemName=IWE.iwe) ([repository](https://github.com/iwe-org/vscode-iwe))
 - Zed plugin [repository](https://github.com/iwe-org/zed-iwe)
-
-### Debug Mode
-
-IWE includes a debug mode, which can be enabled by setting the `IWE_DEBUG` environment variable. In debug mode, IWE LSP will generate a detailed log file named `iwe.log` in the directory where you started it. Including logs with your [issue](https://github.com/iwe-org/iwe/issues) report will help us to resolve it faster.
-
-```
-export IWE_DEBUG=true; nvim
-```
 
 ### Special thanks to
 
