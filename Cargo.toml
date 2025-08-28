@@ -8,7 +8,7 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.82"
 repository = "https://github.com/iwe-org/iwe"
-version = "0.0.37"
+version = "0.0.38"
 
 [workspace.dependencies]
 reqwest = { version = "0.12.18", features = [
@@ -16,7 +16,7 @@ reqwest = { version = "0.12.18", features = [
     "json",
     "rustls-tls",
 ], default-features = false }
-liwe = { path = "./crates/liwe", version = "0.0.37" }
+liwe = { path = "./crates/liwe", version = "0.0.38" }
 anyhow = "1.0.98"
 clap = { version = "4.5", features = ["derive"] }
 crossbeam-channel = "0.5.15"
