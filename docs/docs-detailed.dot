@@ -1,0 +1,824 @@
+digraph G {
+  rankdir=LR
+  fontname=Verdana
+  fontsize=13
+  nodesep=0.7
+  splines=polyline
+  pad="0.5,0.2"
+  ranksep=1.2
+  overlap=false
+  748[label="Maps of Content",fillcolor="#fff9de",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  257[label="Notes search",fillcolor="#ffeee0",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  366[label="How to use in command line",fillcolor="#ffeee0",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  536[label="Helix",fillcolor="#d9fae7",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  226[label="Inlay hints",fillcolor="#fae1ee",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  215[label="Extract/Inline Notes",fillcolor="#f6e5ee",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  236[label="Header levels normalization",fillcolor="#e1f5fe",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  166[label="Document Processing Pipeline",fillcolor="#e9f9ef",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  156[label="Design principles",fillcolor="#f2fadf",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  509[label="Advanced Features",fillcolor="#ffeaea",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  991[label="Node Types and Structure",fillcolor="#dcf7f7",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  1016[label="VS Code",fillcolor="#ffeee0",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  800[label="Neovim",fillcolor="#dcf7f7",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  212[label="Auto-complete",fillcolor="#f6e5ee",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  254[label="Files renaming",fillcolor="#dcf7f7",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  498[label="Graph Operations and Algorithms",fillcolor="#ffeaea",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  78[label="Configuration",fillcolor="#fbfbda",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  204[label="Text structure normalization / formatting",fillcolor="#dcf7f7",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  152[label="Debug Mode",fillcolor="#eef2f5",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  710[label="Indexing and Reference Systems",fillcolor="#ffeee0",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  247[label="Search",fillcolor="#fff9de",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  1158[label="Why it exists",fillcolor="#dcf7f7",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  293[label="Graph Visualization",fillcolor="#e1f5fe",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  549[label="How to install",fillcolor="#e2f6f6",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  183[label="Basic journal example",fillcolor="#eef2f5",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  562[label="How to use with your text editor",fillcolor="#e9f9ef",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  109[label="Data Flow Architecture",fillcolor="#d9fae7",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  1[label="Architecture",fillcolor="#eef2f5",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  265[label="Sub-directories",fillcolor="#eeebfa",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  230[label="Navigation",fillcolor="#eef2f5",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  12[label="Unique Features",fillcolor="#f2fadf",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  677[label="IWE",fillcolor="#f6e5ee",fontsize=40,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  730[label="Key System and Cross-References",fillcolor="#f2fadf",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  287[label="Text manipulation",fillcolor="#eef2f5",fontsize=32,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  134[label="Core Architecture",fillcolor="#e1f5fe",fontsize=24,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=note,style=filled]
+  812[label="Prerequisites",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  711[label="Reference Index Structure",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  976[label="gitsigns.nvim",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  358[label="Missing Graphviz",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  110[label="CLI Operations",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  944[label="Troubleshooting",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  99[label="AI Actions",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1113[label="File Management",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  565[label="Background",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  972[label="nvim-cmp (Autocompletion)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  974[label="nvim-treesitter",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  651[label="Inlining Extracted Sections",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  720[label="Search Path Generation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  335[label="Customization Tips",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1118[label="Troubleshooting",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  60[label="IWE vs zk.nvim/telekasten.nvim",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  779[label="Sequential Structures",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  897[label="Finding Backlinks",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  316[label="Integration with Graphviz",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  361[label="Complex Layouts",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1077[label="AI-Powered Actions",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  886[label="Extracting a Section",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  660[label="Working with New Files",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  596[label="Extracting a Section",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  934[label="Health Check",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  68[label="Why Choose IWE?",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  801[label="Installation & Setup",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  878[label="Basic Setup",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  961[label="Debug Mode",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1148[label="Best Practices for VS Code",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  914[label="Telescope Commands",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  56[label="IWE vs Obsidian",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  945[label="Common Issues",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  380[label="Global Options",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  326[label="By Content Depth",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1119[label="Common Issues",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  848[label="LSP Keybindings",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  401[label="iwe normalize",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  477[label="Document Consolidation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1093[label="User Settings",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  965[label="Getting Help",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  473[label="Daily Maintenance",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  418[label="iwe paths",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  390[label="Commands Reference",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  14[label="Graph-based Transformations",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  531[label="Parallel Processing",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  885[label="Usage Examples",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  634[label="Auto-Formatting",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  731[label="Document Identification",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  544[label="Usage",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  537[label="Installation & Setup",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  241[label="Removing unnecessary levels",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  167[label="1. Markdown Parsing (DocumentBlock Creation)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  317[label="Generate PNG Images",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1083[label="Global Search",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1102[label="Features in VS Code",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1136[label="Debug Mode",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  44[label="Cross-Editor LSP Integration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  135[label="Graph-Based Document Representation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  686[label="Features",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  391[label="iwe init",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  80[label="Basic Configuration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  456[label="iwe export",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  26[label="Developer-Focused Architecture",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  86[label="AI Models",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  38[label="Hierarchical Note Support",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  795[label="Learn more",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  343[label="Output Formats",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  617[label="AI-Powered Actions",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1089[label="Configuration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  297[label="Basic Usage",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1103[label="IntelliSense and Auto-Complete",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  475[label="Content Analysis",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  877[label="Configuration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  329[label="Daily Documentation Review",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  570[label="Core LSP Features",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  492[label="Troubleshooting",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  568[label="Primary Features",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  627[label="Text Transformations",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  306[label="Detailed Mode (--include-headers)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  323[label="Filtering and Focusing",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1007[label="Content Storage Separation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  782[label="Overlapping Connections",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  770[label="Structure Notes: Beyond Simple Lists",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  378[label="Global Usage",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  557[label="From Source",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  680[label="Usage Guide",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  502[label="Squashing (Content Extraction)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  52[label="IWE vs markdown-oxide",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  524[label="Graph Transformations",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  604[label="Following the Link",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  505[label="Path Generation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1029[label="Prerequisites",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  321[label="Different Layout Engines",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  142[label="Arena-Based Memory Management",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1047[label="VS Code Shortcuts for IWE Actions",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  831[label="Default Keybindings",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  586[label="Usage Example",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  479[label="Large Library Management",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  978[label="Best Practices for Neovim",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  437[label="iwe squash",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1108[label="Visual Enhancements",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  705[label="About the project",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  616[label="Advanced Features",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  802[label="Install the IWE Plugin",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  583[label="LSP Feature Reference",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  331[label="Project Structure Analysis",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  540[label="Setup Snippet",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  64[label="IWE vs Denote/Emacs",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  787[label="Creating Effective Structure Notes",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  481[label="Configuration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  703[label="Examples",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  32[label="Advanced Markdown Normalization",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  563[label="Purpose",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1050[label="Additional VS Code Features",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  356[label="Large Graphs",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  333[label="Knowledge Base Overview",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  880[label="Advanced Configuration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  277[label="Cross-Directory Linking",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1071[label="Finding Backlinks",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1059[label="Usage Examples",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  302[label="Visualization Modes",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  667[label="Best Practices",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  299[label="Advanced Visualization with Headers",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  295[label="Export Command",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  368[label="Quick Start",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  917[label="Telescope Keybindings (within picker)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  830[label="Neovim Shortcuts for IWE Actions",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  350[label="Performance Considerations",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  908[label="AI-Powered Actions (if configured)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  777[label="Types of Structural Relationships",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1052[label="Command Palette Access",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  902[label="Global Search with Telescope",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  484[label="Best Practices",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  992[label="GraphNode Enumeration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1066[label="Following Links",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1017[label="Installation & Setup",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  642[label="Global Search",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  268[label="Recursive Directory Scanning",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  892[label="Following Links",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1099[label="IWE Project Configuration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  428[label="iwe contents",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  374[label="Installation & Setup",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  510[label="Notes Embedding",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  355[label="Troubleshooting",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1060[label="Extracting a Section",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  610[label="Finding Backlinks",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  542[label="Setup IWE Only For Your Notes",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  328[label="Workflow Examples",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  170[label="2. Graph Construction (DocumentBlock → GraphNode)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  267[label="How It Works",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1018[label="Install the IWE Extension",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  915[label="Available Commands",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  824[label="Verify Installation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  472[label="Workflow Examples",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1090[label="Workspace Settings",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  319[label="Generate SVG for Web",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  274[label="File Path Resolution",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  882[label="Which-Key Integration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1041[label="Verify Installation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  51[label="Detailed Comparisons",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  772[label="Hub Notes as Entry Points",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  551[label="From Crates.IO",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  678[label="Installation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  303[label="Basic Mode (Default)",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  740[label="Reference Types",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1048[label="Core Actions",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  20[label="AI-Powered Contextual Commands",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  995[label="Node Relationships and Navigation",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  179[label="3. Reference Resolution and Indexing",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  784[label="Thematic Clustering",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  499[label="Tree Collection",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  1143[label="Getting Help",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  336[label="Layout Optimization",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  861[label="Telescope Integration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  309[label="Key Features",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  699[label="Editor specifics",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  122[label="Memory and Performance Characteristics",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  113[label="LSP Server Integration",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  324[label="By Document Key",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  971[label="Integration with Other Plugins",fontsize=14,fontname=Verdana,color="#b3b3b3",penwidth=1.5,shape=plain]
+  subgraph cluster_0 {
+    labeljust="l"
+    style=filled
+    color="#fffbea"
+    fillcolor="#fffbea"
+    fontcolor="#a67c00"
+    penwidth=40
+    779
+    795
+    782
+    770
+    787
+    777
+    772
+    784
+  }
+  subgraph cluster_2 {
+    labeljust="l"
+    style=filled
+    color="#fff6eb"
+    fillcolor="#fff6eb"
+    fontcolor="#b36a36"
+    penwidth=40
+    380
+    401
+    477
+    473
+    418
+    390
+    391
+    456
+    475
+    492
+    378
+    479
+    437
+    481
+    368
+    484
+    428
+    374
+    472
+  }
+  subgraph cluster_3 {
+    labeljust="l"
+    style=filled
+    color="#f3fcf7"
+    fillcolor="#f3fcf7"
+    fontcolor="#257257"
+    penwidth=40
+    544
+    537
+    540
+    542
+  }
+  subgraph cluster_6 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    241
+  }
+  subgraph cluster_7 {
+    labeljust="l"
+    style=filled
+    color="#f6fcf5"
+    fillcolor="#f6fcf5"
+    fontcolor="#185c37"
+    penwidth=40
+    167
+    170
+    179
+  }
+  subgraph cluster_9 {
+    labeljust="l"
+    style=filled
+    color="#fef7f7"
+    fillcolor="#fef7f7"
+    fontcolor="#c35151"
+    penwidth=40
+    531
+    524
+    510
+  }
+  subgraph cluster_10 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    1007
+    992
+    995
+  }
+  subgraph cluster_11 {
+    labeljust="l"
+    style=filled
+    color="#fff6eb"
+    fillcolor="#fff6eb"
+    fontcolor="#b36a36"
+    penwidth=40
+    1113
+    1118
+    1077
+    1148
+    1119
+    1093
+    1083
+    1102
+    1136
+    1089
+    1103
+    1029
+    1047
+    1108
+    1050
+    1071
+    1059
+    1052
+    1066
+    1017
+    1099
+    1060
+    1018
+    1090
+    1041
+    1048
+    1143
+  }
+  subgraph cluster_12 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    812
+    976
+    944
+    972
+    974
+    897
+    886
+    934
+    801
+    878
+    961
+    914
+    945
+    848
+    965
+    885
+    877
+    831
+    978
+    802
+    880
+    917
+    830
+    908
+    902
+    892
+    915
+    824
+    882
+    861
+    971
+  }
+  subgraph cluster_15 {
+    labeljust="l"
+    style=filled
+    color="#fef7f7"
+    fillcolor="#fef7f7"
+    fontcolor="#c35151"
+    penwidth=40
+    502
+    505
+    499
+  }
+  subgraph cluster_16 {
+    labeljust="l"
+    style=filled
+    color="#fefeec"
+    fillcolor="#fefeec"
+    fontcolor="#96902d"
+    penwidth=40
+    99
+    80
+    86
+  }
+  subgraph cluster_19 {
+    labeljust="l"
+    style=filled
+    color="#fff6eb"
+    fillcolor="#fff6eb"
+    fontcolor="#b36a36"
+    penwidth=40
+    711
+    720
+  }
+  subgraph cluster_22 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    358
+    335
+    316
+    361
+    326
+    317
+    343
+    297
+    329
+    306
+    323
+    321
+    331
+    356
+    333
+    302
+    299
+    295
+    350
+    355
+    328
+    319
+    303
+    336
+    309
+    324
+  }
+  subgraph cluster_23 {
+    labeljust="l"
+    style=filled
+    color="#f0fafb"
+    fillcolor="#f0fafb"
+    fontcolor="#225c5a"
+    penwidth=40
+    557
+    551
+  }
+  subgraph cluster_25 {
+    labeljust="l"
+    style=filled
+    color="#f6fcf5"
+    fillcolor="#f6fcf5"
+    fontcolor="#185c37"
+    penwidth=40
+    565
+    651
+    660
+    596
+    634
+    617
+    570
+    568
+    627
+    604
+    586
+    616
+    583
+    563
+    667
+    642
+    610
+  }
+  subgraph cluster_26 {
+    labeljust="l"
+    style=filled
+    color="#f3fcf7"
+    fillcolor="#f3fcf7"
+    fontcolor="#257257"
+    penwidth=40
+    110
+    122
+    113
+  }
+  subgraph cluster_28 {
+    labeljust="l"
+    style=filled
+    color="#f8f8ff"
+    fillcolor="#f8f8ff"
+    fontcolor="#442b7e"
+    penwidth=40
+    277
+    268
+    267
+    274
+  }
+  subgraph cluster_30 {
+    labeljust="l"
+    style=filled
+    color="#faffef"
+    fillcolor="#faffef"
+    fontcolor="#847c36"
+    penwidth=40
+    60
+    68
+    56
+    14
+    44
+    26
+    38
+    52
+    64
+    32
+    51
+    20
+  }
+  subgraph cluster_31 {
+    labeljust="l"
+    style=filled
+    color="#fdf7fa"
+    fillcolor="#fdf7fa"
+    fontcolor="#764470"
+    penwidth=40
+    686
+    680
+    705
+    703
+    678
+    699
+  }
+  subgraph cluster_32 {
+    labeljust="l"
+    style=filled
+    color="#faffef"
+    fillcolor="#faffef"
+    fontcolor="#847c36"
+    penwidth=40
+    731
+    740
+  }
+  subgraph cluster_34 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    135
+    142
+  }
+  1158 -> 12 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 236 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  680 -> 78 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  680 -> 562 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 204 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  678 -> 549 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  680 -> 748 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 230 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 226 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  680 -> 152 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 254 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  699 -> 1016 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  705 -> 1158 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  705 -> 1 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 265 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  680 -> 366 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  703 -> 183 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  699 -> 536 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 257 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 247 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 212 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 215 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  705 -> 156 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 293 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  686 -> 287 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  699 -> 800 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 710 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 991 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 134 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 109 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 498 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 166 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 730 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  1 -> 509 [arrowsize=1.5,arrowhead="empty",style="dashed",color="#38546c66",penwidth=1.2]
+  78 -> 86 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  78 -> 80 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  78 -> 99 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  166 -> 170 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  166 -> 167 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  166 -> 179 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  109 -> 110 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  109 -> 122 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  109 -> 113 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  335 -> 343 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  295 -> 297 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 309 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 355 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  323 -> 324 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  323 -> 326 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  316 -> 319 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 328 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  335 -> 336 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  328 -> 333 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 302 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  302 -> 306 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  355 -> 358 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  328 -> 331 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 323 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  328 -> 329 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  355 -> 361 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 316 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  316 -> 317 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  302 -> 303 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  355 -> 356 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 295 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  295 -> 299 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  335 -> 350 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  293 -> 335 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  316 -> 321 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  991 -> 1007 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  991 -> 992 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  991 -> 995 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  549 -> 551 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  549 -> 557 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  134 -> 135 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  134 -> 142 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  267 -> 268 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  265 -> 267 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  267 -> 274 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  267 -> 277 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  498 -> 505 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  498 -> 502 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  498 -> 499 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  236 -> 241 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  710 -> 711 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  710 -> 720 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 678 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 703 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 686 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 705 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 699 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 680 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  730 -> 740 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  730 -> 731 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1017 -> 1029 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1102 -> 1108 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1047 -> 1050 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1059 -> 1071 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1059 -> 1077 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1017 -> 1041 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1089 -> 1090 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1016 -> 1017 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1059 -> 1083 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1016 -> 1059 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1017 -> 1018 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1016 -> 1089 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1016 -> 1102 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1016 -> 1118 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1089 -> 1099 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1089 -> 1093 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1102 -> 1103 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1047 -> 1048 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1016 -> 1148 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1102 -> 1113 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1118 -> 1119 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1016 -> 1047 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1118 -> 1136 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1059 -> 1060 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1118 -> 1143 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1059 -> 1066 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1047 -> 1052 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  51 -> 52 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 32 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 68 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 20 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  51 -> 56 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  51 -> 60 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 14 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 51 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 26 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 38 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  12 -> 44 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  51 -> 64 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  770 -> 772 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  777 -> 779 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  777 -> 784 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  748 -> 795 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  777 -> 782 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  748 -> 770 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  770 -> 787 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  770 -> 777 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  509 -> 510 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  509 -> 531 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  509 -> 524 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  830 -> 861 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  944 -> 965 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  885 -> 897 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 971 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  944 -> 945 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  877 -> 880 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  885 -> 892 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  971 -> 976 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  914 -> 915 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  830 -> 831 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 885 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  877 -> 878 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  885 -> 886 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  801 -> 824 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  830 -> 848 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  971 -> 972 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 877 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  801 -> 812 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 801 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  885 -> 908 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  885 -> 902 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  944 -> 961 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 978 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 830 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 914 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  914 -> 917 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 934 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  801 -> 802 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  971 -> 974 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  800 -> 944 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  877 -> 882 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  586 -> 596 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 563 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 583 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 651 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  568 -> 570 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 568 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 586 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 660 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 565 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  616 -> 617 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 667 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  586 -> 604 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  586 -> 610 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  616 -> 627 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  616 -> 634 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  616 -> 642 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  562 -> 616 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 481 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  472 -> 477 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  472 -> 475 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  472 -> 473 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 472 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  390 -> 456 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  390 -> 391 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 484 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 390 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 378 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 492 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 368 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  390 -> 401 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  378 -> 380 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  390 -> 418 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  390 -> 437 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  472 -> 479 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  390 -> 428 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  366 -> 374 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  536 -> 537 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  537 -> 542 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  536 -> 544 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  537 -> 540 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1158 -> 12 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 536 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 748 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 1016 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 287 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 800 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 156 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 1 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 78 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 293 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 183 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 254 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 215 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 226 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 1158 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 212 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 247 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 230 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 204 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 366 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 236 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 265 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 562 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 549 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 152 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  677 -> 257 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 498 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 134 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 109 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 509 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 710 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 166 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 730 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+  1 -> 991 [color="#38546c66",arrowhead=normal,penwidth=1.2]
+}
