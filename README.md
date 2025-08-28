@@ -1,5 +1,7 @@
 # About IWE
 
+![Graphviz Example](docs/docs-detailed.svg)
+
 [IWE](https://iwe.md) is an open-source, local-first, markdown-based note-taking tool. It serves as a personal knowledge management (PKM) solution **designed for developers**.
 
 IWE integrates seamlessly with popular developer text editors such as VSCode, Neovim, Zed, Helix, and others. It connects with your editor through the Language Server Protocol (LSP) to assist you in writing and maintaining your Markdown documents.
@@ -76,12 +78,7 @@ More information is available in:
 
 [CLI Features Documentation](docs/features-cli.md)
 
-<details>
-<summary>Detailed visualization example</summary>
 
-![Graphviz Example](docs/docs-detailed.svg)
-
-</details>
 
 <details>
 <summary>Basic visualization example</summary>
