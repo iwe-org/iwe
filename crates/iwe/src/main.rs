@@ -9,7 +9,7 @@ use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
-use liwe::model::config::Configuration;
+use liwe::model::config::{load_config, Configuration};
 
 use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
@@ -244,15 +244,7 @@ fn get_library_path() -> PathBuf {
 
 #[tracing::instrument]
 fn get_configuration() -> Configuration {
-    let current_dir = env::current_dir().expect("to get current dir");
-
-    let mut path = current_dir.clone();
-    path.push(IWE_MARKER);
-    path.push(CONFIG_FILE_NAME);
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|content| toml::from_str::<Configuration>(&content).ok())
-        .unwrap_or(Configuration::default())
+    load_config()
 }
 
 fn render_block_reference(key: &Key, context: impl GraphContext) -> String {

@@ -29,6 +29,9 @@ pulldown-cmark-to-cmark.workspace = true
 fuzzy-matcher.workspace = true
 relative-path.workspace = true
 relative-path-utils.workspace = true
+toml.workspace = true
+toml_edit.workspace = true
+chrono.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

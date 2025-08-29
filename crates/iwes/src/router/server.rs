@@ -136,6 +136,7 @@ impl Server {
         keys.iter()
             .filter(|key| {
                 self.configuration
+                    .library
                     .prompt_key_prefix
                     .clone()
                     .map(|prefix| key.relative_path.starts_with(&prefix))
@@ -306,9 +307,12 @@ impl Server {
                         .map(|key| self.database.graph().get_block_references_to(&key))
                         .map(|refs| {
                             refs.into_iter()
-                                .filter(|id| !self.database.graph().get_node_key(*id).eq(key))
+                                .filter(|ref_id| {
+                                    !self.database.graph().get_node_key(*ref_id).eq(key)
+                                })
+                                .sorted_by_key(|ref_id| self.database.graph().get_node_key(*ref_id))
+                                .unique_by(|ref_id| self.database.graph().get_node_key(*ref_id))
                                 .map(|id| self.database.graph().get_container_document_ref_text(id))
-                                .sorted()
                                 .map(|s| format!("↖{}", s))
                                 .join(" ")
                         })
@@ -729,5 +733,9 @@ impl ActionContext for &Server {
 
             response
         }
+    }
+
+    fn key_exists(&self, key: &Key) -> bool {
+        self.database.graph().keys().contains(key)
     }
 }

@@ -24,6 +24,23 @@ fn single_ref() {
 }
 
 #[test]
+fn single_multiple_refs_from_same_key() {
+    assert_inlay_hints(
+        indoc! {"
+            # test
+            _
+            # header hint
+
+            [test](1)
+
+            [test](1)
+
+            "},
+        "↖header hint",
+    );
+}
+
+#[test]
 fn no_refs() {
     assert_no_hints(indoc! {"
             # test
@@ -76,9 +93,32 @@ fn block_reference_2() {
             _
             # test
             _
+            # from
+
             [test](2)
             "},
-        "↖",
+        "↖from",
+        2,
+    );
+}
+
+#[test]
+fn block_reference_multiple_from_the_same_key() {
+    assert_inlay_hint_at(
+        indoc! {"
+            para
+
+            [test](2)
+            _
+            # test
+            _
+            # from
+
+            [test](2)
+
+            [test](2)
+            "},
+        "↖from",
         2,
     );
 }

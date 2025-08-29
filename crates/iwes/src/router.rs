@@ -52,6 +52,14 @@ impl Router {
         self.sender.send(message).unwrap()
     }
 
+    fn delay_send(&self, message: Message) {
+        let sender = self.sender.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            sender.send(message).unwrap();
+        });
+    }
+
     pub fn new(sender: Sender<Message>, config: ServerConfig) -> Self {
         debug!(
             "initializing LSP database at {}, with {} docs",
@@ -211,14 +219,24 @@ impl Router {
             }
         };
 
-        // schedule update
-
         match response {
-            Ok(value) => self.respond(Response {
-                id: request.id,
-                result: Some(value),
-                error: None,
-            }),
+            Ok(value) => {
+                self.respond(Response {
+                    id: request.id,
+                    result: Some(value),
+                    error: None,
+                });
+                match request.method.as_str() {
+                    "codeAction/resolve" => {
+                        self.delay_send(Message::Request(Request {
+                            id: Uuid::new_v4().to_string().into(),
+                            method: "workspace/inlayHint/refresh".to_string(),
+                            params: serde_json::Value::Null,
+                        }));
+                    }
+                    _ => {}
+                }
+            }
             Err(_) => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::InternalError as i32,
