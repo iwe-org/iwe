@@ -217,6 +217,12 @@ impl MarkdownWriter {
                 GraphInline::Str(text) => {
                     events.push(Event::Text(text.into()));
                 }
+                GraphInline::Tag(text) => {
+                    events.push(Event::Text(format!("#{text}").into()));
+                }
+                GraphInline::Task(checked) => {
+                    events.push(Event::Text(if checked { "[x] " } else { "[ ] " }.into()));
+                }
                 GraphInline::Strikeout(vec) => {
                     events.push(Event::Start(Tag::Strikethrough));
                     events.extend(self.inlines_to_events(vec));

@@ -1,9 +1,11 @@
 use std::iter::once;
 use std::ops::Range;
+use std::sync::LazyLock;
 
 use crate::model::node::ColumnAlignment;
 use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
-use pulldown_cmark::{Event::*, Parser};
+use pulldown_cmark::{CowStr, Event::*, Parser};
+use regex::Regex;
 
 use crate::model::document::*;
 use crate::model::*;
@@ -48,7 +50,8 @@ impl MarkdownEventsReader {
             content,
             Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
                 | Options::ENABLE_WIKILINKS
-                | Options::ENABLE_TABLES,
+                | Options::ENABLE_TABLES
+                | Options::ENABLE_TASKLISTS,
         )
         .into_offset_iter();
         self.line_starts = line_starts(content);
@@ -62,23 +65,7 @@ impl MarkdownEventsReader {
                     self.end_tag(tag, range);
                 }
                 Text(text) => {
-                    if !self.metadata_block {
-                        match self.top_block() {
-                            DocumentBlock::CodeBlock(code_block) => {
-                                code_block.text = format!("{}{}", code_block.text, text.to_string())
-                            }
-                            DocumentBlock::RawBlock(block) => block.text = text.to_string(),
-                            _ => {
-                                self.push_inline(
-                                    DocumentInline::Str(text.to_string()),
-                                    self.to_line_range(range),
-                                );
-                                self.pop_inline();
-                            }
-                        }
-                    } else {
-                        self.metadata = Some(text.to_string());
-                    }
+                    self.text(text, range);
                 }
                 Code(text) => {
                     self.push_inline(
@@ -120,7 +107,10 @@ impl MarkdownEventsReader {
                     }));
                     self.pop_block();
                 }
-                TaskListMarker(_) => {}
+                TaskListMarker(checked) => {
+                    self.push_inline(DocumentInline::Task(checked), self.to_line_range(range));
+                    self.pop_inline();
+                }
             }
         }
 
@@ -334,6 +324,58 @@ impl MarkdownEventsReader {
         }
     }
 
+    fn text(&mut self, text: CowStr, range: Range<usize>) {
+        // https://help.obsidian.md/tags#Tag+format
+        static RE_TAG: LazyLock<Regex> =
+            // Check for tag ending with whitespace or line end is not included, because we would
+            // loose tags with a single whitespace in between.
+            LazyLock::new(|| {
+                Regex::new(r"(?:^|[\t ])#([a-zA-Z0-9_\-/]+)").expect("Invalid regex")
+            });
+
+        if !self.metadata_block {
+            match self.top_block() {
+                DocumentBlock::CodeBlock(code_block) => {
+                    code_block.text = format!("{}{}", code_block.text, text.to_string())
+                }
+                DocumentBlock::RawBlock(block) => block.text = text.to_string(),
+                _ => {
+                    let mut pos = 0;
+                    for tag in RE_TAG
+                        .captures_iter(text.chars().as_str())
+                        .filter_map(|c| c.get(1))
+                    {
+                        // Text *before* match
+                        if tag.start() > pos + 1 {
+                            self.push_inline(
+                                DocumentInline::Str(text[pos..tag.start() - 1].to_string()),
+                                self.to_line_range(range.clone()),
+                            );
+                            self.pop_inline();
+                        }
+                        // Hashtag
+                        self.push_inline(
+                            DocumentInline::Tag(tag.as_str().to_string()),
+                            self.to_line_range(range.clone()),
+                        );
+                        self.pop_inline();
+                        pos = tag.end();
+                    }
+                    // Remaining text
+                    if pos < text.len() {
+                        self.push_inline(
+                            DocumentInline::Str(text[pos..text.len()].to_string()),
+                            self.to_line_range(range),
+                        );
+                        self.pop_inline();
+                    }
+                }
+            }
+        } else {
+            self.metadata = Some(text.to_string());
+        }
+    }
+
     fn to_inline_range(&self, range: Range<usize>) -> InlineRange {
         let mut start = 0;
         let mut start_char = 0;
@@ -528,7 +570,7 @@ mod tests {
     fn test_list_item_positions() {
         let content = indoc! {"
         - line1
-        - line1
+        - line2
         "};
         let mut reader = MarkdownEventsReader::new();
         let actual = reader.read(content);
@@ -540,12 +582,199 @@ mod tests {
                 })],
                 vec![DocumentBlock::Para(Para {
                     line_range: 1..2,
-                    inlines: vec![DocumentInline::Str("line1".to_string())],
+                    inlines: vec![DocumentInline::Str("line2".to_string())],
                 })],
             ],
         })];
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_task_items() {
+        let content = indoc! {"
+        - [ ] todo1
+              second line
+        - [x] todo2
+        - no task
+        - [X] todo3
+        "};
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let expected = vec![DocumentBlock::BulletList(BulletList {
+            items: vec![
+                vec![DocumentBlock::Para(Para {
+                    line_range: 0..1,
+                    inlines: vec![
+                        DocumentInline::Task(false),
+                        DocumentInline::Str("todo1".to_string()),
+                        DocumentInline::Str("second line".to_string()),
+                    ],
+                })],
+                vec![DocumentBlock::Para(Para {
+                    line_range: 2..3,
+                    inlines: vec![
+                        DocumentInline::Task(true),
+                        DocumentInline::Str("todo2".to_string()),
+                    ],
+                })],
+                vec![DocumentBlock::Para(Para {
+                    line_range: 3..4,
+                    inlines: vec![DocumentInline::Str("no task".to_string())],
+                })],
+                vec![DocumentBlock::Para(Para {
+                    line_range: 4..5,
+                    inlines: vec![
+                        DocumentInline::Task(true),
+                        DocumentInline::Str("todo3".to_string()),
+                    ],
+                })],
+            ],
+        })];
+
+        assert_eq!(expected, actual);
+
+        let doc = Document {
+            blocks: reader.blocks(),
+            metadata: reader.metadata(),
+        };
+        assert_eq!(
+            doc.tasks()
+                .map(|t| t.to_section_plain_text())
+                .collect::<Vec<String>>(),
+            vec!["todo1second line", "todo2", "todo3"]
+        );
+    }
+
+    #[test]
+    fn test_hastags() {
+        let content = indoc! {"
+        Text #tag1 end
+        #tag2
+        no#tag
+        no # tag
+        #invalid#tag
+        #multiple #tags in line
+        #nested/tag
+        #tag_with-delimiters
+        #invalid.tag
+        - [ ] todo #tag3
+        - [x] #tag4
+        # Tag in #title
+        ## #title2
+        `ignored code #tag`
+        End #tag5
+        "};
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let expected = vec![
+            DocumentBlock::Para(Para {
+                line_range: 0..9,
+                inlines: vec![
+                    DocumentInline::Str("Text ".to_string()),
+                    DocumentInline::Tag("tag1".to_string()),
+                    DocumentInline::Str(" end".to_string()),
+                    DocumentInline::Tag("tag2".to_string()),
+                    DocumentInline::Str("no#tag".to_string()),
+                    DocumentInline::Str("no # tag".to_string()),
+                    DocumentInline::Tag("invalid".to_string()),
+                    DocumentInline::Str("#tag".to_string()),
+                    DocumentInline::Tag("multiple".to_string()),
+                    DocumentInline::Str(" ".to_string()),
+                    DocumentInline::Tag("tags".to_string()),
+                    DocumentInline::Str(" in line".to_string()),
+                    DocumentInline::Tag("nested/tag".to_string()),
+                    DocumentInline::Tag("tag_with-delimiters".to_string()),
+                    DocumentInline::Tag("invalid".to_string()),
+                    DocumentInline::Str(".tag".to_string()),
+                ],
+            }),
+            DocumentBlock::BulletList(BulletList {
+                items: vec![
+                    vec![DocumentBlock::Para(Para {
+                        line_range: 9..10,
+                        inlines: vec![
+                            DocumentInline::Task(false),
+                            DocumentInline::Str("todo ".to_string()),
+                            DocumentInline::Tag("tag3".to_string()),
+                        ],
+                    })],
+                    vec![DocumentBlock::Para(Para {
+                        line_range: 10..11,
+                        inlines: vec![
+                            DocumentInline::Task(true),
+                            DocumentInline::Tag("tag4".to_string()),
+                        ],
+                    })],
+                ],
+            }),
+            DocumentBlock::Header(Header {
+                line_range: 11..12,
+                level: 1,
+                inlines: vec![
+                    DocumentInline::Str("Tag in ".to_string()),
+                    DocumentInline::Tag("title".to_string()),
+                ],
+            }),
+            DocumentBlock::Header(Header {
+                line_range: 12..13,
+                level: 2,
+                inlines: vec![DocumentInline::Tag("title2".to_string())],
+            }),
+            DocumentBlock::Para(Para {
+                line_range: 13..15,
+                inlines: vec![
+                    DocumentInline::Code(Code {
+                        attr: Attributes {
+                            identifier: "".to_string(),
+                            classes: vec![],
+                            attributes: vec![],
+                            inline_range: Position {
+                                line: 0,
+                                character: 0,
+                            }..Position {
+                                line: 0,
+                                character: 0,
+                            },
+                        },
+                        text: "ignored code #tag".to_string(),
+                        inline_range: Position {
+                            line: 13,
+                            character: 0,
+                        }..Position {
+                            line: 13,
+                            character: 19,
+                        },
+                    }),
+                    DocumentInline::Str("End ".to_string()),
+                    DocumentInline::Tag("tag5".to_string()),
+                ],
+            }),
+        ];
+        assert_eq!(expected, actual);
+
+        let doc = Document {
+            blocks: reader.blocks(),
+            metadata: reader.metadata(),
+        };
+        assert_eq!(
+            doc.tags().collect::<Vec<String>>(),
+            vec![
+                "tag1",
+                "tag2",
+                "invalid",
+                "multiple",
+                "tags",
+                "nested/tag",
+                "tag_with-delimiters",
+                "invalid",
+                "tag3",
+                "tag4",
+                "title",
+                "title2",
+                "tag5"
+            ]
+        );
     }
 
     #[test]
