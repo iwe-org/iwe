@@ -1,11 +1,16 @@
 use indoc::indoc;
-use std::collections::HashMap;
+use log::info;
+use std::{collections::HashMap, env, fs::read_to_string};
+use toml_edit::{value, DocumentMut, Item};
 
 use serde::{Deserialize, Serialize};
 
 use crate::graph::GraphContext;
 
 use super::{node::NodeIter, NodeId};
+
+const CONFIG_FILE_NAME: &str = "config.toml";
+const IWE_MARKER: &str = ".iwe";
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
 pub struct MarkdownOptions {
@@ -42,7 +47,7 @@ pub struct Model {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum BlockAction {
-    #[serde(rename = "generate")]
+    #[serde(rename = "transform")]
     Generate(Generate),
     #[serde(rename = "attach")]
     Attach(Attach),
@@ -247,4 +252,57 @@ impl TargetType {
             TargetType::List => Some(id).filter(|id| context.node(*id).is_leaf()),
         }
     }
+}
+
+pub fn load_config() -> Configuration {
+    let current_dir = env::current_dir().expect("to get current dir");
+    let mut config_path = current_dir.clone();
+    config_path.push(IWE_MARKER);
+    config_path.push(CONFIG_FILE_NAME);
+
+    if config_path.exists() {
+        info!("reading config from path: {:?}", config_path);
+
+        let configuration = migrate(
+            &read_to_string(config_path)
+                .ok()
+                .expect("to read config file"),
+        );
+
+        toml::from_str::<Configuration>(&configuration).expect("to parse config file")
+    } else {
+        info!("using default configuration");
+
+        Configuration::default()
+    }
+}
+
+fn migrate(config: &str) -> String {
+    let updated = add_default_type_to_actions(config);
+
+    if updated != config {
+        info!("configuration file migration applied");
+        let current_dir = env::current_dir().expect("to get current dir");
+        let mut config_path = current_dir.clone();
+        config_path.push(IWE_MARKER);
+        config_path.push(CONFIG_FILE_NAME);
+
+        info!("updating configuration file");
+        std::fs::write(config_path, &updated).expect("to write updated config file");
+    }
+    updated
+}
+
+fn add_default_type_to_actions(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        for (_, action) in actions.iter_mut() {
+            if let Item::Table(action_table) = action {
+                action_table.entry("type").or_insert(value("transform"));
+            }
+        }
+    }
+
+    doc.to_string()
 }
