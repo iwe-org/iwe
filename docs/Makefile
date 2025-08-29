@@ -12,6 +12,8 @@ BASIC_SVG = docs-basic.svg
 DETAILED_DOT = docs-detailed.dot
 DETAILED_SVG = docs-detailed.svg
 
+BOOK_MD = book.md
+
 # Default target - generate all files
 all:
 	@echo "Generating basic DOT export with maximum depth..."
@@ -25,6 +27,13 @@ all:
 	@echo "✓ All visualizations generated successfully"
 	@echo "  - $(BASIC_SVG) (basic document relationships)"
 	@echo "  - $(DETAILED_SVG) (index document with sections)"
+
+book: 
+	@echo "Building book"
+	$(IWE_BIN) squash -k index --depth 10 > $(BOOK_MD)
+	typst compile book.typ
+	rm $(BOOK_MD)
+	@echo "$(BOOK_MD) generated"
 
 # Declare phony targets
 .PHONY: all

@@ -78,10 +78,10 @@ More information is available in:
 
 [CLI Features Documentation](docs/features-cli.md)
 
-
+An example of squash command output converted to [PDF](https://github.com/iwe-org/iwe/blob/master/docs/book.pdf) using [typst](https://github.com/typst/typst) rendering, see `/docs/Makefile` for details.
 
 <details>
-<summary>Basic visualization example</summary>
+<summary>Compact graph visualization example</summary>
 
 ![Graphviz Example](docs/docs-basic.svg)
 

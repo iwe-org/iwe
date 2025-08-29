@@ -179,6 +179,8 @@ iwe squash --key main-topic --depth 4
 iwe squash --key research-notes --depth 3 -v 2
 ```
 
+Example [PDF](https://github.com/iwe-org/iwe/blob/master/docs/book.pdf) generated using `squash` command and typst
+
 ### `iwe export`
 
 Exports graph structure in various formats for visualization and analysis.
