@@ -12,17 +12,36 @@ use super::{node::NodeIter, NodeId};
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
 
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct MarkdownOptions {
     pub refs_extension: String,
     pub date_format: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+impl Default for MarkdownOptions {
+    fn default() -> Self {
+        Self {
+            refs_extension: String::new(),
+            date_format: Some("%Y-%m-%d".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct LibraryOptions {
     pub path: String,
     pub date_format: Option<String>,
     pub prompt_key_prefix: Option<String>,
+}
+
+impl Default for LibraryOptions {
+    fn default() -> Self {
+        Self {
+            path: String::new(),
+            date_format: Some("%d, %b %Y".into()),
+            prompt_key_prefix: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
