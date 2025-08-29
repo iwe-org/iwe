@@ -176,9 +176,11 @@ fn test_init_preserves_existing_config() {
     let config = Configuration {
         library: LibraryOptions {
             path: "custom_path".to_string(),
+            ..Default::default()
         },
         markdown: MarkdownOptions {
             refs_extension: "".to_string(),
+            ..Default::default()
         },
         ..Default::default()
     };

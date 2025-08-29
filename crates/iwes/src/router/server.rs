@@ -136,6 +136,7 @@ impl Server {
         keys.iter()
             .filter(|key| {
                 self.configuration
+                    .library
                     .prompt_key_prefix
                     .clone()
                     .map(|prefix| key.relative_path.starts_with(&prefix))

@@ -412,9 +412,11 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
     let config = Configuration {
         library: LibraryOptions {
             path: "".to_string(),
+            ..Default::default()
         },
         markdown: MarkdownOptions {
             refs_extension: "".to_string(),
+            ..Default::default()
         },
         ..Default::default()
     };

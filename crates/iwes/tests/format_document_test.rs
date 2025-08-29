@@ -196,6 +196,7 @@ fn assert_formatted_with_extension(source: &str, formatted: &str) {
         source,
         liwe::model::config::MarkdownOptions {
             refs_extension: ".md".to_string(),
+            ..Default::default()
         },
     );
 

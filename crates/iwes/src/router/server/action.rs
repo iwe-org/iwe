@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use liwe::graph::Graph;
 use liwe::markdown::MarkdownReader;
-use liwe::model::config::{Configuration, Context, MarkdownOptions, Model};
+use liwe::model::config::{BlockAction, Configuration, Context, MarkdownOptions, Model};
 use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
@@ -40,21 +40,32 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
         ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
     ];
 
-    actions.extend(configuration.actions.iter().map(|(identifier, action)| {
-        let action = ActionEnum::UpdateNodeAction(UpdateBlockAction {
-            title: action.title.clone(),
-            identifier: identifier.clone(),
-            model_parameters: configuration
-                .models
-                .get(&action.model)
-                .expect(format!("Model {} not found in configuration", action.model).as_str())
-                .clone(),
-            prompt_template: action.prompt_template.clone(),
-            context: action.context.clone(),
-        });
+    actions.extend(
+        configuration
+            .actions
+            .iter()
+            .map(|(identifier, action)| match action {
+                BlockAction::Generate(action) => {
+                    let action = ActionEnum::UpdateNodeAction(UpdateBlockAction {
+                        title: action.title.clone(),
+                        identifier: identifier.clone(),
+                        model_parameters: configuration
+                            .models
+                            .get(&action.model)
+                            .expect(
+                                format!("Model {} not found in configuration", action.model)
+                                    .as_str(),
+                            )
+                            .clone(),
+                        prompt_template: action.prompt_template.clone(),
+                        context: action.context.clone(),
+                    });
 
-        action
-    }));
+                    action
+                }
+                BlockAction::Attach(_) => todo!(),
+            }),
+    );
 
     actions
 }

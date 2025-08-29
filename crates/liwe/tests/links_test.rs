@@ -170,6 +170,7 @@ fn normalize(expected: &str, denormalized: &str) {
         &from_indoc(denormalized),
         MarkdownOptions {
             refs_extension: String::default(),
+            ..Default::default()
         },
     );
 
@@ -200,6 +201,7 @@ fn compare_state(exp: Documents, den: Documents) {
             .collect(),
         MarkdownOptions {
             refs_extension: String::default(),
+            ..Default::default()
         },
     );
 
@@ -213,6 +215,7 @@ fn compare_with_extensions(expected: &str, denormalized: &str) {
 
     let mut graph = Graph::new_with_options(MarkdownOptions {
         refs_extension: ".md".to_string(),
+        ..Default::default()
     });
 
     graph.from_markdown("key".into(), denormalized, MarkdownReader::new());

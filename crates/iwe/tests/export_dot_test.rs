@@ -36,9 +36,11 @@ fn setup_test_workspace() -> TempDir {
     let config = Configuration {
         library: LibraryOptions {
             path: "".to_string(),
+            ..Default::default()
         },
         markdown: MarkdownOptions {
             refs_extension: "".to_string(),
+            ..Default::default()
         },
         ..Default::default()
     };

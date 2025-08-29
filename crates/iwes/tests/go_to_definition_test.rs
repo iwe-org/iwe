@@ -228,6 +228,7 @@ fn definition_with_md_extension() {
             "},
         MarkdownOptions {
             refs_extension: ".md".to_string(),
+            ..Default::default()
         },
     );
 
