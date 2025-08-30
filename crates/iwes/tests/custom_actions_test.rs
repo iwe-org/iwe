@@ -1,7 +1,7 @@
 use std::u32;
 
 use indoc::indoc;
-use liwe::model::config::{BlockAction, Configuration, Context::Document, Generate, Model};
+use liwe::model::config::{BlockAction, Configuration, Context::Document, Model, Transform};
 use lsp_types::{
     CodeAction, CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier,
 };
@@ -55,7 +55,7 @@ fn assert_action(action: BlockAction, source: &str, line: u32) {
 }
 
 fn action() -> BlockAction {
-    BlockAction::Generate(Generate {
+    BlockAction::Transform(Transform {
         title: "title".to_string(),
         model: "model".to_string(),
         prompt_template: "".to_string(),

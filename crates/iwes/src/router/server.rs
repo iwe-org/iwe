@@ -731,4 +731,8 @@ impl ActionContext for &Server {
             response
         }
     }
+
+    fn key_exists(&self, key: &Key) -> bool {
+        self.database.graph().keys().contains(key)
+    }
 }

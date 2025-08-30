@@ -67,13 +67,13 @@ pub struct Model {
 #[serde(tag = "type")]
 pub enum BlockAction {
     #[serde(rename = "transform")]
-    Generate(Generate),
+    Transform(Transform),
     #[serde(rename = "attach")]
     Attach(Attach),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct Generate {
+pub struct Transform {
     pub title: String,
     pub model: String,
     pub prompt_template: String,
@@ -139,8 +139,8 @@ impl Configuration {
 
         template.actions.insert(
             "rewrite".into(),
-            BlockAction::Generate(
-                Generate {
+            BlockAction::Transform(
+                Transform {
                     title: "Rewrite".into(),
                     model: "default".into(),
                     prompt_template: indoc! {r##"
@@ -166,8 +166,8 @@ impl Configuration {
 
         template.actions.insert (
             "expand".to_string(),
-            BlockAction::Generate(
-                Generate {
+            BlockAction::Transform(
+                Transform {
                     title: "Expand".to_string(),
                     model: "default".to_string(),
                     prompt_template: indoc! {r##"
@@ -193,8 +193,8 @@ impl Configuration {
 
         template.actions.insert (
             "keywords".into(),
-            BlockAction::Generate(
-                Generate {
+            BlockAction::Transform(
+                Transform {
                     title: "Keywords".to_string(),
                     model: "default".to_string(),
                     prompt_template: indoc! {r##"
@@ -219,8 +219,8 @@ impl Configuration {
 
         template.actions.insert(
             "emoji".into(),
-            BlockAction::Generate(
-                Generate {
+            BlockAction::Transform(
+                Transform {
                     title: "Emojify".to_string(),
                     model: "default".to_string(),
                     prompt_template: indoc! {r##"
