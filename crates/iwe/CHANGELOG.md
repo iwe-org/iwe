@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.40](https://github.com/iwe-org/iwe/compare/iwe-v0.0.39...iwe-v0.0.40) - 2025-08-31
+
+### Added
+
+- Customizable "Attach" code action for documents linking ([#128](https://github.com/iwe-org/iwe/pull/128))
+
 ## [0.0.39](https://github.com/iwe-org/iwe/compare/iwe-v0.0.38...iwe-v0.0.39) - 2025-08-28
 
 ### Fixed
