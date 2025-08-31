@@ -29,13 +29,10 @@ pub fn export_dot_with_headers(graph_data: &GraphData) -> String {
 
     // Add section nodes
     for section in graph_data.sections.values() {
-        let font_size = max(12, 16 + section.depth * 8 - max(0, 8 * section.depth));
-        let section_font_size = font_size - 2;
-
         let node = node!(
             section.id.to_string();
             attr!("label", &quoted(&section.title)),
-            attr!("fontsize", section_font_size),
+            attr!("fontsize", 14),
             attr!("fontname", "Verdana"),
             attr!("color", &quoted("#b3b3b3")),
             attr!("penwidth", "1.5"),
