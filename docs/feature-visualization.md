@@ -8,7 +8,7 @@ The `iwe export dot` command generates graph data in DOT format, which can be pr
 
 ### Basic Usage
 
-```bash
+``` bash
 # Export all root documents
 iwe export dot
 
@@ -23,7 +23,7 @@ iwe export dot --depth 3
 
 Use the `--include-headers` flag to create detailed visualizations that show document structure with sections grouped in colored subgraphs:
 
-```bash
+``` bash
 # Include sections and subgraphs
 iwe export dot --include-headers
 
@@ -40,7 +40,7 @@ iwe export dot --key meetings --depth 2 --include-headers
 
 Shows document-to-document relationships with clean node styling:
 
-```dot
+``` dot
 digraph G {
   rankdir=LR
   fontname=Verdana
@@ -55,7 +55,7 @@ digraph G {
 
 Shows document structure with sections grouped in colored subgraphs:
 
-```dot
+``` dot
 digraph G {
   rankdir=LR
   
@@ -89,7 +89,7 @@ digraph G {
 
 ### Generate PNG Images
 
-```bash
+``` bash
 # Basic visualization
 iwe export dot | dot -Tpng -o knowledge-graph.png
 
@@ -102,7 +102,7 @@ iwe export dot --key project --include-headers | dot -Tpng -o project-structure.
 
 ### Generate SVG for Web
 
-```bash
+``` bash
 # Scalable vector graphics
 iwe export dot | dot -Tsvg -o interactive-graph.svg
 
@@ -112,7 +112,7 @@ iwe export dot --include-headers | neato -Tsvg -o network-view.svg
 
 ### Different Layout Engines
 
-```bash
+``` bash
 # Hierarchical layout (default)
 iwe export dot | dot -Tpng -o hierarchical.png
 
@@ -130,7 +130,7 @@ iwe export dot | fdp -Tpng -o spring.png
 
 ### By Document Key
 
-```bash
+``` bash
 # Show only documents related to 'meetings'
 iwe export dot --key meetings --include-headers
 
@@ -140,7 +140,7 @@ iwe export dot --key architecture --depth 2
 
 ### By Content Depth
 
-```bash
+``` bash
 # Show only immediate relationships
 iwe export dot --depth 1
 
@@ -152,7 +152,7 @@ iwe export dot --depth 3 --include-headers
 
 ### Daily Documentation Review
 
-```bash
+``` bash
 #!/bin/bash
 # Generate today's knowledge graph
 iwe export dot --include-headers > today.dot
@@ -162,7 +162,7 @@ open daily-review.png  # macOS
 
 ### Project Structure Analysis
 
-```bash
+``` bash
 #!/bin/bash
 # Analyze specific project structure
 iwe export dot --key $PROJECT_NAME --include-headers | \
@@ -171,7 +171,7 @@ iwe export dot --key $PROJECT_NAME --include-headers | \
 
 ### Knowledge Base Overview
 
-```bash
+``` bash
 #!/bin/bash
 # Create multiple views of your knowledge base
 iwe export dot > overview.dot
@@ -189,7 +189,7 @@ dot -Tpng detailed.dot -o detailed.png
 For large graphs, experiment with different Graphviz engines:
 
 - **`dot`**: Best for hierarchical structures
-- **`neato`**: Good for network-like relationships  
+- **`neato`**: Good for network-like relationships
 - **`fdp`**: Spring model, useful for clustered data
 - **`circo`**: Circular layout for cyclic structures
 
@@ -212,7 +212,7 @@ Graphviz supports many output formats:
 
 ### Large Graphs
 
-```bash
+``` bash
 # Reduce complexity with depth limits
 iwe export dot --depth 2 | dot -Tpng -o simplified.png
 
@@ -224,7 +224,7 @@ iwe export dot | fdp -Tpng -o alternative-layout.png
 
 Install Graphviz on your system:
 
-```bash
+``` bash
 # macOS
 brew install graphviz
 
@@ -239,7 +239,7 @@ winget install graphviz
 
 For complex graphs, try different approaches:
 
-```bash
+``` bash
 # Increase node separation
 iwe export dot | dot -Tpng -Gnodesep=1.0 -o spaced.png
 

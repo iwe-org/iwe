@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use log::info;
 
 use super::{
     graph::GraphInline,
@@ -140,8 +139,6 @@ impl Tree {
     }
 
     pub fn update_node(&self, target_id: NodeId, inlines: &Vec<GraphInline>) -> Tree {
-        info!("Updating node with id: {:?}", self.id);
-
         if self.id_eq(target_id) {
             Tree {
                 id: self.id,
@@ -200,6 +197,32 @@ impl Tree {
                 .map(|child| child.append_pre_header(target_id, new.clone()))
                 .collect(),
         }
+    }
+
+    fn find_first_section(&self) -> Option<NodeId> {
+        if self.is_section() {
+            return self.id;
+        }
+
+        self.children
+            .iter()
+            .find_map(|child| child.find_first_section())
+    }
+
+    pub fn attach(&self, new: Tree) -> Tree {
+        self.find_first_section()
+            .map(|first_section_id| self.append_pre_header(first_section_id, new.clone()))
+            .unwrap_or_else(|| {
+                let mut children = self.children.clone();
+
+                children.push(new);
+
+                Tree {
+                    id: self.id,
+                    node: self.node.clone(),
+                    children: children,
+                }
+            })
     }
 
     pub fn append_after(&self, target_id: NodeId, new: Tree) -> Tree {
@@ -419,21 +442,34 @@ impl Tree {
         }]
     }
 
-    pub fn find(&self, id: NodeId) -> Option<Tree> {
+    pub fn find_id(&self, id: NodeId) -> Option<Tree> {
         if self.id_eq(id) {
             return Some(self.clone());
         }
 
-        self.children.iter().find_map(|child| child.find(id))
+        self.children.iter().find_map(|child| child.find_id(id))
+    }
+
+    pub fn find_section(&self) -> Option<Tree> {
+        if self.is_section() {
+            return Some(self.clone());
+        }
+        self.children.iter().find_map(|child| child.find_section())
     }
 
     pub fn get(&self, id: NodeId) -> Tree {
-        self.find(id).unwrap()
+        self.find_id(id).unwrap()
     }
 
     pub fn reference_key(&self, id: NodeId) -> Key {
-        self.find(id)
+        self.find_id(id)
             .and_then(|tree| tree.node.reference_key())
+            .unwrap_or_default()
+    }
+
+    pub fn reference_text(&self, id: NodeId) -> String {
+        self.find_id(id)
+            .and_then(|tree| tree.node.reference_text())
             .unwrap_or_default()
     }
 
@@ -619,7 +655,7 @@ mod tests {
             children: vec![child_tree.clone()],
         };
 
-        let found_tree = root.find(2);
+        let found_tree = root.find_id(2);
         assert_eq!(found_tree, Some(child_tree));
     }
 

@@ -39,6 +39,13 @@ impl Node {
         }
     }
 
+    pub fn reference_text(&self) -> Option<String> {
+        match self {
+            Node::Reference(reference) => Some(reference.text.clone()),
+            _ => None,
+        }
+    }
+
     pub fn is_reference(&self) -> bool {
         match self {
             Node::Reference(_) => true,

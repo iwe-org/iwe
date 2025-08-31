@@ -22,6 +22,8 @@
 
 [Extract/Inline Notes](feature-extract-inline.md)
 
+[Linking and note templates](feature-attach.md)
+
 [Navigation](feature-navigation.md)
 
 [Search](feature-rename.md)

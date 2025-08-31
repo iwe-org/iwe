@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use liwe::graph::Graph;
 use liwe::markdown::MarkdownReader;
-use liwe::model::config::{Configuration, Context, MarkdownOptions, Model};
+use liwe::model::config::{BlockAction, Configuration, Context, MarkdownOptions, Model};
 use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
@@ -13,13 +13,17 @@ use lsp_types::{CodeAction, CodeActionKind, CodeActionOrCommand, DocumentChanges
 use once_cell::sync::Lazy;
 use serde_json::Value;
 
+use minijinja::{context, Environment};
 use std::sync::Mutex;
+
+use chrono::Local;
 
 use super::llm::templates;
 use super::{BasePath, ChangeExt};
 
 pub trait ActionContext {
     fn key_of(&self, node_id: NodeId) -> Key;
+    fn key_exists(&self, key: &Key) -> bool;
     fn collect(&self, key: &Key) -> Tree;
     fn squash(&self, key: &Key, depth: u8) -> Tree;
     fn random_key(&self, parent: &str) -> Key;
@@ -40,21 +44,49 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
         ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
     ];
 
-    actions.extend(configuration.actions.iter().map(|(identifier, action)| {
-        let action = ActionEnum::UpdateNodeAction(UpdateBlockAction {
-            title: action.title.clone(),
-            identifier: identifier.clone(),
-            model_parameters: configuration
-                .models
-                .get(&action.model)
-                .expect(format!("Model {} not found in configuration", action.model).as_str())
-                .clone(),
-            prompt_template: action.prompt_template.clone(),
-            context: action.context.clone(),
-        });
-
-        action
-    }));
+    actions.extend(
+        configuration
+            .actions
+            .iter()
+            .map(|(identifier, action)| match action {
+                BlockAction::Transform(transform) => {
+                    let action = ActionEnum::TransformBlockAction(TransformBlockAction {
+                        title: transform.title.clone(),
+                        identifier: identifier.clone(),
+                        model_parameters: configuration
+                            .models
+                            .get(&transform.model)
+                            .expect(
+                                format!("Model {} not found in configuration", transform.model)
+                                    .as_str(),
+                            )
+                            .clone(),
+                        prompt_template: transform.prompt_template.clone(),
+                        context: transform.context.clone(),
+                    });
+                    action
+                }
+                BlockAction::Attach(attach) => {
+                    let action = ActionEnum::AttachAction(AttachAction {
+                        title: attach.title.clone(),
+                        identifier: identifier.clone(),
+                        document_template: attach.document_template.clone(),
+                        key_template: attach.key_template.clone(),
+                        markdown_date_format: configuration
+                            .clone()
+                            .markdown
+                            .date_format
+                            .unwrap_or("%d %b, %Y".into()),
+                        key_date_format: configuration
+                            .clone()
+                            .library
+                            .date_format
+                            .unwrap_or("%Y-%m-%d".into()),
+                    });
+                    action
+                }
+            }),
+    );
 
     actions
 }
@@ -67,7 +99,8 @@ pub enum ActionEnum {
     SectionToList(SectionToList),
     SectionExtract(SectionExtract),
     SubSectionsExtract(SubSectionsExtract),
-    UpdateNodeAction(UpdateBlockAction),
+    TransformBlockAction(TransformBlockAction),
+    AttachAction(AttachAction),
 }
 
 impl ActionEnum {}
@@ -94,7 +127,8 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SectionToList(inner) => inner.identifier(),
             ActionEnum::SectionExtract(inner) => inner.identifier(),
             ActionEnum::SubSectionsExtract(inner) => inner.identifier(),
-            ActionEnum::UpdateNodeAction(inner) => inner.identifier(),
+            ActionEnum::TransformBlockAction(inner) => inner.identifier(),
+            ActionEnum::AttachAction(inner) => inner.identifier(),
         }
     }
 
@@ -107,7 +141,8 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SectionToList(inner) => inner.action(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.action(target_id, context),
             ActionEnum::SubSectionsExtract(inner) => inner.action(target_id, context),
-            ActionEnum::UpdateNodeAction(inner) => inner.action(target_id, context),
+            ActionEnum::TransformBlockAction(inner) => inner.action(target_id, context),
+            ActionEnum::AttachAction(inner) => inner.action(target_id, context),
         }
     }
 
@@ -120,7 +155,8 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SectionToList(inner) => inner.changes(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.changes(target_id, context),
             ActionEnum::SubSectionsExtract(inner) => inner.changes(target_id, context),
-            ActionEnum::UpdateNodeAction(inner) => inner.changes(target_id, context),
+            ActionEnum::TransformBlockAction(inner) => inner.changes(target_id, context),
+            ActionEnum::AttachAction(inner) => inner.changes(target_id, context),
         }
     }
 }
@@ -192,7 +228,121 @@ pub trait ActionProvider {
     }
 }
 
-pub struct UpdateBlockAction {
+pub struct AttachAction {
+    pub title: String,
+    pub identifier: String,
+
+    pub key_template: String,
+    pub document_template: String,
+    pub markdown_date_format: String,
+    pub key_date_format: String,
+}
+
+impl AttachAction {
+    fn format_target_key(&self) -> Key {
+        let date = Local::now().date_naive();
+        let formatted = date.format(&self.key_date_format).to_string();
+
+        Key::name(
+            &Environment::new()
+                .template_from_str(&self.key_template)
+                .expect("correct template")
+                .render(context! {
+                today => formatted,
+                })
+                .expect("template to work"),
+        )
+    }
+
+    fn format_target_document(&self, content: String) -> String {
+        let date = Local::now().date_naive();
+        let formatted = date.format(&self.markdown_date_format).to_string();
+        Environment::new()
+            .template_from_str(&self.document_template)
+            .expect("correct template")
+            .render(context! {
+            today => formatted,
+            content => content
+            })
+            .expect("template to work")
+    }
+}
+
+impl ActionProvider for AttachAction {
+    fn identifier(&self) -> String {
+        format!("custom.{}", self.identifier.to_string())
+    }
+
+    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
+        let key = context.key_of(target_id);
+        let reference_key = context.collect(&key).reference_key(target_id);
+        let attach_to_key = self.format_target_key();
+
+        if context.key_exists(&attach_to_key) {
+            if context
+                .collect(&attach_to_key)
+                .get_all_block_reference_keys()
+                .contains(&reference_key)
+            {
+                return None;
+            }
+        }
+
+        context
+            .collect(&key)
+            .find_id(target_id)
+            .filter(|target| target.is_reference())
+            .map(|_| Action {
+                title: self.title.clone(),
+                identifier: self.identifier(),
+                target_id,
+            })
+    }
+
+    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
+        let key = context.key_of(target_id);
+        let reference_key = context.collect(&key).reference_key(target_id);
+        let attach_to_key = self.format_target_key();
+        let reference = Tree {
+            id: None,
+            node: Node::Reference(Reference {
+                key: reference_key,
+                text: context.collect(&key).reference_text(target_id),
+                reference_type: ReferenceType::Regular,
+            }),
+            children: vec![],
+        };
+
+        if context.key_exists(&attach_to_key) {
+            let tree = context.collect(&attach_to_key);
+
+            let updated = tree.attach(reference);
+
+            Some(vec![Change::Update(Update {
+                key: attach_to_key.clone(),
+                markdown: updated
+                    .iter()
+                    .to_markdown(&attach_to_key.parent(), &context.markdown_options()),
+            })])
+        } else {
+            Some(vec![
+                Change::Create(Create {
+                    key: attach_to_key.clone(),
+                }),
+                Change::Update(Update {
+                    key: attach_to_key.clone(),
+                    markdown: self.format_target_document(
+                        reference
+                            .iter()
+                            .to_markdown(&attach_to_key.parent(), &context.markdown_options()),
+                    ),
+                }),
+            ])
+        }
+    }
+}
+
+pub struct TransformBlockAction {
     pub title: String,
     pub identifier: String,
 
@@ -202,7 +352,7 @@ pub struct UpdateBlockAction {
     pub context: Context,
 }
 
-impl ActionProvider for UpdateBlockAction {
+impl ActionProvider for TransformBlockAction {
     fn identifier(&self) -> String {
         format!("custom.{}", self.identifier.to_string())
     }
@@ -237,7 +387,7 @@ impl ActionProvider for UpdateBlockAction {
             .collect(&key)
             .replace(target_id, &tree)
             .iter()
-            .to_default_markdown();
+            .to_markdown(&key.parent(), &context.markdown_options());
 
         Some(vec![Change::Update(Update { key, markdown })])
     }
@@ -269,7 +419,7 @@ impl SectionExtract {
                     node: Node::Reference(Reference {
                         key: new_key.clone(),
                         text: tree
-                            .find(extract_id)
+                            .find_id(extract_id)
                             .expect("to have node")
                             .node
                             .plain_text(),
@@ -369,7 +519,7 @@ impl ActionProvider for SubSectionsExtract {
 
         context
             .collect(&key)
-            .find(target_id)
+            .find_id(target_id)
             .filter(|tree| tree.is_section())
             .filter(|tree| tree.children.iter().any(|child| child.is_section()))
             .map(|_| Action {
@@ -384,7 +534,7 @@ impl ActionProvider for SubSectionsExtract {
 
         context
             .collect(&key)
-            .find(target_id)
+            .find_id(target_id)
             .filter(|tree| tree.is_section())
             .filter(|tree| tree.children.iter().any(|child| child.is_section()))
             .map(|tree| {
@@ -405,7 +555,7 @@ impl ActionProvider for SubSectionsExtract {
                         section_id,
                         (
                             new_key.clone(),
-                            tree.find(section_id)
+                            tree.find_id(section_id)
                                 .map(|n| n.node.plain_text())
                                 .unwrap_or_default(),
                         ),
@@ -416,7 +566,7 @@ impl ActionProvider for SubSectionsExtract {
                     changes.push(Change::Update(Update {
                         key: new_key.clone(),
                         markdown: tree
-                            .find(section_id)
+                            .find_id(section_id)
                             .expect("to have section")
                             .iter()
                             .to_markdown(&new_key.parent(), context.markdown_options()),
@@ -451,7 +601,7 @@ impl ActionProvider for ListChangeType {
             .collect(&key)
             .get_surrounding_list_id(target_id)
             .map(|scope_id| Action {
-                title: match tree.find(scope_id).map(|n| n.is_bullet_list()).unwrap() {
+                title: match tree.find_id(scope_id).map(|n| n.is_bullet_list()).unwrap() {
                     true => "Change to ordered list".to_string(),
                     false => "Change to bullet list".to_string(),
                 },

@@ -1,13 +1,12 @@
 use std::env;
 use std::error::Error;
-use std::fs::read_to_string;
 use std::fs::OpenOptions;
 
 use iwes::main_loop;
 use iwes::router::server::action::all_action_types;
 use iwes::router::server::action::ActionProvider;
 use iwes::ServerParams;
-use liwe::model::config::Configuration;
+use liwe::model::config::load_config;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
@@ -21,9 +20,6 @@ use lsp_server::Connection;
 use lsp_types::TextDocumentSyncCapability;
 
 use log::{debug, info};
-
-const CONFIG_FILE_NAME: &str = "config.toml";
-const IWE_MARKER: &str = ".iwe";
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     if env::var("IWE_DEBUG").is_ok() {
@@ -46,25 +42,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     info!("starting IWE LSP server");
 
-    let current_dir = env::current_dir().expect("to get current dir");
-    let mut config_path = current_dir.clone();
-    config_path.push(IWE_MARKER);
-    config_path.push(CONFIG_FILE_NAME);
-
-    let configuration = if config_path.exists() {
-        info!("reading config from path: {:?}", config_path);
-
-        toml::from_str::<Configuration>(
-            &read_to_string(config_path)
-                .ok()
-                .expect("to read config file"),
-        )
-        .expect("to parse config file")
-    } else {
-        info!("using default configuration");
-
-        Configuration::default()
-    };
+    let configuration = load_config();
 
     let (connection, io_threads) = Connection::stdio();
 
@@ -120,6 +98,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     let initialize_params: InitializeParams =
         serde_json::from_value(initialization_params_value).unwrap();
 
+    let current_dir = env::current_dir().expect("to get current dir");
     let mut library_path = current_dir.clone();
 
     debug!("config: {:?}", configuration);

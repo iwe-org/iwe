@@ -61,7 +61,7 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |**Batch Operations**|✅ CLI for bulk normalization and transformations|❌ LSP-only approach|
 |**Editor Support**|✅ VSCode, Neovim, Zed, Helix|✅ VSCode, Neovim, Helix, Zed|
 |**Auto-formatting**|✅ Comprehensive normalization on save|✅ Basic formatting|
-|**Daily Notes**|❌ Not built-in|✅ Dedicated daily notes support|
+|**Daily Notes**|✅ Supported using "attach" code action|✅ Dedicated daily notes support|
 |**Backlinks**|✅ Via graph processing|✅ Native backlink support|
 
 **IWE's advantage**: Advanced graph operations, AI integration, and comprehensive CLI tooling make it superior for complex knowledge work and developer workflows.
@@ -77,7 +77,6 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |**Performance**|✅ Rust-powered, instant operations|⚠️ Electron-based, can be slower|
 |**Graph Transformations**|✅ Automated extract/embed operations|❌ Manual linking and organization|
 |**AI Integration**|✅ Configurable LLM providers|⚠️ Limited, requires plugins|
-|**Collaboration**|✅ Git-based, works with any VCS|⚠️ Requires paid Obsidian Sync|
 |**Cross-platform**|✅ Consistent across all platforms|✅ Good cross-platform support|
 |**Graph Visualization**|⚠️ CLI-based dot export|✅ Interactive graph view|
 |**Plugin Ecosystem**|⚠️ Limited to LSP capabilities|✅ Rich plugin marketplace|
@@ -97,30 +96,11 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |**Performance**|✅ Rust-powered LSP|⚠️ Lua-based, editor-dependent|
 |**Batch Operations**|✅ CLI for bulk operations|❌ One-note-at-a-time workflow|
 |**Auto-formatting**|✅ Built-in normalization|❌ Requires external tools|
-|**Note Templates**|✅ AI-powered dynamic templates|✅ Static templates|
+|**Note Templates**|✅ Note templates supported via "Attach" command|✅ Static templates|
 |**Search Integration**|✅ LSP-based with any picker|✅ Telescope/fzf integration|
 |**Installation**|✅ Single binary + editor extension|⚠️ Complex Neovim plugin setup|
 
 **IWE's advantage**: Works across all editors, provides powerful automation, and offers AI-enhanced workflows. zk.nvim/telekasten are better for Neovim purists who prefer simple, manual workflows.
-
-### IWE vs Denote/Emacs
-
-**Denote** is a minimalist Emacs-based Zettelkasten system:
-
-|Feature|IWE|Denote/Emacs|
-|-------|---|------------|
-|**Editor Support**|✅ Cross-editor LSP support|❌ Emacs only|
-|**Simplicity**|⚠️ More complex due to advanced features|✅ Extremely simple file-based approach|
-|**Graph Operations**|✅ Automated transformations|❌ Manual file management|
-|**Performance**|✅ Rust-powered|✅ Fast for basic operations|
-|**AI Integration**|✅ Built-in LLM support|❌ Would require custom Elisp|
-|**File Portability**|✅ Standard markdown files|✅ Standard text/org files|
-|**Learning Curve**|⚠️ LSP + terminal concepts|⚠️ Emacs + Elisp knowledge required|
-|**Extensibility**|⚠️ Limited to domain model|✅ Unlimited Elisp customization|
-|**Database Dependency**|❌ File-based like Denote|❌ File-based|
-|**Maintenance**|✅ Automated normalization|⚠️ Manual organization required|
-
-**IWE's advantage**: Works with any editor, provides automation that Denote lacks, and includes AI capabilities. Denote is better for Emacs users who prefer extreme simplicity and unlimited customization.
 
 ## Why Choose IWE?
 
