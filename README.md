@@ -27,6 +27,7 @@ The main LSP features are:
 - 🤖 **Generate** or **Modify** text using AI commands
 - 🔍 **Search** through your notes
 - 🧭 **Navigate** through markdown links
+- 📃 **Templates** for automated documents creation
 - ✨ **Auto-complete** links as you type
 - 📥 **Extract** or **inline** sub-notes seamlessly
 - 📝 **Format** the document and update link titles automatically
@@ -67,7 +68,7 @@ IWE also provides a CLI utility that allows you to process thousands of document
 The main CLI features are:
 
 - 🏗️ **Initialize** workspace with `init` command
-- 📝 **Normalize** documents and update link titles automatically
+- 🗒️ **Normalize** documents and update link titles automatically
 - 🔍 **List paths** of all markdown files in the workspace
 - 📋 **Extract contents** from specific notes and sections
 - 🔗 **Squash** multiple files into one comprehensive document
