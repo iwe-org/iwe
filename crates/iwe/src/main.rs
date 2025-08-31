@@ -146,7 +146,7 @@ fn main() {
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn init_command(init: Init) {
     debug!("Initializing IWE");
 
@@ -168,7 +168,7 @@ fn init_command(init: Init) {
     debug!("IWE initialized in the current location. Default config added to .iwe/config.json");
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn paths_command(args: Paths) {
     let graph = load_graph();
 
@@ -182,7 +182,7 @@ fn paths_command(args: Paths) {
         .for_each(|string| println!("{}", string));
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn contents_command(args: Contents) {
     let graph = load_graph();
 
@@ -199,12 +199,12 @@ fn contents_command(args: Contents) {
         .for_each(|string| println!("{}\n", string));
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn normalize_command(args: Normalize) {
     write_graph(load_graph());
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn squash_command(args: Squash) {
     let graph = &load_graph();
     let mut patch = Graph::new();
@@ -215,13 +215,13 @@ fn squash_command(args: Squash) {
     print!("{}", patch.export_key(&args.key.into()).unwrap())
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn write_graph(graph: Graph) {
     liwe::fs::write_store_at_path(&graph.export(), &get_library_path())
         .expect("Failed to write graph")
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn load_graph() -> Graph {
     Graph::import(
         &new_for_path(&get_library_path()),
@@ -242,7 +242,7 @@ fn get_library_path() -> PathBuf {
     library_path
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 fn get_configuration() -> Configuration {
     load_config()
 }

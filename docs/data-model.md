@@ -1,4 +1,4 @@
-# Core Architecture
+# Data model
 
 ## Graph-Based Document Representation
 

@@ -1,5 +1,5 @@
 use indoc::indoc;
-use log::info;
+use log::debug;
 use std::{collections::HashMap, env, fs::read_to_string};
 use toml_edit::{value, DocumentMut, Item};
 
@@ -280,7 +280,7 @@ pub fn load_config() -> Configuration {
     config_path.push(CONFIG_FILE_NAME);
 
     if config_path.exists() {
-        info!("reading config from path: {:?}", config_path);
+        debug!("reading config from path: {:?}", config_path);
 
         let configuration = migrate(
             &read_to_string(config_path)
@@ -290,7 +290,7 @@ pub fn load_config() -> Configuration {
 
         toml::from_str::<Configuration>(&configuration).expect("to parse config file")
     } else {
-        info!("using default configuration");
+        debug!("using default configuration");
 
         Configuration::default()
     }
@@ -300,13 +300,13 @@ fn migrate(config: &str) -> String {
     let updated = add_default_type_to_actions(config);
 
     if updated != config {
-        info!("configuration file migration applied");
+        debug!("configuration file migration applied");
         let current_dir = env::current_dir().expect("to get current dir");
         let mut config_path = current_dir.clone();
         config_path.push(IWE_MARKER);
         config_path.push(CONFIG_FILE_NAME);
 
-        info!("updating configuration file");
+        debug!("updating configuration file");
         std::fs::write(config_path, &updated).expect("to write updated config file");
     }
     updated

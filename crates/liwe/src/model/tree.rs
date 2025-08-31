@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use log::info;
 
 use super::{
     graph::GraphInline,
@@ -140,8 +139,6 @@ impl Tree {
     }
 
     pub fn update_node(&self, target_id: NodeId, inlines: &Vec<GraphInline>) -> Tree {
-        info!("Updating node with id: {:?}", self.id);
-
         if self.id_eq(target_id) {
             Tree {
                 id: self.id,
