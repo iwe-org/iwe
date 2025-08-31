@@ -521,43 +521,60 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        self.database
-            .graph()
-            .get_block_references_to(&key.clone())
-            .iter()
-            .chain(
+        let relative_to = &params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
+
+        let key_under_cursor = self
+            .parser(
+                &params
+                    .text_document_position
+                    .text_document
+                    .uri
+                    .to_key(&self.base_path),
+            )
+            .and_then(|parser| parser.url_at(to_position(params.text_document_position.position)))
+            .map(|url| Key::from_rel_link_url(&url, relative_to));
+
+        key_under_cursor
+            .map(|target_key| {
                 self.database
                     .graph()
-                    .get_inline_references_to(&key.clone())
-                    .iter(),
-            )
-            .map(|id| (id, self.database.graph().node(*id).node_key()))
-            .dedup()
-            .map(|(id, key)| {
-                Location::new(
-                    key.to_full_url(&self.base_path),
-                    Range::new(
-                        Position::new(
-                            self.database
-                                .graph()
-                                .node_line_range(*id)
-                                .map(|f| f.start as u32)
-                                .unwrap_or(0),
-                            0,
-                        ),
-                        Position::new(
-                            self.database
-                                .graph()
-                                .node_line_range(*id)
-                                .map(|f| f.end as u32)
-                                .unwrap_or(0),
-                            0,
-                        ),
-                    ),
-                )
+                    .get_block_references_to(&target_key.clone())
+                    .iter()
+                    .map(|id| (id, self.database.graph().node(*id).node_key()))
+                    .dedup()
+                    .filter(|(_, backlink_key)| backlink_key.ne(&key))
+                    .map(|(id, key)| {
+                        Location::new(
+                            key.to_full_url(&self.base_path),
+                            Range::new(
+                                Position::new(
+                                    self.database
+                                        .graph()
+                                        .node_line_range(*id)
+                                        .map(|f| f.start as u32)
+                                        .unwrap_or(0),
+                                    0,
+                                ),
+                                Position::new(
+                                    self.database
+                                        .graph()
+                                        .node_line_range(*id)
+                                        .map(|f| f.end as u32)
+                                        .unwrap_or(0),
+                                    0,
+                                ),
+                            ),
+                        )
+                    })
+                    .sorted_by(|a, b| a.uri.cmp(&b.uri))
+                    .collect_vec()
             })
-            .sorted_by(|a, b| a.uri.cmp(&b.uri))
-            .collect_vec()
+            .unwrap_or_default()
     }
 
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
