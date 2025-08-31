@@ -521,18 +521,39 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
+        let relative_to = &params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path)
+            .parent();
+
+        let key_under_cursor = self
+            .parser(
+                &params
+                    .text_document_position
+                    .text_document
+                    .uri
+                    .to_key(&self.base_path),
+            )
+            .and_then(|parser| parser.url_at(to_position(params.text_document_position.position)))
+            .map(|url| Key::from_rel_link_url(&url, relative_to))
+            .unwrap_or(key.clone());
+
         self.database
             .graph()
-            .get_block_references_to(&key.clone())
+            .get_block_references_to(&key_under_cursor.clone())
             .iter()
             .chain(
                 self.database
                     .graph()
                     .get_inline_references_to(&key.clone())
-                    .iter(),
+                    .iter()
+                    .filter(|_| params.context.include_declaration),
             )
             .map(|id| (id, self.database.graph().node(*id).node_key()))
             .dedup()
+            .filter(|(_, backlink_key)| backlink_key.ne(&key))
             .map(|(id, key)| {
                 Location::new(
                     key.to_full_url(&self.base_path),
