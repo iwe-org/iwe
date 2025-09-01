@@ -137,13 +137,9 @@ pub fn is_ref_url(url: &str) -> bool {
         || url.to_lowercase().starts_with("mailto:"))
 }
 
-pub fn normalize_url(url: &str) -> String {
+pub fn normalize_url(url: &str, extension: &str) -> String {
     if is_ref_url(url) {
-        if let Some(dot_pos) = url.rfind('.') {
-            url[..dot_pos].to_string()
-        } else {
-            url.to_string()
-        }
+        url.strip_suffix(extension).unwrap_or(url).to_string()
     } else {
         url.to_string()
     }

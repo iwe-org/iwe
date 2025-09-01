@@ -62,7 +62,7 @@ pub struct SearchPath {
 }
 
 pub trait Reader {
-    fn document<'a>(&self, content: &str) -> Document;
+    fn document<'a>(&self, content: &str, markdown_options: &MarkdownOptions) -> Document;
 }
 
 impl Graph {
@@ -70,6 +70,10 @@ impl Graph {
         Graph {
             ..Default::default()
         }
+    }
+
+    pub fn markdown_options(&self) -> MarkdownOptions {
+        self.markdown_options.clone()
     }
 
     pub fn search_paths(&self) -> Vec<SearchPath> {
@@ -228,7 +232,7 @@ impl Graph {
     }
 
     pub fn from_markdown(&mut self, key: Key, content: &str, reader: impl Reader) {
-        let document = reader.document(content);
+        let document = reader.document(content, &self.markdown_options);
 
         if let Some(meta) = document.metadata {
             self.metadata.insert(key.clone(), meta);
@@ -281,7 +285,7 @@ impl Graph {
     }
 
     pub fn import(content: &State, markdown_options: MarkdownOptions) -> Graph {
-        let mut graph = Graph::new_with_options(markdown_options);
+        let mut graph = Graph::new_with_options(markdown_options.clone());
 
         let reader = MarkdownReader::new();
 
@@ -290,7 +294,7 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| (Key::name(k), reader.document(v)))
+            .map(|(k, v)| (Key::name(k), reader.document(v, &markdown_options)))
             .collect::<Vec<_>>();
 
         for (key, document) in blocks.into_iter() {
