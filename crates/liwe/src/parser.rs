@@ -1,6 +1,7 @@
 use crate::{
     graph::Reader,
     model::{
+        config::MarkdownOptions,
         document::{Document, DocumentInline},
         Position,
     },
@@ -10,8 +11,8 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(content: &str, reader: impl Reader) -> Parser {
-        let document = reader.document(content);
+    pub fn new(content: &str, markdown_options: &MarkdownOptions, reader: impl Reader) -> Parser {
+        let document = reader.document(content, markdown_options);
         Parser { document }
     }
 
@@ -34,6 +35,7 @@ pub fn link_in_paragraph() {
 
             test
             "},
+        &MarkdownOptions::default(),
         crate::markdown::MarkdownReader::new(),
     );
 

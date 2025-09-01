@@ -1,6 +1,7 @@
 use std::iter::once;
 use std::ops::Range;
 
+use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
 use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
@@ -9,6 +10,7 @@ use crate::model::document::*;
 use crate::model::*;
 
 pub struct MarkdownEventsReader {
+    markdown_options: MarkdownOptions,
     inlines_pos_stack: Vec<LineRange>,
     inlines_stack: Vec<DocumentInline>,
     blocks_stack: Vec<DocumentBlock>,
@@ -21,6 +23,20 @@ pub struct MarkdownEventsReader {
 impl MarkdownEventsReader {
     pub fn new() -> MarkdownEventsReader {
         MarkdownEventsReader {
+            markdown_options: MarkdownOptions::default(),
+            inlines_pos_stack: Vec::new(),
+            inlines_stack: Vec::new(),
+            blocks_stack: Vec::new(),
+            blocks: Vec::new(),
+            line_starts: Vec::new(),
+            metadata_block: false,
+            metadata: None,
+        }
+    }
+
+    pub fn new_with_options(markdown_options: &MarkdownOptions) -> MarkdownEventsReader {
+        MarkdownEventsReader {
+            markdown_options: markdown_options.clone(),
             inlines_pos_stack: Vec::new(),
             inlines_stack: Vec::new(),
             blocks_stack: Vec::new(),
@@ -265,7 +281,10 @@ impl MarkdownEventsReader {
                     DocumentInline::Link(Link {
                         inlines: vec![],
                         target: Target {
-                            url: normalize_url(&dest_url.to_string()),
+                            url: normalize_url(
+                                &dest_url.to_string(),
+                                &self.markdown_options.refs_extension,
+                            ),
                             title: title.to_string(),
                         },
                         title: title.to_string(),

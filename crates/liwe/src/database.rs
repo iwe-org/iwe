@@ -27,9 +27,13 @@ pub trait DatabaseContext {
 
 impl DatabaseContext for &Database {
     fn parser(&self, key: &Key) -> Option<Parser> {
-        self.content
-            .get(key)
-            .map(|content| Parser::new(&content, MarkdownReader::new()))
+        self.content.get(key).map(|content| {
+            Parser::new(
+                &content,
+                &self.graph.markdown_options(),
+                MarkdownReader::new(),
+            )
+        })
     }
 
     fn lines(&self, key: &Key) -> u32 {

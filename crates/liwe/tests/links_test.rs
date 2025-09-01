@@ -163,6 +163,42 @@ fn sub_links_text_updated_from_referenced_header() {
     );
 }
 
+#[test]
+fn normalization_of_refs_extensions() {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+
+    graph.from_markdown(
+        "key".into(),
+        "[link text](other-file.md)",
+        MarkdownReader::new(),
+    );
+
+    let normalized = graph.to_markdown(&"key".into());
+
+    assert_str_eq!("[link text](other-file.md)\n", normalized);
+}
+
+#[test]
+fn normalization_preserves_other_extensions() {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+
+    graph.from_markdown("key".into(), "[link text](file.txt)", MarkdownReader::new());
+
+    let normalized = graph.to_markdown(&"key".into());
+
+    assert_str_eq!("[link text](file.txt.md)\n", normalized);
+}
+
 fn normalize(expected: &str, denormalized: &str) {
     setup();
 

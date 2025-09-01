@@ -1,4 +1,5 @@
 use crate::graph::Reader;
+use crate::model::config::MarkdownOptions;
 use crate::model::document::Document;
 
 pub mod reader;
@@ -15,8 +16,8 @@ impl MarkdownReader {
 }
 
 impl Reader for MarkdownReader {
-    fn document(&self, content: &str) -> Document {
-        let mut reader = MarkdownEventsReader::new();
+    fn document(&self, content: &str, markdown_options: &MarkdownOptions) -> Document {
+        let mut reader = MarkdownEventsReader::new_with_options(markdown_options);
         reader.read(content);
 
         Document {
