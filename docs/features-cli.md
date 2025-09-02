@@ -65,7 +65,7 @@ iwe init
 Performs comprehensive document normalization across all markdown files.
 
 ``` bash
-iwe normalize [OPTIONS]
+iwe normalize
 ```
 
 **Operations performed:**
@@ -77,18 +77,14 @@ iwe normalize [OPTIONS]
 - Standardizes list formatting
 - Normalizes document structure
 
-**Options:**
-
-- `-v, --verbose <LEVEL>`: Increase output detail
-
 **Example:**
 
 ``` bash
 # Basic normalization
 iwe normalize
 
-# With detailed output
-iwe normalize -v 2
+# With detailed output (global verbose option)
+iwe -v 2 normalize
 ```
 
 **⚠️ Important:** Always backup your files before running normalization, especially the first time.
@@ -126,14 +122,10 @@ iwe paths -v 1 --depth 3
 Lists root documents (notes without parent references).
 
 ``` bash
-iwe contents [OPTIONS]
+iwe contents
 ```
 
 **Purpose:**Identifies entry points in your knowledge graph - documents that aren't referenced by others, potentially serving as main topics or starting points.
-
-**Options:**
-
-- `-v, --verbose <LEVEL>`: Verbosity level
 
 **Example:**
 

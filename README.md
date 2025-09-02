@@ -100,7 +100,7 @@ For comprehensive documentation, see the [docs](docs/) directory:
 
 - **[Getting Started](docs/how-to-install.md)** - Installation and setup
 - **[Usage Guide](docs/how-to-use.md)** - LSP features and how to use them
-- **[Configuration](docs/Configuration.md)** - Configuration options and AI setup
+- **[Configuration](docs/configuration.md)** - Configuration options and AI setup
 - **[CLI Features](docs/features-cli.md)** - Command-line interface documentation
 - **[Maps of Content](docs/maps-of-content.md)** - Hierarchical note organization
 - **[Editor Integration](docs/index.md)** - Editor-specific guides for [VSCode](docs/vscode.md), [Neovim](docs/neovim.md), and [Helix](docs/helix.md)
