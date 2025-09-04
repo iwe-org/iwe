@@ -44,6 +44,8 @@
 
 [Sub-directories](feature-subdirectories.md)
 
+[Custom AI Commands](feature-ai-commands.md)
+
 ## Editor specifics
 
 [Helix](helix.md)

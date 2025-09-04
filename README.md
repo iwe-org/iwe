@@ -8,9 +8,7 @@ IWE integrates seamlessly with popular developer text editors such as VSCode, Ne
 
 IWE offers powerful features such as **search**, **auto-complete**, **go to definition**, **find references**, **rename refactoring**, and more. In addition to standard Markdown, it also supports wiki-style links, tables, and other Markdown extensions.
 
-IWE includes **AI** capabilities that can be accessed right from your text editor. You can effortlessly **rewrite** text, **expand** on ideas, **highlight** important words, or even add some **emojis**. Want to customize your AI experience? You can easily add your own AI commands by updating the config file with your custom prompts.
-
-Looking to spark creativity in your writing? You can designate certain notes as "prompts" to inspire and develop fresh content. Simply apply these prompts to your other notes (using LSP completions menu) to help generate new ideas and insights.
+IWE organizes your Markdown notes by treating them as a graph, where each document is a sub-tree and the links serve as the edges connecting them. It works at a semantic level, comprehending the structure defined by headers, lists, and links, and offers various tools to help you efficiently navigate and restructure the graph. IWE allows you to organize notes hierarchically using Map of Content (MOC) pages directly within your favorite editor.
 
 The primary focus of IWE is to be your ultimate writing assistant and keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as **extract/embed** note and many other via LSP **code actions**.
 
@@ -24,16 +22,16 @@ While IWE supports sub-directories and relative links, it also allows you to org
 
 The main LSP features are:
 
-- 🤖 **Generate** or **Modify** text using AI commands
 - 🔍 **Search** through your notes
 - 🧭 **Navigate** through markdown links
-- 📃 **Templates** for automated documents creation
+- 📃 **Templates** for automated notes creation (e.g. daily notes)
 - ✨ **Auto-complete** links as you type
 - 📥 **Extract** or **inline** sub-notes seamlessly
 - 📝 **Format** the document and update link titles automatically
 - 🔄 **Rename** files and automatically update all the links
 - 🔗 Search for **backlinks** to find references to the current document
 - 💡 Display **inlay hints** with parent note references and link counts
+- 🤖 Generate or Modify text using **custom** AI commands
 - 🔹 Change outline type from headers to list and vice-versa
 
 You can learn more on the [LSP Features](docs/how-to-use.md) page.
