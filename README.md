@@ -4,11 +4,9 @@
 
 [IWE](https://iwe.md) is an open-source, local-first, markdown-based note-taking tool. It serves as a personal knowledge management (PKM) solution **designed for developers**.
 
-IWE integrates seamlessly with popular developer text editors such as VSCode, Neovim, Zed, Helix, and others. It connects with your editor through the Language Server Protocol (LSP) to assist you in writing and maintaining your Markdown documents.
+IWE integrates seamlessly with popular developer text editors such as **VSCode**, **Neovim**, **Zed**, **Helix**, and others. It connects with your editor through the Language Server Protocol (LSP) to assist you in writing and maintaining your Markdown documents.
 
 IWE offers powerful features such as **search**, **auto-complete**, **go to definition**, **find references**, **rename refactoring**, and more. In addition to standard Markdown, it also supports wiki-style links, tables, and other Markdown extensions.
-
-IWE organizes your Markdown notes by treating them as a graph, where each document is a sub-tree and the links serve as the edges connecting them. It works at a semantic level, comprehending the structure defined by headers, lists, and links, and offers various tools to help you efficiently navigate and restructure the graph. IWE allows you to organize notes hierarchically using Map of Content (MOC) pages directly within your favorite editor.
 
 The primary focus of IWE is to be your ultimate writing assistant and keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as **extract/embed** note and many other via LSP **code actions**.
 
