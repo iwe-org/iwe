@@ -4,4 +4,4 @@ IWE includes **AI** capabilities that can be accessed right from your text edito
 
 Looking to spark creativity in your writing? You can designate certain notes as "prompts" to inspire and develop fresh content. Simply apply these prompts to your other notes (using LSP completions menu) to help generate new ideas and insights.
 
-Check [Configuration](configuration) section for detailed instructions of how to enable AI commands.
+Check [Configuration](configuration.md) section for detailed instructions of how to enable AI commands.
