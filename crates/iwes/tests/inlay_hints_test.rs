@@ -5,7 +5,7 @@ use lsp_types::{
 
 use fixture::uri;
 
-use crate::fixture::Fixture;
+use crate::fixture::{uri_from, Fixture};
 
 mod fixture;
 
@@ -20,6 +20,27 @@ fn single_ref() {
             [test](1)
             "},
         "↖header hint",
+    );
+}
+
+#[test]
+fn non_existent_ref() {
+    assert_no_hints(
+        indoc! {"
+            # test
+
+            [test](test)
+            "},
+        "1",
+    );
+}
+
+#[test]
+fn non_existent_key() {
+    assert_no_hints(
+        indoc! {"
+        "},
+        "not-a-key",
     );
 }
 
@@ -42,11 +63,14 @@ fn single_multiple_refs_from_same_key() {
 
 #[test]
 fn no_refs() {
-    assert_no_hints(indoc! {"
+    assert_no_hints(
+        indoc! {"
             # test
             _
             # header hint
-            "});
+            "},
+        "1",
+    );
 }
 
 #[test]
@@ -70,7 +94,7 @@ fn multiple_refs() {
 
 #[test]
 fn block_reference() {
-    assert_inlay_hint_at(
+    assert_no_hints(
         indoc! {"
             para
 
@@ -78,8 +102,7 @@ fn block_reference() {
             _
             # test
             "},
-        "",
-        2,
+        "1",
     );
 }
 
@@ -167,12 +190,12 @@ fn assert_inlay_hints(source: &str, hint_text: &str) {
     )
 }
 
-fn assert_no_hints(source: &str) {
+fn assert_no_hints(source: &str, key: &str) {
     let fixture = Fixture::with(source);
 
     fixture.inlay_hint(
         InlayHintParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
+            text_document: TextDocumentIdentifier { uri: uri_from(key) },
             work_done_progress_params: Default::default(),
             range: Range::new(Position::new(0, 0), Position::new(0, 0)),
         },
