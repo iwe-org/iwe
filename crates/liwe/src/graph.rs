@@ -373,12 +373,14 @@ impl Graph {
 
     pub fn get_block_references_in(&self, key: &Key) -> Vec<NodeId> {
         self.maybe_key(key)
-            .expect("to have key")
-            .get_all_sub_nodes()
-            .into_iter()
-            .filter(|id| !self.graph_node(*id).is_empty())
-            .filter(|id| self.graph_node(*id).is_ref())
-            .collect()
+            .map(|node| {
+                node.get_all_sub_nodes()
+                    .into_iter()
+                    .filter(|id| !self.graph_node(*id).is_empty())
+                    .filter(|id| self.graph_node(*id).is_ref())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
@@ -426,8 +428,8 @@ pub trait GraphContext: Copy {
     fn squash(&self, key: &Key, depth: u8) -> Tree;
 
     fn get_ref_text(&self, key: &Key) -> Option<String>;
+    fn get_container_document_ref_text(&self, id: NodeId) -> Option<String>;
 
-    fn get_container_document_ref_text(&self, id: NodeId) -> String;
     fn get_text(&self, id: NodeId) -> String;
 
     fn node(&self, id: NodeId) -> impl NodePointer<'_>;
@@ -495,11 +497,9 @@ impl GraphContext for &Graph {
         self.get_key_title(key)
     }
 
-    fn get_container_document_ref_text(&self, id: NodeId) -> String {
+    fn get_container_document_ref_text(&self, id: NodeId) -> Option<String> {
         let container_key = self.node(id).to_document().unwrap().document_key().unwrap();
-        self.get_key_title(&container_key)
-            .unwrap_or_default()
-            .to_string()
+        self.get_key_title(&container_key).map(|s| s.to_string())
     }
 
     fn get_node_key(&self, id: NodeId) -> Key {

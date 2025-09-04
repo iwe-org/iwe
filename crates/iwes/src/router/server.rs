@@ -298,29 +298,27 @@ impl Server {
                     .node_line_range(id)
                     .map(|range| (id, range.start))
             })
-            .map(|(id, line)| {
-                (
-                    self.database
-                        .graph()
-                        .node(id)
-                        .ref_key()
-                        .map(|key| self.database.graph().get_block_references_to(&key))
-                        .map(|refs| {
-                            refs.into_iter()
-                                .filter(|ref_id| {
-                                    !self.database.graph().get_node_key(*ref_id).eq(key)
-                                })
-                                .sorted_by_key(|ref_id| self.database.graph().get_node_key(*ref_id))
-                                .unique_by(|ref_id| self.database.graph().get_node_key(*ref_id))
-                                .map(|id| self.database.graph().get_container_document_ref_text(id))
-                                .map(|s| format!("↖{}", s))
-                                .join(" ")
-                        })
-                        .unwrap_or_default(),
-                    line,
-                )
+            .flat_map(|(id, line)| {
+                self.database
+                    .graph()
+                    .node(id)
+                    .ref_key()
+                    .map(|key| self.database.graph().get_block_references_to(&key))
+                    .map(|refs| {
+                        refs.into_iter()
+                            .filter(|ref_id| !self.database.graph().get_node_key(*ref_id).eq(key))
+                            .sorted_by_key(|ref_id| self.database.graph().get_node_key(*ref_id))
+                            .unique_by(|ref_id| self.database.graph().get_node_key(*ref_id))
+                            .flat_map(|id| {
+                                self.database.graph().get_container_document_ref_text(id)
+                            })
+                            .map(|s| format!("↖{}", s))
+                            .join(" ")
+                    })
+                    .filter(|text| !text.is_empty())
+                    .map(|text| (text, line))
             })
-            .map(|(refs, line)| hint_at(&refs, line as u32))
+            .map(|(text, line)| hint_at(&text, line as u32))
             .collect_vec()
     }
 
@@ -329,7 +327,7 @@ impl Server {
             .graph()
             .get_block_references_to(key)
             .iter()
-            .map(|id| self.database.graph().get_container_document_ref_text(*id))
+            .flat_map(|id| self.database.graph().get_container_document_ref_text(*id))
             .sorted()
             .dedup()
             .map(|text| hint_at(&format!("↖{}", text), 0))
