@@ -18,6 +18,7 @@ pub struct MarkdownEventsReader {
     line_starts: Vec<usize>,
     metadata_block: bool,
     metadata: Option<String>,
+    content: Option<String>,
 }
 
 impl MarkdownEventsReader {
@@ -31,6 +32,7 @@ impl MarkdownEventsReader {
             line_starts: Vec::new(),
             metadata_block: false,
             metadata: None,
+            content: None,
         }
     }
 
@@ -44,6 +46,7 @@ impl MarkdownEventsReader {
             line_starts: Vec::new(),
             metadata_block: false,
             metadata: None,
+            content: None,
         }
     }
 
@@ -56,10 +59,14 @@ impl MarkdownEventsReader {
     }
 
     pub fn top_block(&mut self) -> &mut DocumentBlock {
-        self.blocks_stack.last_mut().expect("to have element")
+        self.blocks_stack.last_mut().expect(&format!(
+            "parse markdown:\n{}",
+            &self.content.clone().unwrap_or_default()
+        ))
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
+        self.content = Some(content.to_string());
         let mut iter = Parser::new_ext(
             content,
             Options::ENABLE_YAML_STYLE_METADATA_BLOCKS

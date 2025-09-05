@@ -7,6 +7,7 @@ use std::{
 use basic_iter::GraphNodePointer;
 use graph_line::Line;
 use index::RefIndex;
+use log::debug;
 use rand::distr::{Alphanumeric, SampleString};
 use sections_builder::SectionsBuilder;
 
@@ -294,7 +295,10 @@ impl Graph {
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
             .par_iter()
-            .map(|(k, v)| (Key::name(k), reader.document(v, &markdown_options)))
+            .map(|(k, v)| {
+                debug!("parsing content, key={}", k);
+                (Key::name(k), reader.document(v, &markdown_options))
+            })
             .collect::<Vec<_>>();
 
         for (key, document) in blocks.into_iter() {

@@ -55,7 +55,14 @@ fn test_init_already_initialized() {
     let output1 = run_init_command(&temp_path);
     assert!(output1.status.success(), "First init should succeed");
 
-    let output2 = run_init_command(&temp_path);
+    let output2 = Command::new(get_iwe_binary_path())
+        .arg("init")
+        .arg("-v")
+        .arg("2")
+        .current_dir(&temp_path)
+        .output()
+        .expect("Failed to execute iwe init");
+
     assert!(output2.status.success(), "Command should not crash");
 
     let stderr = String::from_utf8(output2.stderr).expect("Valid UTF-8 stderr");
@@ -73,7 +80,14 @@ fn test_init_existing_iwe_file() {
     let iwe_file = temp_path.join(".iwe");
     File::create(&iwe_file).expect("Should create .iwe file");
 
-    let output = run_init_command(&temp_path);
+    let output = Command::new(get_iwe_binary_path())
+        .arg("init")
+        .arg("-v")
+        .arg("2")
+        .current_dir(&temp_path)
+        .output()
+        .expect("Failed to execute iwe init");
+
     assert!(output.status.success(), "Command should not crash");
 
     let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 stderr");
