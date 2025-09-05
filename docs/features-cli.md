@@ -82,7 +82,7 @@ iwe normalize
 iwe normalize
 
 # With debug output (global verbose option)
-iwe -v 1 normalize
+iwe -v 2 normalize
 ```
 
 **⚠️ Important:** Always backup your files before running normalization, especially the first time.
@@ -112,7 +112,7 @@ iwe paths
 iwe paths --depth 6
 
 # With debug output
-iwe paths -v 1 --depth 3
+iwe paths -v 2 --depth 3
 ```
 
 ### `iwe contents`
@@ -166,7 +166,7 @@ iwe squash --key project-overview
 iwe squash --key main-topic --depth 4
 
 # With debug output
-iwe squash --key research-notes --depth 3 -v 1
+iwe squash --key research-notes --depth 3 -v 2
 ```
 
 Example [PDF](https://github.com/iwe-org/iwe/blob/master/docs/book.pdf) generated using `squash` command and typst
@@ -258,10 +258,10 @@ iwe squash --key "project-summary" --depth 2 > project-overview.md
 
 ``` bash
 # Process with debug information
-iwe normalize -v 1
+iwe normalize -v 2
 
 # Analyze complex relationships with debug output
-iwe paths --depth 8 -v 1
+iwe paths --depth 8 -v 2
 
 # Export detailed visualization
 iwe export dot --include-headers --depth 5 > full-graph.dot
@@ -284,7 +284,7 @@ normalize_lists = true
 
 1.  **Start Small**: Test commands on a few files before processing large libraries
 2.  **Backup First**: Always backup before running `normalize` or other bulk operations
-3.  **Use Debug Mode**: Add `-v 1` to see detailed debug information about operations being performed
+3.  **Use Debug Mode**: Add `-v 2` to see detailed debug information about operations being performed
 4.  **Iterate Gradually**: Use increasing depth values to explore graph complexity
 5.  **Visualize Regularly**: Export graphs to understand document relationships
 6.  **Monitor Root Documents**: Use `contents` to track entry points as your library grows
