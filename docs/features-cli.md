@@ -29,11 +29,9 @@ iwe [OPTIONS] <COMMAND>
 ### Global Options
 
 - `-V`, `--version`: Display version information
-- `-v`, `--verbose <LEVEL>`: Set verbosity level (0-3, default: 0)
-  - `0`: Minimal output
-  - `1`: Basic progress information
-  - `2`: Detailed operation logs
-  - `3`: Debug-level information
+- `-v`, `--verbose <LEVEL>`: Set verbosity level (default: 0)
+  - `1`: Minimal output (INFO level messages to stderr)
+  - `2` or higher: Debug-level information to stderr
 - `-h`, `--help`: Show help information
 
 ## Commands Reference
@@ -83,7 +81,7 @@ iwe normalize
 # Basic normalization
 iwe normalize
 
-# With detailed output (global verbose option)
+# With debug output (global verbose option)
 iwe -v 2 normalize
 ```
 
@@ -110,11 +108,11 @@ iwe paths [OPTIONS]
 # Show paths up to depth 4
 iwe paths
 
-# Show deeper paths  
+# Show deeper paths
 iwe paths --depth 6
 
-# With verbose output
-iwe paths -v 1 --depth 3
+# With debug output
+iwe paths -v 2 --depth 3
 ```
 
 ### `iwe contents`
@@ -167,7 +165,7 @@ iwe squash --key project-overview
 # Squash with greater depth
 iwe squash --key main-topic --depth 4
 
-# With verbose output
+# With debug output
 iwe squash --key research-notes --depth 3 -v 2
 ```
 
@@ -241,7 +239,7 @@ iwe paths --depth 5
 # Find entry points
 iwe contents
 
-# Visualize specific topic area  
+# Visualize specific topic area
 iwe export dot --key "machine-learning" --include-headers > ml.dot
 dot -Tpng ml.dot -o ml-graph.png
 ```
@@ -259,13 +257,13 @@ iwe squash --key "project-summary" --depth 2 > project-overview.md
 ### Large Library Management
 
 ``` bash
-# Process with progress information
-iwe normalize -v 1
+# Process with debug information
+iwe normalize -v 2
 
-# Analyze complex relationships
-iwe paths --depth 8 -v 1
+# Analyze complex relationships with debug output
+iwe paths --depth 8 -v 2
 
-# Export detailed visualization  
+# Export detailed visualization
 iwe export dot --include-headers --depth 5 > full-graph.dot
 ```
 
@@ -286,7 +284,7 @@ normalize_lists = true
 
 1.  **Start Small**: Test commands on a few files before processing large libraries
 2.  **Backup First**: Always backup before running `normalize` or other bulk operations
-3.  **Use Verbosity**: Add `-v 1` or `-v 2` to understand what operations are being performed
+3.  **Use Debug Mode**: Add `-v 2` to see detailed debug information about operations being performed
 4.  **Iterate Gradually**: Use increasing depth values to explore graph complexity
 5.  **Visualize Regularly**: Export graphs to understand document relationships
 6.  **Monitor Root Documents**: Use `contents` to track entry points as your library grows

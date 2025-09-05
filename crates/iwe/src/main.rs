@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::{create_dir, OpenOptions};
+use std::fs::create_dir;
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
@@ -14,7 +14,7 @@ use liwe::model::config::{load_config, Configuration};
 use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
 use liwe::model::Key;
-use log::{debug, error};
+use log::{debug, error, info};
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
@@ -104,30 +104,24 @@ struct Paths {
 #[derive(Debug, Args)]
 struct GlobalOpts {
     #[clap(long, short, global = true, required = false, default_value = "0")]
-    verbose: usize,
+    verbose: u8,
 }
 
 fn main() {
-    if env::var("IWE_DEBUG").is_ok() {
-        tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::DEBUG)
-            .with_writer(
-                OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open("iwe.log")
-                    .expect("to open log file"),
-            )
-            .init();
-    } else {
-        tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::INFO)
-            .with_writer(std::io::stderr)
-            .init();
-    }
-
     debug!("parsing arguments");
     let app = App::parse();
+
+    if app.global_opts.verbose > 1 {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_writer(|| std::io::stderr())
+            .init();
+    } else if app.global_opts.verbose > 0 {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .with_writer(|| std::io::stderr())
+            .init();
+    }
 
     debug!("starting command processing");
     match app.command {
@@ -148,8 +142,7 @@ fn main() {
 
 #[tracing::instrument(level = "debug")]
 fn init_command(init: Init) {
-    debug!("Initializing IWE");
-
+    info!("initializing IWE");
     let mut path = env::current_dir().expect("to get current dir");
     path.push(IWE_MARKER);
     if path.is_dir() {
@@ -165,12 +158,13 @@ fn init_command(init: Init) {
     let toml = toml::to_string(&Configuration::template()).unwrap();
 
     std::fs::write(path.join(CONFIG_FILE_NAME), toml).expect("Failed to write to config.json");
-    debug!("IWE initialized in the current location. Default config added to .iwe/config.json");
+    info!("IWE initialized in the current location. Default config added to .iwe/config.json");
 }
 
 #[tracing::instrument(level = "debug")]
 fn paths_command(args: Paths) {
-    let graph = load_graph();
+    let config = get_configuration();
+    let graph = load_graph(&config);
 
     graph
         .paths()
@@ -184,7 +178,8 @@ fn paths_command(args: Paths) {
 
 #[tracing::instrument(level = "debug")]
 fn contents_command(args: Contents) {
-    let graph = load_graph();
+    let config = get_configuration();
+    let graph = load_graph(&config);
 
     println!("# Contents\n");
 
@@ -201,12 +196,15 @@ fn contents_command(args: Contents) {
 
 #[tracing::instrument(level = "debug")]
 fn normalize_command(args: Normalize) {
-    write_graph(load_graph());
+    let configuration = get_configuration();
+    let graph = load_graph(&configuration);
+    write_graph(graph, &configuration);
 }
 
 #[tracing::instrument(level = "debug")]
 fn squash_command(args: Squash) {
-    let graph = &load_graph();
+    let config = get_configuration();
+    let graph = &load_graph(&config);
     let mut patch = Graph::new();
     let squashed = graph.squash(&Key::name(&args.key), args.depth);
 
@@ -215,36 +213,38 @@ fn squash_command(args: Squash) {
     print!("{}", patch.export_key(&args.key.into()).unwrap())
 }
 
-#[tracing::instrument(level = "debug")]
-fn write_graph(graph: Graph) {
-    liwe::fs::write_store_at_path(&graph.export(), &get_library_path())
+fn write_graph(graph: Graph, configuration: &Configuration) {
+    liwe::fs::write_store_at_path(&graph.export(), &get_library_path(configuration))
         .expect("Failed to write graph")
 }
 
-#[tracing::instrument(level = "debug")]
-fn load_graph() -> Graph {
+fn load_graph(configuration: &Configuration) -> Graph {
     Graph::import(
-        &new_for_path(&get_library_path()),
-        get_configuration().markdown,
+        &new_for_path(&get_library_path(configuration)),
+        configuration.markdown.clone(),
     )
 }
 
-fn get_library_path() -> PathBuf {
+fn get_library_path(configuration: &Configuration) -> PathBuf {
     let current_dir = env::current_dir().expect("to get current dir");
 
-    let settings = get_configuration();
     let mut library_path = current_dir;
 
-    if !settings.library.path.is_empty() {
-        library_path.push(settings.library.path);
+    if !configuration.library.path.is_empty() {
+        library_path.push(configuration.library.path.clone());
     }
 
     library_path
 }
 
-#[tracing::instrument(level = "debug")]
 fn get_configuration() -> Configuration {
-    load_config()
+    let config = load_config();
+    if log::log_enabled!(log::Level::Debug) {
+        let formatted_config =
+            toml::to_string_pretty(&config).unwrap_or_else(|_| format!("{:#?}", config));
+        debug!("using config:\n{}", formatted_config);
+    }
+    config
 }
 
 fn render_block_reference(key: &Key, context: impl GraphContext) -> String {
@@ -267,7 +267,8 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
 
 #[tracing::instrument]
 fn export_command(args: Export) {
-    let graph = load_graph();
+    let config = get_configuration();
+    let graph = load_graph(&config);
     let data = graph_data::graph_data(
         args.key.clone().map(|s| Key::name(&s)).clone(),
         args.depth,
