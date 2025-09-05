@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.43](https://github.com/iwe-org/iwe/compare/iwe-v0.0.42...iwe-v0.0.43) - 2025-09-05
+
+### Added
+
+- Add --verbose flag for CLI and more debug logs ([#137](https://github.com/iwe-org/iwe/pull/137))
+
 ## [0.0.40](https://github.com/iwe-org/iwe/compare/iwe-v0.0.39...iwe-v0.0.40) - 2025-08-31
 
 ### Added
