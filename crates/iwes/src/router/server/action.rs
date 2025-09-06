@@ -76,7 +76,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .clone()
                             .markdown
                             .date_format
-                            .unwrap_or("%d %b, %Y".into()),
+                            .unwrap_or("%b %d, %Y".into()),
                         key_date_format: configuration
                             .clone()
                             .library
