@@ -85,6 +85,14 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
+                BlockAction::Sort(sort) => {
+                    let action = ActionEnum::SortAction(SortAction {
+                        title: sort.title.clone(),
+                        identifier: identifier.clone(),
+                        reverse: sort.reverse.unwrap_or(false),
+                    });
+                    action
+                }
             }),
     );
 
@@ -101,6 +109,7 @@ pub enum ActionEnum {
     SubSectionsExtract(SubSectionsExtract),
     TransformBlockAction(TransformBlockAction),
     AttachAction(AttachAction),
+    SortAction(SortAction),
 }
 
 impl ActionEnum {}
@@ -129,6 +138,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SubSectionsExtract(inner) => inner.identifier(),
             ActionEnum::TransformBlockAction(inner) => inner.identifier(),
             ActionEnum::AttachAction(inner) => inner.identifier(),
+            ActionEnum::SortAction(inner) => inner.identifier(),
         }
     }
 
@@ -143,6 +153,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SubSectionsExtract(inner) => inner.action(target_id, context),
             ActionEnum::TransformBlockAction(inner) => inner.action(target_id, context),
             ActionEnum::AttachAction(inner) => inner.action(target_id, context),
+            ActionEnum::SortAction(inner) => inner.action(target_id, context),
         }
     }
 
@@ -157,6 +168,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SubSectionsExtract(inner) => inner.changes(target_id, context),
             ActionEnum::TransformBlockAction(inner) => inner.changes(target_id, context),
             ActionEnum::AttachAction(inner) => inner.changes(target_id, context),
+            ActionEnum::SortAction(inner) => inner.changes(target_id, context),
         }
     }
 }
@@ -390,6 +402,52 @@ impl ActionProvider for TransformBlockAction {
             .to_markdown(&key.parent(), &context.markdown_options());
 
         Some(vec![Change::Update(Update { key, markdown })])
+    }
+}
+
+pub struct SortAction {
+    pub title: String,
+    pub identifier: String,
+    pub reverse: bool,
+}
+
+impl ActionProvider for SortAction {
+    fn identifier(&self) -> String {
+        format!("custom.{}", self.identifier.to_string())
+    }
+
+    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
+        let key = context.key_of(target_id);
+        context
+            .collect(&key)
+            .get_surrounding_list_id(target_id)
+            .filter(|scope_id| {
+                // Only offer the action if the list is not already sorted in the desired order
+                !context.collect(&key).is_sorted(*scope_id, self.reverse)
+            })
+            .map(|_| Action {
+                title: self.title.clone(),
+                identifier: self.identifier(),
+                target_id,
+            })
+    }
+
+    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
+        let key = context.key_of(target_id);
+
+        context
+            .collect(&key)
+            .get_surrounding_list_id(target_id)
+            .map(|scope_id| {
+                vec![Change::Update(Update {
+                    key: key.clone(),
+                    markdown: context
+                        .collect(&key)
+                        .sort_children(scope_id, self.reverse)
+                        .iter()
+                        .to_markdown(&key.parent(), context.markdown_options()),
+                })]
+            })
     }
 }
 

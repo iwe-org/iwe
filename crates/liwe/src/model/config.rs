@@ -70,6 +70,8 @@ pub enum BlockAction {
     Transform(Transform),
     #[serde(rename = "attach")]
     Attach(Attach),
+    #[serde(rename = "sort")]
+    Sort(Sort),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -85,6 +87,12 @@ pub struct Attach {
     pub title: String,
     pub key_template: String,
     pub document_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Sort {
+    pub title: String,
+    pub reverse: Option<bool>,
 }
 
 impl Default for Configuration {
@@ -240,6 +248,22 @@ impl Configuration {
                     context: Context::Document
                 }
             )
+        );
+
+        template.actions.insert(
+            "sort".into(),
+            BlockAction::Sort(Sort {
+                title: "Sort A-Z".into(),
+                reverse: Some(false),
+            }),
+        );
+
+        template.actions.insert(
+            "sort_desc".into(),
+            BlockAction::Sort(Sort {
+                title: "Sort Z-A".into(),
+                reverse: Some(true),
+            }),
         );
 
         template
