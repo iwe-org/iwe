@@ -495,6 +495,82 @@ impl Tree {
             _ => false,
         }
     }
+
+    pub fn sort_children(&self, node_id: NodeId, reverse: bool) -> Tree {
+        self.sort_children_rec(node_id, reverse)
+    }
+
+    pub fn is_sorted(&self, node_id: NodeId, reverse: bool) -> bool {
+        self.is_sorted_rec(node_id, reverse)
+    }
+
+    fn sort_children_rec(&self, target_id: NodeId, reverse: bool) -> Tree {
+        if self.id_eq(target_id) {
+            let mut sorted_children = self.children.clone();
+            sorted_children.sort_by(|a, b| {
+                let a_text = a.node.plain_text().to_lowercase();
+                let b_text = b.node.plain_text().to_lowercase();
+                if reverse {
+                    b_text.cmp(&a_text)
+                } else {
+                    a_text.cmp(&b_text)
+                }
+            });
+
+            return Tree {
+                id: self.id,
+                node: self.node.clone(),
+                children: sorted_children,
+            };
+        }
+
+        Tree {
+            id: self.id,
+            node: self.node.clone(),
+            children: self
+                .children
+                .iter()
+                .map(|child| child.sort_children_rec(target_id, reverse))
+                .collect(),
+        }
+    }
+
+    fn is_sorted_rec(&self, target_id: NodeId, reverse: bool) -> bool {
+        if self.id_eq(target_id) {
+            let texts: Vec<String> = self
+                .children
+                .iter()
+                .map(|child| child.node.plain_text().to_lowercase())
+                .collect();
+
+            if texts.len() <= 1 {
+                return true;
+            }
+
+            for i in 1..texts.len() {
+                let comparison = texts[i - 1].cmp(&texts[i]);
+                if reverse {
+                    if comparison == std::cmp::Ordering::Less {
+                        return false;
+                    }
+                } else {
+                    if comparison == std::cmp::Ordering::Greater {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        for child in &self.children {
+            if child.contains(target_id) {
+                return child.is_sorted_rec(target_id, reverse);
+            }
+        }
+
+        false
+    }
 }
 
 pub struct TreeIter<'a> {
