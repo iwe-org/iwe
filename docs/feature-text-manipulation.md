@@ -4,3 +4,4 @@ IWE offers a range of actions to help you perform context-aware transformations 
 
 - Transforming lists to headers/sections and vice-versa.
 - Changing list type (bullet/ordered).
+- Sorting list items.
