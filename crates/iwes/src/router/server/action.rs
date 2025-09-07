@@ -31,6 +31,9 @@ pub trait ActionContext {
     fn llm_query(&self, prompt: String, model: &Model) -> String;
     fn default_model(&self) -> &Model;
     fn patch(&self) -> Graph;
+    fn get_block_references_to(&self, key: &Key) -> Vec<NodeId>;
+    fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId>;
+    fn get_ref_text(&self, key: &Key) -> Option<String>;
 }
 
 pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
@@ -42,6 +45,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
         ActionEnum::SectionToList(SectionToList {}),
         ActionEnum::SectionExtract(SectionExtract {}),
         ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
+        ActionEnum::DeleteAction(DeleteAction {}),
     ];
 
     actions.extend(
@@ -110,6 +114,7 @@ pub enum ActionEnum {
     TransformBlockAction(TransformBlockAction),
     AttachAction(AttachAction),
     SortAction(SortAction),
+    DeleteAction(DeleteAction),
 }
 
 impl ActionEnum {}
@@ -139,6 +144,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::TransformBlockAction(inner) => inner.identifier(),
             ActionEnum::AttachAction(inner) => inner.identifier(),
             ActionEnum::SortAction(inner) => inner.identifier(),
+            ActionEnum::DeleteAction(inner) => inner.identifier(),
         }
     }
 
@@ -154,6 +160,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::TransformBlockAction(inner) => inner.action(target_id, context),
             ActionEnum::AttachAction(inner) => inner.action(target_id, context),
             ActionEnum::SortAction(inner) => inner.action(target_id, context),
+            ActionEnum::DeleteAction(inner) => inner.action(target_id, context),
         }
     }
 
@@ -169,6 +176,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::TransformBlockAction(inner) => inner.changes(target_id, context),
             ActionEnum::AttachAction(inner) => inner.changes(target_id, context),
             ActionEnum::SortAction(inner) => inner.changes(target_id, context),
+            ActionEnum::DeleteAction(inner) => inner.changes(target_id, context),
         }
     }
 }
@@ -287,7 +295,7 @@ impl ActionProvider for AttachAction {
 
     fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
         let key = context.key_of(target_id);
-        let reference_key = context.collect(&key).reference_key(target_id);
+        let reference_key = context.collect(&key).find_reference_key(target_id);
         let attach_to_key = self.format_target_key();
 
         if context.key_exists(&attach_to_key) {
@@ -313,13 +321,19 @@ impl ActionProvider for AttachAction {
 
     fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
         let key = context.key_of(target_id);
-        let reference_key = context.collect(&key).reference_key(target_id);
+        let reference_key = context.collect(&key).find_reference_key(target_id);
         let attach_to_key = self.format_target_key();
         let reference = Tree {
             id: None,
             node: Node::Reference(Reference {
                 key: reference_key,
-                text: context.collect(&key).reference_text(target_id),
+                text: {
+                    context
+                        .collect(&key)
+                        .find_id(target_id)
+                        .and_then(|tree| tree.node.reference_text())
+                        .unwrap_or_default()
+                },
                 reference_type: ReferenceType::Regular,
             }),
             children: vec![],
@@ -746,7 +760,7 @@ impl ActionProvider for ReferenceInlineSection {
         Some(target_id)
             .filter(|target_id| tree.get(*target_id).is_reference())
             .and_then(|target_id| {
-                let inline_key = context.collect(&key).reference_key(target_id);
+                let inline_key = context.collect(&key).find_reference_key(target_id);
 
                 context
                     .collect(&key)
@@ -761,7 +775,7 @@ impl ActionProvider for ReferenceInlineSection {
 
                         vec![
                             Change::Remove(Remove {
-                                key: context.collect(&key).reference_key(target_id),
+                                key: context.collect(&key).find_reference_key(target_id),
                             }),
                             Change::Update(Update {
                                 key: key,
@@ -798,7 +812,7 @@ impl ActionProvider for ReferenceInlineQuote {
         Some(target_id)
             .filter(|target_id| tree.get(*target_id).is_reference())
             .map(|reference_id| {
-                let inline_key = context.collect(&key).reference_key(reference_id);
+                let inline_key = context.collect(&key).find_reference_key(reference_id);
 
                 let quote = Tree {
                     id: None,
@@ -814,7 +828,7 @@ impl ActionProvider for ReferenceInlineQuote {
 
                 vec![
                     Change::Remove(Remove {
-                        key: context.collect(&key).reference_key(reference_id),
+                        key: context.collect(&key).find_reference_key(reference_id),
                     }),
                     Change::Update(Update {
                         key: key,
@@ -865,6 +879,65 @@ impl ActionProvider for SectionToList {
 
 static CODE_ACTION_MAP: Lazy<Mutex<HashMap<String, CodeActionKind>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+
+pub struct DeleteAction {}
+
+impl ActionProvider for DeleteAction {
+    fn identifier(&self) -> String {
+        "refactor.delete".to_string()
+    }
+
+    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
+        let key = context.key_of(target_id);
+        let tree = context.collect(&key);
+
+        Some(target_id)
+            .filter(|target_id| tree.get(*target_id).is_reference())
+            .map(|_| Action {
+                title: "Delete".to_string(),
+                identifier: self.identifier(),
+                target_id,
+            })
+    }
+
+    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
+        let key = context.key_of(target_id);
+        let tree = context.collect(&key);
+        let target_key = tree.find_reference_key(target_id);
+
+        let mut changes = vec![];
+
+        changes.push(Change::Remove(Remove {
+            key: target_key.clone(),
+        }));
+
+        context
+            .get_block_references_to(&target_key)
+            .into_iter()
+            .map(|node_id| context.key_of(node_id))
+            .chain(
+                context
+                    .get_inline_references_to(&target_key)
+                    .into_iter()
+                    .map(|node_id| context.key_of(node_id)),
+            )
+            .unique()
+            .sorted()
+            .for_each(|ref_key| {
+                changes.push(Change::Update(Update {
+                    key: ref_key.clone(),
+                    markdown: context
+                        .collect(&ref_key)
+                        .remove_block_references_to(&target_key)
+                        .remove_inline_links_to(&target_key)
+                        .iter()
+                        .to_markdown(&ref_key.parent(), context.markdown_options()),
+                }));
+            });
+
+        Some(changes)
+    }
+}
 
 pub fn identifier_to_action_kind(identifier: String) -> CodeActionKind {
     let mut map = CODE_ACTION_MAP.lock().unwrap();

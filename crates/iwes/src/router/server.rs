@@ -757,4 +757,16 @@ impl ActionContext for &Server {
     fn key_exists(&self, key: &Key) -> bool {
         self.database.graph().keys().contains(key)
     }
+
+    fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
+        self.database.graph().get_block_references_to(key)
+    }
+
+    fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
+        self.database.graph().get_inline_references_to(key)
+    }
+
+    fn get_ref_text(&self, key: &Key) -> Option<String> {
+        self.database.graph().get_key_title(key)
+    }
 }
