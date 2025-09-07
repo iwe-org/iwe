@@ -24,6 +24,8 @@
 
 [Linking and note templates](feature-attach.md)
 
+[Delete block references](feature-delete.md)
+
 [Navigation](feature-navigation.md)
 
 [Search](feature-rename.md)

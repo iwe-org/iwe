@@ -450,26 +450,13 @@ impl Tree {
         self.children.iter().find_map(|child| child.find_id(id))
     }
 
-    pub fn find_section(&self) -> Option<Tree> {
-        if self.is_section() {
-            return Some(self.clone());
-        }
-        self.children.iter().find_map(|child| child.find_section())
-    }
-
     pub fn get(&self, id: NodeId) -> Tree {
         self.find_id(id).unwrap()
     }
 
-    pub fn reference_key(&self, id: NodeId) -> Key {
+    pub fn find_reference_key(&self, id: NodeId) -> Key {
         self.find_id(id)
             .and_then(|tree| tree.node.reference_key())
-            .unwrap_or_default()
-    }
-
-    pub fn reference_text(&self, id: NodeId) -> String {
-        self.find_id(id)
-            .and_then(|tree| tree.node.reference_text())
             .unwrap_or_default()
     }
 
@@ -570,6 +557,95 @@ impl Tree {
         }
 
         false
+    }
+
+    pub fn remove_block_references_to(&self, target_key: &Key) -> Tree {
+        if self.reference_key_direct() == Some(target_key.clone()) {
+            return Tree {
+                id: None,
+                node: Node::Leaf(vec![]),
+                children: vec![],
+            };
+        }
+
+        Tree {
+            id: self.id,
+            node: self.node.clone(),
+            children: self
+                .children
+                .iter()
+                .map(|child| child.remove_block_references_to(target_key))
+                .filter(|child| !matches!(child.node, Node::Leaf(ref v) if v.is_empty()))
+                .collect(),
+        }
+    }
+
+    pub fn remove_inline_links_to(&self, target_key: &Key) -> Tree {
+        let updated_node = match &self.node {
+            Node::Leaf(inlines) => Node::Leaf(self.remove_inline_links_to_rec(inlines, target_key)),
+            Node::Section(inlines) => {
+                Node::Section(self.remove_inline_links_to_rec(inlines, target_key))
+            }
+            _ => self.node.clone(),
+        };
+
+        Tree {
+            id: self.id,
+            node: updated_node,
+            children: self
+                .children
+                .iter()
+                .map(|child| child.remove_inline_links_to(target_key))
+                .collect(),
+        }
+    }
+
+    fn remove_inline_links_to_rec(
+        &self,
+        inlines: &[GraphInline],
+        target_key: &Key,
+    ) -> Vec<GraphInline> {
+        inlines
+            .iter()
+            .map(|inline| match inline {
+                GraphInline::Link(url, _, _, _) => {
+                    if &Key::name(url) == target_key {
+                        GraphInline::Str(inline.plain_text())
+                    } else {
+                        inline.clone()
+                    }
+                }
+                GraphInline::Emph(nested) => {
+                    GraphInline::Emph(self.remove_inline_links_to_rec(nested, target_key))
+                }
+                GraphInline::Strong(nested) => {
+                    GraphInline::Strong(self.remove_inline_links_to_rec(nested, target_key))
+                }
+                GraphInline::Strikeout(nested) => {
+                    GraphInline::Strikeout(self.remove_inline_links_to_rec(nested, target_key))
+                }
+                GraphInline::Underline(nested) => {
+                    GraphInline::Underline(self.remove_inline_links_to_rec(nested, target_key))
+                }
+                GraphInline::Superscript(nested) => {
+                    GraphInline::Superscript(self.remove_inline_links_to_rec(nested, target_key))
+                }
+                GraphInline::Subscript(nested) => {
+                    GraphInline::Subscript(self.remove_inline_links_to_rec(nested, target_key))
+                }
+                GraphInline::SmallCaps(nested) => {
+                    GraphInline::SmallCaps(self.remove_inline_links_to_rec(nested, target_key))
+                }
+                _ => inline.clone(),
+            })
+            .collect()
+    }
+
+    fn reference_key_direct(&self) -> Option<Key> {
+        match &self.node {
+            Node::Reference(reference) => Some(reference.key.clone()),
+            _ => None,
+        }
     }
 }
 
