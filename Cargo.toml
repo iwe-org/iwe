@@ -59,3 +59,4 @@ tracing-subscriber = { version = "0.3.19", default-features = false, features = 
     "time",
     "tracing-log",
 ] }
+ignore = "0.4"
