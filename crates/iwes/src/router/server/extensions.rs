@@ -9,7 +9,7 @@ use lsp_types::*;
 use liwe::graph::GraphContext;
 use liwe::model::{Content, Key};
 
-use super::action::Change;
+use super::actions::Change;
 use super::BasePath;
 
 #[ext]
