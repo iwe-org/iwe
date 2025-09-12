@@ -12,7 +12,6 @@ use std::sync::Mutex;
 
 use super::{BasePath, ChangeExt};
 
-// Sub-modules for each action type
 mod attach;
 mod delete;
 mod extract;
@@ -25,7 +24,7 @@ mod transform;
 pub use attach::AttachAction;
 pub use delete::DeleteAction;
 pub use extract::{SectionExtract, SubSectionsExtract};
-pub use inline::{ReferenceInlineQuote, ReferenceInlineSection};
+pub use inline::{InlineAction, ReferenceInlineQuote, ReferenceInlineSection};
 pub use list::{ListChangeType, ListToSections};
 pub use section::SectionToList;
 pub use sort::SortAction;
@@ -129,6 +128,7 @@ pub enum ActionEnum {
     TransformBlockAction(TransformBlockAction),
     AttachAction(AttachAction),
     SortAction(SortAction),
+    InlineAction(InlineAction),
     DeleteAction(DeleteAction),
 }
 
@@ -145,6 +145,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::TransformBlockAction(inner) => inner.identifier(),
             ActionEnum::AttachAction(inner) => inner.identifier(),
             ActionEnum::SortAction(inner) => inner.identifier(),
+            ActionEnum::InlineAction(inner) => inner.identifier(),
             ActionEnum::DeleteAction(inner) => inner.identifier(),
         }
     }
@@ -161,6 +162,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::TransformBlockAction(inner) => inner.action(target_id, context),
             ActionEnum::AttachAction(inner) => inner.action(target_id, context),
             ActionEnum::SortAction(inner) => inner.action(target_id, context),
+            ActionEnum::InlineAction(inner) => inner.action(target_id, context),
             ActionEnum::DeleteAction(inner) => inner.action(target_id, context),
         }
     }
@@ -177,6 +179,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::TransformBlockAction(inner) => inner.changes(target_id, context),
             ActionEnum::AttachAction(inner) => inner.changes(target_id, context),
             ActionEnum::SortAction(inner) => inner.changes(target_id, context),
+            ActionEnum::InlineAction(inner) => inner.changes(target_id, context),
             ActionEnum::DeleteAction(inner) => inner.changes(target_id, context),
         }
     }
@@ -208,8 +211,6 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
     let mut actions = vec![
         ActionEnum::ListChangeType(ListChangeType {}),
         ActionEnum::ListToSections(ListToSections {}),
-        ActionEnum::ReferenceInlineSection(ReferenceInlineSection {}),
-        ActionEnum::ReferenceInlineQuote(ReferenceInlineQuote {}),
         ActionEnum::SectionToList(SectionToList {}),
         ActionEnum::SectionExtract(SectionExtract {}),
         ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
@@ -262,6 +263,14 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                         title: sort.title.clone(),
                         identifier: identifier.clone(),
                         reverse: sort.reverse.unwrap_or(false),
+                    });
+                    action
+                }
+                BlockAction::Inline(inline) => {
+                    let action = ActionEnum::InlineAction(InlineAction {
+                        title: inline.title.clone(),
+                        identifier: identifier.clone(),
+                        inline_type: inline.inline_type.clone(),
                     });
                     action
                 }

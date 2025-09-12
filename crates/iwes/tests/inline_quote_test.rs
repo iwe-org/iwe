@@ -1,4 +1,5 @@
 use indoc::indoc;
+use liwe::model::config::Configuration;
 use lsp_types::{
     CodeAction, CodeActionContext, CodeActionParams, DeleteFile, DocumentChangeOperation,
     DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp,
@@ -62,7 +63,7 @@ fn inline_with_content_after_ref() {
 }
 
 fn assert_inlined(source: &str, line: u32, inlined: &str) {
-    let fixture = Fixture::with(source);
+    let fixture = Fixture::with_config(source, Configuration::template());
 
     let delete = DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
         uri: uri(2),
@@ -74,7 +75,7 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
             text_document: TextDocumentIdentifier { uri: uri(1) },
             range: Range::new(Position::new(line, 0), Position::new(line, 0)),
             context: CodeActionContext {
-                only: action_kinds("refactor.inline.reference.quote"),
+                only: action_kinds("custom.inline_quote"),
                 ..Default::default()
             },
             work_done_progress_params: Default::default(),
@@ -82,7 +83,7 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
         },
         CodeAction {
             title: "Inline quote".to_string(),
-            kind: action_kind("refactor.inline.reference.quote"),
+            kind: action_kind("custom.inline_quote"),
             edit: Some(lsp_types::WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(vec![
                     delete,

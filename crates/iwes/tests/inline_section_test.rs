@@ -1,6 +1,7 @@
 use std::u32;
 
 use indoc::indoc;
+use liwe::model::config::Configuration;
 use lsp_types::{
     CodeAction, CodeActionContext, CodeActionParams, CodeActionTriggerKind, DeleteFile,
     DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
@@ -274,7 +275,7 @@ fn inline_one_of_sub_level_section() {
 }
 
 fn assert_inlined(source: &str, line: u32, inlined: &str) {
-    let fixture = Fixture::with(source);
+    let fixture = Fixture::with_config(source, Configuration::template());
 
     let delete = DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
         uri: uri(2),
@@ -293,13 +294,13 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
             partial_result_params: Default::default(),
             context: CodeActionContext {
                 diagnostics: Default::default(),
-                only: action_kinds("refactor.inline.reference.section"),
+                only: action_kinds("custom.inline_section"),
                 trigger_kind: Some(CodeActionTriggerKind::INVOKED),
             },
         },
         CodeAction {
             title: "Inline section".to_string(),
-            kind: action_kind("refactor.inline.reference.section"),
+            kind: action_kind("custom.inline_section"),
             edit: Some(lsp_types::WorkspaceEdit {
                 document_changes: Some(DocumentChanges::Operations(vec![
                     delete,
@@ -322,7 +323,7 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
 }
 
 fn assert_no_action(source: &str, line: u32) {
-    let fixture = Fixture::with(source);
+    let fixture = Fixture::with_config(source, Configuration::template());
 
     fixture.no_code_action(CodeActionParams {
         text_document: TextDocumentIdentifier { uri: uri(1) },
@@ -331,7 +332,7 @@ fn assert_no_action(source: &str, line: u32) {
         partial_result_params: Default::default(),
         context: CodeActionContext {
             diagnostics: Default::default(),
-            only: action_kinds("refactor.extract.section"),
+            only: action_kinds("custom.inline_section"),
             trigger_kind: None,
         },
     })
