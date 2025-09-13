@@ -101,6 +101,7 @@ pub struct Sort {
 pub struct Inline {
     pub title: String,
     pub inline_type: InlineType,
+    pub keep_target: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -287,6 +288,7 @@ impl Configuration {
             BlockAction::Inline(Inline {
                 title: "Inline section".into(),
                 inline_type: InlineType::Section,
+                keep_target: Some(false),
             }),
         );
 
@@ -295,6 +297,7 @@ impl Configuration {
             BlockAction::Inline(Inline {
                 title: "Inline quote".into(),
                 inline_type: InlineType::Quote,
+                keep_target: Some(false),
             }),
         );
 

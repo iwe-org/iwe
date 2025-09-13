@@ -24,7 +24,7 @@ mod transform;
 pub use attach::AttachAction;
 pub use delete::DeleteAction;
 pub use extract::{SectionExtract, SubSectionsExtract};
-pub use inline::{InlineAction, ReferenceInlineQuote, ReferenceInlineSection};
+pub use inline::InlineAction;
 pub use list::{ListChangeType, ListToSections};
 pub use section::SectionToList;
 pub use sort::SortAction;
@@ -120,8 +120,6 @@ pub trait ActionProvider {
 pub enum ActionEnum {
     ListChangeType(ListChangeType),
     ListToSections(ListToSections),
-    ReferenceInlineSection(ReferenceInlineSection),
-    ReferenceInlineQuote(ReferenceInlineQuote),
     SectionToList(SectionToList),
     SectionExtract(SectionExtract),
     SubSectionsExtract(SubSectionsExtract),
@@ -137,8 +135,6 @@ impl ActionProvider for ActionEnum {
         match self {
             ActionEnum::ListChangeType(inner) => inner.identifier(),
             ActionEnum::ListToSections(inner) => inner.identifier(),
-            ActionEnum::ReferenceInlineSection(inner) => inner.identifier(),
-            ActionEnum::ReferenceInlineQuote(inner) => inner.identifier(),
             ActionEnum::SectionToList(inner) => inner.identifier(),
             ActionEnum::SectionExtract(inner) => inner.identifier(),
             ActionEnum::SubSectionsExtract(inner) => inner.identifier(),
@@ -154,8 +150,6 @@ impl ActionProvider for ActionEnum {
         match self {
             ActionEnum::ListChangeType(inner) => inner.action(target_id, context),
             ActionEnum::ListToSections(inner) => inner.action(target_id, context),
-            ActionEnum::ReferenceInlineSection(inner) => inner.action(target_id, context),
-            ActionEnum::ReferenceInlineQuote(inner) => inner.action(target_id, context),
             ActionEnum::SectionToList(inner) => inner.action(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.action(target_id, context),
             ActionEnum::SubSectionsExtract(inner) => inner.action(target_id, context),
@@ -171,8 +165,6 @@ impl ActionProvider for ActionEnum {
         match self {
             ActionEnum::ListChangeType(inner) => inner.changes(target_id, context),
             ActionEnum::ListToSections(inner) => inner.changes(target_id, context),
-            ActionEnum::ReferenceInlineSection(inner) => inner.changes(target_id, context),
-            ActionEnum::ReferenceInlineQuote(inner) => inner.changes(target_id, context),
             ActionEnum::SectionToList(inner) => inner.changes(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.changes(target_id, context),
             ActionEnum::SubSectionsExtract(inner) => inner.changes(target_id, context),
@@ -199,8 +191,6 @@ pub fn all_actions() -> Vec<ActionEnum> {
     vec![
         ActionEnum::ListChangeType(ListChangeType {}),
         ActionEnum::ListToSections(ListToSections {}),
-        ActionEnum::ReferenceInlineSection(ReferenceInlineSection {}),
-        ActionEnum::ReferenceInlineQuote(ReferenceInlineQuote {}),
         ActionEnum::SectionToList(SectionToList {}),
         ActionEnum::SectionExtract(SectionExtract {}),
         ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
@@ -271,6 +261,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                         title: inline.title.clone(),
                         identifier: identifier.clone(),
                         inline_type: inline.inline_type.clone(),
+                        keep_target: inline.keep_target.unwrap_or(false),
                     });
                     action
                 }
