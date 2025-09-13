@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::str::FromStr;
 
 use actions::all_action_types;
 use actions::ActionContext;
@@ -52,25 +53,46 @@ pub struct BasePath {
 }
 
 impl BasePath {
-    fn key_to_url(&self, key: &Key) -> Url {
-        Url::parse(&self.base_path)
-            .unwrap()
-            .join(&key.to_path())
+    fn key_to_url(&self, key: &Key) -> Uri {
+        if self.base_path.starts_with("file://") {
+            Uri::from_str(&format!("{}{}", self.base_path, key.to_path())).expect("to work")
+        } else {
+            Uri::from_str(&format!(
+                "file://{}",
+                Path::new(&self.base_path).join(&key.to_path()).display()
+            ))
             .expect("to work")
+        }
     }
 
-    fn relative_to_full_path(&self, url: &str) -> Url {
-        Url::parse(&self.base_path)
-            .unwrap()
-            .join(&format!("{}.md", url.trim_end_matches(".md")))
+    fn relative_to_full_path(&self, url: &str) -> Uri {
+        if self.base_path.starts_with("file://") {
+            Uri::from_str(&format!(
+                "{}{}.md",
+                self.base_path,
+                url.trim_end_matches(".md")
+            ))
             .expect("to work")
+        } else {
+            Uri::from_str(&format!(
+                "file://{}",
+                Path::new(&self.base_path)
+                    .join(&format!("{}.md", url.trim_end_matches(".md")))
+                    .display()
+            ))
+            .expect("to work")
+        }
     }
 
-    fn name_to_url(&self, key: &str) -> Url {
-        Url::parse(&format!("{}{}.md", self.base_path, key)).unwrap()
+    fn name_to_url(&self, key: &str) -> Uri {
+        if self.base_path.starts_with("file://") {
+            Uri::from_str(&format!("{}{}.md", self.base_path, key)).expect("to work")
+        } else {
+            Uri::from_str(&format!("file://{}{}.md", self.base_path, key)).expect("to work")
+        }
     }
 
-    fn url_to_key(&self, url: &Url) -> Key {
+    fn url_to_key(&self, url: &Uri) -> Key {
         Key::name(
             &url.to_string()
                 .trim_start_matches(&self.base_path)

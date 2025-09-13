@@ -1,5 +1,6 @@
 use indoc::indoc;
 use liwe::model::config::MarkdownOptions;
+use std::str::FromStr;
 
 mod fixture;
 use crate::fixture::*;
@@ -22,7 +23,9 @@ fn definition() {
             "})
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 0),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/link.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
     );
 }
 
@@ -36,7 +39,9 @@ fn definition_in_paragraph() {
             "})
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 5),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/link.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
     )
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 17),
@@ -54,7 +59,9 @@ fn definition_in_paragraph_wiki_link() {
             "})
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 5),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/link.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
     )
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 17),
@@ -72,7 +79,9 @@ fn definition_in_paragraph_piped_wiki_link() {
             "})
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 7),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/link.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
     )
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 1),
@@ -90,7 +99,9 @@ fn definition_in_list() {
             "})
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 5),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/link.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
     );
 }
 
@@ -106,7 +117,9 @@ fn definition_in_nested_list() {
             "})
     .go_to_definition(
         uri(1).to_goto_definition_params(4, 8),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/link.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
     );
 }
 
@@ -126,7 +139,9 @@ fn definition_with_md_extension() {
     )
     .go_to_definition(
         uri(1).to_goto_definition_params(2, 0),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/link.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
     );
 }
 
@@ -134,6 +149,8 @@ fn definition_with_md_extension() {
 fn definition_with_relative_path() {
     Fixture::with_documents(vec![("d/1", "[](2)")]).go_to_definition(
         uri_from("d/1").to_goto_definition_params(0, 0),
-        goto_definition_response_single(lsp_types::Url::parse("file:///basepath/d/2.md").unwrap()),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/d/2.md").unwrap(),
+        ),
     );
 }

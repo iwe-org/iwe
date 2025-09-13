@@ -103,7 +103,7 @@ pub impl Change {
 }
 
 #[ext]
-pub impl Url {
+pub impl Uri {
     fn to_key(&self, base_path: &BasePath) -> Key {
         base_path.url_to_key(&self.clone())
     }
@@ -260,14 +260,14 @@ pub impl NodePath {
 
 #[ext]
 pub impl String {
-    fn to_url(&self, base_path: &BasePath) -> Url {
+    fn to_url(&self, base_path: &BasePath) -> Uri {
         base_path.name_to_url(&self.clone())
     }
 }
 
 #[ext]
 pub impl Key {
-    fn to_full_url(&self, base_path: &BasePath) -> Url {
+    fn to_full_url(&self, base_path: &BasePath) -> Uri {
         base_path.key_to_url(&self.clone())
     }
 
