@@ -4,6 +4,7 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
+    str::FromStr,
     time::Duration,
 };
 
@@ -45,7 +46,7 @@ pub struct ServerStatusParams {
 }
 
 #[ext]
-pub impl Url {
+pub impl Uri {
     fn to_edit(self, new_content: &str) -> DocumentChangeOperation {
         self.to_edit_with_range(
             new_content,
@@ -348,13 +349,13 @@ mod tests {
     }
 }
 
-pub fn uri(number: u32) -> Url {
-    Url::from_file_path(format!("/basepath/{}.md", number)).unwrap()
+pub fn uri(number: u32) -> Uri {
+    Uri::from_str(&format!("file:///basepath/{}.md", number)).unwrap()
 }
 
 #[allow(unused, dead_code)]
-pub fn uri_from(key: &str) -> Url {
-    Url::from_file_path(format!("/basepath/{}.md", key)).unwrap()
+pub fn uri_from(key: &str) -> Uri {
+    Uri::from_str(&format!("file:///basepath/{}.md", key)).unwrap()
 }
 
 #[allow(unused, dead_code)]
@@ -407,7 +408,7 @@ pub fn goto_definition_response_empty() -> GotoDefinitionResponse {
     GotoDefinitionResponse::Array(vec![])
 }
 
-pub fn goto_definition_response_single(uri: Url) -> GotoDefinitionResponse {
+pub fn goto_definition_response_single(uri: Uri) -> GotoDefinitionResponse {
     GotoDefinitionResponse::Scalar(Location::new(uri, Range::default()))
 }
 
