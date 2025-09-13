@@ -3,11 +3,8 @@ use lsp_types::{
     Position, Range, SymbolInformation, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 
-use fixture::{uri, uri_from};
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 #[allow(deprecated)]

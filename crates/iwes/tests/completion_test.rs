@@ -4,11 +4,8 @@ use lsp_types::{
     TextDocumentIdentifier, TextDocumentPositionParams,
 };
 
-use fixture::{uri, uri_from};
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn completion_test() {

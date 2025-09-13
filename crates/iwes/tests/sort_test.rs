@@ -1,18 +1,9 @@
-use std::u32;
-
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Sort};
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, DocumentChangeOperation, DocumentChanges,
-    OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, TextDocumentEdit,
-    TextDocumentIdentifier, TextEdit, WorkspaceEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
+use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn sort_simple_list() {
@@ -47,31 +38,13 @@ fn sort_simple_list() {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Sort".to_string(),
-            kind: action_kind("custom.sort"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: indoc! {"
-                                - apple
-                                - banana
-                                - zebra
-                                "}
-                            .to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(1).to_edit(indoc! {"
+                - apple
+                - banana
+                - zebra
+                "})]
+        .to_workspace_edit()
+        .to_code_action("Sort", "custom.sort"),
     )
 }
 
@@ -176,31 +149,13 @@ fn sort_offered_when_partially_sorted() {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Sort A-Z".to_string(),
-            kind: action_kind("custom.sort"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: indoc! {"
-                                - apple
-                                - banana
-                                - zebra
-                                "}
-                            .to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(1).to_edit(indoc! {"
+                - apple
+                - banana
+                - zebra
+                "})]
+        .to_workspace_edit()
+        .to_code_action("Sort A-Z", "custom.sort"),
     )
 }
 
@@ -237,31 +192,13 @@ fn sort_list_descending() {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Sort Descending".to_string(),
-            kind: action_kind("custom.sort"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: indoc! {"
-                                - zebra
-                                - banana
-                                - apple
-                                "}
-                            .to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(1).to_edit(indoc! {"
+                - zebra
+                - banana
+                - apple
+                "})]
+        .to_workspace_edit()
+        .to_code_action("Sort Descending", "custom.sort"),
     )
 }
 
@@ -298,30 +235,12 @@ fn sort_ordered_list() {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Sort".to_string(),
-            kind: action_kind("custom.sort"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: indoc! {"
-                                1.  apple
-                                2.  banana
-                                3.  zebra
-                                "}
-                            .to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(1).to_edit(indoc! {"
+                1.  apple
+                2.  banana
+                3.  zebra
+                "})]
+        .to_workspace_edit()
+        .to_code_action("Sort", "custom.sort"),
     )
 }

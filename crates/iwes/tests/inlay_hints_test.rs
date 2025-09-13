@@ -3,11 +3,8 @@ use lsp_types::{
     InlayHint, InlayHintLabel, InlayHintParams, Position, Range, TextDocumentIdentifier,
 };
 
-use fixture::uri;
-
-use crate::fixture::{uri_from, Fixture};
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn single_ref() {

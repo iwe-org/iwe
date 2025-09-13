@@ -1,17 +1,8 @@
-use std::u32;
-
 use indoc::indoc;
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, CreateFile, CreateFileOptions,
-    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
-    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri, uri_from};
-
-use crate::fixture::Fixture;
+use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn to_level_extract_not_allowed() {
@@ -246,87 +237,25 @@ fn test_extracted_relative() {
                 trigger_kind: None,
             },
         },
-        CodeAction {
-            title: "Extract section".to_string(),
-            kind: action_kind("refactor.extract.section"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                        uri: uri_from("d/2"),
-                        options: Some(CreateFileOptions {
-                            overwrite: Some(false),
-                            ignore_if_exists: Some(false),
-                        }),
-                        annotation_id: None,
-                    })),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri_from("d/2"),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: "# target\n".to_string(),
-                        })],
-                    }),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri_from("d/1"),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: "# test\n\n[target](2)\n".to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![
+            uri_from("d/2").to_create_file(),
+            uri_from("d/2").to_edit("# target\n"),
+            uri_from("d/1").to_edit("# test\n\n[target](2)\n"),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Extract section", "refactor.extract.section"),
     )
 }
 
 fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
     let fixture = Fixture::with(source);
-    let action = CodeAction {
-        title: "Extract section".to_string(),
-        kind: action_kind("refactor.extract.section"),
-        edit: Some(lsp_types::WorkspaceEdit {
-            document_changes: Some(DocumentChanges::Operations(vec![
-                DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                    uri: uri(2),
-                    options: Some(CreateFileOptions {
-                        overwrite: Some(false),
-                        ignore_if_exists: Some(false),
-                    }),
-                    annotation_id: None,
-                })),
-                DocumentChangeOperation::Edit(TextDocumentEdit {
-                    text_document: OptionalVersionedTextDocumentIdentifier {
-                        uri: uri(2),
-                        version: None,
-                    },
-                    edits: vec![OneOf::Left(TextEdit {
-                        range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                        new_text: extracted.to_string(),
-                    })],
-                }),
-                DocumentChangeOperation::Edit(TextDocumentEdit {
-                    text_document: OptionalVersionedTextDocumentIdentifier {
-                        uri: uri(1),
-                        version: None,
-                    },
-                    edits: vec![OneOf::Left(TextEdit {
-                        range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                        new_text: target.to_string(),
-                    })],
-                }),
-            ])),
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
+    let action = vec![
+        uri(2).to_create_file(),
+        uri(2).to_edit(extracted),
+        uri(1).to_edit(target),
+    ]
+    .to_workspace_edit()
+    .to_code_action("Extract section", "refactor.extract.section");
 
     fixture.code_action(
         CodeActionParams {
@@ -359,44 +288,13 @@ fn assert_extracted_helix(source: &str, line: u32, target: &str, extracted: &str
                 trigger_kind: None,
             },
         },
-        CodeAction {
-            title: "Extract section".to_string(),
-            kind: action_kind("refactor.extract.section"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                        uri: uri(2),
-                        options: Some(CreateFileOptions {
-                            overwrite: Some(false),
-                            ignore_if_exists: Some(false),
-                        }),
-                        annotation_id: None,
-                    })),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(2),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: extracted.to_string(),
-                        })],
-                    }),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: target.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![
+            uri(2).to_create_file(),
+            uri(2).to_edit(extracted),
+            uri(1).to_edit(target),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Extract section", "refactor.extract.section"),
     )
 }
 fn assert_no_action(source: &str, line: u32) {

@@ -4,11 +4,8 @@ use lsp_types::{
     TextDocumentIdentifier, TextDocumentPositionParams, WorkDoneProgressParams,
 };
 
-use fixture::uri;
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn single_reference() {

@@ -1,17 +1,12 @@
 use indoc::indoc;
 use lsp_server::ResponseError;
 use lsp_types::{
-    CreateFile, CreateFileOptions, DeleteFile, DocumentChangeOperation, DocumentChanges, OneOf,
-    OptionalVersionedTextDocumentIdentifier, Position, PrepareRenameResponse, Range, RenameParams,
-    ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextDocumentPositionParams, TextEdit,
-    WorkspaceEdit,
+    Position, PrepareRenameResponse, Range, RenameParams, TextDocumentIdentifier,
+    TextDocumentPositionParams,
 };
 
-use fixture::{uri, uri_from};
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn basic_prepare_rename() {
@@ -128,6 +123,7 @@ fn assert_rename(source: &str, expected: &str) {
 
 fn assert_rename_at(source: &str, expected: &str, position: Position, new_name: &str) {
     let fixture = Fixture::with(source);
+    let new_uri = uri_from(new_name);
 
     fixture.rename(
         RenameParams {
@@ -138,34 +134,15 @@ fn assert_rename_at(source: &str, expected: &str, position: Position, new_name: 
             new_name: new_name.to_string(),
             work_done_progress_params: Default::default(),
         },
-        WorkspaceEdit {
-            changes: None,
-            document_changes: Some(DocumentChanges::Operations(vec![
-                DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
-                    uri: uri(1),
-                    options: None,
-                })),
-                DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                    uri: uri_from("new_name"),
-                    options: Some(CreateFileOptions {
-                        overwrite: Some(false),
-                        ignore_if_exists: Some(false),
-                    }),
-                    annotation_id: None,
-                })),
-                DocumentChangeOperation::Edit(TextDocumentEdit {
-                    text_document: OptionalVersionedTextDocumentIdentifier {
-                        uri: uri_from("new_name"),
-                        version: None,
-                    },
-                    edits: vec![OneOf::Left(TextEdit {
-                        new_text: expected.to_string(),
-                        range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-                    })],
-                }),
-            ])),
-            change_annotations: None,
-        },
+        vec![
+            uri(1).to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                expected,
+                Range::new(Position::new(0, 0), Position::new(0, 0)),
+            ),
+        ]
+        .to_workspace_edit(),
     );
 }
 
@@ -191,6 +168,7 @@ fn assert_rename_error(source: &str, expected: &str, position: Position, new_nam
 
 fn assert_rename_updates_second_file(source: &str, expected1: &str, expected2: &str) {
     let fixture = Fixture::with(source);
+    let new_uri = uri_from("new_name");
 
     fixture.rename(
         RenameParams {
@@ -201,43 +179,15 @@ fn assert_rename_updates_second_file(source: &str, expected1: &str, expected2: &
             new_name: "new_name".to_string(),
             work_done_progress_params: Default::default(),
         },
-        WorkspaceEdit {
-            changes: None,
-            document_changes: Some(DocumentChanges::Operations(vec![
-                DocumentChangeOperation::Edit(TextDocumentEdit {
-                    text_document: OptionalVersionedTextDocumentIdentifier {
-                        uri: uri(2),
-                        version: None,
-                    },
-                    edits: vec![OneOf::Left(TextEdit {
-                        new_text: expected2.to_string(),
-                        range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                    })],
-                }),
-                DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
-                    uri: uri(1),
-                    options: None,
-                })),
-                DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                    uri: uri_from("new_name"),
-                    options: Some(CreateFileOptions {
-                        overwrite: Some(false),
-                        ignore_if_exists: Some(false),
-                    }),
-                    annotation_id: None,
-                })),
-                DocumentChangeOperation::Edit(TextDocumentEdit {
-                    text_document: OptionalVersionedTextDocumentIdentifier {
-                        uri: uri_from("new_name"),
-                        version: None,
-                    },
-                    edits: vec![OneOf::Left(TextEdit {
-                        new_text: expected1.to_string(),
-                        range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-                    })],
-                }),
-            ])),
-            change_annotations: None,
-        },
+        vec![
+            uri(2).to_edit(expected2),
+            uri(1).to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                expected1,
+                Range::new(Position::new(0, 0), Position::new(0, 0)),
+            ),
+        ]
+        .to_workspace_edit(),
     );
 }

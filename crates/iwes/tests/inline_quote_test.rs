@@ -1,16 +1,9 @@
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, DeleteFile, DocumentChangeOperation,
-    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp,
-    TextDocumentEdit, TextDocumentIdentifier, TextEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
+use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn inline_quote_test() {
@@ -161,19 +154,6 @@ fn assert_inlined_with_keep_target(source: &str, line: u32, inlined: &str) {
 
     let fixture = Fixture::with_config(source, config);
 
-    let mut operations = vec![];
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: inlined.to_string(),
-        })],
-    }));
-
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
@@ -185,39 +165,15 @@ fn assert_inlined_with_keep_target(source: &str, line: u32, inlined: &str) {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Inline quote (keep target)".to_string(),
-            kind: action_kind("custom.inline_quote_keep"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(operations)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline quote (keep target)", "custom.inline_quote_keep"),
     )
 }
 
 fn assert_inlined(source: &str, line: u32, inlined: &str) {
     let fixture = Fixture::with_config(source, Configuration::template());
 
-    let mut operations = vec![DocumentChangeOperation::Op(ResourceOp::Delete(
-        DeleteFile {
-            uri: uri(2),
-            options: None,
-        },
-    ))];
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: inlined.to_string(),
-        })],
-    }));
-
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
@@ -229,50 +185,15 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Inline quote".to_string(),
-            kind: action_kind("custom.inline_quote"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(operations)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline quote", "custom.inline_quote"),
     )
 }
 
 fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, additional_updates: &str) {
     let fixture = Fixture::with_config(source, Configuration::template());
 
-    let mut operations = vec![DocumentChangeOperation::Op(ResourceOp::Delete(
-        DeleteFile {
-            uri: uri(2),
-            options: None,
-        },
-    ))];
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: inlined.to_string(),
-        })],
-    }));
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(3),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: additional_updates.to_string(),
-        })],
-    }));
-
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
@@ -284,14 +205,12 @@ fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, addition
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Inline quote".to_string(),
-            kind: action_kind("custom.inline_quote"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(operations)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![
+            uri(2).to_delete_file(),
+            uri(1).to_edit(inlined),
+            uri(3).to_edit(additional_updates),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Inline quote", "custom.inline_quote"),
     )
 }

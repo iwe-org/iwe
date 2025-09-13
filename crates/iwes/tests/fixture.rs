@@ -4,6 +4,15 @@ use std::{
     time::Duration,
 };
 
+use std::u32;
+
+use extend::ext;
+use lsp_types::{
+    CodeAction, CodeActionKind, CreateFile, CreateFileOptions, DeleteFile, DocumentChangeOperation,
+    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp,
+    TextDocumentEdit, TextEdit, Url, WorkspaceEdit,
+};
+
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
 use liwe::{model::config::Configuration, state::from_indoc};
@@ -14,12 +23,11 @@ use lsp_types::{
         CodeActionRequest, Completion, Formatting, GotoDefinition, InlayHintRequest, References,
         Shutdown, WorkspaceSymbolRequest,
     },
-    CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CompletionParams,
-    CompletionResponse, DidChangeTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, GotoDefinitionParams, GotoDefinitionResponse, InlayHint,
-    InlayHintParams, Location, PrepareRenameResponse, ReferenceParams, RenameParams,
-    TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit, WorkspaceSymbolParams,
-    WorkspaceSymbolResponse,
+    CodeActionOrCommand, CodeActionParams, CompletionParams, CompletionResponse,
+    DidChangeTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
+    GotoDefinitionParams, GotoDefinitionResponse, InlayHint, InlayHintParams, Location,
+    PrepareRenameResponse, ReferenceParams, RenameParams, TextDocumentPositionParams,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -47,6 +55,131 @@ pub struct ServerStatusParams {
     pub health: Health,
     pub quiescent: bool,
     pub message: Option<String>,
+}
+
+#[ext]
+pub impl Url {
+    fn to_edit(self, new_content: &str) -> DocumentChangeOperation {
+        self.to_edit_with_range(
+            new_content,
+            Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
+        )
+    }
+
+    /// Creates a TextDocumentEdit that replaces the entire document content with a specific range
+    fn to_edit_with_range(self, new_content: &str, range: Range) -> DocumentChangeOperation {
+        DocumentChangeOperation::Edit(TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: self,
+                version: None,
+            },
+            edits: vec![OneOf::Left(TextEdit {
+                range,
+                new_text: new_content.to_string(),
+            })],
+        })
+    }
+
+    /// Creates a CreateFile operation
+    fn to_create_file(self) -> DocumentChangeOperation {
+        self.to_create_file_with_options(false, false)
+    }
+
+    /// Creates a CreateFile operation with options
+    fn to_create_file_with_options(
+        self,
+        overwrite: bool,
+        ignore_if_exists: bool,
+    ) -> DocumentChangeOperation {
+        DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
+            uri: self,
+            options: Some(CreateFileOptions {
+                overwrite: Some(overwrite),
+                ignore_if_exists: Some(ignore_if_exists),
+            }),
+            annotation_id: None,
+        }))
+    }
+
+    /// Creates a DeleteFile operation
+    fn to_delete_file(self) -> DocumentChangeOperation {
+        DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
+            uri: self,
+            options: None,
+        }))
+    }
+}
+
+#[ext]
+pub impl Vec<DocumentChangeOperation> {
+    /// Creates a WorkspaceEdit from a vector of DocumentChangeOperations
+    fn to_workspace_edit(self) -> WorkspaceEdit {
+        WorkspaceEdit {
+            document_changes: Some(DocumentChanges::Operations(self)),
+            ..Default::default()
+        }
+    }
+}
+
+#[ext]
+pub impl WorkspaceEdit {
+    /// Creates a CodeAction with the given title and kind (using action_kind helper)
+    fn to_code_action(self, title: &str, kind: &'static str) -> CodeAction {
+        CodeAction {
+            title: title.to_string(),
+            kind: action_kind(kind),
+            edit: Some(self),
+            ..Default::default()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_to_edit() {
+        let operation = uri(1).to_edit("test content");
+
+        if let DocumentChangeOperation::Edit(edit) = operation {
+            assert_eq!(edit.text_document.uri, uri(1));
+            if let OneOf::Left(text_edit) = &edit.edits[0] {
+                assert_eq!(text_edit.new_text, "test content");
+            } else {
+                panic!("Expected TextEdit");
+            }
+        } else {
+            panic!("Expected Edit operation");
+        }
+    }
+
+    #[test]
+    fn test_create_workspace_edit() {
+        let operations = vec![uri(1).to_edit("content1"), uri(2).to_edit("content2")];
+
+        let workspace_edit = operations.to_workspace_edit();
+
+        if let Some(DocumentChanges::Operations(ops)) = workspace_edit.document_changes {
+            assert_eq!(ops.len(), 2);
+        } else {
+            panic!("Expected Operations");
+        }
+    }
+
+    #[test]
+    fn test_create_code_action() {
+        let code_action = vec![uri(1).to_edit("content")]
+            .to_workspace_edit()
+            .to_code_action("Test Action", "refactor.extract");
+
+        assert_eq!(code_action.title, "Test Action");
+        assert_eq!(
+            code_action.kind,
+            Some(CodeActionKind::new("refactor.extract"))
+        );
+        assert!(code_action.edit.is_some());
+    }
 }
 
 pub fn uri(number: u32) -> Url {

@@ -1,18 +1,12 @@
-use std::u32;
-
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
 use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, CodeActionTriggerKind, DeleteFile,
-    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
-    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit,
+    CodeActionContext, CodeActionParams, CodeActionTriggerKind, Position, Range,
+    TextDocumentIdentifier,
 };
 
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn no_action_on_list() {
@@ -375,24 +369,6 @@ fn assert_no_action(source: &str, line: u32) {
 fn assert_inlined_remove(source: &str, line: u32, inlined: &str) {
     let fixture = Fixture::with_config(source, Configuration::template());
 
-    let mut operations = vec![DocumentChangeOperation::Op(ResourceOp::Delete(
-        DeleteFile {
-            uri: uri(2),
-            options: None,
-        },
-    ))];
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: inlined.to_string(),
-        })],
-    }));
-
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
@@ -405,50 +381,15 @@ fn assert_inlined_remove(source: &str, line: u32, inlined: &str) {
                 trigger_kind: Some(CodeActionTriggerKind::INVOKED),
             },
         },
-        CodeAction {
-            title: "Inline section".to_string(),
-            kind: action_kind("custom.inline_section"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(operations)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline section", "custom.inline_section"),
     )
 }
 
 fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, additional_updates: &str) {
     let fixture = Fixture::with_config(source, Configuration::template());
 
-    let mut operations = vec![DocumentChangeOperation::Op(ResourceOp::Delete(
-        DeleteFile {
-            uri: uri(2),
-            options: None,
-        },
-    ))];
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: inlined.to_string(),
-        })],
-    }));
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(3),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: additional_updates.to_string(),
-        })],
-    }));
-
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
@@ -461,15 +402,13 @@ fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, addition
                 trigger_kind: Some(CodeActionTriggerKind::INVOKED),
             },
         },
-        CodeAction {
-            title: "Inline section".to_string(),
-            kind: action_kind("custom.inline_section"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(operations)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![
+            uri(2).to_delete_file(),
+            uri(1).to_edit(inlined),
+            uri(3).to_edit(additional_updates),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Inline section", "custom.inline_section"),
     )
 }
 
@@ -486,19 +425,6 @@ fn assert_inlined_keep(source: &str, line: u32, inlined: &str) {
 
     let fixture = Fixture::with_config(source, config);
 
-    let mut operations = vec![];
-
-    operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: None,
-        },
-        edits: vec![OneOf::Left(TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: inlined.to_string(),
-        })],
-    }));
-
     fixture.code_action(
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: uri(1) },
@@ -511,14 +437,8 @@ fn assert_inlined_keep(source: &str, line: u32, inlined: &str) {
                 trigger_kind: Some(CodeActionTriggerKind::INVOKED),
             },
         },
-        CodeAction {
-            title: "Inline section (keep target)".to_string(),
-            kind: action_kind("custom.inline_section_keep"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(operations)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline section (keep target)", "custom.inline_section_keep"),
     )
 }

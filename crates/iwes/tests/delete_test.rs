@@ -1,17 +1,8 @@
-use std::u32;
-
 use indoc::indoc;
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, DeleteFile, DocumentChangeOperation,
-    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp,
-    TextDocumentEdit, TextDocumentIdentifier, TextEdit, WorkspaceEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
+use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn delete_block_reference_no_other_references() {
@@ -192,24 +183,10 @@ fn delete_non_block_reference_no_action() {
 fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
     let fixture = Fixture::with(source);
 
-    let mut operations = vec![DocumentChangeOperation::Op(ResourceOp::Delete(
-        DeleteFile {
-            uri: uri(2),
-            options: None,
-        },
-    ))];
+    let mut operations = vec![uri(2).to_delete_file()];
 
     for (uri_num, expected_text) in expected_edits {
-        operations.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-            text_document: OptionalVersionedTextDocumentIdentifier {
-                uri: uri(uri_num),
-                version: None,
-            },
-            edits: vec![OneOf::Left(TextEdit {
-                range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                new_text: expected_text.to_string(),
-            })],
-        }));
+        operations.push(uri(uri_num).to_edit(expected_text));
     }
 
     fixture.code_action(
@@ -224,15 +201,9 @@ fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "Delete".to_string(),
-            kind: action_kind("refactor.delete"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(operations)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        operations
+            .to_workspace_edit()
+            .to_code_action("Delete", "refactor.delete"),
     )
 }
 

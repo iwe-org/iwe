@@ -1,13 +1,8 @@
-use std::u32;
-
 use indoc::indoc;
 use lsp_types::*;
 
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn no_sub_sections_to_extract() {
@@ -96,44 +91,13 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
                 trigger_kind: None,
             },
         },
-        CodeAction {
-            title: "Extract sub-sections".to_string(),
-            kind: action_kind("refactor.extract.subsections"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                        uri: uri(2),
-                        options: Some(CreateFileOptions {
-                            overwrite: Some(false),
-                            ignore_if_exists: Some(false),
-                        }),
-                        annotation_id: None,
-                    })),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(2),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: extracted.to_string(),
-                        })],
-                    }),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: target.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![
+            uri(2).to_create_file(),
+            uri(2).to_edit(extracted),
+            uri(1).to_edit(target),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Extract sub-sections", "refactor.extract.subsections"),
     )
 }
 

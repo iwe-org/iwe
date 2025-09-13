@@ -6,11 +6,8 @@ use lsp_types::{
     CodeAction, CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier,
 };
 
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn block_action_target() {

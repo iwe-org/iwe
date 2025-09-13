@@ -1,17 +1,8 @@
-use std::u32;
-
 use indoc::indoc;
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, DocumentChangeOperation, DocumentChanges,
-    OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, TextDocumentEdit,
-    TextDocumentIdentifier, TextEdit, WorkspaceEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
+use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn unwrap_single_item_list_test() {
@@ -209,25 +200,8 @@ fn assert_sections(source: &str, line: u32, expected: &str) {
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         },
-        CodeAction {
-            title: "List to sections".to_string(),
-            kind: action_kind("refactor.rewrite.list.section"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: expected.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
+        vec![uri(1).to_edit(expected)]
+            .to_workspace_edit()
+            .to_code_action("List to sections", "refactor.rewrite.list.section"),
     )
 }

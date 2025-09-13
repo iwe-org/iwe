@@ -5,11 +5,8 @@ use lsp_types::{
     WorkspaceSymbolResponse,
 };
 
-use fixture::uri;
-
-use crate::fixture::Fixture;
-
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 #[allow(deprecated)]
