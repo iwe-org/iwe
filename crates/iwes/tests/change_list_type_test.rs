@@ -1,5 +1,5 @@
 use indoc::indoc;
-use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
+use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -40,17 +40,10 @@ fn assert_list_change(source: &str, line: u32, expected: &str, title: &str) {
     let fixture = Fixture::with(source);
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.rewrite.list.type"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(line, 0), Position::new(line, 0)),
+            "refactor.rewrite.list.type",
+        ),
         vec![uri(1).to_edit(expected)]
             .to_workspace_edit()
             .to_code_action(title, "refactor.rewrite.list.type"),

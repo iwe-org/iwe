@@ -1,6 +1,6 @@
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Sort};
-use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
+use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -27,17 +27,10 @@ fn sort_simple_list() {
     );
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.sort"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(0, 0), Position::new(0, 0)),
+            "custom.sort",
+        ),
         vec![uri(1).to_edit(indoc! {"
                 - apple
                 - banana
@@ -69,17 +62,10 @@ fn sort_not_offered_when_already_sorted_ascending() {
         configuration,
     );
 
-    fixture.no_code_action(CodeActionParams {
-        text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-        context: CodeActionContext {
-            diagnostics: Default::default(),
-            only: action_kinds("custom.sort"),
-            trigger_kind: None,
-        },
-        work_done_progress_params: Default::default(),
-        partial_result_params: Default::default(),
-    })
+    fixture.no_code_action(uri(1).to_code_action_params(
+        Range::new(Position::new(0, 0), Position::new(0, 0)),
+        "custom.sort",
+    ))
 }
 
 #[test]
@@ -103,17 +89,10 @@ fn sort_not_offered_when_already_sorted_descending() {
         configuration,
     );
 
-    fixture.no_code_action(CodeActionParams {
-        text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-        context: CodeActionContext {
-            diagnostics: Default::default(),
-            only: action_kinds("custom.sort"),
-            trigger_kind: None,
-        },
-        work_done_progress_params: Default::default(),
-        partial_result_params: Default::default(),
-    })
+    fixture.no_code_action(uri(1).to_code_action_params(
+        Range::new(Position::new(0, 0), Position::new(0, 0)),
+        "custom.sort",
+    ))
 }
 
 #[test]
@@ -138,17 +117,10 @@ fn sort_offered_when_partially_sorted() {
     );
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.sort"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(0, 0), Position::new(0, 0)),
+            "custom.sort",
+        ),
         vec![uri(1).to_edit(indoc! {"
                 - apple
                 - banana
@@ -181,17 +153,10 @@ fn sort_list_descending() {
     );
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.sort"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(0, 0), Position::new(0, 0)),
+            "custom.sort",
+        ),
         vec![uri(1).to_edit(indoc! {"
                 - zebra
                 - banana
@@ -224,17 +189,10 @@ fn sort_ordered_list() {
     );
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.sort"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(0, 0), Position::new(0, 0)),
+            "custom.sort",
+        ),
         vec![uri(1).to_edit(indoc! {"
                 1.  apple
                 2.  banana

@@ -353,17 +353,10 @@ fn inline_with_keep_target_true_keeps_other_references() {
 fn assert_no_action(source: &str, line: u32) {
     let fixture = Fixture::with_config(source, Configuration::template());
 
-    fixture.no_code_action(CodeActionParams {
-        text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-        work_done_progress_params: Default::default(),
-        partial_result_params: Default::default(),
-        context: CodeActionContext {
-            diagnostics: Default::default(),
-            only: action_kinds("custom.inline_section"),
-            trigger_kind: None,
-        },
-    })
+    fixture.no_code_action(uri(1).to_code_action_params(
+        Range::new(Position::new(line, 0), Position::new(line, 0)),
+        "custom.inline_section",
+    ))
 }
 
 fn assert_inlined_remove(source: &str, line: u32, inlined: &str) {

@@ -1,5 +1,5 @@
 use indoc::indoc;
-use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
+use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -190,17 +190,10 @@ fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
     }
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.delete"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(line, 0), Position::new(line, 0)),
+            "refactor.delete",
+        ),
         operations
             .to_workspace_edit()
             .to_code_action("Delete", "refactor.delete"),
@@ -210,15 +203,8 @@ fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
 fn assert_no_delete_action(source: &str, line: u32) {
     let fixture = Fixture::with(source);
 
-    fixture.no_code_action(CodeActionParams {
-        text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-        context: CodeActionContext {
-            diagnostics: Default::default(),
-            only: action_kinds("refactor.delete"),
-            trigger_kind: None,
-        },
-        work_done_progress_params: Default::default(),
-        partial_result_params: Default::default(),
-    })
+    fixture.no_code_action(uri(1).to_code_action_params(
+        Range::new(Position::new(line, 0), Position::new(line, 0)),
+        "refactor.delete",
+    ))
 }

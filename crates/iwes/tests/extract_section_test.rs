@@ -1,5 +1,5 @@
 use indoc::indoc;
-use lsp_types::{CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier};
+use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -224,19 +224,10 @@ fn test_extracted_relative() {
     )]);
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier {
-                uri: uri_from("d/1"),
-            },
-            range: Range::new(Position::new(2, 0), Position::new(2, 0)),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.extract.section"),
-                trigger_kind: None,
-            },
-        },
+        uri_from("d/1").to_code_action_params(
+            Range::new(Position::new(2, 0), Position::new(2, 0)),
+            "refactor.extract.section",
+        ),
         vec![
             uri_from("d/2").to_create_file(),
             uri_from("d/2").to_edit("# target\n"),
@@ -258,17 +249,10 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
     .to_code_action("Extract section", "refactor.extract.section");
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.extract.section"),
-                trigger_kind: None,
-            },
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(line, 0), Position::new(line, 0)),
+            "refactor.extract.section",
+        ),
         action,
     );
 }
@@ -277,17 +261,10 @@ fn assert_extracted_helix(source: &str, line: u32, target: &str, extracted: &str
     let fixture = Fixture::with_client(source, "helix");
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 1)),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.extract.section"),
-                trigger_kind: None,
-            },
-        },
+        uri(1).to_code_action_params(
+            Range::new(Position::new(line, 0), Position::new(line, 1)),
+            "refactor.extract.section",
+        ),
         vec![
             uri(2).to_create_file(),
             uri(2).to_edit(extracted),
@@ -300,15 +277,8 @@ fn assert_extracted_helix(source: &str, line: u32, target: &str, extracted: &str
 fn assert_no_action(source: &str, line: u32) {
     let fixture = Fixture::with(source);
 
-    fixture.no_code_action(CodeActionParams {
-        text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-        work_done_progress_params: Default::default(),
-        partial_result_params: Default::default(),
-        context: CodeActionContext {
-            diagnostics: Default::default(),
-            only: action_kinds("refactor.extract.section"),
-            trigger_kind: None,
-        },
-    })
+    fixture.no_code_action(uri(1).to_code_action_params(
+        Range::new(Position::new(line, 0), Position::new(line, 0)),
+        "refactor.extract.section",
+    ))
 }

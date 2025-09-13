@@ -7,28 +7,12 @@ use std::{
 use std::u32;
 
 use extend::ext;
-use lsp_types::{
-    CodeAction, CodeActionKind, CreateFile, CreateFileOptions, DeleteFile, DocumentChangeOperation,
-    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp,
-    TextDocumentEdit, TextEdit, Url, WorkspaceEdit,
-};
 
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
 use liwe::{model::config::Configuration, state::from_indoc};
 use lsp_server::{Connection, Message, Notification, Request, ResponseError};
-use lsp_types::{
-    notification::{DidChangeTextDocument, DidSaveTextDocument, Exit},
-    request::{
-        CodeActionRequest, Completion, Formatting, GotoDefinition, InlayHintRequest, References,
-        Shutdown, WorkspaceSymbolRequest,
-    },
-    CodeActionOrCommand, CodeActionParams, CompletionParams, CompletionResponse,
-    DidChangeTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    GotoDefinitionParams, GotoDefinitionResponse, InlayHint, InlayHintParams, Location,
-    PrepareRenameResponse, ReferenceParams, RenameParams, TextDocumentPositionParams,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
-};
+use lsp_types::{notification::*, request::*, *};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -66,7 +50,23 @@ pub impl Url {
         )
     }
 
-    /// Creates a TextDocumentEdit that replaces the entire document content with a specific range
+    fn to_code_action_params(self, range: Range, kind: &str) -> CodeActionParams {
+        CodeActionParams {
+            text_document: TextDocumentIdentifier { uri: self },
+            range,
+            context: CodeActionContext {
+                only: Some(vec![CodeActionKind::from(kind.to_string())]),
+                ..Default::default()
+            },
+            work_done_progress_params: WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: PartialResultParams {
+                partial_result_token: None,
+            },
+        }
+    }
+
     fn to_edit_with_range(self, new_content: &str, range: Range) -> DocumentChangeOperation {
         DocumentChangeOperation::Edit(TextDocumentEdit {
             text_document: OptionalVersionedTextDocumentIdentifier {
@@ -80,12 +80,10 @@ pub impl Url {
         })
     }
 
-    /// Creates a CreateFile operation
     fn to_create_file(self) -> DocumentChangeOperation {
         self.to_create_file_with_options(false, false)
     }
 
-    /// Creates a CreateFile operation with options
     fn to_create_file_with_options(
         self,
         overwrite: bool,
@@ -101,7 +99,6 @@ pub impl Url {
         }))
     }
 
-    /// Creates a DeleteFile operation
     fn to_delete_file(self) -> DocumentChangeOperation {
         DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
             uri: self,
@@ -112,7 +109,6 @@ pub impl Url {
 
 #[ext]
 pub impl Vec<DocumentChangeOperation> {
-    /// Creates a WorkspaceEdit from a vector of DocumentChangeOperations
     fn to_workspace_edit(self) -> WorkspaceEdit {
         WorkspaceEdit {
             document_changes: Some(DocumentChanges::Operations(self)),
@@ -123,7 +119,6 @@ pub impl Vec<DocumentChangeOperation> {
 
 #[ext]
 pub impl WorkspaceEdit {
-    /// Creates a CodeAction with the given title and kind (using action_kind helper)
     fn to_code_action(self, title: &str, kind: &'static str) -> CodeAction {
         CodeAction {
             title: title.to_string(),
