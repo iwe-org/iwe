@@ -19,7 +19,7 @@ fn single_reference() {
 
     fixture.references(
         uri(1).to_reference_params(2, 1, false),
-        vec![location(uri(2), 2, 3)],
+        vec![uri(2).to_location(2, 3)],
     );
 }
 
@@ -43,7 +43,7 @@ fn two_references() {
 
     fixture.references(
         uri(1).to_reference_params(2, 1, false),
-        vec![location(uri(2), 2, 3), location(uri(3), 2, 3)],
+        vec![uri(2).to_location(2, 3), uri(3).to_location(2, 3)],
     );
 }
 

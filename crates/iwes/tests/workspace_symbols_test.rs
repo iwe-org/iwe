@@ -12,10 +12,9 @@ fn one_file() {
 
     fixture.workspace_symbols(
         workspace_symbol_params(""),
-        workspace_symbol_response(vec![symbol_info(
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
             "test",
             lsp_types::SymbolKind::NAMESPACE,
-            uri(1),
             0,
             1,
         )]),
@@ -31,10 +30,9 @@ fn fuzzy_one_file() {
 
     fixture.workspace_symbols(
         workspace_symbol_params("tst"),
-        workspace_symbol_response(vec![symbol_info(
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
             "test",
             lsp_types::SymbolKind::NAMESPACE,
-            uri(1),
             0,
             1,
         )]),
@@ -53,16 +51,16 @@ fn fuzzy_two_files() {
     fixture.workspace_symbols(
         workspace_symbol_params("liar"),
         workspace_symbol_response(vec![
-            symbol_info("similar", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
-            symbol_info("not really", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
+            uri(1).to_symbol_info("similar", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(2).to_symbol_info("not really", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     );
 
     fixture.workspace_symbols(
         workspace_symbol_params("rel"),
         workspace_symbol_response(vec![
-            symbol_info("not really", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
-            symbol_info("similar", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
+            uri(2).to_symbol_info("not really", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(1).to_symbol_info("similar", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     );
 }
@@ -79,8 +77,8 @@ fn one_file_two_headers() {
     fixture.workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            symbol_info("test", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
-            symbol_info("test • test 2", lsp_types::SymbolKind::OBJECT, uri(1), 2, 3),
+            uri(1).to_symbol_info("test", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(1).to_symbol_info("test • test 2", lsp_types::SymbolKind::OBJECT, 2, 3),
         ]),
     );
 }
@@ -97,8 +95,8 @@ fn one_file_two_headers_same_level() {
     fixture.workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            symbol_info("test", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
-            symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, uri(1), 2, 3),
+            uri(1).to_symbol_info("test", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(1).to_symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, 2, 3),
         ]),
     );
 }
@@ -115,8 +113,8 @@ fn two_files() {
     fixture.workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            symbol_info("test 1", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
-            symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
+            uri(1).to_symbol_info("test 1", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(2).to_symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     )
 }
@@ -135,14 +133,8 @@ fn two_nested_files() {
     fixture.workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            symbol_info(
-                "test 2 • test 1",
-                lsp_types::SymbolKind::OBJECT,
-                uri(1),
-                0,
-                1,
-            ),
-            symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
+            uri(1).to_symbol_info("test 2 • test 1", lsp_types::SymbolKind::OBJECT, 0, 1),
+            uri(2).to_symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     )
 }
@@ -167,15 +159,9 @@ fn page_rank_applied_after_fuzzy_score() {
     fixture.workspace_symbols(
         workspace_symbol_params("test"),
         workspace_symbol_response(vec![
-            symbol_info("test rank", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
-            symbol_info("test rank", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
-            symbol_info(
-                "another page",
-                lsp_types::SymbolKind::NAMESPACE,
-                uri(3),
-                0,
-                1,
-            ),
+            uri(2).to_symbol_info("test rank", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(1).to_symbol_info("test rank", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(3).to_symbol_info("another page", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     )
 }
@@ -198,21 +184,14 @@ fn dual_nested_files() {
     fixture.workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            symbol_info(
-                "test 3 • test 2",
-                lsp_types::SymbolKind::OBJECT,
-                uri(2),
-                0,
-                1,
-            ),
-            symbol_info(
+            uri(2).to_symbol_info("test 3 • test 2", lsp_types::SymbolKind::OBJECT, 0, 1),
+            uri(1).to_symbol_info(
                 "test 3 • test 2 • test 1",
                 lsp_types::SymbolKind::OBJECT,
-                uri(1),
                 0,
                 1,
             ),
-            symbol_info("test 3", lsp_types::SymbolKind::NAMESPACE, uri(3), 0, 1),
+            uri(3).to_symbol_info("test 3", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     )
 }
@@ -224,10 +203,9 @@ fn sub_one_file() {
 
     fixture.workspace_symbols(
         workspace_symbol_params(""),
-        workspace_symbol_response(vec![symbol_info(
+        workspace_symbol_response(vec![uri_from("d/1").to_symbol_info(
             "test",
             lsp_types::SymbolKind::NAMESPACE,
-            uri_from("d/1"),
             0,
             1,
         )]),

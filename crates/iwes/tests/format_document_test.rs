@@ -170,7 +170,7 @@ fn assert_formatted(source: &str, formatted: &str) {
 
     fixture.format_document(
         uri(1).to_document_formatting_params(),
-        vec![text_edit_full(formatted)],
+        vec![formatted.to_text_edit_full()],
     )
 }
 
@@ -185,7 +185,7 @@ fn assert_formatted_with_extension(source: &str, formatted: &str) {
 
     fixture.format_document(
         uri(1).to_document_formatting_params(),
-        vec![text_edit_full(formatted)],
+        vec![formatted.to_text_edit_full()],
     )
 }
 
@@ -196,6 +196,6 @@ fn assert_formatted_after_change(source: &str, change: &str, formatted: &str) {
 
     fixture.format_document(
         uri(1).to_document_formatting_params(),
-        vec![text_edit_full(formatted)],
+        vec![formatted.to_text_edit_full()],
     )
 }

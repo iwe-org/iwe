@@ -216,6 +216,63 @@ pub impl Url {
             options: None,
         }))
     }
+
+    fn to_symbol_info(
+        self,
+        name: &str,
+        kind: SymbolKind,
+        line_start: u32,
+        line_end: u32,
+    ) -> SymbolInformation {
+        SymbolInformation {
+            kind,
+            location: Location {
+                uri: self,
+                range: Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
+            },
+            name: name.to_string(),
+            container_name: None,
+            tags: None,
+            deprecated: None,
+        }
+    }
+
+    fn to_location(self, line_start: u32, line_end: u32) -> Location {
+        Location::new(
+            self,
+            Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
+        )
+    }
+}
+
+#[ext]
+pub impl &str {
+    fn to_text_edit(self, line_start: u32, line_end: u32) -> TextEdit {
+        TextEdit {
+            range: Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
+            new_text: self.to_string(),
+        }
+    }
+
+    fn to_text_edit_full(self) -> TextEdit {
+        TextEdit {
+            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
+            new_text: self.to_string(),
+        }
+    }
+
+    fn to_inlay_hint(self, line: u32, character: u32) -> InlayHint {
+        InlayHint {
+            label: InlayHintLabel::String(self.to_string()),
+            position: Position::new(line, character),
+            kind: None,
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(true),
+            padding_right: None,
+            data: None,
+        }
+    }
 }
 
 #[ext]
@@ -331,26 +388,6 @@ pub fn completion_list(items: Vec<CompletionItem>) -> CompletionResponse {
     })
 }
 
-pub fn symbol_info(
-    name: &str,
-    kind: SymbolKind,
-    uri: Url,
-    line_start: u32,
-    line_end: u32,
-) -> SymbolInformation {
-    SymbolInformation {
-        kind,
-        location: Location {
-            uri,
-            range: Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
-        },
-        name: name.to_string(),
-        container_name: None,
-        tags: None,
-        deprecated: None,
-    }
-}
-
 pub fn workspace_symbol_params(query: &str) -> WorkspaceSymbolParams {
     WorkspaceSymbolParams {
         work_done_progress_params: Default::default(),
@@ -361,40 +398,6 @@ pub fn workspace_symbol_params(query: &str) -> WorkspaceSymbolParams {
 
 pub fn workspace_symbol_response(symbols: Vec<SymbolInformation>) -> WorkspaceSymbolResponse {
     WorkspaceSymbolResponse::Flat(symbols)
-}
-
-pub fn text_edit(line_start: u32, line_end: u32, new_text: &str) -> TextEdit {
-    TextEdit {
-        range: Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
-        new_text: new_text.to_string(),
-    }
-}
-
-pub fn text_edit_full(new_text: &str) -> TextEdit {
-    TextEdit {
-        range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-        new_text: new_text.to_string(),
-    }
-}
-
-pub fn location(uri: Url, line_start: u32, line_end: u32) -> Location {
-    Location::new(
-        uri,
-        Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
-    )
-}
-
-pub fn inlay_hint(text: &str, line: u32, character: u32) -> InlayHint {
-    InlayHint {
-        label: InlayHintLabel::String(text.to_string()),
-        position: Position::new(line, character),
-        kind: None,
-        text_edits: None,
-        tooltip: None,
-        padding_left: Some(true),
-        padding_right: None,
-        data: None,
-    }
 }
 
 pub fn goto_definition_response_empty() -> GotoDefinitionResponse {

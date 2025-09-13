@@ -145,7 +145,7 @@ fn assert_inlay_hint_at(source: &str, hint_text: &str, line: u32) {
 
     fixture.inlay_hint(
         uri(1).to_inlay_hint_params(),
-        vec![inlay_hint(hint_text, line, 120)],
+        vec![hint_text.to_inlay_hint(line, 120)],
     )
 }
 
@@ -154,7 +154,7 @@ fn assert_inlay_hints(source: &str, hint_text: &str) {
 
     fixture.inlay_hint(
         uri(1).to_inlay_hint_params(),
-        vec![inlay_hint(hint_text, 0, 120)],
+        vec![hint_text.to_inlay_hint(0, 120)],
     )
 }
 
@@ -170,8 +170,8 @@ fn assert_multiple_hints(source: &str, hint_text: &str, hint_text2: &str) {
     fixture.inlay_hint(
         uri(1).to_inlay_hint_params(),
         vec![
-            inlay_hint(hint_text, 0, 120),
-            inlay_hint(hint_text2, 0, 120),
+            hint_text.to_inlay_hint(0, 120),
+            hint_text2.to_inlay_hint(0, 120),
         ],
     )
 }

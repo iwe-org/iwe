@@ -14,10 +14,9 @@ fn did_save_test_once() {
 
     fixture.workspace_symbols(
         workspace_symbol_params(""),
-        workspace_symbol_response(vec![symbol_info(
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
             "updated",
             lsp_types::SymbolKind::NAMESPACE,
-            uri(1),
             0,
             1,
         )]),
@@ -33,10 +32,9 @@ fn new_file() {
 
     fixture.workspace_symbols(
         workspace_symbol_params(""),
-        workspace_symbol_response(vec![symbol_info(
+        workspace_symbol_response(vec![uri(2).to_symbol_info(
             "test",
             lsp_types::SymbolKind::NAMESPACE,
-            uri(2),
             0,
             1,
         )]),
@@ -56,10 +54,9 @@ fn did_save_test_two_times() {
 
     fixture.workspace_symbols(
         workspace_symbol_params(""),
-        workspace_symbol_response(vec![symbol_info(
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
             "updated again",
             lsp_types::SymbolKind::NAMESPACE,
-            uri(1),
             0,
             1,
         )]),
