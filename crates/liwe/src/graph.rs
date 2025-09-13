@@ -477,8 +477,7 @@ impl GraphContext for &Graph {
 
     fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId> {
         self.nodes_map
-            .get(key)
-            .expect(&format!("to have key, {}", key))
+            .get(key)?
             .iter()
             .rev()
             .find(|(_, v)| (*v).contains(&line))
