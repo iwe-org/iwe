@@ -26,16 +26,14 @@ fn assert_action(action: BlockAction, source: &str, line: u32) {
         ..Default::default()
     };
 
-    let fixture = Fixture::with_config(source, config);
-
-    fixture.code_action_menu(
+    Fixture::with_config(source, config).code_action_menu(
         uri(1).to_code_action_params(line, "custom.action"),
         lsp_types::CodeAction {
             title: "title".to_string(),
             kind: action_kind("custom.action"),
             ..Default::default()
         },
-    )
+    );
 }
 
 fn action() -> BlockAction {

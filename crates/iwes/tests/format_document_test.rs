@@ -166,36 +166,31 @@ fn update_ref_titles_after_new_file_change() {
     );
 }
 fn assert_formatted(source: &str, formatted: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.format_document(
+    Fixture::with(source).format_document(
         uri(1).to_document_formatting_params(),
         vec![formatted.to_text_edit_full()],
-    )
+    );
 }
 
 fn assert_formatted_with_extension(source: &str, formatted: &str) {
-    let fixture = Fixture::with_options(
+    Fixture::with_options(
         source,
         liwe::model::config::MarkdownOptions {
             refs_extension: ".md".to_string(),
             ..Default::default()
         },
-    );
-
-    fixture.format_document(
+    )
+    .format_document(
         uri(1).to_document_formatting_params(),
         vec![formatted.to_text_edit_full()],
-    )
+    );
 }
 
 fn assert_formatted_after_change(source: &str, change: &str, formatted: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.did_change_text_document(uri(2).to_did_change_params(2, change.to_string()));
-
-    fixture.format_document(
-        uri(1).to_document_formatting_params(),
-        vec![formatted.to_text_edit_full()],
-    )
+    Fixture::with(source)
+        .did_change_text_document(uri(2).to_did_change_params(2, change.to_string()))
+        .format_document(
+            uri(1).to_document_formatting_params(),
+            vec![formatted.to_text_edit_full()],
+        );
 }

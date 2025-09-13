@@ -347,26 +347,21 @@ fn inline_with_keep_target_true_keeps_other_references() {
 }
 
 fn assert_no_action(source: &str, line: u32) {
-    let fixture = Fixture::with_config(source, Configuration::template());
-
-    fixture.no_code_action(uri(1).to_code_action_params(line, "custom.inline_section"))
+    Fixture::with_config(source, Configuration::template())
+        .no_code_action(uri(1).to_code_action_params(line, "custom.inline_section"));
 }
 
 fn assert_inlined_remove(source: &str, line: u32, inlined: &str) {
-    let fixture = Fixture::with_config(source, Configuration::template());
-
-    fixture.code_action(
+    Fixture::with_config(source, Configuration::template()).code_action(
         uri(1).to_code_action_params_with_trigger(line, "custom.inline_section"),
         vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline section", "custom.inline_section"),
-    )
+    );
 }
 
 fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, additional_updates: &str) {
-    let fixture = Fixture::with_config(source, Configuration::template());
-
-    fixture.code_action(
+    Fixture::with_config(source, Configuration::template()).code_action(
         uri(1).to_code_action_params_with_trigger(line, "custom.inline_section"),
         vec![
             uri(2).to_delete_file(),
@@ -375,7 +370,7 @@ fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, addition
         ]
         .to_workspace_edit()
         .to_code_action("Inline section", "custom.inline_section"),
-    )
+    );
 }
 
 fn assert_inlined_keep(source: &str, line: u32, inlined: &str) {
@@ -389,12 +384,10 @@ fn assert_inlined_keep(source: &str, line: u32, inlined: &str) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, config);
-
-    fixture.code_action(
+    Fixture::with_config(source, config).code_action(
         uri(1).to_code_action_params_with_trigger(line, "custom.inline_section_keep"),
         vec![uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline section (keep target)", "custom.inline_section_keep"),
-    )
+    );
 }

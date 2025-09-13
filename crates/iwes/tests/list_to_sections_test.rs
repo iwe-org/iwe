@@ -185,12 +185,10 @@ fn unwrap_list_prior_to_level_two_header_test() {
 }
 
 fn assert_sections(source: &str, line: u32, expected: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.code_action(
+    Fixture::with(source).code_action(
         uri(1).to_code_action_params(line, "refactor.rewrite.list.section"),
         vec![uri(1).to_edit(expected)]
             .to_workspace_edit()
             .to_code_action("List to sections", "refactor.rewrite.list.section"),
-    )
+    );
 }

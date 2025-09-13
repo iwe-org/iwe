@@ -545,11 +545,16 @@ impl Fixture {
         assert_json_eq!(&expected, &actual);
     }
 
-    pub fn format_document(&self, params: DocumentFormattingParams, expected: Vec<TextEdit>) {
+    pub fn format_document(
+        &self,
+        params: DocumentFormattingParams,
+        expected: Vec<TextEdit>,
+    ) -> &Self {
         self.assert_response::<Formatting>(params, Some(expected));
+        self
     }
 
-    pub fn rename(&self, params: RenameParams, expected: WorkspaceEdit) {
+    pub fn rename(&self, params: RenameParams, expected: WorkspaceEdit) -> &Self {
         let id = self.req_id.get();
         self.req_id.set(id.wrapping_add(1));
 
@@ -560,9 +565,10 @@ impl Fixture {
         ));
 
         assert_json_eq!(&expected, &actual);
+        self
     }
 
-    pub fn rename_err(&self, params: RenameParams, expected: ResponseError) {
+    pub fn rename_err(&self, params: RenameParams, expected: ResponseError) -> &Self {
         let id = self.req_id.get();
         self.req_id.set(id.wrapping_add(1));
 
@@ -573,13 +579,14 @@ impl Fixture {
         ));
 
         assert_json_eq!(&expected, &actual);
+        self
     }
 
     pub fn prepare_rename(
         &self,
         params: TextDocumentPositionParams,
         expected: PrepareRenameResponse,
-    ) {
+    ) -> &Self {
         let id = self.req_id.get();
         self.req_id.set(id.wrapping_add(1));
 
@@ -590,22 +597,26 @@ impl Fixture {
         ));
 
         assert_json_eq!(&expected, &actual);
+        self
     }
 
-    pub fn references(&self, params: ReferenceParams, expected: Vec<Location>) {
+    pub fn references(&self, params: ReferenceParams, expected: Vec<Location>) -> &Self {
         self.assert_response::<References>(params, Some(expected));
+        self
     }
 
-    pub fn inlay_hint(&self, params: InlayHintParams, expected: Vec<InlayHint>) {
+    pub fn inlay_hint(&self, params: InlayHintParams, expected: Vec<InlayHint>) -> &Self {
         self.assert_response::<InlayHintRequest>(params, Some(expected));
+        self
     }
 
-    pub fn no_code_action(&self, params: CodeActionParams) {
+    pub fn no_code_action(&self, params: CodeActionParams) -> &Self {
         let mut actual: Value = self.send_request::<CodeActionRequest>(params);
         assert_json_eq!(&Some::<Vec<CodeActionOrCommand>>(vec![]), &actual);
+        self
     }
 
-    pub fn code_action_menu(&self, params: CodeActionParams, expected: CodeAction) {
+    pub fn code_action_menu(&self, params: CodeActionParams, expected: CodeAction) -> &Self {
         let mut expected_no_edits = expected.clone();
         expected_no_edits.edit.take();
 
@@ -616,9 +627,10 @@ impl Fixture {
         actual_no_data.remove("data");
 
         assert_json_eq!(&expected_no_edits, &actual_no_data);
+        self
     }
 
-    pub fn code_action(&self, params: CodeActionParams, expected: CodeAction) {
+    pub fn code_action(&self, params: CodeActionParams, expected: CodeAction) -> &Self {
         let mut expected_no_edits = expected.clone();
         expected_no_edits.edit.take();
 
@@ -643,30 +655,40 @@ impl Fixture {
         actual_with_edits_no_data.remove("data");
 
         assert_json_eq!(&expected, &actual_with_edits_no_data);
+        self
     }
 
-    pub fn completion(&self, params: CompletionParams, expected: CompletionResponse) {
+    pub fn completion(&self, params: CompletionParams, expected: CompletionResponse) -> &Self {
         self.assert_response::<Completion>(params, Some(expected));
+        self
     }
 
-    pub fn go_to_definition(&self, params: GotoDefinitionParams, expected: GotoDefinitionResponse) {
+    pub fn go_to_definition(
+        &self,
+        params: GotoDefinitionParams,
+        expected: GotoDefinitionResponse,
+    ) -> &Self {
         self.assert_response::<GotoDefinition>(params, Some(expected));
+        self
     }
 
-    pub fn did_change_text_document(&self, params: DidChangeTextDocumentParams) {
+    pub fn did_change_text_document(&self, params: DidChangeTextDocumentParams) -> &Self {
         self.notification::<DidChangeTextDocument>(params);
+        self
     }
 
-    pub fn did_save_text_document(&self, params: DidSaveTextDocumentParams) {
+    pub fn did_save_text_document(&self, params: DidSaveTextDocumentParams) -> &Self {
         self.notification::<DidSaveTextDocument>(params);
+        self
     }
 
     pub fn workspace_symbols(
         &self,
         params: WorkspaceSymbolParams,
         response: WorkspaceSymbolResponse,
-    ) {
+    ) -> &Self {
         self.assert_response::<WorkspaceSymbolRequest>(params, Some(response));
+        self
     }
 
     pub fn send_request<R>(&self, params: R::Params) -> Value

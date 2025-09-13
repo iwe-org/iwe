@@ -230,7 +230,7 @@ fn test_extracted_relative() {
         ]
         .to_workspace_edit()
         .to_code_action("Extract section", "refactor.extract.section"),
-    )
+    );
 }
 
 fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
@@ -256,9 +256,9 @@ fn assert_extracted_helix(source: &str, line: u32, target: &str, extracted: &str
         ]
         .to_workspace_edit()
         .to_code_action("Extract section", "refactor.extract.section"),
-    )
+    );
 }
 fn assert_no_action(source: &str, line: u32) {
     Fixture::with(source)
-        .no_code_action(uri(1).to_code_action_params(line, "refactor.extract.section"))
+        .no_code_action(uri(1).to_code_action_params(line, "refactor.extract.section"));
 }

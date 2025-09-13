@@ -197,14 +197,12 @@ fn assert_attached(source: &str, line: u32, expected: &str) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
-
-    fixture.code_action(
+    Fixture::with_config(source, configuration).code_action(
         uri(1).to_code_action_params(line, "custom.attach"),
         vec![uri(3).to_edit(expected)]
             .to_workspace_edit()
             .to_code_action("Attach", "custom.attach"),
-    )
+    );
 }
 
 fn assert_attached_new_key(source: &str, line: u32, expected: &str) {
@@ -219,14 +217,12 @@ fn assert_attached_new_key(source: &str, line: u32, expected: &str) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
-
-    fixture.code_action(
+    Fixture::with_config(source, configuration).code_action(
         uri(1).to_code_action_params(line, "custom.attach"),
         vec![uri(3).to_create_file(), uri(3).to_edit(expected)]
             .to_workspace_edit()
             .to_code_action("Attach", "custom.attach"),
-    )
+    );
 }
 
 fn assert_no_action(source: &str, line: u32) {
@@ -241,9 +237,8 @@ fn assert_no_action(source: &str, line: u32) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
-
-    fixture.no_code_action(uri(1).to_code_action_params(line, "custom.attach"))
+    Fixture::with_config(source, configuration)
+        .no_code_action(uri(1).to_code_action_params(line, "custom.attach"));
 }
 
 fn assert_attached_template(source: &str, line: u32, expected: &str, expected_key: &str) {
@@ -258,10 +253,9 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
     let expected_uri = uri_from(expected_key);
 
-    fixture.code_action(
+    Fixture::with_config(source, configuration).code_action(
         uri(1).to_code_action_params(line, "custom.attach"),
         vec![
             expected_uri.clone().to_create_file(),
@@ -269,5 +263,5 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
         ]
         .to_workspace_edit()
         .to_code_action("Attach", "custom.attach"),
-    )
+    );
 }

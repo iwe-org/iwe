@@ -129,12 +129,10 @@ fn wrap_list_something() {
 }
 
 fn assert_list(source: &str, line: u32, expected: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.code_action(
+    Fixture::with(source).code_action(
         uri(1).to_code_action_params(line, "refactor.rewrite.section.list"),
         vec![uri(1).to_edit(expected)]
             .to_workspace_edit()
             .to_code_action("Section to list", "refactor.rewrite.section.list"),
-    )
+    );
 }

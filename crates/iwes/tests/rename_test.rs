@@ -99,9 +99,7 @@ fn rename_inline_references() {
 }
 
 fn assert_prepare_rename(source: &str, _: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.prepare_rename(
+    Fixture::with(source).prepare_rename(
         uri(1).to_text_document_position_params(0, 0),
         prepare_rename_response(
             lsp_types::Range::new(
@@ -110,17 +108,16 @@ fn assert_prepare_rename(source: &str, _: &str) {
             ),
             "key".to_string(),
         ),
-    )
+    );
 }
 fn assert_rename(source: &str, expected: &str) {
     assert_rename_at(source, expected, lsp_types::Position::new(0, 0), "new_name");
 }
 
 fn assert_rename_at(source: &str, expected: &str, position: lsp_types::Position, new_name: &str) {
-    let fixture = Fixture::with(source);
     let new_uri = uri_from(new_name);
 
-    fixture.rename(
+    Fixture::with(source).rename(
         uri(1).to_rename_params(position.line, position.character, new_name.to_string()),
         vec![
             uri(1).to_delete_file(),
@@ -143,19 +140,16 @@ fn assert_rename_error(
     position: lsp_types::Position,
     new_name: &str,
 ) {
-    let fixture = Fixture::with(source);
-
-    fixture.rename_err(
+    Fixture::with(source).rename_err(
         uri(1).to_rename_params(position.line, position.character, new_name.to_string()),
         response_error(1, expected.to_string()),
     );
 }
 
 fn assert_rename_updates_second_file(source: &str, expected1: &str, expected2: &str) {
-    let fixture = Fixture::with(source);
     let new_uri = uri_from("new_name");
 
-    fixture.rename(
+    Fixture::with(source).rename(
         uri(1).to_rename_params(0, 0, "new_name".to_string()),
         vec![
             uri(2).to_edit(expected2),

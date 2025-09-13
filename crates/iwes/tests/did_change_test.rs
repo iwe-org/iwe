@@ -6,13 +6,11 @@ use crate::fixture::*;
 #[test]
 #[allow(deprecated)]
 fn did_change_test_once() {
-    let fixture = Fixture::with(indoc! {"
+    Fixture::with(indoc! {"
             # test
-            "});
-
-    fixture.did_change_text_document(uri(1).to_did_change_params(1, "# updated".to_string()));
-
-    fixture.workspace_symbols(
+            "})
+    .did_change_text_document(uri(1).to_did_change_params(1, "# updated".to_string()))
+    .workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![uri(1).to_symbol_info(
             "updated",
@@ -26,33 +24,28 @@ fn did_change_test_once() {
 #[test]
 #[allow(deprecated)]
 fn new_file() {
-    let fixture = Fixture::new();
-
-    fixture.did_change_text_document(uri(2).to_did_change_params(1, "# test".to_string()));
-
-    fixture.workspace_symbols(
-        workspace_symbol_params(""),
-        workspace_symbol_response(vec![uri(2).to_symbol_info(
-            "test",
-            lsp_types::SymbolKind::NAMESPACE,
-            0,
-            1,
-        )]),
-    );
+    Fixture::new()
+        .did_change_text_document(uri(2).to_did_change_params(1, "# test".to_string()))
+        .workspace_symbols(
+            workspace_symbol_params(""),
+            workspace_symbol_response(vec![uri(2).to_symbol_info(
+                "test",
+                lsp_types::SymbolKind::NAMESPACE,
+                0,
+                1,
+            )]),
+        );
 }
 
 #[test]
 #[allow(deprecated)]
 fn did_change_test_two_times() {
-    let fixture = Fixture::with(indoc! {"
+    Fixture::with(indoc! {"
             # test
-            "});
-
-    fixture.did_change_text_document(uri(1).to_did_change_params(1, "# updated".to_string()));
-
-    fixture.did_change_text_document(uri(1).to_did_change_params(1, "# updated again".to_string()));
-
-    fixture.workspace_symbols(
+            "})
+    .did_change_text_document(uri(1).to_did_change_params(1, "# updated".to_string()))
+    .did_change_text_document(uri(1).to_did_change_params(1, "# updated again".to_string()))
+    .workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![uri(1).to_symbol_info(
             "updated again",

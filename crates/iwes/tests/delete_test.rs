@@ -180,24 +180,20 @@ fn delete_non_block_reference_no_action() {
 }
 
 fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
-    let fixture = Fixture::with(source);
-
     let mut operations = vec![uri(2).to_delete_file()];
 
     for (uri_num, expected_text) in expected_edits {
         operations.push(uri(uri_num).to_edit(expected_text));
     }
 
-    fixture.code_action(
+    Fixture::with(source).code_action(
         uri(1).to_code_action_params(line, "refactor.delete"),
         operations
             .to_workspace_edit()
             .to_code_action("Delete", "refactor.delete"),
-    )
+    );
 }
 
 fn assert_no_delete_action(source: &str, line: u32) {
-    let fixture = Fixture::with(source);
-
-    fixture.no_code_action(uri(1).to_code_action_params(line, "refactor.delete"))
+    Fixture::with(source).no_code_action(uri(1).to_code_action_params(line, "refactor.delete"));
 }

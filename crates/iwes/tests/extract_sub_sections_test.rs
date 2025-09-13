@@ -76,9 +76,7 @@ fn extract_sub_sections_test() {
 }
 
 fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.code_action(
+    Fixture::with(source).code_action(
         uri(1).to_code_action_params(line, "refactor.extract.subsections"),
         vec![
             uri(2).to_create_file(),
@@ -87,11 +85,10 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
         ]
         .to_workspace_edit()
         .to_code_action("Extract sub-sections", "refactor.extract.subsections"),
-    )
+    );
 }
 
 fn assert_no_action(source: &str, line: u32) {
-    let fixture = Fixture::with(source);
-
-    fixture.no_code_action(uri(1).to_code_action_params(line, "refactor.extract.subsections"))
+    Fixture::with(source)
+        .no_code_action(uri(1).to_code_action_params(line, "refactor.extract.subsections"));
 }

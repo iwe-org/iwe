@@ -36,12 +36,10 @@ fn change_to_bullet() {
 }
 
 fn assert_list_change(source: &str, line: u32, expected: &str, title: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.code_action(
+    Fixture::with(source).code_action(
         uri(1).to_code_action_params(line, "refactor.rewrite.list.type"),
         vec![uri(1).to_edit(expected)]
             .to_workspace_edit()
             .to_code_action(title, "refactor.rewrite.list.type"),
-    )
+    );
 }

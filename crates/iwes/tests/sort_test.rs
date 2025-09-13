@@ -33,7 +33,7 @@ fn sort_simple_list() {
                 "})]
         .to_workspace_edit()
         .to_code_action("Sort", "custom.sort"),
-    )
+    );
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn sort_not_offered_when_already_sorted_ascending() {
             "},
         configuration,
     )
-    .no_code_action(uri(1).to_code_action_params(0, "custom.sort"))
+    .no_code_action(uri(1).to_code_action_params(0, "custom.sort"));
 }
 
 #[test]
@@ -79,7 +79,7 @@ fn sort_not_offered_when_already_sorted_descending() {
             "},
         configuration,
     )
-    .no_code_action(uri(1).to_code_action_params(0, "custom.sort"))
+    .no_code_action(uri(1).to_code_action_params(0, "custom.sort"));
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn sort_offered_when_partially_sorted() {
                 "})]
         .to_workspace_edit()
         .to_code_action("Sort A-Z", "custom.sort"),
-    )
+    );
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn sort_list_descending() {
                 "})]
         .to_workspace_edit()
         .to_code_action("Sort Descending", "custom.sort"),
-    )
+    );
 }
 
 #[test]
@@ -175,5 +175,5 @@ fn sort_ordered_list() {
                 "})]
         .to_workspace_edit()
         .to_code_action("Sort", "custom.sort"),
-    )
+    );
 }

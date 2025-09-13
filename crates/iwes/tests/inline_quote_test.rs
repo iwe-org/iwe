@@ -151,31 +151,25 @@ fn assert_inlined_with_keep_target(source: &str, line: u32, inlined: &str) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, config);
-
-    fixture.code_action(
+    Fixture::with_config(source, config).code_action(
         uri(1).to_code_action_params(line, "custom.inline_quote_keep"),
         vec![uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline quote (keep target)", "custom.inline_quote_keep"),
-    )
+    );
 }
 
 fn assert_inlined(source: &str, line: u32, inlined: &str) {
-    let fixture = Fixture::with_config(source, Configuration::template());
-
-    fixture.code_action(
+    Fixture::with_config(source, Configuration::template()).code_action(
         uri(1).to_code_action_params(line, "custom.inline_quote"),
         vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline quote", "custom.inline_quote"),
-    )
+    );
 }
 
 fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, additional_updates: &str) {
-    let fixture = Fixture::with_config(source, Configuration::template());
-
-    fixture.code_action(
+    Fixture::with_config(source, Configuration::template()).code_action(
         uri(1).to_code_action_params(line, "custom.inline_quote"),
         vec![
             uri(2).to_delete_file(),
@@ -184,5 +178,5 @@ fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, addition
         ]
         .to_workspace_edit()
         .to_code_action("Inline quote", "custom.inline_quote"),
-    )
+    );
 }

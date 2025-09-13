@@ -5,7 +5,7 @@ use crate::fixture::*;
 
 #[test]
 fn single_reference() {
-    let fixture = Fixture::with(indoc! {"
+    Fixture::with(indoc! {"
         # doc1
 
         [target](3)
@@ -15,9 +15,8 @@ fn single_reference() {
         [target](3)
         _
         # target
-        "});
-
-    fixture.references(
+        "})
+    .references(
         uri(1).to_reference_params(2, 1, false),
         vec![uri(2).to_location(2, 3)],
     );
@@ -25,7 +24,7 @@ fn single_reference() {
 
 #[test]
 fn two_references() {
-    let fixture = Fixture::with(indoc! {"
+    Fixture::with(indoc! {"
         # doc1
 
         [target](4)
@@ -39,9 +38,8 @@ fn two_references() {
         [target](4)
         _
         # target
-        "});
-
-    fixture.references(
+        "})
+    .references(
         uri(1).to_reference_params(2, 1, false),
         vec![uri(2).to_location(2, 3), uri(3).to_location(2, 3)],
     );
@@ -49,13 +47,12 @@ fn two_references() {
 
 #[test]
 fn link() {
-    let fixture = Fixture::with(indoc! {"
+    Fixture::with(indoc! {"
         # header 1
 
         text and link [target](2)
         _
         # target
-        "});
-
-    fixture.references(uri(1).to_reference_params(2, 15, false), vec![]);
+        "})
+    .references(uri(1).to_reference_params(2, 15, false), vec![]);
 }

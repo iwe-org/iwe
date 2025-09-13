@@ -5,11 +5,10 @@ use crate::fixture::*;
 
 #[test]
 fn completion_test() {
-    let fixture = Fixture::with(indoc! {"
+    Fixture::with(indoc! {"
             # test
-            "});
-
-    fixture.completion(
+            "})
+    .completion(
         uri(1).to_completion_params(2, 0),
         completion_list(vec![completion_item(
             "🔗 test",
@@ -17,12 +16,12 @@ fn completion_test() {
             "test",
             "test",
         )]),
-    )
+    );
 }
 
 #[test]
 fn completion_relative_test() {
-    let fixture = Fixture::with_documents(vec![
+    Fixture::with_documents(vec![
         (
             "dir/sub",
             indoc! {"
@@ -35,9 +34,8 @@ fn completion_relative_test() {
                 # top-level
                 "},
         ),
-    ]);
-
-    fixture.completion(
+    ])
+    .completion(
         uri_from("dir/sub").to_completion_params(2, 0),
         completion_list(vec![
             completion_item(
@@ -53,5 +51,5 @@ fn completion_relative_test() {
                 "top-level",
             ),
         ]),
-    )
+    );
 }

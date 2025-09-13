@@ -141,37 +141,29 @@ fn block_reference_multiple_from_the_same_key() {
 }
 
 fn assert_inlay_hint_at(source: &str, hint_text: &str, line: u32) {
-    let fixture = Fixture::with(source);
-
-    fixture.inlay_hint(
+    Fixture::with(source).inlay_hint(
         uri(1).to_inlay_hint_params(),
         vec![hint_text.to_inlay_hint(line, 120)],
-    )
+    );
 }
 
 fn assert_inlay_hints(source: &str, hint_text: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.inlay_hint(
+    Fixture::with(source).inlay_hint(
         uri(1).to_inlay_hint_params(),
         vec![hint_text.to_inlay_hint(0, 120)],
-    )
+    );
 }
 
 fn assert_no_hints(source: &str, key: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.inlay_hint(uri_from(key).to_inlay_hint_params(), vec![])
+    Fixture::with(source).inlay_hint(uri_from(key).to_inlay_hint_params(), vec![]);
 }
 
 fn assert_multiple_hints(source: &str, hint_text: &str, hint_text2: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.inlay_hint(
+    Fixture::with(source).inlay_hint(
         uri(1).to_inlay_hint_params(),
         vec![
             hint_text.to_inlay_hint(0, 120),
             hint_text2.to_inlay_hint(0, 120),
         ],
-    )
+    );
 }
