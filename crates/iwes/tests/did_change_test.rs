@@ -1,9 +1,4 @@
 use indoc::indoc;
-use lsp_types::{
-    DidChangeTextDocumentParams, Position, Range, SymbolInformation,
-    TextDocumentContentChangeEvent, VersionedTextDocumentIdentifier, WorkspaceSymbolParams,
-    WorkspaceSymbolResponse,
-};
 
 mod fixture;
 use crate::fixture::*;
@@ -15,35 +10,17 @@ fn did_change_test_once() {
             # test
             "});
 
-    fixture.did_change_text_document(DidChangeTextDocumentParams {
-        text_document: VersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: 1,
-        },
-        content_changes: vec![TextDocumentContentChangeEvent {
-            range: None,
-            range_length: None,
-            text: "# updated".to_string(),
-        }],
-    });
+    fixture.did_change_text_document(uri(1).to_did_change_params(1, "# updated".to_string()));
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            kind: lsp_types::SymbolKind::NAMESPACE,
-            location: lsp_types::Location {
-                uri: uri(1),
-                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-            },
-            name: "updated".to_string(),
-            container_name: None,
-            tags: None,
-            deprecated: None,
-        }]),
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![symbol_info(
+            "updated",
+            lsp_types::SymbolKind::NAMESPACE,
+            uri(1),
+            0,
+            1,
+        )]),
     );
 }
 
@@ -52,35 +29,17 @@ fn did_change_test_once() {
 fn new_file() {
     let fixture = Fixture::new();
 
-    fixture.did_change_text_document(DidChangeTextDocumentParams {
-        text_document: VersionedTextDocumentIdentifier {
-            uri: uri(2),
-            version: 1,
-        },
-        content_changes: vec![TextDocumentContentChangeEvent {
-            range: None,
-            range_length: None,
-            text: "# test".to_string(),
-        }],
-    });
+    fixture.did_change_text_document(uri(2).to_did_change_params(1, "# test".to_string()));
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            kind: lsp_types::SymbolKind::NAMESPACE,
-            location: lsp_types::Location {
-                uri: uri(2),
-                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-            },
-            name: "test".to_string(),
-            container_name: None,
-            tags: None,
-            deprecated: None,
-        }]),
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![symbol_info(
+            "test",
+            lsp_types::SymbolKind::NAMESPACE,
+            uri(2),
+            0,
+            1,
+        )]),
     );
 }
 
@@ -91,46 +50,18 @@ fn did_change_test_two_times() {
             # test
             "});
 
-    fixture.did_change_text_document(DidChangeTextDocumentParams {
-        text_document: VersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: 1,
-        },
-        content_changes: vec![TextDocumentContentChangeEvent {
-            range: None,
-            range_length: None,
-            text: "# updated".to_string(),
-        }],
-    });
+    fixture.did_change_text_document(uri(1).to_did_change_params(1, "# updated".to_string()));
 
-    fixture.did_change_text_document(DidChangeTextDocumentParams {
-        text_document: VersionedTextDocumentIdentifier {
-            uri: uri(1),
-            version: 1,
-        },
-        content_changes: vec![TextDocumentContentChangeEvent {
-            range: None,
-            range_length: None,
-            text: "# updated again".to_string(),
-        }],
-    });
+    fixture.did_change_text_document(uri(1).to_did_change_params(1, "# updated again".to_string()));
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            kind: lsp_types::SymbolKind::NAMESPACE,
-            location: lsp_types::Location {
-                uri: uri(1),
-                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-            },
-            name: "updated again".to_string(),
-            container_name: None,
-            tags: None,
-            deprecated: None,
-        }]),
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![symbol_info(
+            "updated again",
+            lsp_types::SymbolKind::NAMESPACE,
+            uri(1),
+            0,
+            1,
+        )]),
     );
 }

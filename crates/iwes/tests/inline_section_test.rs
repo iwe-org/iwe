@@ -1,9 +1,5 @@
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
-use lsp_types::{
-    CodeActionContext, CodeActionParams, CodeActionTriggerKind, Position, Range,
-    TextDocumentIdentifier,
-};
 
 mod fixture;
 use crate::fixture::*;
@@ -360,17 +356,7 @@ fn assert_inlined_remove(source: &str, line: u32, inlined: &str) {
     let fixture = Fixture::with_config(source, Configuration::template());
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.inline_section"),
-                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
-            },
-        },
+        uri(1).to_code_action_params_with_trigger(line, "custom.inline_section"),
         vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline section", "custom.inline_section"),
@@ -381,17 +367,7 @@ fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, addition
     let fixture = Fixture::with_config(source, Configuration::template());
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.inline_section"),
-                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
-            },
-        },
+        uri(1).to_code_action_params_with_trigger(line, "custom.inline_section"),
         vec![
             uri(2).to_delete_file(),
             uri(1).to_edit(inlined),
@@ -416,17 +392,7 @@ fn assert_inlined_keep(source: &str, line: u32, inlined: &str) {
     let fixture = Fixture::with_config(source, config);
 
     fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.inline_section_keep"),
-                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
-            },
-        },
+        uri(1).to_code_action_params_with_trigger(line, "custom.inline_section_keep"),
         vec![uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline section (keep target)", "custom.inline_section_keep"),

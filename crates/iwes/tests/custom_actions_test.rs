@@ -2,7 +2,6 @@ use std::u32;
 
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Context::Document, Model, Transform};
-use lsp_types::CodeAction;
 
 mod fixture;
 use crate::fixture::*;
@@ -31,7 +30,7 @@ fn assert_action(action: BlockAction, source: &str, line: u32) {
 
     fixture.code_action_menu(
         uri(1).to_code_action_params(line, "custom.action"),
-        CodeAction {
+        lsp_types::CodeAction {
             title: "title".to_string(),
             kind: action_kind("custom.action"),
             ..Default::default()

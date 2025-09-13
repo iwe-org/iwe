@@ -67,6 +67,117 @@ pub impl Url {
         }
     }
 
+    fn to_code_action_params_with_trigger(self, line: u32, kind: &str) -> CodeActionParams {
+        CodeActionParams {
+            text_document: TextDocumentIdentifier { uri: self },
+            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
+            context: CodeActionContext {
+                diagnostics: Default::default(),
+                only: Some(vec![CodeActionKind::from(kind.to_string())]),
+                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
+            },
+            work_done_progress_params: WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: PartialResultParams {
+                partial_result_token: None,
+            },
+        }
+    }
+
+    fn to_completion_params(self, line: u32, character: u32) -> CompletionParams {
+        CompletionParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: self },
+                position: Position::new(line, character),
+            },
+            context: None,
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        }
+    }
+
+    fn to_text_document_position_params(
+        self,
+        line: u32,
+        character: u32,
+    ) -> TextDocumentPositionParams {
+        TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier { uri: self },
+            position: Position::new(line, character),
+        }
+    }
+
+    fn to_goto_definition_params(self, line: u32, character: u32) -> GotoDefinitionParams {
+        GotoDefinitionParams {
+            text_document_position_params: self.to_text_document_position_params(line, character),
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        }
+    }
+
+    fn to_reference_params(
+        self,
+        line: u32,
+        character: u32,
+        include_declaration: bool,
+    ) -> ReferenceParams {
+        ReferenceParams {
+            text_document_position: self.to_text_document_position_params(line, character),
+            work_done_progress_params: WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: PartialResultParams {
+                partial_result_token: None,
+            },
+            context: ReferenceContext {
+                include_declaration,
+            },
+        }
+    }
+
+    fn to_rename_params(self, line: u32, character: u32, new_name: String) -> RenameParams {
+        RenameParams {
+            text_document_position: self.to_text_document_position_params(line, character),
+            new_name,
+            work_done_progress_params: Default::default(),
+        }
+    }
+
+    fn to_inlay_hint_params(self) -> InlayHintParams {
+        InlayHintParams {
+            text_document: TextDocumentIdentifier { uri: self },
+            work_done_progress_params: Default::default(),
+            range: Range::new(Position::new(0, 0), Position::new(0, 0)),
+        }
+    }
+
+    fn to_document_formatting_params(self) -> DocumentFormattingParams {
+        DocumentFormattingParams {
+            text_document: TextDocumentIdentifier { uri: self },
+            options: Default::default(),
+            work_done_progress_params: Default::default(),
+        }
+    }
+
+    fn to_did_change_params(self, version: i32, text: String) -> DidChangeTextDocumentParams {
+        DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier { uri: self, version },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text,
+            }],
+        }
+    }
+
+    fn to_did_save_params(self, text: Option<String>) -> DidSaveTextDocumentParams {
+        DidSaveTextDocumentParams {
+            text_document: TextDocumentIdentifier { uri: self },
+            text,
+        }
+    }
+
     fn to_edit_with_range(self, new_content: &str, range: Range) -> DocumentChangeOperation {
         DocumentChangeOperation::Edit(TextDocumentEdit {
             text_document: OptionalVersionedTextDocumentIdentifier {
@@ -194,6 +305,116 @@ pub fn action_kinds(name: &'static str) -> Option<Vec<CodeActionKind>> {
 #[allow(unused, dead_code)]
 pub fn action_kind(name: &'static str) -> Option<CodeActionKind> {
     Some(CodeActionKind::new(name))
+}
+
+pub fn completion_item(
+    label: &str,
+    insert_text: &str,
+    filter_text: &str,
+    sort_text: &str,
+) -> CompletionItem {
+    CompletionItem {
+        documentation: None,
+        filter_text: Some(filter_text.to_string()),
+        sort_text: Some(sort_text.to_string()),
+        insert_text: Some(insert_text.to_string()),
+        label: label.to_string(),
+        preselect: Some(true),
+        ..Default::default()
+    }
+}
+
+pub fn completion_list(items: Vec<CompletionItem>) -> CompletionResponse {
+    CompletionResponse::List(CompletionList {
+        is_incomplete: false,
+        items,
+    })
+}
+
+pub fn symbol_info(
+    name: &str,
+    kind: SymbolKind,
+    uri: Url,
+    line_start: u32,
+    line_end: u32,
+) -> SymbolInformation {
+    SymbolInformation {
+        kind,
+        location: Location {
+            uri,
+            range: Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
+        },
+        name: name.to_string(),
+        container_name: None,
+        tags: None,
+        deprecated: None,
+    }
+}
+
+pub fn workspace_symbol_params(query: &str) -> WorkspaceSymbolParams {
+    WorkspaceSymbolParams {
+        work_done_progress_params: Default::default(),
+        partial_result_params: Default::default(),
+        query: query.to_string(),
+    }
+}
+
+pub fn workspace_symbol_response(symbols: Vec<SymbolInformation>) -> WorkspaceSymbolResponse {
+    WorkspaceSymbolResponse::Flat(symbols)
+}
+
+pub fn text_edit(line_start: u32, line_end: u32, new_text: &str) -> TextEdit {
+    TextEdit {
+        range: Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
+        new_text: new_text.to_string(),
+    }
+}
+
+pub fn text_edit_full(new_text: &str) -> TextEdit {
+    TextEdit {
+        range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
+        new_text: new_text.to_string(),
+    }
+}
+
+pub fn location(uri: Url, line_start: u32, line_end: u32) -> Location {
+    Location::new(
+        uri,
+        Range::new(Position::new(line_start, 0), Position::new(line_end, 0)),
+    )
+}
+
+pub fn inlay_hint(text: &str, line: u32, character: u32) -> InlayHint {
+    InlayHint {
+        label: InlayHintLabel::String(text.to_string()),
+        position: Position::new(line, character),
+        kind: None,
+        text_edits: None,
+        tooltip: None,
+        padding_left: Some(true),
+        padding_right: None,
+        data: None,
+    }
+}
+
+pub fn goto_definition_response_empty() -> GotoDefinitionResponse {
+    GotoDefinitionResponse::Array(vec![])
+}
+
+pub fn goto_definition_response_single(uri: Url) -> GotoDefinitionResponse {
+    GotoDefinitionResponse::Scalar(Location::new(uri, Range::default()))
+}
+
+pub fn prepare_rename_response(range: Range, placeholder: String) -> PrepareRenameResponse {
+    PrepareRenameResponse::RangeWithPlaceholder { range, placeholder }
+}
+
+pub fn response_error(code: i32, message: String) -> ResponseError {
+    ResponseError {
+        code,
+        message,
+        data: None,
+    }
 }
 
 pub type Documents = Vec<(&'static str, &'static str)>;

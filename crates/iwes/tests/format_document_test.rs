@@ -1,17 +1,7 @@
-use std::u32;
-
 use indoc::indoc;
-use lsp_types::{
-    DidChangeTextDocumentParams, DocumentFormattingParams, Position, Range,
-    TextDocumentContentChangeEvent, TextDocumentIdentifier, TextEdit,
-    VersionedTextDocumentIdentifier,
-};
-
-use fixture::uri;
-
-use crate::fixture::Fixture;
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn basic_format() {
@@ -179,15 +169,8 @@ fn assert_formatted(source: &str, formatted: &str) {
     let fixture = Fixture::with(source);
 
     fixture.format_document(
-        DocumentFormattingParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            options: Default::default(),
-            work_done_progress_params: Default::default(),
-        },
-        vec![TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: formatted.to_string(),
-        }],
+        uri(1).to_document_formatting_params(),
+        vec![text_edit_full(formatted)],
     )
 }
 
@@ -201,42 +184,18 @@ fn assert_formatted_with_extension(source: &str, formatted: &str) {
     );
 
     fixture.format_document(
-        DocumentFormattingParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            options: Default::default(),
-            work_done_progress_params: Default::default(),
-        },
-        vec![TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: formatted.to_string(),
-        }],
+        uri(1).to_document_formatting_params(),
+        vec![text_edit_full(formatted)],
     )
 }
 
 fn assert_formatted_after_change(source: &str, change: &str, formatted: &str) {
     let fixture = Fixture::with(source);
 
-    fixture.did_change_text_document(DidChangeTextDocumentParams {
-        text_document: VersionedTextDocumentIdentifier {
-            uri: uri(2),
-            version: 2,
-        },
-        content_changes: vec![TextDocumentContentChangeEvent {
-            range: None,
-            range_length: None,
-            text: change.to_string(),
-        }],
-    });
+    fixture.did_change_text_document(uri(2).to_did_change_params(2, change.to_string()));
 
     fixture.format_document(
-        DocumentFormattingParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            options: Default::default(),
-            work_done_progress_params: Default::default(),
-        },
-        vec![TextEdit {
-            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-            new_text: formatted.to_string(),
-        }],
+        uri(1).to_document_formatting_params(),
+        vec![text_edit_full(formatted)],
     )
 }

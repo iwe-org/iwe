@@ -1,8 +1,4 @@
 use indoc::indoc;
-use lsp_types::{
-    CompletionItem, CompletionList, CompletionParams, CompletionResponse, Position,
-    TextDocumentIdentifier, TextDocumentPositionParams,
-};
 
 mod fixture;
 use crate::fixture::*;
@@ -14,27 +10,13 @@ fn completion_test() {
             "});
 
     fixture.completion(
-        CompletionParams {
-            text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: uri(1) },
-                position: Position::new(2, 0),
-            },
-            context: None,
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CompletionResponse::List(CompletionList {
-            is_incomplete: false,
-            items: vec![CompletionItem {
-                documentation: None,
-                filter_text: Some("test".to_string()),
-                sort_text: Some("test".to_string()),
-                insert_text: Some("[test](1)".to_string()),
-                label: "🔗 test".to_string(),
-                preselect: Some(true),
-                ..Default::default()
-            }],
-        }),
+        uri(1).to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 test",
+            "[test](1)",
+            "test",
+            "test",
+        )]),
     )
 }
 
@@ -56,39 +38,20 @@ fn completion_relative_test() {
     ]);
 
     fixture.completion(
-        CompletionParams {
-            text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier {
-                    uri: uri_from("dir/sub"),
-                },
-                position: Position::new(2, 0),
-            },
-            context: None,
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CompletionResponse::List(CompletionList {
-            is_incomplete: false,
-            items: vec![
-                CompletionItem {
-                    documentation: None,
-                    filter_text: Some("sub-document".to_string()),
-                    sort_text: Some("sub-document".to_string()),
-                    insert_text: Some("[sub-document](sub)".to_string()),
-                    label: "🔗 sub-document".to_string(),
-                    preselect: Some(true),
-                    ..Default::default()
-                },
-                CompletionItem {
-                    documentation: None,
-                    filter_text: Some("top-level".to_string()),
-                    sort_text: Some("top-level".to_string()),
-                    insert_text: Some("[top-level](../top)".to_string()),
-                    label: "🔗 top-level".to_string(),
-                    preselect: Some(true),
-                    ..Default::default()
-                },
-            ],
-        }),
+        uri_from("dir/sub").to_completion_params(2, 0),
+        completion_list(vec![
+            completion_item(
+                "🔗 sub-document",
+                "[sub-document](sub)",
+                "sub-document",
+                "sub-document",
+            ),
+            completion_item(
+                "🔗 top-level",
+                "[top-level](../top)",
+                "top-level",
+                "top-level",
+            ),
+        ]),
     )
 }

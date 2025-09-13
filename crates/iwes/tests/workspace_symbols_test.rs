@@ -1,7 +1,4 @@
 use indoc::indoc;
-use lsp_types::{
-    Position, Range, SymbolInformation, WorkspaceSymbolParams, WorkspaceSymbolResponse,
-};
 
 mod fixture;
 use crate::fixture::*;
@@ -14,22 +11,14 @@ fn one_file() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            name: "test".to_string(),
-            kind: lsp_types::SymbolKind::NAMESPACE,
-            location: lsp_types::Location {
-                uri: uri(1),
-                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-            },
-            container_name: None,
-            tags: None,
-            deprecated: None,
-        }]),
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![symbol_info(
+            "test",
+            lsp_types::SymbolKind::NAMESPACE,
+            uri(1),
+            0,
+            1,
+        )]),
     );
 }
 
@@ -41,22 +30,14 @@ fn fuzzy_one_file() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: "tst".to_string(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            name: "test".to_string(),
-            kind: lsp_types::SymbolKind::NAMESPACE,
-            location: lsp_types::Location {
-                uri: uri(1),
-                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-            },
-            container_name: None,
-            tags: None,
-            deprecated: None,
-        }]),
+        workspace_symbol_params("tst"),
+        workspace_symbol_response(vec![symbol_info(
+            "test",
+            lsp_types::SymbolKind::NAMESPACE,
+            uri(1),
+            0,
+            1,
+        )]),
     );
 }
 
@@ -70,66 +51,18 @@ fn fuzzy_two_files() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: "liar".to_string(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                name: "similar".to_string(),
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                name: "not really".to_string(),
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(2),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params("liar"),
+        workspace_symbol_response(vec![
+            symbol_info("similar", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
+            symbol_info("not really", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
         ]),
     );
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: "rel".to_string(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                name: "not really".to_string(),
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(2),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                name: "similar".to_string(),
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params("rel"),
+        workspace_symbol_response(vec![
+            symbol_info("not really", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
+            symbol_info("similar", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
         ]),
     );
 }
@@ -144,34 +77,10 @@ fn one_file_two_headers() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                name: "test".to_string(),
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                name: "test • test 2".to_string(),
-                kind: lsp_types::SymbolKind::OBJECT,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(2, 0), Position::new(3, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![
+            symbol_info("test", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
+            symbol_info("test • test 2", lsp_types::SymbolKind::OBJECT, uri(1), 2, 3),
         ]),
     );
 }
@@ -186,34 +95,10 @@ fn one_file_two_headers_same_level() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                name: "test".to_string(),
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                name: "test 2".to_string(),
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(2, 0), Position::new(3, 0)),
-                },
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![
+            symbol_info("test", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
+            symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, uri(1), 2, 3),
         ]),
     );
 }
@@ -228,34 +113,10 @@ fn two_files() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test 1".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(2),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test 2".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![
+            symbol_info("test 1", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
+            symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
         ]),
     )
 }
@@ -272,34 +133,16 @@ fn two_nested_files() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::OBJECT,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test 2 • test 1".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(2),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test 2".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![
+            symbol_info(
+                "test 2 • test 1",
+                lsp_types::SymbolKind::OBJECT,
+                uri(1),
+                0,
+                1,
+            ),
+            symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
         ]),
     )
 }
@@ -322,45 +165,17 @@ fn page_rank_applied_after_fuzzy_score() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: "test".to_string(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(2),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test rank".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test rank".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(3),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "another page".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params("test"),
+        workspace_symbol_response(vec![
+            symbol_info("test rank", lsp_types::SymbolKind::NAMESPACE, uri(2), 0, 1),
+            symbol_info("test rank", lsp_types::SymbolKind::NAMESPACE, uri(1), 0, 1),
+            symbol_info(
+                "another page",
+                lsp_types::SymbolKind::NAMESPACE,
+                uri(3),
+                0,
+                1,
+            ),
         ]),
     )
 }
@@ -381,45 +196,23 @@ fn dual_nested_files() {
             "});
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::OBJECT,
-                location: lsp_types::Location {
-                    uri: uri(2),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test 3 • test 2".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::OBJECT,
-                location: lsp_types::Location {
-                    uri: uri(1),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test 3 • test 2 • test 1".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
-            SymbolInformation {
-                kind: lsp_types::SymbolKind::NAMESPACE,
-                location: lsp_types::Location {
-                    uri: uri(3),
-                    range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-                },
-                name: "test 3".to_string(),
-                container_name: None,
-                tags: None,
-                deprecated: None,
-            },
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![
+            symbol_info(
+                "test 3 • test 2",
+                lsp_types::SymbolKind::OBJECT,
+                uri(2),
+                0,
+                1,
+            ),
+            symbol_info(
+                "test 3 • test 2 • test 1",
+                lsp_types::SymbolKind::OBJECT,
+                uri(1),
+                0,
+                1,
+            ),
+            symbol_info("test 3", lsp_types::SymbolKind::NAMESPACE, uri(3), 0, 1),
         ]),
     )
 }
@@ -430,21 +223,13 @@ fn sub_one_file() {
     let fixture = Fixture::with_documents(vec![("d/1", "# test")]);
 
     fixture.workspace_symbols(
-        WorkspaceSymbolParams {
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            query: String::default(),
-        },
-        WorkspaceSymbolResponse::Flat(vec![SymbolInformation {
-            name: "test".to_string(),
-            kind: lsp_types::SymbolKind::NAMESPACE,
-            location: lsp_types::Location {
-                uri: uri_from("d/1"),
-                range: Range::new(Position::new(0, 0), Position::new(1, 0)),
-            },
-            container_name: None,
-            tags: None,
-            deprecated: None,
-        }]),
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![symbol_info(
+            "test",
+            lsp_types::SymbolKind::NAMESPACE,
+            uri_from("d/1"),
+            0,
+            1,
+        )]),
     );
 }

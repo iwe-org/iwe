@@ -1,8 +1,4 @@
 use indoc::indoc;
-use lsp_types::{
-    Location, PartialResultParams, Position, Range, ReferenceContext, ReferenceParams,
-    TextDocumentIdentifier, TextDocumentPositionParams, WorkDoneProgressParams,
-};
 
 mod fixture;
 use crate::fixture::*;
@@ -22,25 +18,8 @@ fn single_reference() {
         "});
 
     fixture.references(
-        ReferenceParams {
-            text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: uri(1) },
-                position: Position::new(2, 1),
-            },
-            work_done_progress_params: WorkDoneProgressParams {
-                work_done_token: None,
-            },
-            partial_result_params: PartialResultParams {
-                partial_result_token: None,
-            },
-            context: ReferenceContext {
-                include_declaration: false,
-            },
-        },
-        vec![Location {
-            uri: uri(2),
-            range: Range::new(Position::new(2, 0), Position::new(3, 0)),
-        }],
+        uri(1).to_reference_params(2, 1, false),
+        vec![location(uri(2), 2, 3)],
     );
 }
 
@@ -63,31 +42,8 @@ fn two_references() {
         "});
 
     fixture.references(
-        ReferenceParams {
-            text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: uri(1) },
-                position: Position::new(2, 1),
-            },
-            work_done_progress_params: WorkDoneProgressParams {
-                work_done_token: None,
-            },
-            partial_result_params: PartialResultParams {
-                partial_result_token: None,
-            },
-            context: ReferenceContext {
-                include_declaration: false,
-            },
-        },
-        vec![
-            Location {
-                uri: uri(2),
-                range: Range::new(Position::new(2, 0), Position::new(3, 0)),
-            },
-            Location {
-                uri: uri(3),
-                range: Range::new(Position::new(2, 0), Position::new(3, 0)),
-            },
-        ],
+        uri(1).to_reference_params(2, 1, false),
+        vec![location(uri(2), 2, 3), location(uri(3), 2, 3)],
     );
 }
 
@@ -101,22 +57,5 @@ fn link() {
         # target
         "});
 
-    fixture.references(
-        ReferenceParams {
-            text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: uri(1) },
-                position: Position::new(2, 15),
-            },
-            work_done_progress_params: WorkDoneProgressParams {
-                work_done_token: None,
-            },
-            partial_result_params: PartialResultParams {
-                partial_result_token: None,
-            },
-            context: ReferenceContext {
-                include_declaration: false,
-            },
-        },
-        vec![],
-    );
+    fixture.references(uri(1).to_reference_params(2, 15, false), vec![]);
 }
