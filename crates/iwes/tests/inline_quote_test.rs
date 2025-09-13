@@ -1,15 +1,8 @@
 use indoc::indoc;
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, DeleteFile, DocumentChangeOperation,
-    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, ResourceOp,
-    TextDocumentEdit, TextDocumentIdentifier, TextEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
+use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn inline_quote_test() {
@@ -61,45 +54,129 @@ fn inline_with_content_after_ref() {
     );
 }
 
+#[test]
+fn inline_quote_default_removes_all_references() {
+    assert_inlined_remove_target(
+        indoc! {"
+            # test
+
+            [test2](2)
+            _
+            # test2
+
+            para content
+            _
+            # test3
+
+            [test2](2)
+
+            inline link to [test2](2) text
+            "},
+        2,
+        indoc! {"
+            # test
+
+            > # test2
+            >
+            > para content
+            "},
+        indoc! {"
+            # test3
+
+            inline link to test2 text
+            "},
+    );
+}
+
+#[test]
+fn inline_quote_with_keep_target_true_basic() {
+    assert_inlined_with_keep_target(
+        indoc! {"
+            # test
+
+            [test2](2)
+            _
+            # test2
+
+            para
+            "},
+        2,
+        indoc! {"
+            # test
+
+            > # test2
+            >
+            > para
+        "},
+    );
+}
+
+#[test]
+fn inline_quote_with_keep_target_true_keeps_other_references() {
+    assert_inlined_with_keep_target(
+        indoc! {"
+            # test
+
+            [test2](2)
+            _
+            # test2
+
+            para content
+            _
+            # test3
+
+            [test2](2)
+
+            inline link to [test2](2) text
+            "},
+        2,
+        indoc! {"
+            # test
+
+            > # test2
+            >
+            > para content
+            "},
+    );
+}
+
+fn assert_inlined_with_keep_target(source: &str, line: u32, inlined: &str) {
+    let mut config = Configuration::template();
+    config.actions.insert(
+        "inline_quote_keep".into(),
+        BlockAction::Inline(Inline {
+            title: "Inline quote (keep target)".into(),
+            inline_type: InlineType::Quote,
+            keep_target: Some(true),
+        }),
+    );
+
+    Fixture::with_config(source, config).code_action(
+        uri(1).to_code_action_params(line, "custom.inline_quote_keep"),
+        vec![uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline quote (keep target)", "custom.inline_quote_keep"),
+    );
+}
+
 fn assert_inlined(source: &str, line: u32, inlined: &str) {
-    let fixture = Fixture::with(source);
+    Fixture::with_config(source, Configuration::template()).code_action(
+        uri(1).to_code_action_params(line, "custom.inline_quote"),
+        vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline quote", "custom.inline_quote"),
+    );
+}
 
-    let delete = DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
-        uri: uri(2),
-        options: None,
-    }));
-
-    fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                only: action_kinds("refactor.inline.reference.quote"),
-                ..Default::default()
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CodeAction {
-            title: "Inline quote".to_string(),
-            kind: action_kind("refactor.inline.reference.quote"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    delete,
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: inlined.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    )
+fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, additional_updates: &str) {
+    Fixture::with_config(source, Configuration::template()).code_action(
+        uri(1).to_code_action_params(line, "custom.inline_quote"),
+        vec![
+            uri(2).to_delete_file(),
+            uri(1).to_edit(inlined),
+            uri(3).to_edit(additional_updates),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Inline quote", "custom.inline_quote"),
+    );
 }

@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use action::all_action_types;
-use action::ActionContext;
-use action::ActionProvider;
+use actions::all_action_types;
+use actions::ActionContext;
+use actions::ActionProvider;
 
 use command::CommandType;
 use command::GenerateCommand;
@@ -35,7 +35,7 @@ use liwe::database::DatabaseContext;
 
 use self::extensions::*;
 
-pub mod action;
+pub mod actions;
 pub mod command;
 mod extensions;
 mod llm;

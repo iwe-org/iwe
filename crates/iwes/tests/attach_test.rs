@@ -1,19 +1,9 @@
-use std::u32;
-
 use chrono::Local;
 use indoc::{formatdoc, indoc};
 use liwe::model::config::{Attach, BlockAction, Configuration};
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, CreateFile, CreateFileOptions,
-    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
-    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit, WorkspaceEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::{uri_from, Fixture};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn basic_attach() {
@@ -207,41 +197,12 @@ fn assert_attached(source: &str, line: u32, expected: &str) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
-
-    fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.attach"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CodeAction {
-            title: "Attach".to_string(),
-            kind: action_kind("custom.attach"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(3),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: expected.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    )
+    Fixture::with_config(source, configuration).code_action(
+        uri(1).to_code_action_params(line, "custom.attach"),
+        vec![uri(3).to_edit(expected)]
+            .to_workspace_edit()
+            .to_code_action("Attach", "custom.attach"),
+    );
 }
 
 fn assert_attached_new_key(source: &str, line: u32, expected: &str) {
@@ -256,49 +217,12 @@ fn assert_attached_new_key(source: &str, line: u32, expected: &str) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
-
-    fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.attach"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CodeAction {
-            title: "Attach".to_string(),
-            kind: action_kind("custom.attach"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                        uri: uri(3),
-                        options: Some(CreateFileOptions {
-                            overwrite: Some(false),
-                            ignore_if_exists: Some(false),
-                        }),
-                        annotation_id: None,
-                    })),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(3),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: expected.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    )
+    Fixture::with_config(source, configuration).code_action(
+        uri(1).to_code_action_params(line, "custom.attach"),
+        vec![uri(3).to_create_file(), uri(3).to_edit(expected)]
+            .to_workspace_edit()
+            .to_code_action("Attach", "custom.attach"),
+    );
 }
 
 fn assert_no_action(source: &str, line: u32) {
@@ -313,19 +237,8 @@ fn assert_no_action(source: &str, line: u32) {
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
-
-    fixture.no_code_action(CodeActionParams {
-        text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-        context: CodeActionContext {
-            diagnostics: Default::default(),
-            only: action_kinds("custom.attach"),
-            trigger_kind: None,
-        },
-        work_done_progress_params: Default::default(),
-        partial_result_params: Default::default(),
-    })
+    Fixture::with_config(source, configuration)
+        .no_code_action(uri(1).to_code_action_params(line, "custom.attach"));
 }
 
 fn assert_attached_template(source: &str, line: u32, expected: &str, expected_key: &str) {
@@ -340,47 +253,15 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
         }),
     );
 
-    let fixture = Fixture::with_config(source, configuration);
+    let expected_uri = uri_from(expected_key);
 
-    fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.attach"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CodeAction {
-            title: "Attach".to_string(),
-            kind: action_kind("custom.attach"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Op(ResourceOp::Create(CreateFile {
-                        uri: uri_from(expected_key),
-                        options: Some(CreateFileOptions {
-                            overwrite: Some(false),
-                            ignore_if_exists: Some(false),
-                        }),
-                        annotation_id: None,
-                    })),
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri_from(expected_key),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: expected.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    )
+    Fixture::with_config(source, configuration).code_action(
+        uri(1).to_code_action_params(line, "custom.attach"),
+        vec![
+            expected_uri.clone().to_create_file(),
+            expected_uri.to_edit(expected),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Attach", "custom.attach"),
+    );
 }

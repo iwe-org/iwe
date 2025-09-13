@@ -7,7 +7,7 @@ use lsp_types::{ApplyWorkspaceEditParams, DocumentChanges, ExecuteCommandParams,
 use serde::{Deserialize, Serialize};
 
 use super::{
-    action::{ActionContext, Change, Create, Update},
+    actions::{ActionContext, Change, Create, Update},
     BasePath, ChangeExt,
 };
 

@@ -3,8 +3,8 @@ use std::error::Error;
 use std::fs::OpenOptions;
 
 use iwes::main_loop;
-use iwes::router::server::action::all_action_types;
-use iwes::router::server::action::ActionProvider;
+use iwes::router::server::actions::all_action_types;
+use iwes::router::server::actions::ActionProvider;
 use iwes::ServerParams;
 use liwe::model::config::load_config;
 use lsp_types::CodeActionOptions;

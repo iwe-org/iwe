@@ -1,17 +1,7 @@
-use std::u32;
-
 use indoc::indoc;
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, DocumentChangeOperation, DocumentChanges,
-    OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range, TextDocumentEdit,
-    TextDocumentIdentifier, TextEdit, WorkspaceEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn wrap_single_section() {
@@ -139,39 +129,10 @@ fn wrap_list_something() {
 }
 
 fn assert_list(source: &str, line: u32, expected: &str) {
-    let fixture = Fixture::with(source);
-
-    fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.rewrite.section.list"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CodeAction {
-            title: "Section to list".to_string(),
-            kind: action_kind("refactor.rewrite.section.list"),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: expected.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    )
+    Fixture::with(source).code_action(
+        uri(1).to_code_action_params(line, "refactor.rewrite.section.list"),
+        vec![uri(1).to_edit(expected)]
+            .to_workspace_edit()
+            .to_code_action("Section to list", "refactor.rewrite.section.list"),
+    );
 }

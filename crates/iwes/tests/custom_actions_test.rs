@@ -2,15 +2,9 @@ use std::u32;
 
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Context::Document, Model, Transform};
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, Position, Range, TextDocumentIdentifier,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn block_action_target() {
@@ -32,26 +26,14 @@ fn assert_action(action: BlockAction, source: &str, line: u32) {
         ..Default::default()
     };
 
-    let fixture = Fixture::with_config(source, config);
-
-    fixture.code_action_menu(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("custom.action"),
-                trigger_kind: None,
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        },
-        CodeAction {
+    Fixture::with_config(source, config).code_action_menu(
+        uri(1).to_code_action_params(line, "custom.action"),
+        lsp_types::CodeAction {
             title: "title".to_string(),
             kind: action_kind("custom.action"),
             ..Default::default()
         },
-    )
+    );
 }
 
 fn action() -> BlockAction {

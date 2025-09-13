@@ -72,6 +72,8 @@ pub enum BlockAction {
     Attach(Attach),
     #[serde(rename = "sort")]
     Sort(Sort),
+    #[serde(rename = "inline")]
+    Inline(Inline),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -93,6 +95,21 @@ pub struct Attach {
 pub struct Sort {
     pub title: String,
     pub reverse: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Inline {
+    pub title: String,
+    pub inline_type: InlineType,
+    pub keep_target: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub enum InlineType {
+    #[serde(rename = "section")]
+    Section,
+    #[serde(rename = "quote")]
+    Quote,
 }
 
 impl Default for Configuration {
@@ -263,6 +280,24 @@ impl Configuration {
             BlockAction::Sort(Sort {
                 title: "Sort Z-A".into(),
                 reverse: Some(true),
+            }),
+        );
+
+        template.actions.insert(
+            "inline_section".into(),
+            BlockAction::Inline(Inline {
+                title: "Inline section".into(),
+                inline_type: InlineType::Section,
+                keep_target: Some(false),
+            }),
+        );
+
+        template.actions.insert(
+            "inline_quote".into(),
+            BlockAction::Inline(Inline {
+                title: "Inline quote".into(),
+                inline_type: InlineType::Quote,
+                keep_target: Some(false),
             }),
         );
 

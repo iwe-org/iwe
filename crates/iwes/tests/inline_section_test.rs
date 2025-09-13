@@ -1,17 +1,8 @@
-use std::u32;
-
 use indoc::indoc;
-use lsp_types::{
-    CodeAction, CodeActionContext, CodeActionParams, CodeActionTriggerKind, DeleteFile,
-    DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
-    Position, Range, ResourceOp, TextDocumentEdit, TextDocumentIdentifier, TextEdit,
-};
-
-use fixture::{action_kind, action_kinds, uri};
-
-use crate::fixture::Fixture;
+use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
 
 mod fixture;
+use crate::fixture::*;
 
 #[test]
 fn no_action_on_list() {
@@ -25,7 +16,7 @@ fn no_action_on_list() {
 
 #[test]
 fn inline_basic_section() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -44,7 +35,7 @@ fn inline_basic_section() {
 
 #[test]
 fn inline_after_other_refs() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -67,7 +58,7 @@ fn inline_after_other_refs() {
 
 #[test]
 fn inline_middle_section_test() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -94,7 +85,7 @@ fn inline_middle_section_test() {
 
 #[test]
 fn inline_after_list() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -121,7 +112,7 @@ fn inline_after_list() {
 
 #[test]
 fn inline_after_para() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -144,7 +135,7 @@ fn inline_after_para() {
 
 #[test]
 fn inline_two_paras() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -167,7 +158,7 @@ fn inline_two_paras() {
 
 #[test]
 fn inline_para_and_header() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -190,7 +181,7 @@ fn inline_para_and_header() {
 
 #[test]
 fn inline_para_and_header_before_para() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -217,7 +208,7 @@ fn inline_para_and_header_before_para() {
 
 #[test]
 fn inline_third_level_section_test() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -240,7 +231,7 @@ fn inline_third_level_section_test() {
 
 #[test]
 fn inline_one_of_sub_level_section() {
-    assert_inlined(
+    assert_inlined_remove(
         indoc! {"
             # test
 
@@ -273,66 +264,130 @@ fn inline_one_of_sub_level_section() {
     );
 }
 
-fn assert_inlined(source: &str, line: u32, inlined: &str) {
-    let fixture = Fixture::with(source);
+#[test]
+fn inline_section_default_removes_all_references() {
+    assert_inlined_remove_target(
+        indoc! {"
+            # test
 
-    let delete = DocumentChangeOperation::Op(ResourceOp::Delete(DeleteFile {
-        uri: uri(2),
-        options: None,
-    }));
+            [test2](2)
+            _
+            # test2
 
-    fixture.code_action(
-        CodeActionParams {
-            text_document: TextDocumentIdentifier { uri: uri(1) },
-            range: Range::new(
-                Position::new(line, 0),
-                // helix editor provides range even if nothing selected.
-                Position::new(line, 0),
-            ),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: CodeActionContext {
-                diagnostics: Default::default(),
-                only: action_kinds("refactor.inline.reference.section"),
-                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
-            },
-        },
-        CodeAction {
-            title: "Inline section".to_string(),
-            kind: action_kind("refactor.inline.reference.section"),
-            edit: Some(lsp_types::WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(vec![
-                    delete,
-                    DocumentChangeOperation::Edit(TextDocumentEdit {
-                        text_document: OptionalVersionedTextDocumentIdentifier {
-                            uri: uri(1),
-                            version: None,
-                        },
-                        edits: vec![OneOf::Left(TextEdit {
-                            range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
-                            new_text: inlined.to_string(),
-                        })],
-                    }),
-                ])),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    )
+            some content
+            _
+            # test3
+
+            [test2](2)
+
+            inline link to [test2](2)
+            "},
+        2,
+        indoc! {"
+            # test
+
+            ## test2
+
+            some content
+            "},
+        indoc! {"
+            # test3
+
+            inline link to test2
+            "},
+    );
+}
+
+#[test]
+fn inline_with_keep_target_true_basic_section() {
+    assert_inlined_keep(
+        indoc! {"
+            # test
+
+            [test2](2)
+            _
+            # test2
+            "},
+        2,
+        indoc! {"
+            # test
+
+            ## test2
+            "},
+    );
+}
+
+#[test]
+fn inline_with_keep_target_true_keeps_other_references() {
+    assert_inlined_keep(
+        indoc! {"
+            # test
+
+            [test2](2)
+            _
+            # test2
+
+            some content
+            _
+            # test3
+
+            [test2](2)
+
+            inline link to [test2](2)
+            "},
+        2,
+        indoc! {"
+            # test
+
+            ## test2
+
+            some content
+            "},
+    );
 }
 
 fn assert_no_action(source: &str, line: u32) {
-    let fixture = Fixture::with(source);
+    Fixture::with_config(source, Configuration::template())
+        .no_code_action(uri(1).to_code_action_params(line, "custom.inline_section"));
+}
 
-    fixture.no_code_action(CodeActionParams {
-        text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(line, 0), Position::new(line, 0)),
-        work_done_progress_params: Default::default(),
-        partial_result_params: Default::default(),
-        context: CodeActionContext {
-            diagnostics: Default::default(),
-            only: action_kinds("refactor.extract.section"),
-            trigger_kind: None,
-        },
-    })
+fn assert_inlined_remove(source: &str, line: u32, inlined: &str) {
+    Fixture::with_config(source, Configuration::template()).code_action(
+        uri(1).to_code_action_params_with_trigger(line, "custom.inline_section"),
+        vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline section", "custom.inline_section"),
+    );
+}
+
+fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, additional_updates: &str) {
+    Fixture::with_config(source, Configuration::template()).code_action(
+        uri(1).to_code_action_params_with_trigger(line, "custom.inline_section"),
+        vec![
+            uri(2).to_delete_file(),
+            uri(1).to_edit(inlined),
+            uri(3).to_edit(additional_updates),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Inline section", "custom.inline_section"),
+    );
+}
+
+fn assert_inlined_keep(source: &str, line: u32, inlined: &str) {
+    let mut config = Configuration::template();
+    config.actions.insert(
+        "inline_section_keep".into(),
+        BlockAction::Inline(Inline {
+            title: "Inline section (keep target)".into(),
+            inline_type: InlineType::Section,
+            keep_target: Some(true),
+        }),
+    );
+
+    Fixture::with_config(source, config).code_action(
+        uri(1).to_code_action_params_with_trigger(line, "custom.inline_section_keep"),
+        vec![uri(1).to_edit(inlined)]
+            .to_workspace_edit()
+            .to_code_action("Inline section (keep target)", "custom.inline_section_keep"),
+    );
 }
