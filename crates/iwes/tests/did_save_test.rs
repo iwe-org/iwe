@@ -4,7 +4,6 @@ mod fixture;
 use crate::fixture::*;
 
 #[test]
-#[allow(deprecated)]
 fn did_save_test_once() {
     let fixture = Fixture::with(indoc! {"
             # test
@@ -24,7 +23,6 @@ fn did_save_test_once() {
 }
 
 #[test]
-#[allow(deprecated)]
 fn new_file() {
     let fixture = Fixture::new();
 
@@ -42,7 +40,6 @@ fn new_file() {
 }
 
 #[test]
-#[allow(deprecated)]
 fn did_save_test_two_times() {
     let fixture = Fixture::with(indoc! {"
             # test

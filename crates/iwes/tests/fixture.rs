@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(deprecated)]
+
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
