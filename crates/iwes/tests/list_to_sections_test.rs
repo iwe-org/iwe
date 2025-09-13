@@ -1,5 +1,4 @@
 use indoc::indoc;
-use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -189,10 +188,7 @@ fn assert_sections(source: &str, line: u32, expected: &str) {
     let fixture = Fixture::with(source);
 
     fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(line, 0), Position::new(line, 0)),
-            "refactor.rewrite.list.section",
-        ),
+        uri(1).to_code_action_params(line, "refactor.rewrite.list.section"),
         vec![uri(1).to_edit(expected)]
             .to_workspace_edit()
             .to_code_action("List to sections", "refactor.rewrite.list.section"),

@@ -1,5 +1,4 @@
 use indoc::indoc;
-use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -190,10 +189,7 @@ fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
     }
 
     fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(line, 0), Position::new(line, 0)),
-            "refactor.delete",
-        ),
+        uri(1).to_code_action_params(line, "refactor.delete"),
         operations
             .to_workspace_edit()
             .to_code_action("Delete", "refactor.delete"),
@@ -203,8 +199,5 @@ fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
 fn assert_no_delete_action(source: &str, line: u32) {
     let fixture = Fixture::with(source);
 
-    fixture.no_code_action(uri(1).to_code_action_params(
-        Range::new(Position::new(line, 0), Position::new(line, 0)),
-        "refactor.delete",
-    ))
+    fixture.no_code_action(uri(1).to_code_action_params(line, "refactor.delete"))
 }

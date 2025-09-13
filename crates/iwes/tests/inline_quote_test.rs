@@ -1,6 +1,5 @@
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
-use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -155,10 +154,7 @@ fn assert_inlined_with_keep_target(source: &str, line: u32, inlined: &str) {
     let fixture = Fixture::with_config(source, config);
 
     fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(line, 0), Position::new(line, 0)),
-            "custom.inline_quote_keep",
-        ),
+        uri(1).to_code_action_params(line, "custom.inline_quote_keep"),
         vec![uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline quote (keep target)", "custom.inline_quote_keep"),
@@ -169,10 +165,7 @@ fn assert_inlined(source: &str, line: u32, inlined: &str) {
     let fixture = Fixture::with_config(source, Configuration::template());
 
     fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(line, 0), Position::new(line, 0)),
-            "custom.inline_quote",
-        ),
+        uri(1).to_code_action_params(line, "custom.inline_quote"),
         vec![uri(2).to_delete_file(), uri(1).to_edit(inlined)]
             .to_workspace_edit()
             .to_code_action("Inline quote", "custom.inline_quote"),
@@ -183,10 +176,7 @@ fn assert_inlined_remove_target(source: &str, line: u32, inlined: &str, addition
     let fixture = Fixture::with_config(source, Configuration::template());
 
     fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(line, 0), Position::new(line, 0)),
-            "custom.inline_quote",
-        ),
+        uri(1).to_code_action_params(line, "custom.inline_quote"),
         vec![
             uri(2).to_delete_file(),
             uri(1).to_edit(inlined),

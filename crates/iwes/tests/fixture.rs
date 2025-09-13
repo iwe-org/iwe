@@ -50,10 +50,10 @@ pub impl Url {
         )
     }
 
-    fn to_code_action_params(self, range: Range, kind: &str) -> CodeActionParams {
+    fn to_code_action_params(self, line: u32, kind: &str) -> CodeActionParams {
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: self },
-            range,
+            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
             context: CodeActionContext {
                 only: Some(vec![CodeActionKind::from(kind.to_string())]),
                 ..Default::default()

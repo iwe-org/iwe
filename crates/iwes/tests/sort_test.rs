@@ -1,6 +1,5 @@
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Sort};
-use lsp_types::{Position, Range};
 
 mod fixture;
 use crate::fixture::*;
@@ -17,20 +16,16 @@ fn sort_simple_list() {
         }),
     );
 
-    let fixture = Fixture::with_config(
+    Fixture::with_config(
         indoc! {"
             - zebra
             - apple
             - banana
             "},
         configuration,
-    );
-
-    fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(0, 0), Position::new(0, 0)),
-            "custom.sort",
-        ),
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.sort"),
         vec![uri(1).to_edit(indoc! {"
                 - apple
                 - banana
@@ -53,19 +48,15 @@ fn sort_not_offered_when_already_sorted_ascending() {
         }),
     );
 
-    let fixture = Fixture::with_config(
+    Fixture::with_config(
         indoc! {"
             - apple
             - banana
             - zebra
             "},
         configuration,
-    );
-
-    fixture.no_code_action(uri(1).to_code_action_params(
-        Range::new(Position::new(0, 0), Position::new(0, 0)),
-        "custom.sort",
-    ))
+    )
+    .no_code_action(uri(1).to_code_action_params(0, "custom.sort"))
 }
 
 #[test]
@@ -80,19 +71,15 @@ fn sort_not_offered_when_already_sorted_descending() {
         }),
     );
 
-    let fixture = Fixture::with_config(
+    Fixture::with_config(
         indoc! {"
             - zebra
             - banana
             - apple
             "},
         configuration,
-    );
-
-    fixture.no_code_action(uri(1).to_code_action_params(
-        Range::new(Position::new(0, 0), Position::new(0, 0)),
-        "custom.sort",
-    ))
+    )
+    .no_code_action(uri(1).to_code_action_params(0, "custom.sort"))
 }
 
 #[test]
@@ -107,20 +94,16 @@ fn sort_offered_when_partially_sorted() {
         }),
     );
 
-    let fixture = Fixture::with_config(
+    Fixture::with_config(
         indoc! {"
             - apple
             - zebra
             - banana
             "},
         configuration,
-    );
-
-    fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(0, 0), Position::new(0, 0)),
-            "custom.sort",
-        ),
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.sort"),
         vec![uri(1).to_edit(indoc! {"
                 - apple
                 - banana
@@ -143,20 +126,16 @@ fn sort_list_descending() {
         }),
     );
 
-    let fixture = Fixture::with_config(
+    Fixture::with_config(
         indoc! {"
             - zebra
             - apple
             - banana
             "},
         configuration,
-    );
-
-    fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(0, 0), Position::new(0, 0)),
-            "custom.sort",
-        ),
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.sort"),
         vec![uri(1).to_edit(indoc! {"
                 - zebra
                 - banana
@@ -179,20 +158,16 @@ fn sort_ordered_list() {
         }),
     );
 
-    let fixture = Fixture::with_config(
+    Fixture::with_config(
         indoc! {"
             1. zebra
             2. apple
             3. banana
             "},
         configuration,
-    );
-
-    fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(0, 0), Position::new(0, 0)),
-            "custom.sort",
-        ),
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.sort"),
         vec![uri(1).to_edit(indoc! {"
                 1.  apple
                 2.  banana

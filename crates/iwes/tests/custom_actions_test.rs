@@ -2,7 +2,7 @@ use std::u32;
 
 use indoc::indoc;
 use liwe::model::config::{BlockAction, Configuration, Context::Document, Model, Transform};
-use lsp_types::{CodeAction, Position, Range};
+use lsp_types::CodeAction;
 
 mod fixture;
 use crate::fixture::*;
@@ -30,10 +30,7 @@ fn assert_action(action: BlockAction, source: &str, line: u32) {
     let fixture = Fixture::with_config(source, config);
 
     fixture.code_action_menu(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(line, 0), Position::new(line, 0)),
-            "custom.action",
-        ),
+        uri(1).to_code_action_params(line, "custom.action"),
         CodeAction {
             title: "title".to_string(),
             kind: action_kind("custom.action"),

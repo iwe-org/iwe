@@ -1,5 +1,4 @@
 use indoc::indoc;
-use lsp_types::*;
 
 mod fixture;
 use crate::fixture::*;
@@ -80,10 +79,7 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
     let fixture = Fixture::with(source);
 
     fixture.code_action(
-        uri(1).to_code_action_params(
-            Range::new(Position::new(line, 0), Position::new(line, 0)),
-            "refactor.extract.subsections",
-        ),
+        uri(1).to_code_action_params(line, "refactor.extract.subsections"),
         vec![
             uri(2).to_create_file(),
             uri(2).to_edit(extracted),
@@ -97,8 +93,5 @@ fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
 fn assert_no_action(source: &str, line: u32) {
     let fixture = Fixture::with(source);
 
-    fixture.no_code_action(uri(1).to_code_action_params(
-        Range::new(Position::new(line, 0), Position::new(line, 0)),
-        "refactor.extract.subsections",
-    ))
+    fixture.no_code_action(uri(1).to_code_action_params(line, "refactor.extract.subsections"))
 }
