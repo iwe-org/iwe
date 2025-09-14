@@ -2,6 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use url::Url;
+
 use actions::all_action_types;
 use actions::ActionContext;
 use actions::ActionProvider;
@@ -54,42 +57,23 @@ pub struct BasePath {
 
 impl BasePath {
     fn key_to_url(&self, key: &Key) -> Uri {
-        if self.base_path.starts_with("file://") {
-            Uri::from_str(&format!("{}{}", self.base_path, key.to_path())).expect("to work")
-        } else {
-            Uri::from_str(&format!(
-                "file://{}",
-                Path::new(&self.base_path).join(&key.to_path()).display()
-            ))
-            .expect("to work")
-        }
+        let base_url = Url::parse(&self.base_path).expect("valid base URL");
+        let mut url = base_url.clone();
+        url.set_path(&format!("{}{}", base_url.path(), key.to_path()));
+        Uri::from_str(url.as_str()).expect("to work")
     }
 
     fn relative_to_full_path(&self, url: &str) -> Uri {
-        if self.base_path.starts_with("file://") {
-            Uri::from_str(&format!(
-                "{}{}.md",
-                self.base_path,
-                url.trim_end_matches(".md")
-            ))
-            .expect("to work")
-        } else {
-            Uri::from_str(&format!(
-                "file://{}",
-                Path::new(&self.base_path)
-                    .join(&format!("{}.md", url.trim_end_matches(".md")))
-                    .display()
-            ))
-            .expect("to work")
-        }
+        let mut base_url = Url::parse(&self.base_path).expect("valid base URL");
+        let filename = format!("{}.md", url.trim_end_matches(".md"));
+        base_url.set_path(&format!("{}{}", base_url.path(), filename));
+        Uri::from_str(base_url.as_str()).expect("to work")
     }
 
     fn name_to_url(&self, key: &str) -> Uri {
-        if self.base_path.starts_with("file://") {
-            Uri::from_str(&format!("{}{}.md", self.base_path, key)).expect("to work")
-        } else {
-            Uri::from_str(&format!("file://{}{}.md", self.base_path, key)).expect("to work")
-        }
+        let mut base_url = Url::parse(&self.base_path).expect("valid base URL");
+        base_url.set_path(&format!("{}{}.md", base_url.path(), key));
+        Uri::from_str(base_url.as_str()).expect("to work")
     }
 
     fn url_to_key(&self, url: &Uri) -> Key {
@@ -98,6 +82,13 @@ impl BasePath {
                 .trim_start_matches(&self.base_path)
                 .to_string(),
         )
+    }
+
+    fn resolve_relative_url(&self, url: &str, relative_to: &str) -> Uri {
+        // URL-encode the path to handle spaces and special characters
+        let encoded_url = utf8_percent_encode(url, NON_ALPHANUMERIC).to_string();
+        let relative_url = RelativePath::new(relative_to).join(encoded_url).to_string();
+        self.relative_to_full_path(&relative_url)
     }
 }
 
@@ -256,33 +247,23 @@ impl Server {
     }
 
     pub fn handle_goto_definition(&self, params: GotoDefinitionParams) -> GotoDefinitionResponse {
-        let relative_to = params
+        let key = params
             .text_document_position_params
             .text_document
             .uri
-            .to_key(&self.base_path)
-            .parent();
+            .to_key(&self.base_path);
+        let relative_to = key.parent();
+        let position = params.text_document_position_params.position;
 
-        self.parser(
-            &params
-                .text_document_position_params
-                .text_document
-                .uri
-                .to_key(&self.base_path),
-        )
-        .and_then(|parser| {
-            parser.url_at(to_position(
-                (&params).text_document_position_params.position,
-            ))
-        })
-        .map(|url| {
-            let relative_url = RelativePath::new(&relative_to).join(url).to_string();
-            GotoDefinitionResponse::Scalar(Location::new(
-                self.base_path.relative_to_full_path(&relative_url),
-                Range::default(),
-            ))
-        })
-        .unwrap_or(GotoDefinitionResponse::Array(vec![]))
+        self.parser(&key)
+            .and_then(|parser| parser.url_at(to_position(position)))
+            .map(|url| {
+                GotoDefinitionResponse::Scalar(Location::new(
+                    self.base_path.resolve_relative_url(&url, &relative_to),
+                    Range::default(),
+                ))
+            })
+            .unwrap_or(GotoDefinitionResponse::Array(vec![]))
     }
 
     pub fn handle_document_formatting(&self, params: DocumentFormattingParams) -> Vec<TextEdit> {

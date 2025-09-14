@@ -42,6 +42,9 @@ once_cell.workspace = true
 minijinja.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+sanitize-filename.workspace = true
+url.workspace = true
+percent-encoding.workspace = true
 
 [dev-dependencies]
 assert-json-diff.workspace = true

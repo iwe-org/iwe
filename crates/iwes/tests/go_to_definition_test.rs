@@ -70,6 +70,26 @@ fn definition_in_paragraph_wiki_link() {
 }
 
 #[test]
+fn definition_in_paragraph_wiki_link_with_space() {
+    Fixture::with(indoc! {"
+            # test
+
+            text [[link to something]] text
+
+            "})
+    .go_to_definition(
+        uri(1).to_goto_definition_params(2, 9),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link%20to%20something.md").unwrap(),
+        ),
+    )
+    .go_to_definition(
+        uri(1).to_goto_definition_params(2, 2),
+        goto_definition_response_empty(),
+    );
+}
+
+#[test]
 fn definition_in_paragraph_piped_wiki_link() {
     Fixture::with(indoc! {"
             # test

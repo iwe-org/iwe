@@ -427,7 +427,7 @@ fn to_link_type(link_type: LinkType) -> document::LinkType {
             true => document::LinkType::WikiLinkPiped,
             false => document::LinkType::WikiLink,
         },
-        _ => document::LinkType::Regular,
+        _ => document::LinkType::Markdown,
     }
 }
 
@@ -465,7 +465,7 @@ mod tests {
                         character: 10,
                     },
                 },
-                link_type: LinkType::Regular,
+                link_type: LinkType::Markdown,
             })],
         })];
 
@@ -510,7 +510,7 @@ mod tests {
                                 character: 15,
                             },
                         },
-                        link_type: LinkType::Regular,
+                        link_type: LinkType::Markdown,
                     }),
                     DocumentInline::Str(" text".to_string()),
                 ],

@@ -51,6 +51,9 @@ tempfile = "3.22"
 graphviz-rust = "0.9.5"
 toml_edit = "0.23.4"
 chrono = "0.4.42"
+sanitize-filename = "0.6.0"
+url = "2.5.4"
+percent-encoding = "2.3.1"
 tracing-subscriber = { version = "0.3.20", default-features = false, features = [
     "registry",
     "fmt",

@@ -301,7 +301,7 @@ impl GraphInline {
             GraphInline::Link(url, title, link_type, inlines) => {
                 if self.is_ref() {
                     let new_inlines = match *link_type {
-                        LinkType::Regular => context
+                        LinkType::Markdown => context
                             .get_ref_title(&Key::name(url))
                             .map(|title| vec![GraphInline::Str(title)])
                             .unwrap_or(inlines.clone()),

@@ -716,7 +716,7 @@ impl DocumentInline {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LinkType {
-    Regular,
+    Markdown,
     WikiLink,
     WikiLinkPiped,
 }
@@ -724,7 +724,7 @@ pub enum LinkType {
 impl LinkType {
     pub fn to_ref_type(&self) -> ReferenceType {
         match self {
-            LinkType::Regular => ReferenceType::Regular,
+            LinkType::Markdown => ReferenceType::Regular,
             LinkType::WikiLink => ReferenceType::WikiLink,
             LinkType::WikiLinkPiped => ReferenceType::WikiLinkPiped,
         }
