@@ -1,4 +1,4 @@
-# Inline Content Action
+# Inline Notes
 
 The `inline` action is a powerful feature for embedding content from one document directly into another. It replaces a link to a document with the actual content of that document. This is useful for consolidating notes, embedding sources, or restructuring your knowledge base.
 

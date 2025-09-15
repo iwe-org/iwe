@@ -22,6 +22,8 @@
 
 [Extract Notes](feature-extract.md)
 
+[Inline Notes](feature-inline.md)
+
 [Linking and note templates](feature-attach.md)
 
 [Delete block references](feature-delete.md)
