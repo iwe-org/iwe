@@ -12,6 +12,8 @@ use super::{node::NodeIter, NodeId};
 const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
 
+pub const DEFAULT_KEY_DATE_FORMAT: &str = "%Y-%m-%d";
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct MarkdownOptions {
     pub refs_extension: String,
@@ -38,7 +40,7 @@ impl Default for LibraryOptions {
     fn default() -> Self {
         Self {
             path: String::new(),
-            date_format: Some("%Y-%m-%d".into()),
+            date_format: Some(DEFAULT_KEY_DATE_FORMAT.into()),
             prompt_key_prefix: None,
         }
     }
@@ -74,6 +76,8 @@ pub enum BlockAction {
     Sort(Sort),
     #[serde(rename = "inline")]
     Inline(Inline),
+    #[serde(rename = "extract")]
+    Extract(Extract),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -110,6 +114,21 @@ pub enum InlineType {
     Section,
     #[serde(rename = "quote")]
     Quote,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Extract {
+    pub title: String,
+    pub link_type: Option<LinkType>,
+    pub key_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub enum LinkType {
+    #[serde(rename = "markdown")]
+    Markdown,
+    #[serde(rename = "wiki")]
+    WikiLink,
 }
 
 impl Default for Configuration {
@@ -298,6 +317,15 @@ impl Configuration {
                 title: "Inline quote".into(),
                 inline_type: InlineType::Quote,
                 keep_target: Some(false),
+            }),
+        );
+
+        template.actions.insert(
+            "extract".into(),
+            BlockAction::Extract(Extract {
+                title: "Extract".into(),
+                link_type: Some(LinkType::Markdown),
+                key_template: "{{id}}".into(),
             }),
         );
 

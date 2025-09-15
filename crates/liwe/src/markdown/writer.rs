@@ -57,9 +57,13 @@ impl MarkdownWriter {
         let mut events = Vec::new();
         match block {
             GraphBlock::Frontmatter(content) => {
-                events.push(Event::Start(Tag::MetadataBlock(MetadataBlockKind::YamlStyle)));
+                events.push(Event::Start(Tag::MetadataBlock(
+                    MetadataBlockKind::YamlStyle,
+                )));
                 events.push(Event::Text(content.into()));
-                events.push(Event::End(TagEnd::MetadataBlock(MetadataBlockKind::YamlStyle)));
+                events.push(Event::End(TagEnd::MetadataBlock(
+                    MetadataBlockKind::YamlStyle,
+                )));
             }
             GraphBlock::Header(level, inlines) => {
                 events.push(Event::Start(Tag::Heading {
@@ -244,7 +248,7 @@ impl MarkdownWriter {
 
 fn link_type(link_type: document::LinkType) -> pulldown_cmark::LinkType {
     match link_type {
-        document::LinkType::Regular => pulldown_cmark::LinkType::Inline,
+        document::LinkType::Markdown => pulldown_cmark::LinkType::Inline,
         document::LinkType::WikiLink => pulldown_cmark::LinkType::WikiLink { has_pothole: false },
         document::LinkType::WikiLinkPiped => {
             pulldown_cmark::LinkType::WikiLink { has_pothole: true }

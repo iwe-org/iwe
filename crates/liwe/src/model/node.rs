@@ -64,7 +64,7 @@ pub enum ReferenceType {
 impl ReferenceType {
     pub fn to_link_type(&self) -> LinkType {
         match self {
-            ReferenceType::Regular => LinkType::Regular,
+            ReferenceType::Regular => LinkType::Markdown,
             ReferenceType::WikiLink => LinkType::WikiLink,
             ReferenceType::WikiLinkPiped => LinkType::WikiLinkPiped,
         }

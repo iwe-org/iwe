@@ -20,7 +20,9 @@
 
 [Notes search](feature-search.md)
 
-[Extract/Inline Notes](feature-extract-inline.md)
+[Extract Notes](feature-extract.md)
+
+[Inline Notes](feature-inline.md)
 
 [Linking and note templates](feature-attach.md)
 

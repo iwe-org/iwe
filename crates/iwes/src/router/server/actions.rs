@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use liwe::graph::Graph;
-use liwe::model::config::{BlockAction, Configuration, MarkdownOptions, Model};
+use liwe::model::config::{
+    BlockAction, Configuration, MarkdownOptions, Model, DEFAULT_KEY_DATE_FORMAT,
+};
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
 
@@ -192,7 +194,6 @@ pub fn all_actions() -> Vec<ActionEnum> {
         ActionEnum::ListChangeType(ListChangeType {}),
         ActionEnum::ListToSections(ListToSections {}),
         ActionEnum::SectionToList(SectionToList {}),
-        ActionEnum::SectionExtract(SectionExtract {}),
         ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
     ]
 }
@@ -202,7 +203,6 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
         ActionEnum::ListChangeType(ListChangeType {}),
         ActionEnum::ListToSections(ListToSections {}),
         ActionEnum::SectionToList(SectionToList {}),
-        ActionEnum::SectionExtract(SectionExtract {}),
         ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
         ActionEnum::DeleteAction(DeleteAction {}),
     ];
@@ -244,7 +244,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .clone()
                             .library
                             .date_format
-                            .unwrap_or("%Y-%m-%d".into()),
+                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
                     });
                     action
                 }
@@ -262,6 +262,20 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                         identifier: identifier.clone(),
                         inline_type: inline.inline_type.clone(),
                         keep_target: inline.keep_target.unwrap_or(false),
+                    });
+                    action
+                }
+                BlockAction::Extract(extract) => {
+                    let action = ActionEnum::SectionExtract(SectionExtract {
+                        title: extract.title.clone(),
+                        identifier: identifier.clone(),
+                        link_type: extract.link_type.clone(),
+                        key_template: extract.key_template.clone(),
+                        key_date_format: configuration
+                            .clone()
+                            .library
+                            .date_format
+                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
                     });
                     action
                 }

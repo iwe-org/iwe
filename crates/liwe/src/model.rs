@@ -48,6 +48,19 @@ impl Key {
             .unwrap_or_default()
     }
 
+    pub fn source(&self) -> String {
+        RelativePath::new(&self.relative_path.to_string())
+            .file_name()
+            .unwrap_or("")
+            .to_string()
+    }
+
+    pub fn path(&self) -> Option<String> {
+        RelativePath::new(&self.relative_path.to_string())
+            .parent()
+            .map(|p| p.to_string())
+    }
+
     pub fn name(name: &str) -> Self {
         let key = name.trim_end_matches(".md").to_string();
 
