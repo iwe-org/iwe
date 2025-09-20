@@ -24,7 +24,7 @@ impl ExtractAll {
     fn format_target_key(
         &self,
         context: &impl ActionContext,
-        id: Key,
+        id: &str,
         parent_key: &str,
         target_id: NodeId,
     ) -> Key {
@@ -45,7 +45,7 @@ impl ExtractAll {
             .map(|tree| tree.node.plain_text())
             .unwrap_or_default();
 
-        let base_key_name = Environment::new()
+        let relative_key = Environment::new()
             .template_from_str(&self.key_template)
             .expect("correct template")
             .render(context! {
@@ -65,11 +65,12 @@ impl ExtractAll {
             })
             .expect("template to work");
 
-        let mut candidate_key = Key::name(&base_key_name);
+        let base_key = Key::combine(&key.parent(), &relative_key);
+        let mut candidate_key = base_key.clone();
         let mut counter = 1;
 
         while context.key_exists(&candidate_key) {
-            let suffixed_name = format!("{}-{}", base_key_name, counter);
+            let suffixed_name = format!("{}-{}", relative_key, counter);
             candidate_key = Key::name(&suffixed_name);
             counter += 1;
         }
@@ -169,15 +170,11 @@ impl ActionProvider for ExtractAll {
 
                 let mut extracted = HashMap::new();
                 let mut changes = vec![];
-                let ids = context.random_keys(&key.parent(), sub_sections.len());
+                let ids = context.unique_ids(&key.parent(), sub_sections.len());
 
                 for (i, section_id) in sub_sections.iter().enumerate() {
-                    let new_key = self.format_target_key(
-                        &context,
-                        ids[i].clone(),
-                        &key.parent(),
-                        *section_id,
-                    );
+                    let new_key =
+                        self.format_target_key(&context, &ids[i], &key.parent(), *section_id);
 
                     extracted.insert(
                         *section_id,

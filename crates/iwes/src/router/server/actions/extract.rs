@@ -22,6 +22,7 @@ impl SectionExtract {
     fn format_target_key(
         &self,
         context: &impl ActionContext,
+        id: &str,
         parent_key: &str,
         target_id: NodeId,
     ) -> Key {
@@ -42,12 +43,12 @@ impl SectionExtract {
             .map(|tree| tree.node.plain_text())
             .unwrap_or_default();
 
-        let base_key_name = Environment::new()
+        let relative_key = Environment::new()
             .template_from_str(&self.key_template)
             .expect("correct template")
             .render(context! {
                 today => formatted,
-                id => context.random_key(parent_key).to_string(),
+                id => id.to_string(),
                 title => sanitize(title),
                 parent => context! {
                       title => sanitize(parent_title),
@@ -62,11 +63,13 @@ impl SectionExtract {
             })
             .expect("template to work");
 
-        let mut candidate_key = Key::name(&base_key_name);
+        let base_key = Key::combine(&key.parent(), &relative_key);
+
+        let mut candidate_key = base_key.clone();
         let mut counter = 1;
 
         while context.key_exists(&candidate_key) {
-            let suffixed_name = format!("{}-{}", base_key_name, counter);
+            let suffixed_name = format!("{}-{}", base_key.to_string(), counter);
             candidate_key = Key::name(&suffixed_name);
             counter += 1;
         }
@@ -172,7 +175,12 @@ impl ActionProvider for SectionExtract {
             .get_surrounding_section_id(target_id)
             .filter(|_| tree.is_header(target_id))
             .map(|parent_id| {
-                let new_key = self.format_target_key(&context, &key.parent(), target_id);
+                let id = context
+                    .unique_ids(&key.parent(), 1)
+                    .first()
+                    .expect("to have one")
+                    .to_string();
+                let new_key = self.format_target_key(&context, &id, &key.parent(), target_id);
 
                 let tree = context.collect(&key);
 
