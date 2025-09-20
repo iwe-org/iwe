@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.46](https://github.com/iwe-org/iwe/compare/iwes-v0.0.45...iwes-v0.0.46) - 2025-09-20
+
+### Added
+
+- Extract all config support ([#151](https://github.com/iwe-org/iwe/pull/151))
+- Extract code action config ([#149](https://github.com/iwe-org/iwe/pull/149))
+
+### Other
+
+- Update dependencies ([#148](https://github.com/iwe-org/iwe/pull/148))
+
 ## [0.0.45](https://github.com/iwe-org/iwe/compare/iwes-v0.0.44...iwes-v0.0.45) - 2025-09-13
 
 ### Added
