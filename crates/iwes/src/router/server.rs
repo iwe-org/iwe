@@ -772,4 +772,12 @@ impl ActionContext for &Server {
     fn get_ref_text(&self, key: &Key) -> Option<String> {
         self.database.graph().get_key_title(key)
     }
+
+    fn unique_ids(&self, parent: &str, number: usize) -> Vec<String> {
+        self.database.graph().unique_ids(parent, number)
+    }
+
+    fn random_keys(&self, parent: &str, number: usize) -> Vec<Key> {
+        self.database.graph().random_keys(parent, number)
+    }
 }

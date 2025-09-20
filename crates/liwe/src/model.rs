@@ -61,6 +61,13 @@ impl Key {
             .map(|p| p.to_string())
     }
 
+    pub fn combine(parent: &str, id: &str) -> Key {
+        let path = RelativePath::new(parent).join(id).to_string();
+        Key {
+            relative_path: Arc::new(path),
+        }
+    }
+
     pub fn name(name: &str) -> Self {
         let key = name.trim_end_matches(".md").to_string();
 
