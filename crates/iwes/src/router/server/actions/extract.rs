@@ -3,7 +3,6 @@ use itertools::Itertools;
 use liwe::model::config::LinkType;
 use minijinja::{context, Environment};
 use sanitize_filename::sanitize;
-use std::collections::HashMap;
 
 use liwe::model::node::NodeIter;
 use liwe::model::node::{Node, Reference, ReferenceType};
@@ -23,6 +22,7 @@ impl SectionExtract {
     fn format_target_key(
         &self,
         context: &impl ActionContext,
+        id: &str,
         parent_key: &str,
         target_id: NodeId,
     ) -> Key {
@@ -43,15 +43,16 @@ impl SectionExtract {
             .map(|tree| tree.node.plain_text())
             .unwrap_or_default();
 
-        let base_key_name = Environment::new()
+        let relative_key = Environment::new()
             .template_from_str(&self.key_template)
             .expect("correct template")
             .render(context! {
                 today => formatted,
-                id => context.random_key(parent_key).to_string(),
+                id => id.to_string(),
                 title => sanitize(title),
                 parent => context! {
-                      title => sanitize(parent_title)
+                      title => sanitize(parent_title),
+                      key => parent_key,
                 },
                 source => context! {
                     key => key.to_string(),
@@ -62,11 +63,13 @@ impl SectionExtract {
             })
             .expect("template to work");
 
-        let mut candidate_key = Key::name(&base_key_name);
+        let base_key = Key::combine(&key.parent(), &relative_key);
+
+        let mut candidate_key = base_key.clone();
         let mut counter = 1;
 
         while context.key_exists(&candidate_key) {
-            let suffixed_name = format!("{}-{}", base_key_name, counter);
+            let suffixed_name = format!("{}-{}", base_key.to_string(), counter);
             candidate_key = Key::name(&suffixed_name);
             counter += 1;
         }
@@ -172,7 +175,12 @@ impl ActionProvider for SectionExtract {
             .get_surrounding_section_id(target_id)
             .filter(|_| tree.is_header(target_id))
             .map(|parent_id| {
-                let new_key = self.format_target_key(&context, &key.parent(), target_id);
+                let id = context
+                    .unique_ids(&key.parent(), 1)
+                    .first()
+                    .expect("to have one")
+                    .to_string();
+                let new_key = self.format_target_key(&context, &id, &key.parent(), target_id);
 
                 let tree = context.collect(&key);
 
@@ -205,86 +213,6 @@ impl ActionProvider for SectionExtract {
                         markdown: markdown,
                     }),
                 ]
-            })
-    }
-}
-
-pub struct SubSectionsExtract {}
-
-impl ActionProvider for SubSectionsExtract {
-    fn identifier(&self) -> String {
-        return "refactor.extract.subsections".to_string();
-    }
-
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
-        let key = context.key_of(target_id);
-
-        context
-            .collect(&key)
-            .find_id(target_id)
-            .filter(|tree| tree.is_section())
-            .filter(|tree| tree.children.iter().any(|child| child.is_section()))
-            .map(|_| Action {
-                title: "Extract sub-sections".to_string(),
-                identifier: self.identifier(),
-                target_id,
-            })
-    }
-
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
-        let key = context.key_of(target_id);
-
-        context
-            .collect(&key)
-            .find_id(target_id)
-            .filter(|tree| tree.is_section())
-            .filter(|tree| tree.children.iter().any(|child| child.is_section()))
-            .map(|tree| {
-                let sub_sections = tree
-                    .children
-                    .iter()
-                    .filter(|child| child.is_section())
-                    .map(|child| child.id.unwrap())
-                    .collect_vec();
-
-                let mut extracted = HashMap::new();
-                let mut changes = vec![];
-
-                for section_id in sub_sections {
-                    let new_key = context.random_key(&key.parent());
-
-                    extracted.insert(
-                        section_id,
-                        (
-                            new_key.clone(),
-                            tree.find_id(section_id)
-                                .map(|n| n.node.plain_text())
-                                .unwrap_or_default(),
-                        ),
-                    );
-                    changes.push(Change::Create(Create {
-                        key: new_key.clone(),
-                    }));
-                    changes.push(Change::Update(Update {
-                        key: new_key.clone(),
-                        markdown: tree
-                            .find_id(section_id)
-                            .expect("to have section")
-                            .iter()
-                            .to_markdown(&new_key.parent(), context.markdown_options()),
-                    }));
-                }
-
-                changes.push(Change::Update(Update {
-                    key: key.clone(),
-                    markdown: context
-                        .collect(&key)
-                        .extract_sections(extracted.clone())
-                        .iter()
-                        .to_markdown(&key.parent(), context.markdown_options()),
-                }));
-
-                changes
             })
     }
 }

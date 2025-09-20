@@ -17,6 +17,7 @@ use super::{BasePath, ChangeExt};
 mod attach;
 mod delete;
 mod extract;
+mod extract_all;
 mod inline;
 mod list;
 mod section;
@@ -25,7 +26,8 @@ mod transform;
 
 pub use attach::AttachAction;
 pub use delete::DeleteAction;
-pub use extract::{SectionExtract, SubSectionsExtract};
+pub use extract::SectionExtract;
+pub use extract_all::ExtractAll;
 pub use inline::InlineAction;
 pub use list::{ListChangeType, ListToSections};
 pub use section::SectionToList;
@@ -38,6 +40,8 @@ pub trait ActionContext {
     fn collect(&self, key: &Key) -> Tree;
     fn squash(&self, key: &Key, depth: u8) -> Tree;
     fn random_key(&self, parent: &str) -> Key;
+    fn random_keys(&self, parent: &str, number: usize) -> Vec<Key>;
+    fn unique_ids(&self, parent: &str, number: usize) -> Vec<String>;
     fn markdown_options(&self) -> &MarkdownOptions;
     fn llm_query(&self, prompt: String, model: &Model) -> String;
     fn default_model(&self) -> &Model;
@@ -124,7 +128,7 @@ pub enum ActionEnum {
     ListToSections(ListToSections),
     SectionToList(SectionToList),
     SectionExtract(SectionExtract),
-    SubSectionsExtract(SubSectionsExtract),
+    ExtractAll(ExtractAll),
     TransformBlockAction(TransformBlockAction),
     AttachAction(AttachAction),
     SortAction(SortAction),
@@ -139,7 +143,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::ListToSections(inner) => inner.identifier(),
             ActionEnum::SectionToList(inner) => inner.identifier(),
             ActionEnum::SectionExtract(inner) => inner.identifier(),
-            ActionEnum::SubSectionsExtract(inner) => inner.identifier(),
+            ActionEnum::ExtractAll(inner) => inner.identifier(),
             ActionEnum::TransformBlockAction(inner) => inner.identifier(),
             ActionEnum::AttachAction(inner) => inner.identifier(),
             ActionEnum::SortAction(inner) => inner.identifier(),
@@ -154,7 +158,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::ListToSections(inner) => inner.action(target_id, context),
             ActionEnum::SectionToList(inner) => inner.action(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.action(target_id, context),
-            ActionEnum::SubSectionsExtract(inner) => inner.action(target_id, context),
+            ActionEnum::ExtractAll(inner) => inner.action(target_id, context),
             ActionEnum::TransformBlockAction(inner) => inner.action(target_id, context),
             ActionEnum::AttachAction(inner) => inner.action(target_id, context),
             ActionEnum::SortAction(inner) => inner.action(target_id, context),
@@ -169,7 +173,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::ListToSections(inner) => inner.changes(target_id, context),
             ActionEnum::SectionToList(inner) => inner.changes(target_id, context),
             ActionEnum::SectionExtract(inner) => inner.changes(target_id, context),
-            ActionEnum::SubSectionsExtract(inner) => inner.changes(target_id, context),
+            ActionEnum::ExtractAll(inner) => inner.changes(target_id, context),
             ActionEnum::TransformBlockAction(inner) => inner.changes(target_id, context),
             ActionEnum::AttachAction(inner) => inner.changes(target_id, context),
             ActionEnum::SortAction(inner) => inner.changes(target_id, context),
@@ -194,7 +198,6 @@ pub fn all_actions() -> Vec<ActionEnum> {
         ActionEnum::ListChangeType(ListChangeType {}),
         ActionEnum::ListToSections(ListToSections {}),
         ActionEnum::SectionToList(SectionToList {}),
-        ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
     ]
 }
 
@@ -203,7 +206,6 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
         ActionEnum::ListChangeType(ListChangeType {}),
         ActionEnum::ListToSections(ListToSections {}),
         ActionEnum::SectionToList(SectionToList {}),
-        ActionEnum::SubSectionsExtract(SubSectionsExtract {}),
         ActionEnum::DeleteAction(DeleteAction {}),
     ];
 
@@ -271,6 +273,20 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                         identifier: identifier.clone(),
                         link_type: extract.link_type.clone(),
                         key_template: extract.key_template.clone(),
+                        key_date_format: configuration
+                            .clone()
+                            .library
+                            .date_format
+                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                    });
+                    action
+                }
+                BlockAction::ExtractAll(extract_all) => {
+                    let action = ActionEnum::ExtractAll(ExtractAll {
+                        title: extract_all.title.clone(),
+                        identifier: identifier.clone(),
+                        link_type: extract_all.link_type.clone(),
+                        key_template: extract_all.key_template.clone(),
                         key_date_format: configuration
                             .clone()
                             .library

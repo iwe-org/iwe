@@ -548,10 +548,9 @@ fn extract_section_with_source_template() {
     .code_action(
         uri_from("docs/guide").to_code_action_params(2, "custom.extract"),
         vec![
-            uri_from("guide-Installation").to_create_file(),
-            uri_from("guide-Installation").to_edit("# Installation\n"),
-            uri_from("docs/guide")
-                .to_edit("# User Guide\n\n[Installation](../guide-Installation)\n"),
+            uri_from("docs/guide-Installation").to_create_file(),
+            uri_from("docs/guide-Installation").to_edit("# Installation\n"),
+            uri_from("docs/guide").to_edit("# User Guide\n\n[Installation](guide-Installation)\n"),
         ]
         .to_workspace_edit()
         .to_code_action("Extract section", "custom.extract"),
@@ -573,7 +572,7 @@ fn extract_section_with_path_template() {
 
     Fixture::with_options_and_client(
         files,
-        create_extract_config("{{source.path}}/extracted-{{title}}", None),
+        create_extract_config("extracted-{{title}}", None),
         "",
     )
     .code_action(

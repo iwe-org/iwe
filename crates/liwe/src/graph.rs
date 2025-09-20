@@ -420,12 +420,14 @@ impl InlinesContext for &Graph {
 }
 
 pub trait GraphContext: Copy {
+    fn unique_ids(&self, relative_to: &str, number: usize) -> Vec<String>;
     fn get_node_key(&self, id: NodeId) -> Key;
     fn get_node_id(&self, key: &Key) -> Option<NodeId>;
     fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId>;
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
 
     fn random_key(&self, relative_to: &str) -> Key;
+    fn random_keys(&self, relative_to: &str, number: usize) -> Vec<Key>;
 
     fn key_of(&self, id: NodeId) -> Key;
     fn collect(&self, key: &Key) -> Tree;
@@ -510,22 +512,46 @@ impl GraphContext for &Graph {
     }
 
     fn random_key(&self, relative_to: &str) -> Key {
-        if self.sequential_keys {
-            let key = self.keys().len() + 1;
-            return Key::from_rel_link_url(&key.to_string(), relative_to);
-        }
+        self.random_keys(relative_to, 1)
+            .first()
+            .expect("to have one")
+            .clone()
+    }
 
-        loop {
-            let key = Alphanumeric
-                .sample_string(&mut rand::rng(), 8)
-                .to_lowercase();
-            if !self
-                .keys
-                .contains_key(&Key::from_rel_link_url(&key, relative_to))
-            {
-                return Key::from_rel_link_url(&key, relative_to);
+    fn random_keys(&self, relative_to: &str, number: usize) -> Vec<Key> {
+        self.unique_ids(relative_to, number)
+            .iter()
+            .map(|k| Key::from_rel_link_url(&k, relative_to))
+            .collect_vec()
+    }
+
+    fn unique_ids(&self, relative_to: &str, number: usize) -> Vec<String> {
+        let mut keys = vec![];
+
+        if self.sequential_keys {
+            for i in 0..number {
+                let key_num = self.keys.len() + 1 + i as usize;
+                keys.push(key_num.to_string());
+            }
+            return keys;
+        } else {
+            for _ in 0..number {
+                loop {
+                    let key = Alphanumeric
+                        .sample_string(&mut rand::rng(), 8)
+                        .to_lowercase();
+                    if !self
+                        .keys
+                        .contains_key(&Key::from_rel_link_url(&key, relative_to))
+                        && !keys.contains(&key)
+                    {
+                        keys.push(key.to_string());
+                        break;
+                    }
+                }
             }
         }
+        keys
     }
 
     fn get_node_id(&self, key: &Key) -> Option<NodeId> {
