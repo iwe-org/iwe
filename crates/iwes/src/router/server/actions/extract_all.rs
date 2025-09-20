@@ -3,6 +3,7 @@ use itertools::Itertools;
 use liwe::model::config::LinkType;
 use minijinja::{context, Environment};
 use sanitize_filename::sanitize;
+use std::collections::HashMap;
 
 use liwe::model::node::NodeIter;
 use liwe::model::node::{Node, Reference, ReferenceType};
@@ -10,7 +11,8 @@ use liwe::model::tree::Tree;
 use liwe::model::{Key, NodeId};
 
 use super::{Action, ActionContext, ActionProvider, Change, Changes, Create, Update};
-pub struct SectionExtract {
+
+pub struct ExtractAll {
     pub title: String,
     pub identifier: String,
     pub link_type: Option<LinkType>,
@@ -18,10 +20,11 @@ pub struct SectionExtract {
     pub key_date_format: String,
 }
 
-impl SectionExtract {
+impl ExtractAll {
     fn format_target_key(
         &self,
         context: &impl ActionContext,
+        id: Key,
         parent_key: &str,
         target_id: NodeId,
     ) -> Key {
@@ -47,11 +50,11 @@ impl SectionExtract {
             .expect("correct template")
             .render(context! {
                 today => formatted,
-                id => context.random_key(parent_key).to_string(),
+                id => id.to_string(),
                 title => sanitize(title),
                 parent => context! {
                       title => sanitize(parent_title),
-                      key => parent_key,
+                      key => parent_key
                 },
                 source => context! {
                     key => key.to_string(),
@@ -80,83 +83,67 @@ impl SectionExtract {
             Some(LinkType::Markdown) | None => ReferenceType::Regular,
         }
     }
-    fn extract(
-        node: &Tree,
-        extract_id: NodeId,
-        parent_id: NodeId,
-        new_key: &liwe::model::Key,
+
+    fn extract_sections(
+        tree: &Tree,
+        sub_sections: &[NodeId],
+        extracted: &HashMap<NodeId, (Key, String)>,
         link_type: Option<&LinkType>,
     ) -> Tree {
-        Self::extract_rec(node, extract_id, parent_id, new_key, link_type)
+        Self::extract_sections_rec(tree, sub_sections, extracted, link_type)
             .first()
             .unwrap()
             .clone()
     }
 
-    fn extract_rec(
+    fn extract_sections_rec(
         tree: &Tree,
-        extract_id: NodeId,
-        parent_id: NodeId,
-        new_key: &liwe::model::Key,
+        sub_sections: &[NodeId],
+        extracted: &HashMap<NodeId, (Key, String)>,
         link_type: Option<&LinkType>,
     ) -> Vec<Tree> {
-        if tree.id_eq(parent_id) {
-            let mut children = tree
-                .clone()
-                .children
-                .into_iter()
-                .filter(|child| !child.id_eq(extract_id))
-                .collect_vec();
-
-            children.insert(
-                tree.pre_sub_header_position(),
-                Tree {
-                    id: None,
-                    node: Node::Reference(Reference {
-                        key: new_key.clone(),
-                        text: tree
-                            .find_id(extract_id)
-                            .expect("to have node")
-                            .node
-                            .plain_text(),
-                        reference_type: Self::config_to_reference_type(link_type),
-                    }),
-                    children: vec![],
-                },
-            );
-
-            return vec![Tree {
-                id: tree.id,
-                node: tree.node.clone(),
-                children,
-            }];
+        if let Some(tree_id) = tree.id {
+            if sub_sections.contains(&tree_id) {
+                if let Some((new_key, text)) = extracted.get(&tree_id) {
+                    return vec![Tree {
+                        id: None,
+                        node: Node::Reference(Reference {
+                            key: new_key.clone(),
+                            text: text.clone(),
+                            reference_type: Self::config_to_reference_type(link_type),
+                        }),
+                        children: vec![],
+                    }];
+                }
+            }
         }
 
-        return vec![Tree {
+        vec![Tree {
             id: tree.id,
             node: tree.node.clone(),
             children: tree
                 .children
                 .iter()
-                .map(|child| Self::extract_rec(child, extract_id, parent_id, new_key, link_type))
+                .map(|child| Self::extract_sections_rec(child, sub_sections, extracted, link_type))
                 .flatten()
                 .collect(),
-        }];
+        }]
     }
 }
 
-impl ActionProvider for SectionExtract {
+impl ActionProvider for ExtractAll {
     fn identifier(&self) -> String {
         format!("custom.{}", self.identifier.to_string())
     }
 
     fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
         let key = context.key_of(target_id);
-        let tree = context.collect(&key);
+
         context
             .collect(&key)
-            .get_surrounding_section_id(target_id)
-            .filter(|_| tree.is_header(target_id))
+            .find_id(target_id)
+            .filter(|tree| tree.is_section())
+            .filter(|tree| tree.children.iter().any(|child| child.is_section()))
             .map(|_| Action {
                 title: self.title.clone(),
                 identifier: self.identifier(),
@@ -166,45 +153,70 @@ impl ActionProvider for SectionExtract {
 
     fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
         let key = context.key_of(target_id);
-        let tree = context.collect(&key);
+
         context
             .collect(&key)
-            .get_surrounding_section_id(target_id)
-            .filter(|_| tree.is_header(target_id))
-            .map(|parent_id| {
-                let new_key = self.format_target_key(&context, &key.parent(), target_id);
+            .find_id(target_id)
+            .filter(|tree| tree.is_section())
+            .filter(|tree| tree.children.iter().any(|child| child.is_section()))
+            .map(|tree| {
+                let sub_sections = tree
+                    .children
+                    .iter()
+                    .filter(|child| child.is_section())
+                    .map(|child| child.id.unwrap())
+                    .collect_vec();
+
+                let mut extracted = HashMap::new();
+                let mut changes = vec![];
+                let ids = context.random_keys(&key.parent(), sub_sections.len());
+
+                for (i, section_id) in sub_sections.iter().enumerate() {
+                    let new_key = self.format_target_key(
+                        &context,
+                        ids[i].clone(),
+                        &key.parent(),
+                        *section_id,
+                    );
+
+                    extracted.insert(
+                        *section_id,
+                        (
+                            new_key.clone(),
+                            tree.find_id(*section_id)
+                                .map(|n| n.node.plain_text())
+                                .unwrap_or_default(),
+                        ),
+                    );
+                    changes.push(Change::Create(Create {
+                        key: new_key.clone(),
+                    }));
+                    changes.push(Change::Update(Update {
+                        key: new_key.clone(),
+                        markdown: tree
+                            .find_id(*section_id)
+                            .expect("to have section")
+                            .iter()
+                            .to_markdown(&new_key.parent(), context.markdown_options()),
+                    }));
+                }
 
                 let tree = context.collect(&key);
-
-                let updated_tree = Self::extract(
+                let updated_tree = Self::extract_sections(
                     &tree,
-                    target_id,
-                    parent_id,
-                    &new_key,
+                    &sub_sections,
+                    &extracted,
                     self.link_type.as_ref(),
                 );
 
-                let markdown = updated_tree
-                    .iter()
-                    .to_markdown(&key.parent(), context.markdown_options());
-                let new_markdown = tree
-                    .get(target_id)
-                    .iter()
-                    .to_markdown(&new_key.parent(), context.markdown_options());
+                changes.push(Change::Update(Update {
+                    key: key.clone(),
+                    markdown: updated_tree
+                        .iter()
+                        .to_markdown(&key.parent(), context.markdown_options()),
+                }));
 
-                vec![
-                    Change::Create(Create {
-                        key: new_key.clone(),
-                    }),
-                    Change::Update(Update {
-                        key: new_key,
-                        markdown: new_markdown,
-                    }),
-                    Change::Update(Update {
-                        key: key,
-                        markdown: markdown,
-                    }),
-                ]
+                changes
             })
     }
 }

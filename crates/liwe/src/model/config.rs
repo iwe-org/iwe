@@ -78,6 +78,8 @@ pub enum BlockAction {
     Inline(Inline),
     #[serde(rename = "extract")]
     Extract(Extract),
+    #[serde(rename = "extract_all")]
+    ExtractAll(ExtractAll),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -118,6 +120,13 @@ pub enum InlineType {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Extract {
+    pub title: String,
+    pub link_type: Option<LinkType>,
+    pub key_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ExtractAll {
     pub title: String,
     pub link_type: Option<LinkType>,
     pub key_template: String,
@@ -324,6 +333,15 @@ impl Configuration {
             "extract".into(),
             BlockAction::Extract(Extract {
                 title: "Extract".into(),
+                link_type: Some(LinkType::Markdown),
+                key_template: "{{id}}".into(),
+            }),
+        );
+
+        template.actions.insert(
+            "extract_all".into(),
+            BlockAction::ExtractAll(ExtractAll {
+                title: "Extract all subsections".into(),
                 link_type: Some(LinkType::Markdown),
                 key_template: "{{id}}".into(),
             }),
