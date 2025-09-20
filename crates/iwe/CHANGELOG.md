@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.46](https://github.com/iwe-org/iwe/compare/iwe-v0.0.45...iwe-v0.0.46) - 2025-09-20
+
+### Other
+
+- update Cargo.toml dependencies
+
 ## [0.0.44](https://github.com/iwe-org/iwe/compare/iwe-v0.0.43...iwe-v0.0.44) - 2025-09-07
 
 ### Added
