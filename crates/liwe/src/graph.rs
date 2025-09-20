@@ -546,6 +546,7 @@ impl GraphContext for &Graph {
                         && !keys.contains(&key)
                     {
                         keys.push(key.to_string());
+                        break;
                     }
                 }
             }
