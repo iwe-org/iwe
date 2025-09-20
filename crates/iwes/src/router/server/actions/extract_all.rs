@@ -66,16 +66,8 @@ impl ExtractAll {
             .expect("template to work");
 
         let base_key = Key::combine(&key.parent(), &relative_key);
-        let mut candidate_key = base_key.clone();
-        let mut counter = 1;
 
-        while context.key_exists(&candidate_key) {
-            let suffixed_name = format!("{}-{}", relative_key, counter);
-            candidate_key = Key::name(&suffixed_name);
-            counter += 1;
-        }
-
-        candidate_key
+        base_key
     }
 
     fn config_to_reference_type(link_type: Option<&LinkType>) -> ReferenceType {
@@ -170,11 +162,23 @@ impl ActionProvider for ExtractAll {
 
                 let mut extracted = HashMap::new();
                 let mut changes = vec![];
+                let mut generated_keys = vec![];
                 let ids = context.unique_ids(&key.parent(), sub_sections.len());
 
                 for (i, section_id) in sub_sections.iter().enumerate() {
-                    let new_key =
+                    let base_key =
                         self.format_target_key(&context, &ids[i], &key.parent(), *section_id);
+
+                    let mut new_key = base_key.clone();
+                    let mut counter = 1;
+
+                    while context.key_exists(&new_key) || generated_keys.contains(&new_key) {
+                        let suffixed_name = format!("{}-{}", base_key.to_string(), counter);
+                        new_key = Key::name(&suffixed_name);
+                        counter += 1;
+                    }
+
+                    generated_keys.push(new_key.clone());
 
                     extracted.insert(
                         *section_id,

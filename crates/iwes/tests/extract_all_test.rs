@@ -175,6 +175,50 @@ fn extract_sub_sections_with_title_template() {
     );
 }
 
+#[test]
+fn extract_multiple_sub_sections_with_title_template() {
+    Fixture::with_config(
+        indoc! {"
+            # ParentSection
+
+            ## Target Section
+
+            ## Target Section
+
+            ## Target Section
+            "},
+        create_extract_all_config("{{title}}", LinkType::Markdown),
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.extract_all"),
+        vec![
+            uri_from("Target%20Section").to_create_file(),
+            uri_from("Target%20Section").to_edit(indoc! {"
+                # Target Section
+                "}),
+            uri_from("Target%20Section-1").to_create_file(),
+            uri_from("Target%20Section-1").to_edit(indoc! {"
+                # Target Section
+                "}),
+            uri_from("Target%20Section-2").to_create_file(),
+            uri_from("Target%20Section-2").to_edit(indoc! {"
+                # Target Section
+                "}),
+            uri(1).to_edit(indoc! {"
+                # ParentSection
+
+                [Target Section](Target Section)
+
+                [Target Section](Target Section-1)
+
+                [Target Section](Target Section-2)
+                "}),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Extract all subsections", "custom.extract_all"),
+    );
+}
+
 fn assert_extracted(source: &str, line: u32, target: &str, extracted: &str) {
     Fixture::with_config(source, extract_all_config()).code_action(
         uri(1).to_code_action_params(line, "custom.extract_all"),
