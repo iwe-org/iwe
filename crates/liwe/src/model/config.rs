@@ -48,6 +48,7 @@ impl Default for LibraryOptions {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Configuration {
+    pub version: Option<u32>,
     pub markdown: MarkdownOptions,
     pub library: LibraryOptions,
     pub models: HashMap<String, Model>,
@@ -143,6 +144,7 @@ pub enum LinkType {
 impl Default for Configuration {
     fn default() -> Self {
         Self {
+            version: Some(1),
             markdown: Default::default(),
             library: Default::default(),
             models: Default::default(),
@@ -154,6 +156,7 @@ impl Default for Configuration {
 impl Configuration {
     pub fn template() -> Self {
         let mut template = Self {
+            version: Some(1),
             ..Default::default()
         };
 
@@ -401,7 +404,29 @@ pub fn load_config() -> Configuration {
 }
 
 fn migrate(config: &str) -> String {
-    let updated = add_default_type_to_actions(config);
+    let doc = config.parse::<DocumentMut>().expect("valid TOML");
+    let current_version = doc
+        .get("version")
+        .and_then(|v| v.as_value())
+        .and_then(|v| v.as_integer())
+        .unwrap_or(0);
+
+    if current_version >= 1 {
+        debug!(
+            "configuration version {} >= 1, skipping migrations",
+            current_version
+        );
+        return config.to_string();
+    }
+
+    debug!(
+        "applying migrations for configuration version {}",
+        current_version
+    );
+
+    let mut updated = add_default_type_to_actions(config);
+    updated = add_default_code_actions(&updated);
+    updated = set_config_version(&updated);
 
     if updated != config {
         debug!("configuration file migration applied");
@@ -424,6 +449,81 @@ fn add_default_type_to_actions(input: &str) -> String {
             if let Item::Table(action_table) = action {
                 action_table.entry("type").or_insert(value("transform"));
             }
+        }
+    }
+
+    doc.to_string()
+}
+
+fn set_config_version(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if doc.get("version").is_none() {
+        doc.insert("version", value(1));
+    }
+
+    doc.to_string()
+}
+
+fn add_default_code_actions(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if doc.get("actions").is_none() {
+        doc["actions"] = Item::Table(toml_edit::Table::new());
+    }
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        let mut has_extract = false;
+        let mut has_extract_all = false;
+        let mut has_inline = false;
+
+        for (_, action) in actions.iter() {
+            if let Item::Table(action_table) = action {
+                if let Some(Item::Value(action_type)) = action_table.get("type") {
+                    if let Some(type_str) = action_type.as_str() {
+                        match type_str {
+                            "extract" => has_extract = true,
+                            "extract_all" => has_extract_all = true,
+                            "inline" => has_inline = true,
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        if !has_extract {
+            let mut extract_table = toml_edit::Table::new();
+            extract_table.insert("type", value("extract"));
+            extract_table.insert("title", value("Extract"));
+            extract_table.insert("link_type", value("markdown"));
+            extract_table.insert("key_template", value("{{id}}"));
+            actions.insert("extract", Item::Table(extract_table));
+        }
+
+        if !has_extract_all {
+            let mut extract_all_table = toml_edit::Table::new();
+            extract_all_table.insert("type", value("extract_all"));
+            extract_all_table.insert("title", value("Extract all subsections"));
+            extract_all_table.insert("link_type", value("markdown"));
+            extract_all_table.insert("key_template", value("{{id}}"));
+            actions.insert("extract_all", Item::Table(extract_all_table));
+        }
+
+        if !has_inline {
+            let mut inline_section_table = toml_edit::Table::new();
+            inline_section_table.insert("type", value("inline"));
+            inline_section_table.insert("title", value("Inline section"));
+            inline_section_table.insert("inline_type", value("section"));
+            inline_section_table.insert("keep_target", value(false));
+            actions.insert("inline_section", Item::Table(inline_section_table));
+
+            let mut inline_quote_table = toml_edit::Table::new();
+            inline_quote_table.insert("type", value("inline"));
+            inline_quote_table.insert("title", value("Inline quote"));
+            inline_quote_table.insert("inline_type", value("quote"));
+            inline_quote_table.insert("keep_target", value(false));
+            actions.insert("inline_quote", Item::Table(inline_quote_table));
         }
     }
 
