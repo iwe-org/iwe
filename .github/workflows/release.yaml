@@ -6,6 +6,9 @@ permissions:
 on:
   release:
     types: [published, released, created]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
