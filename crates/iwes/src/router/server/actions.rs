@@ -300,3 +300,14 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
 
     actions
 }
+
+pub fn string_to_slug(s: &str) -> String {
+    s.to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-")
+}

@@ -9,7 +9,10 @@ use liwe::model::node::{Node, Reference, ReferenceType};
 use liwe::model::tree::Tree;
 use liwe::model::{Key, NodeId};
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Create, Update};
+use super::{
+    string_to_slug, Action, ActionContext, ActionProvider, Change, Changes, Create, Update,
+};
+
 pub struct SectionExtract {
     pub title: String,
     pub identifier: String,
@@ -37,6 +40,8 @@ impl SectionExtract {
             .map(|tree| tree.node.plain_text())
             .unwrap_or_default();
 
+        let slug = string_to_slug(&title);
+
         let parent_title = tree
             .get_surrounding_section_id(target_id)
             .and_then(|parent_id| tree.find_id(parent_id))
@@ -50,14 +55,17 @@ impl SectionExtract {
                 today => formatted,
                 id => id.to_string(),
                 title => sanitize(title),
+                slug => slug,
                 parent => context! {
-                      title => sanitize(parent_title),
+                      title => sanitize(&parent_title),
+                      slug => string_to_slug(&parent_title),
                       key => parent_key,
                 },
                 source => context! {
                     key => key.to_string(),
                     file => key.source(),
                     title => context.get_ref_text(&key).unwrap_or_default(),
+                    slug => string_to_slug(&context.get_ref_text(&key).unwrap_or_default()),
                     path => key.path().unwrap_or_default(),
                 }
             })
