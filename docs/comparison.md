@@ -68,21 +68,45 @@ The core differentiator is the shared library architecture between CLI and LSP c
 
 ### IWE vs Obsidian
 
-**Obsidian** is a popular GUI-based PKM tool with strong visualization:
+**Obsidian** is a popular GUI-based PKM tool with strong visualization capabilities and an extensive plugin ecosystem:
 
 |Feature|IWE|Obsidian|
 |-------|---|--------|
-|**Editor Integration**|✅ Works with your preferred text editor|❌ Proprietary editor only|
-|**Cost**|✅ Completely free and open source|⚠️ Free for personal use, $8/month for sync|
-|**Performance**|✅ Rust-powered, instant operations|⚠️ Electron-based, can be slower|
-|**Graph Transformations**|✅ Automated extract/embed operations|❌ Manual linking and organization|
-|**AI Integration**|✅ Configurable LLM providers|⚠️ Limited, requires plugins|
+|**Editor Integration**|✅ Works with your preferred text editor (VSCode, Neovim, Zed, Helix)|❌ Proprietary editor only|
+|**Cost**|✅ Completely free and open source|⚠️ Free for personal use, $8/month for sync, $16/month for publishing|
+|**Performance**|✅ Rust-powered, instant operations on thousands of files|⚠️ Electron-based, can be slower with large vaults|
+|**Graph Transformations**|✅ Automated extract/embed operations, section-to-list conversions|❌ Manual linking and organization|
+|**AI Integration**|✅ Configurable LLM providers with custom templates|⚠️ Limited, requires third-party plugins (Text Generator, Smart Connections)|
+|**Block References**|✅ Native support with automatic linking|⚠️ Available via plugins|
+|**Auto-formatting**|✅ Comprehensive markdown normalization on save|⚠️ Basic formatting, requires plugins for advanced normalization|
+|**Batch Operations**|✅ CLI for bulk transformations and normalization|❌ No batch operation capabilities|
 |**Cross-platform**|✅ Consistent across all platforms|✅ Good cross-platform support|
-|**Graph Visualization**|⚠️ CLI-based dot export|✅ Interactive graph view|
-|**Plugin Ecosystem**|⚠️ Limited to LSP capabilities|✅ Rich plugin marketplace|
-|**Learning Curve**|⚠️ Requires basic terminal knowledge|✅ GUI-friendly|
+|**Graph Visualization**|⚠️ CLI-based dot export (can generate visual graphs)|✅ Interactive graph view with customizable styling|
+|**Plugin Ecosystem**|⚠️ Limited to LSP capabilities and CLI extensions|✅ Rich plugin marketplace with 1000+ community plugins|
+|**Learning Curve**|⚠️ Requires basic terminal knowledge and editor setup|✅ GUI-friendly with intuitive interface|
+|**Sync & Collaboration**|✅ Git-based sync (free), works with any Git hosting|⚠️ Obsidian Sync ($8/month) or manual Git setup|
+|**Publishing**|✅ Export to various formats via CLI|⚠️ Obsidian Publish ($16/month) or manual export|
+|**Mobile Support**|❌ Desktop/terminal only|✅ Native mobile apps with sync|
 
-**IWE's advantage**: Better for developers who want to stay in their preferred editor, need powerful automation, or want completely free sync via Git. Obsidian is better for users who prefer GUIs and interactive visualizations.
+#### When to Choose IWE
+
+- **Developer workflows**: You want to stay in your preferred code editor
+- **Large repositories**: You need instant performance with thousands of markdown files
+- **Automation-heavy workflows**: You want AI-powered transformations and batch operations
+- **Cost-conscious**: You want a completely free, open-source solution
+- **Technical users**: You're comfortable with CLI tools and LSP setup
+- **Git-based workflows**: You prefer version control over proprietary sync
+
+#### When to Choose Obsidian
+
+- **GUI preference**: You prefer visual interfaces over terminal-based tools
+- **Plugin ecosystem**: You want access to hundreds of community plugins
+- **Mobile access**: You need to access notes on phones/tablets
+- **Interactive visualization**: You want to explore your knowledge graph visually
+- **Non-technical users**: You want a user-friendly setup without terminal configuration
+- **Rich formatting**: You need advanced formatting, canvas features, or embedded media
+
+**Key Philosophical Difference**: IWE is editor-agnostic and developer-focused, designed to integrate with existing technical workflows. Obsidian is a comprehensive PKM environment with its own ecosystem, better suited for users who want an all-in-one solution with visual interfaces and extensive customization through plugins.
 
 ### IWE vs zk.nvim/telekasten.nvim
 
