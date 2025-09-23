@@ -147,15 +147,18 @@ The `key_template` supports several template variables for flexible file naming:
 - **`{{id}}`**: Random unique identifier (e.g., `123`, `456`)
 - **`{{today}}`**: Current date formatted using `date_format` from `[library]` section (default: `%Y-%m-%d`)
 - **`{{title}}`**: The section title being extracted (automatically sanitized for filenames)
+- **`{{slug}}`**: URL-friendly version of the title (lowercase, alphanumeric characters only, non-alphanumeric replaced with dashes, no consecutive dashes)
 
 ### Parent Section Variables
 - **`{{parent.title}}`**: Title of the parent section containing the extracted section
+- **`{{parent.slug}}`**: URL-friendly version of the parent section title (lowercase, alphanumeric characters only, non-alphanumeric replaced with dashes, no consecutive dashes)
 - **`{{parent.key}}`**: Key of the parent document
 
 ### Source Document Variables
 - **`{{source.key}}`**: Full key of the source document
 - **`{{source.file}}`**: Filename portion of the source document key
 - **`{{source.title}}`**: Title (first header) of the source document
+- **`{{source.slug}}`**: URL-friendly version of the source document title (lowercase, alphanumeric characters only, non-alphanumeric replaced with dashes, no consecutive dashes)
 - **`{{source.path}}`**: Directory path of the source document
 
 ## Relative Path Behavior
@@ -209,7 +212,14 @@ extract = { type = "extract", title = "Extract section", key_template = "{{title
 ```
 Creates files like: `Getting Started.md`, `Configuration.md`
 
-### 4. Hierarchical Extraction
+### 4. Slug-based Extraction (URL-friendly)
+```toml
+extract = { type = "extract", title = "Extract as slug", key_template = "{{slug}}" }
+```
+Creates files like: `getting-started.md`, `configuration.md`
+From titles like "Getting Started", "User's Guide/Setup", "API*Reference" → `getting-started.md`, `users-guide-setup.md`, `api-reference.md`
+
+### 5. Hierarchical Extraction
 ```toml
 extract = { type = "extract", title = "Extract with context", key_template = "{{parent.title}}-{{title}}" }
 ```
@@ -220,7 +230,18 @@ From a document with structure:
 ```
 Creates: `User Guide-Installation.md`
 
-### 5. Source-aware Extraction
+### 6. Hierarchical Extraction (URL-friendly)
+```toml
+extract = { type = "extract", title = "Extract with slug context", key_template = "{{parent.slug}}-{{slug}}" }
+```
+From a document with structure:
+```markdown
+# User Guide & Setup
+## Installation/Configuration
+```
+Creates: `user-guide-setup-installation-configuration.md`
+
+### 7. Source-aware Extraction
 ```toml
 extract = { type = "extract", title = "Extract from source", key_template = "{{source.file}}-{{title}}" }
 ```
@@ -230,19 +251,30 @@ From `user-guide.md`:
 ```
 Creates: `user-guide-Installation.md`
 
-### 6. Path-based Organization
+### 8. Source-aware Extraction (URL-friendly)
+```toml
+extract = { type = "extract", title = "Extract with source slug", key_template = "{{source.slug}}-{{slug}}" }
+```
+From `User Guide & Manual.md`:
+```markdown
+# User Guide & Manual
+## Installation/Setup
+```
+Creates: `user-guide-manual-installation-setup.md`
+
+### 9. Path-based Organization
 ```toml
 extract = { type = "extract", title = "Extract to subfolder", key_template = "extracted/{{title}}" }
 ```
 From `docs/guide.md`, creates: `docs/extracted/Installation.md`
 
-### 7. Wiki-style Links
+### 10. Wiki-style Links
 ```toml
 extract = { type = "extract", title = "Extract (wiki)", key_template = "{{id}}", link_type = "wiki" }
 ```
 Creates links like: `[[123]]` instead of `[Section Title](123)`
 
-### 8. Complex Template Example
+### 11. Complex Template Example
 ```toml
 extract = { type = "extract", title = "Extract with full context", key_template = "{{source.path}}/{{today}}-{{parent.title}}-{{title}}" }
 ```

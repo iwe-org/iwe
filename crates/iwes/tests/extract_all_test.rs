@@ -277,6 +277,56 @@ fn assert_no_action(source: &str, line: u32) {
         .no_code_action(uri(1).to_code_action_params(line, "custom.extract_all"));
 }
 
+#[test]
+fn extract_sub_sections_with_parent_slug_template() {
+    Fixture::with_config(
+        indoc! {"
+            # Parent/With*Special:Chars
+
+            ## Child Section
+            "},
+        create_extract_all_config("{{parent.slug}}-{{slug}}", LinkType::Markdown),
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.extract_all"),
+        vec![
+            uri_from("parent-with-special-chars-child-section").to_create_file(),
+            uri_from("parent-with-special-chars-child-section").to_edit("# Child Section\n"),
+            uri(1).to_edit("# Parent/With*Special:Chars\n\n[Child Section](parent-with-special-chars-child-section)\n"),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Extract all subsections", "custom.extract_all"),
+    );
+}
+
+#[test]
+fn extract_sub_sections_with_source_slug_template() {
+    let mut files = std::collections::HashMap::new();
+    files.insert(
+        "user-guide-manual".to_string(),
+        indoc! {"
+            # User Guide & Manual
+
+            ## Installation Section
+            "}
+        .to_string(),
+    );
+
+    Fixture::with_options_and_client(files, create_extract_all_config("{{source.slug}}-{{slug}}", LinkType::Markdown), "")
+        .code_action(
+            uri_from("user-guide-manual").to_code_action_params(0, "custom.extract_all"),
+            vec![
+                uri_from("user-guide-manual-installation-section").to_create_file(),
+                uri_from("user-guide-manual-installation-section").to_edit("# Installation Section\n"),
+                uri_from("user-guide-manual").to_edit(
+                    "# User Guide & Manual\n\n[Installation Section](user-guide-manual-installation-section)\n",
+                ),
+            ]
+            .to_workspace_edit()
+            .to_code_action("Extract all subsections", "custom.extract_all"),
+        );
+}
+
 fn create_extract_all_config(key_template: &str, link_type: LinkType) -> Configuration {
     let mut config = Configuration::default();
     config.actions.insert(
@@ -310,6 +360,29 @@ fn assert_extracted_with_date_template(source: &str, line: u32, target: &str, ex
             uri_from(&formatted_date).to_create_file(),
             uri_from(&formatted_date).to_edit(extracted),
             uri(1).to_edit(&target_with_date),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Extract all subsections", "custom.extract_all"),
+    );
+}
+
+#[test]
+fn extract_sub_sections_with_slug_template() {
+    Fixture::with_config(
+        indoc! {"
+            # Document
+
+            ## Target/With*Special:Chars
+            "},
+        create_extract_all_config("{{slug}}", LinkType::Markdown),
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.extract_all"),
+        vec![
+            uri_from("target-with-special-chars").to_create_file(),
+            uri_from("target-with-special-chars").to_edit("# Target/With*Special:Chars\n"),
+            uri(1)
+                .to_edit("# Document\n\n[Target/With*Special:Chars](target-with-special-chars)\n"),
         ]
         .to_workspace_edit()
         .to_code_action("Extract all subsections", "custom.extract_all"),
