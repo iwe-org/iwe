@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.47](https://github.com/iwe-org/iwe/compare/iwes-v0.0.46...iwes-v0.0.47) - 2025-09-23
+
+### Added
+
+- Add title slug to the extracted file name template ([#154](https://github.com/iwe-org/iwe/pull/154))
+
 ## [0.0.46](https://github.com/iwe-org/iwe/compare/iwes-v0.0.45...iwes-v0.0.46) - 2025-09-20
 
 ### Added
