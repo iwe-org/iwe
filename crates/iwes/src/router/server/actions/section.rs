@@ -1,7 +1,7 @@
 use liwe::model::node::NodeIter;
 use liwe::model::NodeId;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Update};
+use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Update};
 
 pub struct SectionToList {}
 
@@ -16,10 +16,12 @@ impl ActionProvider for SectionToList {
 
         Some(target_id)
             .filter(|node_id| tree.is_header(*node_id))
-            .map(|_| Action {
-                title: "Section to list".to_string(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: "Section to list".to_string(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 

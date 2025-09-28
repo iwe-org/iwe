@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use liwe::graph::Graph;
 use liwe::model::config::{
-    BlockAction, Configuration, MarkdownOptions, Model, DEFAULT_KEY_DATE_FORMAT,
+    ActionDefinition, Configuration, MarkdownOptions, Model, DEFAULT_KEY_DATE_FORMAT,
 };
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
@@ -51,10 +51,32 @@ pub trait ActionContext {
     fn get_ref_text(&self, key: &Key) -> Option<String>;
 }
 
-pub struct Action {
+pub enum Action {
+    BlockAction(BlockAction),
+    TextAction(TextAction),
+}
+
+pub struct BlockAction {
     pub title: String,
     pub identifier: String,
     pub target_id: NodeId,
+}
+
+pub struct Position {
+    pub line: u32,
+    pub character: u32,
+}
+
+pub struct TextRange {
+    pub start: Position,
+    pub end: Position,
+}
+
+pub struct TextAction {
+    pub title: String,
+    pub identifier: String,
+    pub key: Key,
+    pub range: TextRange,
 }
 
 pub enum Change {
@@ -80,12 +102,32 @@ pub struct Remove {
 
 impl Action {
     pub fn to_code_action(&self) -> CodeActionOrCommand {
-        CodeActionOrCommand::CodeAction(CodeAction {
-            title: self.title.to_string(),
-            kind: Some(identifier_to_action_kind(self.identifier.to_string())),
-            data: Some(Value::Number(self.target_id.into())),
-            ..Default::default()
-        })
+        match self {
+            Action::BlockAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
+                title: action.title.to_string(),
+                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
+                data: Some(Value::Number(action.target_id.into())),
+                ..Default::default()
+            }),
+            Action::TextAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
+                title: action.title.to_string(),
+                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
+                data: Some(serde_json::json!({
+                    "key": action.key.to_string(),
+                    "range": {
+                        "start": {
+                            "line": action.range.start.line,
+                            "character": action.range.start.character,
+                        },
+                        "end": {
+                            "line": action.range.end.line,
+                            "character": action.range.end.character,
+                        }
+                    }
+                })),
+                ..Default::default()
+            }),
+        }
     }
 
     pub fn resolve_code_action(
@@ -96,20 +138,36 @@ impl Action {
         use itertools::Itertools;
         use lsp_types::{DocumentChanges, WorkspaceEdit};
 
-        CodeActionOrCommand::CodeAction(CodeAction {
-            title: self.title.to_string(),
-            kind: Some(identifier_to_action_kind(self.identifier.to_string())),
-            edit: Some(WorkspaceEdit {
-                document_changes: Some(DocumentChanges::Operations(
-                    changes
-                        .iter()
-                        .map(|change| change.to_document_change(base_path))
-                        .collect_vec(),
-                )),
+        match self {
+            Action::BlockAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
+                title: action.title.to_string(),
+                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
+                edit: Some(WorkspaceEdit {
+                    document_changes: Some(DocumentChanges::Operations(
+                        changes
+                            .iter()
+                            .map(|change| change.to_document_change(base_path))
+                            .collect_vec(),
+                    )),
+                    ..Default::default()
+                }),
                 ..Default::default()
             }),
-            ..Default::default()
-        })
+            Action::TextAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
+                title: action.title.to_string(),
+                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
+                edit: Some(WorkspaceEdit {
+                    document_changes: Some(DocumentChanges::Operations(
+                        changes
+                            .iter()
+                            .map(|change| change.to_document_change(base_path))
+                            .collect_vec(),
+                    )),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+        }
     }
 }
 
@@ -214,7 +272,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
             .actions
             .iter()
             .map(|(identifier, action)| match action {
-                BlockAction::Transform(transform) => {
+                ActionDefinition::Transform(transform) => {
                     let action = ActionEnum::TransformBlockAction(TransformBlockAction {
                         title: transform.title.clone(),
                         identifier: identifier.clone(),
@@ -231,7 +289,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Attach(attach) => {
+                ActionDefinition::Attach(attach) => {
                     let action = ActionEnum::AttachAction(AttachAction {
                         title: attach.title.clone(),
                         identifier: identifier.clone(),
@@ -250,7 +308,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Sort(sort) => {
+                ActionDefinition::Sort(sort) => {
                     let action = ActionEnum::SortAction(SortAction {
                         title: sort.title.clone(),
                         identifier: identifier.clone(),
@@ -258,7 +316,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Inline(inline) => {
+                ActionDefinition::Inline(inline) => {
                     let action = ActionEnum::InlineAction(InlineAction {
                         title: inline.title.clone(),
                         identifier: identifier.clone(),
@@ -267,7 +325,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Extract(extract) => {
+                ActionDefinition::Extract(extract) => {
                     let action = ActionEnum::SectionExtract(SectionExtract {
                         title: extract.title.clone(),
                         identifier: identifier.clone(),
@@ -281,7 +339,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::ExtractAll(extract_all) => {
+                ActionDefinition::ExtractAll(extract_all) => {
                     let action = ActionEnum::ExtractAll(ExtractAll {
                         title: extract_all.title.clone(),
                         identifier: identifier.clone(),

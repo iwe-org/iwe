@@ -52,7 +52,7 @@ pub struct Configuration {
     pub markdown: MarkdownOptions,
     pub library: LibraryOptions,
     pub models: HashMap<String, Model>,
-    pub actions: HashMap<String, BlockAction>,
+    pub actions: HashMap<String, ActionDefinition>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -68,7 +68,7 @@ pub struct Model {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
-pub enum BlockAction {
+pub enum ActionDefinition {
     #[serde(rename = "transform")]
     Transform(Transform),
     #[serde(rename = "attach")]
@@ -186,7 +186,7 @@ impl Configuration {
 
         template.actions.insert(
             "today".into(),
-            BlockAction::Attach(Attach {
+            ActionDefinition::Attach(Attach {
                 title: "Add Date".into(),
                 key_template: "{{today}}".into(),
                 document_template: "# {{today}}\n\n{{content}}\n".into(),
@@ -195,7 +195,7 @@ impl Configuration {
 
         template.actions.insert(
             "rewrite".into(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Rewrite".into(),
                     model: "default".into(),
@@ -222,7 +222,7 @@ impl Configuration {
 
         template.actions.insert (
             "expand".to_string(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Expand".to_string(),
                     model: "default".to_string(),
@@ -249,7 +249,7 @@ impl Configuration {
 
         template.actions.insert (
             "keywords".into(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Keywords".to_string(),
                     model: "default".to_string(),
@@ -275,7 +275,7 @@ impl Configuration {
 
         template.actions.insert(
             "emoji".into(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Emojify".to_string(),
                     model: "default".to_string(),
@@ -300,7 +300,7 @@ impl Configuration {
 
         template.actions.insert(
             "sort".into(),
-            BlockAction::Sort(Sort {
+            ActionDefinition::Sort(Sort {
                 title: "Sort A-Z".into(),
                 reverse: Some(false),
             }),
@@ -308,7 +308,7 @@ impl Configuration {
 
         template.actions.insert(
             "sort_desc".into(),
-            BlockAction::Sort(Sort {
+            ActionDefinition::Sort(Sort {
                 title: "Sort Z-A".into(),
                 reverse: Some(true),
             }),
@@ -316,7 +316,7 @@ impl Configuration {
 
         template.actions.insert(
             "inline_section".into(),
-            BlockAction::Inline(Inline {
+            ActionDefinition::Inline(Inline {
                 title: "Inline section".into(),
                 inline_type: InlineType::Section,
                 keep_target: Some(false),
@@ -325,7 +325,7 @@ impl Configuration {
 
         template.actions.insert(
             "inline_quote".into(),
-            BlockAction::Inline(Inline {
+            ActionDefinition::Inline(Inline {
                 title: "Inline quote".into(),
                 inline_type: InlineType::Quote,
                 keep_target: Some(false),
@@ -334,7 +334,7 @@ impl Configuration {
 
         template.actions.insert(
             "extract".into(),
-            BlockAction::Extract(Extract {
+            ActionDefinition::Extract(Extract {
                 title: "Extract".into(),
                 link_type: Some(LinkType::Markdown),
                 key_template: "{{id}}".into(),
@@ -343,7 +343,7 @@ impl Configuration {
 
         template.actions.insert(
             "extract_all".into(),
-            BlockAction::ExtractAll(ExtractAll {
+            ActionDefinition::ExtractAll(ExtractAll {
                 title: "Extract all subsections".into(),
                 link_type: Some(LinkType::Markdown),
                 key_template: "{{id}}".into(),

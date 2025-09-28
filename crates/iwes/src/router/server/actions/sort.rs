@@ -1,7 +1,7 @@
 use liwe::model::node::NodeIter;
 use liwe::model::NodeId;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Update};
+use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Update};
 
 pub struct SortAction {
     pub title: String,
@@ -23,10 +23,12 @@ impl ActionProvider for SortAction {
                 // Only offer the action if the list is not already sorted in the desired order
                 !context.collect(&key).is_sorted(*scope_id, self.reverse)
             })
-            .map(|_| Action {
-                title: self.title.clone(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: self.title.clone(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 

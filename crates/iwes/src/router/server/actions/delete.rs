@@ -3,7 +3,7 @@ use itertools::Itertools;
 use liwe::model::node::NodeIter;
 use liwe::model::NodeId;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Remove, Update};
+use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Remove, Update};
 
 pub struct DeleteAction {}
 
@@ -18,10 +18,12 @@ impl ActionProvider for DeleteAction {
 
         Some(target_id)
             .filter(|target_id| tree.get(*target_id).is_reference())
-            .map(|_| Action {
-                title: "Delete".to_string(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: "Delete".to_string(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 

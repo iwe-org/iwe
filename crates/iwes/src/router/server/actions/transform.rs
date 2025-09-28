@@ -4,7 +4,7 @@ use liwe::model::node::{NodeIter, NodePointer};
 use liwe::model::NodeId;
 
 use super::super::llm::templates;
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Update};
+use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Update};
 
 pub struct TransformBlockAction {
     pub title: String,
@@ -22,11 +22,11 @@ impl ActionProvider for TransformBlockAction {
     }
 
     fn action(&self, target_id: NodeId, _: impl ActionContext) -> Option<Action> {
-        Some(Action {
+        Some(Action::BlockAction(BlockAction {
             title: self.title.clone(),
             identifier: self.identifier(),
             target_id,
-        })
+        }))
     }
 
     fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {

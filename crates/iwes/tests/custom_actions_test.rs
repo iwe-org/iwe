@@ -1,7 +1,7 @@
 use std::u32;
 
 use indoc::indoc;
-use liwe::model::config::{BlockAction, Configuration, Context::Document, Model, Transform};
+use liwe::model::config::{ActionDefinition, Configuration, Context::Document, Model, Transform};
 
 mod fixture;
 use crate::fixture::*;
@@ -17,7 +17,7 @@ fn block_action_target() {
     );
 }
 
-fn assert_action(action: BlockAction, source: &str, line: u32) {
+fn assert_action(action: ActionDefinition, source: &str, line: u32) {
     let config = Configuration {
         actions: vec![("action".to_string(), action)].into_iter().collect(),
         models: vec![("model".to_string(), Model::default())]
@@ -36,8 +36,8 @@ fn assert_action(action: BlockAction, source: &str, line: u32) {
     );
 }
 
-fn action() -> BlockAction {
-    BlockAction::Transform(Transform {
+fn action() -> ActionDefinition {
+    ActionDefinition::Transform(Transform {
         title: "title".to_string(),
         model: "model".to_string(),
         prompt_template: "".to_string(),

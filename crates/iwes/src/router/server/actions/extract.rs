@@ -10,7 +10,8 @@ use liwe::model::tree::Tree;
 use liwe::model::{Key, NodeId};
 
 use super::{
-    string_to_slug, Action, ActionContext, ActionProvider, Change, Changes, Create, Update,
+    string_to_slug, Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Create,
+    Update,
 };
 
 pub struct SectionExtract {
@@ -168,10 +169,12 @@ impl ActionProvider for SectionExtract {
             .collect(&key)
             .get_surrounding_section_id(target_id)
             .filter(|_| tree.is_header(target_id))
-            .map(|_| Action {
-                title: self.title.clone(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: self.title.clone(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 

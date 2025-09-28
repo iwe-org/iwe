@@ -1,6 +1,6 @@
 use chrono::Local;
 use indoc::indoc;
-use liwe::model::config::{BlockAction, Configuration, Extract, LinkType};
+use liwe::model::config::{ActionDefinition, Configuration, Extract, LinkType};
 
 mod fixture;
 use crate::fixture::*;
@@ -665,7 +665,7 @@ fn create_extract_config(key_template: &str, link_type: Option<LinkType>) -> Con
     let mut config = Configuration::default();
     config.actions.insert(
         "extract".to_string(),
-        BlockAction::Extract(Extract {
+        ActionDefinition::Extract(Extract {
             title: "Extract section".to_string(),
             link_type,
             key_template: key_template.to_string(),

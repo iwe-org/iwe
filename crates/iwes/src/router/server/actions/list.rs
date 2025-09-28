@@ -1,7 +1,7 @@
 use liwe::model::node::NodeIter;
 use liwe::model::NodeId;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Update};
+use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Update};
 
 pub struct ListChangeType {}
 
@@ -16,13 +16,15 @@ impl ActionProvider for ListChangeType {
         context
             .collect(&key)
             .get_surrounding_list_id(target_id)
-            .map(|scope_id| Action {
-                title: match tree.find_id(scope_id).map(|n| n.is_bullet_list()).unwrap() {
-                    true => "Change to ordered list".to_string(),
-                    false => "Change to bullet list".to_string(),
-                },
-                identifier: self.identifier(),
-                target_id,
+            .map(|scope_id| {
+                Action::BlockAction(BlockAction {
+                    title: match tree.find_id(scope_id).map(|n| n.is_bullet_list()).unwrap() {
+                        true => "Change to ordered list".to_string(),
+                        false => "Change to bullet list".to_string(),
+                    },
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 
@@ -56,10 +58,12 @@ impl ActionProvider for ListToSections {
         context
             .collect(&key)
             .get_top_level_surrounding_list_id(target_id)
-            .map(|_| Action {
-                title: "List to sections".to_string(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: "List to sections".to_string(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 

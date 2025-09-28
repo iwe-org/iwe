@@ -11,7 +11,8 @@ use liwe::model::tree::Tree;
 use liwe::model::{Key, NodeId};
 
 use super::{
-    string_to_slug, Action, ActionContext, ActionProvider, Change, Changes, Create, Update,
+    string_to_slug, Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Create,
+    Update,
 };
 
 pub struct ExtractAll {
@@ -144,10 +145,12 @@ impl ActionProvider for ExtractAll {
             .find_id(target_id)
             .filter(|tree| tree.is_section())
             .filter(|tree| tree.children.iter().any(|child| child.is_section()))
-            .map(|_| Action {
-                title: self.title.clone(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: self.title.clone(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 
