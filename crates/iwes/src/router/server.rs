@@ -34,8 +34,7 @@ use relative_path::RelativePath;
 
 use super::LspClient;
 use super::ServerConfig;
-use liwe::database::Database;
-use liwe::database::DatabaseContext;
+use liwe::graph::DatabaseContext;
 
 use self::extensions::*;
 
@@ -46,7 +45,7 @@ mod llm;
 
 pub struct Server {
     base_path: BasePath,
-    database: Database,
+    graph: Graph,
     lsp_client: LspClient,
     configuration: Configuration,
 }
@@ -94,11 +93,11 @@ impl BasePath {
 
 impl DatabaseContext for &Server {
     fn parser(&self, id: &Key) -> Option<Parser> {
-        self.database().parser(id)
+        self.graph().parser(id)
     }
 
     fn lines(&self, key: &Key) -> u32 {
-        self.database().lines(key)
+        self.graph().lines(key)
     }
 }
 
@@ -108,7 +107,7 @@ impl Server {
             base_path: BasePath {
                 base_path: format!("file://{}/", config.base_path),
             },
-            database: Database::new(
+            graph: Graph::from_state(
                 config.state,
                 config.sequential_ids.unwrap_or(false),
                 config.configuration.markdown.clone(),
@@ -117,13 +116,13 @@ impl Server {
             configuration: config.configuration,
         }
     }
-    pub fn database(&self) -> impl DatabaseContext + '_ {
-        &self.database
+    pub fn graph(&self) -> impl DatabaseContext + '_ {
+        &self.graph
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
         params.text.map(|text| {
-            self.database.update_document(
+            self.graph.update_document(
                 self.base_path.url_to_key(&params.text_document.uri.clone()),
                 text,
             )
@@ -131,7 +130,7 @@ impl Server {
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
-        self.database.update_document(
+        self.graph.update_document(
             self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.content_changes.first().unwrap().text.clone(),
         );
@@ -144,8 +143,8 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        let new_key = self.database.graph().random_key(&current_key.parent());
-        let keys = self.database.graph().keys();
+        let new_key = (&self.graph).random_key(&current_key.parent());
+        let keys = self.graph.keys();
         keys.iter()
             .filter(|key| {
                 self.configuration
@@ -164,16 +163,13 @@ impl Server {
 
                 CompletionItem {
                     preselect: Some(true),
-                    label: format!(
-                        "🤖 {}",
-                        self.database.graph().get_ref_text(key).unwrap_or_default()
-                    ),
+                    label: format!("🤖 {}", (&self.graph).get_ref_text(key).unwrap_or_default()),
                     insert_text: Some(format!("[⏳]({})", new_key)),
                     filter_text: Some(format!(
                         "_{}",
-                        self.database.graph().get_ref_text(key).unwrap_or_default()
+                        (&self.graph).get_ref_text(key).unwrap_or_default()
                     )),
-                    sort_text: Some(self.database.graph().get_ref_text(key).unwrap_or_default()),
+                    sort_text: Some((&self.graph).get_ref_text(key).unwrap_or_default()),
                     command: Some(Command {
                         title: "generate".into(),
                         command: CommandType::Generate.to_string().into(),
@@ -194,17 +190,10 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        self.database
-            .graph()
+        self.graph
             .keys()
             .iter()
-            .map(|key| {
-                key.to_completion(
-                    &current_key.parent(),
-                    self.database.graph(),
-                    &self.base_path,
-                )
-            })
+            .map(|key| key.to_completion(&current_key.parent(), &self.graph, &self.base_path))
             .sorted_by(|a, b| a.label.cmp(&b.label))
             .collect_vec()
     }
@@ -237,10 +226,10 @@ impl Server {
         &self,
         params: WorkspaceSymbolParams,
     ) -> WorkspaceSymbolResponse {
-        self.database
+        self.graph
             .global_search(&params.query)
             .iter()
-            .map(|p| path_to_symbol(p, self.database.graph(), &self.base_path))
+            .map(|p| path_to_symbol(p, &self.graph, &self.base_path))
             .filter(|p| !p.name.is_empty())
             .collect_vec()
             .to_response()
@@ -269,10 +258,10 @@ impl Server {
     pub fn handle_document_formatting(&self, params: DocumentFormattingParams) -> Vec<TextEdit> {
         let key = params.text_document.uri.to_key(&self.base_path);
 
-        let mut patch = self.database.graph().new_patch();
+        let mut patch = self.graph.new_patch();
         patch
             .build_key(&key)
-            .insert_from_iter(self.database.graph().collect(&key).iter());
+            .insert_from_iter((&self.graph).collect(&key).iter());
 
         vec![TextEdit {
             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
@@ -291,30 +280,25 @@ impl Server {
     }
 
     pub fn block_reference_hints(&self, key: &Key) -> Vec<InlayHint> {
-        self.database
-            .graph()
+        self.graph
             .get_block_references_in(key)
             .into_iter()
             .filter_map(|id| {
-                self.database
-                    .graph()
+                self.graph
                     .node_line_range(id)
                     .map(|range| (id, range.start))
             })
             .flat_map(|(id, line)| {
-                self.database
-                    .graph()
+                (&self.graph)
                     .node(id)
                     .ref_key()
-                    .map(|key| self.database.graph().get_block_references_to(&key))
+                    .map(|key| self.graph.get_block_references_to(&key))
                     .map(|refs| {
                         refs.into_iter()
-                            .filter(|ref_id| !self.database.graph().get_node_key(*ref_id).eq(key))
-                            .sorted_by_key(|ref_id| self.database.graph().get_node_key(*ref_id))
-                            .unique_by(|ref_id| self.database.graph().get_node_key(*ref_id))
-                            .flat_map(|id| {
-                                self.database.graph().get_container_document_ref_text(id)
-                            })
+                            .filter(|ref_id| !(&self.graph).get_node_key(*ref_id).eq(key))
+                            .sorted_by_key(|ref_id| (&self.graph).get_node_key(*ref_id))
+                            .unique_by(|ref_id| (&self.graph).get_node_key(*ref_id))
+                            .flat_map(|id| (&self.graph).get_container_document_ref_text(id))
                             .map(|s| format!("↖{}", s))
                             .join(" ")
                     })
@@ -326,11 +310,10 @@ impl Server {
     }
 
     pub fn container_hint(&self, key: &Key) -> Vec<InlayHint> {
-        self.database
-            .graph()
+        self.graph
             .get_block_references_to(key)
             .iter()
-            .flat_map(|id| self.database.graph().get_container_document_ref_text(*id))
+            .flat_map(|id| (&self.graph).get_container_document_ref_text(*id))
             .sorted()
             .dedup()
             .map(|text| hint_at(&format!("↖{}", text), 0))
@@ -338,7 +321,7 @@ impl Server {
     }
 
     pub fn refs_counter_hints(&self, key: &Key) -> Vec<InlayHint> {
-        let inline_refs = self.database.graph().get_inline_references_to(key).len();
+        let inline_refs = self.graph.get_inline_references_to(key).len();
 
         if inline_refs > 0 {
             vec![hint_at(&format!("‹{}›", inline_refs), 0)]
@@ -354,14 +337,12 @@ impl Server {
     pub fn handle_document_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
         let key = params.text_document.uri.to_key(&self.base_path);
         let id_opt = self
-            .database
-            .graph()
+            .graph
             .maybe_key(&key)
             .and_then(|key_node| key_node.to_child().and_then(|child| child.id()));
 
         let id2_opt = self
-            .database
-            .graph()
+            .graph
             .maybe_key(&key)
             .and_then(|key_node| key_node.id());
 
@@ -372,7 +353,7 @@ impl Server {
         let id = id_opt.unwrap();
         let id2 = id2_opt.unwrap();
 
-        let paths = self.database.graph().paths();
+        let paths = self.graph.paths();
 
         paths
             .iter()
@@ -388,7 +369,7 @@ impl Server {
             })
             .map(|p| p.drop_first())
             .filter(|p| p.ids().len() < 4)
-            .map(|p| p.to_nested_symbol(self.database.graph(), &self.base_path))
+            .map(|p| p.to_nested_symbol(&self.graph, &self.base_path))
             .filter(|p| !p.name.is_empty())
             .collect_vec()
     }
@@ -413,8 +394,7 @@ impl Server {
         params: RenameParams,
     ) -> Result<Option<WorkspaceEdit>, ResponseError> {
         if self
-            .database
-            .graph()
+            .graph
             .maybe_key(&params.new_name.clone().into())
             .is_some()
         {
@@ -445,24 +425,22 @@ impl Server {
                 let key = Key::from_rel_link_url(&url, relative_to);
 
                 let affected_keys = self
-                    .database
-                    .graph()
+                    .graph
                     .get_block_references_to(&key.clone())
                     .into_iter()
-                    .chain(self.database.graph().get_inline_references_to(&key.clone()))
-                    .map(|node_id| self.database.graph().node(node_id).node_key())
+                    .chain(self.graph.get_inline_references_to(&key.clone()))
+                    .map(|node_id| (&self.graph).node(node_id).node_key())
                     .filter(|k| k != &key)
                     .unique()
                     .sorted()
                     .collect_vec();
 
-                let mut patch = self.database.graph().new_patch();
+                let mut patch = self.graph.new_patch();
 
                 patch
                     .build_key(&params.new_name.clone().into())
                     .insert_from_iter(
-                        self.database
-                            .graph()
+                        (&self.graph)
                             .collect(&key)
                             .change_key(&key, &params.new_name.clone().into())
                             .iter(),
@@ -470,8 +448,7 @@ impl Server {
 
                 affected_keys.iter().for_each(|affected_key| {
                     patch.build_key(&affected_key).insert_from_iter(
-                        self.database
-                            .graph()
+                        (&self.graph)
                             .collect(&affected_key)
                             .change_key(&key, &params.new_name.clone().into())
                             .iter(),
@@ -541,18 +518,16 @@ impl Server {
             .map(|url| Key::from_rel_link_url(&url, relative_to))
             .unwrap_or(key.clone());
 
-        self.database
-            .graph()
+        self.graph
             .get_block_references_to(&key_under_cursor.clone())
             .iter()
             .chain(
-                self.database
-                    .graph()
+                self.graph
                     .get_inline_references_to(&key.clone())
                     .iter()
                     .filter(|_| params.context.include_declaration),
             )
-            .map(|id| (id, self.database.graph().node(*id).node_key()))
+            .map(|id| (id, (&self.graph).node(*id).node_key()))
             .dedup()
             .filter(|(_, backlink_key)| backlink_key.ne(&key))
             .map(|(id, key)| {
@@ -560,16 +535,14 @@ impl Server {
                     key.to_full_url(&self.base_path),
                     Range::new(
                         Position::new(
-                            self.database
-                                .graph()
+                            self.graph
                                 .node_line_range(*id)
                                 .map(|f| f.start as u32)
                                 .unwrap_or(0),
                             0,
                         ),
                         Position::new(
-                            self.database
-                                .graph()
+                            self.graph
                                 .node_line_range(*id)
                                 .map(|f| f.end as u32)
                                 .unwrap_or(0),
@@ -583,7 +556,7 @@ impl Server {
     }
 
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
-        let context = self.database.graph();
+        let context = &self.graph;
         let base_path: &BasePath = &self.base_path;
 
         context
@@ -707,19 +680,19 @@ fn render_path(path: &NodePath, context: impl GraphContext) -> String {
 
 impl ActionContext for &Server {
     fn key_of(&self, node_id: NodeId) -> Key {
-        self.database.graph().node(node_id).node_key()
+        (&self.graph).node(node_id).node_key()
     }
 
     fn collect(&self, key: &Key) -> Tree {
-        self.database.graph().collect(key)
+        (&self.graph).collect(key)
     }
 
     fn squash(&self, key: &Key, depth: u8) -> Tree {
-        self.database.graph().squash(key, depth)
+        (&self.graph).squash(key, depth)
     }
 
     fn random_key(&self, parent: &str) -> Key {
-        self.database.graph().random_key(parent)
+        (&self.graph).random_key(parent)
     }
 
     fn markdown_options(&self) -> &MarkdownOptions {
@@ -731,7 +704,7 @@ impl ActionContext for &Server {
     }
 
     fn patch(&self) -> Graph {
-        self.database.graph().new_patch()
+        self.graph.new_patch()
     }
 
     fn llm_query(&self, prompt: String, model: &Model) -> String {
@@ -758,26 +731,26 @@ impl ActionContext for &Server {
     }
 
     fn key_exists(&self, key: &Key) -> bool {
-        self.database.graph().keys().contains(key)
+        self.graph.keys().contains(key)
     }
 
     fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.database.graph().get_block_references_to(key)
+        self.graph.get_block_references_to(key)
     }
 
     fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.database.graph().get_inline_references_to(key)
+        self.graph.get_inline_references_to(key)
     }
 
     fn get_ref_text(&self, key: &Key) -> Option<String> {
-        self.database.graph().get_key_title(key)
+        self.graph.get_key_title(key)
     }
 
     fn unique_ids(&self, parent: &str, number: usize) -> Vec<String> {
-        self.database.graph().unique_ids(parent, number)
+        (&self.graph).unique_ids(parent, number)
     }
 
     fn random_keys(&self, parent: &str, number: usize) -> Vec<Key> {
-        self.database.graph().random_keys(parent, number)
+        (&self.graph).random_keys(parent, number)
     }
 }
