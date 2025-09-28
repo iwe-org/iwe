@@ -5,7 +5,7 @@ use liwe::model::node::NodeIter;
 use liwe::model::tree::Tree;
 use liwe::model::NodeId;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Remove, Update};
+use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Remove, Update};
 
 pub struct InlineAction {
     pub title: String,
@@ -59,10 +59,12 @@ impl ActionProvider for InlineAction {
         let tree = context.collect(&key);
         Some(target_id)
             .filter(|target_id| tree.get(*target_id).is_reference())
-            .map(|_| Action {
-                title: self.title.clone(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: self.title.clone(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 

@@ -1,6 +1,6 @@
 use chrono::Local;
 use indoc::{formatdoc, indoc};
-use liwe::model::config::{Attach, BlockAction, Configuration};
+use liwe::model::config::{ActionDefinition, Attach, Configuration};
 
 mod fixture;
 use crate::fixture::*;
@@ -190,7 +190,7 @@ fn assert_attached(source: &str, line: u32, expected: &str) {
 
     configuration.actions.insert(
         "attach".into(),
-        BlockAction::Attach(Attach {
+        ActionDefinition::Attach(Attach {
             title: "Attach".into(),
             key_template: "3".into(),
             document_template: "# template\n\n{{content}}".into(),
@@ -210,7 +210,7 @@ fn assert_attached_new_key(source: &str, line: u32, expected: &str) {
 
     configuration.actions.insert(
         "attach".into(),
-        BlockAction::Attach(Attach {
+        ActionDefinition::Attach(Attach {
             title: "Attach".into(),
             key_template: "3".into(),
             document_template: "# template\n\n{{content}}".into(),
@@ -230,7 +230,7 @@ fn assert_no_action(source: &str, line: u32) {
 
     configuration.actions.insert(
         "attach".into(),
-        BlockAction::Attach(Attach {
+        ActionDefinition::Attach(Attach {
             title: "Attach".into(),
             key_template: "3".into(),
             document_template: "# template\n\n{{content}}".into(),
@@ -246,7 +246,7 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
 
     configuration.actions.insert(
         "attach".into(),
-        BlockAction::Attach(Attach {
+        ActionDefinition::Attach(Attach {
             title: "Attach".into(),
             key_template: "{{today}}".into(),
             document_template: "# {{today}}\n\n{{content}}".into(),

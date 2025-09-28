@@ -72,7 +72,7 @@ fn test_config_with_extract_action_parses_correctly() {
     assert_eq!(parsed.actions.len(), 1);
     assert!(parsed.actions.contains_key("my_extract"));
 
-    if let Some(liwe::model::config::BlockAction::Extract(extract)) =
+    if let Some(liwe::model::config::ActionDefinition::Extract(extract)) =
         parsed.actions.get("my_extract")
     {
         assert_eq!(extract.title, "My Extract");

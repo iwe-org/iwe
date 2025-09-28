@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
+use liwe::model::config::{ActionDefinition, Configuration, Inline, InlineType};
 
 mod fixture;
 use crate::fixture::*;
@@ -144,7 +144,7 @@ fn assert_inlined_with_keep_target(source: &str, line: u32, inlined: &str) {
     let mut config = Configuration::template();
     config.actions.insert(
         "inline_quote_keep".into(),
-        BlockAction::Inline(Inline {
+        ActionDefinition::Inline(Inline {
             title: "Inline quote (keep target)".into(),
             inline_type: InlineType::Quote,
             keep_target: Some(true),

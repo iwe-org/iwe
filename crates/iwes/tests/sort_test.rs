@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::{BlockAction, Configuration, Sort};
+use liwe::model::config::{ActionDefinition, Configuration, Sort};
 
 mod fixture;
 use crate::fixture::*;
@@ -10,7 +10,7 @@ fn sort_simple_list() {
 
     configuration.actions.insert(
         "sort".into(),
-        BlockAction::Sort(Sort {
+        ActionDefinition::Sort(Sort {
             title: "Sort".into(),
             reverse: Some(false),
         }),
@@ -42,7 +42,7 @@ fn sort_not_offered_when_already_sorted_ascending() {
 
     configuration.actions.insert(
         "sort".into(),
-        BlockAction::Sort(Sort {
+        ActionDefinition::Sort(Sort {
             title: "Sort A-Z".into(),
             reverse: Some(false),
         }),
@@ -65,7 +65,7 @@ fn sort_not_offered_when_already_sorted_descending() {
 
     configuration.actions.insert(
         "sort".into(),
-        BlockAction::Sort(Sort {
+        ActionDefinition::Sort(Sort {
             title: "Sort Z-A".into(),
             reverse: Some(true),
         }),
@@ -88,7 +88,7 @@ fn sort_offered_when_partially_sorted() {
 
     configuration.actions.insert(
         "sort".into(),
-        BlockAction::Sort(Sort {
+        ActionDefinition::Sort(Sort {
             title: "Sort A-Z".into(),
             reverse: Some(false),
         }),
@@ -120,7 +120,7 @@ fn sort_list_descending() {
 
     configuration.actions.insert(
         "sort".into(),
-        BlockAction::Sort(Sort {
+        ActionDefinition::Sort(Sort {
             title: "Sort Descending".into(),
             reverse: Some(true),
         }),
@@ -152,7 +152,7 @@ fn sort_ordered_list() {
 
     configuration.actions.insert(
         "sort".into(),
-        BlockAction::Sort(Sort {
+        ActionDefinition::Sort(Sort {
             title: "Sort".into(),
             reverse: Some(false),
         }),
