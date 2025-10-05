@@ -9,6 +9,9 @@ on:
   push:
     tags:
       - "v*"
+      - "iwe-v*"
+      - "iwes-v*"
+      - "liwe-v*"
   workflow_dispatch:
     inputs:
       tag:
