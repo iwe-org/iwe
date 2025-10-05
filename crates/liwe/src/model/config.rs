@@ -399,7 +399,7 @@ pub fn load_config() -> Configuration {
         toml::from_str::<Configuration>(&configuration).expect("to parse config file")
     } else {
         debug!("using default configuration");
-        Configuration::default()
+        Configuration::template()
     }
 }
 
