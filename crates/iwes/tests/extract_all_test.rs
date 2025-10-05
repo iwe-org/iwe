@@ -1,6 +1,6 @@
 use chrono::Local;
 use indoc::indoc;
-use liwe::model::config::{BlockAction, Configuration, ExtractAll, LinkType};
+use liwe::model::config::{ActionDefinition, Configuration, ExtractAll, LinkType};
 
 mod fixture;
 use crate::fixture::*;
@@ -331,7 +331,7 @@ fn create_extract_all_config(key_template: &str, link_type: LinkType) -> Configu
     let mut config = Configuration::default();
     config.actions.insert(
         "extract_all".to_string(),
-        BlockAction::ExtractAll(ExtractAll {
+        ActionDefinition::ExtractAll(ExtractAll {
             title: "Extract all subsections".to_string(),
             link_type: Some(link_type),
             key_template: key_template.to_string(),

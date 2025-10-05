@@ -6,7 +6,7 @@ use liwe::model::node::{Node, Reference, ReferenceType};
 use liwe::model::tree::Tree;
 use liwe::model::{Key, NodeId};
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Create, Update};
+use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Create, Update};
 
 pub struct AttachAction {
     pub title: String,
@@ -72,10 +72,12 @@ impl ActionProvider for AttachAction {
             .collect(&key)
             .find_id(target_id)
             .filter(|target| target.is_reference())
-            .map(|_| Action {
-                title: self.title.clone(),
-                identifier: self.identifier(),
-                target_id,
+            .map(|_| {
+                Action::BlockAction(BlockAction {
+                    title: self.title.clone(),
+                    identifier: self.identifier(),
+                    target_id,
+                })
             })
     }
 

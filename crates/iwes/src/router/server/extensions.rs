@@ -6,8 +6,8 @@ use liwe::graph::path::NodePath;
 use liwe::model::node::NodePointer;
 use lsp_types::*;
 
-use liwe::graph::GraphContext;
-use liwe::model::{Content, Key};
+use liwe::graph::{GraphContext, SearchPath};
+use liwe::model::{self, Content, InlineRange, Key};
 
 use super::actions::Change;
 use super::BasePath;
@@ -64,6 +64,72 @@ pub impl Range {
 
     fn empty(&self) -> bool {
         self.start.eq(&self.end)
+    }
+}
+
+#[ext]
+pub impl SearchPath {
+    #[allow(deprecated)]
+
+    fn path_to_symbol(
+        &self,
+        context: impl GraphContext,
+        base_path: &BasePath,
+    ) -> SymbolInformation {
+        let kind = if self.root {
+            SymbolKind::NAMESPACE
+        } else {
+            SymbolKind::OBJECT
+        };
+
+        SymbolInformation {
+            name: SearchPath::render_path(&self.path, context),
+            kind,
+            deprecated: None,
+            tags: None,
+            location: Location {
+                uri: base_path.key_to_url(&self.key),
+                range: Range::new(
+                    Position {
+                        line: (self.line),
+                        character: 0,
+                    },
+                    Position {
+                        line: (self.line) + 1,
+                        character: 0,
+                    },
+                ),
+            },
+            container_name: None,
+        }
+    }
+
+    fn render_path(path: &NodePath, context: impl GraphContext) -> String {
+        path.ids()
+            .iter()
+            .map(|id| context.get_text(*id).trim().to_string())
+            .collect_vec()
+            .join(" • ")
+    }
+}
+
+#[ext]
+pub impl Position {
+    fn to_model(self) -> model::Position {
+        model::Position {
+            line: self.line as usize,
+            character: self.character as usize,
+        }
+    }
+}
+
+#[ext]
+pub impl InlineRange {
+    fn to_lsp(self) -> Range {
+        Range::new(
+            Position::new(self.start.line as u32, self.start.character as u32),
+            Position::new(self.end.line as u32, self.end.character as u32),
+        )
     }
 }
 
@@ -262,6 +328,19 @@ pub impl NodePath {
 pub impl String {
     fn to_url(&self, base_path: &BasePath) -> Uri {
         base_path.name_to_url(&self.clone())
+    }
+
+    fn to_hint_at(self, line: u32) -> InlayHint {
+        InlayHint {
+            label: InlayHintLabel::String(self),
+            position: Position::new(line, 120),
+            kind: None,
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(true),
+            padding_right: None,
+            data: None,
+        }
     }
 }
 
