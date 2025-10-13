@@ -35,6 +35,8 @@ jobs:
     needs: release-plz-release
     if: needs.release-plz-release.outputs.releases_created == 'true'
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
       - name: Trigger binary workflow
         run: |
           gh workflow run release.yaml
