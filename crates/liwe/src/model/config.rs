@@ -52,7 +52,7 @@ pub struct Configuration {
     pub markdown: MarkdownOptions,
     pub library: LibraryOptions,
     pub models: HashMap<String, Model>,
-    pub actions: HashMap<String, BlockAction>,
+    pub actions: HashMap<String, ActionDefinition>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -68,7 +68,7 @@ pub struct Model {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
-pub enum BlockAction {
+pub enum ActionDefinition {
     #[serde(rename = "transform")]
     Transform(Transform),
     #[serde(rename = "attach")]
@@ -81,6 +81,8 @@ pub enum BlockAction {
     Extract(Extract),
     #[serde(rename = "extract_all")]
     ExtractAll(ExtractAll),
+    #[serde(rename = "link")]
+    Link(Link),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -134,6 +136,13 @@ pub struct ExtractAll {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Link {
+    pub title: String,
+    pub link_type: Option<LinkType>,
+    pub key_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum LinkType {
     #[serde(rename = "markdown")]
     Markdown,
@@ -156,7 +165,7 @@ impl Default for Configuration {
 impl Configuration {
     pub fn template() -> Self {
         let mut template = Self {
-            version: Some(1),
+            version: Some(2),
             ..Default::default()
         };
 
@@ -186,7 +195,7 @@ impl Configuration {
 
         template.actions.insert(
             "today".into(),
-            BlockAction::Attach(Attach {
+            ActionDefinition::Attach(Attach {
                 title: "Add Date".into(),
                 key_template: "{{today}}".into(),
                 document_template: "# {{today}}\n\n{{content}}\n".into(),
@@ -195,7 +204,7 @@ impl Configuration {
 
         template.actions.insert(
             "rewrite".into(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Rewrite".into(),
                     model: "default".into(),
@@ -222,7 +231,7 @@ impl Configuration {
 
         template.actions.insert (
             "expand".to_string(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Expand".to_string(),
                     model: "default".to_string(),
@@ -249,7 +258,7 @@ impl Configuration {
 
         template.actions.insert (
             "keywords".into(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Keywords".to_string(),
                     model: "default".to_string(),
@@ -275,7 +284,7 @@ impl Configuration {
 
         template.actions.insert(
             "emoji".into(),
-            BlockAction::Transform(
+            ActionDefinition::Transform(
                 Transform {
                     title: "Emojify".to_string(),
                     model: "default".to_string(),
@@ -300,7 +309,7 @@ impl Configuration {
 
         template.actions.insert(
             "sort".into(),
-            BlockAction::Sort(Sort {
+            ActionDefinition::Sort(Sort {
                 title: "Sort A-Z".into(),
                 reverse: Some(false),
             }),
@@ -308,7 +317,7 @@ impl Configuration {
 
         template.actions.insert(
             "sort_desc".into(),
-            BlockAction::Sort(Sort {
+            ActionDefinition::Sort(Sort {
                 title: "Sort Z-A".into(),
                 reverse: Some(true),
             }),
@@ -316,7 +325,7 @@ impl Configuration {
 
         template.actions.insert(
             "inline_section".into(),
-            BlockAction::Inline(Inline {
+            ActionDefinition::Inline(Inline {
                 title: "Inline section".into(),
                 inline_type: InlineType::Section,
                 keep_target: Some(false),
@@ -325,7 +334,7 @@ impl Configuration {
 
         template.actions.insert(
             "inline_quote".into(),
-            BlockAction::Inline(Inline {
+            ActionDefinition::Inline(Inline {
                 title: "Inline quote".into(),
                 inline_type: InlineType::Quote,
                 keep_target: Some(false),
@@ -334,7 +343,7 @@ impl Configuration {
 
         template.actions.insert(
             "extract".into(),
-            BlockAction::Extract(Extract {
+            ActionDefinition::Extract(Extract {
                 title: "Extract".into(),
                 link_type: Some(LinkType::Markdown),
                 key_template: "{{id}}".into(),
@@ -343,8 +352,17 @@ impl Configuration {
 
         template.actions.insert(
             "extract_all".into(),
-            BlockAction::ExtractAll(ExtractAll {
+            ActionDefinition::ExtractAll(ExtractAll {
                 title: "Extract all subsections".into(),
+                link_type: Some(LinkType::Markdown),
+                key_template: "{{id}}".into(),
+            }),
+        );
+
+        template.actions.insert(
+            "link".into(),
+            ActionDefinition::Link(Link {
+                title: "Link".into(),
                 link_type: Some(LinkType::Markdown),
                 key_template: "{{id}}".into(),
             }),
@@ -411,24 +429,28 @@ fn migrate(config: &str) -> String {
         .and_then(|v| v.as_integer())
         .unwrap_or(0);
 
-    if current_version >= 1 {
-        debug!(
-            "configuration version {} >= 1, skipping migrations",
-            current_version
-        );
-        return config.to_string();
+    let mut updated = config.to_string();
+    let mut needs_update = false;
+
+    // Migrate from version 0 to version 1
+    if current_version < 1 {
+        debug!("applying migrations from version 0 to 1");
+        updated = add_default_type_to_actions(&updated);
+        updated = add_default_code_actions(&updated);
+        updated = set_config_version(&updated, 1);
+        needs_update = true;
     }
 
-    debug!(
-        "applying migrations for configuration version {}",
-        current_version
-    );
+    // Migrate from version 1 to version 2
+    if current_version < 2 {
+        debug!("applying migrations from version 1 to 2");
+        updated = add_refs_extension_field(&updated);
+        updated = add_link_action(&updated);
+        updated = set_config_version(&updated, 2);
+        needs_update = true;
+    }
 
-    let mut updated = add_default_type_to_actions(config);
-    updated = add_default_code_actions(&updated);
-    updated = set_config_version(&updated);
-
-    if updated != config {
+    if needs_update {
         debug!("configuration file migration applied");
         let current_dir = env::current_dir().expect("to get current dir");
         let mut config_path = current_dir.clone();
@@ -438,6 +460,7 @@ fn migrate(config: &str) -> String {
         debug!("updating configuration file");
         std::fs::write(config_path, &updated).expect("to write updated config file");
     }
+
     updated
 }
 
@@ -455,12 +478,59 @@ fn add_default_type_to_actions(input: &str) -> String {
     doc.to_string()
 }
 
-fn set_config_version(input: &str) -> String {
+fn add_refs_extension_field(input: &str) -> String {
     let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
 
-    if doc.get("version").is_none() {
-        doc.insert("version", value(1));
+    if doc.get("markdown").is_none() {
+        doc["markdown"] = Item::Table(toml_edit::Table::new());
     }
+
+    if let Some(Item::Table(markdown)) = doc.get_mut("markdown") {
+        if markdown.get("refs_extension").is_none() {
+            markdown.insert("refs_extension", value(""));
+        }
+    }
+
+    doc.to_string()
+}
+
+fn add_link_action(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if doc.get("actions").is_none() {
+        doc["actions"] = Item::Table(toml_edit::Table::new());
+    }
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        // Check if link action already exists
+        let has_link = actions.iter().any(|(_, action)| {
+            if let Item::Table(action_table) = action {
+                if let Some(Item::Value(action_type)) = action_table.get("type") {
+                    if let Some(type_str) = action_type.as_str() {
+                        return type_str == "link";
+                    }
+                }
+            }
+            false
+        });
+
+        if !has_link {
+            let mut link_table = toml_edit::Table::new();
+            link_table.insert("type", value("link"));
+            link_table.insert("title", value("Link word"));
+            link_table.insert("link_type", value("markdown"));
+            link_table.insert("key_template", value("{{id}}"));
+            actions.insert("link", Item::Table(link_table));
+        }
+    }
+
+    doc.to_string()
+}
+
+fn set_config_version(input: &str, version: i64) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    doc.insert("version", value(version));
 
     doc.to_string()
 }

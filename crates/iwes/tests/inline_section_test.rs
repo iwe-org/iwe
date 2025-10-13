@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::{BlockAction, Configuration, Inline, InlineType};
+use liwe::model::config::{ActionDefinition, Configuration, Inline, InlineType};
 
 mod fixture;
 use crate::fixture::*;
@@ -377,7 +377,7 @@ fn assert_inlined_keep(source: &str, line: u32, inlined: &str) {
     let mut config = Configuration::template();
     config.actions.insert(
         "inline_section_keep".into(),
-        BlockAction::Inline(Inline {
+        ActionDefinition::Inline(Inline {
             title: "Inline section (keep target)".into(),
             inline_type: InlineType::Section,
             keep_target: Some(true),

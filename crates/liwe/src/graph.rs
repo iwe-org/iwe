@@ -17,16 +17,19 @@ use crate::{
 };
 use arena::Arena;
 use builder::GraphBuilder;
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use path::{graph_to_paths, NodePath};
 use rayon::prelude::*;
+
+use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
 use crate::model::config::MarkdownOptions;
 use crate::model::graph::GraphInlines;
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::InlinesContext;
-use crate::model::{Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
+use crate::model::{Content, Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
 mod arena;
 pub mod basic_iter;
@@ -39,6 +42,8 @@ pub mod path;
 pub mod sections_builder;
 mod squash_iter;
 
+type Documents = HashMap<Key, Content>;
+
 #[derive(Clone, Default)]
 pub struct Graph {
     arena: Arena,
@@ -50,6 +55,8 @@ pub struct Graph {
     keys_to_ref_text: HashMap<Key, String>,
     markdown_options: MarkdownOptions,
     metadata: HashMap<Key, String>,
+    content: Documents,
+    paths: Vec<SearchPath>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -66,6 +73,26 @@ pub trait Reader {
     fn document<'a>(&self, content: &str, markdown_options: &MarkdownOptions) -> Document;
 }
 
+pub trait DatabaseContext {
+    fn lines(&self, key: &Key) -> u32;
+    fn parser(&self, key: &Key) -> Option<Parser>;
+}
+
+impl DatabaseContext for &Graph {
+    fn parser(&self, key: &Key) -> Option<Parser> {
+        self.content
+            .get(key)
+            .map(|content| Parser::new(&content, &self.markdown_options(), MarkdownReader::new()))
+    }
+
+    fn lines(&self, key: &Key) -> u32 {
+        self.content
+            .get(key)
+            .map(|content| content.lines().count() as u32)
+            .unwrap_or(0)
+    }
+}
+
 impl Graph {
     pub fn new() -> Graph {
         Graph {
@@ -78,14 +105,20 @@ impl Graph {
     }
 
     pub fn search_paths(&self) -> Vec<SearchPath> {
-        self.paths()
+        self.paths.clone()
+    }
+
+    fn update_search_paths(&mut self) {
+        let graph_ref = &*self;
+        self.paths = self
+            .paths()
             .par_iter()
             .map(|path| SearchPath {
-                search_text: render_search_text(path, self),
-                node_rank: node_rank(self, path.last_id()),
-                key: self.node_key(path.target()),
+                search_text: render_search_text(path, graph_ref),
+                node_rank: node_rank(graph_ref, path.last_id()),
+                key: graph_ref.node_key(path.target()),
                 root: path.ids().len() == 1,
-                line: self.node_line_number(path.target()).unwrap_or(0) as u32,
+                line: graph_ref.node_line_number(path.target()).unwrap_or(0) as u32,
                 path: path.clone(),
             })
             .collect::<Vec<_>>()
@@ -98,7 +131,7 @@ impl Graph {
                     primary
                 }
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
     }
 
     pub fn new_patch(&self) -> Graph {
@@ -118,6 +151,55 @@ impl Graph {
 
     pub fn set_sequential_keys(&mut self, sequential_keys: bool) {
         self.sequential_keys = sequential_keys;
+    }
+
+    pub fn global_search(&self, query: &str) -> Vec<SearchPath> {
+        let matcher = SkimMatcherV2::default();
+        assert_eq!(None, matcher.fuzzy_match("abc", "abx"));
+
+        self.paths
+            .par_iter()
+            .map(|path| {
+                (
+                    path,
+                    matcher.fuzzy_match(&path.search_text, query).unwrap_or(0),
+                )
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .sorted_by(|(path_a, rank_a), (path_b, rank_b)| {
+                if query.is_empty() {
+                    path_b
+                        .node_rank
+                        .cmp(&path_a.node_rank)
+                        .then_with(|| path_a.search_text.len().cmp(&path_b.search_text.len()))
+                } else {
+                    rank_b
+                        .cmp(&rank_a)
+                        .then_with(|| path_a.search_text.len().cmp(&path_b.search_text.len()))
+                        .then_with(|| path_b.node_rank.cmp(&path_a.node_rank))
+                }
+            })
+            .map(|(path, _)| path)
+            .take(100)
+            .cloned()
+            .collect_vec()
+    }
+
+    pub fn get_document(&self, key: &Key) -> Option<Content> {
+        self.content.get(key).cloned()
+    }
+
+    pub fn insert_document(&mut self, key: Key, content: Content) -> () {
+        self.update_key(key.clone(), &content);
+        self.content.insert(key.clone(), content);
+        self.update_search_paths();
+    }
+
+    pub fn update_document(&mut self, key: Key, content: Content) -> () {
+        self.update_key(key.clone(), &content);
+        self.content.insert(key.clone(), content);
+        self.update_search_paths();
     }
 
     fn node_key(&self, id: NodeId) -> Key {
@@ -286,11 +368,20 @@ impl Graph {
     }
 
     pub fn import(content: &State, markdown_options: MarkdownOptions) -> Graph {
+        Self::from_state(content.clone(), false, markdown_options)
+    }
+
+    pub fn from_state(
+        state: State,
+        sequential_ids: bool,
+        markdown_options: MarkdownOptions,
+    ) -> Self {
         let mut graph = Graph::new_with_options(markdown_options.clone());
+        graph.set_sequential_keys(sequential_ids);
 
         let reader = MarkdownReader::new();
 
-        let blocks = content
+        let blocks = state
             .iter()
             .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec()
@@ -326,6 +417,14 @@ impl Graph {
                 .extract_ref_text(&key)
                 .map(|text| graph.keys_to_ref_text.insert(key.clone(), text));
         }
+
+        graph.content = state
+            .iter()
+            .map(|(k, v)| (Key::name(k), v.clone()))
+            .collect();
+
+        graph.update_search_paths();
+
         graph
     }
 

@@ -4,7 +4,7 @@ use minijinja::{context, Environment};
 use liwe::model::node::NodeIter;
 use liwe::model::node::{Node, Reference, ReferenceType};
 use liwe::model::tree::Tree;
-use liwe::model::{Key, NodeId};
+use liwe::model::Key;
 
 use super::{Action, ActionContext, ActionProvider, Change, Changes, Create, Update};
 
@@ -53,8 +53,13 @@ impl ActionProvider for AttachAction {
         format!("custom.{}", self.identifier.to_string())
     }
 
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
-        let key = context.key_of(target_id);
+    fn action(
+        &self,
+        key: Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Action> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let reference_key = context.collect(&key).find_reference_key(target_id);
         let attach_to_key = self.format_target_key();
 
@@ -75,12 +80,18 @@ impl ActionProvider for AttachAction {
             .map(|_| Action {
                 title: self.title.clone(),
                 identifier: self.identifier(),
-                target_id,
+                key: key.clone(),
+                range: selection.clone(),
             })
     }
 
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
-        let key = context.key_of(target_id);
+    fn changes(
+        &self,
+        key: Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let reference_key = context.collect(&key).find_reference_key(target_id);
         let attach_to_key = self.format_target_key();
         let reference = Tree {

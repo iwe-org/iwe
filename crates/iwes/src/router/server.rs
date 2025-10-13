@@ -1,114 +1,44 @@
 use std::fs;
 use std::path::Path;
-use std::str::FromStr;
 
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use url::Url;
-
-use actions::all_action_types;
-use actions::ActionContext;
-use actions::ActionProvider;
-
-use command::CommandType;
-use command::GenerateCommand;
+use actions::{all_action_types, ActionContext, ActionProvider};
+use command::{CommandType, GenerateCommand};
 use itertools::Itertools;
-use liwe::graph::path::NodePath;
-
-use liwe::graph::Graph;
-use liwe::model::config::Configuration;
-use liwe::model::config::MarkdownOptions;
-use liwe::model::config::Model;
-use liwe::model::node::NodePointer;
-use liwe::model::tree::Tree;
-use liwe::model::NodeId;
+use liwe::{
+    graph::{DatabaseContext, Graph, GraphContext},
+    model::{
+        config::{Configuration, MarkdownOptions, Model},
+        node::NodePointer,
+        tree::Tree,
+        Key, NodeId,
+    },
+};
 use lsp_server::ResponseError;
 use lsp_types::*;
 
-use liwe::graph::GraphContext;
-use liwe::graph::SearchPath;
-use liwe::model::Key;
-use liwe::model::{self, InlineRange};
+use super::{LspClient, ServerConfig};
 
-use liwe::parser::Parser;
-use relative_path::RelativePath;
-
-use super::LspClient;
-use super::ServerConfig;
-use liwe::database::Database;
-use liwe::database::DatabaseContext;
-
+use self::base_path::BasePath;
 use self::extensions::*;
 
 pub mod actions;
+pub mod base_path;
 pub mod command;
 mod extensions;
 mod llm;
 
 pub struct Server {
     base_path: BasePath,
-    database: Database,
+    graph: Graph,
     lsp_client: LspClient,
     configuration: Configuration,
-}
-
-pub struct BasePath {
-    base_path: String,
-}
-
-impl BasePath {
-    fn key_to_url(&self, key: &Key) -> Uri {
-        let base_url = Url::parse(&self.base_path).expect("valid base URL");
-        let mut url = base_url.clone();
-        url.set_path(&format!("{}{}", base_url.path(), key.to_path()));
-        Uri::from_str(url.as_str()).expect("to work")
-    }
-
-    fn relative_to_full_path(&self, url: &str) -> Uri {
-        let mut base_url = Url::parse(&self.base_path).expect("valid base URL");
-        let filename = format!("{}.md", url.trim_end_matches(".md"));
-        base_url.set_path(&format!("{}{}", base_url.path(), filename));
-        Uri::from_str(base_url.as_str()).expect("to work")
-    }
-
-    fn name_to_url(&self, key: &str) -> Uri {
-        let mut base_url = Url::parse(&self.base_path).expect("valid base URL");
-        base_url.set_path(&format!("{}{}.md", base_url.path(), key));
-        Uri::from_str(base_url.as_str()).expect("to work")
-    }
-
-    fn url_to_key(&self, url: &Uri) -> Key {
-        Key::name(
-            &url.to_string()
-                .trim_start_matches(&self.base_path)
-                .to_string(),
-        )
-    }
-
-    fn resolve_relative_url(&self, url: &str, relative_to: &str) -> Uri {
-        // URL-encode the path to handle spaces and special characters
-        let encoded_url = utf8_percent_encode(url, NON_ALPHANUMERIC).to_string();
-        let relative_url = RelativePath::new(relative_to).join(encoded_url).to_string();
-        self.relative_to_full_path(&relative_url)
-    }
-}
-
-impl DatabaseContext for &Server {
-    fn parser(&self, id: &Key) -> Option<Parser> {
-        self.database().parser(id)
-    }
-
-    fn lines(&self, key: &Key) -> u32 {
-        self.database().lines(key)
-    }
 }
 
 impl Server {
     pub fn new(config: ServerConfig) -> Server {
         Server {
-            base_path: BasePath {
-                base_path: format!("file://{}/", config.base_path),
-            },
-            database: Database::new(
+            base_path: BasePath::new(format!("file://{}/", config.base_path)),
+            graph: Graph::from_state(
                 config.state,
                 config.sequential_ids.unwrap_or(false),
                 config.configuration.markdown.clone(),
@@ -117,13 +47,13 @@ impl Server {
             configuration: config.configuration,
         }
     }
-    pub fn database(&self) -> impl DatabaseContext + '_ {
-        &self.database
+    pub fn graph(&self) -> impl DatabaseContext + '_ {
+        &self.graph
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
         params.text.map(|text| {
-            self.database.update_document(
+            self.graph.update_document(
                 self.base_path.url_to_key(&params.text_document.uri.clone()),
                 text,
             )
@@ -131,7 +61,7 @@ impl Server {
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
-        self.database.update_document(
+        self.graph.update_document(
             self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.content_changes.first().unwrap().text.clone(),
         );
@@ -144,8 +74,8 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        let new_key = self.database.graph().random_key(&current_key.parent());
-        let keys = self.database.graph().keys();
+        let new_key = (&self.graph).random_key(&current_key.parent());
+        let keys = self.graph.keys();
         keys.iter()
             .filter(|key| {
                 self.configuration
@@ -164,16 +94,13 @@ impl Server {
 
                 CompletionItem {
                     preselect: Some(true),
-                    label: format!(
-                        "🤖 {}",
-                        self.database.graph().get_ref_text(key).unwrap_or_default()
-                    ),
+                    label: format!("🤖 {}", (&self.graph).get_ref_text(key).unwrap_or_default()),
                     insert_text: Some(format!("[⏳]({})", new_key)),
                     filter_text: Some(format!(
                         "_{}",
-                        self.database.graph().get_ref_text(key).unwrap_or_default()
+                        (&self.graph).get_ref_text(key).unwrap_or_default()
                     )),
-                    sort_text: Some(self.database.graph().get_ref_text(key).unwrap_or_default()),
+                    sort_text: Some((&self.graph).get_ref_text(key).unwrap_or_default()),
                     command: Some(Command {
                         title: "generate".into(),
                         command: CommandType::Generate.to_string().into(),
@@ -194,17 +121,10 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        self.database
-            .graph()
+        self.graph
             .keys()
             .iter()
-            .map(|key| {
-                key.to_completion(
-                    &current_key.parent(),
-                    self.database.graph(),
-                    &self.base_path,
-                )
-            })
+            .map(|key| key.to_completion(&current_key.parent(), &self.graph, &self.base_path))
             .sorted_by(|a, b| a.label.cmp(&b.label))
             .collect_vec()
     }
@@ -237,10 +157,10 @@ impl Server {
         &self,
         params: WorkspaceSymbolParams,
     ) -> WorkspaceSymbolResponse {
-        self.database
+        self.graph
             .global_search(&params.query)
             .iter()
-            .map(|p| path_to_symbol(p, self.database.graph(), &self.base_path))
+            .map(|p| p.path_to_symbol(&self.graph, &self.base_path))
             .filter(|p| !p.name.is_empty())
             .collect_vec()
             .to_response()
@@ -255,8 +175,9 @@ impl Server {
         let relative_to = key.parent();
         let position = params.text_document_position_params.position;
 
-        self.parser(&key)
-            .and_then(|parser| parser.url_at(to_position(position)))
+        self.graph()
+            .parser(&key)
+            .and_then(|parser| parser.url_at(position.to_model()))
             .map(|url| {
                 GotoDefinitionResponse::Scalar(Location::new(
                     self.base_path.resolve_relative_url(&url, &relative_to),
@@ -269,10 +190,10 @@ impl Server {
     pub fn handle_document_formatting(&self, params: DocumentFormattingParams) -> Vec<TextEdit> {
         let key = params.text_document.uri.to_key(&self.base_path);
 
-        let mut patch = self.database.graph().new_patch();
+        let mut patch = self.graph.new_patch();
         patch
             .build_key(&key)
-            .insert_from_iter(self.database.graph().collect(&key).iter());
+            .insert_from_iter((&self.graph).collect(&key).iter());
 
         vec![TextEdit {
             range: Range::new(Position::new(0, 0), Position::new(u32::MAX, 0)),
@@ -291,57 +212,51 @@ impl Server {
     }
 
     pub fn block_reference_hints(&self, key: &Key) -> Vec<InlayHint> {
-        self.database
-            .graph()
+        self.graph
             .get_block_references_in(key)
             .into_iter()
             .filter_map(|id| {
-                self.database
-                    .graph()
+                self.graph
                     .node_line_range(id)
                     .map(|range| (id, range.start))
             })
             .flat_map(|(id, line)| {
-                self.database
-                    .graph()
+                (&self.graph)
                     .node(id)
                     .ref_key()
-                    .map(|key| self.database.graph().get_block_references_to(&key))
+                    .map(|key| self.graph.get_block_references_to(&key))
                     .map(|refs| {
                         refs.into_iter()
-                            .filter(|ref_id| !self.database.graph().get_node_key(*ref_id).eq(key))
-                            .sorted_by_key(|ref_id| self.database.graph().get_node_key(*ref_id))
-                            .unique_by(|ref_id| self.database.graph().get_node_key(*ref_id))
-                            .flat_map(|id| {
-                                self.database.graph().get_container_document_ref_text(id)
-                            })
+                            .filter(|ref_id| !(&self.graph).get_node_key(*ref_id).eq(key))
+                            .sorted_by_key(|ref_id| (&self.graph).get_node_key(*ref_id))
+                            .unique_by(|ref_id| (&self.graph).get_node_key(*ref_id))
+                            .flat_map(|id| (&self.graph).get_container_document_ref_text(id))
                             .map(|s| format!("↖{}", s))
                             .join(" ")
                     })
                     .filter(|text| !text.is_empty())
                     .map(|text| (text, line))
             })
-            .map(|(text, line)| hint_at(&text, line as u32))
+            .map(|(text, line)| text.to_hint_at(line as u32))
             .collect_vec()
     }
 
     pub fn container_hint(&self, key: &Key) -> Vec<InlayHint> {
-        self.database
-            .graph()
+        self.graph
             .get_block_references_to(key)
             .iter()
-            .flat_map(|id| self.database.graph().get_container_document_ref_text(*id))
+            .flat_map(|id| (&self.graph).get_container_document_ref_text(*id))
             .sorted()
             .dedup()
-            .map(|text| hint_at(&format!("↖{}", text), 0))
+            .map(|text| format!("↖{}", text).to_hint_at(0))
             .collect_vec()
     }
 
     pub fn refs_counter_hints(&self, key: &Key) -> Vec<InlayHint> {
-        let inline_refs = self.database.graph().get_inline_references_to(key).len();
+        let inline_refs = self.graph.get_inline_references_to(key).len();
 
         if inline_refs > 0 {
-            vec![hint_at(&format!("‹{}›", inline_refs), 0)]
+            vec![format!("‹{}›", inline_refs).to_hint_at(0)]
         } else {
             vec![]
         }
@@ -354,14 +269,12 @@ impl Server {
     pub fn handle_document_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
         let key = params.text_document.uri.to_key(&self.base_path);
         let id_opt = self
-            .database
-            .graph()
+            .graph
             .maybe_key(&key)
             .and_then(|key_node| key_node.to_child().and_then(|child| child.id()));
 
         let id2_opt = self
-            .database
-            .graph()
+            .graph
             .maybe_key(&key)
             .and_then(|key_node| key_node.id());
 
@@ -372,7 +285,7 @@ impl Server {
         let id = id_opt.unwrap();
         let id2 = id2_opt.unwrap();
 
-        let paths = self.database.graph().paths();
+        let paths = self.graph.paths();
 
         paths
             .iter()
@@ -388,7 +301,7 @@ impl Server {
             })
             .map(|p| p.drop_first())
             .filter(|p| p.ids().len() < 4)
-            .map(|p| p.to_nested_symbol(self.database.graph(), &self.base_path))
+            .map(|p| p.to_nested_symbol(&self.graph, &self.base_path))
             .filter(|p| !p.name.is_empty())
             .collect_vec()
     }
@@ -397,12 +310,13 @@ impl Server {
         &self,
         params: TextDocumentPositionParams,
     ) -> Option<PrepareRenameResponse> {
-        self.parser(&params.text_document.uri.to_key(&self.base_path))
-            .and_then(|parser| parser.link_at(to_position(params.position)))
+        self.graph()
+            .parser(&params.text_document.uri.to_key(&self.base_path))
+            .and_then(|parser| parser.link_at(params.position.to_model()))
             .and_then(|link| {
                 link.key_range()
                     .map(|range| PrepareRenameResponse::RangeWithPlaceholder {
-                        range: to_range(range),
+                        range: range.to_lsp(),
                         placeholder: link.url().unwrap_or("".to_string()),
                     })
             })
@@ -413,8 +327,7 @@ impl Server {
         params: RenameParams,
     ) -> Result<Option<WorkspaceEdit>, ResponseError> {
         if self
-            .database
-            .graph()
+            .graph
             .maybe_key(&params.new_name.clone().into())
             .is_some()
         {
@@ -433,85 +346,83 @@ impl Server {
             .parent();
 
         Result::Ok(
-            self.parser(
-                &params
-                    .text_document_position
-                    .text_document
-                    .uri
-                    .to_key(&self.base_path),
-            )
-            .and_then(|parser| parser.url_at(to_position(params.text_document_position.position)))
-            .map(|url| {
-                let key = Key::from_rel_link_url(&url, relative_to);
+            self.graph()
+                .parser(
+                    &params
+                        .text_document_position
+                        .text_document
+                        .uri
+                        .to_key(&self.base_path),
+                )
+                .and_then(|parser| parser.url_at(params.text_document_position.position.to_model()))
+                .map(|url| {
+                    let key = Key::from_rel_link_url(&url, relative_to);
 
-                let affected_keys = self
-                    .database
-                    .graph()
-                    .get_block_references_to(&key.clone())
-                    .into_iter()
-                    .chain(self.database.graph().get_inline_references_to(&key.clone()))
-                    .map(|node_id| self.database.graph().node(node_id).node_key())
-                    .filter(|k| k != &key)
-                    .unique()
-                    .sorted()
-                    .collect_vec();
+                    let affected_keys = self
+                        .graph
+                        .get_block_references_to(&key.clone())
+                        .into_iter()
+                        .chain(self.graph.get_inline_references_to(&key.clone()))
+                        .map(|node_id| (&self.graph).node(node_id).node_key())
+                        .filter(|k| k != &key)
+                        .unique()
+                        .sorted()
+                        .collect_vec();
 
-                let mut patch = self.database.graph().new_patch();
+                    let mut patch = self.graph.new_patch();
 
-                patch
-                    .build_key(&params.new_name.clone().into())
-                    .insert_from_iter(
-                        self.database
-                            .graph()
-                            .collect(&key)
-                            .change_key(&key, &params.new_name.clone().into())
-                            .iter(),
-                    );
+                    patch
+                        .build_key(&params.new_name.clone().into())
+                        .insert_from_iter(
+                            (&self.graph)
+                                .collect(&key)
+                                .change_key(&key, &params.new_name.clone().into())
+                                .iter(),
+                        );
 
-                affected_keys.iter().for_each(|affected_key| {
-                    patch.build_key(&affected_key).insert_from_iter(
-                        self.database
-                            .graph()
-                            .collect(&affected_key)
-                            .change_key(&key, &params.new_name.clone().into())
-                            .iter(),
-                    );
-                });
+                    affected_keys.iter().for_each(|affected_key| {
+                        patch.build_key(&affected_key).insert_from_iter(
+                            (&self.graph)
+                                .collect(&affected_key)
+                                .change_key(&key, &params.new_name.clone().into())
+                                .iter(),
+                        );
+                    });
 
-                let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
+                    let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
 
-                let document_changes = affected_keys
-                    .into_iter()
-                    .map(|affected_key| {
-                        self.base_path
-                            .key_to_url(&affected_key)
-                            .to_override_file_op(
-                                &self.base_path,
-                                patch.export_key(&affected_key).expect("to have key"),
-                            )
-                    })
-                    .chain(vec![key
-                        .clone()
-                        .to_full_url(&self.base_path)
-                        .to_delete_file_op()])
-                    .chain(vec![
-                        params.new_name.to_url(&self.base_path).to_create_file_op(),
-                        params
-                            .new_name
-                            .to_url(&self.base_path)
-                            .to_override_new_file_op(
-                                &self.base_path,
-                                patch.export_key(&new_key).expect("to have key"),
-                            ),
-                    ])
-                    .collect();
+                    let document_changes = affected_keys
+                        .into_iter()
+                        .map(|affected_key| {
+                            self.base_path
+                                .key_to_url(&affected_key)
+                                .to_override_file_op(
+                                    &self.base_path,
+                                    patch.export_key(&affected_key).expect("to have key"),
+                                )
+                        })
+                        .chain(vec![key
+                            .clone()
+                            .to_full_url(&self.base_path)
+                            .to_delete_file_op()])
+                        .chain(vec![
+                            params.new_name.to_url(&self.base_path).to_create_file_op(),
+                            params
+                                .new_name
+                                .to_url(&self.base_path)
+                                .to_override_new_file_op(
+                                    &self.base_path,
+                                    patch.export_key(&new_key).expect("to have key"),
+                                ),
+                        ])
+                        .collect();
 
-                WorkspaceEdit {
-                    changes: None,
-                    document_changes: Some(DocumentChanges::Operations(document_changes)),
-                    change_annotations: None,
-                }
-            }),
+                    WorkspaceEdit {
+                        changes: None,
+                        document_changes: Some(DocumentChanges::Operations(document_changes)),
+                        change_annotations: None,
+                    }
+                }),
         )
     }
 
@@ -530,6 +441,7 @@ impl Server {
             .parent();
 
         let key_under_cursor = self
+            .graph()
             .parser(
                 &params
                     .text_document_position
@@ -537,22 +449,20 @@ impl Server {
                     .uri
                     .to_key(&self.base_path),
             )
-            .and_then(|parser| parser.url_at(to_position(params.text_document_position.position)))
+            .and_then(|parser| parser.url_at(params.text_document_position.position.to_model()))
             .map(|url| Key::from_rel_link_url(&url, relative_to))
             .unwrap_or(key.clone());
 
-        self.database
-            .graph()
+        self.graph
             .get_block_references_to(&key_under_cursor.clone())
             .iter()
             .chain(
-                self.database
-                    .graph()
+                self.graph
                     .get_inline_references_to(&key.clone())
                     .iter()
                     .filter(|_| params.context.include_declaration),
             )
-            .map(|id| (id, self.database.graph().node(*id).node_key()))
+            .map(|id| (id, (&self.graph).node(*id).node_key()))
             .dedup()
             .filter(|(_, backlink_key)| backlink_key.ne(&key))
             .map(|(id, key)| {
@@ -560,16 +470,14 @@ impl Server {
                     key.to_full_url(&self.base_path),
                     Range::new(
                         Position::new(
-                            self.database
-                                .graph()
+                            self.graph
                                 .node_line_range(*id)
                                 .map(|f| f.start as u32)
                                 .unwrap_or(0),
                             0,
                         ),
                         Position::new(
-                            self.database
-                                .graph()
+                            self.graph
                                 .node_line_range(*id)
                                 .map(|f| f.end as u32)
                                 .unwrap_or(0),
@@ -583,30 +491,51 @@ impl Server {
     }
 
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
-        let context = self.database.graph();
         let base_path: &BasePath = &self.base_path;
 
-        context
-            .get_node_id_at(
-                &params.text_document.uri.to_key(base_path),
-                params.range.start.line as usize,
-            )
-            .filter(|_| params.range.empty() || self.lsp_client == LspClient::Helix)
-            .map(|node_id| {
-                all_action_types(&self.configuration)
-                    .into_iter()
-                    .filter(|action_provider| params.only_includes(&action_provider.action_kind()))
-                    .flat_map(|action_type| action_type.action(node_id, self))
-                    .map(|action| action.to_code_action())
-                    .collect_vec()
-            })
-            .unwrap_or_default()
+        if params.range.empty() || self.lsp_client == LspClient::Helix {
+            let key = params.text_document.uri.to_key(base_path);
+            let selection = actions::TextRange {
+                start: actions::Position {
+                    line: params.range.start.line,
+                    character: params.range.start.character,
+                },
+                end: actions::Position {
+                    line: params.range.end.line,
+                    character: params.range.end.character,
+                },
+            };
+
+            all_action_types(&self.configuration)
+                .into_iter()
+                .filter(|action_provider| params.only_includes(&action_provider.action_kind()))
+                .flat_map(|action_type| action_type.action(key.clone(), selection.clone(), self))
+                .map(|action| action.to_code_action())
+                .collect_vec()
+        } else {
+            vec![]
+        }
     }
 
     pub fn handle_code_action_resolve(&self, code_action: &CodeAction) -> CodeAction {
         let base_path: &BasePath = &self.base_path;
 
-        let target_node_id = code_action.clone().data.unwrap().as_u64().unwrap();
+        let data = code_action.clone().data.unwrap();
+
+        let key = Key::name(data.get("key").unwrap().as_str().unwrap());
+        let range = data.get("range").unwrap();
+        let start = range.get("start").unwrap();
+        let end = range.get("end").unwrap();
+        let selection = actions::TextRange {
+            start: actions::Position {
+                line: start.get("line").unwrap().as_u64().unwrap() as u32,
+                character: start.get("character").unwrap().as_u64().unwrap() as u32,
+            },
+            end: actions::Position {
+                line: end.get("line").unwrap().as_u64().unwrap() as u32,
+                character: end.get("character").unwrap().as_u64().unwrap() as u32,
+            },
+        };
 
         let all_types = all_action_types(&self.configuration);
 
@@ -619,7 +548,7 @@ impl Server {
             })
             .unwrap();
 
-        let changes = action_provider.changes(target_node_id, self).unwrap();
+        let changes = action_provider.changes(key, selection, self).unwrap();
 
         let mut action = code_action.clone();
         action.edit = Some(WorkspaceEdit {
@@ -636,90 +565,21 @@ impl Server {
     }
 }
 
-fn hint_at(text: &str, line: u32) -> InlayHint {
-    InlayHint {
-        label: InlayHintLabel::String(text.to_string()),
-        position: Position::new(line, 120),
-        kind: None,
-        text_edits: None,
-        tooltip: None,
-        padding_left: Some(true),
-        padding_right: None,
-        data: None,
-    }
-}
-
-fn to_position(value: lsp_types::Position) -> model::Position {
-    model::Position {
-        line: value.line as usize,
-        character: value.character as usize,
-    }
-}
-
-fn to_range(value: InlineRange) -> Range {
-    Range::new(
-        Position::new(value.start.line as u32, value.start.character as u32),
-        Position::new(value.end.line as u32, value.end.character as u32),
-    )
-}
-
-#[allow(deprecated)]
-fn path_to_symbol(
-    path: &SearchPath,
-    context: impl GraphContext,
-    base_path: &BasePath,
-) -> SymbolInformation {
-    let kind = if path.root {
-        SymbolKind::NAMESPACE
-    } else {
-        SymbolKind::OBJECT
-    };
-
-    SymbolInformation {
-        name: render_path(&path.path, context),
-        kind,
-        deprecated: None,
-        tags: None,
-        location: Location {
-            uri: base_path.key_to_url(&path.key),
-            range: Range::new(
-                Position {
-                    line: (path.line),
-                    character: 0,
-                },
-                Position {
-                    line: (path.line) + 1,
-                    character: 0,
-                },
-            ),
-        },
-        container_name: None,
-    }
-}
-
-fn render_path(path: &NodePath, context: impl GraphContext) -> String {
-    path.ids()
-        .iter()
-        .map(|id| context.get_text(*id).trim().to_string())
-        .collect_vec()
-        .join(" • ")
-}
-
 impl ActionContext for &Server {
     fn key_of(&self, node_id: NodeId) -> Key {
-        self.database.graph().node(node_id).node_key()
+        (&self.graph).node(node_id).node_key()
     }
 
     fn collect(&self, key: &Key) -> Tree {
-        self.database.graph().collect(key)
+        (&self.graph).collect(key)
     }
 
     fn squash(&self, key: &Key, depth: u8) -> Tree {
-        self.database.graph().squash(key, depth)
+        (&self.graph).squash(key, depth)
     }
 
     fn random_key(&self, parent: &str) -> Key {
-        self.database.graph().random_key(parent)
+        (&self.graph).random_key(parent)
     }
 
     fn markdown_options(&self) -> &MarkdownOptions {
@@ -731,7 +591,7 @@ impl ActionContext for &Server {
     }
 
     fn patch(&self) -> Graph {
-        self.database.graph().new_patch()
+        self.graph.new_patch()
     }
 
     fn llm_query(&self, prompt: String, model: &Model) -> String {
@@ -758,26 +618,34 @@ impl ActionContext for &Server {
     }
 
     fn key_exists(&self, key: &Key) -> bool {
-        self.database.graph().keys().contains(key)
+        self.graph.keys().contains(key)
     }
 
     fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.database.graph().get_block_references_to(key)
+        self.graph.get_block_references_to(key)
     }
 
     fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.database.graph().get_inline_references_to(key)
+        self.graph.get_inline_references_to(key)
     }
 
     fn get_ref_text(&self, key: &Key) -> Option<String> {
-        self.database.graph().get_key_title(key)
+        self.graph.get_key_title(key)
     }
 
     fn unique_ids(&self, parent: &str, number: usize) -> Vec<String> {
-        self.database.graph().unique_ids(parent, number)
+        (&self.graph).unique_ids(parent, number)
     }
 
     fn random_keys(&self, parent: &str, number: usize) -> Vec<Key> {
-        self.database.graph().random_keys(parent, number)
+        (&self.graph).random_keys(parent, number)
+    }
+
+    fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId> {
+        (&self.graph).get_node_id_at(key, line)
+    }
+
+    fn get_document_markdown(&self, key: &Key) -> Option<String> {
+        self.graph.get_document(key)
     }
 }

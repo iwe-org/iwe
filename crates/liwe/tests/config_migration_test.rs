@@ -72,7 +72,7 @@ fn test_config_with_extract_action_parses_correctly() {
     assert_eq!(parsed.actions.len(), 1);
     assert!(parsed.actions.contains_key("my_extract"));
 
-    if let Some(liwe::model::config::BlockAction::Extract(extract)) =
+    if let Some(liwe::model::config::ActionDefinition::Extract(extract)) =
         parsed.actions.get("my_extract")
     {
         assert_eq!(extract.title, "My Extract");
@@ -89,11 +89,12 @@ fn test_default_configuration_has_version_1() {
 }
 
 #[test]
-fn test_template_configuration_has_version_1() {
+fn test_template_configuration_has_version_2() {
     let config = Configuration::template();
-    assert_eq!(config.version, Some(1));
+    assert_eq!(config.version, Some(2));
 
     assert!(config.actions.len() > 0);
     assert!(config.actions.contains_key("extract"));
     assert!(config.actions.contains_key("extract_all"));
+    assert!(config.actions.contains_key("link"));
 }

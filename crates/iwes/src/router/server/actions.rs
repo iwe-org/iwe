@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use liwe::graph::Graph;
 use liwe::model::config::{
-    BlockAction, Configuration, MarkdownOptions, Model, DEFAULT_KEY_DATE_FORMAT,
+    ActionDefinition, Configuration, MarkdownOptions, Model, DEFAULT_KEY_DATE_FORMAT,
 };
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
 
 use lsp_types::{CodeAction, CodeActionKind, CodeActionOrCommand};
 use once_cell::sync::Lazy;
-use serde_json::Value;
 use std::sync::Mutex;
 
 use super::{BasePath, ChangeExt};
@@ -19,6 +18,7 @@ mod delete;
 mod extract;
 mod extract_all;
 mod inline;
+mod link;
 mod list;
 mod section;
 mod sort;
@@ -29,6 +29,7 @@ pub use delete::DeleteAction;
 pub use extract::SectionExtract;
 pub use extract_all::ExtractAll;
 pub use inline::InlineAction;
+pub use link::LinkAction;
 pub use list::{ListChangeType, ListToSections};
 pub use section::SectionToList;
 pub use sort::SortAction;
@@ -49,12 +50,28 @@ pub trait ActionContext {
     fn get_block_references_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_ref_text(&self, key: &Key) -> Option<String>;
+    fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId>;
+    fn get_document_markdown(&self, key: &Key) -> Option<String>;
 }
 
+#[derive(Clone)]
 pub struct Action {
     pub title: String,
     pub identifier: String,
-    pub target_id: NodeId,
+    pub key: Key,
+    pub range: TextRange,
+}
+
+#[derive(Clone)]
+pub struct Position {
+    pub line: u32,
+    pub character: u32,
+}
+
+#[derive(Clone)]
+pub struct TextRange {
+    pub start: Position,
+    pub end: Position,
 }
 
 pub enum Change {
@@ -83,7 +100,19 @@ impl Action {
         CodeActionOrCommand::CodeAction(CodeAction {
             title: self.title.to_string(),
             kind: Some(identifier_to_action_kind(self.identifier.to_string())),
-            data: Some(Value::Number(self.target_id.into())),
+            data: Some(serde_json::json!({
+                "key": self.key.to_string(),
+                "range": {
+                    "start": {
+                        "line": self.range.start.line,
+                        "character": self.range.start.character,
+                    },
+                    "end": {
+                        "line": self.range.end.line,
+                        "character": self.range.end.character,
+                    }
+                }
+            })),
             ..Default::default()
         })
     }
@@ -115,8 +144,14 @@ impl Action {
 
 pub trait ActionProvider {
     fn identifier(&self) -> String;
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action>;
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes>;
+    fn action(&self, key: Key, selection: TextRange, context: impl ActionContext)
+        -> Option<Action>;
+    fn changes(
+        &self,
+        key: Key,
+        selection: TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes>;
 
     fn action_kind(&self) -> CodeActionKind {
         identifier_to_action_kind(self.identifier())
@@ -134,6 +169,7 @@ pub enum ActionEnum {
     SortAction(SortAction),
     InlineAction(InlineAction),
     DeleteAction(DeleteAction),
+    LinkAction(LinkAction),
 }
 
 impl ActionProvider for ActionEnum {
@@ -149,36 +185,49 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SortAction(inner) => inner.identifier(),
             ActionEnum::InlineAction(inner) => inner.identifier(),
             ActionEnum::DeleteAction(inner) => inner.identifier(),
+            ActionEnum::LinkAction(inner) => inner.identifier(),
         }
     }
 
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
+    fn action(
+        &self,
+        key: Key,
+        selection: TextRange,
+        context: impl ActionContext,
+    ) -> Option<Action> {
         match self {
-            ActionEnum::ListChangeType(inner) => inner.action(target_id, context),
-            ActionEnum::ListToSections(inner) => inner.action(target_id, context),
-            ActionEnum::SectionToList(inner) => inner.action(target_id, context),
-            ActionEnum::SectionExtract(inner) => inner.action(target_id, context),
-            ActionEnum::ExtractAll(inner) => inner.action(target_id, context),
-            ActionEnum::TransformBlockAction(inner) => inner.action(target_id, context),
-            ActionEnum::AttachAction(inner) => inner.action(target_id, context),
-            ActionEnum::SortAction(inner) => inner.action(target_id, context),
-            ActionEnum::InlineAction(inner) => inner.action(target_id, context),
-            ActionEnum::DeleteAction(inner) => inner.action(target_id, context),
+            ActionEnum::ListChangeType(inner) => inner.action(key, selection, context),
+            ActionEnum::ListToSections(inner) => inner.action(key, selection, context),
+            ActionEnum::SectionToList(inner) => inner.action(key, selection, context),
+            ActionEnum::SectionExtract(inner) => inner.action(key, selection, context),
+            ActionEnum::ExtractAll(inner) => inner.action(key, selection, context),
+            ActionEnum::TransformBlockAction(inner) => inner.action(key, selection, context),
+            ActionEnum::AttachAction(inner) => inner.action(key, selection, context),
+            ActionEnum::SortAction(inner) => inner.action(key, selection, context),
+            ActionEnum::InlineAction(inner) => inner.action(key, selection, context),
+            ActionEnum::DeleteAction(inner) => inner.action(key, selection, context),
+            ActionEnum::LinkAction(inner) => inner.action(key, selection, context),
         }
     }
 
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
+    fn changes(
+        &self,
+        key: Key,
+        selection: TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes> {
         match self {
-            ActionEnum::ListChangeType(inner) => inner.changes(target_id, context),
-            ActionEnum::ListToSections(inner) => inner.changes(target_id, context),
-            ActionEnum::SectionToList(inner) => inner.changes(target_id, context),
-            ActionEnum::SectionExtract(inner) => inner.changes(target_id, context),
-            ActionEnum::ExtractAll(inner) => inner.changes(target_id, context),
-            ActionEnum::TransformBlockAction(inner) => inner.changes(target_id, context),
-            ActionEnum::AttachAction(inner) => inner.changes(target_id, context),
-            ActionEnum::SortAction(inner) => inner.changes(target_id, context),
-            ActionEnum::InlineAction(inner) => inner.changes(target_id, context),
-            ActionEnum::DeleteAction(inner) => inner.changes(target_id, context),
+            ActionEnum::ListChangeType(inner) => inner.changes(key, selection, context),
+            ActionEnum::ListToSections(inner) => inner.changes(key, selection, context),
+            ActionEnum::SectionToList(inner) => inner.changes(key, selection, context),
+            ActionEnum::SectionExtract(inner) => inner.changes(key, selection, context),
+            ActionEnum::ExtractAll(inner) => inner.changes(key, selection, context),
+            ActionEnum::TransformBlockAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::AttachAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::SortAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::InlineAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::DeleteAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::LinkAction(inner) => inner.changes(key, selection, context),
         }
     }
 }
@@ -214,7 +263,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
             .actions
             .iter()
             .map(|(identifier, action)| match action {
-                BlockAction::Transform(transform) => {
+                ActionDefinition::Transform(transform) => {
                     let action = ActionEnum::TransformBlockAction(TransformBlockAction {
                         title: transform.title.clone(),
                         identifier: identifier.clone(),
@@ -231,7 +280,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Attach(attach) => {
+                ActionDefinition::Attach(attach) => {
                     let action = ActionEnum::AttachAction(AttachAction {
                         title: attach.title.clone(),
                         identifier: identifier.clone(),
@@ -250,7 +299,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Sort(sort) => {
+                ActionDefinition::Sort(sort) => {
                     let action = ActionEnum::SortAction(SortAction {
                         title: sort.title.clone(),
                         identifier: identifier.clone(),
@@ -258,7 +307,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Inline(inline) => {
+                ActionDefinition::Inline(inline) => {
                     let action = ActionEnum::InlineAction(InlineAction {
                         title: inline.title.clone(),
                         identifier: identifier.clone(),
@@ -267,7 +316,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::Extract(extract) => {
+                ActionDefinition::Extract(extract) => {
                     let action = ActionEnum::SectionExtract(SectionExtract {
                         title: extract.title.clone(),
                         identifier: identifier.clone(),
@@ -281,12 +330,26 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     });
                     action
                 }
-                BlockAction::ExtractAll(extract_all) => {
+                ActionDefinition::ExtractAll(extract_all) => {
                     let action = ActionEnum::ExtractAll(ExtractAll {
                         title: extract_all.title.clone(),
                         identifier: identifier.clone(),
                         link_type: extract_all.link_type.clone(),
                         key_template: extract_all.key_template.clone(),
+                        key_date_format: configuration
+                            .clone()
+                            .library
+                            .date_format
+                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                    });
+                    action
+                }
+                ActionDefinition::Link(link) => {
+                    let action = ActionEnum::LinkAction(LinkAction {
+                        title: link.title.clone(),
+                        identifier: identifier.clone(),
+                        link_type: link.link_type.clone(),
+                        key_template: link.key_template.clone(),
                         key_date_format: configuration
                             .clone()
                             .library

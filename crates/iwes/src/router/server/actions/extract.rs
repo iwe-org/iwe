@@ -161,8 +161,13 @@ impl ActionProvider for SectionExtract {
         format!("custom.{}", self.identifier.to_string())
     }
 
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
-        let key = context.key_of(target_id);
+    fn action(
+        &self,
+        key: super::Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Action> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
         context
             .collect(&key)
@@ -171,12 +176,18 @@ impl ActionProvider for SectionExtract {
             .map(|_| Action {
                 title: self.title.clone(),
                 identifier: self.identifier(),
-                target_id,
+                key: key.clone(),
+                range: selection.clone(),
             })
     }
 
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
-        let key = context.key_of(target_id);
+    fn changes(
+        &self,
+        key: super::Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
         context
             .collect(&key)

@@ -55,9 +55,21 @@ pub impl Uri {
     }
 
     fn to_code_action_params(self, line: u32, kind: &str) -> CodeActionParams {
+        self.to_code_action_params_at_position(line, 0, kind)
+    }
+
+    fn to_code_action_params_at_position(
+        self,
+        line: u32,
+        character: u32,
+        kind: &str,
+    ) -> CodeActionParams {
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: self },
-            range: Range::new(Position::new(line, 0), Position::new(line, 0)),
+            range: Range::new(
+                Position::new(line, character),
+                Position::new(line, character),
+            ),
             context: CodeActionContext {
                 only: Some(vec![CodeActionKind::from(kind.to_string())]),
                 ..Default::default()
