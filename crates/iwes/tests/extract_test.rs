@@ -1,6 +1,9 @@
 use chrono::Local;
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Configuration, Extract, LinkType};
+use liwe::{
+    model::config::{ActionDefinition, Configuration, Extract, LinkType},
+    state::from_indoc,
+};
 
 mod fixture;
 use crate::fixture::*;
@@ -335,7 +338,6 @@ fn assert_extracted_wiki(source: &str, line: u32, target: &str, extracted: &str)
 }
 
 fn assert_extracted_helix(source: &str, line: u32, target: &str, extracted: &str) {
-    use liwe::state::from_indoc;
     Fixture::with_options_and_client(from_indoc(source), extract_config(), "helix").code_action(
         uri(1).to_code_action_params(line, "custom.extract"),
         vec![

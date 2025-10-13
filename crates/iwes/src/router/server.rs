@@ -493,28 +493,34 @@ impl Server {
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
         let base_path: &BasePath = &self.base_path;
 
-        if params.range.empty() || self.lsp_client == LspClient::Helix {
-            let key = params.text_document.uri.to_key(base_path);
-            let selection = actions::TextRange {
-                start: actions::Position {
-                    line: params.range.start.line,
-                    character: params.range.start.character,
-                },
-                end: actions::Position {
-                    line: params.range.end.line,
-                    character: params.range.end.character,
-                },
-            };
-
-            all_action_types(&self.configuration)
-                .into_iter()
-                .filter(|action_provider| params.only_includes(&action_provider.action_kind()))
-                .flat_map(|action_type| action_type.action(key.clone(), selection.clone(), self))
-                .map(|action| action.to_code_action())
-                .collect_vec()
+        let (start_character, end_character) = if self.lsp_client == LspClient::Helix {
+            if params.range.end.character - params.range.start.character == 1 {
+                (params.range.start.character, params.range.start.character)
+            } else {
+                (params.range.start.character, params.range.end.character)
+            }
         } else {
-            vec![]
-        }
+            (params.range.start.character, params.range.end.character)
+        };
+
+        let key = params.text_document.uri.to_key(base_path);
+        let selection = actions::TextRange {
+            start: actions::Position {
+                line: params.range.start.line,
+                character: start_character,
+            },
+            end: actions::Position {
+                line: params.range.end.line,
+                character: end_character,
+            },
+        };
+
+        all_action_types(&self.configuration)
+            .into_iter()
+            .filter(|action_provider| params.only_includes(&action_provider.action_kind()))
+            .flat_map(|action_type| action_type.action(key.clone(), selection.clone(), self))
+            .map(|action| action.to_code_action())
+            .collect_vec()
     }
 
     pub fn handle_code_action_resolve(&self, code_action: &CodeAction) -> CodeAction {

@@ -153,7 +153,6 @@ fn link_word_wiki_link() {
 
 #[test]
 fn no_action_on_multiline_selection() {
-    // Selection spans multiple lines - should not provide action
     use lsp_types::{
         CodeActionContext, CodeActionKind, CodeActionParams, PartialResultParams, Position, Range,
         TextDocumentIdentifier, WorkDoneProgressParams,
@@ -161,7 +160,7 @@ fn no_action_on_multiline_selection() {
 
     let params = CodeActionParams {
         text_document: TextDocumentIdentifier { uri: uri(1) },
-        range: Range::new(Position::new(2, 0), Position::new(3, 5)), // Spans lines 2 and 3
+        range: Range::new(Position::new(2, 0), Position::new(3, 5)),
         context: CodeActionContext {
             only: Some(vec![CodeActionKind::from("custom.link".to_string())]),
             ..Default::default()
@@ -317,18 +316,235 @@ fn link_unicode_word() {
         indoc! {"
             # test
 
-            café here
+            test here
             "},
         2,
         0,
         indoc! {"
             # test
 
-            [café](2) here
+            [test](2) here
             "},
         indoc! {"
-            # café
+            # test
         "},
+    );
+}
+
+#[test]
+fn link_selected_text_simple() {
+    assert_linked_with_range(
+        indoc! {"
+            # test
+
+            this is some text here
+            "},
+        2,
+        8,  // start of "some"
+        12, // end of "some"
+        indoc! {"
+            # test
+
+            this is [some](2) text here
+            "},
+        indoc! {"
+            # some
+        "},
+    );
+}
+
+#[test]
+fn link_selected_text_with_spaces() {
+    assert_linked_with_range(
+        indoc! {"
+            # test
+
+            this is some text here
+            "},
+        2,
+        8,  // start of "some text"
+        17, // end of "some text"
+        indoc! {"
+            # test
+
+            this is [some text](2) here
+            "},
+        indoc! {"
+            # some text
+        "},
+    );
+}
+
+#[test]
+fn link_selected_text_at_start() {
+    assert_linked_with_range(
+        indoc! {"
+            # test
+
+            word in paragraph
+            "},
+        2,
+        0, // start of "word"
+        4, // end of "word"
+        indoc! {"
+            # test
+
+            [word](2) in paragraph
+            "},
+        indoc! {"
+            # word
+        "},
+    );
+}
+
+#[test]
+fn link_selected_text_at_end() {
+    assert_linked_with_range(
+        indoc! {"
+            # test
+
+            this is a word
+            "},
+        2,
+        10, // start of "word"
+        14, // end of "word"
+        indoc! {"
+            # test
+
+            this is a [word](2)
+            "},
+        indoc! {"
+            # word
+        "},
+    );
+}
+
+#[test]
+fn link_selected_text_multi_word_phrase() {
+    assert_linked_with_range(
+        indoc! {"
+            # test
+
+            this is a very important concept
+            "},
+        2,
+        10, // start of "very important"
+        24, // end of "very important"
+        indoc! {"
+            # test
+
+            this is a [very important](2) concept
+            "},
+        indoc! {"
+            # very important
+        "},
+    );
+}
+
+#[test]
+fn link_selected_text_with_punctuation() {
+    assert_linked_with_range(
+        indoc! {"
+            # test
+
+            this is important!
+            "},
+        2,
+        8,  // start of "important"
+        17, // end of "important"
+        indoc! {"
+            # test
+
+            this is [important](2)!
+            "},
+        indoc! {"
+            # important
+        "},
+    );
+}
+
+#[test]
+fn link_selected_text_wiki_link() {
+    use lsp_types::{
+        CodeActionContext, CodeActionKind, CodeActionParams, PartialResultParams, Position, Range,
+        TextDocumentIdentifier, WorkDoneProgressParams,
+    };
+
+    let params = CodeActionParams {
+        text_document: TextDocumentIdentifier { uri: uri(1) },
+        range: Range::new(Position::new(2, 8), Position::new(2, 12)), // Select "some"
+        context: CodeActionContext {
+            only: Some(vec![CodeActionKind::from("custom.link".to_string())]),
+            ..Default::default()
+        },
+        work_done_progress_params: WorkDoneProgressParams {
+            work_done_token: None,
+        },
+        partial_result_params: PartialResultParams {
+            partial_result_token: None,
+        },
+    };
+
+    Fixture::with_config(
+        indoc! {"
+            # test
+
+            this is some text
+            "},
+        create_link_config("{{id}}", Some(LinkType::WikiLink)),
+    )
+    .code_action(
+        params,
+        vec![
+            uri(2).to_create_file(),
+            uri(2).to_edit("# some\n"),
+            uri(1).to_edit("# test\n\nthis is [[2]] text\n"),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Link word", "custom.link"),
+    );
+}
+
+fn assert_linked_with_range(
+    source: &str,
+    line: u32,
+    start_char: u32,
+    end_char: u32,
+    target: &str,
+    extracted: &str,
+) {
+    use lsp_types::{
+        CodeActionContext, CodeActionKind, CodeActionParams, PartialResultParams, Position, Range,
+        TextDocumentIdentifier, WorkDoneProgressParams,
+    };
+
+    let params = CodeActionParams {
+        text_document: TextDocumentIdentifier { uri: uri(1) },
+        range: Range::new(
+            Position::new(line, start_char),
+            Position::new(line, end_char),
+        ),
+        context: CodeActionContext {
+            only: Some(vec![CodeActionKind::from("custom.link".to_string())]),
+            ..Default::default()
+        },
+        work_done_progress_params: WorkDoneProgressParams {
+            work_done_token: None,
+        },
+        partial_result_params: PartialResultParams {
+            partial_result_token: None,
+        },
+    };
+
+    Fixture::with_config(source, link_config()).code_action(
+        params,
+        vec![
+            uri(2).to_create_file(),
+            uri(2).to_edit(extracted),
+            uri(1).to_edit(target),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Link word", "custom.link"),
     );
 }
 

@@ -52,6 +52,22 @@ impl LinkAction {
         .unwrap_or(base_key)
     }
 
+    fn extract_selected_text(
+        line_text: &str,
+        start_char: u32,
+        end_char: u32,
+    ) -> Option<(String, u32, u32)> {
+        let start = start_char as usize;
+        let end = end_char as usize;
+
+        if start < end && end <= line_text.len() {
+            let text = line_text[start..end].to_string();
+            (!text.trim().is_empty()).then(|| (text, start_char, end_char))
+        } else {
+            None
+        }
+    }
+
     fn extract_word_at_cursor(line_text: &str, character_pos: u32) -> Option<(String, u32, u32)> {
         let char_pos = character_pos as usize;
 
@@ -118,7 +134,17 @@ impl ActionProvider for LinkAction {
 
             let line_text = lines.get(target_line)?;
 
-            Self::extract_word_at_cursor(line_text, selection.start.character)?;
+            let has_selection = selection.start.character != selection.end.character;
+
+            if has_selection {
+                Self::extract_selected_text(
+                    line_text,
+                    selection.start.character,
+                    selection.end.character,
+                )?;
+            } else {
+                Self::extract_word_at_cursor(line_text, selection.start.character)?;
+            }
 
             Some(Action {
                 title: self.title.clone(),
@@ -142,8 +168,17 @@ impl ActionProvider for LinkAction {
 
             let line_text = lines.get(target_line)?;
 
-            let (word, start, end) =
-                Self::extract_word_at_cursor(line_text, selection.start.character)?;
+            let has_selection = selection.start.character != selection.end.character;
+
+            let (word, start, end) = if has_selection {
+                Self::extract_selected_text(
+                    line_text,
+                    selection.start.character,
+                    selection.end.character,
+                )?
+            } else {
+                Self::extract_word_at_cursor(line_text, selection.start.character)?
+            };
 
             let id = context
                 .unique_ids(&key.parent(), 1)
