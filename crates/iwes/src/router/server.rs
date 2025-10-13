@@ -644,4 +644,8 @@ impl ActionContext for &Server {
     fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId> {
         (&self.graph).get_node_id_at(key, line)
     }
+
+    fn get_document_markdown(&self, key: &Key) -> Option<String> {
+        self.graph.get_document(key)
+    }
 }

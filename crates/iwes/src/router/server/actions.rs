@@ -18,6 +18,7 @@ mod delete;
 mod extract;
 mod extract_all;
 mod inline;
+mod link;
 mod list;
 mod section;
 mod sort;
@@ -28,6 +29,7 @@ pub use delete::DeleteAction;
 pub use extract::SectionExtract;
 pub use extract_all::ExtractAll;
 pub use inline::InlineAction;
+pub use link::LinkAction;
 pub use list::{ListChangeType, ListToSections};
 pub use section::SectionToList;
 pub use sort::SortAction;
@@ -49,6 +51,7 @@ pub trait ActionContext {
     fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_ref_text(&self, key: &Key) -> Option<String>;
     fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId>;
+    fn get_document_markdown(&self, key: &Key) -> Option<String>;
 }
 
 #[derive(Clone)]
@@ -166,6 +169,7 @@ pub enum ActionEnum {
     SortAction(SortAction),
     InlineAction(InlineAction),
     DeleteAction(DeleteAction),
+    LinkAction(LinkAction),
 }
 
 impl ActionProvider for ActionEnum {
@@ -181,6 +185,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SortAction(inner) => inner.identifier(),
             ActionEnum::InlineAction(inner) => inner.identifier(),
             ActionEnum::DeleteAction(inner) => inner.identifier(),
+            ActionEnum::LinkAction(inner) => inner.identifier(),
         }
     }
 
@@ -201,6 +206,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SortAction(inner) => inner.action(key, selection, context),
             ActionEnum::InlineAction(inner) => inner.action(key, selection, context),
             ActionEnum::DeleteAction(inner) => inner.action(key, selection, context),
+            ActionEnum::LinkAction(inner) => inner.action(key, selection, context),
         }
     }
 
@@ -221,6 +227,7 @@ impl ActionProvider for ActionEnum {
             ActionEnum::SortAction(inner) => inner.changes(key, selection, context),
             ActionEnum::InlineAction(inner) => inner.changes(key, selection, context),
             ActionEnum::DeleteAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::LinkAction(inner) => inner.changes(key, selection, context),
         }
     }
 }
@@ -329,6 +336,20 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                         identifier: identifier.clone(),
                         link_type: extract_all.link_type.clone(),
                         key_template: extract_all.key_template.clone(),
+                        key_date_format: configuration
+                            .clone()
+                            .library
+                            .date_format
+                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                    });
+                    action
+                }
+                ActionDefinition::Link(link) => {
+                    let action = ActionEnum::LinkAction(LinkAction {
+                        title: link.title.clone(),
+                        identifier: identifier.clone(),
+                        link_type: link.link_type.clone(),
+                        key_template: link.key_template.clone(),
                         key_date_format: configuration
                             .clone()
                             .library
