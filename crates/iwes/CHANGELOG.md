@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.50](https://github.com/iwe-org/iwe/compare/iwes-v0.0.49...iwes-v0.0.50) - 2025-10-13
+
+### Added
+
+- Create link from selected text ([#164](https://github.com/iwe-org/iwe/pull/164))
+
 ## [0.0.49](https://github.com/iwe-org/iwe/compare/iwes-v0.0.48...iwes-v0.0.49) - 2025-10-13
 
 ### Added
