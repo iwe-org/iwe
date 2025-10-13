@@ -491,30 +491,51 @@ impl Server {
     }
 
     pub fn handle_code_action(&self, params: &CodeActionParams) -> CodeActionResponse {
-        let context = &self.graph;
         let base_path: &BasePath = &self.base_path;
 
-        context
-            .get_node_id_at(
-                &params.text_document.uri.to_key(base_path),
-                params.range.start.line as usize,
-            )
-            .filter(|_| params.range.empty() || self.lsp_client == LspClient::Helix)
-            .map(|node_id| {
-                all_action_types(&self.configuration)
-                    .into_iter()
-                    .filter(|action_provider| params.only_includes(&action_provider.action_kind()))
-                    .flat_map(|action_type| action_type.action(node_id, self))
-                    .map(|action| action.to_code_action())
-                    .collect_vec()
-            })
-            .unwrap_or_default()
+        if params.range.empty() || self.lsp_client == LspClient::Helix {
+            let key = params.text_document.uri.to_key(base_path);
+            let selection = actions::TextRange {
+                start: actions::Position {
+                    line: params.range.start.line,
+                    character: params.range.start.character,
+                },
+                end: actions::Position {
+                    line: params.range.end.line,
+                    character: params.range.end.character,
+                },
+            };
+
+            all_action_types(&self.configuration)
+                .into_iter()
+                .filter(|action_provider| params.only_includes(&action_provider.action_kind()))
+                .flat_map(|action_type| action_type.action(key.clone(), selection.clone(), self))
+                .map(|action| action.to_code_action())
+                .collect_vec()
+        } else {
+            vec![]
+        }
     }
 
     pub fn handle_code_action_resolve(&self, code_action: &CodeAction) -> CodeAction {
         let base_path: &BasePath = &self.base_path;
 
-        let target_node_id = code_action.clone().data.unwrap().as_u64().unwrap();
+        let data = code_action.clone().data.unwrap();
+
+        let key = Key::name(data.get("key").unwrap().as_str().unwrap());
+        let range = data.get("range").unwrap();
+        let start = range.get("start").unwrap();
+        let end = range.get("end").unwrap();
+        let selection = actions::TextRange {
+            start: actions::Position {
+                line: start.get("line").unwrap().as_u64().unwrap() as u32,
+                character: start.get("character").unwrap().as_u64().unwrap() as u32,
+            },
+            end: actions::Position {
+                line: end.get("line").unwrap().as_u64().unwrap() as u32,
+                character: end.get("character").unwrap().as_u64().unwrap() as u32,
+            },
+        };
 
         let all_types = all_action_types(&self.configuration);
 
@@ -527,7 +548,7 @@ impl Server {
             })
             .unwrap();
 
-        let changes = action_provider.changes(target_node_id, self).unwrap();
+        let changes = action_provider.changes(key, selection, self).unwrap();
 
         let mut action = code_action.clone();
         action.edit = Some(WorkspaceEdit {
@@ -618,5 +639,9 @@ impl ActionContext for &Server {
 
     fn random_keys(&self, parent: &str, number: usize) -> Vec<Key> {
         (&self.graph).random_keys(parent, number)
+    }
+
+    fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId> {
+        (&self.graph).get_node_id_at(key, line)
     }
 }

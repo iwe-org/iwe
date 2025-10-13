@@ -10,8 +10,7 @@ use liwe::model::tree::Tree;
 use liwe::model::{Key, NodeId};
 
 use super::{
-    string_to_slug, Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Create,
-    Update,
+    string_to_slug, Action, ActionContext, ActionProvider, Change, Changes, Create, Update,
 };
 
 pub struct SectionExtract {
@@ -162,24 +161,33 @@ impl ActionProvider for SectionExtract {
         format!("custom.{}", self.identifier.to_string())
     }
 
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
-        let key = context.key_of(target_id);
+    fn action(
+        &self,
+        key: super::Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Action> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
         context
             .collect(&key)
             .get_surrounding_section_id(target_id)
             .filter(|_| tree.is_header(target_id))
-            .map(|_| {
-                Action::BlockAction(BlockAction {
-                    title: self.title.clone(),
-                    identifier: self.identifier(),
-                    target_id,
-                })
+            .map(|_| Action {
+                title: self.title.clone(),
+                identifier: self.identifier(),
+                key: key.clone(),
+                range: selection.clone(),
             })
     }
 
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
-        let key = context.key_of(target_id);
+    fn changes(
+        &self,
+        key: super::Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
         context
             .collect(&key)

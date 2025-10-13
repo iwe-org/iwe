@@ -1,9 +1,8 @@
 use itertools::Itertools;
 
 use liwe::model::node::NodeIter;
-use liwe::model::NodeId;
 
-use super::{Action, ActionContext, ActionProvider, BlockAction, Change, Changes, Remove, Update};
+use super::{Action, ActionContext, ActionProvider, Change, Changes, Remove, Update};
 
 pub struct DeleteAction {}
 
@@ -12,23 +11,32 @@ impl ActionProvider for DeleteAction {
         "refactor.delete".to_string()
     }
 
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
-        let key = context.key_of(target_id);
+    fn action(
+        &self,
+        key: super::Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Action> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
 
         Some(target_id)
             .filter(|target_id| tree.get(*target_id).is_reference())
-            .map(|_| {
-                Action::BlockAction(BlockAction {
-                    title: "Delete".to_string(),
-                    identifier: self.identifier(),
-                    target_id,
-                })
+            .map(|_| Action {
+                title: "Delete".to_string(),
+                identifier: self.identifier(),
+                key: key.clone(),
+                range: selection.clone(),
             })
     }
 
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
-        let key = context.key_of(target_id);
+    fn changes(
+        &self,
+        key: super::Key,
+        selection: super::TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes> {
+        let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
         let target_key = tree.find_reference_key(target_id);
 

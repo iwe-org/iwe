@@ -9,7 +9,6 @@ use liwe::model::{Key, Markdown, NodeId};
 
 use lsp_types::{CodeAction, CodeActionKind, CodeActionOrCommand};
 use once_cell::sync::Lazy;
-use serde_json::Value;
 use std::sync::Mutex;
 
 use super::{BasePath, ChangeExt};
@@ -49,34 +48,27 @@ pub trait ActionContext {
     fn get_block_references_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_ref_text(&self, key: &Key) -> Option<String>;
+    fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId>;
 }
 
-pub enum Action {
-    BlockAction(BlockAction),
-    TextAction(TextAction),
-}
-
-pub struct BlockAction {
+#[derive(Clone)]
+pub struct Action {
     pub title: String,
     pub identifier: String,
-    pub target_id: NodeId,
+    pub key: Key,
+    pub range: TextRange,
 }
 
+#[derive(Clone)]
 pub struct Position {
     pub line: u32,
     pub character: u32,
 }
 
+#[derive(Clone)]
 pub struct TextRange {
     pub start: Position,
     pub end: Position,
-}
-
-pub struct TextAction {
-    pub title: String,
-    pub identifier: String,
-    pub key: Key,
-    pub range: TextRange,
 }
 
 pub enum Change {
@@ -102,32 +94,24 @@ pub struct Remove {
 
 impl Action {
     pub fn to_code_action(&self) -> CodeActionOrCommand {
-        match self {
-            Action::BlockAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
-                title: action.title.to_string(),
-                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
-                data: Some(Value::Number(action.target_id.into())),
-                ..Default::default()
-            }),
-            Action::TextAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
-                title: action.title.to_string(),
-                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
-                data: Some(serde_json::json!({
-                    "key": action.key.to_string(),
-                    "range": {
-                        "start": {
-                            "line": action.range.start.line,
-                            "character": action.range.start.character,
-                        },
-                        "end": {
-                            "line": action.range.end.line,
-                            "character": action.range.end.character,
-                        }
+        CodeActionOrCommand::CodeAction(CodeAction {
+            title: self.title.to_string(),
+            kind: Some(identifier_to_action_kind(self.identifier.to_string())),
+            data: Some(serde_json::json!({
+                "key": self.key.to_string(),
+                "range": {
+                    "start": {
+                        "line": self.range.start.line,
+                        "character": self.range.start.character,
+                    },
+                    "end": {
+                        "line": self.range.end.line,
+                        "character": self.range.end.character,
                     }
-                })),
-                ..Default::default()
-            }),
-        }
+                }
+            })),
+            ..Default::default()
+        })
     }
 
     pub fn resolve_code_action(
@@ -138,43 +122,33 @@ impl Action {
         use itertools::Itertools;
         use lsp_types::{DocumentChanges, WorkspaceEdit};
 
-        match self {
-            Action::BlockAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
-                title: action.title.to_string(),
-                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
-                edit: Some(WorkspaceEdit {
-                    document_changes: Some(DocumentChanges::Operations(
-                        changes
-                            .iter()
-                            .map(|change| change.to_document_change(base_path))
-                            .collect_vec(),
-                    )),
-                    ..Default::default()
-                }),
+        CodeActionOrCommand::CodeAction(CodeAction {
+            title: self.title.to_string(),
+            kind: Some(identifier_to_action_kind(self.identifier.to_string())),
+            edit: Some(WorkspaceEdit {
+                document_changes: Some(DocumentChanges::Operations(
+                    changes
+                        .iter()
+                        .map(|change| change.to_document_change(base_path))
+                        .collect_vec(),
+                )),
                 ..Default::default()
             }),
-            Action::TextAction(action) => CodeActionOrCommand::CodeAction(CodeAction {
-                title: action.title.to_string(),
-                kind: Some(identifier_to_action_kind(action.identifier.to_string())),
-                edit: Some(WorkspaceEdit {
-                    document_changes: Some(DocumentChanges::Operations(
-                        changes
-                            .iter()
-                            .map(|change| change.to_document_change(base_path))
-                            .collect_vec(),
-                    )),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }),
-        }
+            ..Default::default()
+        })
     }
 }
 
 pub trait ActionProvider {
     fn identifier(&self) -> String;
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action>;
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes>;
+    fn action(&self, key: Key, selection: TextRange, context: impl ActionContext)
+        -> Option<Action>;
+    fn changes(
+        &self,
+        key: Key,
+        selection: TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes>;
 
     fn action_kind(&self) -> CodeActionKind {
         identifier_to_action_kind(self.identifier())
@@ -210,33 +184,43 @@ impl ActionProvider for ActionEnum {
         }
     }
 
-    fn action(&self, target_id: NodeId, context: impl ActionContext) -> Option<Action> {
+    fn action(
+        &self,
+        key: Key,
+        selection: TextRange,
+        context: impl ActionContext,
+    ) -> Option<Action> {
         match self {
-            ActionEnum::ListChangeType(inner) => inner.action(target_id, context),
-            ActionEnum::ListToSections(inner) => inner.action(target_id, context),
-            ActionEnum::SectionToList(inner) => inner.action(target_id, context),
-            ActionEnum::SectionExtract(inner) => inner.action(target_id, context),
-            ActionEnum::ExtractAll(inner) => inner.action(target_id, context),
-            ActionEnum::TransformBlockAction(inner) => inner.action(target_id, context),
-            ActionEnum::AttachAction(inner) => inner.action(target_id, context),
-            ActionEnum::SortAction(inner) => inner.action(target_id, context),
-            ActionEnum::InlineAction(inner) => inner.action(target_id, context),
-            ActionEnum::DeleteAction(inner) => inner.action(target_id, context),
+            ActionEnum::ListChangeType(inner) => inner.action(key, selection, context),
+            ActionEnum::ListToSections(inner) => inner.action(key, selection, context),
+            ActionEnum::SectionToList(inner) => inner.action(key, selection, context),
+            ActionEnum::SectionExtract(inner) => inner.action(key, selection, context),
+            ActionEnum::ExtractAll(inner) => inner.action(key, selection, context),
+            ActionEnum::TransformBlockAction(inner) => inner.action(key, selection, context),
+            ActionEnum::AttachAction(inner) => inner.action(key, selection, context),
+            ActionEnum::SortAction(inner) => inner.action(key, selection, context),
+            ActionEnum::InlineAction(inner) => inner.action(key, selection, context),
+            ActionEnum::DeleteAction(inner) => inner.action(key, selection, context),
         }
     }
 
-    fn changes(&self, target_id: NodeId, context: impl ActionContext) -> Option<Changes> {
+    fn changes(
+        &self,
+        key: Key,
+        selection: TextRange,
+        context: impl ActionContext,
+    ) -> Option<Changes> {
         match self {
-            ActionEnum::ListChangeType(inner) => inner.changes(target_id, context),
-            ActionEnum::ListToSections(inner) => inner.changes(target_id, context),
-            ActionEnum::SectionToList(inner) => inner.changes(target_id, context),
-            ActionEnum::SectionExtract(inner) => inner.changes(target_id, context),
-            ActionEnum::ExtractAll(inner) => inner.changes(target_id, context),
-            ActionEnum::TransformBlockAction(inner) => inner.changes(target_id, context),
-            ActionEnum::AttachAction(inner) => inner.changes(target_id, context),
-            ActionEnum::SortAction(inner) => inner.changes(target_id, context),
-            ActionEnum::InlineAction(inner) => inner.changes(target_id, context),
-            ActionEnum::DeleteAction(inner) => inner.changes(target_id, context),
+            ActionEnum::ListChangeType(inner) => inner.changes(key, selection, context),
+            ActionEnum::ListToSections(inner) => inner.changes(key, selection, context),
+            ActionEnum::SectionToList(inner) => inner.changes(key, selection, context),
+            ActionEnum::SectionExtract(inner) => inner.changes(key, selection, context),
+            ActionEnum::ExtractAll(inner) => inner.changes(key, selection, context),
+            ActionEnum::TransformBlockAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::AttachAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::SortAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::InlineAction(inner) => inner.changes(key, selection, context),
+            ActionEnum::DeleteAction(inner) => inner.changes(key, selection, context),
         }
     }
 }
