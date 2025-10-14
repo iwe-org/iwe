@@ -1,0 +1,90 @@
+# Graph Statistics
+
+## Overview
+
+- **Total documents:** {{ total_documents }}
+- **Total nodes:** {{ total_nodes }}
+- **Total paths:** {{ total_paths }}
+
+## Document Statistics
+
+- **Total sections:** {{ total_sections }}
+- **Average sections/doc:** {{ avg_sections_per_doc|round(2) }}
+
+{%- if top_docs_by_sections %}
+
+### Top Documents by Sections
+
+{% for item in top_docs_by_sections -%}
+{{ loop.index }}. **{{ item.title }}** ({{ item.sections }} sections)
+{% endfor %}
+{%- endif %}
+
+## Reference Statistics
+
+- **Block references:** {{ block_references }}
+- **Inline references:** {{ inline_references }}
+- **Total references:** {{ total_references }}
+- **Orphaned documents:** {{ orphaned_documents }} ({{ orphaned_percentage|round(1) }}%)
+- **Leaf documents:** {{ leaf_documents }} ({{ leaf_percentage|round(1) }}%)
+
+{%- if top_referenced %}
+
+### Top Referenced Documents
+
+{% for item in top_referenced -%}
+{{ loop.index }}. **{{ item.title }}** ({{ item.total_incoming_refs }})
+{% endfor %}
+{%- endif %}
+
+## Lines Statistics
+
+- **Total lines:** {{ total_lines }}
+- **Average lines/doc:** {{ avg_lines_per_doc|round(2) }}
+
+{%- if top_docs_by_lines %}
+
+### Top Documents by Lines
+
+{% for item in top_docs_by_lines -%}
+{{ loop.index }}. **{{ item.title }}** ({{ item.lines }} lines)
+{% endfor %}
+{%- endif %}
+
+## Words Statistics
+
+- **Total words:** {{ total_words }}
+- **Average words/doc:** {{ avg_words_per_doc|round(2) }}
+
+{%- if top_docs_by_words %}
+
+### Top Documents by Words
+
+{% for item in top_docs_by_words -%}
+{{ loop.index }}. **{{ item.title }}** ({{ item.words }} words)
+{% endfor %}
+{%- endif %}
+
+## Structure Statistics
+
+- **Root sections:** {{ root_sections }}
+- **Maximum path depth:** {{ max_path_depth }}
+- **Average path depth:** {{ avg_path_depth|round(2) }}
+- **Bullet lists:** {{ bullet_lists }}
+- **Ordered lists:** {{ ordered_lists }}
+- **Code blocks:** {{ code_blocks }}
+- **Tables:** {{ tables }}
+- **Quotes:** {{ quotes }}
+
+## Network Analysis
+
+- **Average references/doc:** {{ avg_refs_per_doc|round(2) }}
+
+{%- if most_connected %}
+
+### Most Connected Documents
+
+{% for item in most_connected -%}
+{{ loop.index }}. **{{ item.title }}** ({{ item.total_connections }} connections)
+{% endfor %}
+{%- endif %}

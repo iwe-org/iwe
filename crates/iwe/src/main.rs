@@ -58,7 +58,22 @@ struct Contents {}
 
 #[derive(Debug, Args)]
 #[clap(about = "Display graph statistics")]
-struct Stats {}
+struct Stats {
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "markdown",
+        help = "Output format for statistics"
+    )]
+    format: StatsFormat,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum StatsFormat {
+    Markdown,
+    Csv,
+}
 
 #[derive(Debug, Args)]
 #[clap(about = "Export the graph structure in various formats")]
@@ -277,9 +292,20 @@ fn stats_command(args: Stats) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let stats = GraphStatistics::from_graph(&graph);
-    let output = stats.render();
-    print!("{}", output);
+    match args.format {
+        StatsFormat::Markdown => {
+            let stats = GraphStatistics::from_graph(&graph);
+            let output = stats.render();
+            print!("{}", output);
+        }
+        StatsFormat::Csv => {
+            let stdout = std::io::stdout();
+            if let Err(e) = GraphStatistics::export_csv(&graph, stdout.lock()) {
+                error!("Failed to export CSV: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 }
 
 #[tracing::instrument]
