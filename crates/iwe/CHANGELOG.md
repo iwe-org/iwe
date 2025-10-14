@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.51](https://github.com/iwe-org/iwe/compare/iwe-v0.0.50...iwe-v0.0.51) - 2025-10-14
+
+### Added
+
+- Statistics in CSV and Markdown formats ([#166](https://github.com/iwe-org/iwe/pull/166))
+
 ## [0.0.46](https://github.com/iwe-org/iwe/compare/iwe-v0.0.45...iwe-v0.0.46) - 2025-09-20
 
 ### Other
