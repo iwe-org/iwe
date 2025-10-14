@@ -65,10 +65,11 @@ The main CLI features are:
 
 - 🏗️ **Initialize** workspace with `init` command
 - 🗒️ **Normalize** documents and update link titles automatically
+- 📈 **Analyze** knowledge base with comprehensive statistics
+- 📊 **Export** note structure as DOT graph for visualization
 - 🔍 **List paths** of all markdown files in the workspace
 - 📋 **Extract contents** from specific notes and sections
 - 🔗 **Squash** multiple files into one comprehensive document
-- 📊 **Export** note structure as DOT graph for visualization
 - 🎯 **Filter** exports by key to focus on specific topics
 
 More information is available in:
