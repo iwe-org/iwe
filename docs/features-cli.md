@@ -7,7 +7,8 @@ IWE provides a powerful command-line interface for managing markdown-based knowl
 1.  **Initialize a project**: `iwe init`
 2.  **Normalize all documents**: `iwe normalize`
 3.  **View document paths**: `iwe paths`
-4.  **Export graph visualization**: `iwe export dot`
+4.  **Analyze your knowledge base**: `iwe stats`
+5.  **Export graph visualization**: `iwe export dot`
 
 ## Installation & Setup
 
@@ -170,6 +171,108 @@ iwe squash --key research-notes --depth 3 -v 2
 ```
 
 Example [PDF](https://github.com/iwe-org/iwe/blob/master/docs/book.pdf) generated using `squash` command and typst
+
+### `iwe stats`
+
+Generates comprehensive statistics about your knowledge graph.
+
+``` bash
+iwe stats [OPTIONS]
+```
+
+**What it shows:**
+
+The stats command provides detailed analytics across multiple dimensions:
+
+**Overview**
+- Total documents in your knowledge base
+- Total nodes (all content elements)
+- Total paths through the graph
+
+**Document Statistics**
+- Total sections/headers across all documents
+- Average sections per document
+- Top 10 documents by section count
+
+**Reference Statistics**
+- Block references (embedded documents)
+- Inline references (wiki-links)
+- Total references count
+- Orphaned documents (no incoming references)
+- Leaf documents (no outgoing references)
+- Top 10 most referenced documents
+
+**Lines Statistics**
+- Total lines across all documents
+- Average lines per document
+- Top 10 largest documents by line count
+
+**Words Statistics**
+- Total words across all documents
+- Average words per document
+- Top 10 largest documents by word count
+
+**Structure Statistics**
+- Root-level sections
+- Maximum and average path depth
+- Counts of bullet lists, ordered lists, code blocks, tables, and quotes
+
+**Network Analysis**
+- Average references per document
+- Top 10 most connected documents (by total incoming + outgoing references)
+
+**Examples:**
+
+``` bash
+# Generate statistics for entire knowledge base
+iwe stats
+```
+
+**Sample Output:**
+
+``` markdown
+# Graph Statistics
+
+## Overview
+
+- **Total documents:** 39
+- **Total nodes:** 1552
+- **Total paths:** 302
+
+## Document Statistics
+
+- **Total sections:** 844
+- **Average sections/doc:** 21.64
+
+### Top Documents by Sections
+
+1. **VS Code** (102 sections)
+2. **Neovim** (89 sections)
+3. **Extract Actions** (79 sections)
+...
+
+## Lines Statistics
+
+- **Total lines:** 3404
+- **Average lines/doc:** 87.28
+
+### Top Documents by Lines
+
+1. **Neovim** (429 lines)
+2. **Extract Actions** (342 lines)
+...
+
+## Words Statistics
+
+- **Total words:** 14204
+- **Average words/doc:** 364.21
+
+### Top Documents by Words
+
+1. **Neovim** (1337 words)
+2. **Extract Actions** (1200 words)
+...
+```
 
 ### `iwe export`
 

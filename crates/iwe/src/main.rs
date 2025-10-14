@@ -6,6 +6,7 @@ use clap::{Args, Parser, Subcommand};
 use itertools::Itertools;
 
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
+use iwe::stats::GraphStatistics;
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
@@ -37,6 +38,7 @@ enum Command {
     Squash(Squash),
     Contents(Contents),
     Export(Export),
+    Stats(Stats),
 }
 
 #[derive(Debug, Args)]
@@ -53,6 +55,10 @@ struct Init {}
 
 #[derive(Debug, Args)]
 struct Contents {}
+
+#[derive(Debug, Args)]
+#[clap(about = "Display graph statistics")]
+struct Stats {}
 
 #[derive(Debug, Args)]
 #[clap(about = "Export the graph structure in various formats")]
@@ -137,6 +143,7 @@ fn main() {
         Command::Init(init) => init_command(init),
         Command::Contents(contents) => contents_command(contents),
         Command::Export(export) => export_command(export),
+        Command::Stats(stats) => stats_command(stats),
     }
 }
 
@@ -263,6 +270,16 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
         .map(|id| context.get_text(id.clone()).trim().to_string())
         .collect_vec()
         .join(" • ")
+}
+
+#[tracing::instrument(level = "debug")]
+fn stats_command(args: Stats) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let stats = GraphStatistics::from_graph(&graph);
+    let output = stats.render();
+    print!("{}", output);
 }
 
 #[tracing::instrument]
