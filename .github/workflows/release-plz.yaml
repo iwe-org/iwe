@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
 
 jobs:
   release-plz-release:
@@ -11,8 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -28,20 +27,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
-  trigger-binaries:
-    name: Trigger binary builds
-    runs-on: ubuntu-latest
-    needs: release-plz-release
-    if: needs.release-plz-release.outputs.releases_created == 'true'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      - name: Trigger binary workflow
-        run: |
-          gh workflow run release.yaml
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-plz-pr:
     name: Release-plz PR

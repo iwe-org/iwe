@@ -1,7 +1,7 @@
 [package]
 name = "iwe"
 description = "IWE CLI utility"
-include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
+include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md", "templates/**/*"]
 
 version.workspace = true
 repository.workspace = true
