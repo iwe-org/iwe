@@ -31,6 +31,12 @@ iwe normalize
 # Generate table of contents
 iwe contents
 
+# Analyze your knowledge base
+iwe stats
+
+# Export statistics as CSV
+iwe stats --format csv > stats.csv
+
 # Explore knowledge graph paths
 iwe paths
 
@@ -86,6 +92,22 @@ iwe contents
 ```
 
 Creates markdown links to all top-level documents.
+
+### `stats`
+Generate comprehensive statistics about your knowledge graph.
+
+```bash
+iwe stats                              # Markdown format (human-readable)
+iwe stats --format csv                 # CSV format (machine-readable)
+iwe stats -f csv > stats.csv          # Export to file
+```
+
+Provides detailed analytics including:
+- Document counts, sections, paragraphs, lines, and words
+- Reference statistics (block and inline references)
+- Structure analysis (lists, code blocks, tables, quotes)
+- Network analysis (most connected documents)
+- Per-document metrics in CSV format
 
 ### `export`
 Export knowledge graph in various formats.
@@ -144,6 +166,13 @@ iwe export dot | dot -Tpng > knowledge-graph.png
 
 # Process with jq
 iwe export json | jq '.[] | select(.title | contains("project"))'
+
+# Analyze statistics with standard Unix tools
+iwe stats -f csv | tail -n +2 | sort -t, -k12 -nr | head -10
+
+# Generate reports with Python/pandas
+iwe stats -f csv > stats.csv
+python -c "import pandas as pd; df = pd.read_csv('stats.csv'); print(df.describe())"
 
 # Batch processing
 for file in *.md; do

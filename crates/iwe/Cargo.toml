@@ -32,6 +32,8 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 graphviz-rust.workspace = true
+minijinja.workspace = true
+csv.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
