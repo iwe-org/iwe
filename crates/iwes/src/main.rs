@@ -15,6 +15,8 @@ use lsp_types::InitializeParams;
 use lsp_types::OneOf;
 use lsp_types::RenameOptions;
 use lsp_types::ServerCapabilities;
+use lsp_types::WorkspaceFileOperationsServerCapabilities;
+use lsp_types::WorkspaceServerCapabilities;
 
 use lsp_server::Connection;
 use lsp_types::TextDocumentSyncCapability;
@@ -81,6 +83,17 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         execute_command_provider: Some(ExecuteCommandOptions {
             commands: vec!["generate".to_string()],
             work_done_progress_options: Default::default(),
+        }),
+        workspace: Some(WorkspaceServerCapabilities {
+            workspace_folders: None,
+            file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+                did_create: None,
+                will_create: None,
+                did_rename: None,
+                will_rename: None,
+                did_delete: None,
+                will_delete: None,
+            }),
         }),
         ..Default::default()
     })

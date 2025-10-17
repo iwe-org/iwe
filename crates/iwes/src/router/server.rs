@@ -67,6 +67,22 @@ impl Server {
         );
     }
 
+    pub fn handle_did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
+        for change in params.changes {
+            match change.typ {
+                FileChangeType::DELETED => {
+                    let key = self.base_path.url_to_key(&change.uri);
+                    self.graph.remove_document(key);
+                }
+                FileChangeType::CREATED => {
+                }
+                FileChangeType::CHANGED => {
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn handle_plus_completions(&self, params: CompletionParams) -> Vec<CompletionItem> {
         let current_key = params
             .text_document_position

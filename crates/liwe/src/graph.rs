@@ -202,6 +202,20 @@ impl Graph {
         self.update_search_paths();
     }
 
+    pub fn remove_document(&mut self, key: Key) -> () {
+        if let Some(id) = self.keys.get(&key) {
+            self.arena.delete_branch(*id);
+        }
+
+        self.keys.remove(&key);
+        self.nodes_map.remove(&key);
+        self.keys_to_ref_text.remove(&key);
+        self.metadata.remove(&key);
+        self.content.remove(&key);
+
+        self.update_search_paths();
+    }
+
     fn node_key(&self, id: NodeId) -> Key {
         match self.graph_node(id).key() {
             Some(key) => key.clone(),

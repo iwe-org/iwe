@@ -10,9 +10,9 @@ use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams,
-    ExecuteCommandParams, InlayHintParams, InlineValueParams, ReferenceParams, RenameParams,
-    TextDocumentPositionParams, WorkspaceSymbolParams,
+    DidChangeWatchedFilesParams, DidSaveTextDocumentParams, DocumentFormattingParams,
+    DocumentSymbolParams, ExecuteCommandParams, InlayHintParams, InlineValueParams,
+    ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 use serde::Deserialize;
@@ -138,6 +138,12 @@ impl Router {
                 Arc::get_mut(&mut self.server)
                     .unwrap()
                     .handle_did_save_text_document(params);
+            }
+            "workspace/didChangeWatchedFiles" => {
+                let params = DidChangeWatchedFilesParams::deserialize(notification.params).unwrap();
+                Arc::get_mut(&mut self.server)
+                    .unwrap()
+                    .handle_did_change_watched_files(params);
             }
             default => {
                 debug!("unhandled request: {}", default)
