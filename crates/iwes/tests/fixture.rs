@@ -194,6 +194,15 @@ pub impl Uri {
         }
     }
 
+    fn to_file_delete_params(self) -> DidChangeWatchedFilesParams {
+        DidChangeWatchedFilesParams {
+            changes: vec![FileEvent {
+                uri: self,
+                typ: FileChangeType::DELETED,
+            }],
+        }
+    }
+
     fn to_edit_with_range(self, new_content: &str, range: Range) -> DocumentChangeOperation {
         DocumentChangeOperation::Edit(TextDocumentEdit {
             text_document: OptionalVersionedTextDocumentIdentifier {
@@ -692,6 +701,11 @@ impl Fixture {
 
     pub fn did_save_text_document(&self, params: DidSaveTextDocumentParams) -> &Self {
         self.notification::<DidSaveTextDocument>(params);
+        self
+    }
+
+    pub fn did_delete_files(&self, params: DidChangeWatchedFilesParams) -> &Self {
+        self.notification::<DidChangeWatchedFiles>(params);
         self
     }
 
