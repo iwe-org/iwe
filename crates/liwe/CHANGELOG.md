@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.54](https://github.com/iwe-org/iwe/compare/liwe-v0.0.53...liwe-v0.0.54) - 2025-10-17
+
+### Added
+
+- Remove files from the index on delete ([#170](https://github.com/iwe-org/iwe/pull/170))
+
 ## [0.0.49](https://github.com/iwe-org/iwe/compare/liwe-v0.0.48...liwe-v0.0.49) - 2025-10-13
 
 ### Added
