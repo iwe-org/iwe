@@ -5,13 +5,7 @@ permissions:
 
 on:
   release:
-    types: [published, released, created]
-  push:
-    tags:
-      - "v*"
-      - "iwe-v*"
-      - "iwes-v*"
-      - "liwe-v*"
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
