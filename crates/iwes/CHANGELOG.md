@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.55](https://github.com/iwe-org/iwe/compare/iwes-v0.0.54...iwes-v0.0.55) - 2025-10-28
+
+### Fixed
+
+- Use configured reference extension for links auto complete ([#176](https://github.com/iwe-org/iwe/pull/176))
+
 ## [0.0.54](https://github.com/iwe-org/iwe/compare/iwes-v0.0.53...iwes-v0.0.54) - 2025-10-17
 
 ### Added
