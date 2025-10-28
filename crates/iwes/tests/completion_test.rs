@@ -1,4 +1,5 @@
 use indoc::indoc;
+use liwe::model::config::MarkdownOptions;
 
 mod fixture;
 use crate::fixture::*;
@@ -13,6 +14,30 @@ fn completion_test() {
         completion_list(vec![completion_item(
             "🔗 test",
             "[test](1)",
+            "test",
+            "test",
+        )]),
+    );
+}
+
+#[test]
+fn completion_test_with_refs_extension() {
+    let markdown_options = MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        date_format: None,
+    };
+
+    Fixture::with_options(
+        indoc! {"
+            # test
+            "},
+        markdown_options,
+    )
+    .completion(
+        uri(1).to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 test",
+            "[test](1.md)",
             "test",
             "test",
         )]),
@@ -51,6 +76,33 @@ fn completion_relative_test() {
                 "top-level",
             ),
         ]),
+    );
+}
+
+#[test]
+fn completion_relative_test_with_refs_extension() {
+    let markdown_options = MarkdownOptions {
+        refs_extension: ".html".to_string(),
+        date_format: None,
+    };
+
+    let mut config = liwe::model::config::Configuration::default();
+    config.markdown = markdown_options;
+
+    Fixture::with_config(
+        indoc! {"
+            # test
+            "},
+        config,
+    )
+    .completion(
+        uri(1).to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 test",
+            "[test](1.html)",
+            "test",
+            "test",
+        )]),
     );
 }
 
