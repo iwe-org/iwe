@@ -350,8 +350,13 @@ pub impl Key {
         base_path.key_to_url(&self.clone())
     }
 
-    fn to_link(&self, text: String, relative_to: &str) -> String {
-        format!("[{}]({})", text, self.to_rel_link_url(relative_to))
+    fn to_link(&self, text: String, relative_to: &str, refs_extension: &str) -> String {
+        format!(
+            "[{}]({}{})",
+            text,
+            self.to_rel_link_url(relative_to),
+            refs_extension
+        )
     }
 
     fn to_completion(
@@ -360,20 +365,15 @@ pub impl Key {
         context: impl GraphContext,
         _: &BasePath,
     ) -> CompletionItem {
+        let ref_text = context.get_ref_text(self).unwrap_or_default();
+        let refs_extension = &context.markdown_options().refs_extension;
+
         CompletionItem {
             preselect: Some(true),
-            label: format!("🔗 {}", context.get_ref_text(self).unwrap_or_default()),
-            sort_text: Some(context.get_ref_text(self).unwrap_or_default()),
-            insert_text: Some(
-                self.to_link(context.get_ref_text(self).unwrap_or_default(), relative_to),
-            ),
-            filter_text: Some(
-                context
-                    .get_ref_text(self)
-                    .unwrap_or_default()
-                    .replace(" ", "")
-                    .to_lowercase(),
-            ),
+            label: format!("🔗 {}", ref_text),
+            sort_text: Some(ref_text.clone()),
+            insert_text: Some(self.to_link(ref_text.clone(), relative_to, refs_extension)),
+            filter_text: Some(ref_text.replace(" ", "").to_lowercase()),
             command: None,
             documentation: None,
             ..Default::default()
