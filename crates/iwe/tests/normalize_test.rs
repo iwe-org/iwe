@@ -1,10 +1,10 @@
 use indoc::indoc;
 use liwe::model::config::{Configuration, LibraryOptions, MarkdownOptions};
-use std::env;
 use std::fs::{create_dir_all, read_to_string, write};
-use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
+
+mod common;
 
 #[test]
 fn test_normalize_basic_formatting() {
@@ -141,7 +141,7 @@ fn test_normalize_with_verbose_flag() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = Command::new(get_iwe_binary_path())
+    let output = Command::new(common::get_iwe_binary_path())
         .arg("normalize")
         .arg("--verbose")
         .arg("1")
@@ -403,15 +403,9 @@ fn count_markdown_files(dir: &std::path::Path) -> usize {
 }
 
 fn run_normalize_command(work_dir: &std::path::Path) -> std::process::Output {
-    Command::new(get_iwe_binary_path())
+    Command::new(common::get_iwe_binary_path())
         .arg("normalize")
         .current_dir(work_dir)
         .output()
         .expect("Failed to execute iwe normalize")
-}
-
-fn get_iwe_binary_path() -> PathBuf {
-    let current_dir = env::current_dir().expect("Failed to get current directory");
-    let workspace_root = current_dir.parent().unwrap().parent().unwrap();
-    workspace_root.join("target").join("debug").join("iwe")
 }
