@@ -39,7 +39,7 @@ impl<'a> GraphBuilder<'a> {
     pub fn prev_is_root(&self) -> bool {
         self.node()
             .prev_id()
-            .map_or(false, |id| self.graph.graph_node(id).is_root())
+            .is_some_and(|id| self.graph.graph_node(id).is_root())
     }
 
     pub fn set_insert(&mut self, insert: bool) -> &mut Self {
@@ -66,7 +66,7 @@ impl<'a> GraphBuilder<'a> {
 
     pub fn quote_and<F>(&mut self, f: F)
     where
-        F: FnOnce(&mut GraphBuilder) -> (),
+        F: FnOnce(&mut GraphBuilder),
     {
         let new_id = self.graph.new_node_id();
         self.add_node_and(GraphNode::new_quote(self.id, new_id), f);
@@ -79,7 +79,7 @@ impl<'a> GraphBuilder<'a> {
         rows: Vec<Vec<LineId>>,
         f: F,
     ) where
-        F: FnOnce(&mut GraphBuilder) -> (),
+        F: FnOnce(&mut GraphBuilder),
     {
         let new_id = self.graph.new_node_id();
         self.add_node_and(
@@ -103,7 +103,7 @@ impl<'a> GraphBuilder<'a> {
 
     pub fn bullet_list_and<F>(&mut self, f: F)
     where
-        F: FnOnce(&mut GraphBuilder) -> (),
+        F: FnOnce(&mut GraphBuilder),
     {
         let new_id = self.graph.new_node_id();
         self.add_node_and(GraphNode::new_bullet_list(self.id, new_id), f);
@@ -111,7 +111,7 @@ impl<'a> GraphBuilder<'a> {
 
     pub fn ordered_list_and<F>(&mut self, f: F)
     where
-        F: FnOnce(&mut GraphBuilder) -> (),
+        F: FnOnce(&mut GraphBuilder),
     {
         let new_id = self.graph.new_node_id();
         self.add_node_and(GraphNode::new_ordered_list(self.id, new_id), f);
@@ -126,7 +126,7 @@ impl<'a> GraphBuilder<'a> {
 
     pub fn section_text_and<F>(&mut self, text: &str, f: F) -> &mut Self
     where
-        F: FnOnce(&mut GraphBuilder) -> (),
+        F: FnOnce(&mut GraphBuilder),
     {
         let line_id = self.graph.add_line(GraphInline::from_string(text));
         let new_id = self.graph.new_node_id();
@@ -140,7 +140,7 @@ impl<'a> GraphBuilder<'a> {
 
     pub fn section_and<F>(&mut self, inlines: GraphInlines, f: F)
     where
-        F: FnOnce(&mut GraphBuilder) -> (),
+        F: FnOnce(&mut GraphBuilder),
     {
         let line_id = self.graph.add_line(inlines);
         let new_id = self.graph.new_node_id();
@@ -198,7 +198,7 @@ impl<'a> GraphBuilder<'a> {
 
     fn add_node_and<F>(&mut self, node: GraphNode, f: F)
     where
-        F: FnOnce(&mut GraphBuilder<'_>) -> (),
+        F: FnOnce(&mut GraphBuilder<'_>),
     {
         if self.insert {
             self.graph.node_mut(self.id).set_child_id(node.id());
@@ -219,7 +219,7 @@ impl<'a> GraphBuilder<'a> {
 
     fn add_node_and2<F>(&mut self, node: GraphNode, f: F)
     where
-        F: FnOnce(&mut GraphBuilder<'_>) -> (),
+        F: FnOnce(&mut GraphBuilder<'_>),
     {
         if self.insert {
             self.graph.node_mut(self.id).set_child_id(node.id());
@@ -239,7 +239,7 @@ impl<'a> GraphBuilder<'a> {
 
     fn add_new_node_and<F>(&mut self, node: Node, f: F)
     where
-        F: FnOnce(&mut GraphBuilder) -> (),
+        F: FnOnce(&mut GraphBuilder),
     {
         match node {
             Node::Document(_, _) => panic!("Document node is not allowed"),
@@ -334,16 +334,10 @@ impl<'a> GraphBuilder<'a> {
             return;
         }
 
-        iter.node().map(|node| {
-            self.add_new_node_and(node, |builder| {
-                iter.child().map(|child| {
-                    builder.insert_from_iter(child);
-                });
-                iter.next().map(|next| {
-                    builder.append_from_visitor(next);
-                });
-            });
-        });
+        if let Some(node) = iter.node() { self.add_new_node_and(node, |builder| {
+                if let Some(child) = iter.child() { builder.insert_from_iter(child); }
+                if let Some(next) = iter.next() { builder.append_from_visitor(next); }
+            }); }
     }
 
     pub fn insert_from_iter<'b>(&mut self, iter: impl NodeIter<'b>) {
@@ -354,16 +348,10 @@ impl<'a> GraphBuilder<'a> {
             return;
         }
 
-        iter.node().map(|node| {
-            self.add_new_node_and(node, |builder| {
-                iter.child().map(|child| {
-                    builder.insert_from_iter(child);
-                });
-                iter.next().map(|next| {
-                    builder.append_from_visitor(next);
-                });
-            });
-        });
+        if let Some(node) = iter.node() { self.add_new_node_and(node, |builder| {
+                if let Some(child) = iter.child() { builder.insert_from_iter(child); }
+                if let Some(next) = iter.next() { builder.append_from_visitor(next); }
+            }); }
     }
 
     pub fn link_node_id(&mut self, node_id: NodeId) {

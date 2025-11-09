@@ -50,7 +50,7 @@ impl AttachAction {
 
 impl ActionProvider for AttachAction {
     fn identifier(&self) -> String {
-        format!("custom.{}", self.identifier.to_string())
+        format!("custom.{}", self.identifier)
     }
 
     fn action(
@@ -63,15 +63,14 @@ impl ActionProvider for AttachAction {
         let reference_key = context.collect(&key).find_reference_key(target_id);
         let attach_to_key = self.format_target_key();
 
-        if context.key_exists(&attach_to_key) {
-            if context
+        if context.key_exists(&attach_to_key)
+            && context
                 .collect(&attach_to_key)
                 .get_all_block_reference_keys()
                 .contains(&reference_key)
             {
                 return None;
             }
-        }
 
         context
             .collect(&key)
@@ -119,7 +118,7 @@ impl ActionProvider for AttachAction {
                 key: attach_to_key.clone(),
                 markdown: updated
                     .iter()
-                    .to_markdown(&attach_to_key.parent(), &context.markdown_options()),
+                    .to_markdown(&attach_to_key.parent(), context.markdown_options()),
             })])
         } else {
             Some(vec![
@@ -131,7 +130,7 @@ impl ActionProvider for AttachAction {
                     markdown: self.format_target_document(
                         reference
                             .iter()
-                            .to_markdown(&attach_to_key.parent(), &context.markdown_options()),
+                            .to_markdown(&attach_to_key.parent(), context.markdown_options()),
                     ),
                 }),
             ])

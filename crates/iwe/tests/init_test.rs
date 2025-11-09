@@ -10,7 +10,7 @@ fn test_init_creates_iwe_directory() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    let output = run_init_command(&temp_path);
+    let output = run_init_command(temp_path);
 
     assert!(output.status.success(), "Init command should succeed");
 
@@ -24,7 +24,7 @@ fn test_init_creates_config_file() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    let output = run_init_command(&temp_path);
+    let output = run_init_command(temp_path);
 
     assert!(output.status.success(), "Init command should succeed");
 
@@ -51,14 +51,14 @@ fn test_init_already_initialized() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    let output1 = run_init_command(&temp_path);
+    let output1 = run_init_command(temp_path);
     assert!(output1.status.success(), "First init should succeed");
 
     let output2 = Command::new(common::get_iwe_binary_path())
         .arg("init")
         .arg("-v")
         .arg("2")
-        .current_dir(&temp_path)
+        .current_dir(temp_path)
         .output()
         .expect("Failed to execute iwe init");
 
@@ -83,7 +83,7 @@ fn test_init_existing_iwe_file() {
         .arg("init")
         .arg("-v")
         .arg("2")
-        .current_dir(&temp_path)
+        .current_dir(temp_path)
         .output()
         .expect("Failed to execute iwe init");
 
@@ -101,7 +101,7 @@ fn test_init_config_file_structure() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    let output = run_init_command(&temp_path);
+    let output = run_init_command(temp_path);
     assert!(output.status.success(), "Init command should succeed");
 
     let config_file = temp_path.join(".iwe").join("config.toml");
@@ -160,7 +160,7 @@ fn test_init_with_verbose_flag() {
         .arg("init")
         .arg("--verbose")
         .arg("1")
-        .current_dir(&temp_path)
+        .current_dir(temp_path)
         .output()
         .expect("Failed to execute iwe init");
 
@@ -201,7 +201,7 @@ fn test_init_preserves_existing_config() {
     let custom_config = toml::to_string(&config).expect("Failed to serialize config to TOML");
     std::fs::write(&config_file, custom_config).expect("Should write custom config");
 
-    let output = run_init_command(&temp_path);
+    let output = run_init_command(temp_path);
     assert!(output.status.success(), "Command should not crash");
 
     let final_config = read_to_string(&config_file).expect("Should read config");

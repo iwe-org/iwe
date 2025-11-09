@@ -1,3 +1,4 @@
+use std::fmt;
 use itertools::Itertools;
 use liwe::{
     markdown::MarkdownReader,
@@ -32,13 +33,19 @@ impl CommandResult {
     }
 }
 
-impl CommandType {
-    pub fn to_string(&self) -> String {
+pub enum CommandType {
+    Generate,
+}
+
+impl fmt::Display for CommandType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CommandType::Generate => "generate".into(),
+            CommandType::Generate => write!(f, "generate")
         }
     }
+}
 
+impl CommandType {
     pub fn from_string(s: &str) -> CommandType {
         match s {
             "generate" => CommandType::Generate,
@@ -47,9 +54,6 @@ impl CommandType {
     }
 }
 
-pub enum CommandType {
-    Generate,
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GenerateCommand {
@@ -75,10 +79,10 @@ impl GenerateCommand {
                 .iter()
                 .to_markdown(&target_key.parent(), context.markdown_options())
         );
-        let new_content = context.llm_query(combined_prompt, &context.default_model());
+        let new_content = context.llm_query(combined_prompt, context.default_model());
 
         let mut patch = context.patch();
-        patch.from_markdown(new_key.clone().into(), &new_content, MarkdownReader::new());
+        patch.from_markdown(new_key.clone(), &new_content, MarkdownReader::new());
         patch.build_key_from_iter(&target_key, context.collect(&target_key).iter());
 
         CommandResult {
@@ -93,7 +97,7 @@ impl GenerateCommand {
                 Change::Update(Update {
                     key: target_key.clone(),
                     markdown: patch
-                        .to_markdown(&target_key.clone().into())
+                        .to_markdown(&target_key.clone())
                         .replace("[⏳](", "[Generated content]("),
                 }),
             ],

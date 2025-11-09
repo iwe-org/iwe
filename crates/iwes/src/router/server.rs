@@ -52,12 +52,10 @@ impl Server {
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
-        params.text.map(|text| {
-            self.graph.update_document(
+        if let Some(text) = params.text { self.graph.update_document(
                 self.base_path.url_to_key(&params.text_document.uri.clone()),
                 text,
-            )
-        });
+            ) }
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
@@ -119,7 +117,7 @@ impl Server {
                     sort_text: Some((&self.graph).get_ref_text(key).unwrap_or_default()),
                     command: Some(Command {
                         title: "generate".into(),
-                        command: CommandType::Generate.to_string().into(),
+                        command: CommandType::Generate.to_string(),
                         arguments: Some(vec![serde_json::to_value(command).unwrap()]),
                     }),
                     documentation: None,
@@ -151,7 +149,7 @@ impl Server {
             items: self
                 .handle_plus_completions(params.clone())
                 .into_iter()
-                .chain(self.handle_link_completion(params).into_iter())
+                .chain(self.handle_link_completion(params))
                 .collect_vec(),
         })
     }
@@ -222,7 +220,7 @@ impl Server {
 
         self.container_hint(&key)
             .into_iter()
-            .chain(self.refs_counter_hints(&key).into_iter())
+            .chain(self.refs_counter_hints(&key))
             .chain(self.block_reference_hints(&key))
             .collect_vec()
     }
@@ -397,9 +395,9 @@ impl Server {
                         );
 
                     affected_keys.iter().for_each(|affected_key| {
-                        patch.build_key(&affected_key).insert_from_iter(
+                        patch.build_key(affected_key).insert_from_iter(
                             (&self.graph)
-                                .collect(&affected_key)
+                                .collect(affected_key)
                                 .change_key(&key, &params.new_name.clone().into())
                                 .iter(),
                         );

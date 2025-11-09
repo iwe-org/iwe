@@ -305,118 +305,71 @@ impl GraphNode {
     }
 
     pub fn is_ref(&self) -> bool {
-        match self {
-            GraphNode::Reference(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Reference(_))
     }
     pub fn is_empty(&self) -> bool {
-        match self {
-            GraphNode::Empty => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Empty)
     }
 
     pub fn is_leaf(&self) -> bool {
-        match self {
-            GraphNode::Leaf(_) => true,
-            GraphNode::Raw(_) => true,
-            GraphNode::Reference(_) => true,
-            GraphNode::HorizontalRule(_) => true,
-            _ => false,
-        }
+        matches!(self,
+            GraphNode::Leaf(_) |
+            GraphNode::Raw(_) |
+            GraphNode::Reference(_) |
+            GraphNode::HorizontalRule(_)
+        )
     }
 
     pub fn is_table(&self) -> bool {
-        match self {
-            GraphNode::Table(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Table(_))
     }
 
     pub fn is_ordered_list(&self) -> bool {
-        match self {
-            GraphNode::OrderedList(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::OrderedList(_))
     }
 
     pub fn is_bullet_list(&self) -> bool {
-        match self {
-            GraphNode::BulletList(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::BulletList(_))
     }
 
     pub fn is_document(&self) -> bool {
-        match self {
-            GraphNode::Document(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Document(_))
     }
 
     pub fn is_raw_leaf(&self) -> bool {
-        match self {
-            GraphNode::Raw(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Raw(_))
     }
 
     pub fn is_list(&self) -> bool {
-        match self {
-            GraphNode::BulletList(_) => true,
-            GraphNode::OrderedList(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::BulletList(_) | GraphNode::OrderedList(_))
     }
 
     pub fn is_quote(&self) -> bool {
-        match self {
-            GraphNode::Quote(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Quote(_))
     }
 
     pub fn is_rule(&self) -> bool {
-        match self {
-            GraphNode::HorizontalRule(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::HorizontalRule(_))
     }
 
     pub fn is_section(&self) -> bool {
-        match self {
-            GraphNode::Section(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Section(_))
     }
 
     pub fn is_reference(&self) -> bool {
-        match self {
-            GraphNode::Reference(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Reference(_))
     }
 
     pub fn is_horizontal_rule(&self) -> bool {
-        match self {
-            GraphNode::HorizontalRule(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::HorizontalRule(_))
     }
 
     pub fn is_raw(&self) -> bool {
-        match self {
-            GraphNode::Raw(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Raw(_))
     }
 
     pub fn is_root(&self) -> bool {
-        match self {
-            GraphNode::Document(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphNode::Document(_))
     }
 
     pub fn is_reference_to(&self, key: &Key) -> bool {

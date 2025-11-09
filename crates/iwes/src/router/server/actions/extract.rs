@@ -77,7 +77,7 @@ impl SectionExtract {
         let mut counter = 1;
 
         while context.key_exists(&candidate_key) {
-            let suffixed_name = format!("{}-{}", base_key.to_string(), counter);
+            let suffixed_name = format!("{}-{}", base_key, counter);
             candidate_key = Key::name(&suffixed_name);
             counter += 1;
         }
@@ -143,22 +143,21 @@ impl SectionExtract {
             }];
         }
 
-        return vec![Tree {
+        vec![Tree {
             id: tree.id,
             node: tree.node.clone(),
             children: tree
                 .children
                 .iter()
-                .map(|child| Self::extract_rec(child, extract_id, parent_id, new_key, link_type))
-                .flatten()
+                .flat_map(|child| Self::extract_rec(child, extract_id, parent_id, new_key, link_type))
                 .collect(),
-        }];
+        }]
     }
 }
 
 impl ActionProvider for SectionExtract {
     fn identifier(&self) -> String {
-        format!("custom.{}", self.identifier.to_string())
+        format!("custom.{}", self.identifier)
     }
 
     fn action(
@@ -228,8 +227,8 @@ impl ActionProvider for SectionExtract {
                         markdown: new_markdown,
                     }),
                     Change::Update(Update {
-                        key: key,
-                        markdown: markdown,
+                        key,
+                        markdown,
                     }),
                 ]
             })

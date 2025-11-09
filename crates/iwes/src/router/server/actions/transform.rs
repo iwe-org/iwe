@@ -17,7 +17,7 @@ pub struct TransformBlockAction {
 
 impl ActionProvider for TransformBlockAction {
     fn identifier(&self) -> String {
-        format!("custom.{}", self.identifier.to_string())
+        format!("custom.{}", self.identifier)
     }
 
     fn action(
@@ -62,7 +62,7 @@ impl ActionProvider for TransformBlockAction {
             .collect(&key)
             .replace(target_id, &tree)
             .iter()
-            .to_markdown(&key.parent(), &context.markdown_options());
+            .to_markdown(&key.parent(), context.markdown_options());
 
         Some(vec![Change::Update(Update { key, markdown })])
     }

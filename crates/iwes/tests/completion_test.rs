@@ -86,8 +86,10 @@ fn completion_relative_test_with_refs_extension() {
         date_format: None,
     };
 
-    let mut config = liwe::model::config::Configuration::default();
-    config.markdown = markdown_options;
+    let config = liwe::model::config::Configuration {
+        markdown: markdown_options,
+        ..Default::default()
+    };
 
     Fixture::with_config(
         indoc! {"

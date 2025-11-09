@@ -410,7 +410,6 @@ pub fn load_config() -> Configuration {
 
         let configuration = migrate(
             &read_to_string(config_path)
-                .ok()
                 .expect("to read config file"),
         );
 

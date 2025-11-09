@@ -72,7 +72,7 @@ impl<'a> SectionsBuilder<'a> {
         let ranges = ranges(positions, range.end);
 
         for i in ranges {
-            self.process_section(i, &content);
+            self.process_section(i, content);
         }
     }
 
@@ -206,7 +206,7 @@ impl<'a> SectionsBuilder<'a> {
                 let header = table
                     .header
                     .iter()
-                    .map(|cell| to_graph_inlines(&cell, &self.key.parent()))
+                    .map(|cell| to_graph_inlines(cell, &self.key.parent()))
                     .map(|inlines| self.builder.graph().add_line(inlines))
                     .collect_vec();
 
@@ -215,7 +215,7 @@ impl<'a> SectionsBuilder<'a> {
                     .iter()
                     .map(|row| {
                         row.iter()
-                            .map(|cell| to_graph_inlines(&cell, &self.key.parent()))
+                            .map(|cell| to_graph_inlines(cell, &self.key.parent()))
                             .map(|inlines| self.builder.graph().add_line(inlines))
                             .collect_vec()
                     })
@@ -256,10 +256,7 @@ pub fn first_header_level(range: Range, content: &DocumentBlocks) -> Option<u8> 
 }
 
 pub fn first_header(range: Range, content: &DocumentBlocks) -> Option<usize> {
-    range.into_iter().find(|i| match content[*i].clone() {
-        Header(_) => true,
-        _ => false,
-    })
+    range.into_iter().find(|i| matches!(content[*i], Header(_)))
 }
 
 #[cfg(test)]

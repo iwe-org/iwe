@@ -232,15 +232,12 @@ impl Router {
                     result: Some(value),
                     error: None,
                 });
-                match request.method.as_str() {
-                    "codeAction/resolve" => {
-                        self.delay_send(Message::Request(Request {
-                            id: Uuid::new_v4().to_string().into(),
-                            method: "workspace/inlayHint/refresh".to_string(),
-                            params: serde_json::Value::Null,
-                        }));
-                    }
-                    _ => {}
+                if request.method.as_str() == "codeAction/resolve" {
+                    self.delay_send(Message::Request(Request {
+                        id: Uuid::new_v4().to_string().into(),
+                        method: "workspace/inlayHint/refresh".to_string(),
+                        params: serde_json::Value::Null,
+                    }));
                 }
             }
             Err(_) => self.respond(Response::new_err(

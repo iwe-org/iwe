@@ -8,8 +8,6 @@ use std::{
     time::Duration,
 };
 
-use std::u32;
-
 use extend::ext;
 
 use assert_json_diff::assert_json_eq;
@@ -322,54 +320,6 @@ pub impl WorkspaceEdit {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_url_to_edit() {
-        let operation = uri(1).to_edit("test content");
-
-        if let DocumentChangeOperation::Edit(edit) = operation {
-            assert_eq!(edit.text_document.uri, uri(1));
-            if let OneOf::Left(text_edit) = &edit.edits[0] {
-                assert_eq!(text_edit.new_text, "test content");
-            } else {
-                panic!("Expected TextEdit");
-            }
-        } else {
-            panic!("Expected Edit operation");
-        }
-    }
-
-    #[test]
-    fn test_create_workspace_edit() {
-        let operations = vec![uri(1).to_edit("content1"), uri(2).to_edit("content2")];
-
-        let workspace_edit = operations.to_workspace_edit();
-
-        if let Some(DocumentChanges::Operations(ops)) = workspace_edit.document_changes {
-            assert_eq!(ops.len(), 2);
-        } else {
-            panic!("Expected Operations");
-        }
-    }
-
-    #[test]
-    fn test_create_code_action() {
-        let code_action = vec![uri(1).to_edit("content")]
-            .to_workspace_edit()
-            .to_code_action("Test Action", "refactor.extract");
-
-        assert_eq!(code_action.title, "Test Action");
-        assert_eq!(
-            code_action.kind,
-            Some(CodeActionKind::new("refactor.extract"))
-        );
-        assert!(code_action.edit.is_some());
-    }
-}
-
 pub fn uri(number: u32) -> Uri {
     Uri::from_str(&format!("file:///basepath/{}.md", number)).unwrap()
 }
@@ -446,6 +396,12 @@ pub fn response_error(code: i32, message: String) -> ResponseError {
 }
 
 pub type Documents = Vec<(&'static str, &'static str)>;
+
+impl Default for Fixture {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[allow(unused, dead_code)]
 impl Fixture {
@@ -763,7 +719,7 @@ impl Fixture {
     }
 
     pub fn wait_until_workspace_is_loaded(self) -> Fixture {
-        self.wait_for_message_cond(1, &|msg: &Message| match msg {
+        self.wait_for_message_cond(1, |msg: &Message| match msg {
             Message::Notification(n) if n.method == "experimental/serverStatus" => {
                 let status = n
                     .clone()
@@ -805,9 +761,8 @@ impl Fixture {
 
     fn recv(&self) -> Result<Option<Message>, Timeout> {
         let msg = recv_timeout(&self.client.receiver)?;
-        let msg = msg.map(|msg| {
+        let msg = msg.inspect(|msg| {
             self.messages.borrow_mut().push(msg.clone());
-            msg
         });
         Ok(msg)
     }
@@ -841,3 +796,53 @@ fn recv_timeout(receiver: &Receiver<Message>) -> Result<Option<Message>, Timeout
         recv(after(timeout)) -> _ => Err(Timeout),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_to_edit() {
+        let operation = uri(1).to_edit("test content");
+
+        if let DocumentChangeOperation::Edit(edit) = operation {
+            assert_eq!(edit.text_document.uri, uri(1));
+            if let OneOf::Left(text_edit) = &edit.edits[0] {
+                assert_eq!(text_edit.new_text, "test content");
+            } else {
+                panic!("Expected TextEdit");
+            }
+        } else {
+            panic!("Expected Edit operation");
+        }
+    }
+
+    #[test]
+    fn test_create_workspace_edit() {
+        let operations = vec![uri(1).to_edit("content1"), uri(2).to_edit("content2")];
+
+        let workspace_edit = operations.to_workspace_edit();
+
+        if let Some(DocumentChanges::Operations(ops)) = workspace_edit.document_changes {
+            assert_eq!(ops.len(), 2);
+        } else {
+            panic!("Expected Operations");
+        }
+    }
+
+    #[test]
+    fn test_create_code_action() {
+        let code_action = vec![uri(1).to_edit("content")]
+            .to_workspace_edit()
+            .to_code_action("Test Action", "refactor.extract");
+
+        assert_eq!(code_action.title, "Test Action");
+        assert_eq!(
+            code_action.kind,
+            Some(CodeActionKind::new("refactor.extract"))
+        );
+        assert!(code_action.edit.is_some());
+    }
+}
+
+

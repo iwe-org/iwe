@@ -6,7 +6,7 @@ pub struct ListChangeType {}
 
 impl ActionProvider for ListChangeType {
     fn identifier(&self) -> String {
-        return "refactor.rewrite.list.type".to_string();
+        "refactor.rewrite.list.type".to_string()
     }
 
     fn action(
@@ -58,7 +58,7 @@ pub struct ListToSections {}
 
 impl ActionProvider for ListToSections {
     fn identifier(&self) -> String {
-        return "refactor.rewrite.list.section".to_string();
+        "refactor.rewrite.list.section".to_string()
     }
 
     fn action(

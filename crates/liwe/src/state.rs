@@ -5,7 +5,6 @@ use crate::model::State;
 pub fn to_indoc(state: &State) -> String {
     state
         .iter()
-        .map(|(key, file)| (key, file))
         .sorted_by_key(|a| a.0)
         .map(|file| file.1.to_string())
         .collect::<Vec<String>>()

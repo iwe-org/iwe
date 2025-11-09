@@ -93,7 +93,7 @@ fn test_template_configuration_has_version_2() {
     let config = Configuration::template();
     assert_eq!(config.version, Some(2));
 
-    assert!(config.actions.len() > 0);
+    assert!(!config.actions.is_empty());
     assert!(config.actions.contains_key("extract"));
     assert!(config.actions.contains_key("extract_all"));
     assert!(config.actions.contains_key("link"));

@@ -55,8 +55,8 @@ pub fn graph_data(key_filter: Option<Key>, depth: u8, graph: &Graph) -> GraphDat
 
     keys.iter()
         .map(|pair| {
-            let graph_data = build_graph_data(graph, pair.0, *pair.1);
-            graph_data
+            
+            build_graph_data(graph, pair.0, *pair.1)
         })
         .fold(
             GraphData {
@@ -109,12 +109,11 @@ fn build_sections(
     cache: &mut GraphCache,
     key_depth: u8,
     depth: u8,
-    max_depth: u8,
+    _max_depth: u8,
     tree: &Tree,
 ) {
     tree.children.iter().for_each(|child| {
         if child.is_list() {
-            return;
         } else if depth == 0 && child.is_section() {
             cache.documents.insert(
                 child.id.unwrap(),
@@ -125,12 +124,12 @@ fn build_sections(
                     key: key.to_string(),
                 },
             );
-            build_sections(key, cache, key_depth, depth + 1, max_depth, child);
+            build_sections(key, cache, key_depth, depth + 1, _max_depth, child);
         } else if child.is_section() {
             cache.sections.insert(
                 child.id.unwrap(),
                 Section {
-                    depth: depth,
+                    depth,
                     id: child.id.unwrap(),
                     title: child.node.plain_text(),
                     key: key.to_string(),
@@ -141,7 +140,7 @@ fn build_sections(
                     .section_to_section
                     .insert((tree.id.unwrap(), child.id.unwrap()));
             }
-            build_sections(key, cache, key_depth, depth + 1, max_depth, child);
+            build_sections(key, cache, key_depth, depth + 1, _max_depth, child);
         } else if child.is_reference() {
             if let Some(ref_key) = child.node.reference_key() {
                 cache
@@ -165,7 +164,7 @@ fn top_level_keys(graph: &Graph, depth_limit: u8) -> HashMap<Key, u8> {
     let top_level = graph
         .paths()
         .into_iter()
-        .filter(|n| n.ids().len() <= 1 as usize)
+        .filter(|n| n.ids().len() <= 1_usize)
         .map(|n| (&graph).node(n.first_id()).node_key())
         .filter_map(|key| {
             if graph.maybe_key(&key).is_some() {

@@ -11,7 +11,7 @@ fn test_normalize_basic_formatting() {
     let temp_dir = setup_test_workspace_with_unformatted_content();
     let temp_path = temp_dir.path();
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(output.status.success(), "Normalize command should succeed");
 
     let content =
@@ -36,7 +36,7 @@ fn test_normalize_preserves_content() {
     let _original_content =
         read_to_string(temp_path.join("test.md")).expect("Should be able to read original file");
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(output.status.success(), "Normalize command should succeed");
 
     let normalized_content =
@@ -51,7 +51,7 @@ fn test_normalize_multiple_files() {
     let temp_dir = setup_complex_test_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(output.status.success(), "Normalize command should succeed");
 
     assert!(temp_path.join("file1.md").exists());
@@ -70,7 +70,7 @@ fn test_normalize_empty_workspace() {
     let temp_dir = setup_empty_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(
         output.status.success(),
         "Normalize should succeed even with empty workspace"
@@ -88,7 +88,7 @@ fn test_normalize_with_links() {
     let temp_dir = setup_test_workspace_with_links();
     let temp_path = temp_dir.path();
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(output.status.success(), "Normalize command should succeed");
 
     let content = read_to_string(temp_path.join("main.md")).expect("Should read main file");
@@ -104,7 +104,7 @@ fn test_normalize_with_lists() {
     let temp_dir = setup_test_workspace_with_lists();
     let temp_path = temp_dir.path();
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(output.status.success(), "Normalize command should succeed");
 
     let content = read_to_string(temp_path.join("lists.md")).expect("Should read lists file");
@@ -129,7 +129,7 @@ fn test_normalize_without_config() {
     "};
     write(temp_path.join("test.md"), markdown_content).expect("Should write test file");
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(
         output.status.success(),
         "Normalize should work without explicit config"
@@ -145,7 +145,7 @@ fn test_normalize_with_verbose_flag() {
         .arg("normalize")
         .arg("--verbose")
         .arg("1")
-        .current_dir(&temp_path)
+        .current_dir(temp_path)
         .output()
         .expect("Failed to execute iwe normalize");
 
@@ -160,7 +160,7 @@ fn test_normalize_updates_link_titles() {
     let temp_dir = setup_test_workspace_with_outdated_links();
     let temp_path = temp_dir.path();
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(output.status.success(), "Normalize command should succeed");
 
     let content = read_to_string(temp_path.join("main.md")).expect("Should read main file");
@@ -173,12 +173,12 @@ fn test_normalize_preserves_file_structure() {
     let temp_dir = setup_complex_test_workspace();
     let temp_path = temp_dir.path();
 
-    let files_before = count_markdown_files(&temp_path);
+    let files_before = count_markdown_files(temp_path);
 
-    let output = run_normalize_command(&temp_path);
+    let output = run_normalize_command(temp_path);
     assert!(output.status.success(), "Normalize command should succeed");
 
-    let files_after = count_markdown_files(&temp_path);
+    let files_after = count_markdown_files(temp_path);
 
     assert_eq!(
         files_before, files_after,
@@ -190,7 +190,7 @@ fn setup_test_workspace_with_content() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let markdown_content = indoc! {"
         # Test Document
@@ -215,7 +215,7 @@ fn setup_test_workspace_with_unformatted_content() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let unformatted_content = indoc! {"
         # Header 1
@@ -240,7 +240,7 @@ fn setup_complex_test_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let file1_content = indoc! {"
         # File 1
@@ -285,7 +285,7 @@ fn setup_test_workspace_with_links() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let main_content = indoc! {"
         # Main Document
@@ -313,7 +313,7 @@ fn setup_test_workspace_with_lists() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let lists_content = indoc! {"
         # Lists Document
@@ -338,7 +338,7 @@ fn setup_test_workspace_with_outdated_links() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let main_content = indoc! {"
         # Main Document
@@ -362,7 +362,7 @@ fn setup_empty_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     temp_dir
 }

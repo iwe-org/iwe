@@ -135,12 +135,12 @@ fn main() {
     if app.global_opts.verbose > 1 {
         tracing_subscriber::fmt()
             .with_max_level(tracing::Level::DEBUG)
-            .with_writer(|| std::io::stderr())
+            .with_writer(std::io::stderr)
             .init();
     } else if app.global_opts.verbose > 0 {
         tracing_subscriber::fmt()
             .with_max_level(tracing::Level::INFO)
-            .with_writer(|| std::io::stderr())
+            .with_writer(std::io::stderr)
             .init();
     }
 
@@ -192,7 +192,7 @@ fn paths_command(args: Paths) {
         .paths()
         .iter()
         .filter(|n| n.ids().len() <= args.depth as usize)
-        .map(|n| render(&n, &graph))
+        .map(|n| render(n, &graph))
         .sorted()
         .unique()
         .for_each(|string| println!("{}", string));
@@ -208,7 +208,7 @@ fn contents_command(args: Contents) {
     graph
         .paths()
         .iter()
-        .filter(|n| n.ids().len() <= 1 as usize)
+        .filter(|n| n.ids().len() <= 1_usize)
         .map(|n| (&graph).node(n.first_id()).node_key())
         .map(|key| render_block_reference(&key, &graph))
         .sorted()
@@ -282,7 +282,7 @@ fn render(path: &NodePath, context: impl GraphContext) -> String {
     // For each fragment in the path, get the text and join them with a space
     path.ids()
         .iter()
-        .map(|id| context.get_text(id.clone()).trim().to_string())
+        .map(|id| context.get_text(*id).trim().to_string())
         .collect_vec()
         .join(" • ")
 }

@@ -342,17 +342,17 @@ fn normalize_to(expected: &str, denormalized: &str) {
 
     println!("denormalized:");
     println!("{}", denormalized);
-    println!("");
+    println!();
 
     if expected != denormalized {
         println!("expected:");
         println!("{}", expected);
-        println!("");
+        println!();
     }
 
     println!("normalized:");
     println!("{}", normalized);
-    println!("");
+    println!();
 
     assert_str_eq!(expected, normalized);
 }
