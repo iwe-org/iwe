@@ -334,10 +334,16 @@ impl<'a> GraphBuilder<'a> {
             return;
         }
 
-        if let Some(node) = iter.node() { self.add_new_node_and(node, |builder| {
-                if let Some(child) = iter.child() { builder.insert_from_iter(child); }
-                if let Some(next) = iter.next() { builder.append_from_visitor(next); }
-            }); }
+        if let Some(node) = iter.node() {
+            self.add_new_node_and(node, |builder| {
+                if let Some(child) = iter.child() {
+                    builder.insert_from_iter(child);
+                }
+                if let Some(next) = iter.next() {
+                    builder.append_from_visitor(next);
+                }
+            });
+        }
     }
 
     pub fn insert_from_iter<'b>(&mut self, iter: impl NodeIter<'b>) {
@@ -348,10 +354,16 @@ impl<'a> GraphBuilder<'a> {
             return;
         }
 
-        if let Some(node) = iter.node() { self.add_new_node_and(node, |builder| {
-                if let Some(child) = iter.child() { builder.insert_from_iter(child); }
-                if let Some(next) = iter.next() { builder.append_from_visitor(next); }
-            }); }
+        if let Some(node) = iter.node() {
+            self.add_new_node_and(node, |builder| {
+                if let Some(child) = iter.child() {
+                    builder.insert_from_iter(child);
+                }
+                if let Some(next) = iter.next() {
+                    builder.append_from_visitor(next);
+                }
+            });
+        }
     }
 
     pub fn link_node_id(&mut self, node_id: NodeId) {

@@ -1,7 +1,5 @@
-use crate::model::{
-    Key, LineId, MaybeLineId, MaybeNodeId, NodeId,
-};
 use crate::model::node::{ColumnAlignment, ReferenceType};
+use crate::model::{Key, LineId, MaybeLineId, MaybeNodeId, NodeId};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphNode {
@@ -312,11 +310,12 @@ impl GraphNode {
     }
 
     pub fn is_leaf(&self) -> bool {
-        matches!(self,
-            GraphNode::Leaf(_) |
-            GraphNode::Raw(_) |
-            GraphNode::Reference(_) |
-            GraphNode::HorizontalRule(_)
+        matches!(
+            self,
+            GraphNode::Leaf(_)
+                | GraphNode::Raw(_)
+                | GraphNode::Reference(_)
+                | GraphNode::HorizontalRule(_)
         )
     }
 

@@ -34,11 +34,7 @@ pub fn new_for_path(base_path: &PathBuf) -> State {
                 if parent == std::path::Path::new("") {
                     to_file_name(path)
                 } else {
-                    format!(
-                        "{}/{}",
-                        parent.to_string_lossy(),
-                        to_file_name(path)
-                    )
+                    format!("{}/{}", parent.to_string_lossy(), to_file_name(path))
                 }
             } else {
                 to_file_name(path)
@@ -50,8 +46,7 @@ pub fn new_for_path(base_path: &PathBuf) -> State {
 }
 
 pub fn new_from_hashmap(map: HashMap<String, String>) -> State {
-    map.into_iter()
-        .collect()
+    map.into_iter().collect()
 }
 
 pub fn write_store_at_path(store: &State, to: &Path) -> std::io::Result<()> {

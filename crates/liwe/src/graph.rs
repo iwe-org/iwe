@@ -473,8 +473,12 @@ impl Graph {
         );
         let node = self.graph_node(id);
 
-        if let Some(id) = node.child_id() { self.node_fmt(id, depth + 1, f) }
-        if let Some(id) = node.next_id() { self.node_fmt(id, depth, f) }
+        if let Some(id) = node.child_id() {
+            self.node_fmt(id, depth + 1, f)
+        }
+        if let Some(id) = node.next_id() {
+            self.node_fmt(id, depth, f)
+        }
     }
 
     pub fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {

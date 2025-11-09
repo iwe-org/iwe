@@ -12,7 +12,6 @@ pub struct Arena {
 
 impl Arena {
     pub fn node(&self, id: NodeId) -> GraphNode {
-        
         self.nodes[id as usize].clone()
     }
 
@@ -39,11 +38,13 @@ impl Arena {
             self.lines[line_id] = Line::new(line_id, GraphInlines::new());
         }
 
-        if let Some(id) = self.node(from_id)
-            .child_id() { self.delete_branch(id) }
+        if let Some(id) = self.node(from_id).child_id() {
+            self.delete_branch(id)
+        }
 
-        if let Some(id) = self.node(from_id)
-            .next_id() { self.delete_branch(id) }
+        if let Some(id) = self.node(from_id).next_id() {
+            self.delete_branch(id)
+        }
 
         self.set_node(from_id, GraphNode::Empty);
     }

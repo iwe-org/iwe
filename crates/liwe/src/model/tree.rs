@@ -242,7 +242,9 @@ impl Tree {
         let payload = pointer.node()?;
         let mut children = Vec::new();
 
-        if let Some(child) = pointer.child() { children.push(child) }
+        if let Some(child) = pointer.child() {
+            children.push(child)
+        }
 
         if let Some(child) = pointer.child() {
             let mut i = child;
@@ -386,7 +388,9 @@ impl Tree {
         let node = pointer.node().unwrap();
         let mut children = Vec::new();
 
-        if let Some(child) = pointer.child() { children.push(child) }
+        if let Some(child) = pointer.child() {
+            children.push(child)
+        }
 
         if let Some(child) = pointer.child() {
             let mut i = child;
@@ -566,7 +570,9 @@ impl Tree {
 
     pub fn remove_inline_links_to(&self, target_key: &Key) -> Tree {
         let updated_node = match &self.node {
-            Node::Leaf(inlines) => Node::Leaf(Self::remove_inline_links_to_rec(inlines, target_key)),
+            Node::Leaf(inlines) => {
+                Node::Leaf(Self::remove_inline_links_to_rec(inlines, target_key))
+            }
             Node::Section(inlines) => {
                 Node::Section(Self::remove_inline_links_to_rec(inlines, target_key))
             }
@@ -584,10 +590,7 @@ impl Tree {
         }
     }
 
-    fn remove_inline_links_to_rec(
-        inlines: &[GraphInline],
-        target_key: &Key,
-    ) -> Vec<GraphInline> {
+    fn remove_inline_links_to_rec(inlines: &[GraphInline], target_key: &Key) -> Vec<GraphInline> {
         inlines
             .iter()
             .map(|inline| match inline {

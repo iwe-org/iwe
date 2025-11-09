@@ -27,9 +27,7 @@ impl NodePath {
     }
 
     pub fn from_id(id: NodeId) -> NodePath {
-        NodePath {
-            ids: vec![id],
-        }
+        NodePath { ids: vec![id] }
     }
 
     pub fn from_ids(id1: NodeId, id2: NodeId) -> NodePath {
