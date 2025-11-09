@@ -1,10 +1,10 @@
 use indoc::indoc;
 use liwe::model::config::{Configuration, LibraryOptions, MarkdownOptions};
-use std::env;
 use std::fs::{create_dir_all, write};
-use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
+
+mod common;
 
 #[test]
 fn test_export_dot_basic() {
@@ -82,7 +82,7 @@ fn setup_test_workspace() -> TempDir {
 }
 
 fn run_export_dot_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Output {
-    let binary_path = get_binary_path();
+    let binary_path = common::get_iwe_binary_path();
 
     let mut cmd = Command::new(binary_path);
     cmd.current_dir(temp_dir.path()).arg("export").arg("dot");
@@ -92,27 +92,4 @@ fn run_export_dot_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Ou
     }
 
     cmd.output().expect("Failed to execute export dot command")
-}
-
-fn get_binary_path() -> PathBuf {
-    let mut binary_path = env::current_dir().expect("Failed to get current directory");
-
-    while !binary_path.join("Cargo.toml").exists() || !binary_path.join("crates").exists() {
-        if !binary_path.pop() {
-            panic!("Could not find workspace root");
-        }
-    }
-
-    binary_path.push("target");
-
-    let debug_path = binary_path.join("debug").join("iwe");
-    let release_path = binary_path.join("release").join("iwe");
-
-    if debug_path.exists() {
-        debug_path
-    } else if release_path.exists() {
-        release_path
-    } else {
-        panic!("Could not find iwe binary. Run 'cargo build' first.");
-    }
 }

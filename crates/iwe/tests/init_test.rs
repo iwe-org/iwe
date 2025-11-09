@@ -1,10 +1,9 @@
 use liwe::model::config::{Configuration, LibraryOptions, MarkdownOptions};
-use std::env;
 use std::fs::{create_dir_all, read_to_string, File};
-
-use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
+
+mod common;
 
 #[test]
 fn test_init_creates_iwe_directory() {
@@ -55,7 +54,7 @@ fn test_init_already_initialized() {
     let output1 = run_init_command(&temp_path);
     assert!(output1.status.success(), "First init should succeed");
 
-    let output2 = Command::new(get_iwe_binary_path())
+    let output2 = Command::new(common::get_iwe_binary_path())
         .arg("init")
         .arg("-v")
         .arg("2")
@@ -80,7 +79,7 @@ fn test_init_existing_iwe_file() {
     let iwe_file = temp_path.join(".iwe");
     File::create(&iwe_file).expect("Should create .iwe file");
 
-    let output = Command::new(get_iwe_binary_path())
+    let output = Command::new(common::get_iwe_binary_path())
         .arg("init")
         .arg("-v")
         .arg("2")
@@ -130,7 +129,7 @@ fn test_init_nested_directory() {
     let nested_path = temp_path.join("nested").join("directory");
     create_dir_all(&nested_path).expect("Should create nested directory");
 
-    let output = Command::new(get_iwe_binary_path())
+    let output = Command::new(common::get_iwe_binary_path())
         .arg("init")
         .current_dir(&nested_path)
         .output()
@@ -157,7 +156,7 @@ fn test_init_with_verbose_flag() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    let output = Command::new(get_iwe_binary_path())
+    let output = Command::new(common::get_iwe_binary_path())
         .arg("init")
         .arg("--verbose")
         .arg("1")
@@ -213,15 +212,9 @@ fn test_init_preserves_existing_config() {
 }
 
 fn run_init_command(work_dir: &std::path::Path) -> std::process::Output {
-    Command::new(get_iwe_binary_path())
+    Command::new(common::get_iwe_binary_path())
         .arg("init")
         .current_dir(work_dir)
         .output()
         .expect("Failed to execute iwe init")
-}
-
-fn get_iwe_binary_path() -> PathBuf {
-    let current_dir = env::current_dir().expect("Failed to get current directory");
-    let workspace_root = current_dir.parent().unwrap().parent().unwrap();
-    workspace_root.join("target").join("debug").join("iwe")
 }
