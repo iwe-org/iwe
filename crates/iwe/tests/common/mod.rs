@@ -15,7 +15,6 @@ pub fn get_iwe_binary_path() -> PathBuf {
     ["debug", "release"]
         .into_iter()
         .map(|x| binary_path.join(x).join("iwe"))
-        .filter(|x| x.exists())
-        .next()
+        .find(|x| x.exists())
         .unwrap_or_else(|| panic!("Could not find iwe binary"))
 }

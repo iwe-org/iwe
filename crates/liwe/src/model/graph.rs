@@ -76,19 +76,11 @@ impl GraphBlock {
     }
 
     fn is_list(&self) -> bool {
-        match self {
-            GraphBlock::BulletList(_) => true,
-            GraphBlock::OrderedList(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphBlock::BulletList(_) | GraphBlock::OrderedList(_))
     }
 
     fn is_paragraph(&self) -> bool {
-        match self {
-            GraphBlock::Plain(_) => true,
-            GraphBlock::Para(_) => true,
-            _ => false,
-        }
+        matches!(self, GraphBlock::Plain(_) | GraphBlock::Para(_))
     }
 
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
@@ -312,7 +304,7 @@ impl GraphInline {
                     return GraphInline::Link(url.clone(), title.clone(), *link_type, new_inlines);
                 }
 
-                return self.clone();
+                self.clone()
             }
             _ => self.clone(),
         }
@@ -358,7 +350,7 @@ impl GraphInline {
                     .collect(),
             ),
             GraphInline::Link(_, title, link_type, _) => {
-                if self.is_ref() && self.ref_key().map_or(false, |key| key.eq(target_key)) {
+                if self.is_ref() && self.ref_key().is_some_and(|key| key.eq(target_key)) {
                     return GraphInline::Link(
                         updated_key.to_string(),
                         title.clone(),
@@ -367,7 +359,7 @@ impl GraphInline {
                     );
                 }
 
-                return self.clone();
+                self.clone()
             }
             _ => self.clone(),
         }
@@ -392,7 +384,7 @@ fn left_pad_and_prefix(text: &str) -> String {
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {
-            result.push_str("\n");
+            result.push('\n');
         } else if n == 0 {
             result.push_str(&format!("- {}\n", line));
         } else {
@@ -408,7 +400,7 @@ fn left_pad_and_prefix_num(text: &str, num: usize) -> String {
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {
-            result.push_str("\n");
+            result.push('\n');
         } else if n == 0 {
             result.push_str(&format!("{} {}\n", prefix, line));
         } else {
@@ -417,6 +409,53 @@ fn left_pad_and_prefix_num(text: &str, num: usize) -> String {
     }
 
     result
+}
+
+pub fn to_plain_text(content: &GraphInlines) -> String {
+    content
+        .iter()
+        .map(|i| i.plain_text())
+        .collect::<Vec<String>>()
+        .join("")
+}
+
+pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) -> String {
+    content
+        .iter()
+        .map(|i| i.to_markdown(options))
+        .collect::<Vec<String>>()
+        .join("")
+}
+
+pub fn blocks_to_markdown_and(blocks: &Blocks, sparce: bool, options: &MarkdownOptions) -> String {
+    blocks
+        .iter()
+        .map(|block| block.to_markdown(options))
+        .collect::<Vec<String>>()
+        .join(if sparce { "\n" } else { "" })
+}
+
+pub fn blocks_to_markdown(blocks: &Blocks, options: &MarkdownOptions) -> String {
+    blocks
+        .iter()
+        .map(|block| block.to_markdown(options))
+        .collect::<Vec<String>>()
+        .join("")
+}
+
+pub fn blocks_to_markdown_sparce(blocks: &Blocks, options: &MarkdownOptions) -> String {
+    blocks
+        .iter()
+        .map(|block| block.to_markdown(options))
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<GraphInline> {
+    content
+        .iter()
+        .map(|i| i.to_graph_inline(relative_to))
+        .collect()
 }
 
 #[cfg(test)]
@@ -561,51 +600,4 @@ pub mod tests {
             blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
-}
-
-pub fn to_plain_text(content: &GraphInlines) -> String {
-    content
-        .iter()
-        .map(|i| i.plain_text())
-        .collect::<Vec<String>>()
-        .join("")
-}
-
-pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) -> String {
-    content
-        .iter()
-        .map(|i| i.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join("")
-}
-
-pub fn blocks_to_markdown_and(blocks: &Blocks, sparce: bool, options: &MarkdownOptions) -> String {
-    blocks
-        .iter()
-        .map(|block| block.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join(if sparce { "\n" } else { "" })
-}
-
-pub fn blocks_to_markdown(blocks: &Blocks, options: &MarkdownOptions) -> String {
-    blocks
-        .iter()
-        .map(|block| block.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join("")
-}
-
-pub fn blocks_to_markdown_sparce(blocks: &Blocks, options: &MarkdownOptions) -> String {
-    blocks
-        .iter()
-        .map(|block| block.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join("\n")
-}
-
-pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<GraphInline> {
-    content
-        .iter()
-        .map(|i| i.to_graph_inline(relative_to))
-        .collect()
 }

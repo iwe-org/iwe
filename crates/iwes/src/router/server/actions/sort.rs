@@ -10,7 +10,7 @@ pub struct SortAction {
 
 impl ActionProvider for SortAction {
     fn identifier(&self) -> String {
-        format!("custom.{}", self.identifier.to_string())
+        format!("custom.{}", self.identifier)
     }
 
     fn action(

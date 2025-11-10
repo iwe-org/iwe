@@ -11,7 +11,7 @@ fn test_contents_basic_output() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -29,7 +29,7 @@ fn test_contents_includes_links() {
     let temp_dir = setup_test_workspace_with_multiple_files();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -50,7 +50,7 @@ fn test_contents_format_structure() {
     let temp_dir = setup_test_workspace_with_multiple_files();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -81,7 +81,7 @@ fn test_contents_empty_workspace() {
     let temp_dir = setup_empty_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(
         output.status.success(),
         "Contents should succeed even with empty workspace"
@@ -100,7 +100,7 @@ fn test_contents_complex_workspace() {
     let temp_dir = setup_complex_test_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -117,7 +117,7 @@ fn test_contents_with_nested_structure() {
     let temp_dir = setup_test_workspace_with_nested_files();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -140,7 +140,7 @@ fn test_contents_with_verbose_flag() {
         .arg("contents")
         .arg("--verbose")
         .arg("1")
-        .current_dir(&temp_path)
+        .current_dir(temp_path)
         .output()
         .expect("Failed to execute iwe contents");
 
@@ -172,7 +172,7 @@ fn test_contents_without_config() {
     "};
     write(temp_path.join("test.md"), markdown_content).expect("Should write test file");
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(
         output.status.success(),
         "Contents should work without explicit config"
@@ -190,7 +190,7 @@ fn test_contents_stderr_empty() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 stderr");
@@ -207,7 +207,7 @@ fn test_contents_unique_entries() {
     let temp_dir = setup_test_workspace_with_duplicates();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -228,7 +228,7 @@ fn test_contents_with_special_characters() {
     let temp_dir = setup_test_workspace_with_special_chars();
     let temp_path = temp_dir.path();
 
-    let output = run_contents_command(&temp_path, &[]);
+    let output = run_contents_command(temp_path, &[]);
     assert!(output.status.success(), "Contents command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -246,7 +246,7 @@ fn setup_test_workspace_with_content() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let markdown_content = indoc! {"
         # Test Document
@@ -271,7 +271,7 @@ fn setup_test_workspace_with_multiple_files() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let file1_content = indoc! {"
         # Document One
@@ -302,7 +302,7 @@ fn setup_complex_test_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let file1_content = indoc! {"
         # Complex Document 1
@@ -351,7 +351,7 @@ fn setup_test_workspace_with_nested_files() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let root_content = indoc! {"
         # Root Document
@@ -390,7 +390,7 @@ fn setup_test_workspace_with_duplicates() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let content1 = indoc! {"
         # Unique Title One
@@ -414,7 +414,7 @@ fn setup_test_workspace_with_special_chars() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let special_content = indoc! {"
         # Special Characters & Symbols
@@ -435,7 +435,7 @@ fn setup_empty_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     temp_dir
 }

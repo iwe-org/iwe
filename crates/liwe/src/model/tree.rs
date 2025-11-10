@@ -25,29 +25,20 @@ impl Tree {
     }
 
     pub fn is_section(&self) -> bool {
-        match self.node {
-            Node::Section(_) => true,
-            _ => false,
-        }
+        matches!(self.node, Node::Section(_))
     }
 
     pub fn is_list(&self) -> bool {
-        match self.node {
-            Node::BulletList() | Node::OrderedList() => true,
-            _ => false,
-        }
+        matches!(self.node, Node::BulletList() | Node::OrderedList())
     }
 
     pub fn is_quote(&self) -> bool {
-        match self.node {
-            Node::Quote() => true,
-            _ => false,
-        }
+        matches!(self.node, Node::Quote())
     }
 
     pub fn extract_sections(&self, keys: HashMap<NodeId, (Key, String)>) -> Tree {
         self.id
-            .filter(|id| keys.contains_key(&id))
+            .filter(|id| keys.contains_key(id))
             .map(|id| {
                 let (key, text) = keys.get(&id).expect("to have key").clone();
                 Tree {
@@ -220,7 +211,7 @@ impl Tree {
                 Tree {
                     id: self.id,
                     node: self.node.clone(),
-                    children: children,
+                    children,
                 }
             })
     }
@@ -251,7 +242,9 @@ impl Tree {
         let payload = pointer.node()?;
         let mut children = Vec::new();
 
-        pointer.child().map(|child| children.push(child));
+        if let Some(child) = pointer.child() {
+            children.push(child)
+        }
 
         if let Some(child) = pointer.child() {
             let mut i = child;
@@ -266,8 +259,7 @@ impl Tree {
             node: payload,
             children: children
                 .into_iter()
-                .map(|child| Tree::from_pointer(child))
-                .flatten()
+                .filter_map(|child| Tree::from_pointer(child))
                 .collect_vec(),
         })
     }
@@ -396,7 +388,9 @@ impl Tree {
         let node = pointer.node().unwrap();
         let mut children = Vec::new();
 
-        pointer.child().map(|child| children.push(child));
+        if let Some(child) = pointer.child() {
+            children.push(child)
+        }
 
         if let Some(child) = pointer.child() {
             let mut i = child;
@@ -424,7 +418,7 @@ impl Tree {
             node,
             children: children
                 .into_iter()
-                .map(|child| {
+                .flat_map(|child| {
                     if child.is_reference() {
                         child
                             .ref_key()
@@ -437,7 +431,6 @@ impl Tree {
                         Tree::squash_from_pointer(child, depth)
                     }
                 })
-                .flatten()
                 .collect_vec(),
         }]
     }
@@ -477,10 +470,7 @@ impl Tree {
     }
 
     pub fn is_bullet_list(&self) -> bool {
-        match self.node {
-            Node::BulletList() => true,
-            _ => false,
-        }
+        matches!(self.node, Node::BulletList())
     }
 
     pub fn sort_children(&self, node_id: NodeId, reverse: bool) -> Tree {
@@ -540,10 +530,8 @@ impl Tree {
                     if comparison == std::cmp::Ordering::Less {
                         return false;
                     }
-                } else {
-                    if comparison == std::cmp::Ordering::Greater {
-                        return false;
-                    }
+                } else if comparison == std::cmp::Ordering::Greater {
+                    return false;
                 }
             }
 
@@ -582,9 +570,11 @@ impl Tree {
 
     pub fn remove_inline_links_to(&self, target_key: &Key) -> Tree {
         let updated_node = match &self.node {
-            Node::Leaf(inlines) => Node::Leaf(self.remove_inline_links_to_rec(inlines, target_key)),
+            Node::Leaf(inlines) => {
+                Node::Leaf(Self::remove_inline_links_to_rec(inlines, target_key))
+            }
             Node::Section(inlines) => {
-                Node::Section(self.remove_inline_links_to_rec(inlines, target_key))
+                Node::Section(Self::remove_inline_links_to_rec(inlines, target_key))
             }
             _ => self.node.clone(),
         };
@@ -600,11 +590,7 @@ impl Tree {
         }
     }
 
-    fn remove_inline_links_to_rec(
-        &self,
-        inlines: &[GraphInline],
-        target_key: &Key,
-    ) -> Vec<GraphInline> {
+    fn remove_inline_links_to_rec(inlines: &[GraphInline], target_key: &Key) -> Vec<GraphInline> {
         inlines
             .iter()
             .map(|inline| match inline {
@@ -616,25 +602,25 @@ impl Tree {
                     }
                 }
                 GraphInline::Emph(nested) => {
-                    GraphInline::Emph(self.remove_inline_links_to_rec(nested, target_key))
+                    GraphInline::Emph(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 GraphInline::Strong(nested) => {
-                    GraphInline::Strong(self.remove_inline_links_to_rec(nested, target_key))
+                    GraphInline::Strong(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 GraphInline::Strikeout(nested) => {
-                    GraphInline::Strikeout(self.remove_inline_links_to_rec(nested, target_key))
+                    GraphInline::Strikeout(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 GraphInline::Underline(nested) => {
-                    GraphInline::Underline(self.remove_inline_links_to_rec(nested, target_key))
+                    GraphInline::Underline(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 GraphInline::Superscript(nested) => {
-                    GraphInline::Superscript(self.remove_inline_links_to_rec(nested, target_key))
+                    GraphInline::Superscript(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 GraphInline::Subscript(nested) => {
-                    GraphInline::Subscript(self.remove_inline_links_to_rec(nested, target_key))
+                    GraphInline::Subscript(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 GraphInline::SmallCaps(nested) => {
-                    GraphInline::SmallCaps(self.remove_inline_links_to_rec(nested, target_key))
+                    GraphInline::SmallCaps(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 _ => inline.clone(),
             })
@@ -657,7 +643,7 @@ pub struct TreeIter<'a> {
 impl<'a> TreeIter<'a> {
     pub fn new(tree_node: &'a Tree) -> TreeIter<'a> {
         TreeIter {
-            tree_node: &tree_node,
+            tree_node,
             path: vec![],
         }
     }

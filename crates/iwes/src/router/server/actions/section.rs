@@ -6,7 +6,7 @@ pub struct SectionToList {}
 
 impl ActionProvider for SectionToList {
     fn identifier(&self) -> String {
-        return "refactor.rewrite.section.list".to_string();
+        "refactor.rewrite.section.list".to_string()
     }
 
     fn action(

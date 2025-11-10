@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, ops::Range, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fmt::Display, ops::Range, path::Path, sync::Arc};
 
 use relative_path::RelativePath;
 
@@ -95,14 +95,14 @@ impl Key {
     }
 
     pub fn last_url_segment(&self) -> String {
-        (&format!("{}", self.relative_path)).to_string()
+        format!("{}", self.relative_path).to_string()
     }
 
     pub fn to_path(&self) -> String {
-        (&format!("{}.md", self.relative_path)).to_string()
+        format!("{}.md", self.relative_path).to_string()
     }
 
-    pub fn from_path(path: &PathBuf) -> Key {
+    pub fn from_path(path: &Path) -> Key {
         let name = path.file_name().unwrap().to_string_lossy().to_string();
         let key = name.trim_end_matches(".md").to_string();
         Key::name(&key)

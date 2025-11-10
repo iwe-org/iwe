@@ -50,7 +50,7 @@ impl InlineAction {
 
 impl ActionProvider for InlineAction {
     fn identifier(&self) -> String {
-        format!("custom.{}", self.identifier.to_string())
+        format!("custom.{}", self.identifier)
     }
 
     fn action(

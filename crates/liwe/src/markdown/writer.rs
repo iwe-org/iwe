@@ -21,7 +21,7 @@ impl MarkdownWriter {
     pub fn write(&self, blocks: Vec<GraphBlock>) -> String {
         let mut buf = String::new();
         cmark_with_options(
-            self.blocks_events(blocks).iter().map(|e| e.clone()),
+            self.blocks_events(blocks).iter().cloned(),
             &mut buf,
             Options {
                 newlines_after_headline: 2,
@@ -154,7 +154,7 @@ impl MarkdownWriter {
         events
     }
 
-    fn inlines_to_events<'a>(&self, inlines: GraphInlines) -> Vec<Event<'_>> {
+    fn inlines_to_events(&self, inlines: GraphInlines) -> Vec<Event<'_>> {
         let mut events = Vec::new();
         for inline in inlines {
             match inline {

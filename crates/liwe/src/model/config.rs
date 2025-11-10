@@ -408,11 +408,7 @@ pub fn load_config() -> Configuration {
     if config_path.exists() {
         debug!("reading config from path: {:?}", config_path);
 
-        let configuration = migrate(
-            &read_to_string(config_path)
-                .ok()
-                .expect("to read config file"),
-        );
+        let configuration = migrate(&read_to_string(config_path).expect("to read config file"));
 
         toml::from_str::<Configuration>(&configuration).expect("to parse config file")
     } else {

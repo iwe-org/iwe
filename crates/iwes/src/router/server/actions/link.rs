@@ -43,7 +43,7 @@ impl LinkAction {
 
         std::iter::successors(Some((base_key.clone(), 1)), |(key, counter)| {
             context.key_exists(key).then(|| {
-                let suffixed_name = format!("{}-{}", base_key.to_string(), counter);
+                let suffixed_name = format!("{}-{}", base_key, counter);
                 (Key::name(&suffixed_name), counter + 1)
             })
         })
@@ -62,7 +62,7 @@ impl LinkAction {
 
         if start < end && end <= line_text.len() {
             let text = line_text[start..end].to_string();
-            (!text.trim().is_empty()).then(|| (text, start_char, end_char))
+            (!text.trim().is_empty()).then_some((text, start_char, end_char))
         } else {
             None
         }
@@ -221,7 +221,7 @@ impl ActionProvider for LinkAction {
                     markdown: new_markdown,
                 }),
                 Change::Update(Update {
-                    key: key,
+                    key,
                     markdown: updated_markdown,
                 }),
             ])

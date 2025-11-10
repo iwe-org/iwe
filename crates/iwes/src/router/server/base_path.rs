@@ -38,9 +38,8 @@ impl BasePath {
 
     pub fn url_to_key(&self, url: &Uri) -> Key {
         Key::name(
-            &url.to_string()
-                .trim_start_matches(&self.base_path)
-                .to_string(),
+            url.to_string()
+                .trim_start_matches(&self.base_path),
         )
     }
 

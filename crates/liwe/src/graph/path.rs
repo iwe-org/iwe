@@ -19,26 +19,20 @@ pub struct NodePath {
 
 impl NodePath {
     pub fn target(&self) -> NodeId {
-        self.ids.last().unwrap().clone()
+        *self.ids.last().unwrap()
     }
 
     pub fn new(parents: Vec<NodeId>) -> NodePath {
         NodePath { ids: parents }
     }
 
-    pub fn default() -> NodePath {
-        NodePath { ids: vec![] }
-    }
-
     pub fn from_id(id: NodeId) -> NodePath {
-        NodePath {
-            ids: vec![id.clone()],
-        }
+        NodePath { ids: vec![id] }
     }
 
     pub fn from_ids(id1: NodeId, id2: NodeId) -> NodePath {
         NodePath {
-            ids: vec![id1.clone(), id2.clone()],
+            ids: vec![id1, id2],
         }
     }
 
@@ -47,16 +41,16 @@ impl NodePath {
     }
 
     pub fn first_id(&self) -> NodeId {
-        self.ids.first().unwrap().clone()
+        *self.ids.first().unwrap()
     }
 
     pub fn last_id(&self) -> NodeId {
-        self.ids.last().unwrap().clone()
+        *self.ids.last().unwrap()
     }
 
     pub fn append(&self, key: NodeId) -> NodePath {
         let mut parents = self.ids.clone();
-        parents.push(key.clone());
+        parents.push(key);
         NodePath { ids: parents }
     }
 
@@ -115,8 +109,7 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
             .iter()
             .map(|node_id| graph.node(*node_id))
             .flat_map(|reference| reference.to_parent())
-            .map(|parent| paths_for_node(graph, parent.id().unwrap(), nodes))
-            .flatten()
+            .flat_map(|parent| paths_for_node(graph, parent.id().unwrap(), nodes))
             .collect_vec(),
         GraphNode::Section(_) => graph
             .node(id)
@@ -125,7 +118,7 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
             .unwrap_or_default()
             .iter()
             .map(|path| path.append(id))
-            .chain(vec![NodePath::from_id(id)].into_iter())
+            .chain(vec![NodePath::from_id(id)])
             .collect_vec(),
         _ => {
             vec![]

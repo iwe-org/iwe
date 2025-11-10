@@ -11,7 +11,7 @@ fn test_paths_basic_output() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(output.status.success(), "Paths command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -29,7 +29,7 @@ fn test_paths_with_depth_limit() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &["--depth", "1"]);
+    let output = run_paths_command(temp_path, &["--depth", "1"]);
     assert!(
         output.status.success(),
         "Paths command with depth should succeed"
@@ -49,7 +49,7 @@ fn test_paths_with_higher_depth() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &["--depth", "6"]);
+    let output = run_paths_command(temp_path, &["--depth", "6"]);
     assert!(
         output.status.success(),
         "Paths command with higher depth should succeed"
@@ -65,7 +65,7 @@ fn test_paths_default_depth() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(output.status.success(), "Paths command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -81,7 +81,7 @@ fn test_paths_empty_workspace() {
     let temp_dir = setup_empty_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(
         output.status.success(),
         "Paths should succeed even with empty workspace"
@@ -95,7 +95,7 @@ fn test_paths_complex_workspace() {
     let temp_dir = setup_complex_test_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(output.status.success(), "Paths command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -112,7 +112,7 @@ fn test_paths_with_links() {
     let temp_dir = setup_test_workspace_with_links();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(output.status.success(), "Paths command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -128,7 +128,7 @@ fn test_paths_output_format() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(output.status.success(), "Paths command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -150,7 +150,7 @@ fn test_paths_sorted_unique_output() {
     let temp_dir = setup_test_workspace_with_duplicates();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(output.status.success(), "Paths command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -176,7 +176,7 @@ fn test_paths_with_verbose_flag() {
         .arg("paths")
         .arg("--verbose")
         .arg("1")
-        .current_dir(&temp_path)
+        .current_dir(temp_path)
         .output()
         .expect("Failed to execute iwe paths");
 
@@ -194,7 +194,7 @@ fn test_paths_zero_depth() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &["--depth", "0"]);
+    let output = run_paths_command(temp_path, &["--depth", "0"]);
     assert!(
         output.status.success(),
         "Paths command with depth 0 should succeed"
@@ -219,7 +219,7 @@ fn test_paths_without_config() {
     "};
     write(temp_path.join("test.md"), markdown_content).expect("Should write test file");
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(
         output.status.success(),
         "Paths should work without explicit config"
@@ -231,7 +231,7 @@ fn test_paths_stderr_empty() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_paths_command(&temp_path, &[]);
+    let output = run_paths_command(temp_path, &[]);
     assert!(output.status.success(), "Paths command should succeed");
 
     let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 stderr");
@@ -247,7 +247,7 @@ fn setup_test_workspace_with_content() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let markdown_content = indoc! {"
         # Test Document
@@ -276,7 +276,7 @@ fn setup_complex_test_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let file1_content = indoc! {"
         # Document 1
@@ -333,7 +333,7 @@ fn setup_test_workspace_with_links() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let main_content = indoc! {"
         # Main Document
@@ -369,7 +369,7 @@ fn setup_test_workspace_with_duplicates() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     let content1 = indoc! {"
         # Duplicate Title
@@ -401,7 +401,7 @@ fn setup_empty_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(&temp_path);
+    setup_iwe_config(temp_path);
 
     temp_dir
 }

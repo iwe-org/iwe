@@ -12,12 +12,11 @@ pub struct Arena {
 
 impl Arena {
     pub fn node(&self, id: NodeId) -> GraphNode {
-        let node = self.nodes[id as usize].clone();
-        node
+        self.nodes[id as usize].clone()
     }
 
     pub fn get_line(&self, id: LineId) -> Line {
-        self.lines[id as usize].clone()
+        self.lines[id].clone()
     }
 
     pub fn add_line(&mut self, inlines: GraphInlines) -> LineId {
@@ -36,16 +35,16 @@ impl Arena {
 
     pub fn delete_branch(&mut self, from_id: NodeId) {
         if let Some(line_id) = self.node(from_id).line_id() {
-            self.lines[line_id as usize] = Line::new(line_id, GraphInlines::new());
+            self.lines[line_id] = Line::new(line_id, GraphInlines::new());
         }
 
-        self.node(from_id)
-            .child_id()
-            .map(|id| self.delete_branch(id));
+        if let Some(id) = self.node(from_id).child_id() {
+            self.delete_branch(id)
+        }
 
-        self.node(from_id)
-            .next_id()
-            .map(|id| self.delete_branch(id));
+        if let Some(id) = self.node(from_id).next_id() {
+            self.delete_branch(id)
+        }
 
         self.set_node(from_id, GraphNode::Empty);
     }

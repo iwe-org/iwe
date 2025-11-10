@@ -21,6 +21,12 @@ pub struct MarkdownEventsReader {
     content: Option<String>,
 }
 
+impl Default for MarkdownEventsReader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MarkdownEventsReader {
     pub fn new() -> MarkdownEventsReader {
         MarkdownEventsReader {
@@ -59,15 +65,17 @@ impl MarkdownEventsReader {
     }
 
     pub fn top_block(&mut self) -> &mut DocumentBlock {
-        self.blocks_stack.last_mut().expect(&format!(
-            "parse markdown:\n{}",
-            &self.content.clone().unwrap_or_default()
-        ))
+        self.blocks_stack.last_mut().unwrap_or_else(|| {
+            panic!(
+                "parse markdown:\n{}",
+                &self.content.clone().unwrap_or_default()
+            )
+        })
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
         self.content = Some(content.to_string());
-        let mut iter = Parser::new_ext(
+        let iter = Parser::new_ext(
             content,
             Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
                 | Options::ENABLE_WIKILINKS
@@ -76,7 +84,7 @@ impl MarkdownEventsReader {
         .into_offset_iter();
         self.line_starts = line_starts(content);
 
-        while let Some((event, range)) = iter.next() {
+        for (event, range) in iter {
             match event {
                 Start(tag) => {
                     self.start_tag(tag, range);
@@ -88,7 +96,7 @@ impl MarkdownEventsReader {
                     if !self.metadata_block {
                         match self.top_block() {
                             DocumentBlock::CodeBlock(code_block) => {
-                                code_block.text = format!("{}{}", code_block.text, text.to_string())
+                                code_block.text = format!("{}{}", code_block.text, text)
                             }
                             DocumentBlock::RawBlock(block) => block.text = text.to_string(),
                             _ => {
@@ -163,7 +171,7 @@ impl MarkdownEventsReader {
         let inline = self.inlines_stack.pop().unwrap();
         let pos = self.inlines_pos_stack.pop().unwrap();
 
-        if self.inlines_stack.len() == 0 {
+        if self.inlines_stack.is_empty() {
             self.top_block().append_inline(inline, pos);
             return;
         }
@@ -174,7 +182,7 @@ impl MarkdownEventsReader {
     fn pop_block(&mut self) {
         let block = self.blocks_stack.pop().unwrap();
 
-        if self.blocks_stack.len() == 0 {
+        if self.blocks_stack.is_empty() {
             self.blocks.push(block);
             return;
         }
@@ -289,7 +297,7 @@ impl MarkdownEventsReader {
                         inlines: vec![],
                         target: Target {
                             url: normalize_url(
-                                &dest_url.to_string(),
+                                dest_url.as_ref(),
                                 &self.markdown_options.refs_extension,
                             ),
                             title: title.to_string(),

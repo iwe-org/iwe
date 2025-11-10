@@ -270,10 +270,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                         model_parameters: configuration
                             .models
                             .get(&transform.model)
-                            .expect(
-                                format!("Model {} not found in configuration", transform.model)
-                                    .as_str(),
-                            )
+                            .unwrap_or_else(|| panic!("Model {} not found in configuration", transform.model))
                             .clone(),
                         prompt_template: transform.prompt_template.clone(),
                         context: transform.context.clone(),
@@ -281,7 +278,8 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     action
                 }
                 ActionDefinition::Attach(attach) => {
-                    let action = ActionEnum::AttachAction(AttachAction {
+                    
+                    ActionEnum::AttachAction(AttachAction {
                         title: attach.title.clone(),
                         identifier: identifier.clone(),
                         document_template: attach.document_template.clone(),
@@ -296,28 +294,28 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
-                    });
-                    action
+                    })
                 }
                 ActionDefinition::Sort(sort) => {
-                    let action = ActionEnum::SortAction(SortAction {
+                    
+                    ActionEnum::SortAction(SortAction {
                         title: sort.title.clone(),
                         identifier: identifier.clone(),
                         reverse: sort.reverse.unwrap_or(false),
-                    });
-                    action
+                    })
                 }
                 ActionDefinition::Inline(inline) => {
-                    let action = ActionEnum::InlineAction(InlineAction {
+                    
+                    ActionEnum::InlineAction(InlineAction {
                         title: inline.title.clone(),
                         identifier: identifier.clone(),
                         inline_type: inline.inline_type.clone(),
                         keep_target: inline.keep_target.unwrap_or(false),
-                    });
-                    action
+                    })
                 }
                 ActionDefinition::Extract(extract) => {
-                    let action = ActionEnum::SectionExtract(SectionExtract {
+                    
+                    ActionEnum::SectionExtract(SectionExtract {
                         title: extract.title.clone(),
                         identifier: identifier.clone(),
                         link_type: extract.link_type.clone(),
@@ -327,11 +325,11 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
-                    });
-                    action
+                    })
                 }
                 ActionDefinition::ExtractAll(extract_all) => {
-                    let action = ActionEnum::ExtractAll(ExtractAll {
+                    
+                    ActionEnum::ExtractAll(ExtractAll {
                         title: extract_all.title.clone(),
                         identifier: identifier.clone(),
                         link_type: extract_all.link_type.clone(),
@@ -341,11 +339,11 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
-                    });
-                    action
+                    })
                 }
                 ActionDefinition::Link(link) => {
-                    let action = ActionEnum::LinkAction(LinkAction {
+                    
+                    ActionEnum::LinkAction(LinkAction {
                         title: link.title.clone(),
                         identifier: identifier.clone(),
                         link_type: link.link_type.clone(),
@@ -355,8 +353,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
-                    });
-                    action
+                    })
                 }
             }),
     );

@@ -99,16 +99,12 @@ impl Projector {
             }
             Node::Table(_) => {
                 blocks.push(GraphBlock::Table(
-                    iter.table_header()
-                        .unwrap_or_default()
-                        .iter()
-                        .cloned()
-                        .collect(),
+                    iter.table_header().unwrap_or_default().to_vec(),
                     iter.table_alignment().unwrap_or_default(),
                     iter.table_rows()
                         .unwrap_or_default()
                         .iter()
-                        .map(|row| row.iter().cloned().collect())
+                        .map(|row| row.to_vec())
                         .collect(),
                 ));
             }
@@ -132,17 +128,18 @@ impl Projector {
             items.push(vec![GraphBlock::Plain(iter.inlines())]);
         }
 
-        iter.child()
-            .map(|child| self.with(0).project_node(child))
-            .map(|sub_list| {
-                sub_list
-                    .iter()
-                    .for_each(|item| items.last_mut().unwrap().push(item.clone()))
-            });
+        if let Some(sub_list) = iter.child().map(|child| self.with(0).project_node(child)) {
+            sub_list
+                .iter()
+                .for_each(|item| items.last_mut().unwrap().push(item.clone()))
+        }
 
-        iter.next()
+        if let Some(blocks) = iter
+            .next()
             .map(|next| self.with(self.header_level).project_list_item(next))
-            .map(|blocks| items.append(blocks.clone().as_mut()));
+        {
+            items.append(blocks.clone().as_mut())
+        }
 
         items
     }

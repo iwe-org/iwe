@@ -9,6 +9,12 @@ pub struct MarkdownReader {}
 
 pub mod writer;
 
+impl Default for MarkdownReader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MarkdownReader {
     pub fn new() -> MarkdownReader {
         MarkdownReader {}

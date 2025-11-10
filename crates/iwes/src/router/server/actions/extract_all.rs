@@ -72,9 +72,9 @@ impl ExtractAll {
             })
             .expect("template to work");
 
-        let base_key = Key::combine(&key.parent(), &relative_key);
+        
 
-        base_key
+        Key::combine(&key.parent(), &relative_key)
     }
 
     fn config_to_reference_type(link_type: Option<&LinkType>) -> ReferenceType {
@@ -124,8 +124,7 @@ impl ExtractAll {
             children: tree
                 .children
                 .iter()
-                .map(|child| Self::extract_sections_rec(child, sub_sections, extracted, link_type))
-                .flatten()
+                .flat_map(|child| Self::extract_sections_rec(child, sub_sections, extracted, link_type))
                 .collect(),
         }]
     }
@@ -133,7 +132,7 @@ impl ExtractAll {
 
 impl ActionProvider for ExtractAll {
     fn identifier(&self) -> String {
-        format!("custom.{}", self.identifier.to_string())
+        format!("custom.{}", self.identifier)
     }
 
     fn action(
@@ -191,7 +190,7 @@ impl ActionProvider for ExtractAll {
                     let mut counter = 1;
 
                     while context.key_exists(&new_key) || generated_keys.contains(&new_key) {
-                        let suffixed_name = format!("{}-{}", base_key.to_string(), counter);
+                        let suffixed_name = format!("{}-{}", base_key, counter);
                         new_key = Key::name(&suffixed_name);
                         counter += 1;
                     }

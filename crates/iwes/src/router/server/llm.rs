@@ -81,11 +81,11 @@ impl Default for Role {
     }
 }
 
-pub fn apply_prompt<'a>(prompt: String, model: &Model) -> String {
+pub fn apply_prompt(prompt: String, model: &Model) -> String {
     let client = reqwest::blocking::Client::new();
 
     let token = var(model.api_key_env.clone())
-        .expect(&format!("{} env var must be set", model.api_key_env));
+        .unwrap_or_else(|_| panic!("{} env var must be set", model.api_key_env));
 
     let request = ChatCompletionRequest {
         model: model.name.clone(),

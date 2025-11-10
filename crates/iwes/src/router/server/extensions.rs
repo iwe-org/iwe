@@ -1,5 +1,3 @@
-use std::u32;
-
 use extend::ext;
 use itertools::Itertools;
 use liwe::graph::path::NodePath;
@@ -18,7 +16,7 @@ pub impl CodeActionParams {
         if let Some(only) = self.clone().context.only {
             only.contains(kind)
         } else {
-            return true;
+            true
         }
     }
 
@@ -69,8 +67,8 @@ pub impl Range {
 
 #[ext]
 pub impl SearchPath {
-    #[allow(deprecated)]
 
+    #[allow(deprecated)]
     fn path_to_symbol(
         &self,
         context: impl GraphContext,

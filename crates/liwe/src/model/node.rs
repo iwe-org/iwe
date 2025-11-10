@@ -47,10 +47,7 @@ impl Node {
     }
 
     pub fn is_reference(&self) -> bool {
-        match self {
-            Node::Reference(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::Reference(_))
     }
 }
 
@@ -207,66 +204,39 @@ pub trait NodeIter<'a>: Sized {
     }
 
     fn is_document(&self) -> bool {
-        match self.node() {
-            Some(Node::Document(_, _)) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::Document(_, _)))
     }
 
     fn is_section(&self) -> bool {
-        match self.node() {
-            Some(Node::Section(_)) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::Section(_)))
     }
 
     fn is_ordered_list(&self) -> bool {
-        match self.node() {
-            Some(Node::OrderedList()) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::OrderedList()))
     }
 
     fn is_bullet_list(&self) -> bool {
-        match self.node() {
-            Some(Node::BulletList()) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::BulletList()))
     }
 
     fn is_reference(&self) -> bool {
-        match self.node() {
-            Some(Node::Reference(_)) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::Reference(_)))
     }
 
     fn is_horizontal_rule(&self) -> bool {
-        match self.node() {
-            Some(Node::HorizontalRule()) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::HorizontalRule()))
     }
 
     fn is_raw(&self) -> bool {
-        match self.node() {
-            Some(Node::Raw(_, _)) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::Raw(_, _)))
     }
 
     fn is_leaf(&self) -> bool {
-        match self.node() {
-            Some(Node::Leaf(_)) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::Leaf(_)))
     }
 
     fn is_quote(&self) -> bool {
-        match self.node() {
-            Some(Node::Quote()) => true,
-            _ => false,
-        }
+        matches!(self.node(), Some(Node::Quote()))
     }
 }
 

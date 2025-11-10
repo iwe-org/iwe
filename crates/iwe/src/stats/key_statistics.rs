@@ -103,9 +103,11 @@ impl KeyStatistics {
                 let key_str = key.to_string();
                 let title = graph.get_ref_text(key).unwrap_or_else(|| key.to_string());
 
-                let mut stats = KeyStatistics::default();
-                stats.key = key_str;
-                stats.title = title;
+                let mut stats = KeyStatistics {
+                    key: key_str,
+                    title,
+                    ..Default::default()
+                };
 
                 if let Some(node_id) = graph.get_node_id(key) {
                     let root = GraphNodePointer::new(graph, node_id);
