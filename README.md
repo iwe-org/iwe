@@ -109,6 +109,8 @@ IWE fully depends on community support, which is essential for its growth and de
 
 Contributions to the project [documentation](docs/index.md) are also highly appreciated.
 
+Before contributing, please read our [Contributing Guidelines](CONTRIBUTING.md).
+
 ### Plugins / Packages
 
 This repository is for Rust code and crates publishing only. Plugins and packages are in separate repositories. If you are willing to help with a non-listed package type, I'm happy to add a repo for it.
