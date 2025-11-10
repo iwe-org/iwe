@@ -1,10 +1,10 @@
 use indoc::indoc;
 use liwe::model::config::{Configuration, LibraryOptions, MarkdownOptions};
-use std::env;
 use std::fs::{create_dir_all, write};
-use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
+
+mod common;
 
 #[test]
 fn test_contents_basic_output() {
@@ -136,7 +136,7 @@ fn test_contents_with_verbose_flag() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = Command::new(get_iwe_binary_path())
+    let output = Command::new(common::get_iwe_binary_path())
         .arg("contents")
         .arg("--verbose")
         .arg("1")
@@ -462,7 +462,7 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
 }
 
 fn run_contents_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::Output {
-    let mut command = Command::new(get_iwe_binary_path());
+    let mut command = Command::new(common::get_iwe_binary_path());
     command.arg("contents").current_dir(work_dir);
 
     for arg in args {
@@ -470,10 +470,4 @@ fn run_contents_command(work_dir: &std::path::Path, args: &[&str]) -> std::proce
     }
 
     command.output().expect("Failed to execute iwe contents")
-}
-
-fn get_iwe_binary_path() -> PathBuf {
-    let current_dir = env::current_dir().expect("Failed to get current directory");
-    let workspace_root = current_dir.parent().unwrap().parent().unwrap();
-    workspace_root.join("target").join("debug").join("iwe")
 }
