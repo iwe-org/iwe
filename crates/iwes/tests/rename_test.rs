@@ -17,12 +17,12 @@ fn basic_prepare_rename() {
 fn basic_rename() {
     assert_rename(
         indoc! {"
-            [](1)
+            [link text](1)
             _
             # file 2
             "},
         indoc! {"
-            [](new_name)
+            [link text](new_name)
         "},
     );
 }
@@ -45,16 +45,16 @@ fn rename_to_an_existing_key() {
 fn rename_both_references() {
     assert_rename(
         indoc! {"
-            [](1)
+            [first link](1)
 
-            [](1)
+            [second link](1)
             _
             # file 2
             "},
         indoc! {"
-            [](new_name)
+            [first link](new_name)
 
-            [](new_name)
+            [second link](new_name)
         "},
     );
 }
@@ -63,19 +63,19 @@ fn rename_both_references() {
 fn rename_updates_affected_files() {
     assert_rename_updates_second_file(
         indoc! {"
-            [](1)
+            [my link](1)
             _
             # file 2
 
-            [](1)
+            [another reference](1)
             "},
         indoc! {"
-            [](new_name)
+            [my link](new_name)
         "},
         indoc! {"
             # file 2
 
-            [](new_name)
+            [another reference](new_name)
         "},
     );
 }
@@ -86,15 +86,29 @@ fn rename_inline_references() {
         indoc! {"
             # title
 
-            [](1) text
+            [inline link](1) text
             "},
         indoc! {"
             # title
 
-            [](new_name) text
+            [title](new_name) text
         "},
         lsp_types::Position::new(2, 0),
         "new_name",
+    );
+}
+
+#[test]
+fn rename_with_empty_link_text() {
+    assert_rename(
+        indoc! {"
+            [](1)
+            _
+            # file 2
+            "},
+        indoc! {"
+            [](new_name)
+        "},
     );
 }
 
