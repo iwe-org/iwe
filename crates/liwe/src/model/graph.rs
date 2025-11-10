@@ -349,13 +349,13 @@ impl GraphInline {
                     .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
-            GraphInline::Link(_, title, link_type, _) => {
+            GraphInline::Link(_, title, link_type, inlines) => {
                 if self.is_ref() && self.ref_key().is_some_and(|key| key.eq(target_key)) {
                     return GraphInline::Link(
                         updated_key.to_string(),
                         title.clone(),
                         *link_type,
-                        vec![],
+                        inlines.clone(),
                     );
                 }
 
