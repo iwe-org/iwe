@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.56](https://github.com/iwe-org/iwe/compare/iwe-v0.0.55...iwe-v0.0.56) - 2025-11-11
+
+### Other
+
+- Lint fixes ([#182](https://github.com/iwe-org/iwe/pull/182))
+- Fix test on release only target ([#181](https://github.com/iwe-org/iwe/pull/181))
+
 ## [0.0.51](https://github.com/iwe-org/iwe/compare/iwe-v0.0.50...iwe-v0.0.51) - 2025-10-14
 
 ### Added
