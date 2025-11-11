@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use lsp_types::*;
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use relative_path::RelativePath;
 use url::Url;
 
@@ -37,10 +37,12 @@ impl BasePath {
     }
 
     pub fn url_to_key(&self, url: &Uri) -> Key {
-        Key::name(
-            url.to_string()
-                .trim_start_matches(&self.base_path),
-        )
+        let relative_path = url.to_string().trim_start_matches(&self.base_path).to_string();
+        let decoded_path = percent_decode_str(&relative_path)
+            .decode_utf8()
+            .unwrap_or_else(|_| relative_path.as_str().into())
+            .to_string();
+        Key::name(&decoded_path)
     }
 
     pub fn resolve_relative_url(&self, url: &str, relative_to: &str) -> Uri {
@@ -48,5 +50,28 @@ impl BasePath {
         let encoded_url = utf8_percent_encode(url, NON_ALPHANUMERIC).to_string();
         let relative_url = RelativePath::new(relative_to).join(encoded_url).to_string();
         self.relative_to_full_path(&relative_url)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_to_key_with_danish_characters() {
+        let base_path = BasePath::new("file:///basepath/".to_string());
+        let uri = Uri::from_str("file:///basepath/t%C3%B8j.md").unwrap();
+        let key = base_path.url_to_key(&uri);
+        assert_eq!(key.to_string(), "tøj");
+
+    }
+
+    #[test]
+    fn test_url_to_key_with_regular_characters() {
+        let base_path = BasePath::new("file:///basepath/".to_string());
+
+        let uri = Uri::from_str("file:///basepath/regular.md").unwrap();
+        let key = base_path.url_to_key(&uri);
+        assert_eq!(key.to_string(), "regular");
     }
 }
