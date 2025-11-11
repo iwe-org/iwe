@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.56](https://github.com/iwe-org/iwe/compare/liwe-v0.0.55...liwe-v0.0.56) - 2025-11-11
+
+### Fixed
+
+- Rename operation should keep the title of the link ([#184](https://github.com/iwe-org/iwe/pull/184))
+
+### Other
+
+- Lint fixes ([#182](https://github.com/iwe-org/iwe/pull/182))
+
 ## [0.0.54](https://github.com/iwe-org/iwe/compare/liwe-v0.0.53...liwe-v0.0.54) - 2025-10-17
 
 ### Added
