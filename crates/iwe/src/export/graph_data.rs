@@ -3,9 +3,10 @@ use liwe::{
     graph::{Graph, GraphContext},
     model::{node::NodePointer, tree::Tree, Key, NodeId},
 };
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
-#[derive(Default, PartialEq, Debug, Clone)]
+#[derive(Default, PartialEq, Debug, Clone, Serialize)]
 pub struct GraphData {
     pub sections: HashMap<NodeId, Section>,
     pub documents: HashMap<NodeId, Document>,
@@ -54,10 +55,7 @@ pub fn graph_data(key_filter: Option<Key>, depth: u8, graph: &Graph) -> GraphDat
     let keys = filter_keys(graph, key_filter.clone(), depth);
 
     keys.iter()
-        .map(|pair| {
-            
-            build_graph_data(graph, pair.0, *pair.1)
-        })
+        .map(|pair| build_graph_data(graph, pair.0, *pair.1))
         .fold(
             GraphData {
                 sections: HashMap::new(),

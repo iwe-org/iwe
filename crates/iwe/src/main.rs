@@ -5,7 +5,10 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use itertools::Itertools;
 
-use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
+use iwe::export::dot_exporter::DotExporter;
+use iwe::export::exporter::GraphExporter;
+use iwe::export::graph_data;
+use iwe::export::json_exporter::JsonExporter;
 use iwe::stats::GraphStatistics;
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
@@ -78,6 +81,7 @@ enum StatsFormat {
 #[derive(Debug, Args)]
 #[clap(about = "Export the graph structure in various formats")]
 struct Export {
+    #[clap(subcommand)]
     format: Format,
     #[clap(
         long,
@@ -93,6 +97,16 @@ struct Export {
         default_value = "0"
     )]
     depth: u8,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+enum Format {
+    Dot(DotFormat),
+    Json,
+}
+
+#[derive(Debug, Clone, Args)]
+struct DotFormat {
     #[clap(
         long,
         global = true,
@@ -103,9 +117,12 @@ struct Export {
     include_headers: bool,
 }
 
-#[derive(Debug, Clone, clap::ValueEnum)]
-enum Format {
-    Dot,
+impl From<DotFormat> for DotExporter{
+    fn from(val: DotFormat) -> Self {
+        Self {
+            include_headers: val.include_headers,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -319,12 +336,11 @@ fn export_command(args: Export) {
     );
 
     let output = match args.format {
-        Format::Dot => {
-            if args.include_headers {
-                dot_details_exporter::export_dot_with_headers(&data)
-            } else {
-                dot_exporter::export_dot(&data)
-            }
+        Format::Dot(format_args) => {
+            DotExporter::from(format_args).export(&data).expect("Can't export to dot format")
+        }
+        Format::Json => {
+            JsonExporter::default().export(&data).expect("Can't export to json format")
         }
     };
 
