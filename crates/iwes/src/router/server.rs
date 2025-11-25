@@ -20,31 +20,39 @@ use super::{LspClient, ServerConfig};
 
 use self::base_path::BasePath;
 use self::extensions::*;
+use self::search::SearchIndex;
 
 pub mod actions;
 pub mod base_path;
 pub mod command;
 mod extensions;
 mod llm;
+pub mod search;
 
 pub struct Server {
     base_path: BasePath,
     graph: Graph,
     lsp_client: LspClient,
     configuration: Configuration,
+    search_index: SearchIndex,
 }
 
 impl Server {
     pub fn new(config: ServerConfig) -> Server {
+        let graph = Graph::from_state(
+            config.state,
+            config.sequential_ids.unwrap_or(false),
+            config.configuration.markdown.clone(),
+        );
+        let mut search_index = SearchIndex::new();
+        search_index.update(&graph);
+
         Server {
             base_path: BasePath::new(format!("file://{}/", config.base_path)),
-            graph: Graph::from_state(
-                config.state,
-                config.sequential_ids.unwrap_or(false),
-                config.configuration.markdown.clone(),
-            ),
+            graph,
             lsp_client: config.lsp_client,
             configuration: config.configuration,
+            search_index,
         }
     }
     pub fn graph(&self) -> impl DatabaseContext + '_ {
@@ -52,10 +60,13 @@ impl Server {
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
-        if let Some(text) = params.text { self.graph.update_document(
+        if let Some(text) = params.text {
+            self.graph.update_document(
                 self.base_path.url_to_key(&params.text_document.uri.clone()),
                 text,
-            ) }
+            );
+            self.search_index.update(&self.graph);
+        }
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
@@ -63,6 +74,7 @@ impl Server {
             self.base_path.url_to_key(&params.text_document.uri.clone()),
             params.content_changes.first().unwrap().text.clone(),
         );
+        self.search_index.update(&self.graph);
     }
 
     pub fn handle_did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
@@ -71,11 +83,10 @@ impl Server {
                 FileChangeType::DELETED => {
                     let key = self.base_path.url_to_key(&change.uri);
                     self.graph.remove_document(key);
+                    self.search_index.update(&self.graph);
                 }
-                FileChangeType::CREATED => {
-                }
-                FileChangeType::CHANGED => {
-                }
+                FileChangeType::CREATED => {}
+                FileChangeType::CHANGED => {}
                 _ => {}
             }
         }
@@ -171,8 +182,8 @@ impl Server {
         &self,
         params: WorkspaceSymbolParams,
     ) -> WorkspaceSymbolResponse {
-        self.graph
-            .global_search(&params.query)
+        self.search_index
+            .search(&params.query)
             .iter()
             .map(|p| p.path_to_symbol(&self.graph, &self.base_path))
             .filter(|p| !p.name.is_empty())

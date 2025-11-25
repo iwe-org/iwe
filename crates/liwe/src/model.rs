@@ -7,7 +7,6 @@ pub mod document;
 pub mod graph;
 pub mod node;
 pub mod projector;
-pub mod rank;
 pub mod tree;
 
 pub type Markdown = String;
