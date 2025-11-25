@@ -22,6 +22,7 @@ pretty_assertions.workspace = true
 env_logger.workspace = true
 itertools.workspace = true
 log.workspace = true
+fuzzy-matcher.workspace = true
 futures.workspace = true
 rayon.workspace = true
 serde.workspace = true

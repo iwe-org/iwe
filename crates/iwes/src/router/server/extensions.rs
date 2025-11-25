@@ -4,7 +4,9 @@ use liwe::graph::path::NodePath;
 use liwe::model::node::NodePointer;
 use lsp_types::*;
 
-use liwe::graph::{GraphContext, SearchPath};
+use liwe::graph::GraphContext;
+
+use super::search::SearchPath;
 use liwe::model::{self, Content, InlineRange, Key};
 
 use super::actions::Change;
@@ -67,7 +69,6 @@ pub impl Range {
 
 #[ext]
 pub impl SearchPath {
-
     #[allow(deprecated)]
     fn path_to_symbol(
         &self,
