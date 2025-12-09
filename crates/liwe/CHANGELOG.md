@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.57](https://github.com/iwe-org/iwe/compare/liwe-v0.0.56...liwe-v0.0.57) - 2025-12-09
+
+### Added
+
+- Add wiki style links completion ([#199](https://github.com/iwe-org/iwe/pull/199))
+
+### Other
+
+- Move functionality search from library to server ([#188](https://github.com/iwe-org/iwe/pull/188))
+
 ## [0.0.56](https://github.com/iwe-org/iwe/compare/liwe-v0.0.55...liwe-v0.0.56) - 2025-11-11
 
 ### Fixed
