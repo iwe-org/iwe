@@ -7,7 +7,7 @@ use itertools::Itertools;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
     model::{
-        config::{Configuration, MarkdownOptions, Model},
+        config::{Configuration, LinkType, MarkdownOptions, Model},
         node::NodePointer,
         tree::Tree,
         Key, NodeId,
@@ -120,7 +120,10 @@ impl Server {
                 CompletionItem {
                     preselect: Some(true),
                     label: format!("🤖 {}", (&self.graph).get_ref_text(key).unwrap_or_default()),
-                    insert_text: Some(format!("[⏳]({})", new_key)),
+                    insert_text: Some(match &self.configuration.completion.link_format {
+                        Some(LinkType::WikiLink) => format!("[[{}]]", new_key),
+                        _ => format!("[⏳]({})", new_key),
+                    }),
                     filter_text: Some(format!(
                         "_{}",
                         (&self.graph).get_ref_text(key).unwrap_or_default()
@@ -149,7 +152,14 @@ impl Server {
         self.graph
             .keys()
             .iter()
-            .map(|key| key.to_completion(&current_key.parent(), &self.graph, &self.base_path))
+            .map(|key| {
+                key.to_completion(
+                    &current_key.parent(),
+                    &self.graph,
+                    &self.configuration.completion,
+                    &self.base_path,
+                )
+            })
             .sorted_by(|a, b| a.label.cmp(&b.label))
             .collect_vec()
     }
