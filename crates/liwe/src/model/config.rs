@@ -36,6 +36,11 @@ pub struct LibraryOptions {
     pub prompt_key_prefix: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+pub struct CompletionOptions {
+    pub link_format: Option<LinkType>,
+}
+
 impl Default for LibraryOptions {
     fn default() -> Self {
         Self {
@@ -51,6 +56,8 @@ pub struct Configuration {
     pub version: Option<u32>,
     pub markdown: MarkdownOptions,
     pub library: LibraryOptions,
+    #[serde(default)]
+    pub completion: CompletionOptions,
     pub models: HashMap<String, Model>,
     pub actions: HashMap<String, ActionDefinition>,
 }
@@ -156,6 +163,7 @@ impl Default for Configuration {
             version: Some(1),
             markdown: Default::default(),
             library: Default::default(),
+            completion: Default::default(),
             models: Default::default(),
             actions: Default::default(),
         }

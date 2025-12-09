@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::MarkdownOptions;
+use liwe::model::config::{CompletionOptions, LinkType, MarkdownOptions};
 
 mod fixture;
 use crate::fixture::*;
@@ -149,6 +149,126 @@ fn completion_after_file_deleted() {
             "[first-document](first)",
             "first-document",
             "first-document",
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_wikilink_format() {
+    let config = liwe::model::config::Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::WikiLink),
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_config(
+        indoc! {"
+            # test
+            "},
+        config,
+    )
+    .completion(
+        uri(1).to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 test",
+            "[[1]]",
+            "test",
+            "test",
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_wikilink_format_multiple_documents() {
+    let config = liwe::model::config::Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::WikiLink),
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![
+            ("first".to_string(), "# First Document\n".to_string()),
+            ("second".to_string(), "# Second Document\n".to_string()),
+        ]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+    )
+    .completion(
+        uri_from("first").to_completion_params(2, 0),
+        completion_list(vec![
+            completion_item(
+                "🔗 First Document",
+                "[[first]]",
+                "firstdocument",
+                "First Document",
+            ),
+            completion_item(
+                "🔗 Second Document",
+                "[[second]]",
+                "seconddocument",
+                "Second Document",
+            ),
+        ]),
+    );
+}
+
+#[test]
+fn completion_with_markdown_format_explicit() {
+    let config = liwe::model::config::Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::Markdown),
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_config(
+        indoc! {"
+            # test
+            "},
+        config,
+    )
+    .completion(
+        uri(1).to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 test",
+            "[test](1)",
+            "test",
+            "test",
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_wikilink_and_refs_extension() {
+    let config = liwe::model::config::Configuration {
+        markdown: MarkdownOptions {
+            refs_extension: ".md".to_string(),
+            date_format: None,
+        },
+        completion: CompletionOptions {
+            link_format: Some(LinkType::WikiLink),
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_config(
+        indoc! {"
+            # test
+            "},
+        config,
+    )
+    .completion(
+        uri(1).to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 test",
+            "[[1]]",
+            "test",
+            "test",
         )]),
     );
 }

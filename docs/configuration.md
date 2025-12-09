@@ -13,6 +13,9 @@ date_format = "%b %d, %Y"
 path = ""
 date_format = "%Y-%m-%d"
 prompt_key_prefix = "prompts/"
+
+[completion]
+link_format = "markdown"
 ```
 
 ### Markdown Settings
@@ -25,6 +28,12 @@ prompt_key_prefix = "prompts/"
 - `path`: Subdirectory for markdown files relative to project root (default: empty, uses root)
 - `date_format`: Date format for file key generation (default: `"%Y-%m-%d"`, e.g., "2024-01-15")
 - `prompt_key_prefix`: Prefix for AI prompt keys (default: none)
+
+### Completion Settings
+
+- `link_format`: Format for auto-completed links (default: `"markdown"`)
+  - `"markdown"`: Creates `[title](key)` style links
+  - `"wiki"`: Creates `[[key]]` style WikiLinks
 
 ### Date Format Patterns
 

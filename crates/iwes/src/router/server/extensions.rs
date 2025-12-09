@@ -7,6 +7,7 @@ use lsp_types::*;
 use liwe::graph::GraphContext;
 
 use super::search::SearchPath;
+use liwe::model::config::{CompletionOptions, LinkType};
 use liwe::model::{self, Content, InlineRange, Key};
 
 use super::actions::Change;
@@ -362,16 +363,22 @@ pub impl Key {
         &self,
         relative_to: &str,
         context: impl GraphContext,
+        completion_options: &CompletionOptions,
         _: &BasePath,
     ) -> CompletionItem {
         let ref_text = context.get_ref_text(self).unwrap_or_default();
         let refs_extension = &context.markdown_options().refs_extension;
 
+        let insert_text = match completion_options.link_format {
+            Some(LinkType::WikiLink) => format!("[[{}]]", self.relative_path),
+            _ => self.to_link(ref_text.clone(), relative_to, refs_extension),
+        };
+
         CompletionItem {
             preselect: Some(true),
             label: format!("🔗 {}", ref_text),
             sort_text: Some(ref_text.clone()),
-            insert_text: Some(self.to_link(ref_text.clone(), relative_to, refs_extension)),
+            insert_text: Some(insert_text),
             filter_text: Some(ref_text.replace(" ", "").to_lowercase()),
             command: None,
             documentation: None,
