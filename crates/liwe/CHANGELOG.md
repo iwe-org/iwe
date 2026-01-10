@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.59](https://github.com/iwe-org/iwe/compare/liwe-v0.0.58...liwe-v0.0.59) - 2026-01-10
+
+### Added
+
+- Align table columns width ([#203](https://github.com/iwe-org/iwe/pull/203))
+
+### Fixed
+
+- Honor soft break ([#204](https://github.com/iwe-org/iwe/pull/204))
+
 ## [0.0.58](https://github.com/iwe-org/iwe/compare/liwe-v0.0.57...liwe-v0.0.58) - 2026-01-10
 
 ### Added
