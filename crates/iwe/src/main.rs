@@ -1,11 +1,13 @@
 use std::env;
 use std::fs::create_dir;
 use std::path::PathBuf;
+use std::process::Command as ProcessCommand;
 
 use clap::{Args, Parser, Subcommand};
 use itertools::Itertools;
 
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
+use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
 use iwe::stats::GraphStatistics;
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
@@ -33,6 +35,7 @@ pub struct App {
 #[derive(Debug, Subcommand)]
 enum Command {
     Init(Init),
+    New(New),
     Normalize(Normalize),
     Paths(Paths),
     Squash(Squash),
@@ -52,6 +55,31 @@ struct Normalize {}
 
 #[derive(Debug, Args)]
 struct Init {}
+
+#[derive(Debug, Args)]
+#[clap(about = "Create a new document from a template")]
+struct New {
+    #[clap(help = "Title for the new document")]
+    title: String,
+
+    #[clap(long, short = 't', help = "Template name from config")]
+    template: Option<String>,
+
+    #[clap(long, short = 'c', help = "Content for the new document")]
+    content: Option<String>,
+
+    #[clap(
+        long,
+        short = 'i',
+        value_enum,
+        default_value = "suffix",
+        help = "Behavior when file already exists: suffix (append -1, -2, etc.), override (overwrite), skip (do nothing)"
+    )]
+    if_exists: IfExists,
+
+    #[clap(long, short = 'e', help = "Open created file in $EDITOR")]
+    edit: bool,
+}
 
 #[derive(Debug, Args)]
 struct Contents {}
@@ -156,6 +184,7 @@ fn main() {
             squash_command(squash);
         }
         Command::Init(init) => init_command(init),
+        Command::New(new) => new_command(new),
         Command::Contents(contents) => contents_command(contents),
         Command::Export(export) => export_command(export),
         Command::Stats(stats) => stats_command(stats),
@@ -181,6 +210,61 @@ fn init_command(init: Init) {
 
     std::fs::write(path.join(CONFIG_FILE_NAME), toml).expect("Failed to write to config.json");
     info!("IWE initialized in the current location. Default config added to .iwe/config.json");
+}
+
+#[tracing::instrument(level = "debug")]
+fn new_command(args: New) {
+    let config = get_configuration();
+    let library_path = get_library_path(&config);
+
+    let content = args.content.or_else(|| {
+        let stdin_content = read_stdin_if_available();
+        if stdin_content.is_empty() {
+            None
+        } else {
+            Some(stdin_content)
+        }
+    });
+
+    let creator = DocumentCreator::new(&config, library_path);
+    let options = CreateOptions {
+        title: args.title,
+        template_name: args.template,
+        content,
+        if_exists: args.if_exists,
+    };
+
+    match creator.create(options) {
+        Ok(Some(doc)) => {
+            println!("{}", doc.path.display());
+
+            if args.edit {
+                open_in_editor(&doc.path);
+            }
+        }
+        Ok(None) => {}
+        Err(e) => {
+            error!("{}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn open_in_editor(path: &std::path::Path) {
+    let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
+
+    let status = ProcessCommand::new(&editor).arg(path).status();
+
+    match status {
+        Ok(exit_status) => {
+            if !exit_status.success() {
+                error!("Editor exited with non-zero status");
+            }
+        }
+        Err(e) => {
+            error!("Failed to open editor '{}': {}", editor, e);
+        }
+    }
 }
 
 #[tracing::instrument(level = "debug")]

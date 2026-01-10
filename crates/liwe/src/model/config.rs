@@ -34,6 +34,7 @@ pub struct LibraryOptions {
     pub path: String,
     pub date_format: Option<String>,
     pub prompt_key_prefix: Option<String>,
+    pub default_template: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -47,6 +48,7 @@ impl Default for LibraryOptions {
             path: String::new(),
             date_format: Some(DEFAULT_KEY_DATE_FORMAT.into()),
             prompt_key_prefix: None,
+            default_template: None,
         }
     }
 }
@@ -60,6 +62,8 @@ pub struct Configuration {
     pub completion: CompletionOptions,
     pub models: HashMap<String, Model>,
     pub actions: HashMap<String, ActionDefinition>,
+    #[serde(default)]
+    pub templates: HashMap<String, NoteTemplate>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -157,6 +161,12 @@ pub enum LinkType {
     WikiLink,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct NoteTemplate {
+    pub key_template: String,
+    pub document_template: String,
+}
+
 impl Default for Configuration {
     fn default() -> Self {
         Self {
@@ -166,6 +176,7 @@ impl Default for Configuration {
             completion: Default::default(),
             models: Default::default(),
             actions: Default::default(),
+            templates: Default::default(),
         }
     }
 }
@@ -374,6 +385,14 @@ impl Configuration {
                 link_type: Some(LinkType::Markdown),
                 key_template: "{{id}}".into(),
             }),
+        );
+
+        template.templates.insert(
+            "default".into(),
+            NoteTemplate {
+                key_template: "{{slug}}".into(),
+                document_template: "# {{title}}\n\n{{content}}".into(),
+            },
         );
 
         template
