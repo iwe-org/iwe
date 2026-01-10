@@ -1,4 +1,4 @@
-use pulldown_cmark::{Alignment, Event, HeadingLevel, MetadataBlockKind, Tag, TagEnd};
+use pulldown_cmark::{Event, HeadingLevel, MetadataBlockKind, Tag, TagEnd};
 use pulldown_cmark_to_cmark::{cmark_with_options, Options};
 
 use crate::model::config::MarkdownOptions;
@@ -41,6 +41,7 @@ impl MarkdownWriter {
                 increment_ordered_list_bullets: false,
                 emphasis_token: '*',
                 strong_token: "**",
+                use_html_for_super_sub_script: false,
             },
         )
         .unwrap();
@@ -129,26 +130,8 @@ impl MarkdownWriter {
                 events.push(Event::End(TagEnd::CodeBlock));
             }
             GraphBlock::Table(header_row, alignment, rows) => {
-                events.push(Event::Start(Tag::Table(
-                    alignment.iter().map(|al| to_alignment(*al)).collect(),
-                )));
-                events.push(Event::Start(Tag::TableHead));
-                for cell in header_row {
-                    events.push(Event::Start(Tag::TableCell));
-                    events.append(&mut self.inlines_to_events(cell));
-                    events.push(Event::End(TagEnd::TableCell));
-                }
-                events.push(Event::End(TagEnd::TableHead));
-                for row in rows {
-                    events.push(Event::Start(Tag::TableRow));
-                    for cell in row {
-                        events.push(Event::Start(Tag::TableCell));
-                        events.append(&mut self.inlines_to_events(cell));
-                        events.push(Event::End(TagEnd::TableCell));
-                    }
-                    events.push(Event::End(TagEnd::TableRow));
-                }
-                events.push(Event::End(TagEnd::Table));
+                let table_md = self.render_aligned_table(&header_row, &alignment, &rows);
+                events.push(Event::Html(table_md.into()));
             }
         }
         events
@@ -244,6 +227,102 @@ impl MarkdownWriter {
         }
         events
     }
+
+    fn render_aligned_table(
+        &self,
+        header: &[GraphInlines],
+        alignment: &[ColumnAlignment],
+        rows: &[Vec<GraphInlines>],
+    ) -> String {
+        let header_strs: Vec<String> = header
+            .iter()
+            .map(|c| inlines_to_markdown(c, &self.options))
+            .collect();
+        let row_strs: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .map(|c| inlines_to_markdown(c, &self.options))
+                    .collect()
+            })
+            .collect();
+
+        let num_cols = header.len();
+        let mut widths: Vec<usize> = header_strs.iter().map(|s| s.chars().count()).collect();
+
+        for row in &row_strs {
+            for (i, cell) in row.iter().enumerate() {
+                if i < widths.len() {
+                    widths[i] = widths[i].max(cell.chars().count());
+                }
+            }
+        }
+
+        for w in &mut widths {
+            if *w < 3 {
+                *w = 3;
+            }
+        }
+
+        let mut result = String::new();
+
+        result.push('|');
+        for (i, cell) in header_strs.iter().enumerate() {
+            let width = widths.get(i).copied().unwrap_or(3);
+            result.push(' ');
+            result.push_str(&pad_cell(cell, width, alignment.get(i).copied()));
+            result.push_str(" |");
+        }
+        result.push('\n');
+
+        result.push('|');
+        for (i, &width) in widths.iter().enumerate() {
+            let al = alignment.get(i).copied().unwrap_or(ColumnAlignment::None);
+            result.push_str(&separator_cell(width, al));
+            result.push('|');
+        }
+        result.push('\n');
+
+        for row in &row_strs {
+            result.push('|');
+            for i in 0..num_cols {
+                let cell = row.get(i).map(|s| s.as_str()).unwrap_or("");
+                let width = widths.get(i).copied().unwrap_or(3);
+                result.push(' ');
+                result.push_str(&pad_cell(cell, width, alignment.get(i).copied()));
+                result.push_str(" |");
+            }
+            result.push('\n');
+        }
+
+        result
+    }
+}
+
+fn pad_cell(content: &str, width: usize, alignment: Option<ColumnAlignment>) -> String {
+    let content_len = content.chars().count();
+    if content_len >= width {
+        return content.to_string();
+    }
+    let padding = width - content_len;
+    match alignment.unwrap_or(ColumnAlignment::None) {
+        ColumnAlignment::Right => format!("{}{}", " ".repeat(padding), content),
+        ColumnAlignment::Center => {
+            let left = padding / 2;
+            let right = padding - left;
+            format!("{}{}{}", " ".repeat(left), content, " ".repeat(right))
+        }
+        _ => format!("{}{}", content, " ".repeat(padding)),
+    }
+}
+
+fn separator_cell(width: usize, alignment: ColumnAlignment) -> String {
+    match alignment {
+        ColumnAlignment::Left => format!(":{}", "-".repeat(width + 1)),
+        ColumnAlignment::Right => format!("{}:", "-".repeat(width + 1)),
+        ColumnAlignment::Center => format!(":{}:", "-".repeat(width)),
+        ColumnAlignment::None => format!(" {} ", "-".repeat(width)),
+    }
 }
 
 fn link_type(link_type: document::LinkType) -> pulldown_cmark::LinkType {
@@ -264,15 +343,6 @@ fn header_level(level: u8) -> HeadingLevel {
         4 => HeadingLevel::H4,
         5 => HeadingLevel::H5,
         6 => HeadingLevel::H6,
-        _ => HeadingLevel::H6, // default to H1 if level is out of range
-    }
-}
-
-fn to_alignment(al: ColumnAlignment) -> Alignment {
-    match al {
-        ColumnAlignment::Left => Alignment::Left,
-        ColumnAlignment::Center => Alignment::Center,
-        ColumnAlignment::Right => Alignment::Right,
-        ColumnAlignment::None => Alignment::None,
+        _ => HeadingLevel::H6,
     }
 }

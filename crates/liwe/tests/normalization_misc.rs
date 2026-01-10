@@ -248,9 +248,10 @@ fn table() {
         indoc! {"
         para
 
-        |header|
-        |------|
-        |row|
+        | header |
+        | ------ |
+        | row    |
+
     "},
         indoc! {"
         para
@@ -269,9 +270,10 @@ fn two_column_table() {
         indoc! {"
         para
 
-        |header1|header2|
-        |-------|-------|
-        |row1|row2|
+        | header1 | header2 |
+        | ------- | ------- |
+        | row1    | row2    |
+
     "},
         indoc! {"
         para
@@ -279,6 +281,26 @@ fn two_column_table() {
         |header1   | header2|
         | - | - |
         |row1 | row2 |
+    "},
+    );
+}
+
+#[test]
+fn table_with_alignment() {
+    setup();
+    compare(
+        indoc! {"
+        | left | center | right |
+        |:-----|:------:|------:|
+        | a    |   b    |     c |
+        | long |  text  |  here |
+
+    "},
+        indoc! {"
+        | left | center | right |
+        |:-----|:------:|------:|
+        | a | b | c |
+        | long | text | here |
     "},
     );
 }

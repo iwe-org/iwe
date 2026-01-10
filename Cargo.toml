@@ -30,7 +30,7 @@ lsp-server = "0.7.9"
 lsp-types = "0.97.0"
 pretty_assertions = "1.4.1"
 pulldown-cmark = "0.13.0"
-pulldown-cmark-to-cmark = "21.0.0"
+pulldown-cmark-to-cmark = "22.0.0"
 rand = "0.9.2"
 rayon = { version = "1.11.0", features = [] }
 serde = { version = "1.0", features = ["derive"] }
