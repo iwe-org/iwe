@@ -1020,7 +1020,7 @@ checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
 name = "iwe"
-version = "0.0.58"
+version = "0.0.59"
 dependencies = [
  "chrono",
  "clap",
@@ -1047,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "iwes"
-version = "0.0.58"
+version = "0.0.59"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -1144,7 +1144,7 @@ checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
 
 [[package]]
 name = "liwe"
-version = "0.0.58"
+version = "0.0.59"
 dependencies = [
  "chrono",
  "env_logger",

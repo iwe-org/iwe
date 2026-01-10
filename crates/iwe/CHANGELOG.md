@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.59](https://github.com/iwe-org/iwe/compare/iwe-v0.0.58...iwe-v0.0.59) - 2026-01-10
+
+### Other
+
+- update Cargo.lock dependencies
+
 ## [0.0.58](https://github.com/iwe-org/iwe/compare/iwe-v0.0.57...iwe-v0.0.58) - 2026-01-10
 
 ### Added
