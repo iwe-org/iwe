@@ -20,6 +20,19 @@ fn normalization_one_paragraph() {
 }
 
 #[test]
+fn normalization_soft_break() {
+    compare(
+        indoc! {"
+        Lorem ipsum. Dolor sit amet.
+        "},
+        indoc! {"
+        Lorem ipsum.
+        Dolor sit amet.
+        "},
+    );
+}
+
+#[test]
 fn normalization_url() {
     compare(
         indoc! {"
