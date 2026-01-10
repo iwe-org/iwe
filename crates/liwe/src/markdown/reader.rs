@@ -143,7 +143,15 @@ impl MarkdownEventsReader {
                     self.pop_inline();
                 }
                 FootnoteReference(_) => {}
-                SoftBreak => {}
+                SoftBreak => {
+                    self.push_inline(
+                        DocumentInline::Space(Space {
+                            inline_range: InlineRange::default(),
+                        }),
+                        self.to_line_range(range),
+                    );
+                    self.pop_inline();
+                }
                 HardBreak => {}
                 Rule => {
                     self.push_block(DocumentBlock::HorizontalRule(HorizontalRule {
