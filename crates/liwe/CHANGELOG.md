@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.58](https://github.com/iwe-org/iwe/compare/liwe-v0.0.57...liwe-v0.0.58) - 2026-01-10
+
+### Added
+
+- `iwe new` command ([#201](https://github.com/iwe-org/iwe/pull/201))
+
 ## [0.0.57](https://github.com/iwe-org/iwe/compare/liwe-v0.0.56...liwe-v0.0.57) - 2025-12-09
 
 ### Added
