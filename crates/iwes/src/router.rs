@@ -11,7 +11,7 @@ use lsp_server::{Notification, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, ExecuteCommandParams, InlayHintParams, InlineValueParams,
+    DocumentSymbolParams, ExecuteCommandParams, HoverParams, InlayHintParams, InlineValueParams,
     ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
@@ -192,6 +192,9 @@ impl Router {
                 .map(|response| to_value(response).unwrap()),
             "workspace/symbol" => WorkspaceSymbolParams::deserialize(request.params)
                 .map(|params| self.server.handle_workspace_symbols(params))
+                .map(|response| to_value(response).unwrap()),
+            "textDocument/hover" => HoverParams::deserialize(request.params)
+                .map(|params| self.server.handle_hover(params))
                 .map(|response| to_value(response).unwrap()),
             "textDocument/completion" => CompletionParams::deserialize(request.params)
                 .map(|params| self.server.handle_completion(params))

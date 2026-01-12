@@ -8,6 +8,7 @@ use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
     model::{
         config::{Configuration, LinkType, MarkdownOptions, Model},
+        is_ref_url,
         node::NodePointer,
         tree::Tree,
         Key, NodeId,
@@ -57,6 +58,53 @@ impl Server {
     }
     pub fn graph(&self) -> impl DatabaseContext + '_ {
         &self.graph
+    }
+
+    /// Returns a hover preview of a linked note under the cursor.
+    ///
+    /// Behavior:
+    /// - Only resolves "reference" links (not `http://`, `https://`, `mailto:`).
+    /// - Strips YAML/TOML-like frontmatter delimited by `---` (or `...`) at the top of the target note.
+    /// - Returns the full remaining Markdown so the editor can decide how to render/clip it.
+    pub fn handle_hover(&self, params: HoverParams) -> Option<Hover> {
+        let key = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_key(&self.base_path);
+        let relative_to = key.parent();
+        let position = params.text_document_position_params.position;
+
+        let url = self
+            .graph()
+            .parser(&key)
+            .and_then(|parser| parser.url_at(position.to_model()))?;
+
+        let url = url.split('#').next().unwrap_or(url.as_str());
+        let url = url.split('?').next().unwrap_or(url);
+
+        if url.is_empty() || !is_ref_url(url) {
+            return None;
+        }
+
+        let target_key = Key::from_rel_link_url(url, &relative_to);
+        let target_content = self.graph.get_document(&target_key)?;
+
+        // Always strip frontmatter by default
+        // Avoids dominating preview with metadata
+        let markdown = strip_frontmatter(target_content);
+
+        if markdown.trim().is_empty() {
+            return None;
+        }
+
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: markdown,
+            }),
+            range: None,
+        })
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
@@ -604,6 +652,41 @@ impl Server {
 
         action
     }
+}
+
+fn strip_frontmatter(content: String) -> String {
+    let mut iter = content.split_inclusive('\n');
+    let Some(first) = iter.next() else {
+        return String::new();
+    };
+
+    let first_line = first.trim_end_matches(['\n', '\r']);
+    if first_line != "---" {
+        return content;
+    }
+
+    let mut offset = first.len();
+    let mut found_end = false;
+
+    for line in iter {
+        let trimmed = line.trim_end_matches(['\n', '\r']);
+        offset += line.len();
+        if trimmed == "---" || trimmed == "..." {
+            found_end = true;
+            break;
+        }
+    }
+
+    if !found_end {
+        return content;
+    }
+
+    let mut remainder = &content[offset..];
+    while remainder.starts_with('\n') || remainder.starts_with('\r') {
+        remainder = &remainder[1..];
+    }
+
+    remainder.to_string()
 }
 
 impl ActionContext for &Server {

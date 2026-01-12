@@ -19,6 +19,7 @@ IWE provides comprehensive features for markdown-based knowledge management:
 - 🤖 **AI-Powered Text Generation**: Generate, rewrite, or modify text using configurable AI commands
 - 🔍 **Global Search**: Search through all notes using fuzzy matching on document paths and content
 - 🧭 **Link Navigation**: Follow links between documents with Go To Definition
+- 👁️ **Hover Preview**: Preview linked notes without navigating away
 - 📥 **Extract/Inline Notes**: Split sections into separate files or merge them back
 - 📝 **Auto-Format**: Normalize document structure, headers, lists, and link titles
 - 🔄 **Rename Refactoring**: Rename files while automatically updating all references
@@ -38,6 +39,7 @@ Here's a reference connecting each LSP request with IWE features:
 |AI Text Generation|Code Action|Generate, rewrite, or modify text using AI|
 |Text Transformation|Code Action|Convert lists to headers, change list types|
 |Link Navigation|Go To Definition|Follow markdown links to target documents|
+|Hover Preview|Hover|Preview linked notes without opening the file|
 |Backlinks|Go To References|Find all documents referencing current document|
 |Document Outline|Document Symbols|View table of contents for navigation|
 |Global Search|Workspace Symbols|Search through all notes with fuzzy matching|

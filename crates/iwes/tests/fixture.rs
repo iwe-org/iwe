@@ -130,6 +130,13 @@ pub impl Uri {
         }
     }
 
+    fn to_hover_params(self, line: u32, character: u32) -> HoverParams {
+        HoverParams {
+            text_document_position_params: self.to_text_document_position_params(line, character),
+            work_done_progress_params: Default::default(),
+        }
+    }
+
     fn to_reference_params(
         self,
         line: u32,
@@ -844,5 +851,4 @@ mod tests {
         assert!(code_action.edit.is_some());
     }
 }
-
 
