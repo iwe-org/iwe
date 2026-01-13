@@ -83,6 +83,10 @@ impl GraphBlock {
         matches!(self, GraphBlock::Plain(_) | GraphBlock::Para(_))
     }
 
+    fn is_frontmatter(&self) -> bool {
+        matches!(self, GraphBlock::Frontmatter(_))
+    }
+
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
             GraphBlock::Frontmatter(content) => format!("---\n{}---\n", content),
@@ -447,6 +451,17 @@ pub fn blocks_to_markdown_sparce(blocks: &Blocks, options: &MarkdownOptions) -> 
     blocks
         .iter()
         .map(|block| block.to_markdown(options))
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+pub fn blocks_to_markdown_sparce_skip_frontmatter(
+    blocks: &Blocks,
+    options: &MarkdownOptions,
+) -> String {
+    blocks
+        .iter()
+        .filter_map(|block| (!block.is_frontmatter()).then_some(block.to_markdown(options)))
         .collect::<Vec<String>>()
         .join("\n")
 }
