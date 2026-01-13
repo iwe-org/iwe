@@ -30,7 +30,7 @@ fn hover_preview_for_wiki_link_strips_frontmatter() {
         Some(Hover {
             contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
-                value: "# Heading\nLine 2\n".to_string(),
+                value: "# Heading\n\nLine 2\n".to_string(),
             }),
             range: None,
         }),
@@ -63,7 +63,7 @@ fn hover_preview_for_markdown_link() {
             Some(Hover {
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
-                    value: "# Heading\nLine 2\n".to_string(),
+                    value: "# Heading\n\nLine 2\n".to_string(),
                 }),
                 range: None,
             }),

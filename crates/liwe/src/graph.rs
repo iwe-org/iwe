@@ -274,6 +274,9 @@ impl Graph {
     }
 
     pub fn to_markdown(&self, key: &Key) -> String {
+        if !self.keys.contains_key(key) {
+            return String::new();
+        }
         let markdown = self
             .collect(key)
             .iter()
@@ -283,6 +286,9 @@ impl Graph {
     }
 
     pub fn to_markdown_skip_frontmatter(&self, key: &Key) -> String {
+        if !self.keys.contains_key(key) {
+            return String::new();
+        }
         let markdown = self
             .collect(key)
             .iter()
