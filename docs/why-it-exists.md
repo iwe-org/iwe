@@ -4,7 +4,7 @@ I've always been a big fan of modern text editors like Neovim and Zed, and I've 
 
 All modern editors support the Language Server Protocol (LSP), which enhances text editors with IDE-like capabilities. This was exactly what I wanted for my Markdown notes.
 
-So, I developed LSP called IWE. It includes essential features such as note search, link navigation, autocomplete, backlink search, and some unique capabilities like:
+So, I developed an LSP called IWE. It includes essential features such as note search, link navigation, autocomplete, backlink search, and some unique capabilities like:
 
 - Creating a nested notes hierarchy.
 - Extract/inline refactoring for improved note management.

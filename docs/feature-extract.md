@@ -7,12 +7,12 @@ Extract actions enable the creation of new documents from markdown sections (hea
 
 Both operations:
 - Create new files containing the selected content
-- Add [Block Reference](block-reference.md) links to the newly created files
+- Add block reference links (like `[Section Title](new-file)`) to the newly created files
 - Automatically adjust header levels to maintain proper document structure
 - Support relative path preservation
 
 The reverse operation, known as **inline**, allows you to:
-1. Embed the content back into the document via [Block-reference](block-reference.md)
+1. Embed the content back into the document via the block reference link
 2. Remove the link and the extracted file
 
 ## Extract Single Section

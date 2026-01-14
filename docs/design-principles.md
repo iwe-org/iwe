@@ -8,7 +8,7 @@ IWE is text graph management assistant. Any text graph. The graph structure is n
 
 - The goal is to minimize routine operations.
 
-  Keeping the graph consistent should require the least possible amount of effort. The text formatting need's to be automated.
+  Keeping the graph consistent should require the least possible amount of effort. The text formatting needs to be automated.
 
 - Focus on building blocks, not specific features.
 

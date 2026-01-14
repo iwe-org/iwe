@@ -8,7 +8,29 @@
 
 [How to use with your text editor](how-to-use.md)
 
-[How to use in command line](features-cli.md)
+[How to use in command line](cli.md)
+
+### CLI Commands
+
+[iwe init](cli-init.md)
+
+[iwe new](cli-new.md)
+
+[iwe normalize](cli-normalize.md)
+
+[iwe paths](cli-paths.md)
+
+[iwe contents](cli-contents.md)
+
+[iwe squash](cli-squash.md)
+
+[iwe stats](cli-stats.md)
+
+[iwe export](cli-export.md)
+
+[CLI Workflows](cli-workflows.md)
+
+[CLI Troubleshooting](cli-troubleshooting.md)
 
 [Configuration](configuration.md)
 
@@ -25,6 +47,8 @@
 [Inline Notes](feature-inline.md)
 
 [Linking and note templates](feature-attach.md)
+
+[Creating links from text](feature-link.md)
 
 [Delete block references](feature-delete.md)
 
@@ -57,6 +81,8 @@
 [VS Code](vscode.md)
 
 [Neovim](neovim.md)
+
+[Zed](zed.md)
 
 ## Examples
 

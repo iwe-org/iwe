@@ -137,7 +137,7 @@ context = "Document"
 prompt_template = "Improve this text: {{context}}"
 ```
 
-[Configuration](Configuration.md)
+[Configuration](configuration.md)
 
 ### Text Transformations
 

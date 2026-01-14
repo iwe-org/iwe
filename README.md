@@ -1,5 +1,9 @@
 # About IWE
 
+[![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
+[![Downloads](https://img.shields.io/crates/d/iwe.svg)](https://crates.io/crates/iwe)
+[![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
+
 ![Graphviz Example](docs/docs-detailed.svg)
 
 [IWE](https://iwe.md) is an open-source, local-first, markdown-based note-taking tool. It serves as a personal knowledge management (PKM) solution **designed for developers**.
@@ -10,11 +14,11 @@ IWE offers powerful features such as **search**, **auto-complete**, **go to defi
 
 The primary focus of IWE is to be your ultimate writing assistant and keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as **extract/embed** note and many other via LSP **code actions**.
 
-While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using Map of Content ([MOC](docs/maps-of-content.md)) documents.
+While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using Map of Content ([MOC](https://iwe.md/docs/concepts/maps-of-content/)) documents.
 
 > [!NOTE]
 >
-> The goal of the project is to make managing knowledge as seamless as managing code, enabling your PMK system to function like an IDE for Writing (IWE).
+> The goal of the project is to put powerful knowledge management at your fingertips, making it as seamless as working with code in an IDE for Writing (IWE).
 
 ## LSP Features
 
@@ -33,7 +37,7 @@ The main LSP features are:
 - 🤖 Generate or Modify text using **custom** AI commands
 - 🔹 Change outline type from headers to list and vice-versa
 
-You can learn more on the [LSP Features](docs/how-to-use.md) page.
+You can learn more on the [LSP Features](https://iwe.md/docs/getting-started/usage/) page.
 
 Quick Demos:
 
@@ -75,7 +79,7 @@ The main CLI features are:
 
 More information is available in:
 
-[CLI Features Documentation](docs/features-cli.md)
+[CLI Features Documentation](https://iwe.md/docs/cli/)
 
 An example of squash command output converted to [PDF](https://github.com/iwe-org/iwe/blob/master/docs/book.pdf) using [typst](https://github.com/typst/typst) rendering, see `/docs/Makefile` for details.
 
@@ -88,27 +92,44 @@ An example of squash command output converted to [PDF](https://github.com/iwe-or
 
 ## How to install
 
-You can find the installation instructions in the [Quick Start Guide](https://iwe.md/quick-start) or see [local installation docs](docs/how-to-install.md).
+You can find the installation instructions in the [Quick Start Guide](https://iwe.md/quick-start).
 
-Check [usage guide](docs/how-to-use.md) for more information.
+Check [usage guide](https://iwe.md/docs/getting-started/usage/) for more information.
+
+## Quick Start
+
+1. **Install** the CLI and LSP server:
+   ```bash
+   cargo install iwe iwes
+   ```
+
+2. **Initialize** your notes workspace:
+   ```bash
+   cd ~/notes
+   iwe init
+   ```
+
+3. **Configure** your editor - see guides for [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Helix](https://iwe.md/docs/editors/helix/), or [Zed](https://iwe.md/docs/editors/zed/)
+
+4. **Start writing** - IWE features are now available in your markdown files
 
 ## Documentation
 
-For comprehensive documentation, see the [docs](docs/) directory:
+For comprehensive documentation, visit [iwe.md](https://iwe.md/docs/):
 
-- **[Getting Started](docs/how-to-install.md)** - Installation and setup
-- **[Usage Guide](docs/how-to-use.md)** - LSP features and how to use them
-- **[Configuration](docs/configuration.md)** - Configuration options and AI setup
-- **[CLI Features](docs/features-cli.md)** - Command-line interface documentation
-- **[Maps of Content](docs/maps-of-content.md)** - Hierarchical note organization
-- **[Editor Integration](docs/index.md)** - Editor-specific guides for [VSCode](docs/vscode.md), [Neovim](docs/neovim.md), and [Helix](docs/helix.md)
-- **[Debug Mode](docs/debug-mode.md)** - Troubleshooting and debugging
+- **[Getting Started](https://iwe.md/docs/getting-started/installation/)** - Installation and setup
+- **[Usage Guide](https://iwe.md/docs/getting-started/usage/)** - LSP features and how to use them
+- **[Configuration](https://iwe.md/docs/configuration/)** - Configuration options and AI setup
+- **[CLI Features](https://iwe.md/docs/cli/)** - Command-line interface documentation
+- **[Maps of Content](https://iwe.md/docs/concepts/maps-of-content/)** - Hierarchical note organization
+- **[Editor Integration](https://iwe.md/docs/editors/)** - Editor-specific guides for [VSCode](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Helix](https://iwe.md/docs/editors/helix/), and [Zed](https://iwe.md/docs/editors/zed/)
+- **[Debug Mode](https://iwe.md/docs/configuration/debug-mode/)** - Troubleshooting and debugging
 
 ## Get Involved
 
 IWE fully depends on community support, which is essential for its growth and development. We encourage you to participate in [discussions](https://github.com/iwe-org/iwe/discussions) and report any [issues](https://github.com/iwe-org/iwe/issues) you encounter.
 
-Contributions to the project [documentation](docs/index.md) are also highly appreciated.
+Contributions to the project [documentation](docs/) are also highly appreciated.
 
 Before contributing, please read our [Contributing Guidelines](CONTRIBUTING.md).
 
@@ -123,7 +144,12 @@ This repository is for Rust code and crates publishing only. Plugins and package
 ### Special thanks to
 
 - A heartfelt thank you to [Sergej Podatelew](https://github.com/spodatelev) for his outstanding work on the VSCode plugin.
-- Deep appreciation to [Daniel Fichtinger](https://github.com/ficcdaf) for his contributions to the project documentation and community.
+- Deep appreciation to [Daniel Fichtinger](https://github.com/ficd0) for his contributions to the project documentation and community.
+- Many thanks to [Lowband21](https://github.com/Lowband21) for his contributions to the project.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE-APACHE).
 
 ### Inspired by many other open-source projects
 

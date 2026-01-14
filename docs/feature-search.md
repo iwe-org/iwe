@@ -1,8 +1,8 @@
 # Notes search
 
-Notes search is key feature in IWE. IWE allows you to organize documents hierarchy just by adding **block-references**. Then you can search for the documents taking into account the hierarchy.
+Notes search is a key feature in IWE. IWE allows you to organize documents hierarchy just by adding **block-references**. Then you can search for the documents taking into account the hierarchy.
 
-Search is can be used via LSP `Workspace Symbols` command.
+Search can be used via the LSP `Workspace Symbols` command.
 
 For every note, IWE will generate full paths. And allow you to do a fuzzy matching to filter the search results. So you can find both entries just by typing `cappu`.
 

@@ -40,6 +40,44 @@ To preview a wiki/markdown-linked note without navigating away, place your curso
 
 More details: [Hover preview](feature-hover-preview.md)
 
-> TODO: add specific examples and keybindings in Helix
->
-> TODO: document Helix-specific quirks (e.g. need to manually delete buffer after inlining a section)
+### Common Keybindings
+
+| Action | Keybinding |
+|--------|------------|
+| Go to definition (follow link) | `gd` |
+| Find references (backlinks) | `gr` |
+| Hover preview | `space` + `k` |
+| Code actions | `space` + `a` |
+| Document symbols (outline) | `space` + `s` |
+| Workspace symbols (search) | `space` + `S` |
+| Rename file | `space` + `r` |
+| Format document | `:format` |
+
+### Code Actions
+
+To use IWE code actions (extract, inline, attach, etc.):
+
+1. Place cursor on the target content
+2. Press `space` + `a` to open code actions menu
+3. Select the desired action
+
+### Helix-Specific Notes
+
+- **Buffer management after inline**: When you inline a section (merge an extracted note back), the buffer for the deleted file remains open. Use `:buffer-close` or `:bc` to close it manually.
+
+- **Auto-format with tables**: If you work with markdown tables, you may want to disable auto-format to prevent unwanted table reformatting:
+
+```toml
+[[language]]
+name = "markdown"
+language-servers = ["iwe"]
+auto-format = false
+```
+
+- **Multiple language servers**: You can use IWE alongside other markdown language servers:
+
+```toml
+[[language]]
+name = "markdown"
+language-servers = ["iwe", "marksman"]
+```

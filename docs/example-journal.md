@@ -69,4 +69,4 @@ You can repeat this again, adding as many levels as necessary
 
 As a result of this decomposition, each document is much simpler while the original hierarchy is preserved. It's also a perfectly valid markdown with no additional syntax.
 
-IWE support automated actions for graph transformations like this and it can just as easily reconstruct the **original** document buy combining the extracted content together preserving correct headings structure.
+IWE supports automated actions for graph transformations like this and it can just as easily reconstruct the **original** document by combining the extracted content together preserving correct headings structure.
