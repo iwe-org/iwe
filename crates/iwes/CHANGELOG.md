@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.60](https://github.com/iwe-org/iwe/compare/iwes-v0.0.59...iwes-v0.0.60) - 2026-01-14
+
+### Added
+
+- Preview linked note with LSP hover ([#207](https://github.com/iwe-org/iwe/pull/207))
+
 ## [0.0.59](https://github.com/iwe-org/iwe/compare/iwes-v0.0.58...iwes-v0.0.59) - 2026-01-10
 
 ### Other
