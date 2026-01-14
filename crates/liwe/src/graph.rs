@@ -274,12 +274,27 @@ impl Graph {
     }
 
     pub fn to_markdown(&self, key: &Key) -> String {
+        if !self.keys.contains_key(key) {
+            return String::new();
+        }
         let markdown = self
             .collect(key)
             .iter()
             .to_markdown(&key.parent(), &self.markdown_options);
 
-        markdown.to_string()
+        markdown
+    }
+
+    pub fn to_markdown_skip_frontmatter(&self, key: &Key) -> String {
+        if !self.keys.contains_key(key) {
+            return String::new();
+        }
+        let markdown = self
+            .collect(key)
+            .iter()
+            .to_markdown_skip_frontmatter(&key.parent(), &self.markdown_options);
+
+        markdown
     }
 
     pub fn paths(&self) -> Vec<NodePath> {

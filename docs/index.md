@@ -30,7 +30,7 @@
 
 [Navigation](feature-navigation.md)
 
-[Search](feature-rename.md)
+[Hover preview](feature-hover-preview.md)
 
 [Text structure normalization / formatting](feature-auto-format.md)
 

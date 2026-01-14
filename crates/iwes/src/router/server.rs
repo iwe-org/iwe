@@ -8,6 +8,7 @@ use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
     model::{
         config::{Configuration, LinkType, MarkdownOptions, Model},
+        is_ref_url,
         node::NodePointer,
         tree::Tree,
         Key, NodeId,
@@ -57,6 +58,43 @@ impl Server {
     }
     pub fn graph(&self) -> impl DatabaseContext + '_ {
         &self.graph
+    }
+
+    pub fn handle_hover(&self, params: HoverParams) -> Option<Hover> {
+        let key = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_key(&self.base_path);
+        let relative_to = key.parent();
+        let position = params.text_document_position_params.position;
+
+        let url = self
+            .graph()
+            .parser(&key)
+            .and_then(|parser| parser.url_at(position.to_model()))?;
+
+        let url = url.split('#').next().unwrap_or(url.as_str());
+        let url = url.split('?').next().unwrap_or(url);
+
+        if url.is_empty() || !is_ref_url(url) {
+            return None;
+        }
+
+        let target_key = Key::from_rel_link_url(url, &relative_to);
+        let markdown = self.graph.to_markdown_skip_frontmatter(&target_key);
+
+        if markdown.trim().is_empty() {
+            return None;
+        }
+
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: markdown,
+            }),
+            range: None,
+        })
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {

@@ -11,6 +11,7 @@ use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
 use lsp_types::ExecuteCommandOptions;
+use lsp_types::HoverProviderCapability;
 use lsp_types::InitializeParams;
 use lsp_types::OneOf;
 use lsp_types::RenameOptions;
@@ -52,6 +53,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         references_provider: Some(OneOf::Left(true)),
         document_formatting_provider: Some(OneOf::Left(true)),
         definition_provider: Some(OneOf::Left(true)),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
         completion_provider: Some(CompletionOptions {
             resolve_provider: Some(true),
             trigger_characters: Some(vec!["+".to_string()]),

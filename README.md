@@ -22,6 +22,7 @@ The main LSP features are:
 
 - 🔍 **Search** through your notes
 - 🧭 **Navigate** through markdown links
+- 👁️ **Preview** linked notes via hover
 - 📃 **Templates** for automated notes creation (e.g. daily notes)
 - ✨ **Auto-complete** links as you type
 - 📥 **Extract** or **inline** sub-notes seamlessly

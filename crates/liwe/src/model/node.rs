@@ -1,5 +1,5 @@
 use crate::model::document::LinkType;
-use crate::model::graph::GraphInlines;
+use crate::model::graph::{blocks_to_markdown_sparce_skip_frontmatter, GraphInlines};
 use crate::model::{Key, NodeId};
 
 use super::config::MarkdownOptions;
@@ -98,6 +98,11 @@ pub trait NodeIter<'a>: Sized {
     fn to_markdown(self, parent: &str, options: &MarkdownOptions) -> String {
         let blocks = Projector::project(self, parent);
         blocks_to_markdown_sparce(&blocks, options)
+    }
+
+    fn to_markdown_skip_frontmatter(self, parent: &str, options: &MarkdownOptions) -> String {
+        let blocks = Projector::project(self, parent);
+        blocks_to_markdown_sparce_skip_frontmatter(&blocks, options)
     }
 
     fn plain_text(&self) -> String {
