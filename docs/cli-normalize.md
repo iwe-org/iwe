@@ -1,4 +1,4 @@
-# iwe normalize
+# IWE Normalize
 
 Performs comprehensive document normalization across all markdown files.
 

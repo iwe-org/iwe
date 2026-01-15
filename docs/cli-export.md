@@ -1,4 +1,4 @@
-# iwe export
+# IWE Export
 
 Exports graph structure in various formats for visualization and analysis.
 

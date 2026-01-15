@@ -1,4 +1,4 @@
-# Notes search
+# Notes Search
 
 Notes search is a key feature in IWE. IWE allows you to organize documents hierarchy just by adding **block-references**. Then you can search for the documents taking into account the hierarchy.
 

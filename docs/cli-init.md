@@ -1,4 +1,4 @@
-# iwe init
+# IWE Init
 
 Initializes the current directory as an IWE project.
 

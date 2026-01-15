@@ -1,4 +1,4 @@
-# Design principles
+# Design Principles
 
 IWE is text graph management assistant. Any text graph. The graph structure is not imposed.
 

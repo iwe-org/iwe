@@ -1,4 +1,4 @@
-# Why it exists
+# Why It Exists
 
 I've always been a big fan of modern text editors like Neovim and Zed, and I've longed to manage my Markdown notes in a way similar to how I write code. I wanted features like "Go To Definition" for diving into details, "Extract note" refactoring for breaking down complex documents into smaller more manageable notes, and autocomplete notes linking.
 

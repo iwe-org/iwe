@@ -1,4 +1,4 @@
-# Data model
+# Data Model
 
 ## Graph-Based Document Representation
 

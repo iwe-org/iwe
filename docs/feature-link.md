@@ -1,4 +1,4 @@
-# Creating links from text
+# Creating Links from Text
 
 The "link" code action allows you to quickly convert text under your cursor or selected text into a link to a new note. This feature streamlines the process of creating new notes while maintaining connections in your knowledge graph.
 

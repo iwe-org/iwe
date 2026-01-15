@@ -1,4 +1,4 @@
-# Hover preview
+# Hover Preview
 
 IWE supports the standard LSP `textDocument/hover` request to preview the contents of a linked note without navigating away from the current document.
 

@@ -1,8 +1,13 @@
 # About IWE
 
+> **Bring IDE-like power to your markdown notes. Fast, local-first PKM for developers.**
+
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![Downloads](https://img.shields.io/crates/d/iwe.svg)](https://crates.io/crates/iwe)
 [![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
+[![Build](https://github.com/iwe-org/iwe/workflows/Rust/badge.svg)](https://github.com/iwe-org/iwe/actions)
+[![Documentation](https://img.shields.io/badge/docs-iwe.md-blue)](https://iwe.md)
+[![Discussions](https://img.shields.io/github/discussions/iwe-org/iwe)](https://github.com/iwe-org/iwe/discussions)
 
 ![Graphviz Example](docs/docs-detailed.svg)
 
@@ -19,6 +24,13 @@ While IWE supports sub-directories and relative links, it also allows you to org
 > [!NOTE]
 >
 > The goal of the project is to put powerful knowledge management at your fingertips, making it as seamless as working with code in an IDE for Writing (IWE).
+
+## Why IWE?
+
+- 🚀 **Works in your editor** — VS Code, Neovim, Zed, Helix via LSP
+- 🔒 **Local-first** — Your notes stay on your machine, version with Git
+- ⚡ **Blazing fast** — Rust-powered, processes thousands of notes instantly
+- 🆓 **Free & Open Source** — Apache 2.0 license
 
 ## LSP Features
 
@@ -99,6 +111,14 @@ Check [usage guide](https://iwe.md/docs/getting-started/usage/) for more informa
 ## Quick Start
 
 1. **Install** the CLI and LSP server:
+
+   Using Homebrew (macOS/Linux):
+   ```bash
+   brew tap iwe-org/iwe
+   brew install iwe
+   ```
+
+   Or using Cargo:
    ```bash
    cargo install iwe iwes
    ```

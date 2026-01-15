@@ -1,4 +1,4 @@
-# Sub-directories
+# Sub-Directories
 
 IWE supports organizing your markdown files in subdirectories while maintaining full functionality across all features. This allows you to structure your knowledge base hierarchically without losing the ability to link, search, and process files across directory boundaries.
 

@@ -1,4 +1,4 @@
-# Basic journal example
+# Basic Journal Example
 
 Lets take this Markdown journal as an example.
 

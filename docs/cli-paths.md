@@ -1,4 +1,4 @@
-# iwe paths
+# IWE Paths
 
 Displays all possible navigation paths in your document graph.
 

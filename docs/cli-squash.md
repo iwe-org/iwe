@@ -1,4 +1,4 @@
-# iwe squash
+# IWE Squash
 
 Creates consolidated documents by combining linked content into a single file.
 

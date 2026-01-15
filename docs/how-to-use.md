@@ -1,4 +1,4 @@
-# How to use with your text editor
+# How to Use with Your Text Editor
 
 ## Purpose
 

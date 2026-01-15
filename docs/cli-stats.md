@@ -1,4 +1,4 @@
-# iwe stats
+# IWE Stats
 
 Generates comprehensive statistics about your knowledge graph.
 

@@ -1,4 +1,4 @@
-# Inlay hints
+# Inlay Hints
 
 Inlay hints are visual annotations that appear inline within your document, providing contextual information without requiring navigation. IWE provides two types of inlay hints.
 

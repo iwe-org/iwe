@@ -1,4 +1,4 @@
-# Text manipulation
+# Text Manipulation
 
 IWE offers actions for context-aware transformations on your notes. These actions are available through your editor's code actions menu (usually `Ctrl+.` or `Cmd+.`).
 

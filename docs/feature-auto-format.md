@@ -1,4 +1,4 @@
-# Text structure normalization / formatting
+# Text Structure Normalization / Formatting
 
 IWE provides auto-formatting through the LSP formatting feature. This typically triggers when you save your document (if your editor is configured for format-on-save) or manually via a formatting command.
 

@@ -1,4 +1,4 @@
-# iwe contents
+# IWE Contents
 
 Lists root documents (notes without parent references).
 

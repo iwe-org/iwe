@@ -1,4 +1,4 @@
-# Linking and note templates
+# Linking and Note Templates
 
 The "attach" code action allows you to link content under your cursor to another document. This feature is perfect for creating daily notes, collecting ideas in an inbox, or organizing thoughts into topic-specific documents.
 

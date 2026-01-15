@@ -1,4 +1,4 @@
-# Header levels normalization
+# Header Levels Normalization
 
 IWE reads and understands nested structures based on headers. It identifies sub-header relationships. Markdown allows header structures where the nesting isn't clear, like:
 

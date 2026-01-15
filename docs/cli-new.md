@@ -1,4 +1,4 @@
-# iwe new
+# IWE New
 
 Creates a new document from a template.
 

@@ -1,4 +1,4 @@
-# Custom AI commands
+# Custom AI Commands
 
 IWE includes **AI** capabilities that can be accessed right from your text editor. You can effortlessly **rewrite** text, **expand** on ideas, **highlight** important words, or even add some **emojis**. Want to customize your AI experience? You can easily add your own AI commands by updating the config file with your custom prompts.
 
