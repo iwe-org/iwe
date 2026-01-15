@@ -99,6 +99,14 @@ Check [usage guide](https://iwe.md/docs/getting-started/usage/) for more informa
 ## Quick Start
 
 1. **Install** the CLI and LSP server:
+
+   Using Homebrew (macOS/Linux):
+   ```bash
+   brew tap iwe-org/iwe
+   brew install iwe
+   ```
+
+   Or using Cargo:
    ```bash
    cargo install iwe iwes
    ```

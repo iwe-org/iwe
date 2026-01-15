@@ -1,0 +1,90 @@
+name: Update Homebrew Formula
+
+on:
+  workflow_run:
+    workflows: ["Binaries"]
+    types:
+      - completed
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Get release info
+        id: release
+        run: |
+          # Get the latest release
+          RELEASE=$(curl -sL "https://api.github.com/repos/iwe-org/iwe/releases/latest")
+          VERSION=$(echo "$RELEASE" | jq -r '.tag_name' | sed 's/^iwe-v//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Get SHA256 for each platform from asset digests
+          ASSETS=$(echo "$RELEASE" | jq -r '.assets')
+
+          MACOS_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | contains("universal-apple-darwin")) | .digest' | sed 's/sha256://')
+          LINUX_X64_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | contains("x86_64-unknown-linux-gnu")) | .digest' | sed 's/sha256://')
+          LINUX_ARM_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | contains("aarch64-unknown-linux-gnu")) | .digest' | sed 's/sha256://')
+
+          echo "macos_sha=$MACOS_SHA" >> $GITHUB_OUTPUT
+          echo "linux_x64_sha=$LINUX_X64_SHA" >> $GITHUB_OUTPUT
+          echo "linux_arm_sha=$LINUX_ARM_SHA" >> $GITHUB_OUTPUT
+
+      - name: Checkout homebrew-iwe
+        uses: actions/checkout@v6
+        with:
+          repository: iwe-org/homebrew-iwe
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update formula
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          MACOS_SHA: ${{ steps.release.outputs.macos_sha }}
+          LINUX_X64_SHA: ${{ steps.release.outputs.linux_x64_sha }}
+          LINUX_ARM_SHA: ${{ steps.release.outputs.linux_arm_sha }}
+        run: |
+          cat > Formula/iwe.rb << FORMULA
+          class Iwe < Formula
+            desc "Markdown-based personal knowledge management tool for developers"
+            homepage "https://iwe.md"
+            version "${VERSION}"
+            license "Apache-2.0"
+
+            on_macos do
+              url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-universal-apple-darwin.tar.gz"
+              sha256 "${MACOS_SHA}"
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_X64_SHA}"
+              end
+
+              on_arm do
+                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_ARM_SHA}"
+              end
+            end
+
+            def install
+              bin.install "iwe"
+              bin.install "iwes"
+            end
+
+            test do
+              system "#{bin}/iwe", "--version"
+              system "#{bin}/iwes", "--version"
+            end
+          end
+          FORMULA
+          # Remove leading spaces from heredoc
+          sed -i 's/^          //' Formula/iwe.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/iwe.rb
+          git commit -m "Update iwe to ${{ steps.release.outputs.version }}" || echo "No changes to commit"
+          git push

@@ -2,6 +2,17 @@
 
 Installation instructions are below. Editor integration is covered in the [quick start](https://iwe.md/quick-start) section.
 
+## Using Homebrew (macOS/Linux)
+
+The easiest way to install IWE on macOS or Linux is using Homebrew:
+
+``` sh
+brew tap iwe-org/iwe
+brew install iwe
+```
+
+This installs both the CLI (`iwe`) and the LSP server (`iwes`).
+
 ## From Crates.IO
 
 - Rust and Cargo must be installed on your system. You can get them from [rustup.rs](https://rustup.rs).
