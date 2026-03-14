@@ -1,0 +1,5 @@
+Search and discover documents in your knowledge base.
+
+Uses fuzzy matching on document title and key. Without a query, documents are
+sorted by popularity (incoming references count). Supports filtering by root
+documents or reference relationships.

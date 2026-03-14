@@ -1,0 +1,5 @@
+List root documents (notes without parent references).
+
+Identifies entry points in your knowledge graph - documents that aren't
+referenced by others, potentially serving as main topics or starting points
+for navigation.

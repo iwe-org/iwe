@@ -64,3 +64,4 @@ tracing-subscriber = { version = "0.3.20", default-features = false, features = 
 ] }
 ignore = "0.4"
 csv = "1.3"
+serde_yaml = "0.9"

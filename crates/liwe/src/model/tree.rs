@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use itertools::Itertools;
 
 use super::{
+    document::LinkType,
     graph::GraphInline,
     node::{Node, NodeIter, NodePointer, Reference, ReferenceType},
     Key, NodeId,
@@ -631,6 +632,47 @@ impl Tree {
         match &self.node {
             Node::Reference(reference) => Some(reference.key.clone()),
             _ => None,
+        }
+    }
+    pub fn annotate_references<F>(&self, parent_lookup: &F, parent_key: &str) -> Tree
+    where
+        F: Fn(&Key) -> Vec<(Key, String)>,
+    {
+        match &self.node {
+            Node::Reference(reference) => {
+                let parents = parent_lookup(&reference.key);
+                if parents.is_empty() {
+                    self.clone()
+                } else {
+                    let mut inlines = vec![];
+                    let ref_url = reference.key.to_rel_link_url(parent_key);
+                    inlines.push(GraphInline::Link(
+                        ref_url,
+                        String::new(),
+                        reference.reference_type.to_link_type(),
+                        vec![GraphInline::Str(reference.text.clone())],
+                    ));
+                    inlines.push(GraphInline::Str(" <- ".to_string()));
+                    for (i, (p_key, p_title)) in parents.iter().enumerate() {
+                        if i > 0 {
+                            inlines.push(GraphInline::Str(", ".to_string()));
+                        }
+                        inlines.push(GraphInline::Link(
+                            p_key.to_rel_link_url(parent_key),
+                            String::new(),
+                            LinkType::Markdown,
+                            vec![GraphInline::Str(p_title.clone())],
+                        ));
+                    }
+
+                    Tree {
+                        id: self.id,
+                        node: Node::Leaf(inlines),
+                        children: vec![],
+                    }
+                }
+            }
+            _ => self.map_children(|child| child.annotate_references(parent_lookup, parent_key)),
         }
     }
 }

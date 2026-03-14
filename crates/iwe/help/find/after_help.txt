@@ -1,0 +1,28 @@
+OUTPUT FORMATS:
+
+MARKDOWN (default, -f markdown):
+  ## Documents
+
+  Found 3 results:
+
+  - [Document A](doc-a) (root)
+  - [Document B](doc-b) <- [Document A](doc-a)
+
+  Each result shows:
+  - Document link
+  - (root) indicator if no incoming block references
+  - Parent documents with <- notation (where this doc is embedded)
+
+KEYS (-f keys):
+  One key per line, suitable for piping:
+
+    doc-a
+    doc-b
+    doc-c
+
+JSON (-f json):
+  Structured output with metadata:
+
+    {"query": "...", "total": 3, "results": [
+      {"key": "...", "title": "...", "is_root": true,
+       "incoming_refs": 5, "outgoing_refs": 2, "parent_documents": [...]}]}

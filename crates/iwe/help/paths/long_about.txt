@@ -1,0 +1,5 @@
+Display all possible navigation paths in your document graph.
+
+Shows hierarchical paths through your documents, revealing connection patterns
+and document relationships. Useful for understanding the structure and
+navigation flow of your knowledge base.

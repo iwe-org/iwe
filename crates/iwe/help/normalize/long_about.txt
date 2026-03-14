@@ -1,0 +1,9 @@
+Perform comprehensive document normalization across all markdown files.
+
+Operations performed:
+- Update link titles to match target document headers
+- Adjust header levels for consistent hierarchy
+- Renumber ordered lists
+- Fix markdown formatting (newlines, indentation)
+- Standardize list formatting
+- Normalize document structure

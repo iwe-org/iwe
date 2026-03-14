@@ -1,0 +1,9 @@
+Generate comprehensive statistics about your knowledge graph.
+
+Provides analytics including:
+- Overview: document count, node count, path count
+- Document stats: sections, paragraphs, top documents
+- Reference stats: block/inline refs, orphans, leaves, most referenced
+- Size stats: lines, words, largest documents
+- Structure stats: lists, code blocks, tables, quotes
+- Network analysis: connectivity, most connected documents

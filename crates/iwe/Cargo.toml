@@ -1,7 +1,7 @@
 [package]
 name = "iwe"
 description = "IWE CLI utility"
-include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md", "templates/**/*"]
+include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md", "templates/**/*", "help/**/*"]
 
 version.workspace = true
 repository.workspace = true
@@ -35,6 +35,8 @@ graphviz-rust.workspace = true
 minijinja.workspace = true
 csv.workspace = true
 chrono.workspace = true
+fuzzy-matcher.workspace = true
+serde_yaml.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
