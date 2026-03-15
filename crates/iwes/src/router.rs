@@ -11,8 +11,8 @@ use lsp_server::{Notification, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, ExecuteCommandParams, HoverParams, InlayHintParams, InlineValueParams,
-    ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
+    DocumentSymbolParams, HoverParams, InlayHintParams, InlineValueParams, ReferenceParams,
+    RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 use serde::Deserialize;
@@ -162,19 +162,6 @@ impl Router {
             });
 
             return true;
-        }
-
-        if request.method.eq("workspace/executeCommand") {
-            let params = ExecuteCommandParams::deserialize(request.params).unwrap();
-            let result = self.server.handle_workspace_command(params);
-
-            self.send(Message::Request(Request {
-                id: Uuid::new_v4().to_string().into(),
-                method: "workspace/applyEdit".to_string(),
-                params: to_value(result).unwrap(),
-            }));
-
-            return false;
         }
 
         let response = match request.method.as_str() {
