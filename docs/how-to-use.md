@@ -16,7 +16,7 @@ IWE provides comprehensive features for markdown-based knowledge management:
 
 ### Core LSP Features
 
-- 🤖 **AI-Powered Text Generation**: Generate, rewrite, or modify text using configurable AI commands
+- 🤖 **Text Transformation**: Generate, rewrite, or modify text using configurable CLI commands
 - 🔍 **Global Search**: Search through all notes using fuzzy matching on document paths and content
 - 🧭 **Link Navigation**: Follow links between documents with Go To Definition
 - 👁️ **Hover Preview**: Preview linked notes without navigating away
@@ -36,7 +36,7 @@ Here's a reference connecting each LSP request with IWE features:
 |IWE Feature|LSP Request|Description|
 |-----------|-----------|-----------|
 |Extract/Inline Notes|Code Action|Split sections into files or merge them back|
-|AI Text Generation|Code Action|Generate, rewrite, or modify text using AI|
+|Text Transformation|Code Action|Generate, rewrite, or modify text using CLI commands|
 |Text Transformation|Code Action|Convert lists to headers, change list types|
 |Link Navigation|Go To Definition|Follow markdown links to target documents|
 |Hover Preview|Hover|Preview linked notes without opening the file|
@@ -113,29 +113,30 @@ With a list inside it:
 
 ## Advanced Features
 
-### AI-Powered Actions
+### Text Transform Commands
 
-IWE supports configurable AI commands that can:
+IWE supports configurable text transformation commands that can:
 
 - Rewrite and improve text
 - Generate new content based on prompts
 - Expand on ideas and concepts
 - Add formatting and structure
 
-Configure AI actions in your `.iwe/config.toml`:
+Commands work by piping content through external CLI tools. Configure them in your `.iwe/config.toml`:
 
 ``` toml
-[models.default]
-api_key_env = "OPENAI_API_KEY"
-base_url = "https://api.openai.com"
-name = "gpt-4o"
+[commands.claude]
+run = "claude -p"
+timeout_seconds = 120
 
 [actions.rewrite]
+type = "transform"
 title = "Improve Text"
-model = "default"
-context = "Document"
-prompt_template = "Improve this text: {{context}}"
+command = "claude"
+input_template = "Improve this text: {{context}}"
 ```
+
+You can use any CLI tool that reads from stdin and writes to stdout, including AI assistants like Claude CLI, custom scripts, or standard Unix tools.
 
 [Configuration](configuration.md)
 
@@ -214,5 +215,5 @@ When IWE creates new files (via extraction):
 3.  **Regular Formatting**: Use document formatting to maintain consistency
 4.  **Organize with Extraction**: Break large documents into focused, linked sections
 5.  **Leverage Search**: Use global search to discover connections and content
-6.  **Configure AI**: Set up AI actions that match your writing workflow
+6.  **Configure Commands**: Set up transform actions that match your writing workflow
 7.  **Use Inlay Hints**: Enable hints to understand document relationships at a glance

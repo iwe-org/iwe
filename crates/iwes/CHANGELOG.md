@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: Replace LLM API integration with CLI-based transformations
+
+  Transform actions now execute external CLI commands instead of making direct API calls to LLM providers. This change removes the burden of maintaining API client code and eliminates direct external API calls from IWE. Users are likely to already have CLI AI tools pre-configured with API keys and preferences, making integration seamless. Any CLI-based AI tool can be used: `claude`, `aichat`, `llm`, `sgpt`, or custom scripts.
+
+  - Renamed `[models]` config section to `[commands]`
+  - Transform actions now use `command` field instead of `model`
+  - Transform actions now use `input_template` field instead of `prompt_template`
+  - Removed `context` field from transform actions
+  - Commands execute via `sh -c` with input piped to stdin
+  - Configuration version bumped to 3 (auto-migration from v2)
+
+### Removed
+
+- Removed `reqwest` dependency (no longer needed for HTTP API calls)
+- Removed LLM API client code
+- Removed `prompt_key_prefix` configuration option
+
 ## [0.0.60](https://github.com/iwe-org/iwe/compare/iwes-v0.0.59...iwes-v0.0.60) - 2026-01-14
 
 ### Added

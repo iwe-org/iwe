@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Configuration, Context::Document, Model, Transform};
+use liwe::model::config::{ActionDefinition, Command, Configuration, Transform};
 
 mod fixture;
 use crate::fixture::*;
@@ -18,7 +18,7 @@ fn block_action_target() {
 fn assert_action(action: ActionDefinition, source: &str, line: u32) {
     let config = Configuration {
         actions: vec![("action".to_string(), action)].into_iter().collect(),
-        models: vec![("model".to_string(), Model::default())]
+        commands: vec![("command".to_string(), Command::default())]
             .into_iter()
             .collect(),
         ..Default::default()
@@ -37,8 +37,7 @@ fn assert_action(action: ActionDefinition, source: &str, line: u32) {
 fn action() -> ActionDefinition {
     ActionDefinition::Transform(Transform {
         title: "title".to_string(),
-        model: "model".to_string(),
-        prompt_template: "".to_string(),
-        context: Document,
+        command: "command".to_string(),
+        input_template: "".to_string(),
     })
 }

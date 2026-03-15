@@ -102,6 +102,20 @@ An example of squash command output converted to [PDF](https://github.com/iwe-or
 
 </details>
 
+## Agentic CLI Tools
+
+IWE provides specialized CLI commands designed for AI agent integration and programmatic knowledge graph navigation.
+
+- 🔎 **Retrieve** document content with graph expansion and relationship context
+- 🧭 **Find** documents with fuzzy matching and relationship filtering
+- 🔗 **Pipe** commands together for complex workflows
+- 📦 **JSON output** for structured data parsing
+- 🎯 **Dry-run mode** to check context size before fetching
+
+More information is available in:
+
+[Agentic CLI Tools Documentation](https://iwe.md/docs/cli/agentic/)
+
 ## How to install
 
 You can find the installation instructions in the [Quick Start Guide](https://iwe.md/quick-start).
