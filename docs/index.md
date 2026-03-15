@@ -16,6 +16,10 @@
 
 [iwe new](cli-new.md)
 
+[iwe retrieve](cli-retrieve.md)
+
+[iwe find](cli-find.md)
+
 [iwe normalize](cli-normalize.md)
 
 [iwe paths](cli-paths.md)

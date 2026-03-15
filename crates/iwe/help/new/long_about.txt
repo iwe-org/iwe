@@ -1,0 +1,7 @@
+Create a new document from a template.
+
+Creates a markdown file using the specified template, generates filename from the
+title (slugified), and prints the absolute path to stdout. Supports content from
+command-line argument or stdin pipe.
+
+Templates support variables: {{title}}, {{slug}}, {{today}}, {{id}}, {{content}}

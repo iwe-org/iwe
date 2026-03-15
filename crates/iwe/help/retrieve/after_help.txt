@@ -1,0 +1,46 @@
+OUTPUT FORMATS:
+
+MARKDOWN (default, -f markdown):
+  Each document has YAML frontmatter followed by content:
+
+    ---
+    document:
+      key: doc-a
+      title: Document A
+      parents:           # omitted if empty
+      - key: parent-doc
+        title: Parent Doc
+      back-links:        # omitted if empty
+      - key: other-doc
+        title: Other Doc
+    ---
+
+    # Document A
+
+    Content here...
+
+  Multiple documents are separated by frontmatter delimiters (---).
+  Two empty lines follow each document.
+
+  Sub-documents show other parents with <- notation:
+
+    # Child Doc
+
+    [Child Doc](child-doc) <- [Other Parent](other-parent)
+
+  This indicates child-doc is also embedded in other-parent, helping
+  you understand where else a sub-document is used.
+
+KEYS (-f keys):
+  One document key per line, suitable for piping:
+
+    doc-a
+    child-doc
+    parent-doc
+
+JSON (-f json):
+  Structured output:
+
+    {"documents": [{"key": "...", "title": "...",
+      "content": "...", "parent_documents": [...],
+      "child_documents": [...], "backlinks": [...]}]}

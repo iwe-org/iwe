@@ -1,0 +1,7 @@
+Export graph structure in various formats for visualization and analysis.
+
+Available formats:
+- dot: Graphviz DOT format for graph visualization
+
+Supports filtering by specific document key and controlling export depth.
+Use --include-headers for detailed visualization with section subgraphs.

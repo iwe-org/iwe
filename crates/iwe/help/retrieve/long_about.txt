@@ -1,0 +1,8 @@
+Retrieve documents from the knowledge graph with configurable depth and context expansion.
+
+Documents are collected in order:
+1. Main document (-k)
+2. Children via block refs (-d N levels deep)
+3. Parent context (-c N levels up)
+4. Parents of sub-documents (when -d > 0 and -c > 0)
+5. Inline linked documents (-l)

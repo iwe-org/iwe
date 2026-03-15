@@ -1,0 +1,6 @@
+Create consolidated documents by combining linked content into a single file.
+
+Starts from the specified document, traverses linked documents up to the
+specified depth, and combines content into a single markdown document.
+Converts block references to inline sections while maintaining document
+structure and hierarchy.

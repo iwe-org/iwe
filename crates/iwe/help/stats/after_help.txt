@@ -1,0 +1,23 @@
+OUTPUT FORMATS:
+
+MARKDOWN (default, -f markdown):
+  Human-readable formatted statistics with sections for overview,
+  documents, references, lines, words, structure, and network analysis.
+
+CSV (-f csv):
+  Per-document statistics with columns:
+  key, title, sections, paragraphs, lines, words, incoming_block_refs,
+  incoming_inline_refs, total_incoming_refs, outgoing_block_refs,
+  outgoing_inline_refs, total_connections, bullet_lists, ordered_lists,
+  code_blocks, tables, quotes
+
+EXAMPLES:
+
+  # Generate human-readable statistics
+  iwe stats
+
+  # Export per-document statistics as CSV
+  iwe stats --format csv > stats.csv
+
+  # Find most connected documents
+  iwe stats -f csv | tail -n +2 | sort -t, -k12 -nr | head -5

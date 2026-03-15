@@ -6,10 +6,12 @@ IWE provides a powerful command-line interface for managing markdown-based knowl
 
 1.  **Initialize a project**: `iwe init`
 2.  **Create a new document**: `iwe new "My Note"`
-3.  **Normalize all documents**: `iwe normalize`
-4.  **View document paths**: `iwe paths`
-5.  **Analyze your knowledge base**: `iwe stats`
-6.  **Export graph visualization**: `iwe export dot`
+3.  **Retrieve a document with context**: `iwe retrieve -k my-note`
+4.  **Find and search documents**: `iwe find "search term"`
+5.  **Normalize all documents**: `iwe normalize`
+6.  **View document paths**: `iwe paths`
+7.  **Analyze your knowledge base**: `iwe stats`
+8.  **Export graph visualization**: `iwe export dot`
 
 ## Installation & Setup
 

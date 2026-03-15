@@ -4,11 +4,17 @@ use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 
 use clap::{Args, Parser, Subcommand};
+
+mod help;
 use itertools::Itertools;
 
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
+use iwe::find::{DocumentFinder, FindOptions};
 use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
+use iwe::retrieve::render::RetrieveRenderer;
+use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::stats::GraphStatistics;
+use minijinja::{context, Environment};
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
@@ -36,6 +42,8 @@ pub struct App {
 enum Command {
     Init(Init),
     New(New),
+    Retrieve(Retrieve),
+    Find(Find),
     Normalize(Normalize),
     Paths(Paths),
     Squash(Squash),
@@ -45,19 +53,112 @@ enum Command {
 }
 
 #[derive(Debug, Args)]
+#[clap(
+    about = help::retrieve::ABOUT,
+    long_about = help::retrieve::LONG_ABOUT,
+    after_help = help::retrieve::AFTER_HELP
+)]
+struct Retrieve {
+    #[clap(long, short = 'k', help = "Document key(s) to retrieve (can be specified multiple times)")]
+    key: Vec<String>,
+
+    #[clap(
+        long,
+        short = 'd',
+        default_value = "1",
+        help = "Follow block refs down N levels"
+    )]
+    depth: u8,
+
+    #[clap(
+        long,
+        short = 'c',
+        default_value = "1",
+        help = "Include N levels of parent context"
+    )]
+    context: u8,
+
+    #[clap(long, short = 'l', help = "Include inline references")]
+    links: bool,
+
+    #[clap(long, short = 'e', help = "Exclude document key(s) from results (can be specified multiple times)")]
+    exclude: Vec<String>,
+
+    #[clap(long, short = 'b', default_value_t = true, help = "Include incoming references")]
+    backlinks: bool,
+
+    #[clap(long, short = 'f', value_enum, default_value = "markdown")]
+    format: RetrieveFormat,
+
+    #[clap(long, help = "Show document count and total lines without content")]
+    dry_run: bool,
+
+    #[clap(long, help = "Exclude document content from results (metadata only)")]
+    no_content: bool,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum RetrieveFormat {
+    Markdown,
+    Keys,
+    Json,
+}
+
+#[derive(Debug, Args)]
 struct Search {
     #[clap(long, short = 'p')]
     prompt: String,
 }
 
 #[derive(Debug, Args)]
+#[clap(
+    about = help::find::ABOUT,
+    long_about = help::find::LONG_ABOUT,
+    after_help = help::find::AFTER_HELP
+)]
+struct Find {
+    #[clap(help = "Search query (fuzzy match on title and key)")]
+    query: Option<String>,
+
+    #[clap(long, help = "Only root documents (no incoming block refs)")]
+    roots: bool,
+
+    #[clap(long, help = "Documents that reference this key")]
+    refs_to: Option<String>,
+
+    #[clap(long, help = "Documents referenced by this key")]
+    refs_from: Option<String>,
+
+    #[clap(long, short = 'l', default_value = "50", help = "Maximum results")]
+    limit: usize,
+
+    #[clap(long, short = 'f', value_enum, default_value = "markdown")]
+    format: FindFormat,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum FindFormat {
+    Markdown,
+    Keys,
+    Json,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::normalize::ABOUT,
+    long_about = help::normalize::LONG_ABOUT
+)]
 struct Normalize {}
 
 #[derive(Debug, Args)]
+#[clap(about = help::init::ABOUT)]
 struct Init {}
 
 #[derive(Debug, Args)]
-#[clap(about = "Create a new document from a template")]
+#[clap(
+    about = help::new::ABOUT,
+    long_about = help::new::LONG_ABOUT
+)]
 struct New {
     #[clap(help = "Title for the new document")]
     title: String,
@@ -82,10 +183,18 @@ struct New {
 }
 
 #[derive(Debug, Args)]
+#[clap(
+    about = help::contents::ABOUT,
+    long_about = help::contents::LONG_ABOUT
+)]
 struct Contents {}
 
 #[derive(Debug, Args)]
-#[clap(about = "Display graph statistics")]
+#[clap(
+    about = help::stats::ABOUT,
+    long_about = help::stats::LONG_ABOUT,
+    after_help = help::stats::AFTER_HELP
+)]
 struct Stats {
     #[clap(
         long,
@@ -104,7 +213,11 @@ enum StatsFormat {
 }
 
 #[derive(Debug, Args)]
-#[clap(about = "Export the graph structure in various formats")]
+#[clap(
+    about = help::export::ABOUT,
+    long_about = help::export::LONG_ABOUT,
+    after_help = help::export::AFTER_HELP
+)]
 struct Export {
     format: Format,
     #[clap(
@@ -137,6 +250,10 @@ enum Format {
 }
 
 #[derive(Debug, Args)]
+#[clap(
+    about = help::squash::ABOUT,
+    long_about = help::squash::LONG_ABOUT
+)]
 struct Squash {
     #[clap(long, short = 'k')]
     key: String,
@@ -145,6 +262,10 @@ struct Squash {
 }
 
 #[derive(Debug, Args)]
+#[clap(
+    about = help::paths::ABOUT,
+    long_about = help::paths::LONG_ABOUT
+)]
 struct Paths {
     #[clap(long, short, global = true, required = false, default_value = "4")]
     depth: u8,
@@ -185,10 +306,141 @@ fn main() {
         }
         Command::Init(init) => init_command(init),
         Command::New(new) => new_command(new),
+        Command::Retrieve(retrieve) => retrieve_command(retrieve),
+        Command::Find(find) => find_command(find),
         Command::Contents(contents) => contents_command(contents),
         Command::Export(export) => export_command(export),
         Command::Stats(stats) => stats_command(stats),
     }
+}
+
+#[tracing::instrument(level = "debug")]
+fn retrieve_command(args: Retrieve) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let key_strings: Vec<String> = if args.key.is_empty() {
+        let stdin_content = read_stdin_if_available();
+        let keys: Vec<String> = stdin_content
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if keys.is_empty() {
+            eprintln!("Error: No document key provided. Use -k <key> or pipe keys via stdin.");
+            std::process::exit(1);
+        }
+        keys
+    } else {
+        args.key
+    };
+
+    let mut keys = Vec::new();
+    for key_str in &key_strings {
+        let key = Key::name(key_str);
+        if (&graph).get_node_id(&key).is_none() {
+            eprintln!("Error: Document '{}' not found", key_str);
+            std::process::exit(2);
+        }
+        keys.push(key);
+    }
+
+    let reader = DocumentReader::new(&graph);
+    let exclude: std::collections::HashSet<Key> = args
+        .exclude
+        .iter()
+        .map(|s| Key::name(s))
+        .collect();
+    let options = RetrieveOptions {
+        depth: args.depth,
+        context: args.context,
+        links: args.links,
+        backlinks: args.backlinks,
+        exclude,
+        no_content: args.no_content,
+    };
+
+    let output = reader.retrieve_many(&keys, &options);
+
+    if args.dry_run {
+        let doc_count = output.documents.len();
+        let total_lines: usize = output
+            .documents
+            .iter()
+            .map(|doc| doc.content.lines().count())
+            .sum();
+        println!("documents: {}", doc_count);
+        println!("lines: {}", total_lines);
+        return;
+    }
+
+    match args.format {
+        RetrieveFormat::Json => {
+            let json = serde_json::to_string_pretty(&output).expect("Failed to serialize to JSON");
+            println!("{}", json);
+        }
+        RetrieveFormat::Keys => {
+            for doc in &output.documents {
+                println!("{}", doc.key);
+            }
+        }
+        RetrieveFormat::Markdown => {
+            let options = graph.markdown_options();
+            let renderer = RetrieveRenderer::new(&output, &options, &graph);
+            print!("{}", renderer.render());
+        }
+    }
+}
+
+const FIND_TEMPLATE: &str = include_str!("../templates/find.md.jinja");
+
+#[tracing::instrument(level = "debug")]
+fn find_command(args: Find) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let finder = DocumentFinder::new(&graph);
+    let options = FindOptions {
+        query: args.query,
+        roots: args.roots,
+        refs_to: args.refs_to.map(|s| Key::name(&s)),
+        refs_from: args.refs_from.map(|s| Key::name(&s)),
+        limit: args.limit,
+    };
+
+    let output = finder.find(&options);
+
+    match args.format {
+        FindFormat::Json => {
+            let json = serde_json::to_string_pretty(&output).expect("Failed to serialize to JSON");
+            println!("{}", json);
+        }
+        FindFormat::Keys => {
+            for result in &output.results {
+                println!("{}", result.key);
+            }
+        }
+        FindFormat::Markdown => {
+            let rendered = render_find_template(&output);
+            print!("{}", rendered);
+        }
+    }
+}
+
+fn render_find_template(output: &iwe::find::output::FindOutput) -> String {
+    let env = Environment::new();
+    let template = env
+        .template_from_str(FIND_TEMPLATE)
+        .expect("Failed to parse template");
+
+    template
+        .render(context! {
+            query => output.query,
+            limit => output.limit,
+            total => output.total,
+            results => output.results,
+        })
+        .expect("Failed to render template")
 }
 
 #[tracing::instrument(level = "debug")]
@@ -363,7 +615,6 @@ fn render_block_reference(key: &Key, context: impl GraphContext) -> String {
 }
 
 fn render(path: &NodePath, context: impl GraphContext) -> String {
-    // For each fragment in the path, get the text and join them with a space
     path.ids()
         .iter()
         .map(|id| context.get_text(*id).trim().to_string())
