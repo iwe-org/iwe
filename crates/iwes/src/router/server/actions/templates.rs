@@ -7,13 +7,13 @@ static UPDATE_END: &str = "</update_here>";
 static CONTEXT_START: &str = "<context>";
 static CONTEXT_END: &str = "</context>";
 
-pub fn block_action_prompt(prompt_template: &str, node_id: NodeId, tree: &Tree) -> String {
+pub fn render_input_template(input_template: &str, node_id: NodeId, tree: &Tree) -> String {
     let marked = tree.mark_node(node_id, UPDATE_START, UPDATE_END);
 
     let context: &str = &marked.iter().to_default_markdown();
 
     Environment::new()
-        .template_from_str(prompt_template)
+        .template_from_str(input_template)
         .expect("correct template")
         .render(context! {
         context => context,

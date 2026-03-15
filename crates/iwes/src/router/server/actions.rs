@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use liwe::graph::Graph;
 use liwe::model::config::{
-    ActionDefinition, Configuration, MarkdownOptions, Model, DEFAULT_KEY_DATE_FORMAT,
+    ActionDefinition, Command, Configuration, MarkdownOptions, DEFAULT_KEY_DATE_FORMAT,
 };
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
@@ -22,6 +22,7 @@ mod link;
 mod list;
 mod section;
 mod sort;
+pub mod templates;
 mod transform;
 
 pub use attach::AttachAction;
@@ -44,8 +45,7 @@ pub trait ActionContext {
     fn random_keys(&self, parent: &str, number: usize) -> Vec<Key>;
     fn unique_ids(&self, parent: &str, number: usize) -> Vec<String>;
     fn markdown_options(&self) -> &MarkdownOptions;
-    fn llm_query(&self, prompt: String, model: &Model) -> String;
-    fn default_model(&self) -> &Model;
+    fn get_command(&self, name: &str) -> Option<&Command>;
     fn patch(&self) -> Graph;
     fn get_block_references_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId>;
@@ -264,18 +264,12 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
             .iter()
             .map(|(identifier, action)| match action {
                 ActionDefinition::Transform(transform) => {
-                    let action = ActionEnum::TransformBlockAction(TransformBlockAction {
+                    ActionEnum::TransformBlockAction(TransformBlockAction {
                         title: transform.title.clone(),
                         identifier: identifier.clone(),
-                        model_parameters: configuration
-                            .models
-                            .get(&transform.model)
-                            .unwrap_or_else(|| panic!("Model {} not found in configuration", transform.model))
-                            .clone(),
-                        prompt_template: transform.prompt_template.clone(),
-                        context: transform.context.clone(),
-                    });
-                    action
+                        command: transform.command.clone(),
+                        input_template: transform.input_template.clone(),
+                    })
                 }
                 ActionDefinition::Attach(attach) => {
                     

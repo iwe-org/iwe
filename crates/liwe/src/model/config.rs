@@ -33,7 +33,6 @@ impl Default for MarkdownOptions {
 pub struct LibraryOptions {
     pub path: String,
     pub date_format: Option<String>,
-    pub prompt_key_prefix: Option<String>,
     pub default_template: Option<String>,
     pub frontmatter_document_title: Option<String>,
 }
@@ -48,7 +47,6 @@ impl Default for LibraryOptions {
         Self {
             path: String::new(),
             date_format: Some(DEFAULT_KEY_DATE_FORMAT.into()),
-            prompt_key_prefix: None,
             default_template: None,
             frontmatter_document_title: None,
         }
@@ -62,21 +60,20 @@ pub struct Configuration {
     pub library: LibraryOptions,
     #[serde(default)]
     pub completion: CompletionOptions,
-    pub models: HashMap<String, Model>,
+    pub commands: HashMap<String, Command>,
     pub actions: HashMap<String, ActionDefinition>,
     #[serde(default)]
     pub templates: HashMap<String, NoteTemplate>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
-pub struct Model {
-    pub api_key_env: String,
-    pub base_url: String,
-
-    pub name: String,
-    pub max_tokens: Option<u64>,
-    pub max_completion_tokens: Option<u64>,
-    pub temperature: Option<f32>,
+pub struct Command {
+    pub run: String,
+    pub args: Option<Vec<String>>,
+    pub cwd: Option<String>,
+    pub env: Option<HashMap<String, String>>,
+    pub shell: Option<bool>,
+    pub timeout_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -101,9 +98,8 @@ pub enum ActionDefinition {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Transform {
     pub title: String,
-    pub model: String,
-    pub prompt_template: String,
-    pub context: Context,
+    pub command: String,
+    pub input_template: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -176,7 +172,7 @@ impl Default for Configuration {
             markdown: Default::default(),
             library: Default::default(),
             completion: Default::default(),
-            models: Default::default(),
+            commands: Default::default(),
             actions: Default::default(),
             templates: Default::default(),
         }
@@ -186,31 +182,16 @@ impl Default for Configuration {
 impl Configuration {
     pub fn template() -> Self {
         let mut template = Self {
-            version: Some(2),
+            version: Some(3),
             ..Default::default()
         };
 
-        template.models.insert(
+        template.commands.insert(
             "default".into(),
-            Model {
-                api_key_env: "OPENAI_API_KEY".to_string(),
-                base_url: "https://api.openai.com".to_string(),
-                name: "gpt-4o".into(),
-                max_tokens: None,
-                max_completion_tokens: None,
-                temperature: None,
-            },
-        );
-
-        template.models.insert(
-            "fast".into(),
-            Model {
-                api_key_env: "OPENAI_API_KEY".into(),
-                base_url: "https://api.openai.com".into(),
-                name: "gpt-4o-mini".to_string(),
-                max_tokens: None,
-                max_completion_tokens: None,
-                temperature: None,
+            Command {
+                run: "claude -p".to_string(),
+                timeout_seconds: Some(120),
+                ..Default::default()
             },
         );
 
@@ -228,8 +209,8 @@ impl Configuration {
             ActionDefinition::Transform(
                 Transform {
                     title: "Rewrite".into(),
-                    model: "default".into(),
-                    prompt_template: indoc! {r##"
+                    command: "default".into(),
+                    input_template: indoc! {r##"
                         Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
 
                         The part you'll need to update is marked with {{update_start}}{{update_end}}.
@@ -245,7 +226,6 @@ impl Configuration {
 
                         Your goal is to rewrite a given text to improve its clarity and readability. Ensure the language remains personable and not overly formal. Focus on simplifying language, organizing sentences logically, and removing ambiguity while maintaining a conversational tone.
                         "##}.to_string(),
-                    context: Context::Document
                 }
             ),
         );
@@ -255,8 +235,8 @@ impl Configuration {
             ActionDefinition::Transform(
                 Transform {
                     title: "Expand".to_string(),
-                    model: "default".to_string(),
-                    prompt_template: indoc! {r##"
+                    command: "default".to_string(),
+                    input_template: indoc! {r##"
                         Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
 
                         The part you'll need to update is marked with {{update_start}}{{update_end}}.
@@ -272,7 +252,6 @@ impl Configuration {
 
                         Expand the text you need to update, generate a couple paragraphs.
                         "##}.to_string(),
-                    context: Context::Document
                 }
             ),
         );
@@ -282,8 +261,8 @@ impl Configuration {
             ActionDefinition::Transform(
                 Transform {
                     title: "Keywords".to_string(),
-                    model: "default".to_string(),
-                    prompt_template: indoc! {r##"
+                    command: "default".to_string(),
+                    input_template: indoc! {r##"
                         Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
 
                         The part you'll need to update is marked with {{update_start}}{{update_end}}.
@@ -298,7 +277,6 @@ impl Configuration {
 
                         Mark most important keywords with bold using ** markdown syntax. Keep the text unchanged!
                         "##}.to_string(),
-                    context: Context::Document
                 }
             ),
         );
@@ -308,8 +286,8 @@ impl Configuration {
             ActionDefinition::Transform(
                 Transform {
                     title: "Emojify".to_string(),
-                    model: "default".to_string(),
-                    prompt_template: indoc! {r##"
+                    command: "default".to_string(),
+                    input_template: indoc! {r##"
                         Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}} {{context_end}} tags.
 
                         - The part you'll need to update is marked with {{update_start}} {{update_end}} tags.
@@ -323,7 +301,6 @@ impl Configuration {
 
                         {{context_end}}
                         "##}.to_string(),
-                    context: Context::Document
                 }
             )
         );
@@ -402,11 +379,6 @@ impl Configuration {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub enum Context {
-    Document,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum Operation {
     Replace,
 }
@@ -472,6 +444,14 @@ fn migrate(config: &str) -> String {
         updated = add_refs_extension_field(&updated);
         updated = add_link_action(&updated);
         updated = set_config_version(&updated, 2);
+        needs_update = true;
+    }
+
+    // Migrate from version 2 to version 3
+    if current_version < 3 {
+        debug!("applying migrations from version 2 to 3");
+        updated = migrate_v2_to_v3(&updated);
+        updated = set_config_version(&updated, 3);
         needs_update = true;
     }
 
@@ -619,6 +599,49 @@ fn add_default_code_actions(input: &str) -> String {
             inline_quote_table.insert("inline_type", value("quote"));
             inline_quote_table.insert("keep_target", value(false));
             actions.insert("inline_quote", Item::Table(inline_quote_table));
+        }
+    }
+
+    doc.to_string()
+}
+
+pub fn migrate_v2_to_v3(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if let Some(Item::Table(models)) = doc.remove("models") {
+        let mut commands = toml_edit::Table::new();
+        for (name, model) in models.iter() {
+            if let Item::Table(_) = model {
+                let mut cmd = toml_edit::Table::new();
+                cmd.insert("run", value(""));
+                commands.insert(name, Item::Table(cmd));
+            }
+        }
+        doc.insert("commands", Item::Table(commands));
+    }
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        for (_, action) in actions.iter_mut() {
+            if let Item::Table(action_table) = action {
+                let is_transform = action_table
+                    .get("type")
+                    .and_then(|v| v.as_value())
+                    .and_then(|v| v.as_str())
+                    .map(|s| s == "transform")
+                    .unwrap_or(false);
+
+                if is_transform {
+                    if let Some(model_val) = action_table.remove("model") {
+                        action_table.insert("command", model_val);
+                    }
+
+                    if let Some(prompt_val) = action_table.remove("prompt_template") {
+                        action_table.insert("input_template", prompt_val);
+                    }
+
+                    action_table.remove("context");
+                }
+            }
         }
     }
 

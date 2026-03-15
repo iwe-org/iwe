@@ -1,12 +1,9 @@
-use std::fs;
-use std::path::Path;
-
 use actions::{all_action_types, ActionContext, ActionProvider};
 use itertools::Itertools;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
     model::{
-        config::{Configuration, MarkdownOptions, Model},
+        config::{Command, Configuration, MarkdownOptions},
         is_ref_url,
         node::NodePointer,
         tree::Tree,
@@ -25,7 +22,6 @@ use self::search::SearchIndex;
 pub mod actions;
 pub mod base_path;
 mod extensions;
-mod llm;
 pub mod search;
 
 pub struct Server {
@@ -601,35 +597,12 @@ impl ActionContext for &Server {
         &self.configuration.markdown
     }
 
-    fn default_model(&self) -> &Model {
-        self.configuration.models.get("default").unwrap()
+    fn get_command(&self, name: &str) -> Option<&Command> {
+        self.configuration.commands.get(name)
     }
 
     fn patch(&self) -> Graph {
         self.graph.new_patch()
-    }
-
-    fn llm_query(&self, prompt: String, model: &Model) -> String {
-        if Path::new("./.iwe").exists() {
-            fs::write("./.iwe/prompt.md", &prompt).expect("Unable to write file");
-        }
-
-        if self
-            .configuration
-            .models
-            .iter()
-            .all(|(_, model)| model.api_key_env.is_empty())
-        {
-            "".to_string()
-        } else {
-            let response = llm::apply_prompt(prompt, model);
-
-            if Path::new("./.iwe").exists() {
-                fs::write("./.iwe/generated.md", &response).expect("Unable to write file");
-            }
-
-            response
-        }
     }
 
     fn key_exists(&self, key: &Key) -> bool {

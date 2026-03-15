@@ -11,11 +11,6 @@ repository = "https://github.com/iwe-org/iwe"
 version = "0.0.60"
 
 [workspace.dependencies]
-reqwest = { version = "0.12.23", features = [
-    "blocking",
-    "json",
-    "rustls-tls",
-], default-features = false }
 liwe = { path = "./crates/liwe", version = "0.0.60" }
 anyhow = "1.0.99"
 clap = { version = "4.5", features = ["derive"] }

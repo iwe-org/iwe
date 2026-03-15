@@ -12,7 +12,6 @@ date_format = "%b %d, %Y"
 [library]
 path = ""
 date_format = "%Y-%m-%d"
-prompt_key_prefix = "prompts/"
 frontmatter_document_title = "title"
 
 [completion]
@@ -28,7 +27,6 @@ link_format = "markdown"
 
 - `path`: Subdirectory for markdown files relative to project root (default: empty, uses root)
 - `date_format`: Date format for file key generation (default: `"%Y-%m-%d"`, e.g., "2024-01-15")
-- `prompt_key_prefix`: Prefix for AI prompt keys (default: none)
 - `frontmatter_document_title`: YAML frontmatter field to use as document title (default: none, uses first header)
 
 ### Completion Settings
@@ -79,49 +77,96 @@ Will use "My Custom Title" as the document title instead of "Header (ignored for
 
 If the configured frontmatter field is missing or the document has no frontmatter, IWE falls back to using the first header as the title.
 
-## AI Models
+## Commands
 
-Define LLM models for AI-powered actions:
+Define CLI commands for text transformation actions. Commands receive input via stdin and output transformed content to stdout:
 
 ``` toml
-[models.default]
-api_key_env = "OPENAI_API_KEY"
-base_url = "https://api.openai.com"
-name = "gpt-4o"
+[commands.claude]
+run = "claude -p"
+timeout_seconds = 120
 
-[models.fast]
-api_key_env = "OPENAI_API_KEY"
-base_url = "https://api.openai.com"
-name = "gpt-4o-mini"
+[commands.uppercase]
+run = "tr '[:lower:]' '[:upper:]'"
+timeout_seconds = 5
+
+[commands.custom_script]
+run = "/path/to/my-script.sh"
+timeout_seconds = 60
 ```
 
-Each model requires:
+Each command requires:
 
-- `api_key_env`: Environment variable containing API key
-- `base_url`: API endpoint URL
-- `name`: Model name
+- `run`: Command to execute (by default runs via `sh -c`)
 
 Optional parameters:
 
-- `max_tokens`: Maximum tokens for input
-- `max_completion_tokens`: Maximum tokens for completion
-- `temperature`: Sampling temperature (0.0-1.0)
+- `args`: Array of arguments when using direct execution (only used when `shell = false`)
+- `cwd`: Working directory for command execution
+- `env`: Environment variables as key-value pairs (supports `$VAR` or `${VAR}` expansion from parent environment)
+- `shell`: Execute via shell (`true`, default) or directly (`false`)
+- `timeout_seconds`: Maximum execution time in seconds (default: 120)
 
-## AI Actions
+Commands are executed with the processed input template piped to stdin. The command's stdout becomes the replacement content.
 
-IWE supports two types of actions for editor integration:
+### Example Commands
 
-### Transform Actions
+**Using Claude CLI:**
+``` toml
+[commands.claude]
+run = "claude -p"
+timeout_seconds = 120
+```
 
-AI-powered text editing that modifies content in-place:
+**Using a custom script:**
+``` toml
+[commands.rewriter]
+run = "python ~/scripts/rewrite.py"
+timeout_seconds = 30
+```
+
+**Simple text transformation:**
+``` toml
+[commands.uppercase]
+run = "tr '[:lower:]' '[:upper:]'"
+timeout_seconds = 5
+```
+
+**Direct execution with arguments (no shell):**
+``` toml
+[commands.claude_direct]
+run = "claude"
+args = ["-p", "--model", "sonnet"]
+shell = false
+timeout_seconds = 120
+```
+
+**With environment variables:**
+``` toml
+[commands.custom_api]
+run = "my-api-tool"
+env = { API_KEY = "$MY_API_KEY", DEBUG = "true" }
+timeout_seconds = 60
+```
+
+**With custom working directory:**
+``` toml
+[commands.project_script]
+run = "./scripts/process.sh"
+cwd = "/path/to/project"
+timeout_seconds = 30
+```
+
+## Transform Actions
+
+Transform actions modify text content in-place using configured commands:
 
 ``` toml
 [actions.rewrite]
 type = "transform"
 title = "Rewrite"
-model = "default"
-context = "Document"
-prompt_template = """
+command = "claude"
+input_template = """
 Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
 
 The part you'll need to update is marked with {{update_start}}{{update_end}}.
@@ -138,9 +183,8 @@ Transform action parameters:
 
 - `type`: Must be `"transform"`
 - `title`: Display name in editor
-- `model`: Reference to model configuration
-- `context`: Context scope (`"Document"`)
-- `prompt_template`: AI prompt with template variables
+- `command`: Reference to command configuration
+- `input_template`: Template for preparing stdin input
 
 ### Attach Actions
 
@@ -154,7 +198,7 @@ key_template = "{{today}}"
 document_template = "# {{today}}\n\n{{content}}\n"
 
 [actions.weekly_review]
-type = "attach" 
+type = "attach"
 title = "Add to Weekly Review"
 key_template = "weekly-{{today}}"
 document_template = "# Weekly Review - {{today}}\n\n## Notes\n\n{{content}}\n\n## Action Items\n\n- [ ] \n"
@@ -176,7 +220,7 @@ Attach action parameters:
 
 **Transform Actions** support:
 
-- `{{context}}`: Document context
+- `{{context}}`: Document context with the target block marked
 - `{{context_start}}`, `{{context_end}}`: Context delimiters
 - `{{update_start}}`, `{{update_end}}`: Update region delimiters
 
@@ -196,7 +240,7 @@ document_template = """# Daily Note - {{today}}
 {{content}}
 
 ## Tasks
-- [ ] 
+- [ ]
 
 ## Notes
 
@@ -208,7 +252,88 @@ document_template = """# Daily Note - {{today}}
 ``` toml
 [actions.project_ideas]
 type = "attach"
-title = "Add to Project Ideas" 
+title = "Add to Project Ideas"
 key_template = "projects/ideas"
 document_template = "# Project Ideas\n\n{{content}}\n"
+```
+
+**Text Transformation with Claude CLI**
+
+``` toml
+[commands.claude]
+run = "claude -p"
+timeout_seconds = 120
+
+[actions.expand]
+type = "transform"
+title = "Expand"
+command = "claude"
+input_template = """
+Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
+
+The part you'll need to update is marked with {{update_start}}{{update_end}}.
+
+{{context_start}}
+{{context}}
+{{context_end}}
+
+Expand the text you need to update, generate a couple paragraphs.
+"""
+```
+
+**Simple Text Transformation**
+
+``` toml
+[commands.uppercase]
+run = "tr '[:lower:]' '[:upper:]'"
+timeout_seconds = 5
+
+[actions.uppercase]
+type = "transform"
+title = "UPPERCASE"
+command = "uppercase"
+input_template = "{{context}}"
+```
+
+## Migration from Version 2
+
+If you're upgrading from a configuration using the old `[models]` section, IWE will automatically migrate your configuration to version 3. The migration:
+
+1. Renames `[models]` section to `[commands]` with empty `run` values
+2. Renames `model` field to `command` in transform actions
+3. Renames `prompt_template` field to `input_template` in transform actions
+4. Removes the `context` field from transform actions
+
+After migration, you'll need to manually update the `run` field in each command to specify the actual CLI command to execute.
+
+**Before (version 2):**
+``` toml
+version = 2
+
+[models.default]
+api_key_env = "OPENAI_API_KEY"
+base_url = "https://api.openai.com"
+name = "gpt-4o"
+
+[actions.rewrite]
+type = "transform"
+title = "Rewrite"
+model = "default"
+prompt_template = "..."
+context = "Document"
+```
+
+**After (version 3):**
+``` toml
+version = 3
+
+[commands.default]
+run = "claude -p"  # Update this to your preferred CLI command
+timeout_seconds = 120
+
+[actions.rewrite]
+type = "transform"
+title = "Rewrite"
+command = "default"
+input_template = "..."
 ```
