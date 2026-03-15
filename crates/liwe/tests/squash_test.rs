@@ -292,6 +292,7 @@ fn squash(source: &str, expected: &str) {
             .map(|(index, text)| (format!("{}", index + 1), text.trim().to_string()))
             .collect(),
         MarkdownOptions::default(),
+        None,
     );
     let mut patch = Graph::new();
     let document_tree = graph.squash(&"1".into(), 2);

@@ -44,6 +44,7 @@ impl Server {
             config.state,
             config.sequential_ids.unwrap_or(false),
             config.configuration.markdown.clone(),
+            config.configuration.library.frontmatter_document_title.clone(),
         );
         let mut search_index = SearchIndex::new();
         search_index.update(&graph);
