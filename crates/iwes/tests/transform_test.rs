@@ -425,11 +425,6 @@ fn transform_action_with_env_vars() {
 
 #[test]
 fn transform_action_with_cwd() {
-    let tmp_path = std::fs::canonicalize("/tmp")
-        .expect("canonicalize /tmp")
-        .to_string_lossy()
-        .to_string();
-
     let config = Configuration {
         actions: vec![(
             "cwdtest".to_string(),
@@ -445,7 +440,7 @@ fn transform_action_with_cwd() {
             "cwdtest".to_string(),
             Command {
                 run: "pwd".to_string(),
-                cwd: Some("/tmp".to_string()),
+                cwd: Some("/usr".to_string()),
                 timeout_seconds: Some(5),
                 ..Default::default()
             },
@@ -463,7 +458,7 @@ fn transform_action_with_cwd() {
     )
     .code_action(
         uri(1).to_code_action_params(0, "custom.cwdtest"),
-        vec![uri(1).to_edit(&format!("{}\n", tmp_path))]
+        vec![uri(1).to_edit("/usr\n")]
             .to_workspace_edit()
             .to_code_action("Cwd Test", "custom.cwdtest"),
     );
