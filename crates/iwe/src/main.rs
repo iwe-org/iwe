@@ -580,6 +580,7 @@ fn load_graph(configuration: &Configuration) -> Graph {
     Graph::import(
         &new_for_path(&get_library_path(configuration)),
         configuration.markdown.clone(),
+        configuration.library.frontmatter_document_title.clone(),
     )
 }
 

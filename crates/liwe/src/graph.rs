@@ -54,6 +54,7 @@ pub struct Graph {
     markdown_options: MarkdownOptions,
     metadata: HashMap<Key, String>,
     content: Documents,
+    frontmatter_document_title: Option<String>,
 }
 
 pub trait Reader {
@@ -95,6 +96,7 @@ impl Graph {
         Graph {
             markdown_options: self.markdown_options.clone(),
             metadata: self.metadata.clone(),
+            frontmatter_document_title: self.frontmatter_document_title.clone(),
             ..Default::default()
         }
     }
@@ -227,12 +229,23 @@ impl Graph {
     }
 
     fn extract_ref_text(&self, key: &Key) -> Option<String> {
+        if let Some(title) = self.extract_frontmatter_title(key) {
+            return Some(title);
+        }
+
         self.graph_node(self.get_document_id(key))
             .child_id()
             .map(|id| self.graph_node(id))
             .filter(|node| node.is_section())
             .and_then(|node| node.line_id())
             .map(|line_id| self.arena.get_line(line_id).to_plain_text())
+    }
+
+    fn extract_frontmatter_title(&self, key: &Key) -> Option<String> {
+        let title_key = self.frontmatter_document_title.as_ref()?;
+        let metadata = self.metadata.get(key)?;
+        let yaml_value: serde_yaml::Value = serde_yaml::from_str(metadata).ok()?;
+        yaml_value.get(title_key)?.as_str().map(|s| s.to_string())
     }
 
     pub fn maybe_key(&self, key: &Key) -> Option<impl NodePointer<'_>> {
@@ -315,17 +328,23 @@ impl Graph {
         self.global_nodes_map.get(&id).cloned()
     }
 
-    pub fn import(content: &State, markdown_options: MarkdownOptions) -> Graph {
-        Self::from_state(content.clone(), false, markdown_options)
+    pub fn import(
+        content: &State,
+        markdown_options: MarkdownOptions,
+        frontmatter_document_title: Option<String>,
+    ) -> Graph {
+        Self::from_state(content.clone(), false, markdown_options, frontmatter_document_title)
     }
 
     pub fn from_state(
         state: State,
         sequential_ids: bool,
         markdown_options: MarkdownOptions,
+        frontmatter_document_title: Option<String>,
     ) -> Self {
         let mut graph = Graph::new_with_options(markdown_options.clone());
         graph.set_sequential_keys(sequential_ids);
+        graph.frontmatter_document_title = frontmatter_document_title;
 
         let reader = MarkdownReader::new();
 

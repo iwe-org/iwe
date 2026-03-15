@@ -35,6 +35,7 @@ pub struct LibraryOptions {
     pub date_format: Option<String>,
     pub prompt_key_prefix: Option<String>,
     pub default_template: Option<String>,
+    pub frontmatter_document_title: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -49,6 +50,7 @@ impl Default for LibraryOptions {
             date_format: Some(DEFAULT_KEY_DATE_FORMAT.into()),
             prompt_key_prefix: None,
             default_template: None,
+            frontmatter_document_title: None,
         }
     }
 }

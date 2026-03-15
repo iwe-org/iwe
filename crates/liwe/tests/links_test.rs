@@ -208,6 +208,7 @@ fn normalize(expected: &str, denormalized: &str) {
             refs_extension: String::default(),
             ..Default::default()
         },
+        None,
     );
 
     let normalized = to_indoc(&graph.export());
@@ -239,6 +240,7 @@ fn compare_state(exp: Documents, den: Documents) {
             refs_extension: String::default(),
             ..Default::default()
         },
+        None,
     );
 
     let normalized = &graph.export();

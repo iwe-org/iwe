@@ -32,6 +32,7 @@ toml.workspace = true
 toml_edit.workspace = true
 chrono.workspace = true
 ignore.workspace = true
+serde_yaml.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

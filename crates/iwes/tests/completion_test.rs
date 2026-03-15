@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::{CompletionOptions, LinkType, MarkdownOptions};
+use liwe::model::config::{CompletionOptions, LibraryOptions, LinkType, MarkdownOptions};
 
 mod fixture;
 use crate::fixture::*;
@@ -269,6 +269,65 @@ fn completion_with_wikilink_and_refs_extension() {
             "[[1]]",
             "test",
             "test",
+        )]),
+    );
+}
+
+#[test]
+fn completion_uses_frontmatter_title() {
+    let config = liwe::model::config::Configuration {
+        library: LibraryOptions {
+            frontmatter_document_title: Some("title".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            "---\ntitle: Custom Title\n---\n\n# Header\n".to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+    )
+    .completion(
+        uri_from("doc").to_completion_params(5, 0),
+        completion_list(vec![completion_item(
+            "🔗 Custom Title",
+            "[Custom Title](doc)",
+            "customtitle",
+            "Custom Title",
+        )]),
+    );
+}
+
+#[test]
+fn completion_fallback_to_header_when_frontmatter_missing() {
+    let config = liwe::model::config::Configuration {
+        library: LibraryOptions {
+            frontmatter_document_title: Some("title".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![("doc".to_string(), "# Header Title\n".to_string())]
+            .into_iter()
+            .collect(),
+        config,
+        "",
+    )
+    .completion(
+        uri_from("doc").to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 Header Title",
+            "[Header Title](doc)",
+            "headertitle",
+            "Header Title",
         )]),
     );
 }

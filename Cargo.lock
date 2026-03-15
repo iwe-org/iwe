@@ -1163,6 +1163,7 @@ dependencies = [
  "relative-path",
  "relative-path-utils",
  "serde",
+ "serde_yaml",
  "sha2",
  "tempfile",
  "toml",

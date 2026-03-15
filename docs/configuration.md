@@ -13,6 +13,7 @@ date_format = "%b %d, %Y"
 path = ""
 date_format = "%Y-%m-%d"
 prompt_key_prefix = "prompts/"
+frontmatter_document_title = "title"
 
 [completion]
 link_format = "markdown"
@@ -28,6 +29,7 @@ link_format = "markdown"
 - `path`: Subdirectory for markdown files relative to project root (default: empty, uses root)
 - `date_format`: Date format for file key generation (default: `"%Y-%m-%d"`, e.g., "2024-01-15")
 - `prompt_key_prefix`: Prefix for AI prompt keys (default: none)
+- `frontmatter_document_title`: YAML frontmatter field to use as document title (default: none, uses first header)
 
 ### Completion Settings
 
@@ -47,6 +49,35 @@ Date formats use [chrono format specifiers](https://docs.rs/chrono/latest/chrono
 - `%d`: Day of month (01-31)
 - `%A`: Full weekday name (Monday)
 - `%a`: Abbreviated weekday name (Mon)
+
+### Frontmatter Document Title
+
+By default, IWE uses the first header in a document as its title for links, autocomplete suggestions, and search results. You can override this behavior by specifying a YAML frontmatter field to use instead:
+
+``` toml
+[library]
+frontmatter_document_title = "title"
+```
+
+With this configuration, a document like:
+
+``` markdown
+---
+title: My Custom Title
+---
+
+# Header (ignored for title)
+
+Document content...
+```
+
+Will use "My Custom Title" as the document title instead of "Header (ignored for title)". This affects:
+
+- Link text in auto-completed links: `[My Custom Title](document-key)`
+- Link text normalization when references are updated
+- Document titles in search results and workspace symbols
+
+If the configured frontmatter field is missing or the document has no frontmatter, IWE falls back to using the first header as the title.
 
 ## AI Models
 
