@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.61](https://github.com/iwe-org/iwe/compare/iwes-v0.0.60...iwes-v0.0.61) - 2026-03-15
+
+### Other
+
+- CI build fix
+- Replace LSP AI commands support with CLI-based transformations ([#223](https://github.com/iwe-org/iwe/pull/223))
+- Add frontmatter document titles support ([#222](https://github.com/iwe-org/iwe/pull/222))
+
 ### Changed
 
 - **BREAKING**: Replace LLM API integration with CLI-based transformations

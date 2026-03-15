@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.61](https://github.com/iwe-org/iwe/compare/liwe-v0.0.60...liwe-v0.0.61) - 2026-03-15
+
+### Other
+
+- Replace LSP AI commands support with CLI-based transformations ([#223](https://github.com/iwe-org/iwe/pull/223))
+- Add frontmatter document titles support ([#222](https://github.com/iwe-org/iwe/pull/222))
+- Add retrieve and find commands ([#221](https://github.com/iwe-org/iwe/pull/221))
+
 ## [0.0.60](https://github.com/iwe-org/iwe/compare/liwe-v0.0.59...liwe-v0.0.60) - 2026-01-14
 
 ### Added
