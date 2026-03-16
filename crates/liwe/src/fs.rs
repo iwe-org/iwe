@@ -18,7 +18,7 @@ pub fn new_for_path(base_path: &PathBuf) -> State {
 
     WalkBuilder::new(base_path)
         .follow_links(false)
-        .hidden(false)
+        .hidden(true)
         .require_git(false)
         .build()
         .filter_map(|entry| {
