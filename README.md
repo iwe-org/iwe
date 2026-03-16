@@ -115,7 +115,7 @@ IWE provides specialized CLI commands designed for AI agent integration and prog
 
 More information is available in:
 
-[Agentic CLI Tools Documentation](https://iwe.md/docs/cli/agentic/)
+[Agentic CLI Tools Documentation](https://iwe.md/docs/agentic/)
 
 ## How to install
 
