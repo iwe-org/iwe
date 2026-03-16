@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.61](https://github.com/iwe-org/iwe/compare/iwes-v0.0.60...iwes-v0.0.61) - 2026-03-16
+
+### Other
+
+- CI build fix
+
 ### Changed
 
 - **BREAKING**: Replace LLM API integration with CLI-based transformations
