@@ -52,3 +52,30 @@ fn test_gitignore_excludes_files() {
         "# Also Included\n\nThis should also be included."
     );
 }
+
+#[test]
+fn test_hidden_files_and_directories_excluded() {
+    setup();
+
+    let temp_dir = TempDir::new().unwrap();
+    let base_path = temp_dir.path().to_path_buf();
+
+    fs::write(base_path.join("document.md"), "# Document").unwrap();
+    fs::write(base_path.join(".hidden.md"), "# Hidden").unwrap();
+
+    let git_dir = base_path.join(".git");
+    fs::create_dir(&git_dir).unwrap();
+    fs::write(git_dir.join("config.md"), "# Git Config").unwrap();
+
+    let obsidian_dir = base_path.join(".obsidian");
+    fs::create_dir(&obsidian_dir).unwrap();
+    fs::write(obsidian_dir.join("workspace.md"), "# Workspace").unwrap();
+
+    let state = new_for_path(&base_path);
+
+    assert!(state.contains_key("document"));
+    assert!(!state.contains_key(".hidden"));
+    assert!(!state.contains_key(".git/config"));
+    assert!(!state.contains_key(".obsidian/workspace"));
+    assert_eq!(state.len(), 1);
+}
