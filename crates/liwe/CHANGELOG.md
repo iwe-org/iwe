@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.61](https://github.com/iwe-org/iwe/compare/liwe-v0.0.60...liwe-v0.0.61) - 2026-03-16
+
+### Fixed
+
+- Ignore hidden files and directories ([#225](https://github.com/iwe-org/iwe/pull/225))
+
 ## [0.0.60](https://github.com/iwe-org/iwe/compare/liwe-v0.0.59...liwe-v0.0.60) - 2026-01-14
 
 ### Added
