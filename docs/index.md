@@ -76,7 +76,7 @@
 
 [Sub-directories](feature-subdirectories.md)
 
-[Custom AI commands](feature-ai-commands.md)
+[Custom text commands](feature-ai-commands.md)
 
 ## Editor specifics
 

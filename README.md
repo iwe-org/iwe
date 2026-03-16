@@ -30,6 +30,7 @@ While IWE supports sub-directories and relative links, it also allows you to org
 - 🚀 **Works in your editor** — VS Code, Neovim, Zed, Helix via LSP
 - 🔒 **Local-first** — Your notes stay on your machine, version with Git
 - ⚡ **Blazing fast** — Rust-powered, processes thousands of notes instantly
+- 🤖 **AI-agent ready** — CLI tools for knowledge retrieval and graph traversal
 - 🆓 **Free & Open Source** — Apache 2.0 license
 
 ## LSP Features
@@ -46,7 +47,7 @@ The main LSP features are:
 - 🔄 **Rename** files and automatically update all the links
 - 🔗 Search for **backlinks** to find references to the current document
 - 💡 Display **inlay hints** with parent note references and link counts
-- 🤖 Generate or Modify text using **custom** AI commands
+- 🔧 **Transform** text using external commands (can integrate with AI agents)
 - 🔹 Change outline type from headers to list and vice-versa
 
 You can learn more on the [LSP Features](https://iwe.md/docs/getting-started/usage/) page.

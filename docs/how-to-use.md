@@ -136,7 +136,7 @@ command = "claude"
 input_template = "Improve this text: {{context}}"
 ```
 
-You can use any CLI tool that reads from stdin and writes to stdout, including AI assistants like Claude CLI, custom scripts, or standard Unix tools.
+You can use any CLI tool that reads from stdin and writes to stdout, including external tools like Claude CLI, custom scripts, or Unix commands.
 
 [Configuration](configuration.md)
 

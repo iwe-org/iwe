@@ -2,7 +2,7 @@
 
 IWE includes **text transformation** capabilities that can be accessed right from your text editor. You can effortlessly **rewrite** text, **expand** on ideas, **highlight** important words, or apply any custom transformation using CLI tools.
 
-Transform actions work by piping content through external commands. You can use AI tools like `claude -p` (Claude CLI in pipe mode), custom scripts, or any command-line tool that reads from stdin and writes to stdout.
+Transform actions work by piping content through external commands. You can use custom scripts, standard Unix tools, or AI assistants like `claude -p` (Claude CLI in pipe mode) - any command-line tool that reads from stdin and writes to stdout.
 
 ## How It Works
 

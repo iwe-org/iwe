@@ -54,7 +54,7 @@ The IWE extension requires the `iwes` LSP server binary to be installed on your 
 
 |IWE Feature|VS Code Shortcut|Alternative Access|
 |-----------|----------------|------------------|
-|**Code Actions** (Extract/Inline/AI/Transform)|Ctrl+. / Cmd+.|Right-click → "Quick Fix..."|
+|**Code Actions** (Extract/Inline/Transform)|Ctrl+. / Cmd+.|Right-click → "Quick Fix..."|
 |**Go to Definition** (Follow Links)|F12|Right-click → "Go to Definition"|
 |**Find All References** (Backlinks)|Shift+F12|Right-click → "Go to References"|
 |**Document Symbols** (Table of Contents)|Ctrl+Shift+O / Cmd+Shift+O|Command Palette → "Go to Symbol"|
@@ -102,11 +102,11 @@ All IWE features are also available via the Command Palette (`Ctrl+Shift+P` / `C
 3.  VS Code will show all documents that link to the current location
 4.  Click any result to navigate
 
-### AI-Powered Actions
+### Text Transform Actions
 
 1.  Select text you want to modify
 2.  Press `Ctrl+.` / `Cmd+.`
-3.  Choose from available AI actions (if configured)
+3.  Choose from available transform actions (if configured)
 4.  The selected text will be processed and replaced
 
 ### Global Search

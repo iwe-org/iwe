@@ -89,7 +89,7 @@ The plugin provides these default keybindings (can be customized):
 
 |IWE Feature|Neovim Shortcut|Mode|Description|
 |-----------|---------------|----|-----------|
-|**Code Actions**|\<leader>ca|Normal|Extract/Inline/AI/Transform code actions|
+|**Code Actions**|\<leader>ca|Normal|Extract/Inline/Transform code actions|
 |**Go to Definition**|gd|Normal|Go to definition of symbol under cursor|
 |**Find References**|gr|Normal|Find backlinks to current document|
 |**Document Symbols**|\<leader>ds|Normal|Navigate document outline|
@@ -283,11 +283,11 @@ require("which-key").register({
 3.  Results show document paths and matching content
 4.  Use `<C-p>` preview to see content without opening
 
-### AI-Powered Actions (if configured)
+### Text Transform Actions (if configured)
 
 1.  Select text in visual mode
 2.  Press `<leader>ca` to show code actions
-3.  Choose from available AI actions
+3.  Choose from available transform actions
 4.  The text will be processed and replaced
 
 ## Telescope Commands

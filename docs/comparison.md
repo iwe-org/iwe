@@ -9,12 +9,12 @@ IWE combines powerful knowledge management with developer-focused tooling, offer
 - **Sub-sections extraction**: Break complex notes into manageable, linked components
 - **Reference inlining**: Convert linked content to quotes or embed sections directly
 
-## AI-Powered Contextual Commands
+## External Command Integration
 
-- **Configurable LLM integration**: Connect to any LLM provider with custom templates
-- **Block-level AI actions**: Apply AI transformations to specific sections with full context awareness
-- **Template-based prompts**: Customize AI behavior for different content types and use cases
-- **Context-aware processing**: AI commands understand document structure and relationships
+- **Configurable command pipeline**: Connect to any CLI tool with custom templates
+- **Block-level transformations**: Apply transformations to specific sections with full context awareness
+- **Template-based input**: Customize command behavior for different content types
+- **Context-aware processing**: Commands receive document structure and relationships
 
 ## Developer-Focused Architecture
 
@@ -56,7 +56,7 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |Feature|IWE|markdown-oxide|
 |-------|---|--------------|
 |**Graph Transformations**|✅ Extract/embed sections, convert lists↔sections, inline references|❌ Basic linking only|
-|**AI Integration**|✅ Configurable LLM with contextual templates|❌ No AI features|
+|**External Commands**|✅ Configurable CLI tools (supports AI agents, scripts, Unix tools)|❌ No external command features|
 |**Performance**|✅ Rust-based, handles thousands of files instantly|✅ Good performance|
 |**Batch Operations**|✅ CLI for bulk normalization and transformations|❌ LSP-only approach|
 |**Editor Support**|✅ VSCode, Neovim, Zed, Helix|✅ VSCode, Neovim, Helix, Zed|
@@ -64,7 +64,7 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |**Daily Notes**|✅ Supported using "attach" code action|✅ Dedicated daily notes support|
 |**Backlinks**|✅ Via graph processing|✅ Native backlink support|
 
-**IWE's advantage**: Advanced graph operations, AI integration, and comprehensive CLI tooling make it superior for complex knowledge work and developer workflows.
+**IWE's advantage**: Advanced graph operations, external command integration, and comprehensive CLI tooling make it superior for complex knowledge work and developer workflows.
 
 ### IWE vs Obsidian
 
@@ -76,7 +76,7 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |**Cost**|✅ Completely free and open source|⚠️ Free for personal use, $8/month for sync, $16/month for publishing|
 |**Performance**|✅ Rust-powered, instant operations on thousands of files|⚠️ Electron-based, can be slower with large vaults|
 |**Graph Transformations**|✅ Automated extract/embed operations, section-to-list conversions|❌ Manual linking and organization|
-|**AI Integration**|✅ Configurable LLM providers with custom templates|⚠️ Limited, requires third-party plugins (Text Generator, Smart Connections)|
+|**External Commands**|✅ Configurable CLI tools (supports AI agents, scripts, Unix tools)|⚠️ Limited, requires third-party plugins (Text Generator, Smart Connections)|
 |**Block References**|✅ Native support with automatic linking|⚠️ Available via plugins|
 |**Auto-formatting**|✅ Comprehensive markdown normalization on save|⚠️ Basic formatting, requires plugins for advanced normalization|
 |**Batch Operations**|✅ CLI for bulk transformations and normalization|❌ No batch operation capabilities|
@@ -92,7 +92,7 @@ The core differentiator is the shared library architecture between CLI and LSP c
 
 - **Developer workflows**: You want to stay in your preferred code editor
 - **Large repositories**: You need instant performance with thousands of markdown files
-- **Automation-heavy workflows**: You want AI-powered transformations and batch operations
+- **Automation-heavy workflows**: You want CLI-powered transformations and batch operations
 - **Cost-conscious**: You want a completely free, open-source solution
 - **Technical users**: You're comfortable with CLI tools and LSP setup
 - **Git-based workflows**: You prefer version control over proprietary sync
@@ -116,7 +116,7 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |-------|---|------------------|
 |**Editor Support**|✅ VSCode, Neovim, Zed, Helix, others|❌ Neovim only|
 |**Graph Transformations**|✅ Automated extract/embed, structural changes|❌ Basic note creation and linking|
-|**AI Integration**|✅ Configurable LLM with templates|❌ Manual workflows only|
+|**External Commands**|✅ Configurable CLI tools (supports AI agents, scripts, Unix tools)|❌ Manual workflows only|
 |**Performance**|✅ Rust-powered LSP|⚠️ Lua-based, editor-dependent|
 |**Batch Operations**|✅ CLI for bulk operations|❌ One-note-at-a-time workflow|
 |**Auto-formatting**|✅ Built-in normalization|❌ Requires external tools|
@@ -124,14 +124,14 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |**Search Integration**|✅ LSP-based with any picker|✅ Telescope/fzf integration|
 |**Installation**|✅ Single binary + editor extension|⚠️ Complex Neovim plugin setup|
 
-**IWE's advantage**: Works across all editors, provides powerful automation, and offers AI-enhanced workflows. zk.nvim/telekasten are better for Neovim purists who prefer simple, manual workflows.
+**IWE's advantage**: Works across all editors, provides powerful automation, and offers external command integration. zk.nvim/telekasten are better for Neovim purists who prefer simple, manual workflows.
 
 ## Why Choose IWE?
 
 IWE is the **only tool** that combines:
 
 - 🚀 **Performance**: Rust-powered speed that handles thousands of files instantly
-- 🤖 **Intelligence**: Integrated AI with contextual templates for enhanced workflows
+- 🤖 **Extensibility**: External command integration with contextual templates for enhanced workflows
 - 🔧 **Flexibility**: Works with VSCode, Neovim, Zed, Helix, and any LSP-compatible editor
 - ⚡ **Power**: Advanced graph transformations and batch operations
 - 👨‍💻 **Developer Focus**: CLI + LSP architecture designed for technical workflows
