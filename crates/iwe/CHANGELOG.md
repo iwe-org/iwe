@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.62](https://github.com/iwe-org/iwe/compare/iwe-v0.0.61...iwe-v0.0.62) - 2026-03-19
+
+### Added
+
+- [**breaking**] CLI tree command for documents hierarchy exploration ([#228](https://github.com/iwe-org/iwe/pull/228))
+- CLI commands for graph transformations ([#227](https://github.com/iwe-org/iwe/pull/227))
+
 ## [0.0.61](https://github.com/iwe-org/iwe/compare/iwe-v0.0.60...iwe-v0.0.61) - 2026-03-16
 
 ### Other
