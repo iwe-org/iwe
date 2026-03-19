@@ -1,0 +1,15 @@
+Examples:
+  iwe tree                     Show full tree with markdown links
+  iwe tree -f keys             Show tree with document keys only
+  iwe tree -f json             Show tree as JSON
+  iwe tree -k my-doc           Show tree starting from 'my-doc'
+  iwe tree -k doc-a -k doc-b   Show trees from multiple starting points
+  iwe tree --depth 2           Show only 2 levels deep
+
+When documents form circular references (A→B→C→A), they have no natural root.
+Use -k to start from any document in the cycle:
+  iwe tree -k doc-a            View cycle starting from 'doc-a'
+
+Works great with grep to filter the tree:
+  iwe tree | grep -i api       Find documents mentioning 'api'
+  iwe tree -f keys | grep cli  Find documents with 'cli' in the key

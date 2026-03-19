@@ -9,7 +9,7 @@ Best practices and solutions to common issues when using the IWE CLI.
 3. **Use debug mode**: Add `-v 2` to see detailed debug information
 4. **Iterate gradually**: Use increasing depth values to explore graph complexity
 5. **Visualize regularly**: Export graphs to understand document relationships
-6. **Monitor root documents**: Use `contents` to track entry points as your library grows
+6. **Monitor root documents**: Use `tree` to track entry points as your library grows
 
 ## Common issues
 
@@ -41,8 +41,7 @@ When no markdown files exist:
 
 | Command | Behavior |
 |---------|----------|
-| `contents` | Outputs header only: `# Contents` |
-| `paths` | No output |
+| `tree` | No output |
 | `find` | No matches found |
 | `stats` | Shows zero counts |
 | `export dot` | Produces empty graph |
@@ -62,7 +61,7 @@ IWE handles circular references gracefully:
 
 - **Retrieve**: Expands each document once, avoiding infinite loops
 - **Squash**: Includes each document once at first encounter
-- **Paths**: Shows paths without repeating nodes
+- **Tree**: Use `-k` to start from any document in a cycle
 - **Export**: Renders cycles as valid graph edges
 
 ### Large Knowledge Bases
@@ -70,7 +69,8 @@ IWE handles circular references gracefully:
 For repositories with thousands of files:
 
 - Use `--depth` limits to constrain exploration
-- Use `find` with filters instead of `contents`
+- Use `find` with filters for targeted searches
+- Use `tree -k` to explore specific subtrees
 - Consider exporting subgraphs with `--key` filter
 
 ## Getting help

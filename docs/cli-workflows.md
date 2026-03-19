@@ -5,20 +5,18 @@ Practical examples of using IWE CLI commands for common tasks.
 ## Daily Maintenance
 
 ``` bash
-# Update all document formatting and links
 iwe normalize
 
-# Check document structure
-iwe paths --depth 5
+iwe tree --depth 5
 ```
 
 ## Content Analysis
 
 ``` bash
-# Find entry points
-iwe contents
+iwe tree
 
-# Visualize specific topic area
+iwe tree -f keys | grep api
+
 iwe export dot --key "machine-learning" --include-headers > ml.dot
 dot -Tpng ml.dot -o ml-graph.png
 ```
@@ -36,12 +34,9 @@ iwe squash project-summary --depth 2 > project-overview.md
 ## Large Library Management
 
 ``` bash
-# Process with debug information
 iwe normalize -v 2
 
-# Analyze complex relationships with debug output
-iwe paths --depth 8 -v 2
+iwe tree --depth 8 -v 2
 
-# Export detailed visualization
 iwe export dot --include-headers --depth 5 > full-graph.dot
 ```

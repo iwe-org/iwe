@@ -11,8 +11,8 @@ fn normalize() { graph.export() → filesystem }
 // Export: Generate visualization formats (DOT, etc.)
 fn export() { graph → GraphData → DOTExporter }
 
-// Contents: Generate table of contents
-fn contents() { graph.paths() → filtered paths → markdown }
+// Tree: Display document hierarchy
+fn tree() { graph.paths() → tree structure → markdown/keys/json }
 
 // Squash: Extract partial content at specified depth
 fn squash() { graph.squash(key, depth) → markdown }

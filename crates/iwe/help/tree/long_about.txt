@@ -1,0 +1,16 @@
+Display document hierarchy as a tree structure.
+
+By default, shows root documents (entry points with no incoming block references)
+and their children organized in a tree format. Each level of nesting represents
+a block reference relationship between documents.
+
+Use -k/--key to start the tree from specific document(s), regardless of whether
+they are roots. This is useful for viewing subtrees or documents involved in
+circular references that have no natural root.
+
+Output formats:
+  markdown  Nested list with links (default): - [Title](key)
+  keys      Document keys only
+  json      JSON array with nested structure
+
+Use -d/--depth to limit how deep to traverse (default: 4).
