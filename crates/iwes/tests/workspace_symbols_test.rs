@@ -71,10 +71,12 @@ fn one_file_two_headers() {
             "})
     .workspace_symbols(
         workspace_symbol_params(""),
-        workspace_symbol_response(vec![
-            uri(1).to_symbol_info("test", lsp_types::SymbolKind::NAMESPACE, 0, 1),
-            uri(1).to_symbol_info("test • test 2", lsp_types::SymbolKind::OBJECT, 2, 3),
-        ]),
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
+            "test",
+            lsp_types::SymbolKind::NAMESPACE,
+            0,
+            1,
+        )]),
     );
 }
 
@@ -125,7 +127,7 @@ fn two_nested_files() {
     .workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            uri(1).to_symbol_info("test 2 • test 1", lsp_types::SymbolKind::OBJECT, 0, 1),
+            uri(1).to_symbol_info("test 1 • test 2", lsp_types::SymbolKind::OBJECT, 0, 1),
             uri(2).to_symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     );
@@ -174,9 +176,9 @@ fn dual_nested_files() {
     .workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            uri(2).to_symbol_info("test 3 • test 2", lsp_types::SymbolKind::OBJECT, 0, 1),
+            uri(2).to_symbol_info("test 2 • test 3", lsp_types::SymbolKind::OBJECT, 0, 1),
             uri(1).to_symbol_info(
-                "test 3 • test 2 • test 1",
+                "test 1 • test 2 • test 3",
                 lsp_types::SymbolKind::OBJECT,
                 0,
                 1,

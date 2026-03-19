@@ -69,6 +69,23 @@ impl NodePath {
         parents.remove(0);
         NodePath { ids: parents }
     }
+
+    pub fn filter_to_titles(&self, context: &impl super::GraphContext) -> NodePath {
+        let filtered_ids: Vec<NodeId> = self
+            .ids
+            .iter()
+            .filter(|id| {
+                let node = context.node(**id);
+                node.is_section()
+                    && node
+                        .to_parent()
+                        .map(|p| p.is_document())
+                        .unwrap_or(true)
+            })
+            .copied()
+            .collect();
+        NodePath { ids: filtered_ids }
+    }
 }
 
 pub fn graph_to_paths(graph: &Graph) -> Vec<NodePath> {

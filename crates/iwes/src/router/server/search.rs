@@ -16,6 +16,7 @@ pub struct SearchPath {
     pub root: bool,
     pub line: u32,
     pub path: NodePath,
+    pub title_path: NodePath,
 }
 
 #[derive(Clone, Default)]
@@ -37,13 +38,15 @@ impl SearchIndex {
                 let last_id = path.last_id()?;
                 let target = path.target()?;
                 let key = graph_ctx.get_node_key(target)?;
+                let title_path = path.filter_to_titles(&graph_ctx);
                 Some(SearchPath {
-                    search_text: render_search_text(path, graph_ctx),
+                    search_text: render_search_text(&title_path, graph_ctx),
                     node_rank: node_rank(graph_ctx, last_id),
                     key,
                     root: path.ids().len() == 1,
                     line: graph_ctx.node_line_number(target).unwrap_or(0) as u32,
                     path: path.clone(),
+                    title_path,
                 })
             })
             .collect::<Vec<_>>()
@@ -56,6 +59,7 @@ impl SearchIndex {
                     primary
                 }
             })
+            .unique_by(|p| p.title_path.ids())
             .collect::<Vec<_>>();
     }
 
@@ -97,10 +101,14 @@ impl SearchIndex {
     }
 }
 
-fn render_search_text(path: &NodePath, context: impl GraphContext) -> String {
-    path.ids()
+fn render_search_text(title_path: &NodePath, context: impl GraphContext) -> String {
+    title_path
+        .ids()
         .iter()
         .map(|id| context.get_text(*id).trim().to_string())
+        .collect_vec()
+        .into_iter()
+        .rev()
         .collect_vec()
         .join(" ")
         .chars()

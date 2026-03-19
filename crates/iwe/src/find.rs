@@ -169,21 +169,20 @@ impl<'a> DocumentFinder<'a> {
         let mut current = self.graph.node(node_id);
 
         while let Some(parent) = current.to_parent() {
-            if parent.is_section() && parent.is_header() {
-                if let Some(grandparent) = parent.to_parent() {
-                    if !grandparent.is_document() {
-                        let text = parent.plain_text().trim().to_string();
-                        path.push(text);
-                    }
-                }
+            if parent.is_section()
+                && parent
+                    .to_parent()
+                    .map(|p| p.is_document())
+                    .unwrap_or(true)
+            {
+                let text = parent.plain_text().trim().to_string();
+                path.push(text);
             }
             if parent.is_document() {
                 break;
             }
             current = parent;
         }
-
-        path.reverse();
         path
     }
 }

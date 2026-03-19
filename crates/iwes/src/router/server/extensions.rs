@@ -83,7 +83,7 @@ pub impl SearchPath {
         };
 
         SymbolInformation {
-            name: SearchPath::render_path(&self.path, context),
+            name: SearchPath::render_title_path(&self.title_path, context),
             kind,
             deprecated: None,
             tags: None,
@@ -104,10 +104,14 @@ pub impl SearchPath {
         }
     }
 
-    fn render_path(path: &NodePath, context: impl GraphContext) -> String {
-        path.ids()
+    fn render_title_path(title_path: &NodePath, context: impl GraphContext) -> String {
+        title_path
+            .ids()
             .iter()
             .map(|id| context.get_text(*id).trim().to_string())
+            .collect_vec()
+            .into_iter()
+            .rev()
             .collect_vec()
             .join(" • ")
     }
@@ -269,9 +273,13 @@ pub impl Vec<SymbolInformation> {
 #[ext]
 pub impl NodePath {
     fn render(&self, context: impl GraphContext) -> String {
-        self.ids()
+        self.filter_to_titles(&context)
+            .ids()
             .iter()
             .map(|id| context.get_text(*id).trim().to_string())
+            .collect_vec()
+            .into_iter()
+            .rev()
             .collect_vec()
             .join(" • ")
     }
