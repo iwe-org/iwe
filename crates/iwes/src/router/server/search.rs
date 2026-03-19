@@ -33,13 +33,18 @@ impl SearchIndex {
         self.paths = graph
             .paths()
             .par_iter()
-            .map(|path| SearchPath {
-                search_text: render_search_text(path, graph_ctx),
-                node_rank: node_rank(graph_ctx, path.last_id()),
-                key: graph_ctx.get_node_key(path.target()),
-                root: path.ids().len() == 1,
-                line: graph_ctx.node_line_number(path.target()).unwrap_or(0) as u32,
-                path: path.clone(),
+            .filter_map(|path| {
+                let last_id = path.last_id()?;
+                let target = path.target()?;
+                let key = graph_ctx.get_node_key(target)?;
+                Some(SearchPath {
+                    search_text: render_search_text(path, graph_ctx),
+                    node_rank: node_rank(graph_ctx, last_id),
+                    key,
+                    root: path.ids().len() == 1,
+                    line: graph_ctx.node_line_number(target).unwrap_or(0) as u32,
+                    path: path.clone(),
+                })
             })
             .collect::<Vec<_>>()
             .into_iter()

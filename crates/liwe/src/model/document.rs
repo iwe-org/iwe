@@ -229,15 +229,21 @@ impl DocumentBlock {
     pub fn append_block(&mut self, block: DocumentBlock) {
         match self {
             DocumentBlock::BulletList(list) => {
-                list.items.last_mut().unwrap().push(block);
+                list.items
+                    .last_mut()
+                    .expect("append_block: bullet list must have items")
+                    .push(block);
             }
             DocumentBlock::OrderedList(list) => {
-                list.items.last_mut().unwrap().push(block);
+                list.items
+                    .last_mut()
+                    .expect("append_block: ordered list must have items")
+                    .push(block);
             }
             DocumentBlock::BlockQuote(quote) => {
                 quote.blocks.push(block);
             }
-            _ => panic!(),
+            _ => panic!("append_block: unsupported block type"),
         }
     }
 
@@ -271,7 +277,7 @@ impl DocumentBlock {
             DocumentBlock::OrderedList(list) => {
                 list.items.push(Vec::new());
             }
-            _ => panic!(),
+            _ => panic!("append_item: unsupported block type"),
         }
     }
 
@@ -288,11 +294,17 @@ impl DocumentBlock {
                         inlines: Vec::new(),
                     }));
                 }
-                let last_block = block_quote.blocks.last_mut().unwrap();
+                let last_block = block_quote
+                    .blocks
+                    .last_mut()
+                    .expect("append_inline: block quote must have blocks after push");
                 last_block.append_inline(inline, line_range);
             }
             DocumentBlock::OrderedList(list) => {
-                let item = list.items.last_mut().unwrap();
+                let item = list
+                    .items
+                    .last_mut()
+                    .expect("append_inline: ordered list must have items");
 
                 if item.is_empty() {
                     item.push(DocumentBlock::Para(Para {
@@ -300,11 +312,16 @@ impl DocumentBlock {
                         inlines: Vec::new(),
                     }));
                 }
-                let last_block = item.last_mut().unwrap();
+                let last_block = item
+                    .last_mut()
+                    .expect("append_inline: list item must have blocks after push");
                 last_block.append_inline(inline, line_range.clone());
             }
             DocumentBlock::BulletList(list) => {
-                let item = list.items.last_mut().unwrap();
+                let item = list
+                    .items
+                    .last_mut()
+                    .expect("append_inline: bullet list must have items");
 
                 if item.is_empty() {
                     item.push(DocumentBlock::Para(Para {
@@ -312,7 +329,9 @@ impl DocumentBlock {
                         inlines: Vec::new(),
                     }));
                 }
-                let last_block = item.last_mut().unwrap();
+                let last_block = item
+                    .last_mut()
+                    .expect("append_inline: list item must have blocks after push");
                 last_block.append_inline(inline, line_range.clone());
             }
             DocumentBlock::Header(header) => header.inlines.push(inline),
@@ -339,12 +358,18 @@ impl DocumentBlock {
             DocumentBlock::CodeBlock(code) => code.line_range.clone(),
             DocumentBlock::RawBlock(raw) => raw.line_range.clone(),
             DocumentBlock::BlockQuote(quote) => quote.line_range.clone(),
-            DocumentBlock::OrderedList(list) => {
-                list.items.first().unwrap().first().unwrap().line_range()
-            }
-            DocumentBlock::BulletList(list) => {
-                list.items.first().unwrap().first().unwrap().line_range()
-            }
+            DocumentBlock::OrderedList(list) => list
+                .items
+                .first()
+                .and_then(|item| item.first())
+                .map(|block| block.line_range())
+                .unwrap_or_default(),
+            DocumentBlock::BulletList(list) => list
+                .items
+                .first()
+                .and_then(|item| item.first())
+                .map(|block| block.line_range())
+                .unwrap_or_default(),
             DocumentBlock::Header(header) => header.line_range.clone(),
             DocumentBlock::HorizontalRule(hr) => hr.line_range.clone(),
             DocumentBlock::Div(div) => div.line_range.clone(),

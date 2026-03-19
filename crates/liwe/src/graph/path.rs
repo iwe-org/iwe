@@ -18,8 +18,8 @@ pub struct NodePath {
 }
 
 impl NodePath {
-    pub fn target(&self) -> NodeId {
-        *self.ids.last().unwrap()
+    pub fn target(&self) -> Option<NodeId> {
+        self.ids.last().copied()
     }
 
     pub fn new(parents: Vec<NodeId>) -> NodePath {
@@ -40,12 +40,12 @@ impl NodePath {
         self.ids.clone()
     }
 
-    pub fn first_id(&self) -> NodeId {
-        *self.ids.first().unwrap()
+    pub fn first_id(&self) -> Option<NodeId> {
+        self.ids.first().copied()
     }
 
-    pub fn last_id(&self) -> NodeId {
-        *self.ids.last().unwrap()
+    pub fn last_id(&self) -> Option<NodeId> {
+        self.ids.last().copied()
     }
 
     pub fn append(&self, key: NodeId) -> NodePath {
@@ -80,15 +80,19 @@ pub fn graph_to_paths(graph: &Graph) -> Vec<NodePath> {
         .flat_map(|node| paths_for_node(graph, node.id(), &mut HashSet::new()))
         .filter(|path| !path.ids.is_empty())
         .filter(|path| {
-            graph
-                .index
-                .get_block_references_to(&graph.node_key(path.first_id()))
-                .is_empty()
-                && graph
-                    .node(path.first_id())
-                    .to_parent()
-                    .unwrap()
-                    .is_document()
+            path.first_id()
+                .map(|first_id| {
+                    graph
+                        .index
+                        .get_block_references_to(&graph.node_key(first_id))
+                        .is_empty()
+                        && graph
+                            .node(first_id)
+                            .to_parent()
+                            .map(|p| p.is_document())
+                            .unwrap_or(false)
+                })
+                .unwrap_or(false)
         })
         .collect();
 
@@ -135,6 +139,22 @@ mod test {
 
     use crate::graph::path::{graph_to_paths, NodePath};
     use crate::graph::Graph;
+
+    #[test]
+    fn empty_path_returns_none() {
+        let empty = NodePath::new(vec![]);
+        assert_eq!(None, empty.target());
+        assert_eq!(None, empty.first_id());
+        assert_eq!(None, empty.last_id());
+    }
+
+    #[test]
+    fn drop_first_on_single_element_creates_empty() {
+        let single = NodePath::from_id(1);
+        let empty = single.drop_first();
+        assert!(empty.ids().is_empty());
+        assert_eq!(None, empty.target());
+    }
 
     #[test]
     pub fn no_parents() {

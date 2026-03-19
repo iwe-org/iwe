@@ -49,14 +49,18 @@ impl Router {
     }
 
     fn send(&self, message: Message) {
-        self.sender.send(message).unwrap()
+        if let Err(e) = self.sender.send(message) {
+            error!("Failed to send LSP message: {}", e);
+        }
     }
 
     fn delay_send(&self, message: Message) {
         let sender = self.sender.clone();
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(100));
-            sender.send(message).unwrap();
+            if let Err(e) = sender.send(message) {
+                log::error!("Failed to send delayed LSP message: {}", e);
+            }
         });
     }
 
@@ -128,22 +132,40 @@ impl Router {
 
         match notification.method.as_str() {
             "textDocument/didChange" => {
-                let params = DidChangeTextDocumentParams::deserialize(notification.params).unwrap();
-                Arc::get_mut(&mut self.server)
-                    .unwrap()
-                    .handle_did_change_text_document(params);
+                match DidChangeTextDocumentParams::deserialize(notification.params) {
+                    Ok(params) => {
+                        if let Some(server) = Arc::get_mut(&mut self.server) {
+                            server.handle_did_change_text_document(params);
+                        } else {
+                            error!("Failed to get mutable reference to server");
+                        }
+                    }
+                    Err(e) => error!("Failed to deserialize didChange params: {}", e),
+                }
             }
             "textDocument/didSave" => {
-                let params = DidSaveTextDocumentParams::deserialize(notification.params).unwrap();
-                Arc::get_mut(&mut self.server)
-                    .unwrap()
-                    .handle_did_save_text_document(params);
+                match DidSaveTextDocumentParams::deserialize(notification.params) {
+                    Ok(params) => {
+                        if let Some(server) = Arc::get_mut(&mut self.server) {
+                            server.handle_did_save_text_document(params);
+                        } else {
+                            error!("Failed to get mutable reference to server");
+                        }
+                    }
+                    Err(e) => error!("Failed to deserialize didSave params: {}", e),
+                }
             }
             "workspace/didChangeWatchedFiles" => {
-                let params = DidChangeWatchedFilesParams::deserialize(notification.params).unwrap();
-                Arc::get_mut(&mut self.server)
-                    .unwrap()
-                    .handle_did_change_watched_files(params);
+                match DidChangeWatchedFilesParams::deserialize(notification.params) {
+                    Ok(params) => {
+                        if let Some(server) = Arc::get_mut(&mut self.server) {
+                            server.handle_did_change_watched_files(params);
+                        } else {
+                            error!("Failed to get mutable reference to server");
+                        }
+                    }
+                    Err(e) => error!("Failed to deserialize didChangeWatchedFiles params: {}", e),
+                }
             }
             default => {
                 debug!("unhandled request: {}", default)

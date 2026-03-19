@@ -297,17 +297,17 @@ pub impl NodePath {
         &self,
         context: impl GraphContext,
         base_path: &BasePath,
-    ) -> SymbolInformation {
-        let target = self.target();
+    ) -> Option<SymbolInformation> {
+        let target = self.target()?;
         let line = context.node_line_number(target).unwrap_or(0);
 
-        SymbolInformation {
+        Some(SymbolInformation {
             name: self.nested_render(context),
             kind: SymbolKind::OBJECT,
             deprecated: None,
             tags: None,
             location: Location {
-                uri: base_path.key_to_url(&context.node(self.target()).node_key()),
+                uri: base_path.key_to_url(&context.node(target).node_key()),
                 range: Range::new(
                     Position {
                         line: (line as u32),
@@ -320,7 +320,7 @@ pub impl NodePath {
                 ),
             },
             container_name: None,
-        }
+        })
     }
 }
 

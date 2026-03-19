@@ -57,6 +57,7 @@ pub fn write_store_at_path(store: &State, to: &Path) -> std::io::Result<()> {
 }
 
 fn to_file_name(path: &Path) -> String {
-    let name = path.file_name().unwrap().to_string_lossy().to_string();
-    name.trim_end_matches(".md").to_string()
+    path.file_name()
+        .map(|name| name.to_string_lossy().trim_end_matches(".md").to_string())
+        .unwrap_or_default()
 }

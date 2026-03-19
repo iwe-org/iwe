@@ -103,9 +103,12 @@ impl Server {
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
+        let Some(content) = params.content_changes.first() else {
+            return;
+        };
         self.graph.update_document(
             self.base_path.url_to_key(&params.text_document.uri.clone()),
-            params.content_changes.first().unwrap().text.clone(),
+            content.text.clone(),
         );
         self.search_index.update(&self.graph);
     }
@@ -232,10 +235,17 @@ impl Server {
                     .map(|key| self.graph.get_block_references_to(&key))
                     .map(|refs| {
                         refs.into_iter()
-                            .filter(|ref_id| !(&self.graph).get_node_key(*ref_id).eq(key))
-                            .sorted_by_key(|ref_id| (&self.graph).get_node_key(*ref_id))
-                            .unique_by(|ref_id| (&self.graph).get_node_key(*ref_id))
-                            .flat_map(|id| (&self.graph).get_container_document_ref_text(id))
+                            .filter_map(|ref_id| {
+                                let ref_key = (&self.graph).get_node_key(ref_id)?;
+                                if ref_key.eq(key) {
+                                    None
+                                } else {
+                                    Some((ref_id, ref_key))
+                                }
+                            })
+                            .sorted_by_key(|(_, ref_key)| ref_key.clone())
+                            .unique_by(|(_, ref_key)| ref_key.clone())
+                            .flat_map(|(id, _)| (&self.graph).get_container_document_ref_text(id))
                             .map(|s| format!("↖{}", s))
                             .join(" ")
                     })
@@ -273,22 +283,21 @@ impl Server {
 
     pub fn handle_document_symbols(&self, params: DocumentSymbolParams) -> Vec<SymbolInformation> {
         let key = params.text_document.uri.to_key(&self.base_path);
-        let id_opt = self
+        let Some(id) = self
             .graph
             .maybe_key(&key)
-            .and_then(|key_node| key_node.to_child().and_then(|child| child.id()));
-
-        let id2_opt = self
-            .graph
-            .maybe_key(&key)
-            .and_then(|key_node| key_node.id());
-
-        if id_opt.is_none() || id2_opt.is_none() {
+            .and_then(|key_node| key_node.to_child().and_then(|child| child.id()))
+        else {
             return vec![];
-        }
+        };
 
-        let id = id_opt.unwrap();
-        let id2 = id2_opt.unwrap();
+        let Some(id2) = self
+            .graph
+            .maybe_key(&key)
+            .and_then(|key_node| key_node.id())
+        else {
+            return vec![];
+        };
 
         let paths = self.graph.paths();
 
@@ -299,14 +308,14 @@ impl Server {
             .sorted_by(|a, b| {
                 for (x, y) in a.ids().iter().zip(b.ids().iter()) {
                     if x != y {
-                        return y.cmp(x); // For descending order
+                        return y.cmp(x);
                     }
                 }
-                b.ids().len().cmp(&a.ids().len()) // If all elements are equal, compare b
+                b.ids().len().cmp(&a.ids().len())
             })
             .map(|p| p.drop_first())
             .filter(|p| p.ids().len() < 4)
-            .map(|p| p.to_nested_symbol(&self.graph, &self.base_path))
+            .filter_map(|p| p.to_nested_symbol(&self.graph, &self.base_path))
             .filter(|p| !p.name.is_empty())
             .collect_vec()
     }
@@ -531,35 +540,61 @@ impl Server {
     pub fn handle_code_action_resolve(&self, code_action: &CodeAction) -> CodeAction {
         let base_path: &BasePath = &self.base_path;
 
-        let data = code_action.clone().data.unwrap();
+        let Some(data) = code_action.data.clone() else {
+            return code_action.clone();
+        };
 
-        let key = Key::name(data.get("key").unwrap().as_str().unwrap());
-        let range = data.get("range").unwrap();
-        let start = range.get("start").unwrap();
-        let end = range.get("end").unwrap();
-        let selection = actions::TextRange {
-            start: actions::Position {
-                line: start.get("line").unwrap().as_u64().unwrap() as u32,
-                character: start.get("character").unwrap().as_u64().unwrap() as u32,
-            },
-            end: actions::Position {
-                line: end.get("line").unwrap().as_u64().unwrap() as u32,
-                character: end.get("character").unwrap().as_u64().unwrap() as u32,
-            },
+        let Some(key) = data
+            .get("key")
+            .and_then(|v| v.as_str())
+            .map(Key::name)
+        else {
+            return code_action.clone();
+        };
+
+        let Some(range) = data.get("range") else {
+            return code_action.clone();
+        };
+
+        let Some(start) = range.get("start") else {
+            return code_action.clone();
+        };
+
+        let Some(end) = range.get("end") else {
+            return code_action.clone();
+        };
+
+        let Some(selection) = (|| {
+            Some(actions::TextRange {
+                start: actions::Position {
+                    line: start.get("line")?.as_u64()? as u32,
+                    character: start.get("character")?.as_u64()? as u32,
+                },
+                end: actions::Position {
+                    line: end.get("line")?.as_u64()? as u32,
+                    character: end.get("character")?.as_u64()? as u32,
+                },
+            })
+        })() else {
+            return code_action.clone();
         };
 
         let all_types = all_action_types(&self.configuration);
 
-        let action_provider = all_types
-            .iter()
-            .find(|action_provider| {
-                action_provider
-                    .action_kind()
-                    .eq(&code_action.clone().kind.unwrap())
-            })
-            .unwrap();
+        let Some(action_provider) = all_types.iter().find(|action_provider| {
+            code_action
+                .kind
+                .as_ref()
+                .map(|kind| action_provider.action_kind().eq(kind))
+                .unwrap_or(false)
+        }) else {
+            return code_action.clone();
+        };
 
-        let changes = action_provider.changes(key, selection, self).unwrap();
+        let Some(changes) = action_provider.changes(key, selection, self) else {
+            return code_action.clone();
+        };
+
         let lsp_changes = actions::into_lsp_changes(changes);
 
         let mut action = code_action.clone();

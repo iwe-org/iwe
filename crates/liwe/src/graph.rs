@@ -489,7 +489,7 @@ impl InlinesContext for &Graph {
 
 pub trait GraphContext: Copy {
     fn unique_ids(&self, relative_to: &str, number: usize) -> Vec<String>;
-    fn get_node_key(&self, id: NodeId) -> Key;
+    fn get_node_key(&self, id: NodeId) -> Option<Key>;
     fn get_node_id(&self, key: &Key) -> Option<NodeId>;
     fn get_node_id_at(&self, key: &Key, line: LineNumber) -> Option<NodeId>;
     fn node_line_number(&self, id: NodeId) -> Option<LineNumber>;
@@ -571,12 +571,12 @@ impl GraphContext for &Graph {
     }
 
     fn get_container_document_ref_text(&self, id: NodeId) -> Option<String> {
-        let container_key = self.node(id).to_document().unwrap().document_key().unwrap();
-        self.get_key_title(&container_key).map(|s| s.to_string())
+        let container_key = self.node(id).to_document()?.document_key()?;
+        self.get_key_title(&container_key)
     }
 
-    fn get_node_key(&self, id: NodeId) -> Key {
-        self.node(id).to_document().unwrap().document_key().unwrap()
+    fn get_node_key(&self, id: NodeId) -> Option<Key> {
+        self.node(id).to_document()?.document_key()
     }
 
     fn random_key(&self, relative_to: &str) -> Key {

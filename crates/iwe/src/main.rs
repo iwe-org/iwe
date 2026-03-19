@@ -624,7 +624,7 @@ fn init_command(init: Init) {
     }
     create_dir(&path).expect("to create .iwe directory");
 
-    let toml = toml::to_string(&Configuration::template()).unwrap();
+    let toml = toml::to_string(&Configuration::template()).expect("valid TOML");
 
     std::fs::write(path.join(CONFIG_FILE_NAME), toml).expect("Failed to write to config.json");
     info!("IWE initialized in the current location. Default config added to .iwe/config.json");
@@ -695,7 +695,8 @@ fn tree_command(args: TreeArgs) {
         paths
             .iter()
             .filter(|n| n.ids().len() == 1)
-            .map(|n| (&graph).node(n.first_id()).node_key())
+            .filter_map(|n| n.first_id())
+            .map(|id| (&graph).node(id).node_key())
             .sorted()
             .unique()
             .collect()
@@ -764,9 +765,7 @@ fn build_tree_node(
     max_depth: u8,
     visited: &mut std::collections::HashSet<Key>,
 ) -> Option<TreeNode> {
-    if graph.get_node_id(key).is_none() {
-        return None;
-    }
+    graph.get_node_id(key)?;
 
     let title = graph.get_ref_text(key).unwrap_or_default();
     let key_str = key.to_string();
@@ -799,6 +798,7 @@ fn build_tree_node(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_tree_lines(
     graph: &Graph,
     key: &Key,
@@ -872,7 +872,7 @@ fn squash_command(args: Squash) {
 
     patch.build_key_from_iter(&args.key.clone().into(), TreeIter::new(&squashed));
 
-    print!("{}", patch.export_key(&args.key.into()).unwrap())
+    print!("{}", patch.export_key(&args.key.into()).unwrap_or_default())
 }
 
 fn write_graph(graph: Graph, configuration: &Configuration) {
@@ -1047,15 +1047,13 @@ fn delete_command(args: Delete) {
         }
     }
 
-    if !args.quiet && !args.keys {
-        if args.dry_run {
-            println!("Would delete '{}'", target_key);
-            println!("Would update {} document(s)", result.updates.len());
-            for (key, _) in &result.updates {
-                println!("  {}", key);
-            }
-            return;
+    if !args.quiet && !args.keys && args.dry_run {
+        println!("Would delete '{}'", target_key);
+        println!("Would update {} document(s)", result.updates.len());
+        for (key, _) in &result.updates {
+            println!("  {}", key);
         }
+        return;
     }
 
     if !args.force && !args.dry_run {
@@ -1064,10 +1062,12 @@ fn delete_command(args: Delete) {
             target_key,
             result.updates.len()
         );
-        io::stdout().flush().unwrap();
+        io::stdout().flush().expect("Failed to flush stdout");
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read input");
         if !input.trim().eq_ignore_ascii_case("y") {
             eprintln!("Aborted");
             return;
@@ -1087,15 +1087,12 @@ fn delete_command(args: Delete) {
 }
 
 fn collect_sections(tree: &ModelTree, sections: &mut Vec<(usize, String, Option<liwe::model::NodeId>)>) {
-    match &tree.node {
-        Node::Section(inlines) => {
-            let title = inlines
-                .iter()
-                .map(|i| i.plain_text())
-                .collect::<String>();
-            sections.push((sections.len() + 1, title, tree.id));
-        }
-        _ => {}
+    if let Node::Section(inlines) = &tree.node {
+        let title = inlines
+            .iter()
+            .map(|i| i.plain_text())
+            .collect::<String>();
+        sections.push((sections.len() + 1, title, tree.id));
     }
     for child in &tree.children {
         collect_sections(child, sections);
@@ -1128,7 +1125,7 @@ fn get_extract_config(config: &Configuration, action_name: Option<&str>) -> (Str
         std::process::exit(1);
     }
 
-    for (_, action) in &config.actions {
+    for action in config.actions.values() {
         if let ActionDefinition::Extract(extract) = action {
             return (extract.key_template.clone(), extract.link_type.clone());
         }
