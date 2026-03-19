@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.62](https://github.com/iwe-org/iwe/compare/iwes-v0.0.61...iwes-v0.0.62) - 2026-03-19
+
+### Added
+
+- CLI commands for graph transformations ([#227](https://github.com/iwe-org/iwe/pull/227))
+
+### Other
+
+- release v0.0.61 ([#224](https://github.com/iwe-org/iwe/pull/224))
+- CI build fix
+
 ## [0.0.61](https://github.com/iwe-org/iwe/compare/iwes-v0.0.60...iwes-v0.0.61) - 2026-03-16
 
 ### Other
