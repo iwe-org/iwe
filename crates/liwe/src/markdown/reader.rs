@@ -176,19 +176,31 @@ impl MarkdownEventsReader {
     }
 
     fn pop_inline(&mut self) {
-        let inline = self.inlines_stack.pop().unwrap();
-        let pos = self.inlines_pos_stack.pop().unwrap();
+        let inline = self
+            .inlines_stack
+            .pop()
+            .expect("pop_inline: inlines stack underflow");
+        let pos = self
+            .inlines_pos_stack
+            .pop()
+            .expect("pop_inline: inlines pos stack underflow");
 
         if self.inlines_stack.is_empty() {
             self.top_block().append_inline(inline, pos);
             return;
         }
 
-        self.inlines_stack.last_mut().unwrap().apppen(inline);
+        self.inlines_stack
+            .last_mut()
+            .expect("pop_inline: inlines stack should not be empty")
+            .apppen(inline);
     }
 
     fn pop_block(&mut self) {
-        let block = self.blocks_stack.pop().unwrap();
+        let block = self
+            .blocks_stack
+            .pop()
+            .expect("pop_block: blocks stack underflow");
 
         if self.blocks_stack.is_empty() {
             self.blocks.push(block);

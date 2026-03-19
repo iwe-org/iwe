@@ -113,13 +113,16 @@ fn build_sections(
     tree: &Tree,
 ) {
     tree.children.iter().for_each(|child| {
+        let Some(child_id) = child.id else {
+            return;
+        };
         if child.is_list() {
         } else if depth == 0 && child.is_section() {
             cache.documents.insert(
-                child.id.unwrap(),
+                child_id,
                 Document {
                     depth: key_depth,
-                    id: child.id.unwrap(),
+                    id: child_id,
                     title: child.node.plain_text(),
                     key: key.to_string(),
                 },
@@ -127,26 +130,25 @@ fn build_sections(
             build_sections(key, cache, key_depth, depth + 1, _max_depth, child);
         } else if child.is_section() {
             cache.sections.insert(
-                child.id.unwrap(),
+                child_id,
                 Section {
                     depth,
-                    id: child.id.unwrap(),
+                    id: child_id,
                     title: child.node.plain_text(),
                     key: key.to_string(),
                 },
             );
             if tree.is_section() {
-                cache
-                    .section_to_section
-                    .insert((tree.id.unwrap(), child.id.unwrap()));
+                if let Some(tree_id) = tree.id {
+                    cache.section_to_section.insert((tree_id, child_id));
+                }
             }
             build_sections(key, cache, key_depth, depth + 1, _max_depth, child);
         } else if child.is_reference() {
             if let Some(ref_key) = child.node.reference_key() {
-                cache
-                    .section_to_document
-                    .insert((tree.id.unwrap(), ref_key.clone()));
-
+                if let Some(tree_id) = tree.id {
+                    cache.section_to_document.insert((tree_id, ref_key.clone()));
+                }
                 cache.document_to_document.insert((key.into(), ref_key));
             }
         }
@@ -165,8 +167,9 @@ fn top_level_keys(graph: &Graph, depth_limit: u8) -> HashMap<Key, u8> {
         .paths()
         .into_iter()
         .filter(|n| n.ids().len() <= 1_usize)
-        .map(|n| (&graph).node(n.first_id()).node_key())
-        .filter_map(|key| {
+        .filter_map(|n| {
+            let first_id = n.first_id()?;
+            let key = (&graph).node(first_id).node_key();
             if graph.maybe_key(&key).is_some() {
                 Some((key, 0))
             } else {

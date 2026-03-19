@@ -237,7 +237,9 @@ static CODE_ACTION_MAP: Lazy<Mutex<HashMap<String, CodeActionKind>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub fn identifier_to_action_kind(identifier: String) -> CodeActionKind {
-    let mut map = CODE_ACTION_MAP.lock().unwrap();
+    let mut map = CODE_ACTION_MAP
+        .lock()
+        .expect("CODE_ACTION_MAP mutex poisoned");
     map.entry(identifier.clone())
         .or_insert_with(|| CodeActionKind::new(identifier.clone().leak()))
         .clone()

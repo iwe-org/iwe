@@ -80,9 +80,11 @@ impl<'a> RetrieveRenderer<'a> {
             },
         };
 
-        output.push_str("---\n");
-        output.push_str(&serde_yaml::to_string(&frontmatter).unwrap());
-        output.push_str("---\n\n");
+        if let Ok(yaml) = serde_yaml::to_string(&frontmatter) {
+            output.push_str("---\n");
+            output.push_str(&yaml);
+            output.push_str("---\n\n");
+        }
 
         if !doc.content.is_empty() {
             let key = Key::name(&doc.key);

@@ -19,7 +19,7 @@ IWE offers powerful features such as **search**, **auto-complete**, **go to defi
 
 The primary focus of IWE is to be your ultimate writing assistant and keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as **extract/embed** note and many other via LSP **code actions**.
 
-While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using Map of Content ([MOC](https://iwe.md/docs/concepts/maps-of-content/)) documents.
+While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using [inclusion links](https://iwe.md/docs/concepts/inclusion-links/).
 
 > [!NOTE]
 >

@@ -101,10 +101,10 @@ impl Key {
         format!("{}.md", self.relative_path).to_string()
     }
 
-    pub fn from_path(path: &Path) -> Key {
-        let name = path.file_name().unwrap().to_string_lossy().to_string();
+    pub fn from_path(path: &Path) -> Option<Key> {
+        let name = path.file_name()?.to_string_lossy().to_string();
         let key = name.trim_end_matches(".md").to_string();
-        Key::name(&key)
+        Some(Key::name(&key))
     }
 }
 

@@ -188,7 +188,7 @@ impl ActionProvider for TransformBlockAction {
             return None;
         }
 
-        let generated = execute_command(&command, &input)?;
+        let generated = execute_command(command, &input)?;
 
         let mut patch = context.patch();
 
