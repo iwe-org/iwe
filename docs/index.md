@@ -40,7 +40,9 @@
 
 [Debug Mode](debug-mode.md)
 
-[Maps of Content](maps-of-content.md)
+## Concepts
+
+[Inclusion Links](inclusion-links.md)
 
 ## Features
 
@@ -54,7 +56,7 @@
 
 [Creating links from text](feature-link.md)
 
-[Delete block references](feature-delete.md)
+[Delete inclusions](feature-delete.md)
 
 [Navigation](feature-navigation.md)
 

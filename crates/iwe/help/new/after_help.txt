@@ -1,0 +1,38 @@
+EXAMPLES:
+
+  # Create document with default template
+  iwe new "My Document Title"
+
+  # Create with specific template
+  iwe new "Meeting Notes" --template meeting
+
+  # Create with inline content
+  iwe new "Quick Note" --content "This is the body text"
+
+  # Create from piped content
+  echo "Generated content" | iwe new "Generated Doc"
+
+  # Open in editor after creation
+  iwe new "Draft Document" --edit
+
+  # Handle existing files
+  iwe new "Existing" --if-exists override  # Overwrite
+  iwe new "Existing" --if-exists skip      # Do nothing
+  iwe new "Existing" --if-exists suffix    # Create with -1, -2, etc.
+
+TEMPLATE VARIABLES:
+
+  Templates in config support these variables:
+  - {{title}}: Document title as provided
+  - {{slug}}: URL-safe filename derived from title
+  - {{today}}: Current date (uses library.date_format)
+  - {{id}}: Unique identifier
+  - {{content}}: Content from --content or stdin
+
+OUTPUT:
+
+  Prints the absolute path to the created file:
+
+    /path/to/library/my-document-title.md
+
+  Returns empty output if --if-exists skip and file exists.

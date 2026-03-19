@@ -1,8 +1,6 @@
-use itertools::Itertools;
+use liwe::operations::{delete, Changes};
 
-use liwe::model::node::NodeIter;
-
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Remove, Update};
+use super::{Action, ActionContext, ActionProvider};
 
 pub struct DeleteAction {}
 
@@ -39,37 +37,8 @@ impl ActionProvider for DeleteAction {
         let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
         let target_key = tree.find_reference_key(target_id);
+        let graph = context.graph();
 
-        let mut changes = vec![];
-
-        changes.push(Change::Remove(Remove {
-            key: target_key.clone(),
-        }));
-
-        context
-            .get_block_references_to(&target_key)
-            .into_iter()
-            .map(|node_id| context.key_of(node_id))
-            .chain(
-                context
-                    .get_inline_references_to(&target_key)
-                    .into_iter()
-                    .map(|node_id| context.key_of(node_id)),
-            )
-            .unique()
-            .sorted()
-            .for_each(|ref_key| {
-                changes.push(Change::Update(Update {
-                    key: ref_key.clone(),
-                    markdown: context
-                        .collect(&ref_key)
-                        .remove_block_references_to(&target_key)
-                        .remove_inline_links_to(&target_key)
-                        .iter()
-                        .to_markdown(&ref_key.parent(), context.markdown_options()),
-                }));
-            });
-
-        Some(changes)
+        delete(graph, &target_key).ok()
     }
 }

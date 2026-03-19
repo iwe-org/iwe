@@ -33,6 +33,46 @@ iwe -v 1 <command>
 iwe -v 2 <command>
 ```
 
+## Edge Cases
+
+### Empty Knowledge Base
+
+When no markdown files exist:
+
+| Command | Behavior |
+|---------|----------|
+| `contents` | Outputs header only: `# Contents` |
+| `paths` | No output |
+| `find` | No matches found |
+| `stats` | Shows zero counts |
+| `export dot` | Produces empty graph |
+
+### Missing Referenced Documents
+
+When a document links to a non-existent file:
+
+- **Normalize**: Updates link title to empty string
+- **Retrieve**: Skips missing references in expansion
+- **Squash**: Skips missing linked documents
+- **Export**: Excludes edges to missing documents
+
+### Circular References
+
+IWE handles circular references gracefully:
+
+- **Retrieve**: Expands each document once, avoiding infinite loops
+- **Squash**: Includes each document once at first encounter
+- **Paths**: Shows paths without repeating nodes
+- **Export**: Renders cycles as valid graph edges
+
+### Large Knowledge Bases
+
+For repositories with thousands of files:
+
+- Use `--depth` limits to constrain exploration
+- Use `find` with filters instead of `contents`
+- Consider exporting subgraphs with `--key` filter
+
 ## Getting help
 
 For any command, use the `--help` flag to see available options:

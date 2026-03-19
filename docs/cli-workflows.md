@@ -27,10 +27,10 @@ dot -Tpng ml.dot -o ml-graph.png
 
 ``` bash
 # Create comprehensive document from research notes
-iwe squash --key "research-index" --depth 4 > consolidated-research.md
+iwe squash research-index --depth 4 > consolidated-research.md
 
 # Generate presentation material
-iwe squash --key "project-summary" --depth 2 > project-overview.md
+iwe squash project-summary --depth 2 > project-overview.md
 ```
 
 ## Large Library Management

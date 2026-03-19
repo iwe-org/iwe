@@ -16,7 +16,7 @@ Without `-k`, reads the document key from stdin (for piping).
 |------|-------------|---------|
 | `-k, --key <KEY>` | Document key(s) to retrieve (can be specified multiple times) | stdin |
 | `-e, --exclude <KEY>` | Exclude document key(s) from results (can be specified multiple times) | none |
-| `-d, --depth <N>` | Follow block references down N levels | 1 |
+| `-d, --depth <N>` | Follow children down N levels | 1 |
 | `-c, --context <N>` | Include N levels of parent context | 1 |
 | `-l, --links` | Include inline referenced documents | false |
 | `-b, --backlinks` | Include incoming references in output | true |
@@ -29,7 +29,7 @@ Without `-k`, reads the document key from stdin (for piping).
 The `retrieve` command collects documents in a specific order:
 
 1. **Main document** - The document specified by `-k`
-2. **Children** (`-d N`) - Documents embedded via block references, expanded N levels deep
+2. **Children** (`-d N`) - Documents included via [inclusion links](inclusion-links.md), expanded N levels deep
 3. **Context** (`-c N`) - Parent documents of the main document, up N levels
 4. **Sub-document parents** - Parents of direct sub-documents (only when both `-d > 0` and `-c > 0`)
 5. **Links** (`-l`) - Documents referenced inline within the main document
@@ -38,12 +38,12 @@ Documents are deduplicated - each document appears only once in the output.
 
 ### Depth Expansion (-d)
 
-Controls how deep to follow block references (sub-documents):
+Controls how deep to follow children (sub-documents):
 
 - **`-d 0`**: Only the main document, no expansion
 - **`-d 1`** (default): Main document + direct sub-documents
 - **`-d 2`**: Main + sub-documents + their sub-documents
-- **`-d N`**: Follow block references up to N levels deep
+- **`-d N`**: Follow children up to N levels deep
 
 ### Context Expansion (-c)
 
@@ -88,7 +88,7 @@ The `web-dashboard` document is fetched because it's a parent of `button`. This 
 
 ### Links (-l)
 
-When enabled, includes documents that are referenced inline (not as block references):
+When enabled, includes documents that are referenced inline (not as inclusion links):
 
 ```markdown
 # Main Document
@@ -102,13 +102,13 @@ With `-l`, `related-topic` would be included in the output.
 
 ### Parent Documents vs Back Links
 
-**Parent Documents** - Block references (document embedded in another):
+**Parent Documents** - Inclusion links (document embedded in another):
 ```markdown
 # Parent Document
 
 ## Overview
 
-[child](child)   <- Block reference creates parent-child relationship
+[child](child)   <- Inclusion link creates parent-child relationship
 ```
 
 The child document shows: `**Parent documents:** [Parent Document](parent) > Overview`

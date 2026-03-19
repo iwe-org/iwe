@@ -1,6 +1,7 @@
 use liwe::model::node::NodeIter;
+use liwe::operations::Changes;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Update};
+use super::{Action, ActionContext, ActionProvider};
 
 pub struct SectionToList {}
 
@@ -40,14 +41,14 @@ impl ActionProvider for SectionToList {
         Some(target_id)
             .filter(|node_id| tree.is_header(*node_id))
             .map(|scope_id| {
-                vec![Change::Update(Update {
-                    key: key.clone(),
-                    markdown: context
+                Changes::new().update(
+                    key.clone(),
+                    context
                         .collect(&key)
                         .wrap_into_list(scope_id)
                         .iter()
                         .to_markdown(&key.parent(), context.markdown_options()),
-                })]
+                )
             })
     }
 }

@@ -13,7 +13,7 @@ iwe find [QUERY] [OPTIONS]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `[QUERY]` | Fuzzy search on document title and key | none (lists all) |
-| `--roots` | Only show root documents (no incoming block refs) | false |
+| `--roots` | Only show root documents (no parents) | false |
 | `--refs-to <KEY>` | Documents that reference this key | none |
 | `--refs-from <KEY>` | Documents referenced by this key | none |
 | `-l, --limit <N>` | Maximum number of results | 50 |
@@ -42,7 +42,7 @@ iwe find api
 
 ### Root Documents
 
-Root documents are entry points - documents with no incoming block references:
+Root documents are entry points - documents with no parents:
 
 ```bash
 # List only root documents (no parents)
@@ -77,7 +77,7 @@ Found 3 results:
 
 Each result shows:
 - Document title and key as a markdown link
-- `(root)` indicator if no incoming block references
+- `(root)` indicator if no parents
 - Parent documents shown with `<-` arrow
 
 ### Keys Format (`-f keys`)
@@ -127,10 +127,10 @@ Fields:
 - `query` - The search query (null if no query provided)
 - `total` - Total matching documents (before limit applied)
 - `results` - Array of matching documents
-  - `is_root` - True if no incoming block references
-  - `incoming_refs` - Count of block + inline references to this document
-  - `outgoing_refs` - Count of block references from this document
-  - `parent_documents` - Documents that embed this one via block reference
+  - `is_root` - True if no parents
+  - `incoming_refs` - Count of parents + inline references to this document
+  - `outgoing_refs` - Count of children in this document
+  - `parent_documents` - Documents that include this one
 
 ## Examples
 
@@ -230,4 +230,4 @@ iwe find --roots -f json | jq '.results | map(select(.outgoing_refs == 0))'
 - With a query, results are sorted by fuzzy match score
 - The limit is applied after sorting, so you get the top N results
 - Parent documents show section path breadcrumbs when applicable
-- Both block references and inline references count toward `incoming_refs`
+- Both [inclusion links](inclusion-links.md) and inline references count toward `incoming_refs`

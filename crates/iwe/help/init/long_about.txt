@@ -1,0 +1,14 @@
+Initialize the current directory as an IWE project.
+
+Creates the .iwe/ directory with a default config.toml file. This establishes
+the directory as an IWE-managed knowledge base, enabling all CLI commands and
+LSP server features.
+
+Configuration options in .iwe/config.toml:
+- library.path: Subdirectory containing markdown files (default: "")
+- library.date_format: Date format for templates (default: "%Y-%m-%d")
+- markdown.refs_extension: Append .md to links (default: false)
+- completion.link_format: Link style - "markdown" or "wiki"
+
+Prerequisites:
+- The .iwe directory must not already exist in the current location

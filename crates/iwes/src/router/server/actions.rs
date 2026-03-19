@@ -46,6 +46,7 @@ pub trait ActionContext {
     fn unique_ids(&self, parent: &str, number: usize) -> Vec<String>;
     fn markdown_options(&self) -> &MarkdownOptions;
     fn get_command(&self, name: &str) -> Option<&Command>;
+    fn graph(&self) -> &Graph;
     fn patch(&self) -> Graph;
     fn get_block_references_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId>;
@@ -151,7 +152,7 @@ pub trait ActionProvider {
         key: Key,
         selection: TextRange,
         context: impl ActionContext,
-    ) -> Option<Changes>;
+    ) -> Option<liwe::operations::Changes>;
 
     fn action_kind(&self) -> CodeActionKind {
         identifier_to_action_kind(self.identifier())
@@ -215,7 +216,7 @@ impl ActionProvider for ActionEnum {
         key: Key,
         selection: TextRange,
         context: impl ActionContext,
-    ) -> Option<Changes> {
+    ) -> Option<liwe::operations::Changes> {
         match self {
             ActionEnum::ListChangeType(inner) => inner.changes(key, selection, context),
             ActionEnum::ListToSections(inner) => inner.changes(key, selection, context),
@@ -355,13 +356,21 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
     actions
 }
 
-pub fn string_to_slug(s: &str) -> String {
-    s.to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
+pub use liwe::operations::string_to_slug;
+
+pub fn into_lsp_changes(liwe_changes: liwe::operations::Changes) -> Changes {
+    let mut changes = Vec::new();
+
+    for (key, markdown) in liwe_changes.creates {
+        changes.push(Change::Create(Create { key: key.clone() }));
+        changes.push(Change::Update(Update { key, markdown }));
+    }
+    for key in liwe_changes.removes {
+        changes.push(Change::Remove(Remove { key }));
+    }
+    for (key, markdown) in liwe_changes.updates {
+        changes.push(Change::Update(Update { key, markdown }));
+    }
+
+    changes
 }

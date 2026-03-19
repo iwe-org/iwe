@@ -5,9 +5,10 @@ use std::time::Duration;
 use liwe::markdown::MarkdownReader;
 use liwe::model::config::Command;
 use liwe::model::node::{NodeIter, NodePointer};
+use liwe::operations::Changes;
 
 use super::templates;
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Update};
+use super::{Action, ActionContext, ActionProvider};
 
 pub struct TransformBlockAction {
     pub title: String,
@@ -200,6 +201,6 @@ impl ActionProvider for TransformBlockAction {
             .iter()
             .to_markdown(&key.parent(), context.markdown_options());
 
-        Some(vec![Change::Update(Update { key, markdown })])
+        Some(Changes::new().update(key, markdown))
     }
 }

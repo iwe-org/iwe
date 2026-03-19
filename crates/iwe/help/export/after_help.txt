@@ -1,3 +1,25 @@
+DOT OUTPUT FORMAT:
+
+  Graphviz DOT language with the following structure:
+
+    digraph {
+      rankdir=LR
+      node [shape=box]
+      "doc-key" [label="Document Title"]
+      "doc-key" -> "referenced-key"
+    }
+
+  With --include-headers, sections become subgraphs:
+
+    digraph {
+      subgraph cluster_doc_key {
+        label="Document Title"
+        style=filled
+        fillcolor="#..."
+        "doc-key/section" [label="Section"]
+      }
+    }
+
 EXAMPLES:
 
   # Export entire graph
@@ -9,6 +31,9 @@ EXAMPLES:
   # Include section headers for detailed view
   iwe export dot --include-headers
 
+  # Control connection depth
+  iwe export dot --key "index" --depth 2
+
 USING DOT OUTPUT:
 
   # Generate PNG visualization
@@ -18,3 +43,6 @@ USING DOT OUTPUT:
   # Generate SVG for web use
   iwe export dot --include-headers > detailed.dot
   dot -Tsvg detailed.dot -o detailed.svg
+
+  # Interactive exploration with xdot
+  iwe export dot | xdot -

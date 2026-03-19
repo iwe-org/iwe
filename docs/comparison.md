@@ -77,7 +77,7 @@ The core differentiator is the shared library architecture between CLI and LSP c
 |**Performance**|✅ Rust-powered, instant operations on thousands of files|⚠️ Electron-based, can be slower with large vaults|
 |**Graph Transformations**|✅ Automated extract/embed operations, section-to-list conversions|❌ Manual linking and organization|
 |**External Commands**|✅ Configurable CLI tools (supports AI agents, scripts, Unix tools)|⚠️ Limited, requires third-party plugins (Text Generator, Smart Connections)|
-|**Block References**|✅ Native support with automatic linking|⚠️ Available via plugins|
+|**[Inclusion Links](inclusion-links.md)**|✅ Native support with automatic linking|⚠️ Available via plugins|
 |**Auto-formatting**|✅ Comprehensive markdown normalization on save|⚠️ Basic formatting, requires plugins for advanced normalization|
 |**Batch Operations**|✅ CLI for bulk transformations and normalization|❌ No batch operation capabilities|
 |**Cross-platform**|✅ Consistent across all platforms|✅ Good cross-platform support|

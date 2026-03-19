@@ -11,7 +11,7 @@ fn test_squash_basic_functionality() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "test"]);
+    let output = run_squash_command(temp_path, &["test"]);
     assert!(output.status.success(), "Squash command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -28,7 +28,7 @@ fn test_squash_with_depth_limit() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "test", "--depth", "1"]);
+    let output = run_squash_command(temp_path, &["test", "--depth", "1"]);
     assert!(
         output.status.success(),
         "Squash command with depth should succeed"
@@ -46,7 +46,7 @@ fn test_squash_with_higher_depth() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "test", "--depth", "5"]);
+    let output = run_squash_command(temp_path, &["test", "--depth", "5"]);
     assert!(
         output.status.success(),
         "Squash command with higher depth should succeed"
@@ -64,7 +64,7 @@ fn test_squash_default_depth() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "test"]);
+    let output = run_squash_command(temp_path, &["test"]);
     assert!(output.status.success(), "Squash command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -80,7 +80,7 @@ fn test_squash_nonexistent_key() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "nonexistent"]);
+    let output = run_squash_command(temp_path, &["nonexistent"]);
     assert!(
         !output.status.success(),
         "Squash should fail with nonexistent key"
@@ -98,7 +98,7 @@ fn test_squash_complex_workspace() {
     let temp_dir = setup_complex_test_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "document1"]);
+    let output = run_squash_command(temp_path, &["document1"]);
     assert!(output.status.success(), "Squash command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -114,7 +114,7 @@ fn test_squash_with_links() {
     let temp_dir = setup_test_workspace_with_links();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "main"]);
+    let output = run_squash_command(temp_path, &["main"]);
     assert!(output.status.success(), "Squash command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -130,7 +130,7 @@ fn test_squash_preserves_markdown_structure() {
     let temp_dir = setup_test_workspace_with_structured_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "structured"]);
+    let output = run_squash_command(temp_path, &["structured"]);
     assert!(output.status.success(), "Squash command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -151,7 +151,6 @@ fn test_squash_with_verbose_flag() {
 
     let output = Command::new(common::get_iwe_binary_path())
         .arg("squash")
-        .arg("--key")
         .arg("test")
         .arg("--verbose")
         .arg("1")
@@ -173,7 +172,7 @@ fn test_squash_zero_depth() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "test", "--depth", "0"]);
+    let output = run_squash_command(temp_path, &["test", "--depth", "0"]);
     assert!(
         output.status.success(),
         "Squash command with depth 0 should succeed"
@@ -187,7 +186,7 @@ fn test_squash_key_with_spaces() {
     let temp_dir = setup_test_workspace_with_spaced_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "spaced key"]);
+    let output = run_squash_command(temp_path, &["spaced key"]);
     assert!(
         output.status.success(),
         "Squash should handle keys with spaces"
@@ -201,7 +200,7 @@ fn test_squash_empty_workspace() {
     let temp_dir = setup_empty_workspace();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "anything"]);
+    let output = run_squash_command(temp_path, &["anything"]);
     assert!(
         !output.status.success(),
         "Squash should fail with empty workspace and nonexistent key"
@@ -230,7 +229,7 @@ fn test_squash_without_config() {
     "};
     write(temp_path.join("test.md"), markdown_content).expect("Should write test file");
 
-    let output = run_squash_command(temp_path, &["--key", "test"]);
+    let output = run_squash_command(temp_path, &["test"]);
     assert!(
         output.status.success(),
         "Squash should work without explicit config"
@@ -242,7 +241,7 @@ fn test_squash_stderr_empty() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "test"]);
+    let output = run_squash_command(temp_path, &["test"]);
     assert!(output.status.success(), "Squash command should succeed");
 
     let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 stderr");
@@ -259,7 +258,7 @@ fn test_squash_output_is_markdown() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = run_squash_command(temp_path, &["--key", "test"]);
+    let output = run_squash_command(temp_path, &["test"]);
     assert!(output.status.success(), "Squash command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");

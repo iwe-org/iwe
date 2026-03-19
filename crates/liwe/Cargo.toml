@@ -33,6 +33,8 @@ toml_edit.workspace = true
 chrono.workspace = true
 ignore.workspace = true
 serde_yaml.workspace = true
+minijinja.workspace = true
+sanitize-filename.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

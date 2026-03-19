@@ -560,11 +560,12 @@ impl Server {
             .unwrap();
 
         let changes = action_provider.changes(key, selection, self).unwrap();
+        let lsp_changes = actions::into_lsp_changes(changes);
 
         let mut action = code_action.clone();
         action.edit = Some(WorkspaceEdit {
             document_changes: Some(DocumentChanges::Operations(
-                changes
+                lsp_changes
                     .iter()
                     .map(|change| change.to_document_change(base_path))
                     .collect_vec(),
@@ -599,6 +600,10 @@ impl ActionContext for &Server {
 
     fn get_command(&self, name: &str) -> Option<&Command> {
         self.configuration.commands.get(name)
+    }
+
+    fn graph(&self) -> &Graph {
+        &self.graph
     }
 
     fn patch(&self) -> Graph {

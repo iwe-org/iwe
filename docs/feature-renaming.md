@@ -62,6 +62,23 @@ Check also [Old Topic](new-topic) in another context.
 
 Note that the link text ("Old Topic") is preserved while the link target is updated.
 
+## Command Line Usage
+
+You can also rename documents using the CLI:
+
+```bash
+# Basic rename
+iwe rename old-topic new-topic
+
+# Preview changes first
+iwe rename old-topic new-topic --dry-run
+
+# Get affected document keys
+iwe rename old-topic new-topic --keys
+```
+
+See [cli-rename](cli-rename.md) for full documentation.
+
 ## Benefits
 
 - **Safe refactoring** - No broken links after renaming

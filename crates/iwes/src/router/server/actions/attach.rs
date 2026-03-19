@@ -5,8 +5,9 @@ use liwe::model::node::NodeIter;
 use liwe::model::node::{Node, Reference, ReferenceType};
 use liwe::model::tree::Tree;
 use liwe::model::Key;
+use liwe::operations::Changes;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Create, Update};
+use super::{Action, ActionContext, ActionProvider};
 
 pub struct AttachAction {
     pub title: String,
@@ -114,26 +115,24 @@ impl ActionProvider for AttachAction {
 
             let updated = tree.attach(reference);
 
-            Some(vec![Change::Update(Update {
-                key: attach_to_key.clone(),
-                markdown: updated
+            Some(Changes::new().update(
+                attach_to_key.clone(),
+                updated
                     .iter()
                     .to_markdown(&attach_to_key.parent(), context.markdown_options()),
-            })])
+            ))
         } else {
-            Some(vec![
-                Change::Create(Create {
-                    key: attach_to_key.clone(),
-                }),
-                Change::Update(Update {
-                    key: attach_to_key.clone(),
-                    markdown: self.format_target_document(
-                        reference
-                            .iter()
-                            .to_markdown(&attach_to_key.parent(), context.markdown_options()),
+            Some(
+                Changes::new()
+                    .create(
+                        attach_to_key.clone(),
+                        self.format_target_document(
+                            reference
+                                .iter()
+                                .to_markdown(&attach_to_key.parent(), context.markdown_options()),
+                        ),
                     ),
-                }),
-            ])
+            )
         }
     }
 }

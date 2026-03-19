@@ -1,0 +1,21 @@
+OPERATIONS PERFORMED:
+
+  - Link titles: Update link text to match target document headers
+  - Header levels: Ensure consistent hierarchy within documents
+  - Ordered lists: Renumber sequential list items
+  - Formatting: Standardize newlines, indentation, spacing
+  - List formatting: Consistent bullet and numbering styles
+  - Document structure: Fix structural inconsistencies
+
+EXAMPLES:
+
+  # Normalize all documents
+  iwe normalize
+
+  # Preview changes with verbose logging
+  RUST_LOG=debug iwe normalize --verbose 2
+
+OUTPUT:
+
+  Modifies files in place. No stdout output on success. Changes are
+  written directly to the markdown files in your library.

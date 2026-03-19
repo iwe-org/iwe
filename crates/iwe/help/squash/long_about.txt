@@ -1,6 +1,9 @@
-Create consolidated documents by combining linked content into a single file.
+Create a consolidated document by inlining linked content.
 
-Starts from the specified document, traverses linked documents up to the
-specified depth, and combines content into a single markdown document.
-Converts block references to inline sections while maintaining document
-structure and hierarchy.
+Starts from the specified document, follows inclusion links up to the
+specified depth, and combines all content into a single markdown output.
+Inclusion links are replaced with the actual content of the referenced
+documents, with headers adjusted to maintain proper hierarchy.
+
+Use --depth to control how many levels of references to follow. Default
+depth is 2, meaning direct references and their direct references.

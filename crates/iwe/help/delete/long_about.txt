@@ -1,0 +1,5 @@
+Delete a document and clean up all references to it.
+
+Removes the document file and cleans up all references across the
+knowledge base. Inclusion links are removed entirely and inline links
+are converted to plain text. Use --force to skip the confirmation prompt.

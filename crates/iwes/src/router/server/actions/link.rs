@@ -1,12 +1,11 @@
 use chrono::Local;
 use liwe::model::config::LinkType as ConfigLinkType;
 use liwe::model::Key;
+use liwe::operations::Changes;
 use minijinja::{context, Environment};
 use sanitize_filename::sanitize;
 
-use super::{
-    string_to_slug, Action, ActionContext, ActionProvider, Change, Changes, Create, Update,
-};
+use super::{string_to_slug, Action, ActionContext, ActionProvider};
 
 pub struct LinkAction {
     pub title: String,
@@ -212,19 +211,11 @@ impl ActionProvider for LinkAction {
                 .join("\n")
                 + "\n";
 
-            Some(vec![
-                Change::Create(Create {
-                    key: new_key.clone(),
-                }),
-                Change::Update(Update {
-                    key: new_key,
-                    markdown: new_markdown,
-                }),
-                Change::Update(Update {
-                    key,
-                    markdown: updated_markdown,
-                }),
-            ])
+            Some(
+                Changes::new()
+                    .create(new_key, new_markdown)
+                    .update(key, updated_markdown),
+            )
         })?
     }
 }

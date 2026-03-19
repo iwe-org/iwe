@@ -30,7 +30,7 @@ all:
 
 book: 
 	@echo "Building book"
-	$(IWE_BIN) squash -k index --depth 10 > $(BOOK_MD)
+	$(IWE_BIN) squash index --depth 10 > $(BOOK_MD)
 	typst compile book.typ
 	rm $(BOOK_MD)
 	@echo "$(BOOK_MD) generated"

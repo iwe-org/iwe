@@ -1,0 +1,18 @@
+EXAMPLES:
+    # List all inclusion links with numbers
+    iwe inline notes/index --list
+
+    # Inline by reference key
+    iwe inline notes/index --reference "architecture"
+
+    # Inline by block number (unambiguous)
+    iwe inline notes/index --block 1
+
+    # Preview changes without writing
+    iwe inline notes/index --reference "design" --dry-run
+
+    # Keep the target document after inlining
+    iwe inline notes/index --block 2 --keep-target
+
+    # Inline as blockquote instead of section
+    iwe inline notes/index --reference "notes" --as-quote

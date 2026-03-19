@@ -14,15 +14,22 @@ use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists
 use iwe::retrieve::render::RetrieveRenderer;
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::stats::GraphStatistics;
-use minijinja::{context, Environment};
 use liwe::fs::new_for_path;
 use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
-use liwe::model::config::{load_config, Configuration};
-
-use liwe::model::node::NodePointer;
-use liwe::model::tree::TreeIter;
+use liwe::model::config::{
+    load_config, ActionDefinition, Configuration, InlineType, LinkType,
+};
+use liwe::model::node::{Node, NodePointer};
+use liwe::model::tree::{Tree, TreeIter};
 use liwe::model::Key;
+use liwe::operations::{
+    delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename,
+    Changes, ExtractConfig, InlineConfig,
+};
+
+use minijinja::{context, Environment};
+use std::io::{self, Write as IoWrite};
 use log::{debug, error, info};
 
 const CONFIG_FILE_NAME: &str = "config.toml";
@@ -50,6 +57,10 @@ enum Command {
     Contents(Contents),
     Export(Export),
     Stats(Stats),
+    Rename(Rename),
+    Delete(Delete),
+    Extract(Extract),
+    Inline(Inline),
 }
 
 #[derive(Debug, Args)]
@@ -146,18 +157,24 @@ enum FindFormat {
 #[derive(Debug, Args)]
 #[clap(
     about = help::normalize::ABOUT,
-    long_about = help::normalize::LONG_ABOUT
+    long_about = help::normalize::LONG_ABOUT,
+    after_help = help::normalize::AFTER_HELP
 )]
 struct Normalize {}
 
 #[derive(Debug, Args)]
-#[clap(about = help::init::ABOUT)]
+#[clap(
+    about = help::init::ABOUT,
+    long_about = help::init::LONG_ABOUT,
+    after_help = help::init::AFTER_HELP
+)]
 struct Init {}
 
 #[derive(Debug, Args)]
 #[clap(
     about = help::new::ABOUT,
-    long_about = help::new::LONG_ABOUT
+    long_about = help::new::LONG_ABOUT,
+    after_help = help::new::AFTER_HELP
 )]
 struct New {
     #[clap(help = "Title for the new document")]
@@ -185,7 +202,8 @@ struct New {
 #[derive(Debug, Args)]
 #[clap(
     about = help::contents::ABOUT,
-    long_about = help::contents::LONG_ABOUT
+    long_about = help::contents::LONG_ABOUT,
+    after_help = help::contents::AFTER_HELP
 )]
 struct Contents {}
 
@@ -252,10 +270,11 @@ enum Format {
 #[derive(Debug, Args)]
 #[clap(
     about = help::squash::ABOUT,
-    long_about = help::squash::LONG_ABOUT
+    long_about = help::squash::LONG_ABOUT,
+    after_help = help::squash::AFTER_HELP
 )]
 struct Squash {
-    #[clap(long, short = 'k')]
+    #[clap(help = "Document key to squash")]
     key: String,
     #[clap(long, short, global = true, required = false, default_value = "2")]
     depth: u8,
@@ -264,7 +283,8 @@ struct Squash {
 #[derive(Debug, Args)]
 #[clap(
     about = help::paths::ABOUT,
-    long_about = help::paths::LONG_ABOUT
+    long_about = help::paths::LONG_ABOUT,
+    after_help = help::paths::AFTER_HELP
 )]
 struct Paths {
     #[clap(long, short, global = true, required = false, default_value = "4")]
@@ -275,6 +295,122 @@ struct Paths {
 struct GlobalOpts {
     #[clap(long, short, global = true, required = false, default_value = "0")]
     verbose: u8,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::rename::ABOUT,
+    long_about = help::rename::LONG_ABOUT,
+    after_help = help::rename::AFTER_HELP
+)]
+struct Rename {
+    #[clap(help = "Current document key")]
+    old_key: String,
+
+    #[clap(help = "New document key")]
+    new_key: String,
+
+    #[clap(long, help = "Preview changes without writing to disk")]
+    dry_run: bool,
+
+    #[clap(long, help = "Suppress progress output")]
+    quiet: bool,
+
+    #[clap(long, help = "Print affected document keys (one per line)")]
+    keys: bool,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::delete::ABOUT,
+    long_about = help::delete::LONG_ABOUT,
+    after_help = help::delete::AFTER_HELP
+)]
+struct Delete {
+    #[clap(help = "Document key to delete")]
+    key: String,
+
+    #[clap(long, help = "Preview changes without writing to disk")]
+    dry_run: bool,
+
+    #[clap(long, help = "Suppress progress output")]
+    quiet: bool,
+
+    #[clap(long, help = "Print affected document keys (one per line)")]
+    keys: bool,
+
+    #[clap(long, help = "Skip confirmation prompt")]
+    force: bool,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::extract::ABOUT,
+    long_about = help::extract::LONG_ABOUT,
+    after_help = help::extract::AFTER_HELP
+)]
+struct Extract {
+    #[clap(help = "Document key containing the section to extract")]
+    key: String,
+
+    #[clap(long, help = "Section title to extract (case-insensitive)")]
+    section: Option<String>,
+
+    #[clap(long, help = "Block number to extract (1-indexed)")]
+    block: Option<usize>,
+
+    #[clap(long, help = "List all sections with block numbers")]
+    list: bool,
+
+    #[clap(long, help = "Action name from config to use for extraction")]
+    action: Option<String>,
+
+    #[clap(long, help = "Preview changes without writing to disk")]
+    dry_run: bool,
+
+    #[clap(long, help = "Suppress progress output")]
+    quiet: bool,
+
+    #[clap(long, help = "Print affected document keys (one per line)")]
+    keys: bool,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::inline::ABOUT,
+    long_about = help::inline::LONG_ABOUT,
+    after_help = help::inline::AFTER_HELP
+)]
+struct Inline {
+    #[clap(help = "Document key containing the reference to inline")]
+    key: String,
+
+    #[clap(long, help = "Reference key or title to inline")]
+    reference: Option<String>,
+
+    #[clap(long, help = "Block number to inline (1-indexed)")]
+    block: Option<usize>,
+
+    #[clap(long, help = "List all block references with numbers")]
+    list: bool,
+
+    #[clap(long, help = "Action name from config to use for inlining")]
+    action: Option<String>,
+
+    #[clap(long, help = "Inline as blockquote instead of section")]
+    as_quote: bool,
+
+    #[clap(long, help = "Keep the target document after inlining")]
+    keep_target: bool,
+
+    #[clap(long, help = "Preview changes without writing to disk")]
+    dry_run: bool,
+
+    #[clap(long, help = "Suppress progress output")]
+    quiet: bool,
+
+    #[clap(long, help = "Print affected document keys (one per line)")]
+    keys: bool,
 }
 
 fn main() {
@@ -311,6 +447,10 @@ fn main() {
         Command::Contents(contents) => contents_command(contents),
         Command::Export(export) => export_command(export),
         Command::Stats(stats) => stats_command(stats),
+        Command::Rename(rename) => rename_command(rename),
+        Command::Delete(delete) => delete_command(delete),
+        Command::Extract(extract) => extract_command(extract),
+        Command::Inline(inline) => inline_command(inline),
     }
 }
 
@@ -576,6 +716,30 @@ fn write_graph(graph: Graph, configuration: &Configuration) {
         .expect("Failed to write graph")
 }
 
+fn apply_changes(changes: &Changes, configuration: &Configuration) {
+    let library_path = get_library_path(configuration);
+
+    for key in &changes.removes {
+        let file_path = library_path.join(format!("{}.md", key));
+        if file_path.exists() {
+            std::fs::remove_file(&file_path).expect("Failed to delete document file");
+        }
+    }
+
+    for (key, markdown) in &changes.creates {
+        let file_path = library_path.join(format!("{}.md", key));
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(&file_path, markdown).expect("Failed to write document file");
+    }
+
+    for (key, markdown) in &changes.updates {
+        let file_path = library_path.join(format!("{}.md", key));
+        std::fs::write(&file_path, markdown).expect("Failed to write document file");
+    }
+}
+
 fn load_graph(configuration: &Configuration) -> Graph {
     Graph::import(
         &new_for_path(&get_library_path(configuration)),
@@ -665,4 +829,425 @@ fn export_command(args: Export) {
     };
 
     print!("{}", output);
+}
+
+#[tracing::instrument(level = "debug")]
+fn rename_command(args: Rename) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let old_key = Key::name(&args.old_key);
+    let new_key = Key::name(&args.new_key);
+
+    let result = match op_rename(&graph, &old_key, &new_key) {
+        Ok(changes) => changes,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if args.keys {
+        for key in result.affected_keys() {
+            println!("{}", key);
+        }
+        if args.dry_run {
+            return;
+        }
+    }
+
+    if !args.quiet && !args.keys {
+        if args.dry_run {
+            println!("Would rename '{}' to '{}'", old_key, new_key);
+            println!("Would update {} document(s)", result.updates.len());
+            for (key, _) in &result.updates {
+                println!("  {}", key);
+            }
+            return;
+        }
+        println!("Renaming '{}' to '{}'", old_key, new_key);
+    }
+
+    if !args.dry_run {
+        apply_changes(&result, &config);
+        if !args.quiet && !args.keys {
+            println!("Updated {} document(s)", result.updates.len());
+        }
+    }
+}
+
+#[tracing::instrument(level = "debug")]
+fn delete_command(args: Delete) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let target_key = Key::name(&args.key);
+
+    let result = match op_delete(&graph, &target_key) {
+        Ok(changes) => changes,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if args.keys {
+        for key in result.affected_keys() {
+            println!("{}", key);
+        }
+        if args.dry_run {
+            return;
+        }
+    }
+
+    if !args.quiet && !args.keys {
+        if args.dry_run {
+            println!("Would delete '{}'", target_key);
+            println!("Would update {} document(s)", result.updates.len());
+            for (key, _) in &result.updates {
+                println!("  {}", key);
+            }
+            return;
+        }
+    }
+
+    if !args.force && !args.dry_run {
+        print!(
+            "Delete '{}' and update {} reference(s)? [y/N] ",
+            target_key,
+            result.updates.len()
+        );
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+        if !input.trim().eq_ignore_ascii_case("y") {
+            eprintln!("Aborted");
+            return;
+        }
+    }
+
+    if !args.quiet && !args.keys {
+        println!("Deleting '{}'", target_key);
+    }
+
+    if !args.dry_run {
+        apply_changes(&result, &config);
+        if !args.quiet && !args.keys {
+            println!("Updated {} document(s)", result.updates.len());
+        }
+    }
+}
+
+fn collect_sections(tree: &Tree, sections: &mut Vec<(usize, String, Option<liwe::model::NodeId>)>) {
+    match &tree.node {
+        Node::Section(inlines) => {
+            let title = inlines
+                .iter()
+                .map(|i| i.plain_text())
+                .collect::<String>();
+            sections.push((sections.len() + 1, title, tree.id));
+        }
+        _ => {}
+    }
+    for child in &tree.children {
+        collect_sections(child, sections);
+    }
+}
+
+fn collect_block_references(
+    tree: &Tree,
+    refs: &mut Vec<(usize, String, Key, Option<liwe::model::NodeId>)>,
+) {
+    if let Node::Reference(reference) = &tree.node {
+        refs.push((
+            refs.len() + 1,
+            reference.text.clone(),
+            reference.key.clone(),
+            tree.id,
+        ));
+    }
+    for child in &tree.children {
+        collect_block_references(child, refs);
+    }
+}
+
+fn get_extract_config(config: &Configuration, action_name: Option<&str>) -> (String, Option<LinkType>) {
+    if let Some(name) = action_name {
+        if let Some(ActionDefinition::Extract(extract)) = config.actions.get(name) {
+            return (extract.key_template.clone(), extract.link_type.clone());
+        }
+        eprintln!("Error: Action '{}' not found or not an extract action", name);
+        std::process::exit(1);
+    }
+
+    for (_, action) in &config.actions {
+        if let ActionDefinition::Extract(extract) = action {
+            return (extract.key_template.clone(), extract.link_type.clone());
+        }
+    }
+
+    ("{{slug}}".to_string(), Some(LinkType::Markdown))
+}
+
+fn get_inline_config(
+    config: &Configuration,
+    action_name: Option<&str>,
+    as_quote: bool,
+    keep_target: bool,
+) -> (InlineType, bool) {
+    let mut inline_type = InlineType::Section;
+    let mut should_keep_target = false;
+
+    if let Some(name) = action_name {
+        if let Some(ActionDefinition::Inline(inline)) = config.actions.get(name) {
+            inline_type = inline.inline_type.clone();
+            should_keep_target = inline.keep_target.unwrap_or(false);
+        } else {
+            eprintln!(
+                "Error: Action '{}' not found or not an inline action",
+                name
+            );
+            std::process::exit(1);
+        }
+    }
+
+    if as_quote {
+        inline_type = InlineType::Quote;
+    }
+    if keep_target {
+        should_keep_target = true;
+    }
+
+    (inline_type, should_keep_target)
+}
+
+#[tracing::instrument(level = "debug")]
+fn extract_command(args: Extract) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let source_key = Key::name(&args.key);
+
+    if (&graph).get_node_id(&source_key).is_none() {
+        eprintln!("Error: Document '{}' not found", args.key);
+        std::process::exit(1);
+    }
+
+    let tree = (&graph).collect(&source_key);
+    let mut sections: Vec<(usize, String, Option<liwe::model::NodeId>)> = Vec::new();
+    collect_sections(&tree, &mut sections);
+
+    if args.list {
+        for (num, title, _) in &sections {
+            println!("{}: {}", num, title);
+        }
+        return;
+    }
+
+    let selected_section = if let Some(ref section_title) = args.section {
+        let matches: Vec<_> = sections
+            .iter()
+            .filter(|(_, title, _)| title.to_lowercase().contains(&section_title.to_lowercase()))
+            .collect();
+
+        if matches.is_empty() {
+            eprintln!("Error: No section matches '{}'", section_title);
+            std::process::exit(1);
+        } else if matches.len() > 1 {
+            eprintln!("Error: Multiple sections match '{}':", section_title);
+            for (num, title, _) in &matches {
+                eprintln!("  {}: {}", num, title);
+            }
+            eprintln!("Use --block <n> to select a specific section.");
+            std::process::exit(1);
+        }
+
+        matches[0].clone()
+    } else if let Some(block_num) = args.block {
+        if block_num == 0 || block_num > sections.len() {
+            eprintln!(
+                "Error: Block number {} out of range (1-{})",
+                block_num,
+                sections.len()
+            );
+            std::process::exit(1);
+        }
+        sections[block_num - 1].clone()
+    } else {
+        eprintln!("Error: Must specify --section, --block, or --list");
+        std::process::exit(1);
+    };
+
+    let (_, section_title, section_node_id) = selected_section;
+    let section_id = section_node_id.expect("Section must have an ID");
+
+    let (key_template, link_type) = get_extract_config(&config, args.action.as_deref());
+    let extract_config = ExtractConfig {
+        key_template,
+        link_type,
+        key_date_format: config
+            .library
+            .date_format
+            .clone()
+            .unwrap_or_else(|| "%Y-%m-%d".to_string()),
+    };
+
+    let result = match op_extract(&graph, &source_key, section_id, &extract_config) {
+        Ok(changes) => changes,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let new_key = result
+        .creates
+        .first()
+        .map(|(k, _)| k.clone())
+        .expect("Extract should create a new document");
+
+    if args.keys {
+        for key in result.affected_keys() {
+            println!("{}", key);
+        }
+        if args.dry_run {
+            return;
+        }
+    }
+
+    if !args.quiet && !args.keys {
+        if args.dry_run {
+            println!("Would extract section '{}' to '{}'", section_title, new_key);
+            println!("Would update '{}'", source_key);
+            return;
+        }
+        println!("Extracting section '{}' to '{}'", section_title, new_key);
+    }
+
+    if !args.dry_run {
+        apply_changes(&result, &config);
+        if !args.quiet && !args.keys {
+            println!("Done");
+        }
+    }
+}
+
+#[tracing::instrument(level = "debug")]
+fn inline_command(args: Inline) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let source_key = Key::name(&args.key);
+
+    if (&graph).get_node_id(&source_key).is_none() {
+        eprintln!("Error: Document '{}' not found", args.key);
+        std::process::exit(1);
+    }
+
+    let tree = (&graph).collect(&source_key);
+    let mut refs: Vec<(usize, String, Key, Option<liwe::model::NodeId>)> = Vec::new();
+    collect_block_references(&tree, &mut refs);
+
+    if args.list {
+        for (num, text, key, _) in &refs {
+            println!("{}: [{}]({})", num, text, key);
+        }
+        return;
+    }
+
+    let selected_ref = if let Some(ref reference) = args.reference {
+        let matches: Vec<_> = refs
+            .iter()
+            .filter(|(_, text, key, _)| {
+                text.to_lowercase().contains(&reference.to_lowercase())
+                    || key.to_string().to_lowercase().contains(&reference.to_lowercase())
+            })
+            .collect();
+
+        if matches.is_empty() {
+            eprintln!("Error: No reference matches '{}'", reference);
+            std::process::exit(1);
+        } else if matches.len() > 1 {
+            eprintln!("Error: Multiple references match '{}':", reference);
+            for (num, text, key, _) in &matches {
+                eprintln!("  {}: [{}]({})", num, text, key);
+            }
+            eprintln!("Use --block <n> to select a specific reference.");
+            std::process::exit(1);
+        }
+
+        matches[0].clone()
+    } else if let Some(block_num) = args.block {
+        if block_num == 0 || block_num > refs.len() {
+            eprintln!(
+                "Error: Block number {} out of range (1-{})",
+                block_num,
+                refs.len()
+            );
+            std::process::exit(1);
+        }
+        refs[block_num - 1].clone()
+    } else {
+        eprintln!("Error: Must specify --reference, --block, or --list");
+        std::process::exit(1);
+    };
+
+    let (_, ref_text, inline_key, ref_node_id) = selected_ref;
+    let ref_id = ref_node_id.expect("Reference must have an ID");
+
+    let (inline_type, should_keep_target) =
+        get_inline_config(&config, args.action.as_deref(), args.as_quote, args.keep_target);
+
+    let inline_config = InlineConfig {
+        inline_type,
+        keep_target: should_keep_target,
+    };
+
+    let result = match op_inline(&graph, &source_key, ref_id, &inline_config) {
+        Ok(changes) => changes,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if args.keys {
+        for key in result.affected_keys() {
+            println!("{}", key);
+        }
+        if args.dry_run {
+            return;
+        }
+    }
+
+    if !args.quiet && !args.keys {
+        if args.dry_run {
+            println!(
+                "Would inline [{}]({}) into '{}'",
+                ref_text, inline_key, source_key
+            );
+            if !should_keep_target {
+                println!("Would delete '{}'", inline_key);
+                if !result.updates.is_empty() {
+                    println!(
+                        "Would update {} additional document(s)",
+                        result.updates.len() - 1
+                    );
+                }
+            }
+            return;
+        }
+        println!(
+            "Inlining [{}]({}) into '{}'",
+            ref_text, inline_key, source_key
+        );
+    }
+
+    if !args.dry_run {
+        apply_changes(&result, &config);
+        if !args.quiet && !args.keys {
+            println!("Done");
+        }
+    }
 }
