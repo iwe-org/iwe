@@ -15,13 +15,12 @@ use iwe::retrieve::render::RetrieveRenderer;
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::stats::GraphStatistics;
 use liwe::fs::new_for_path;
-use liwe::graph::path::NodePath;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::config::{
     load_config, ActionDefinition, Configuration, InlineType, LinkType,
 };
 use liwe::model::node::{Node, NodePointer};
-use liwe::model::tree::{Tree, TreeIter};
+use liwe::model::tree::{Tree as ModelTree, TreeIter};
 use liwe::model::Key;
 use liwe::operations::{
     delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename,
@@ -52,9 +51,8 @@ enum Command {
     Retrieve(Retrieve),
     Find(Find),
     Normalize(Normalize),
-    Paths(Paths),
+    Tree(TreeArgs),
     Squash(Squash),
-    Contents(Contents),
     Export(Export),
     Stats(Stats),
     Rename(Rename),
@@ -201,11 +199,50 @@ struct New {
 
 #[derive(Debug, Args)]
 #[clap(
-    about = help::contents::ABOUT,
-    long_about = help::contents::LONG_ABOUT,
-    after_help = help::contents::AFTER_HELP
+    about = help::tree::ABOUT,
+    long_about = help::tree::LONG_ABOUT,
+    after_help = help::tree::AFTER_HELP
 )]
-struct Contents {}
+struct TreeArgs {
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "markdown",
+        help = "Output format: markdown (nested list with links), keys, json"
+    )]
+    format: TreeFormat,
+
+    #[clap(
+        long,
+        short = 'k',
+        help = "Filter to paths starting from specific document(s)"
+    )]
+    key: Vec<String>,
+
+    #[clap(
+        long,
+        short = 'd',
+        default_value = "4",
+        help = "Maximum depth to traverse"
+    )]
+    depth: u8,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum TreeFormat {
+    Markdown,
+    Keys,
+    Json,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct TreeNode {
+    key: String,
+    title: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    children: Vec<TreeNode>,
+}
 
 #[derive(Debug, Args)]
 #[clap(
@@ -280,16 +317,6 @@ struct Squash {
     depth: u8,
 }
 
-#[derive(Debug, Args)]
-#[clap(
-    about = help::paths::ABOUT,
-    long_about = help::paths::LONG_ABOUT,
-    after_help = help::paths::AFTER_HELP
-)]
-struct Paths {
-    #[clap(long, short, global = true, required = false, default_value = "4")]
-    depth: u8,
-}
 
 #[derive(Debug, Args)]
 struct GlobalOpts {
@@ -434,8 +461,8 @@ fn main() {
         Command::Normalize(normalize) => {
             normalize_command(normalize);
         }
-        Command::Paths(paths) => {
-            paths_command(paths);
+        Command::Tree(tree) => {
+            tree_command(tree);
         }
         Command::Squash(squash) => {
             squash_command(squash);
@@ -444,7 +471,6 @@ fn main() {
         Command::New(new) => new_command(new),
         Command::Retrieve(retrieve) => retrieve_command(retrieve),
         Command::Find(find) => find_command(find),
-        Command::Contents(contents) => contents_command(contents),
         Command::Export(export) => export_command(export),
         Command::Stats(stats) => stats_command(stats),
         Command::Rename(rename) => rename_command(rename),
@@ -660,36 +686,174 @@ fn open_in_editor(path: &std::path::Path) {
 }
 
 #[tracing::instrument(level = "debug")]
-fn paths_command(args: Paths) {
+fn tree_command(args: TreeArgs) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    graph
-        .paths()
-        .iter()
-        .filter(|n| n.ids().len() <= args.depth as usize)
-        .map(|n| render(n, &graph))
-        .sorted()
-        .unique()
-        .for_each(|string| println!("{}", string));
+    let root_keys: Vec<Key> = if args.key.is_empty() {
+        let paths = graph.paths();
+        paths
+            .iter()
+            .filter(|n| n.ids().len() == 1)
+            .map(|n| (&graph).node(n.first_id()).node_key())
+            .sorted()
+            .unique()
+            .collect()
+    } else {
+        args.key.iter().map(|k| Key::name(k)).collect()
+    };
+
+    for root_key in &root_keys {
+        if (&graph).get_node_id(root_key).is_none() {
+            eprintln!("Error: Document '{}' not found", root_key);
+            std::process::exit(1);
+        }
+    }
+
+    match args.format {
+        TreeFormat::Json => {
+            let mut trees: Vec<TreeNode> = Vec::new();
+            for root_key in &root_keys {
+                let mut visited: std::collections::HashSet<Key> = std::collections::HashSet::new();
+                if let Some(node) = build_tree_node(&graph, root_key, args.depth, &mut visited) {
+                    trees.push(node);
+                }
+            }
+            let json = serde_json::to_string_pretty(&trees).expect("Failed to serialize to JSON");
+            println!("{}", json);
+        }
+        _ => {
+            let mut tree_lines: std::collections::BTreeMap<String, Vec<(usize, String)>> =
+                std::collections::BTreeMap::new();
+
+            for root_key in &root_keys {
+                let root_key_str = root_key.to_string();
+                let mut visited: std::collections::HashSet<Key> = std::collections::HashSet::new();
+                build_tree_lines(
+                    &graph,
+                    root_key,
+                    1,
+                    args.depth,
+                    &args.format,
+                    &mut visited,
+                    &mut tree_lines,
+                    &root_key_str,
+                );
+            }
+
+            for (_root, lines) in tree_lines {
+                for (depth, line) in lines {
+                    let indent = match args.format {
+                        TreeFormat::Markdown => "  ".repeat(depth.saturating_sub(1)),
+                        _ => "\t".repeat(depth.saturating_sub(1)),
+                    };
+                    let prefix = match args.format {
+                        TreeFormat::Markdown => format!("{}- ", indent),
+                        _ => indent,
+                    };
+                    println!("{}{}", prefix, line);
+                }
+            }
+        }
+    }
 }
 
-#[tracing::instrument(level = "debug")]
-fn contents_command(args: Contents) {
-    let config = get_configuration();
-    let graph = load_graph(&config);
+fn build_tree_node(
+    graph: &Graph,
+    key: &Key,
+    max_depth: u8,
+    visited: &mut std::collections::HashSet<Key>,
+) -> Option<TreeNode> {
+    if graph.get_node_id(key).is_none() {
+        return None;
+    }
 
-    println!("# Contents\n");
+    let title = graph.get_ref_text(key).unwrap_or_default();
+    let key_str = key.to_string();
 
-    graph
-        .paths()
+    if visited.contains(key) {
+        return Some(TreeNode {
+            key: key_str,
+            title,
+            children: vec![],
+        });
+    }
+    visited.insert(key.clone());
+
+    let children = if max_depth > 1 {
+        let ref_node_ids = graph.get_block_references_in(key);
+        ref_node_ids
+            .iter()
+            .filter_map(|id| graph.graph_node(*id).ref_key())
+            .sorted()
+            .filter_map(|ref_key| build_tree_node(graph, &ref_key, max_depth - 1, visited))
+            .collect()
+    } else {
+        vec![]
+    };
+
+    Some(TreeNode {
+        key: key_str,
+        title,
+        children,
+    })
+}
+
+fn build_tree_lines(
+    graph: &Graph,
+    key: &Key,
+    depth: u8,
+    max_depth: u8,
+    format: &TreeFormat,
+    visited: &mut std::collections::HashSet<Key>,
+    tree_lines: &mut std::collections::BTreeMap<String, Vec<(usize, String)>>,
+    root_key_str: &str,
+) {
+    if depth > max_depth {
+        return;
+    }
+
+    if graph.get_node_id(key).is_none() {
+        return;
+    }
+
+    let line = match format {
+        TreeFormat::Keys => key.to_string(),
+        TreeFormat::Markdown => {
+            let text = graph.get_ref_text(key).unwrap_or_default();
+            format!("[{}]({})", text, key)
+        }
+        TreeFormat::Json => unreachable!(),
+    };
+
+    tree_lines
+        .entry(root_key_str.to_string())
+        .or_default()
+        .push((depth as usize, line));
+
+    if visited.contains(key) {
+        return;
+    }
+    visited.insert(key.clone());
+
+    let ref_node_ids = graph.get_block_references_in(key);
+    let ref_keys: Vec<Key> = ref_node_ids
         .iter()
-        .filter(|n| n.ids().len() <= 1_usize)
-        .map(|n| (&graph).node(n.first_id()).node_key())
-        .map(|key| render_block_reference(&key, &graph))
+        .filter_map(|id| graph.graph_node(*id).ref_key())
         .sorted()
-        .unique()
-        .for_each(|string| println!("{}\n", string));
+        .collect();
+    for ref_key in &ref_keys {
+        build_tree_lines(
+            graph,
+            ref_key,
+            depth + 1,
+            max_depth,
+            format,
+            visited,
+            tree_lines,
+            root_key_str,
+        );
+    }
 }
 
 #[tracing::instrument(level = "debug")]
@@ -768,23 +932,6 @@ fn get_configuration() -> Configuration {
         debug!("using config:\n{}", formatted_config);
     }
     config
-}
-
-fn render_block_reference(key: &Key, context: impl GraphContext) -> String {
-    format!(
-        "[{}]({})",
-        context.get_ref_text(key).unwrap_or_default(),
-        key
-    )
-    .to_string()
-}
-
-fn render(path: &NodePath, context: impl GraphContext) -> String {
-    path.ids()
-        .iter()
-        .map(|id| context.get_text(*id).trim().to_string())
-        .collect_vec()
-        .join(" • ")
 }
 
 #[tracing::instrument(level = "debug")]
@@ -939,7 +1086,7 @@ fn delete_command(args: Delete) {
     }
 }
 
-fn collect_sections(tree: &Tree, sections: &mut Vec<(usize, String, Option<liwe::model::NodeId>)>) {
+fn collect_sections(tree: &ModelTree, sections: &mut Vec<(usize, String, Option<liwe::model::NodeId>)>) {
     match &tree.node {
         Node::Section(inlines) => {
             let title = inlines
@@ -956,7 +1103,7 @@ fn collect_sections(tree: &Tree, sections: &mut Vec<(usize, String, Option<liwe:
 }
 
 fn collect_block_references(
-    tree: &Tree,
+    tree: &ModelTree,
     refs: &mut Vec<(usize, String, Key, Option<liwe::model::NodeId>)>,
 ) {
     if let Node::Reference(reference) = &tree.node {

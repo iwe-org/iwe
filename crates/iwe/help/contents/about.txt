@@ -1,1 +1,0 @@
-List root documents (entry points with no parent references)

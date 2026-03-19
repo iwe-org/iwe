@@ -1,9 +1,0 @@
-Display all navigation paths in your document graph.
-
-Shows hierarchical paths through documents based on inclusion link structure.
-Each path represents a navigation route from a root document through embedded
-references. Useful for understanding the structure and hierarchy of your
-knowledge base.
-
-Use --depth to limit how deep into the hierarchy to traverse. Default depth
-is 4 levels.

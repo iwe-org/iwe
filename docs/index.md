@@ -22,9 +22,7 @@
 
 [iwe normalize](cli-normalize.md)
 
-[iwe paths](cli-paths.md)
-
-[iwe contents](cli-contents.md)
+[iwe tree](cli-tree.md)
 
 [iwe squash](cli-squash.md)
 

@@ -1,9 +1,0 @@
-List root documents (notes without incoming inclusion links).
-
-Identifies entry points in your knowledge graph - documents that aren't
-included in other documents. These serve as main topics or starting points
-for navigation.
-
-Outputs markdown links to each root document, sorted alphabetically by
-document title. Use "iwe find --roots" for more filtering options and
-alternative output formats.

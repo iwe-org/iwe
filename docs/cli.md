@@ -9,7 +9,7 @@ IWE provides a powerful command-line interface for managing markdown-based knowl
 3.  **Retrieve a document with context**: `iwe retrieve -k my-note`
 4.  **Find and search documents**: `iwe find "search term"`
 5.  **Normalize all documents**: `iwe normalize`
-6.  **View document paths**: `iwe paths`
+6.  **View document hierarchy**: `iwe tree`
 7.  **Analyze your knowledge base**: `iwe stats`
 8.  **Export graph visualization**: `iwe export dot`
 9.  **Rename a document**: `iwe rename old-key new-key`
@@ -71,8 +71,7 @@ normalize_lists = true
 |---------|-------------|---------------|
 | `retrieve` | Retrieve document with context | [cli-retrieve](cli-retrieve.md) |
 | `find` | Search and discover documents | [cli-find](cli-find.md) |
-| `contents` | Generate table of contents | [cli-contents](cli-contents.md) |
-| `paths` | View document paths | [cli-paths](cli-paths.md) |
+| `tree` | Display document hierarchy | [cli-tree](cli-tree.md) |
 
 ### Refactoring Operations
 
