@@ -1,0 +1,6 @@
+Extract a section to a new document with an inclusion link.
+
+Creates a new document containing the extracted section content and
+replaces the section in the source with an inclusion link. Use --list
+to show all sections with their block numbers, then use --section or
+--block to select which section to extract.

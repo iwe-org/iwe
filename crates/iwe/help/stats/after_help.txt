@@ -6,8 +6,8 @@ MARKDOWN (default, -f markdown):
 
 CSV (-f csv):
   Per-document statistics with columns:
-  key, title, sections, paragraphs, lines, words, incoming_block_refs,
-  incoming_inline_refs, total_incoming_refs, outgoing_block_refs,
+  key, title, sections, paragraphs, lines, words, parents,
+  incoming_inline_refs, total_incoming_refs, children,
   outgoing_inline_refs, total_connections, bullet_lists, ordered_lists,
   code_blocks, tables, quotes
 

@@ -24,9 +24,9 @@ Your content here...
 
 This tells you that "Index" links to this document and there are 3 total backlinks.
 
-## Block Reference Hints
+## Inclusion Hints
 
-When viewing a block reference link, inlay hints show which notes directly reference the linked content.
+When viewing an [inclusion link](inclusion-links.md), inlay hints show which notes directly reference the linked content.
 
 ### What's Shown
 

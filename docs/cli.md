@@ -12,6 +12,10 @@ IWE provides a powerful command-line interface for managing markdown-based knowl
 6.  **View document paths**: `iwe paths`
 7.  **Analyze your knowledge base**: `iwe stats`
 8.  **Export graph visualization**: `iwe export dot`
+9.  **Rename a document**: `iwe rename old-key new-key`
+10. **Delete a document**: `iwe delete document-key`
+11. **Extract a section**: `iwe extract document --section "Title"`
+12. **Inline a reference**: `iwe inline document --reference "other-doc"`
 
 ## Installation & Setup
 
@@ -49,4 +53,58 @@ path = ""  # Subdirectory containing markdown files
 [markdown]
 normalize_headers = true
 normalize_lists = true
+```
+
+## Command Categories
+
+### Document Management
+
+| Command | Description | Documentation |
+|---------|-------------|---------------|
+| `init` | Initialize a new IWE project | [cli-init](cli-init.md) |
+| `new` | Create a new document | [cli-new](cli-new.md) |
+| `normalize` | Normalize all documents | [cli-normalize](cli-normalize.md) |
+
+### Document Retrieval
+
+| Command | Description | Documentation |
+|---------|-------------|---------------|
+| `retrieve` | Retrieve document with context | [cli-retrieve](cli-retrieve.md) |
+| `find` | Search and discover documents | [cli-find](cli-find.md) |
+| `contents` | Generate table of contents | [cli-contents](cli-contents.md) |
+| `paths` | View document paths | [cli-paths](cli-paths.md) |
+
+### Refactoring Operations
+
+| Command | Description | Documentation |
+|---------|-------------|---------------|
+| `rename` | Rename a document and update references | [cli-rename](cli-rename.md) |
+| `delete` | Delete a document and clean up references | [cli-delete](cli-delete.md) |
+| `extract` | Extract a section to a new document | [cli-extract](cli-extract.md) |
+| `inline` | Inline a referenced document | [cli-inline](cli-inline.md) |
+
+### Analysis & Export
+
+| Command | Description | Documentation |
+|---------|-------------|---------------|
+| `stats` | Analyze knowledge base statistics | [cli-stats](cli-stats.md) |
+| `export` | Export graph visualization | [cli-export](cli-export.md) |
+| `squash` | Squash documents | [cli-squash](cli-squash.md) |
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success - command completed without errors |
+| `1` | Error - invalid arguments, missing files, operation failed |
+
+All commands return exit code `0` on success. On error, commands print a message to stderr and return exit code `1`.
+
+``` bash
+# Check exit code
+iwe find "nonexistent-query"
+echo $?  # Returns 0 (empty result is not an error)
+
+iwe retrieve --key "missing-doc"
+echo $?  # Returns 1 (document not found is an error)
 ```

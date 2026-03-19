@@ -7,12 +7,12 @@ Extract actions enable the creation of new documents from markdown sections (hea
 
 Both operations:
 - Create new files containing the selected content
-- Add block reference links (like `[Section Title](new-file)`) to the newly created files
+- Add [inclusion links](inclusion-links.md) (like `[Section Title](new-file)`) to the newly created files
 - Automatically adjust header levels to maintain proper document structure
 - Support relative path preservation
 
 The reverse operation, known as **inline**, allows you to:
-1. Embed the content back into the document via the block reference link
+1. Embed the content back into the document via the inclusion link
 2. Remove the link and the extracted file
 
 ## Extract Single Section
@@ -340,3 +340,23 @@ Special characters in titles are automatically sanitized using the `sanitize_fil
 - `Section/With*Special:Chars` → `SectionWithSpecialChars`
 - `"Quoted Section"` → `Quoted Section`
 - `Section | With | Pipes` → `Section  With  Pipes`
+
+## Command Line Usage
+
+You can also extract sections using the CLI:
+
+```bash
+# List all sections with block numbers
+iwe extract my-document --list
+
+# Extract section by title
+iwe extract my-document --section "Architecture"
+
+# Extract section by block number
+iwe extract my-document --block 2
+
+# Preview changes
+iwe extract my-document --section "Design" --dry-run
+```
+
+See [cli-extract](cli-extract.md) for full documentation.

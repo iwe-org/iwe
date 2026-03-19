@@ -15,7 +15,7 @@ pub enum GraphNode {
     Leaf(Leaf),              // Paragraphs and simple blocks
     Raw(RawLeaf),            // Code blocks and raw content
     HorizontalRule(HorizontalRule), // Horizontal rules
-    Reference(Reference),     // Block references to other documents
+    Reference(Reference),     // Inclusion links to other documents
     Table(Table),            // Markdown tables
 }
 ```

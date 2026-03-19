@@ -1,0 +1,6 @@
+Replace an inclusion link with the referenced document content.
+
+Inlines the content of a referenced document at the reference location.
+By default, deletes the target document and cleans up other references.
+Use --list to show all inclusion links with their numbers, then use
+--reference or --block to select which reference to inline.

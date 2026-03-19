@@ -1,0 +1,12 @@
+EXAMPLES:
+
+  # Initialize current directory
+  iwe init
+
+  # After initialization, edit config
+  $EDITOR .iwe/config.toml
+
+OUTPUT:
+
+  Creates .iwe/config.toml with default settings. No output on success.
+  Exits with error if .iwe already exists.

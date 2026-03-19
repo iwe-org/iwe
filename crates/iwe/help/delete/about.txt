@@ -1,0 +1,1 @@
+Delete a document and clean up all references to it

@@ -10,7 +10,7 @@ MARKDOWN (default, -f markdown):
 
   Each result shows:
   - Document link
-  - (root) indicator if no incoming block references
+  - (root) indicator if no parents
   - Parent documents with <- notation (where this doc is embedded)
 
 KEYS (-f keys):

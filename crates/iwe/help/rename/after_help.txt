@@ -1,0 +1,25 @@
+EXAMPLES:
+
+  # Rename a document
+  iwe rename old-doc-key new-doc-key
+
+  # Preview changes without writing
+  iwe rename old-key new-key --dry-run
+
+  # Rename quietly (no progress output)
+  iwe rename old-key new-key --quiet
+
+  # Output affected document keys for scripting
+  iwe rename old-key new-key --keys
+
+OUTPUT:
+
+  Default: Progress messages showing rename action and updated documents.
+
+  --dry-run: Shows what would happen without making changes.
+
+  --keys: One affected document key per line (suitable for piping):
+
+    new-key
+    referencing-doc-1
+    referencing-doc-2

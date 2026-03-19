@@ -1,0 +1,33 @@
+OUTPUT FORMAT:
+
+  Single markdown document with inlined content:
+
+    # Main Document
+
+    Introduction text...
+
+    ## Referenced Section
+
+    Content from referenced document, headers adjusted down one level.
+
+    ### Nested Reference
+
+    Content from second-level reference, headers adjusted accordingly.
+
+  Header levels are automatically adjusted to maintain hierarchy when
+  content is inlined. The output preserves document structure while
+  combining multiple files.
+
+EXAMPLES:
+
+  # Squash with default depth (2 levels)
+  iwe squash project-overview
+
+  # Shallow squash (direct references only)
+  iwe squash index --depth 1
+
+  # Deep squash (follow all references)
+  iwe squash main --depth 5
+
+  # Export to single file
+  iwe squash documentation > full-docs.md

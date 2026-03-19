@@ -33,7 +33,7 @@ The stats command provides detailed analytics across multiple dimensions:
 
 ### Reference Statistics
 
-- Block references (embedded documents)
+- Inclusion links (embedded documents)
 - Inline references (wiki-links)
 - Total references count
 - Orphaned documents (no incoming references)
@@ -132,10 +132,10 @@ The CSV format provides per-document statistics with the following columns:
 - `paragraphs`: Number of paragraph blocks
 - `lines`: Total line count
 - `words`: Total word count
-- `incoming_block_refs`: Block references pointing to this document
+- `parents`: Documents that include this one
 - `incoming_inline_refs`: Inline wiki-links pointing to this document
 - `total_incoming_refs`: Total incoming references
-- `outgoing_block_refs`: Block references in this document
+- `children`: Documents included by this one
 - `outgoing_inline_refs`: Inline wiki-links from this document
 - `total_connections`: Total references (incoming + outgoing)
 - `bullet_lists`: Number of unordered lists

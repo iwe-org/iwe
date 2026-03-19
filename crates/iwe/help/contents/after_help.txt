@@ -1,0 +1,24 @@
+OUTPUT FORMAT:
+
+  Markdown header followed by inclusion links:
+
+    # Contents
+
+    [Document Title](document-key)
+
+    [Another Document](another-key)
+
+  Output is ready to use as a table of contents.
+
+COMPARISON WITH FIND:
+
+  "iwe contents" outputs markdown links ready for embedding.
+  "iwe find --roots" offers JSON/keys output and additional filtering.
+
+EXAMPLES:
+
+  # List all root documents
+  iwe contents
+
+  # Save as table of contents document
+  iwe contents > index.md

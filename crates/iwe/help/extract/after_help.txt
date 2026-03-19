@@ -1,0 +1,15 @@
+EXAMPLES:
+    # List all sections with block numbers
+    iwe extract notes/project --list
+
+    # Extract section by title
+    iwe extract notes/project --section "Architecture"
+
+    # Extract section by block number (unambiguous)
+    iwe extract notes/project --block 2
+
+    # Preview changes without writing
+    iwe extract notes/project --section "Notes" --dry-run
+
+    # Use a specific action from config
+    iwe extract notes/project --section "Design" --action "my-extract"

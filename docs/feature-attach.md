@@ -6,10 +6,10 @@ Note: Enable [Inlay hints](feature-inlay-hints.md) to see the action results imm
 
 ## How It Works
 
-When you place your cursor on a block reference and trigger a code action, IWE can:
+When you place your cursor on an [inclusion link](inclusion-links.md) and trigger a code action, IWE can:
 
 1.  **Create or open** a target file based on your configuration
-2.  **Append** block reference under cursor to the target file
+2.  **Append** inclusion link under cursor to the target file
 
 The target file is determined by templates you configure, allowing for dynamic file creation based on dates or static collection files.
 
@@ -75,7 +75,7 @@ document_template = "# Meeting Notes - {{today}}\n\n{{content}}\n\n"
 
 - **New files**: If the target file doesn't exist, it's created with the `document_template` content
 - **Existing files**: Content is appended to the end of existing files
-- **Duplicate prevention**: If the exact same block-reference already exists in the target file, the code action will not be suggested
+- **Duplicate prevention**: If the exact same inclusion link already exists in the target file, the code action will not be suggested
 
 ## Template Variables
 
@@ -90,7 +90,7 @@ Attach actions support two template variables:
 
 The attach code action appears in your editor's code action menu (usually triggered by Ctrl+. or Cmd+.) when:
 
-1.  Your cursor is positioned on a block reference
+1.  Your cursor is positioned on an inclusion link
 2.  You have attach actions configured in your `.iwe/config.toml`
 
 ## Best Practices

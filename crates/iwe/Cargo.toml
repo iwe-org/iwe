@@ -37,6 +37,7 @@ csv.workspace = true
 chrono.workspace = true
 fuzzy-matcher.workspace = true
 serde_yaml.workspace = true
+sanitize-filename.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

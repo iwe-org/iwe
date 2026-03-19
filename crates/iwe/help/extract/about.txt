@@ -1,0 +1,1 @@
+Extract a section to a new document with an inclusion link

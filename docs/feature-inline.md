@@ -35,3 +35,29 @@ inline_quote = { type = "inline", title = "Inline as Quote", inline_type = "quot
 -   `keep_target` (optional, defaults to `false`):
     -   If `false`, the original source file of the link will be deleted after its content is inlined. The action will also clean up any other references to the deleted file across your workspace.
     -   If `true`, the original source file is left untouched.
+
+## Command Line Usage
+
+You can also inline references using the CLI:
+
+```bash
+# List all [inclusion links](inclusion-links.md) with numbers
+iwe inline my-document --list
+
+# Inline by reference key
+iwe inline my-document --reference "architecture"
+
+# Inline by block number
+iwe inline my-document --block 1
+
+# Inline as blockquote
+iwe inline my-document --reference "notes" --as-quote
+
+# Keep the target document
+iwe inline my-document --block 2 --keep-target
+
+# Preview changes
+iwe inline my-document --reference "design" --dry-run
+```
+
+See [cli-inline](cli-inline.md) for full documentation.

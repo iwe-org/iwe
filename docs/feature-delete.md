@@ -4,15 +4,15 @@ The delete action allows you to cleanly remove a referenced section and automati
 
 ## How It Works
 
-When you place your cursor on a block reference (like `[Important Topic](file)`) and trigger the delete action, IWE will:
+When you place your cursor on an [inclusion link](inclusion-links.md) (like `[Important Topic](file)`) and trigger the delete action, IWE will:
 
 1. **Delete the target file** - The referenced section/file is completely removed
-2. **Clean up block references** - All block references to the deleted section are removed from other files
+2. **Clean up inclusion links** - All inclusion links to the deleted section are removed from other files
 3. **Convert inline links** - Inline links to the deleted section are converted to plain text, preserving readability
 
 ## Usage
 
-1. Position your cursor on any block reference in your markdown file
+1. Position your cursor on any inclusion link in your markdown file
 2. Open the code actions menu (typically `Ctrl+.` or `Cmd+.`)
 3. Select "Delete" from the refactor actions
 
@@ -34,10 +34,30 @@ Some text with an inline link to [Important Topic](file).
 Some text with an inline link to Important Topic.
 ```
 
-The referenced file `Important Topic` is completely deleted, the block reference is removed, and the inline link becomes plain text.
+The referenced file `Important Topic` is completely deleted, the inclusion link is removed, and the inline link becomes plain text.
 
 ## When Delete Action Is Available
 
-- The delete action only appears when your cursor is on a **block reference**
+- The delete action only appears when your cursor is on an **inclusion link**
 - It will not appear on regular text, headers, or other content types
 - The action ensures safe deletion by updating all referencing files automatically
+
+## Command Line Usage
+
+You can also delete documents using the CLI:
+
+```bash
+# Delete with confirmation prompt
+iwe delete my-document
+
+# Preview changes first
+iwe delete my-document --dry-run
+
+# Skip confirmation
+iwe delete my-document --force
+
+# Get affected document keys
+iwe delete my-document --keys
+```
+
+See [cli-delete](cli-delete.md) for full documentation.

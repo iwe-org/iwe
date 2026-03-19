@@ -1,6 +1,7 @@
 use liwe::model::node::NodeIter;
+use liwe::operations::Changes;
 
-use super::{Action, ActionContext, ActionProvider, Change, Changes, Update};
+use super::{Action, ActionContext, ActionProvider};
 
 pub struct ListChangeType {}
 
@@ -42,14 +43,14 @@ impl ActionProvider for ListChangeType {
             .collect(&key)
             .get_surrounding_list_id(target_id)
             .map(|scope_id| {
-                vec![Change::Update(Update {
-                    key: key.clone(),
-                    markdown: context
+                Changes::new().update(
+                    key.clone(),
+                    context
                         .collect(&key)
                         .change_list_type(scope_id)
                         .iter()
                         .to_markdown(&key.parent(), context.markdown_options()),
-                })]
+                )
             })
     }
 }
@@ -90,14 +91,14 @@ impl ActionProvider for ListToSections {
             .collect(&key)
             .get_top_level_surrounding_list_id(target_id)
             .map(|scope_id| {
-                vec![Change::Update(Update {
-                    key: key.clone(),
-                    markdown: context
+                Changes::new().update(
+                    key.clone(),
+                    context
                         .collect(&key)
                         .unwrap_list(scope_id)
                         .iter()
                         .to_markdown(&key.parent(), context.markdown_options()),
-                })]
+                )
             })
     }
 }

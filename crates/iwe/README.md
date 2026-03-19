@@ -78,8 +78,8 @@ Shows navigation paths through your content hierarchy.
 Combine content for a specific document key.
 
 ```bash
-iwe squash --key document-name         # Default depth: 2
-iwe squash --key project --depth 3     # Custom depth
+iwe squash document-name         # Default depth: 2
+iwe squash project --depth 3     # Custom depth
 ```
 
 Flattens hierarchical content into a single markdown document.
@@ -156,7 +156,7 @@ iwe paths --depth 3
 iwe contents
 
 # Generate reports
-iwe squash --key meetings > all-meetings.md
+iwe squash meetings > all-meetings.md
 ```
 
 ### Integration with Other Tools
@@ -177,7 +177,7 @@ python -c "import pandas as pd; df = pd.read_csv('stats.csv'); print(df.describe
 # Batch processing
 for file in *.md; do
     key=$(basename "$file" .md)
-    iwe squash --key "$key" > "compiled-$key.md"
+    iwe squash "$key" > "compiled-$key.md"
 done
 ```
 

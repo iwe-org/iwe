@@ -1,0 +1,5 @@
+Rename a document and update all references to it.
+
+Renames the source document file to the new key and updates all block
+references and inline links that point to the old document key. This
+ensures referential integrity across the knowledge base after renaming.

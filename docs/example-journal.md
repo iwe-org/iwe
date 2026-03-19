@@ -23,7 +23,9 @@ As warm as a hug from an old friend, the latte wraps espresso and milk in a snug
 I had an amazing cortado today. It's when espresso and milk meet halfway in a charming truce, the cortado emerges. It's the perfect compromise, bringing balance to your coffee routine and peace to your taste buds.
 ```
 
-This kind of a document can grow very fast. IWE can transform it by *collapsing* sections into *block-references*. This transformation maintains the document hierarchy while reducing level of details.
+This kind of a document can grow very fast. IWE can transform it by *collapsing* sections into *[inclusion links](inclusion-links.md)*. This transformation maintains the document hierarchy while reducing level of details.
+
+**Inclusion links** are standalone markdown links that create parent-child relationships in your knowledge graph. When a link like `[Topic](topic)` appears on its own line, the linked document becomes a *child* of the current document. A document can have multiple parents (polyhierarchy), enabling the same note to appear in different contexts.
 
 `📄 journal-2025.md`
 
