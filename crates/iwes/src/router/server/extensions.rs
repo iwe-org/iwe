@@ -71,11 +71,7 @@ pub impl Range {
 #[ext]
 pub impl SearchPath {
     #[allow(deprecated)]
-    fn path_to_symbol(
-        &self,
-        context: impl GraphContext,
-        base_path: &BasePath,
-    ) -> SymbolInformation {
+    fn path_to_symbol(&self, base_path: &BasePath) -> SymbolInformation {
         let kind = if self.root {
             SymbolKind::NAMESPACE
         } else {
@@ -83,7 +79,7 @@ pub impl SearchPath {
         };
 
         SymbolInformation {
-            name: SearchPath::render_title_path(&self.title_path, context),
+            name: SearchPath::render_title_path(&self.title, &self.parent_titles),
             kind,
             deprecated: None,
             tags: None,
@@ -91,11 +87,11 @@ pub impl SearchPath {
                 uri: base_path.key_to_url(&self.key),
                 range: Range::new(
                     Position {
-                        line: (self.line),
+                        line: self.line,
                         character: 0,
                     },
                     Position {
-                        line: (self.line) + 1,
+                        line: self.line + 1,
                         character: 0,
                     },
                 ),
@@ -104,16 +100,13 @@ pub impl SearchPath {
         }
     }
 
-    fn render_title_path(title_path: &NodePath, context: impl GraphContext) -> String {
-        title_path
-            .ids()
-            .iter()
-            .map(|id| context.get_text(*id).trim().to_string())
-            .collect_vec()
-            .into_iter()
-            .rev()
-            .collect_vec()
-            .join(" • ")
+    fn render_title_path(title: &str, parent_titles: &[String]) -> String {
+        if parent_titles.is_empty() {
+            title.to_string()
+        } else {
+            let parents = parent_titles.iter().map(|p| format!("↖{}", p)).join(" ");
+            format!("{} {}", title, parents)
+        }
     }
 }
 

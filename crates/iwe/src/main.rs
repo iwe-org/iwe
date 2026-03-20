@@ -27,7 +27,6 @@ use liwe::operations::{
     Changes, ExtractConfig, InlineConfig,
 };
 
-use minijinja::{context, Environment};
 use std::io::{self, Write as IoWrite};
 use log::{debug, error, info};
 
@@ -138,8 +137,8 @@ struct Find {
     #[clap(long, help = "Documents referenced by this key")]
     refs_from: Option<String>,
 
-    #[clap(long, short = 'l', default_value = "50", help = "Maximum results")]
-    limit: usize,
+    #[clap(long, short = 'l', help = "Maximum results")]
+    limit: Option<usize>,
 
     #[clap(long, short = 'f', value_enum, default_value = "markdown")]
     format: FindFormat,
@@ -558,8 +557,6 @@ fn retrieve_command(args: Retrieve) {
     }
 }
 
-const FIND_TEMPLATE: &str = include_str!("../templates/find.md.jinja");
-
 #[tracing::instrument(level = "debug")]
 fn find_command(args: Find) {
     let config = get_configuration();
@@ -587,26 +584,29 @@ fn find_command(args: Find) {
             }
         }
         FindFormat::Markdown => {
-            let rendered = render_find_template(&output);
+            let rendered = render_find_output(&output);
             print!("{}", rendered);
         }
     }
 }
 
-fn render_find_template(output: &iwe::find::output::FindOutput) -> String {
-    let env = Environment::new();
-    let template = env
-        .template_from_str(FIND_TEMPLATE)
-        .expect("Failed to parse template");
+fn render_find_output(output: &iwe::find::output::FindOutput) -> String {
+    let mut result = String::new();
 
-    template
-        .render(context! {
-            query => output.query,
-            limit => output.limit,
-            total => output.total,
-            results => output.results,
-        })
-        .expect("Failed to render template")
+    result.push_str(&format!("Found {} results", output.total));
+    if let Some(ref query) = output.query {
+        result.push_str(&format!(" for \"{}\"", query));
+    }
+    if let Some(limit) = output.limit {
+        result.push_str(&format!(" (showing {})", limit));
+    }
+    result.push_str(":\n\n");
+
+    for r in &output.results {
+        result.push_str(&format!("{}   #{}\n", r.display_title, r.key));
+    }
+
+    result
 }
 
 #[tracing::instrument(level = "debug")]

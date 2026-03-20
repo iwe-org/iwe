@@ -279,9 +279,14 @@ fn test_find_markdown_format() {
 
     assert!(success, "stderr: {}", stderr);
 
-    assert!(stdout.contains("Found 1 results:"));
-    assert!(stdout.contains("[Test Document](test-doc)"));
-    assert!(stdout.contains("(root)"));
+    assert_eq!(
+        stdout,
+        indoc! {"
+            Found 1 results:
+
+            Test Document   #test-doc
+        "}
+    );
 }
 
 #[test]
@@ -312,6 +317,7 @@ fn test_find_with_parent_documents() {
     let child = results.iter().find(|r| r["key"] == "child").unwrap();
 
     assert_eq!(child["is_root"], false);
+    assert_eq!(child["display_title"], "Child ↖Parent");
 
     let parents = child["parent_documents"].as_array().unwrap();
     assert_eq!(parents.len(), 1);

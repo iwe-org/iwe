@@ -11,6 +11,7 @@ pub struct ParentDocumentInfo {
 pub struct FindResult {
     pub key: String,
     pub title: String,
+    pub display_title: String,
     pub is_root: bool,
     pub incoming_refs: usize,
     pub outgoing_refs: usize,

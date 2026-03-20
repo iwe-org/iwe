@@ -127,7 +127,7 @@ fn two_nested_files() {
     .workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            uri(1).to_symbol_info("test 1 • test 2", lsp_types::SymbolKind::OBJECT, 0, 1),
+            uri(1).to_symbol_info("test 1 ↖test 2", lsp_types::SymbolKind::OBJECT, 0, 1),
             uri(2).to_symbol_info("test 2", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     );
@@ -176,13 +176,8 @@ fn dual_nested_files() {
     .workspace_symbols(
         workspace_symbol_params(""),
         workspace_symbol_response(vec![
-            uri(2).to_symbol_info("test 2 • test 3", lsp_types::SymbolKind::OBJECT, 0, 1),
-            uri(1).to_symbol_info(
-                "test 1 • test 2 • test 3",
-                lsp_types::SymbolKind::OBJECT,
-                0,
-                1,
-            ),
+            uri(1).to_symbol_info("test 1 ↖test 2", lsp_types::SymbolKind::OBJECT, 0, 1),
+            uri(2).to_symbol_info("test 2 ↖test 3", lsp_types::SymbolKind::OBJECT, 0, 1),
             uri(3).to_symbol_info("test 3", lsp_types::SymbolKind::NAMESPACE, 0, 1),
         ]),
     );
@@ -200,4 +195,28 @@ fn sub_one_file() {
             1,
         )]),
     );
+}
+
+#[test]
+#[allow(deprecated)]
+fn search_by_key() {
+    Fixture::with_documents(vec![("notes/meeting", "# Daily Standup")])
+        .workspace_symbols(
+            workspace_symbol_params("meeting"),
+            workspace_symbol_response(vec![uri_from("notes/meeting").to_symbol_info(
+                "Daily Standup",
+                lsp_types::SymbolKind::NAMESPACE,
+                0,
+                1,
+            )]),
+        )
+        .workspace_symbols(
+            workspace_symbol_params("notes/"),
+            workspace_symbol_response(vec![uri_from("notes/meeting").to_symbol_info(
+                "Daily Standup",
+                lsp_types::SymbolKind::NAMESPACE,
+                0,
+                1,
+            )]),
+        );
 }
