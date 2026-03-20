@@ -1,60 +1,64 @@
 # Inclusion Links
 
+When you place a markdown link on its own line, IWE treats it as a structural relationship—the current document becomes the "parent" of the linked document. This lets you organize knowledge into hierarchies without folders, and a single document can have multiple parents.
+
 ## Why Hierarchy Matters
 
 Hierarchy is one of the most natural ways humans organize knowledge. We instinctively break complex information into nested structures:
 
-- **Books** have chapters, sections, and paragraphs
-- **Organizations** have departments, teams, and roles
-- **Biology** classifies life into kingdoms, phyla, species
-- **Outlines** structure ideas from general to specific
+- **Living things** are classified into kingdoms, classes, orders, and species
+- **Places** nest from continents to countries to cities to neighborhoods
+- **Organizations** have companies, departments, teams, and roles
+- **Projects** break down into epics, features, and tasks
 
-This isn't arbitrary—hierarchical thinking is how we manage complexity. It lets us zoom out for overview or zoom in for detail. It provides context: knowing something is "under" a topic tells you what it relates to.
+This isn't arbitrary—hierarchical thinking is how we manage complexity. It lets us zoom out to see the big picture or zoom in to focus on specifics—and switch between these views effortlessly. It provides context: knowing something is "under" a topic tells you what it relates to.
+
+What makes knowledge truly interesting is where hierarchies intersect. "Color Theory" belongs under both Art and Physics. "Game Theory" connects Mathematics and Economics. "Nutrition" bridges Chemistry and Health. These intersections are where insight lives.
 
 Good knowledge systems should support this natural way of thinking.
 
 ## The Problem
 
-Traditional ways of organizing information don’t match how knowledge actually works.
+Traditional ways of organizing information don't match how knowledge actually works.
 
 ### Directories: One Place Only
 
-File systems force everything into a single hierarchy. A document about “React Performance Optimization” must live in either `/frontend/react/` or `/performance/`—it can’t naturally exist in both.
+File systems force everything into a single hierarchy. A note about "Meditation" must live in either `/health/` or `/productivity/`—it can't naturally exist in both.
 
 This leads to:
-- Arbitrary placement decisions  
-- Broken references when folders change  
-- Duplicates or “misc” folders when nothing fits  
+- Arbitrary placement decisions
+- Broken references when folders change
+- Duplicates or "misc" folders when nothing fits
 
-But knowledge isn’t a single tree—it’s interconnected.
+But knowledge isn't a single tree—it's interconnected.
 
 ### Tags: Flexible but Shallow
 
 Tags allow multiple categories, but they lack structure:
 
-- No order or priority  
-- No explanation of relationships  
-- No hierarchy  
-- No grouping within a category  
+- No order or priority
+- No explanation of relationships
+- No hierarchy
+- No grouping within a category
 
-A document tagged `#react #performance #frontend` doesn’t explain how these topics relate or which one is primary.
+A note tagged `#health #productivity #mindfulness` doesn't explain how these topics relate or which one is primary.
 
 ## The Solution: Inclusion Links
 
 An **inclusion link** is a markdown link placed on its own line:
 
 ```markdown
-# Frontend Development
+# Photography
 
-[React Fundamentals](react-fundamentals.md)
+[Composition](composition.md)
 
-[Vue.js Guide](vue-guide.md)
+[Lighting](lighting.md)
 
-[Performance Optimization](performance.md)
+[Post-Processing](post-processing.md)
 ```
 
-When a link appears on its own line, it defines structure:  
-“Frontend Development” becomes the parent of the linked documents.
+When a link appears on its own line, it defines structure:
+"Photography" becomes the parent of the linked documents.
 
 This simple rule turns plain markdown into a structured, navigable system.
 
@@ -62,12 +66,22 @@ This simple rule turns plain markdown into a structured, navigable system.
 
 ### Multiple Contexts (Polyhierarchy)
 
-A document can belong to multiple parents:
+A document can belong to multiple parents.
+
+**In `health-practices.md`:**
 
 ```markdown
-# React Topics                    # Performance Topics
+# Health Practices
 
-[Performance Optimization]        [Performance Optimization]
+[Meditation](meditation.md)
+```
+
+**In `productivity-tools.md`:**
+
+```markdown
+# Productivity Tools
+
+[Meditation](meditation.md)
 ```
 
 The same document appears in both contexts without duplication.
@@ -77,52 +91,87 @@ The same document appears in both contexts without duplication.
 Unlike tags, inclusion links allow ordering, grouping, and explanation:
 
 ```markdown
-# Projects
+# Psychology
 
-## Active
+## Cognitive
 
-[Website Redesign](website-redesign.md)
-Building the new company site
+[Memory](memory.md)
+How we encode, store, and retrieve information
 
-[Analytics Dashboard](analytics.md)
-Real-time metrics visualization
+[Decision Making](decision-making.md)
+Biases, heuristics, and rational choice
 
-## On Hold
+## Behavioral
 
-[Mobile App](mobile-app.md)
-Waiting for API completion
+[Habit Formation](habit-formation.md)
+Cue, routine, reward loops
 ```
 
-You’re not just grouping items—you’re adding context.
+You're not just grouping items—you're adding context.
 
 ### Navigable Hierarchies
 
 By linking documents together, you naturally create paths through your knowledge:
 
 ```
-Knowledge Base > Work Projects > Website Redesign
-Knowledge Base > Learning Notes > JavaScript Frameworks
+Knowledge Base > Psychology > Cognitive > Memory
+Knowledge Base > Photography > Composition
 ```
 
 This makes navigation and search more meaningful—you see not just what matches, but where it fits.
 
+### Context Flows Downward
+
+When a document appears under a parent, it inherits meaning from that relationship. A "Memory" note under "Psychology" is understood differently than "Memory" under "Computer Architecture."
+
+The parent page can also add explicit context:
+
+```markdown
+# Cognitive Psychology
+
+[Memory](memory.md)
+Foundation of learning and recall
+
+[Attention](attention.md)
+Selective focus and its limits
+```
+
+These descriptions aren't part of the child documents—they live in the parent, explaining why each child belongs here.
+
 ### Flexible Level of Detail
 
-You can control how much information is visible:
+You can control how much information is visible. With `--depth 1`, you see only immediate children:
 
-- **Extract** sections into separate documents to hide details  
-- **Inline** documents to expand and show full content  
+```
+# Psychology
+- Memory
+- Decision Making
+- Habit Formation
+```
 
-Your knowledge base can expand or collapse depending on your needs.
+With `--depth 3`, the full subtree expands:
+
+```
+# Psychology
+- Memory
+  - Working Memory
+    - Capacity Limits
+    - Chunking Strategies
+  - Long-term Memory
+- Decision Making
+- Habit Formation
+```
+
+Use [Extract](feature-extract.md) to move details into separate documents, or [Inline](feature-inline.md) to expand linked content in place.
 
 ## Inclusion Links vs Inline Links
 
 ### Inclusion Links (Structure)
 
-Standalone links define parent-child relationships and are used for:
-- Navigation  
-- Hierarchical traversal (`--depth`)  
-- Structured views  
+Inclusion links define parent-child relationships and are used for:
+- Navigation
+- Hierarchical traversal (`--depth`)
+- Structured views
 
 ### Inline Links (References)
 
@@ -136,9 +185,9 @@ This process is driven by [Dopamine Pathways](dopamine.md) in the brain.
 ```
 
 These links:
-- Create backlinks  
-- Show relationships between ideas  
-- Do not affect structure  
+- Create backlinks
+- Show relationships between ideas
+- Do not affect structure
 
 ### Why This Distinction Matters
 
@@ -148,19 +197,19 @@ When retrieving content with depth:
 iwe retrieve psychology --depth 2
 ```
 
-- Inclusion links expand into full content  
-- Inline links remain references only  
+The `--depth` flag controls how many levels of inclusion links to expand. See [CLI Retrieve](cli-retrieve.md) for details.
+
+- Inclusion links expand into full content
+- Inline links remain references only
 
 This keeps structure clean while preserving connections between ideas.
 
 ## Summary
 
-Inclusion links turn markdown into a structured system without losing flexibility:
+Inclusion links give you structure without rigidity:
 
-- No forced single hierarchy  
-- No flat, contextless tagging  
-- Documents can exist in multiple contexts  
-- Structure, ordering, and meaning are explicit  
-- Navigation and search become contextual  
+- Documents can exist in multiple contexts
+- Ordering, grouping, and meaning are explicit
+- Navigation becomes contextual
 
-Instead of choosing where something belongs, you define how it connects.
+For a deeper understanding of how IWE represents these relationships internally, see [Data Model](data-model.md).

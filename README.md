@@ -1,6 +1,6 @@
-# About IWE
+# IWE - Memory system for you and your AI Agents
 
-> **Bring IDE-like power to your markdown notes. Fast, local-first PKM for developers.**
+> Your second brain that AI agents can navigate. A structured knowledge graph for humans and machines.
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![Downloads](https://img.shields.io/crates/d/iwe.svg)](https://crates.io/crates/iwe)
@@ -9,119 +9,77 @@
 [![Documentation](https://img.shields.io/badge/docs-iwe.md-blue)](https://iwe.md)
 [![Discussions](https://img.shields.io/github/discussions/iwe-org/iwe)](https://github.com/iwe-org/iwe/discussions)
 
-![Graphviz Example](docs/docs-detailed.svg)
+![Knowledge Graph](docs/docs-detailed.svg)
 
-[IWE](https://iwe.md) is an open-source, local-first, markdown-based note-taking tool. It serves as a personal knowledge management (PKM) solution **designed for developers**.
+IWE is a knowledge graph that organizes your notes hierarchically and makes them accessible to AI agents. Write in **Markdown**, structure with links, give AI agents the **tools** to navigate your knowledge.
 
-IWE integrates seamlessly with popular developer text editors such as **VSCode**, **Neovim**, **Zed**, **Helix**, and others. It connects with your editor through the Language Server Protocol (LSP) to assist you in writing and maintaining your Markdown documents.
-
-IWE offers powerful features such as **search**, **auto-complete**, **go to definition**, **find references**, **rename refactoring**, and more. In addition to standard Markdown, it also supports wiki-style links, tables, and other Markdown extensions.
-
-The primary focus of IWE is to be your ultimate writing assistant and keep your notes tidy and structured. It understands the structure of your documents defined by **headers**, **lists**, and **links** and supports advanced refactorings, such as **extract/embed** note and many other via LSP **code actions**.
-
-While IWE supports sub-directories and relative links, it also allows you to organize notes **hierarchically** using [inclusion links](https://iwe.md/docs/concepts/inclusion-links/).
-
-> [!NOTE]
->
-> The goal of the project is to put powerful knowledge management at your fingertips, making it as seamless as working with code in an IDE for Writing (IWE).
+IWE has **no** built-in AI — it's designed to work with external AI tools (like Claude, Codex, Gemini, and others). The CLI provides structured access to your knowledge graph, whether you're scripting your own workflows or giving AI agents the tools and context they need.
 
 ## Why IWE?
 
-- 🚀 **Works in your editor** — VS Code, Neovim, Zed, Helix via LSP
-- 🔒 **Local-first** — Your notes stay on your machine, version with Git
-- ⚡ **Blazing fast** — Rust-powered, processes thousands of notes instantly
-- 🤖 **AI-agent ready** — CLI tools for knowledge retrieval and graph traversal
-- 🆓 **Free & Open Source** — Apache 2.0 license
+- **Local-first** — your data stays on your machine as directory with Markdown files
+- **Hierarchical knowledge graph** — same note in multiple contexts without duplication using [inclusion links](https://iwe.md/docs/concepts/inclusion-links/)
+- **External memory for AI** — [CLI](https://iwe.md/docs/cli/) tools let AI agents retrieve and update your knowledge with full context
+- **Editor integration** — search, navigate, refactor notes via LSP ([VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/))
+- **Blazing fast** — Rust-powered, processes thousands of notes instantly
 
-## LSP Features
+## The Hierarchical Knowledge Graph
 
-The main LSP features are:
+IWE organizes your notes as a hierarchical knowledge graph — notes with links and nesting:
 
-- 🔍 **Search** through your notes
-- 🧭 **Navigate** through markdown links
-- 👁️ **Preview** linked notes via hover
-- 📃 **Templates** for automated notes creation (e.g. daily notes)
-- ✨ **Auto-complete** links as you type
-- 📥 **Extract** or **inline** sub-notes seamlessly
-- 📝 **Format** the document and update link titles automatically
-- 🔄 **Rename** files and automatically update all the links
-- 🔗 Search for **backlinks** to find references to the current document
-- 💡 Display **inlay hints** with parent note references and link counts
-- 🔧 **Transform** text using external commands (can integrate with AI agents)
-- 🔹 Change outline type from headers to list and vice-versa
+- **Hierarchy** — [inclusion links](https://iwe.md/docs/concepts/inclusion-links/) create parent-child relationships, organizing notes into a tree
+- **Cross-links** — reference links connect notes across the hierarchy
+- **Polyhierarchy** — the same note can appear under multiple parents without duplication
+- **Context inheritance** — enrich any note with details from all its parents
 
-You can learn more on the [LSP Features](https://iwe.md/docs/getting-started/usage/) page.
+This structure makes retrieval powerful: ask for a topic and get its full context—children, parents, and related notes—in a single query.
 
-Quick Demos:
+## Editor Integration (LSP)
 
-<details>
-<summary>Notes search</summary>
+IWE integrates with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/), and other editors via the Language Server Protocol (LSP). Get IDE-like features for your markdown: search, auto-complete, go to definition, find references, rename refactoring, and more.
 
-![Demo](https://iwe.md/images/search.gif)
+IWE understands document structure—headers, lists, and links—and provides advanced refactorings like extract/inline notes via code actions. It supports standard Markdown, wiki-style links, tables, and other extensions.
 
-</details>
+- **Search** — find notes by title or content
+- **Navigate** — go to definition, find references (backlinks)
+- **Preview** — hover over links to see content
+- **Auto-complete** — link suggestions as you type
+- **Inlay hints** — show parent references and link counts
+- **Extract** — pull sections into new notes
+- **Inline** — embed note content back into parent
+- **Rename** — rename files with automatic link updates
+- **Format** — normalize documents, update link titles
+- **Transform** — pipe text through external commands
+- **Templates** — create notes from templates (daily notes, etc.)
+- **Outline conversion** — switch between headers and lists
 
-<details>
-<summary>Auto-formatting</summary>
+More information: [LSP Features](https://iwe.md/docs/getting-started/usage/)
 
-![Demo](https://iwe.md/images/normalization.gif)
+## Working with AI (CLI)
 
-</details>
+IWE provides CLI tools for AI agents to read, navigate, and modify your knowledge graph:
 
-<details>
-<summary>Extract note</summary>
+**Read**
+- **find** — search documents with fuzzy matching and relationship filters
+- **retrieve** — fetch documents with depth and context expansion
+- **tree** — display hierarchical structure from any starting point
+- **squash** — consolidate multiple documents into a single context
 
-![Demo](https://iwe.md/images/extract.gif)
+**Write**
+- **new** — create documents from templates, accepts content via stdin
+- **extract** — extract sections into new documents
+- **inline** — embed referenced content back into parent document
+- **rename** — rename documents with automatic link updates
+- **delete** — remove documents and clean up references
 
-</details>
+Example: retrieve a topic with 2 levels of children and 1 level of parent context:
+```bash
+iwe retrieve -k topic -d 2 -c 1
+```
 
-## CLI Features
-
-IWE also provides a CLI utility that allows you to process thousands of documents in just a second. With IWE, you can reformat documents and update link titles across your entire library. Additionally, you can use the CLI mode to combine multiple files into one comprehensive document and export your note structure as a graph in DOT format for visualization.
-
-The main CLI features are:
-
-- 🏗️ **Initialize** workspace with `init` command
-- 🗒️ **Normalize** documents and update link titles automatically
-- 📈 **Analyze** knowledge base with comprehensive statistics
-- 📊 **Export** note structure as DOT graph for visualization
-- 🔍 **List paths** of all markdown files in the workspace
-- 📋 **Extract contents** from specific notes and sections
-- 🔗 **Squash** multiple files into one comprehensive document
-- 🎯 **Filter** exports by key to focus on specific topics
-
-More information is available in:
-
-[CLI Features Documentation](https://iwe.md/docs/cli/)
-
-An example of squash command output converted to [PDF](https://github.com/iwe-org/iwe/blob/master/docs/book.pdf) using [typst](https://github.com/typst/typst) rendering, see `/docs/Makefile` for details.
-
-<details>
-<summary>Compact graph visualization example</summary>
-
-![Graphviz Example](docs/docs-basic.svg)
-
-</details>
-
-## Agentic CLI Tools
-
-IWE provides specialized CLI commands designed for AI agent integration and programmatic knowledge graph navigation.
-
-- 🔎 **Retrieve** document content with graph expansion and relationship context
-- 🧭 **Find** documents with fuzzy matching and relationship filtering
-- 🔗 **Pipe** commands together for complex workflows
-- 📦 **JSON output** for structured data parsing
-- 🎯 **Dry-run mode** to check context size before fetching
-
-More information is available in:
-
-[Agentic CLI Tools Documentation](https://iwe.md/docs/agentic/)
-
-## How to install
-
-You can find the installation instructions in the [Quick Start Guide](https://iwe.md/quick-start).
-
-Check [usage guide](https://iwe.md/docs/getting-started/usage/) for more information.
+More information:
+- [Working with AI Documentation](https://iwe.md/docs/agentic/)
+- [CLI Reference](https://iwe.md/docs/cli/)
 
 ## Quick Start
 
@@ -138,57 +96,30 @@ Check [usage guide](https://iwe.md/docs/getting-started/usage/) for more informa
    cargo install iwe iwes
    ```
 
-2. **Initialize** your notes workspace:
+2. **Initialize** your workspace:
    ```bash
    cd ~/notes
    iwe init
    ```
 
-3. **Configure** your editor - see guides for [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Helix](https://iwe.md/docs/editors/helix/), or [Zed](https://iwe.md/docs/editors/zed/)
+3. **Configure** your editor — [VS Code](https://iwe.md/docs/editors/vscode/) · [Neovim](https://iwe.md/docs/editors/neovim/) · [Helix](https://iwe.md/docs/editors/helix/) · [Zed](https://iwe.md/docs/editors/zed/)
 
-4. **Start writing** - IWE features are now available in your markdown files
+4. **Teach** your AI agent — ask it to learn the `iwe` command using its built-in help
 
 ## Documentation
 
-For comprehensive documentation, visit [iwe.md](https://iwe.md/docs/):
-
-- **[Getting Started](https://iwe.md/docs/getting-started/installation/)** - Installation and setup
-- **[Usage Guide](https://iwe.md/docs/getting-started/usage/)** - LSP features and how to use them
-- **[Configuration](https://iwe.md/docs/configuration/)** - Configuration options and AI setup
-- **[CLI Features](https://iwe.md/docs/cli/)** - Command-line interface documentation
-- **[Maps of Content](https://iwe.md/docs/concepts/maps-of-content/)** - Hierarchical note organization
-- **[Editor Integration](https://iwe.md/docs/editors/)** - Editor-specific guides for [VSCode](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Helix](https://iwe.md/docs/editors/helix/), and [Zed](https://iwe.md/docs/editors/zed/)
-- **[Debug Mode](https://iwe.md/docs/configuration/debug-mode/)** - Troubleshooting and debugging
+- [Getting Started](https://iwe.md/docs/getting-started/installation/) — Installation and setup
+- [Usage Guide](https://iwe.md/docs/getting-started/usage/) — Editor features and workflows
+- [CLI Reference](https://iwe.md/docs/cli/) — Command-line tools
+- [Working with AI](https://iwe.md/docs/agentic/) — AI agent integration
+- [Configuration](https://iwe.md/docs/configuration/) — Settings and customization
 
 ## Get Involved
 
-IWE fully depends on community support, which is essential for its growth and development. We encourage you to participate in [discussions](https://github.com/iwe-org/iwe/discussions) and report any [issues](https://github.com/iwe-org/iwe/issues) you encounter.
+IWE is open source and community-driven. Join the [discussions](https://github.com/iwe-org/iwe/discussions), report [issues](https://github.com/iwe-org/iwe/issues), or contribute to the [documentation](docs/).
 
-Contributions to the project [documentation](docs/) are also highly appreciated.
-
-Before contributing, please read our [Contributing Guidelines](CONTRIBUTING.md).
-
-### Plugins / Packages
-
-This repository is for Rust code and crates publishing only. Plugins and packages are in separate repositories. If you are willing to help with a non-listed package type, I'm happy to add a repo for it.
-
-- Neovim plugin is in a separated [repository](https://github.com/iwe-org/iwe.nvim).
-- VSCode plugin is [here](https://marketplace.visualstudio.com/items?itemName=IWE.iwe) ([repository](https://github.com/iwe-org/vscode-iwe))
-- Zed plugin [repository](https://github.com/iwe-org/zed-iwe)
-
-### Special thanks to
-
-- A heartfelt thank you to [Sergej Podatelew](https://github.com/spodatelev) for his outstanding work on the VSCode plugin.
-- Deep appreciation to [Daniel Fichtinger](https://github.com/ficd0) for his contributions to the project documentation and community.
-- Many thanks to [Lowband21](https://github.com/Lowband21) for his contributions to the project.
+**Editor plugins:** [VS Code](https://github.com/iwe-org/vscode-iwe) · [Neovim](https://github.com/iwe-org/iwe.nvim) · [Zed](https://github.com/iwe-org/zed-iwe)
 
 ## License
 
-This project is licensed under the [Apache License 2.0](LICENSE-APACHE).
-
-### Inspired by many other open-source projects
-
-- [pandoc](https://pandoc.org)
-- [zk notes](https://github.com/zk-org/zk)
-- [neuron](https://github.com/srid/neuron)
-- [rust-analyzer](https://rust-analyzer.github.io)
+[Apache License 2.0](LICENSE-APACHE)
