@@ -1,6 +1,0 @@
-Found {{ total }} results{% if query %} for "{{ query }}"{% endif %}{% if limit %} (showing {{ limit }}){% endif %}:
-
-{% for result in results %}
-- [{{ result.title }}]({{ result.key }}){% if result.is_root %} (root){% endif %}
-{%- if result.parent_documents %} <- {% for p in result.parent_documents %}[{{ p.title }}]({{ p.key }}){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{%- endfor %}

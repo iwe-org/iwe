@@ -1,10 +1,11 @@
-use std::cmp::Ordering;
-
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use liwe::{
-    graph::{path::NodePath, Graph, GraphContext},
-    model::{Key, NodeId},
+    graph::{Graph, GraphContext},
+    model::{
+        node::{NodeIter, NodePointer},
+        Key, NodeId,
+    },
 };
 use rayon::prelude::*;
 
@@ -15,7 +16,8 @@ pub struct SearchPath {
     pub key: Key,
     pub root: bool,
     pub line: u32,
-    pub path: NodePath,
+    pub title: String,
+    pub parent_titles: Vec<String>,
 }
 
 #[derive(Clone, Default)]
@@ -31,31 +33,57 @@ impl SearchIndex {
     pub fn update(&mut self, graph: &Graph) {
         let graph_ctx: &Graph = graph;
         self.paths = graph
-            .paths()
+            .nodes()
             .par_iter()
-            .filter_map(|path| {
-                let last_id = path.last_id()?;
-                let target = path.target()?;
-                let key = graph_ctx.get_node_key(target)?;
+            .filter(|graph_node| graph_node.is_section())
+            .filter_map(|graph_node| {
+                let node_id = graph_node.id();
+                let node = graph_ctx.node(node_id);
+
+                let parent_is_document = node.to_parent().map(|p| p.is_document()).unwrap_or(false);
+                if !parent_is_document {
+                    return None;
+                }
+
+                let key = graph_ctx.get_node_key(node_id)?;
+
+                let title = graph_ctx.get_text(node_id).trim().to_string();
+
+                if title.is_empty() {
+                    return None;
+                }
+
+                let parent_titles: Vec<String> = graph_ctx
+                    .get_block_references_to(&key)
+                    .iter()
+                    .filter_map(|ref_id| {
+                        let parent_key = graph_ctx.node(*ref_id).to_document()?.document_key()?;
+                        graph_ctx.get_ref_text(&parent_key)
+                    })
+                    .sorted()
+                    .collect();
+
+                let has_parents = !parent_titles.is_empty();
+
                 Some(SearchPath {
-                    search_text: render_search_text(path, graph_ctx),
-                    node_rank: node_rank(graph_ctx, last_id),
+                    search_text: render_search_text(&title, &parent_titles, &key),
+                    node_rank: node_rank(graph_ctx, node_id),
                     key,
-                    root: path.ids().len() == 1,
-                    line: graph_ctx.node_line_number(target).unwrap_or(0) as u32,
-                    path: path.clone(),
+                    root: !has_parents,
+                    line: graph_ctx.node_line_number(node_id).unwrap_or(0) as u32,
+                    title,
+                    parent_titles,
                 })
             })
             .collect::<Vec<_>>()
             .into_iter()
             .sorted_by(|a, b| {
-                let primary = b.node_rank.cmp(&a.node_rank);
-                if primary == Ordering::Equal {
-                    a.key.cmp(&b.key)
-                } else {
-                    primary
-                }
+                b.node_rank
+                    .cmp(&a.node_rank)
+                    .then_with(|| a.key.cmp(&b.key))
+                    .then_with(|| a.line.cmp(&b.line))
             })
+            .unique_by(|p| (p.key.clone(), p.line))
             .collect::<Vec<_>>();
     }
 
@@ -79,11 +107,15 @@ impl SearchIndex {
                         .node_rank
                         .cmp(&path_a.node_rank)
                         .then_with(|| path_a.search_text.len().cmp(&path_b.search_text.len()))
+                        .then_with(|| path_a.key.cmp(&path_b.key))
+                        .then_with(|| path_a.line.cmp(&path_b.line))
                 } else {
                     rank_b
                         .cmp(rank_a)
                         .then_with(|| path_a.search_text.len().cmp(&path_b.search_text.len()))
                         .then_with(|| path_b.node_rank.cmp(&path_a.node_rank))
+                        .then_with(|| path_a.key.cmp(&path_b.key))
+                        .then_with(|| path_a.line.cmp(&path_b.line))
                 }
             })
             .map(|(path, _)| path)
@@ -97,14 +129,14 @@ impl SearchIndex {
     }
 }
 
-fn render_search_text(path: &NodePath, context: impl GraphContext) -> String {
-    path.ids()
-        .iter()
-        .map(|id| context.get_text(*id).trim().to_string())
-        .collect_vec()
+fn render_search_text(title: &str, parent_titles: &[String], key: &Key) -> String {
+    let mut all_titles = vec![title.to_string()];
+    all_titles.extend(parent_titles.iter().cloned());
+    all_titles.push(key.relative_path.to_string());
+    all_titles
         .join(" ")
         .chars()
-        .filter(|c| c.is_alphabetic() || c.is_numeric())
+        .filter(|c| c.is_alphabetic() || c.is_numeric() || c.is_whitespace() || *c == '/')
         .collect::<String>()
 }
 

@@ -168,7 +168,7 @@ impl Server {
         self.search_index
             .search(&params.query)
             .iter()
-            .map(|p| p.path_to_symbol(&self.graph, &self.base_path))
+            .map(|p| p.path_to_symbol(&self.base_path))
             .filter(|p| !p.name.is_empty())
             .collect_vec()
             .to_response()

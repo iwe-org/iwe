@@ -14,7 +14,7 @@ pub struct FindOptions {
     pub roots: bool,
     pub refs_to: Option<Key>,
     pub refs_from: Option<Key>,
-    pub limit: usize,
+    pub limit: Option<usize>,
 }
 
 pub struct DocumentFinder<'a> {
@@ -68,17 +68,20 @@ impl<'a> DocumentFinder<'a> {
         results.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
         let total = results.len();
-        let results: Vec<FindResult> = results
-            .into_iter()
-            .take(options.limit)
-            .map(|(key, _)| self.build_result(&key))
-            .collect();
-
-        let limit = if options.limit < total {
-            Some(options.limit)
+        let results: Vec<FindResult> = if let Some(limit) = options.limit {
+            results
+                .into_iter()
+                .take(limit)
+                .map(|(key, _)| self.build_result(&key))
+                .collect()
         } else {
-            None
+            results
+                .into_iter()
+                .map(|(key, _)| self.build_result(&key))
+                .collect()
         };
+
+        let limit = options.limit.filter(|&l| l < total);
 
         FindOutput {
             query: options.query.clone(),
@@ -89,14 +92,32 @@ impl<'a> DocumentFinder<'a> {
     }
 
     fn build_result(&self, key: &Key) -> FindResult {
+        let title = self.graph.get_key_title(key).unwrap_or_default();
+        let parent_documents = self.get_parent_documents(key);
+        let display_title = Self::render_display_title(&title, &parent_documents);
+
         FindResult {
             key: key.to_string(),
-            title: self.graph.get_key_title(key).unwrap_or_default(),
+            title,
+            display_title,
             is_root: self.is_root(key),
             incoming_refs: self.graph.get_block_references_to(key).len()
                 + self.graph.get_inline_references_to(key).len(),
             outgoing_refs: self.graph.get_block_references_in(key).len(),
-            parent_documents: self.get_parent_documents(key),
+            parent_documents,
+        }
+    }
+
+    fn render_display_title(title: &str, parent_documents: &[ParentDocumentInfo]) -> String {
+        if parent_documents.is_empty() {
+            title.to_string()
+        } else {
+            let parents = parent_documents
+                .iter()
+                .map(|p| format!("↖{}", p.title))
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!("{} {}", title, parents)
         }
     }
 
@@ -169,21 +190,20 @@ impl<'a> DocumentFinder<'a> {
         let mut current = self.graph.node(node_id);
 
         while let Some(parent) = current.to_parent() {
-            if parent.is_section() && parent.is_header() {
-                if let Some(grandparent) = parent.to_parent() {
-                    if !grandparent.is_document() {
-                        let text = parent.plain_text().trim().to_string();
-                        path.push(text);
-                    }
-                }
+            if parent.is_section()
+                && parent
+                    .to_parent()
+                    .map(|p| p.is_document())
+                    .unwrap_or(true)
+            {
+                let text = parent.plain_text().trim().to_string();
+                path.push(text);
             }
             if parent.is_document() {
                 break;
             }
             current = parent;
         }
-
-        path.reverse();
         path
     }
 }
