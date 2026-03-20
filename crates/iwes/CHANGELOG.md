@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.63](https://github.com/iwe-org/iwe/compare/iwes-v0.0.62...iwes-v0.0.63) - 2026-03-20
+
+### Added
+
+- Search by document title, parent document titles and the document key instead of document path ([#231](https://github.com/iwe-org/iwe/pull/231))
+
+### Other
+
+- Removing unwarp's for stability and code style improvements ([#229](https://github.com/iwe-org/iwe/pull/229))
+
 ## [0.0.62](https://github.com/iwe-org/iwe/compare/iwes-v0.0.61...iwes-v0.0.62) - 2026-03-19
 
 ### Added
