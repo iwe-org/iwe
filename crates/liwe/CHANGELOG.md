@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.64](https://github.com/iwe-org/iwe/compare/liwe-v0.0.63...liwe-v0.0.64) - 2026-03-25
+
+### Added
+
+- Add LSP folding ranges ([#235](https://github.com/iwe-org/iwe/pull/235))
+
 ## [0.0.63](https://github.com/iwe-org/iwe/compare/liwe-v0.0.62...liwe-v0.0.63) - 2026-03-20
 
 ### Added
