@@ -77,6 +77,12 @@ Example: retrieve a topic with 2 levels of children and 1 level of parent contex
 iwe retrieve -k topic -d 2 -c 1
 ```
 
+You can install the agent skill with:
+
+```bash
+npx skills add iwe-org/iwe --skill iwe
+```
+
 More information:
 - [Working with AI Documentation](https://iwe.md/docs/agentic/)
 - [CLI Reference](https://iwe.md/docs/cli/)

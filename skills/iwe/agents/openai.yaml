@@ -1,0 +1,7 @@
+interface:
+  display_name: "IWE"
+  short_description: "Operate IWE knowledge graphs with the CLI"
+  default_prompt: "Use $iwe to inspect and safely update this IWE knowledge graph with the `iwe` CLI."
+
+policy:
+  allow_implicit_invocation: true
