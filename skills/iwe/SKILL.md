@@ -14,7 +14,7 @@ IWE is local-first and markdown-based. The important agent-facing idea is: prefe
 1. Confirm the workspace is an IWE project by checking for `.iwe/config.toml`.
 2. Read `.iwe/config.toml` before assuming where notes live. `library.path` may point to a subdirectory.
 3. Use `iwe find`, `iwe tree`, and `iwe retrieve` to explore before editing.
-4. For structural note changes, prefer `iwe new`, `extract`, `inline`, `rename`, and `delete`.
+4. For structural note changes, prefer `iwe new`, `iwe extract`, `iwe inline`, `iwe rename`, and `iwe delete`.
 5. Use `--dry-run` before destructive or high-impact operations.
 
 ## When to use which command
