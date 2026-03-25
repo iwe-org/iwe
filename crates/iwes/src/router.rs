@@ -11,8 +11,8 @@ use lsp_server::{Notification, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, HoverParams, InlayHintParams, InlineValueParams, ReferenceParams,
-    RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
+    DocumentSymbolParams, FoldingRangeParams, HoverParams, InlayHintParams, InlineValueParams,
+    ReferenceParams, RenameParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 use serde::Deserialize;
@@ -232,6 +232,9 @@ impl Router {
                     Err(err) => to_value(err).unwrap(),
                 }
             }),
+            "textDocument/foldingRange" => FoldingRangeParams::deserialize(request.params)
+                .map(|params| self.server.handle_folding_range(params))
+                .map(|response| to_value(response).unwrap()),
             default => {
                 panic!("unhandled request: {}", default)
             }

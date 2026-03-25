@@ -431,39 +431,55 @@ pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) ->
         .join("")
 }
 
+fn ensure_trailing_newline(s: String) -> String {
+    if s.is_empty() || s.ends_with('\n') {
+        s
+    } else {
+        s + "\n"
+    }
+}
+
 pub fn blocks_to_markdown_and(blocks: &Blocks, sparce: bool, options: &MarkdownOptions) -> String {
-    blocks
-        .iter()
-        .map(|block| block.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join(if sparce { "\n" } else { "" })
+    ensure_trailing_newline(
+        blocks
+            .iter()
+            .map(|block| block.to_markdown(options))
+            .collect::<Vec<String>>()
+            .join(if sparce { "\n" } else { "" }),
+    )
 }
 
 pub fn blocks_to_markdown(blocks: &Blocks, options: &MarkdownOptions) -> String {
-    blocks
-        .iter()
-        .map(|block| block.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join("")
+    ensure_trailing_newline(
+        blocks
+            .iter()
+            .map(|block| block.to_markdown(options))
+            .collect::<Vec<String>>()
+            .join(""),
+    )
 }
 
 pub fn blocks_to_markdown_sparce(blocks: &Blocks, options: &MarkdownOptions) -> String {
-    blocks
-        .iter()
-        .map(|block| block.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join("\n")
+    ensure_trailing_newline(
+        blocks
+            .iter()
+            .map(|block| block.to_markdown(options))
+            .collect::<Vec<String>>()
+            .join("\n"),
+    )
 }
 
 pub fn blocks_to_markdown_sparce_skip_frontmatter(
     blocks: &Blocks,
     options: &MarkdownOptions,
 ) -> String {
-    blocks
-        .iter()
-        .filter_map(|block| (!block.is_frontmatter()).then_some(block.to_markdown(options)))
-        .collect::<Vec<String>>()
-        .join("\n")
+    ensure_trailing_newline(
+        blocks
+            .iter()
+            .filter_map(|block| (!block.is_frontmatter()).then_some(block.to_markdown(options)))
+            .collect::<Vec<String>>()
+            .join("\n"),
+    )
 }
 
 pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<GraphInline> {
