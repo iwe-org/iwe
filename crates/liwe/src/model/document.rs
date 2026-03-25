@@ -465,11 +465,13 @@ pub struct BlockQuote {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct OrderedList {
+    pub line_range: LineRange,
     pub items: Vec<DocumentBlocks>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BulletList {
+    pub line_range: LineRange,
     pub items: Vec<DocumentBlocks>,
 }
 

@@ -162,6 +162,7 @@ impl<'a> SectionsBuilder<'a> {
             }
             BulletList(list) => {
                 self.builder.bullet_list();
+                self.set_lines_range(list.line_range.clone());
                 self.builder.set_insert(true);
                 let id = self.builder.id();
 
@@ -173,6 +174,7 @@ impl<'a> SectionsBuilder<'a> {
             }
             OrderedList(list) => {
                 self.builder.ordered_list();
+                self.set_lines_range(list.line_range.clone());
                 self.builder.set_insert(true);
                 let id = self.builder.id();
 

@@ -243,10 +243,17 @@ impl MarkdownEventsReader {
             }
             Tag::HtmlBlock => {}
             Tag::List(num) => {
+                let line_range = self.to_line_range(range);
                 if num.is_some() {
-                    self.push_block(DocumentBlock::OrderedList(OrderedList { items: vec![] }));
+                    self.push_block(DocumentBlock::OrderedList(OrderedList {
+                        line_range,
+                        items: vec![],
+                    }));
                 } else {
-                    self.push_block(DocumentBlock::BulletList(BulletList { items: vec![] }));
+                    self.push_block(DocumentBlock::BulletList(BulletList {
+                        line_range,
+                        items: vec![],
+                    }));
                 }
             }
             Tag::Item => {
@@ -561,12 +568,14 @@ mod tests {
         let mut reader = MarkdownEventsReader::new();
         let actual = reader.read(content);
         let expected = vec![DocumentBlock::BulletList(BulletList {
+            line_range: 0..2,
             items: vec![vec![
                 DocumentBlock::Para(Para {
                     line_range: 0..1,
                     inlines: vec![DocumentInline::Str("line1".to_string())],
                 }),
                 DocumentBlock::OrderedList(OrderedList {
+                    line_range: 1..2,
                     items: vec![vec![DocumentBlock::Para(Para {
                         line_range: 1..2,
                         inlines: vec![DocumentInline::Str("line2".to_string())],
@@ -587,6 +596,7 @@ mod tests {
         let mut reader = MarkdownEventsReader::new();
         let actual = reader.read(content);
         let expected = vec![DocumentBlock::BulletList(BulletList {
+            line_range: 0..2,
             items: vec![
                 vec![DocumentBlock::Para(Para {
                     line_range: 0..1,

@@ -11,6 +11,7 @@ use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
 use lsp_types::ExecuteCommandOptions;
+use lsp_types::FoldingRangeProviderCapability;
 use lsp_types::HoverProviderCapability;
 use lsp_types::InitializeParams;
 use lsp_types::OneOf;
@@ -97,6 +98,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
                 will_delete: None,
             }),
         }),
+        folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
         ..Default::default()
     })
     .unwrap();
