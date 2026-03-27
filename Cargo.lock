@@ -153,6 +153,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "pure-rust-locales",
  "wasm-bindgen",
  "windows-link 0.2.0",
 ]
@@ -862,6 +863,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sys-locale",
  "tempfile",
  "toml",
  "tracing",
@@ -899,6 +901,7 @@ dependencies = [
  "sanitize-filename",
  "serde",
  "serde_json",
+ "sys-locale",
  "toml",
  "tracing",
  "tracing-subscriber",
@@ -988,6 +991,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "sha2",
+ "sys-locale",
  "tempfile",
  "toml",
  "toml_edit",
@@ -1217,6 +1221,12 @@ checksum = "50793def1b900256624a709439404384204a5dc3a6ec580281bfaac35e882e90"
 dependencies = [
  "pulldown-cmark",
 ]
+
+[[package]]
+name = "pure-rust-locales"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "869675ad2d7541aea90c6d88c81f46a7f4ea9af8cd0395d38f11a95126998a0d"
 
 [[package]]
 name = "quote"
@@ -1554,6 +1564,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "sys-locale"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eab9a99a024a169fe8a903cf9d4a3b3601109bcc13bd9e3c6fff259138626c4"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

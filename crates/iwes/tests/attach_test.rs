@@ -46,9 +46,9 @@ fn alreary_attached() {
 
 #[test]
 fn attach_to_date_template() {
-    let date = Local::now().date_naive();
-    let markdown_format = date.format("%b %d, %Y").to_string();
-    let key_format = date.format("%Y-%m-%d").to_string();
+    let now = Local::now();
+    let markdown_format = now.format("%b %d, %Y").to_string();
+    let key_format = now.format("%Y-%m-%d").to_string();
 
     assert_attached_template(
         indoc! {"
@@ -260,6 +260,100 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
         vec![
             expected_uri.clone().to_create_file(),
             expected_uri.to_edit(expected),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Attach", "custom.attach"),
+    );
+}
+
+#[test]
+fn attach_with_time_format() {
+    let now = Local::now();
+    let markdown_format = now.format("%b %d, %Y %H:%M").to_string();
+    let key_format = now.format("%Y%m%d%H%M").to_string();
+
+    let mut configuration = Configuration::default();
+    configuration.markdown.date_format = Some("%b %d, %Y %H:%M".into());
+    configuration.library.date_format = Some("%Y%m%d%H%M".into());
+
+    configuration.actions.insert(
+        "attach".into(),
+        ActionDefinition::Attach(Attach {
+            title: "Attach".into(),
+            key_template: "{{today}}".into(),
+            document_template: "# {{today}}\n\n{{content}}".into(),
+        }),
+    );
+
+    let expected_uri = uri_from(&key_format);
+    let expected_doc = format!("# {}\n\n[title b](2)\n", markdown_format);
+
+    Fixture::with_config(
+        indoc! {"
+            # title a
+
+            [title b](2)
+            _
+            # title b
+            "},
+        configuration,
+    )
+    .code_action(
+        uri(1).to_code_action_params(2, "custom.attach"),
+        vec![
+            expected_uri.clone().to_create_file(),
+            expected_uri.to_edit(&expected_doc),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Attach", "custom.attach"),
+    );
+}
+
+#[test]
+fn attach_with_separate_locales() {
+    use chrono::Locale;
+
+    let now = Local::now();
+    let key_format = now
+        .format_localized("%A-%B-%d", Locale::en_US)
+        .to_string();
+    let markdown_format = now
+        .format_localized("%A, %d. %B %Y", Locale::de_DE)
+        .to_string();
+
+    let mut configuration = Configuration::default();
+    configuration.library.locale = Some("en_US".into());
+    configuration.library.date_format = Some("%A-%B-%d".into());
+    configuration.markdown.locale = Some("de_DE".into());
+    configuration.markdown.date_format = Some("%A, %d. %B %Y".into());
+
+    configuration.actions.insert(
+        "attach".into(),
+        ActionDefinition::Attach(Attach {
+            title: "Attach".into(),
+            key_template: "{{today}}".into(),
+            document_template: "# {{today}}\n\n{{content}}".into(),
+        }),
+    );
+
+    let expected_uri = uri_from(&key_format);
+    let expected_doc = format!("# {}\n\n[title b](2)\n", markdown_format);
+
+    Fixture::with_config(
+        indoc! {"
+            # title a
+
+            [title b](2)
+            _
+            # title b
+            "},
+        configuration,
+    )
+    .code_action(
+        uri(1).to_code_action_params(2, "custom.attach"),
+        vec![
+            expected_uri.clone().to_create_file(),
+            expected_uri.to_edit(&expected_doc),
         ]
         .to_workspace_edit()
         .to_code_action("Attach", "custom.attach"),

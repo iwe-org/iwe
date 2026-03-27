@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::{Local, Locale};
 use minijinja::{context, Environment};
 use sanitize_filename::sanitize;
 
@@ -28,11 +28,12 @@ pub struct KeyFormatContext<'a> {
 pub fn format_target_key<C: GraphContext>(
     key_template: &str,
     key_date_format: &str,
+    locale: Locale,
     fmt_ctx: &KeyFormatContext,
     graph_ctx: C,
 ) -> Key {
-    let date = Local::now().date_naive();
-    let formatted_date = date.format(key_date_format).to_string();
+    let now = Local::now();
+    let formatted_date = now.format_localized(key_date_format, locale).to_string();
 
     let slug = string_to_slug(&fmt_ctx.title);
     let source_title = fmt_ctx.source_title.clone().unwrap_or_default();

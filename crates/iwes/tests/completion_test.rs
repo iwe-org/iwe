@@ -25,6 +25,7 @@ fn completion_test_with_refs_extension() {
     let markdown_options = MarkdownOptions {
         refs_extension: ".md".to_string(),
         date_format: None,
+        locale: None,
     };
 
     Fixture::with_options(
@@ -84,6 +85,7 @@ fn completion_relative_test_with_refs_extension() {
     let markdown_options = MarkdownOptions {
         refs_extension: ".html".to_string(),
         date_format: None,
+        locale: None,
     };
 
     let config = liwe::model::config::Configuration {
@@ -249,6 +251,7 @@ fn completion_with_wikilink_and_refs_extension() {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
             date_format: None,
+            locale: None,
         },
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),

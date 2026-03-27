@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::{Local, Locale};
 use minijinja::{context, Environment};
 
 use liwe::model::node::NodeIter;
@@ -17,12 +17,16 @@ pub struct AttachAction {
     pub document_template: String,
     pub markdown_date_format: String,
     pub key_date_format: String,
+    pub key_locale: Locale,
+    pub markdown_locale: Locale,
 }
 
 impl AttachAction {
     fn format_target_key(&self) -> Key {
-        let date = Local::now().date_naive();
-        let formatted = date.format(&self.key_date_format).to_string();
+        let now = Local::now();
+        let formatted = now
+            .format_localized(&self.key_date_format, self.key_locale)
+            .to_string();
 
         Key::name(
             &Environment::new()
@@ -36,8 +40,10 @@ impl AttachAction {
     }
 
     fn format_target_document(&self, content: String) -> String {
-        let date = Local::now().date_naive();
-        let formatted = date.format(&self.markdown_date_format).to_string();
+        let now = Local::now();
+        let formatted = now
+            .format_localized(&self.markdown_date_format, self.markdown_locale)
+            .to_string();
         Environment::new()
             .template_from_str(&self.document_template)
             .expect("correct template")

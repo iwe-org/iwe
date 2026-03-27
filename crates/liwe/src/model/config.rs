@@ -18,6 +18,7 @@ pub const DEFAULT_KEY_DATE_FORMAT: &str = "%Y-%m-%d";
 pub struct MarkdownOptions {
     pub refs_extension: String,
     pub date_format: Option<String>,
+    pub locale: Option<String>,
 }
 
 impl Default for MarkdownOptions {
@@ -25,6 +26,7 @@ impl Default for MarkdownOptions {
         Self {
             refs_extension: String::new(),
             date_format: Some("%b %d, %Y".into()),
+            locale: None,
         }
     }
 }
@@ -35,6 +37,7 @@ pub struct LibraryOptions {
     pub date_format: Option<String>,
     pub default_template: Option<String>,
     pub frontmatter_document_title: Option<String>,
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -49,6 +52,7 @@ impl Default for LibraryOptions {
             date_format: Some(DEFAULT_KEY_DATE_FORMAT.into()),
             default_template: None,
             frontmatter_document_title: None,
+            locale: None,
         }
     }
 }

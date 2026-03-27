@@ -8,10 +8,12 @@ IWE projects are configured through a `.iwe/config.toml` file in your project ro
 [markdown]
 refs_extension = ""
 date_format = "%b %d, %Y"
+locale = "de_DE"
 
 [library]
 path = ""
 date_format = "%Y-%m-%d"
+locale = "en_US"
 frontmatter_document_title = "title"
 
 [completion]
@@ -22,11 +24,13 @@ link_format = "markdown"
 
 - `refs_extension`: File extension for markdown references (default: empty, uses `.md`)
 - `date_format`: Date format for markdown content display (default: `"%b %d, %Y"`, e.g., "Jan 15, 2024")
+- `locale`: Locale for date formatting in document content (default: system locale). Allows different localization for content than for file keys.
 
 ### Library Settings
 
 - `path`: Subdirectory for markdown files relative to project root (default: empty, uses root)
 - `date_format`: Date format for file key generation (default: `"%Y-%m-%d"`, e.g., "2024-01-15")
+- `locale`: Locale for date formatting (default: auto-detected from system). Affects day and month names when using `%A`, `%B`, etc.
 - `frontmatter_document_title`: YAML frontmatter field to use as document title (default: none, uses first header)
 
 ### Completion Settings
@@ -39,6 +43,7 @@ link_format = "markdown"
 
 Date formats use [chrono format specifiers](https://docs.rs/chrono/latest/chrono/format/strftime/index.html):
 
+**Date specifiers:**
 - `%Y`: 4-digit year (2024)
 - `%y`: 2-digit year (24)
 - `%m`: Month as number (01-12)
@@ -47,6 +52,41 @@ Date formats use [chrono format specifiers](https://docs.rs/chrono/latest/chrono
 - `%d`: Day of month (01-31)
 - `%A`: Full weekday name (Monday)
 - `%a`: Abbreviated weekday name (Mon)
+
+**Time specifiers:**
+- `%H`: Hour in 24-hour format (00-23)
+- `%M`: Minute (00-59)
+- `%S`: Second (00-59)
+
+**Combined examples:**
+- `"%Y-%m-%d %H:%M"` → "2024-01-15 14:30"
+- `"%b %d, %Y %H:%M:%S"` → "Jan 15, 2024 14:30:45"
+- `"%Y%m%d%H%M"` → "202401151430" (useful for sortable file keys)
+
+Textual specifiers (`%A`, `%a`, `%B`, `%b`) are localized based on the `locale` setting. For example, with `locale = "de_DE"` and `date_format = "%A, %d. %B %Y"`, dates display as "Freitag, 27. März 2026".
+
+### Locale Settings
+
+IWE supports separate locales for file keys and document content. By default, both use your system locale independently.
+
+- **`library.locale`**: Controls the language for file key generation (e.g., `journal/Friday-March-27`)
+- **`markdown.locale`**: Controls the language for document content (e.g., `# Freitag, 27. März 2026`)
+
+``` toml
+[library]
+date_format = "%A-%B-%d"
+locale = "en_US"
+
+[markdown]
+date_format = "%A, %d. %B %Y"
+locale = "de_DE"
+```
+
+With this configuration:
+- File keys use English day/month names: `journal/Friday-March-27`
+- Document content uses German: `# Freitag, 27. März 2026`
+
+The locale accepts both POSIX format (`de_DE`) and BCP47 format (`de-DE`). Encoding suffixes like `.UTF-8` are automatically stripped.
 
 ### Frontmatter Document Title
 
@@ -215,7 +255,7 @@ Attach action parameters:
 
 **Attach Actions** support:
 
-- `{{today}}`: Current date formatted using `library.date_format` (for keys) or `markdown.date_format` (for content)
+- `{{today}}`: Current date/time formatted using `library.date_format` (for keys) or `markdown.date_format` (for content). Supports both date and time specifiers.
 - `{{content}}`: The content being attached
 
 **Transform Actions** support:

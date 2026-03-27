@@ -16,6 +16,7 @@ use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::stats::GraphStatistics;
 use liwe::fs::new_for_path;
 use liwe::graph::{Graph, GraphContext};
+use liwe::locale::get_locale;
 use liwe::model::config::{
     load_config, ActionDefinition, Configuration, InlineType, LinkType,
 };
@@ -1227,6 +1228,7 @@ fn extract_command(args: Extract) {
     let section_id = section_node_id.expect("Section must have an ID");
 
     let (key_template, link_type) = get_extract_config(&config, args.action.as_deref());
+    let locale = get_locale(config.library.locale.as_deref());
     let extract_config = ExtractConfig {
         key_template,
         link_type,
@@ -1235,6 +1237,7 @@ fn extract_command(args: Extract) {
             .date_format
             .clone()
             .unwrap_or_else(|| "%Y-%m-%d".to_string()),
+        locale,
     };
 
     let result = match op_extract(&graph, &source_key, section_id, &extract_config) {

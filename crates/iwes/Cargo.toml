@@ -42,6 +42,7 @@ once_cell.workspace = true
 minijinja.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+sys-locale.workspace = true
 sanitize-filename.workspace = true
 url.workspace = true
 percent-encoding.workspace = true
