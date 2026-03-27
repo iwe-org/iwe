@@ -11,6 +11,12 @@
 
 ![Knowledge Graph](docs/docs-detailed.svg)
 
+> A messy knowledge base provides messy context to an AI, and messy context yields poor results.
+
+The knowledge you need keeps growing. Codebases expand. Documentation multiplies. Decisions pile up. It's hard to keep it all in your head—or fit it in a context window.
+
+We've all been there: you capture an insight, file it away, and two weeks later it's gone—buried in folders or scattered across apps. When you ask AI for help, you're feeding it fragments hoping something sticks. IWE gives both you and your AI the same map to navigate—one source of truth, shared understanding.
+
 IWE is a knowledge graph that organizes your notes hierarchically and makes them accessible to AI agents. Write in **Markdown**, structure with links, give AI agents the **tools** to navigate your knowledge.
 
 IWE has **no** built-in AI — it's designed to work with external AI tools (like Claude, Codex, Gemini, and others). The CLI provides structured access to your knowledge graph, whether you're scripting your own workflows or giving AI agents the tools and context they need.
@@ -76,6 +82,10 @@ Example: retrieve a topic with 2 levels of children and 1 level of parent contex
 ```bash
 iwe retrieve -k topic -d 2 -c 1
 ```
+
+Unlike vector databases where agent memory becomes opaque—embeddings you can't read or edit—IWE keeps everything in plain Markdown. No similarity thresholds, no "maybe relevant" results. The agent gets exactly the documents that connect to the topic.
+
+You remain in control. The files are yours, readable and editable. Agents become collaborators that can navigate your knowledge, not black boxes that store it.
 
 More information:
 - [Working with AI Documentation](https://iwe.md/docs/agentic/)
