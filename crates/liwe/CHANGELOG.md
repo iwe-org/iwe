@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.65](https://github.com/iwe-org/iwe/compare/liwe-v0.0.64...liwe-v0.0.65) - 2026-03-28
+
+### Added
+
+- Local dates and time components in the templates ([#245](https://github.com/iwe-org/iwe/pull/245))
+
 ## [0.0.64](https://github.com/iwe-org/iwe/compare/liwe-v0.0.63...liwe-v0.0.64) - 2026-03-25
 
 ### Added
