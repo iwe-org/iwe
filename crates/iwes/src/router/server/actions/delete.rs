@@ -18,14 +18,24 @@ impl ActionProvider for DeleteAction {
         let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
 
-        Some(target_id)
-            .filter(|target_id| tree.get(*target_id).is_reference())
-            .map(|_| Action {
-                title: "Delete".to_string(),
-                identifier: self.identifier(),
-                key: key.clone(),
-                range: selection.clone(),
-            })
+        let target_key = if tree.get(target_id).is_reference() {
+            Some(tree.find_reference_key(target_id))
+        } else {
+            context.get_link_key_at(
+                &key,
+                selection.start.line as usize,
+                selection.start.character as usize,
+            )
+        }?;
+
+        context.graph().maybe_key(&target_key)?;
+
+        Some(Action {
+            title: "Delete".to_string(),
+            identifier: self.identifier(),
+            key: key.clone(),
+            range: selection.clone(),
+        })
     }
 
     fn changes(
@@ -36,9 +46,18 @@ impl ActionProvider for DeleteAction {
     ) -> Option<Changes> {
         let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
         let tree = context.collect(&key);
-        let target_key = tree.find_reference_key(target_id);
-        let graph = context.graph();
 
+        let target_key = if tree.get(target_id).is_reference() {
+            tree.find_reference_key(target_id)
+        } else {
+            context.get_link_key_at(
+                &key,
+                selection.start.line as usize,
+                selection.start.character as usize,
+            )?
+        };
+
+        let graph = context.graph();
         delete(graph, &target_key).ok()
     }
 }
