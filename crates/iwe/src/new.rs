@@ -185,6 +185,7 @@ fn render_template(
             title => title,
             slug => slug,
             today => today,
+            now => today,
             id => id,
             content => content,
         })

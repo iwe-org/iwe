@@ -255,7 +255,8 @@ Attach action parameters:
 
 **Attach Actions** support:
 
-- `{{today}}`: Current date/time formatted using `library.date_format` (for keys) or `markdown.date_format` (for content). Supports both date and time specifiers.
+- `{{now}}`: Current date/time formatted using `library.date_format` (for keys) or `markdown.date_format` (for content). Supports both date and time specifiers.
+- `{{today}}`: Alias for `{{now}}`
 - `{{content}}`: The content being attached
 
 **Transform Actions** support:

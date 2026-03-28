@@ -34,6 +34,7 @@ impl AttachAction {
                 .expect("correct template")
                 .render(context! {
                 today => formatted,
+                now => formatted,
                 })
                 .expect("template to work"),
         )
@@ -49,6 +50,7 @@ impl AttachAction {
             .expect("correct template")
             .render(context! {
             today => formatted,
+            now => formatted,
             content => content
             })
             .expect("template to work")

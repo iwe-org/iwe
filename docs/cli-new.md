@@ -36,7 +36,8 @@ Templates support the following variables:
 
 - `{{title}}`: The provided title argument
 - `{{slug}}`: Slugified title (kebab-case)
-- `{{today}}`: Current date/time (uses `library.date_format` for key, `markdown.date_format` for content). Supports both date specifiers (`%Y`, `%m`, `%d`) and time specifiers (`%H`, `%M`, `%S`).
+- `{{now}}`: Current date/time (uses `library.date_format` for key, `markdown.date_format` for content). Supports both date specifiers (`%Y`, `%m`, `%d`) and time specifiers (`%H`, `%M`, `%S`).
+- `{{today}}`: Alias for `{{now}}`
 - `{{id}}`: Random 8-character alphanumeric ID
 - `{{content}}`: Content from `-c` option or stdin
 
