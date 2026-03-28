@@ -50,3 +50,4 @@ percent-encoding.workspace = true
 [dev-dependencies]
 assert-json-diff.workspace = true
 difference.workspace = true
+tempfile.workspace = true

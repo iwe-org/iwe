@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use indoc::indoc;
 use liwe::model::config::{ActionDefinition, Command, Configuration, Transform};
+use tempfile::TempDir;
 
 mod fixture;
 use crate::fixture::*;
@@ -425,6 +426,12 @@ fn transform_action_with_env_vars() {
 
 #[test]
 fn transform_action_with_cwd() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let cwd = temp_dir.path().to_string_lossy().to_string();
+
+    std::fs::write(temp_dir.path().join("testfile.txt"), "cwd_test_marker\n")
+        .expect("Failed to write test file");
+
     let config = Configuration {
         actions: vec![(
             "cwdtest".to_string(),
@@ -439,8 +446,8 @@ fn transform_action_with_cwd() {
         commands: vec![(
             "cwdtest".to_string(),
             Command {
-                run: "pwd".to_string(),
-                cwd: Some("/usr".to_string()),
+                run: "cat testfile.txt".to_string(),
+                cwd: Some(cwd),
                 timeout_seconds: Some(5),
                 ..Default::default()
             },
@@ -458,7 +465,7 @@ fn transform_action_with_cwd() {
     )
     .code_action(
         uri(1).to_code_action_params(0, "custom.cwdtest"),
-        vec![uri(1).to_edit("/usr\n")]
+        vec![uri(1).to_edit("cwd_test_marker\n")]
             .to_workspace_edit()
             .to_code_action("Cwd Test", "custom.cwdtest"),
     );
