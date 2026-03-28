@@ -174,3 +174,87 @@ fn definition_with_relative_path() {
         ),
     );
 }
+
+#[test]
+fn definition_external_https_url() {
+    Fixture::with(indoc! {"
+            # test
+
+            [example](https://example.com)
+
+            "})
+    .go_to_definition_external(
+        uri(1).to_goto_definition_params(2, 5),
+        "https://example.com",
+    );
+}
+
+#[test]
+fn definition_external_http_url() {
+    Fixture::with(indoc! {"
+            # test
+
+            [example](http://example.com)
+
+            "})
+    .go_to_definition_external(
+        uri(1).to_goto_definition_params(2, 5),
+        "http://example.com",
+    );
+}
+
+#[test]
+fn definition_external_mailto_url() {
+    Fixture::with(indoc! {"
+            # test
+
+            [email](mailto:test@example.com)
+
+            "})
+    .go_to_definition_external(
+        uri(1).to_goto_definition_params(2, 5),
+        "mailto:test@example.com",
+    );
+}
+
+#[test]
+fn definition_bare_https_url() {
+    Fixture::with(indoc! {"
+            # test
+
+            Check out https://example.com for more
+
+            "})
+    .go_to_definition_external(
+        uri(1).to_goto_definition_params(2, 15),
+        "https://example.com",
+    );
+}
+
+#[test]
+fn definition_bare_http_url() {
+    Fixture::with(indoc! {"
+            # test
+
+            Visit http://example.org today
+
+            "})
+    .go_to_definition_external(
+        uri(1).to_goto_definition_params(2, 10),
+        "http://example.org",
+    );
+}
+
+#[test]
+fn definition_bare_mailto_url() {
+    Fixture::with(indoc! {"
+            # test
+
+            Contact mailto:test@example.com
+
+            "})
+    .go_to_definition_external(
+        uri(1).to_goto_definition_params(2, 15),
+        "mailto:test@example.com",
+    );
+}

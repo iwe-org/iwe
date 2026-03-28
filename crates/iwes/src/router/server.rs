@@ -16,6 +16,11 @@ use liwe::model::node::Node;
 
 use super::{LspClient, ServerConfig};
 
+pub enum DefinitionResult {
+    Internal(GotoDefinitionResponse),
+    External(String),
+}
+
 use self::base_path::BasePath;
 use self::extensions::*;
 use self::search::SearchIndex;
@@ -175,7 +180,7 @@ impl Server {
             .to_response()
     }
 
-    pub fn handle_goto_definition(&self, params: GotoDefinitionParams) -> GotoDefinitionResponse {
+    pub fn handle_goto_definition(&self, params: GotoDefinitionParams) -> DefinitionResult {
         let key = params
             .text_document_position_params
             .text_document
@@ -184,16 +189,22 @@ impl Server {
         let relative_to = key.parent();
         let position = params.text_document_position_params.position;
 
-        self.graph()
+        let Some(url) = self
+            .graph()
             .parser(&key)
             .and_then(|parser| parser.url_at(position.to_model()))
-            .map(|url| {
-                GotoDefinitionResponse::Scalar(Location::new(
-                    self.base_path.resolve_relative_url(&url, &relative_to),
-                    Range::default(),
-                ))
-            })
-            .unwrap_or(GotoDefinitionResponse::Array(vec![]))
+        else {
+            return DefinitionResult::Internal(GotoDefinitionResponse::Array(vec![]));
+        };
+
+        if !is_ref_url(&url) {
+            return DefinitionResult::External(url);
+        }
+
+        DefinitionResult::Internal(GotoDefinitionResponse::Scalar(Location::new(
+            self.base_path.resolve_relative_url(&url, &relative_to),
+            Range::default(),
+        )))
     }
 
     pub fn handle_document_formatting(&self, params: DocumentFormattingParams) -> Vec<TextEdit> {
