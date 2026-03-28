@@ -6,6 +6,7 @@ use minijinja::{context, Environment};
 use rand::distr::Alphanumeric;
 use rand::Rng;
 
+use liwe::locale::get_locale;
 use liwe::model::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
 use liwe::model::Key;
 
@@ -97,9 +98,14 @@ impl<'a> DocumentCreator<'a> {
             .clone()
             .unwrap_or_else(|| "%b %d, %Y".to_string());
 
-        let date = Local::now().date_naive();
-        let key_today = date.format(&key_date_format).to_string();
-        let markdown_today = date.format(&markdown_date_format).to_string();
+        let key_locale = get_locale(self.config.library.locale.as_deref());
+        let markdown_locale = get_locale(self.config.markdown.locale.as_deref());
+
+        let now = Local::now();
+        let key_today = now.format_localized(&key_date_format, key_locale).to_string();
+        let markdown_today = now
+            .format_localized(&markdown_date_format, markdown_locale)
+            .to_string();
 
         let slug = string_to_slug(&options.title);
         let id = generate_random_id();
@@ -179,6 +185,7 @@ fn render_template(
             title => title,
             slug => slug,
             today => today,
+            now => today,
             id => id,
             content => content,
         })

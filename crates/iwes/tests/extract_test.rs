@@ -413,8 +413,8 @@ fn extract_section_with_multiple_simple_collisions() {
 }
 
 fn assert_extracted_with_date_template(source: &str, line: u32, target: &str, extracted: &str) {
-    let date = Local::now().date_naive();
-    let formatted_date = date.format("%Y-%m-%d").to_string();
+    let now = Local::now();
+    let formatted_date = now.format("%Y-%m-%d").to_string();
 
     let target_with_date = target.replace("{{today}}", &formatted_date);
 

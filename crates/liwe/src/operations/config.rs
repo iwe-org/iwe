@@ -1,3 +1,5 @@
+use chrono::Locale;
+
 use crate::model::config::{InlineType, LinkType};
 
 #[derive(Debug, Clone)]
@@ -5,6 +7,7 @@ pub struct ExtractConfig {
     pub key_template: String,
     pub link_type: Option<LinkType>,
     pub key_date_format: String,
+    pub locale: Locale,
 }
 
 impl Default for ExtractConfig {
@@ -13,6 +16,7 @@ impl Default for ExtractConfig {
             key_template: "{{slug}}".to_string(),
             link_type: Some(LinkType::Markdown),
             key_date_format: "%Y-%m-%d".to_string(),
+            locale: Locale::POSIX,
         }
     }
 }

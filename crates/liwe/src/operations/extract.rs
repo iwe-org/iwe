@@ -57,7 +57,7 @@ pub fn extract(
         source_title: graph.get_ref_text(source_key),
     };
 
-    let new_key = format_target_key(&config.key_template, &config.key_date_format, &fmt_ctx, graph);
+    let new_key = format_target_key(&config.key_template, &config.key_date_format, config.locale, &fmt_ctx, graph);
 
     let options = graph.markdown_options();
 
@@ -209,7 +209,7 @@ pub fn extract_all(
         };
 
         let base_key =
-            format_target_key(&config.key_template, &config.key_date_format, &fmt_ctx, graph);
+            format_target_key(&config.key_template, &config.key_date_format, config.locale, &fmt_ctx, graph);
 
         let new_key = ensure_unique_key_in_batch(&base_key, graph, &generated_keys);
         generated_keys.push(new_key.clone());

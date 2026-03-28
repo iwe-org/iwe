@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::{Local, Locale};
 use liwe::model::config::LinkType as ConfigLinkType;
 use liwe::model::Key;
 use liwe::operations::Changes;
@@ -13,6 +13,7 @@ pub struct LinkAction {
     pub link_type: Option<ConfigLinkType>,
     pub key_template: String,
     pub key_date_format: String,
+    pub locale: Locale,
 }
 
 impl LinkAction {
@@ -23,8 +24,8 @@ impl LinkAction {
         _parent_key: &str,
         word: &str,
     ) -> Key {
-        let date = Local::now().date_naive();
-        let formatted = date.format(&self.key_date_format).to_string();
+        let now = Local::now();
+        let formatted = now.format_localized(&self.key_date_format, self.locale).to_string();
         let slug = string_to_slug(word);
 
         let relative_key = Environment::new()

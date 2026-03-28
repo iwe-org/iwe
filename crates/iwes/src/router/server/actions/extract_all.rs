@@ -1,3 +1,4 @@
+use chrono::Locale;
 use liwe::model::config::LinkType;
 use liwe::operations::{extract_all, Changes, ExtractConfig};
 
@@ -9,6 +10,7 @@ pub struct ExtractAll {
     pub link_type: Option<LinkType>,
     pub key_template: String,
     pub key_date_format: String,
+    pub locale: Locale,
 }
 
 impl ActionProvider for ExtractAll {
@@ -56,6 +58,7 @@ impl ActionProvider for ExtractAll {
                     key_template: self.key_template.clone(),
                     link_type: self.link_type.clone(),
                     key_date_format: self.key_date_format.clone(),
+                    locale: self.locale,
                 };
 
                 extract_all(graph, &key, target_id, &config).ok()

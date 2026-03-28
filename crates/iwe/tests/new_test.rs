@@ -434,3 +434,50 @@ fn test_new_if_exists_skip_does_nothing() {
         "File should not have new content"
     );
 }
+
+#[test]
+fn test_new_with_german_locale_formats_date() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let config_path = temp_dir.path().join(".iwe").join("config.toml");
+    let config_content = read_to_string(&config_path).expect("Read config");
+    let mut config: Configuration = toml::from_str(&config_content).expect("Parse config");
+    config.library.locale = Some("de_DE".to_string());
+    config.markdown.locale = Some("de_DE".to_string());
+    config.markdown.date_format = Some("%A, %d. %B %Y".to_string());
+    let updated_config = toml::to_string(&config).expect("Serialize config");
+    std::fs::write(&config_path, updated_config).expect("Write config");
+
+    add_template(
+        &temp_dir,
+        "today",
+        NoteTemplate {
+            key_template: "journal/{{today}}".to_string(),
+            document_template: "# {{today}}\n\n{{content}}".to_string(),
+        },
+    );
+
+    let output = Command::new(common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Test")
+        .arg("--template")
+        .arg("today")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8");
+    let created_path = stdout.trim();
+    let content = read_to_string(created_path).expect("Should read file");
+
+    let german_days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+    let has_german_day = german_days.iter().any(|day| content.contains(day));
+    assert!(
+        has_german_day,
+        "Content should contain a German day name. Got: {}",
+        content
+    );
+}

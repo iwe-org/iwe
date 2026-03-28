@@ -25,7 +25,10 @@ TEMPLATE VARIABLES:
   Templates in config support these variables:
   - {{title}}: Document title as provided
   - {{slug}}: URL-safe filename derived from title
-  - {{today}}: Current date (uses library.date_format)
+  - {{now}}: Current date/time (uses library.date_format for key,
+             markdown.date_format for content). Supports date (%Y, %m, %d)
+             and time (%H, %M, %S) specifiers.
+  - {{today}}: Alias for {{now}}
   - {{id}}: Unique identifier
   - {{content}}: Content from --content or stdin
 

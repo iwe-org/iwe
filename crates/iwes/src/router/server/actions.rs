@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use liwe::graph::Graph;
+use liwe::locale::get_locale;
 use liwe::model::config::{
     ActionDefinition, Command, Configuration, MarkdownOptions, DEFAULT_KEY_DATE_FORMAT,
 };
@@ -261,6 +262,9 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
         ActionEnum::DeleteAction(DeleteAction {}),
     ];
 
+    let key_locale = get_locale(configuration.library.locale.as_deref());
+    let markdown_locale = get_locale(configuration.markdown.locale.as_deref());
+
     actions.extend(
         configuration
             .actions
@@ -275,7 +279,6 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     })
                 }
                 ActionDefinition::Attach(attach) => {
-                    
                     ActionEnum::AttachAction(AttachAction {
                         title: attach.title.clone(),
                         identifier: identifier.clone(),
@@ -291,10 +294,11 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                        key_locale,
+                        markdown_locale,
                     })
                 }
                 ActionDefinition::Sort(sort) => {
-                    
                     ActionEnum::SortAction(SortAction {
                         title: sort.title.clone(),
                         identifier: identifier.clone(),
@@ -302,7 +306,6 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     })
                 }
                 ActionDefinition::Inline(inline) => {
-                    
                     ActionEnum::InlineAction(InlineAction {
                         title: inline.title.clone(),
                         identifier: identifier.clone(),
@@ -311,7 +314,6 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     })
                 }
                 ActionDefinition::Extract(extract) => {
-                    
                     ActionEnum::SectionExtract(SectionExtract {
                         title: extract.title.clone(),
                         identifier: identifier.clone(),
@@ -322,10 +324,10 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                        locale: key_locale,
                     })
                 }
                 ActionDefinition::ExtractAll(extract_all) => {
-                    
                     ActionEnum::ExtractAll(ExtractAll {
                         title: extract_all.title.clone(),
                         identifier: identifier.clone(),
@@ -336,10 +338,10 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                        locale: key_locale,
                     })
                 }
                 ActionDefinition::Link(link) => {
-                    
                     ActionEnum::LinkAction(LinkAction {
                         title: link.title.clone(),
                         identifier: identifier.clone(),
@@ -350,6 +352,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                             .library
                             .date_format
                             .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                        locale: key_locale,
                     })
                 }
             }),
