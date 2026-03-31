@@ -2,18 +2,20 @@
 
 Extract actions enable the creation of new documents from markdown sections (headers). IWE provides two types of extract actions:
 
-1. **Extract** - Extracts a single section into a new file
-2. **Extract All** - Extracts all direct subsections of a section into separate files
+1.  **Extract** - Extracts a single section into a new file
+2.  **Extract All** - Extracts all direct subsections of a section into separate files
 
 Both operations:
+
 - Create new files containing the selected content
-- Add [inclusion links](inclusion-links.md) (like `[Section Title](new-file)`) to the newly created files
+- Add [Inclusion Links](inclusion-links.md) (like `[Section Title](new-file)`) to the newly created files
 - Automatically adjust header levels to maintain proper document structure
 - Support relative path preservation
 
 The reverse operation, known as **inline**, allows you to:
-1. Embed the content back into the document via the inclusion link
-2. Remove the link and the extracted file
+
+1.  Embed the content back into the document via the inclusion link
+2.  Remove the link and the extracted file
 
 ## Extract Single Section
 
@@ -21,7 +23,7 @@ The reverse operation, known as **inline**, allows you to:
 
 The extract action is configured in `.iwe/config.toml` under the `[actions]` section:
 
-```toml
+``` toml
 [actions]
 extract = { type = "extract", title = "Extract section", key_template = "{{id}}", link_type = "markdown" }
 ```
@@ -36,7 +38,8 @@ extract = { type = "extract", title = "Extract section", key_template = "{{id}}"
 ### Example: Basic Section Extraction
 
 **Source document** (`document.md`):
-```markdown
+
+``` markdown
 # Main Document
 
 ## Important Section
@@ -49,14 +52,16 @@ More content here.
 ```
 
 **After extraction** (`document.md`):
-```markdown
+
+``` markdown
 # Main Document
 
 [Important Section](extracted-123)
 ```
 
 **Extracted file** (`extracted-123.md`):
-```markdown
+
+``` markdown
 # Important Section
 
 This content will be extracted.
@@ -70,7 +75,7 @@ More content here.
 
 ### Configuration
 
-```toml
+``` toml
 [actions]
 extract_all = { type = "extract_all", title = "Extract all subsections", key_template = "{{title}}", link_type = "markdown" }
 ```
@@ -85,7 +90,8 @@ extract_all = { type = "extract_all", title = "Extract all subsections", key_tem
 ### Example: Extract All Subsections
 
 **Source document** (`guide.md`):
-```markdown
+
+``` markdown
 # User Guide
 
 Introduction content here.
@@ -104,7 +110,8 @@ How to use the application.
 ```
 
 **After extract all** (`guide.md`):
-```markdown
+
+``` markdown
 # User Guide
 
 Introduction content here.
@@ -119,21 +126,24 @@ Introduction content here.
 **Extracted files**:
 
 `Installation.md`:
-```markdown
+
+``` markdown
 # Installation
 
 How to install the software.
 ```
 
 `Configuration.md`:
-```markdown
+
+``` markdown
 # Configuration
 
 How to configure settings.
 ```
 
 `Usage.md`:
-```markdown
+
+``` markdown
 # Usage
 
 How to use the application.
@@ -144,17 +154,20 @@ How to use the application.
 The `key_template` supports several template variables for flexible file naming:
 
 ### Basic Variables
+
 - **`{{id}}`**: Random unique identifier (e.g., `123`, `456`)
 - **`{{today}}`**: Current date formatted using `date_format` from `[library]` section (default: `%Y-%m-%d`)
 - **`{{title}}`**: The section title being extracted (automatically sanitized for filenames)
 - **`{{slug}}`**: URL-friendly version of the title (lowercase, alphanumeric characters only, non-alphanumeric replaced with dashes, no consecutive dashes)
 
 ### Parent Section Variables
+
 - **`{{parent.title}}`**: Title of the parent section containing the extracted section
 - **`{{parent.slug}}`**: URL-friendly version of the parent section title (lowercase, alphanumeric characters only, non-alphanumeric replaced with dashes, no consecutive dashes)
 - **`{{parent.key}}`**: Key of the parent document
 
 ### Source Document Variables
+
 - **`{{source.key}}`**: Full key of the source document
 - **`{{source.file}}`**: Filename portion of the source document key
 - **`{{source.title}}`**: Title (first header) of the source document
@@ -165,14 +178,15 @@ The `key_template` supports several template variables for flexible file naming:
 
 IWE preserves directory structure when extracting sections. The key generation follows these rules:
 
-1. **Generated keys are relative to the source document's directory**
-2. **`Key::combine(&key.parent(), &relative_key)` creates the final path**
-3. **The parent directory is automatically preserved**
+1.  **Generated keys are relative to the source document's directory**
+2.  **`Key::combine(&key.parent(), &relative_key)` creates the final path**
+3.  **The parent directory is automatically preserved**
 
 ### Example: Relative Path Extraction
 
 **Source document** (`docs/tutorial/basics.md`):
-```markdown
+
+``` markdown
 # Basic Tutorial
 
 ## Getting Started
@@ -181,11 +195,13 @@ Content to extract.
 ```
 
 **Configuration**:
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract", key_template = "extracted-{{title}}" }
 ```
 
 **Result**:
+
 - Source: `docs/tutorial/basics.md`
 - Extracted file: `docs/tutorial/extracted-Getting Started.md`
 - Link: `[Getting Started](extracted-Getting Started)`
@@ -195,109 +211,141 @@ The extracted file is created in the same directory (`docs/tutorial/`) as the so
 ## Advanced Configuration Examples
 
 ### 1. Simple Numeric Keys
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract", key_template = "{{id}}" }
 ```
+
 Creates files like: `123.md`, `456.md`
 
 ### 2. Date-based Extraction
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract to today", key_template = "{{today}}" }
 ```
+
 Creates files like: `2024-01-15.md`
 
 ### 3. Title-based Extraction
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract section", key_template = "{{title}}" }
 ```
+
 Creates files like: `Getting Started.md`, `Configuration.md`
 
 ### 4. Slug-based Extraction (URL-friendly)
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract as slug", key_template = "{{slug}}" }
 ```
-Creates files like: `getting-started.md`, `configuration.md`
-From titles like "Getting Started", "User's Guide/Setup", "API*Reference" → `getting-started.md`, `users-guide-setup.md`, `api-reference.md`
+
+Creates files like: `getting-started.md`, `configuration.md` From titles like "Getting Started", "User's Guide/Setup", "API*Reference" → `getting-started.md`, `users-guide-setup.md`, `api-reference.md`
 
 ### 5. Hierarchical Extraction
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract with context", key_template = "{{parent.title}}-{{title}}" }
 ```
+
 From a document with structure:
-```markdown
+
+``` markdown
 # User Guide
 ## Installation
 ```
+
 Creates: `User Guide-Installation.md`
 
 ### 6. Hierarchical Extraction (URL-friendly)
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract with slug context", key_template = "{{parent.slug}}-{{slug}}" }
 ```
+
 From a document with structure:
-```markdown
+
+``` markdown
 # User Guide & Setup
 ## Installation/Configuration
 ```
+
 Creates: `user-guide-setup-installation-configuration.md`
 
 ### 7. Source-aware Extraction
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract from source", key_template = "{{source.file}}-{{title}}" }
 ```
+
 From `user-guide.md`:
-```markdown
+
+``` markdown
 ## Installation
 ```
+
 Creates: `user-guide-Installation.md`
 
 ### 8. Source-aware Extraction (URL-friendly)
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract with source slug", key_template = "{{source.slug}}-{{slug}}" }
 ```
+
 From `User Guide & Manual.md`:
-```markdown
+
+``` markdown
 # User Guide & Manual
 ## Installation/Setup
 ```
+
 Creates: `user-guide-manual-installation-setup.md`
 
 ### 9. Path-based Organization
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract to subfolder", key_template = "extracted/{{title}}" }
 ```
+
 From `docs/guide.md`, creates: `docs/extracted/Installation.md`
 
 ### 10. Wiki-style Links
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract (wiki)", key_template = "{{id}}", link_type = "wiki" }
 ```
+
 Creates links like: `[[123]]` instead of `[Section Title](123)`
 
 ### 11. Complex Template Example
-```toml
+
+``` toml
 extract = { type = "extract", title = "Extract with full context", key_template = "{{source.path}}/{{today}}-{{parent.title}}-{{title}}" }
 ```
+
 From `docs/tutorials/advanced.md` on 2024-01-15:
-```markdown
+
+``` markdown
 # Advanced Tutorial
 ## Complex Features
 ```
+
 Creates: `docs/tutorials/2024-01-15-Advanced Tutorial-Complex Features.md`
 
 ## Key Collision Handling
 
 When the generated key already exists, IWE automatically appends numeric suffixes:
 
-1. First attempt: `extracted-section.md`
-2. If exists: `extracted-section-1.md`
-3. If exists: `extracted-section-2.md`
-4. And so on...
+1.  First attempt: `extracted-section.md`
+2.  If exists: `extracted-section-1.md`
+3.  If exists: `extracted-section-2.md`
+4.  And so on...
 
 ### Example: Handling Collisions
 
 **Multiple sections with same title**:
-```markdown
+
+``` markdown
 # Document
 
 ## Section
@@ -311,6 +359,7 @@ Content 3
 ```
 
 **With `key_template = "{{title}}"`, extract all creates**:
+
 - `Section.md` (first section)
 - `Section-1.md` (second section)
 - `Section-2.md` (third section)
@@ -319,7 +368,7 @@ Content 3
 
 The `{{today}}` variable uses the `date_format` setting from the `[library]` section:
 
-```toml
+``` toml
 [library]
 date_format = "%Y-%m-%d"  # Results in: 2024-01-15
 
@@ -328,6 +377,7 @@ extract = { type = "extract", title = "Daily extract", key_template = "{{today}}
 ```
 
 Common date formats:
+
 - `%Y-%m-%d`: `2024-01-15`
 - `%Y%m%d`: `20240115`
 - `%b %d, %Y`: `Jan 15, 2024`
@@ -345,7 +395,7 @@ Special characters in titles are automatically sanitized using the `sanitize_fil
 
 You can also extract sections using the CLI:
 
-```bash
+``` bash
 # List all sections with block numbers
 iwe extract my-document --list
 
@@ -359,4 +409,4 @@ iwe extract my-document --block 2
 iwe extract my-document --section "Design" --dry-run
 ```
 
-See [cli-extract](cli-extract.md) for full documentation.
+See [IWE Extract](cli-extract.md) for full documentation.

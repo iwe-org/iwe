@@ -10,30 +10,33 @@ iwe squash <KEY> [OPTIONS]
 
 ## Arguments
 
-| Argument | Description |
-|----------|-------------|
-| `<KEY>` | Document key to squash |
+| Argument | Description            |
+| -------- | ---------------------- |
+| `<KEY>`  | Document key to squash |
+
 
 ## Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-d, --depth <DEPTH>` | `2` | How deep to traverse links |
-| `-v, --verbose <LEVEL>` | `0` | Verbosity level |
+| Option                  | Default | Description                |
+| ----------------------- | ------- | -------------------------- |
+| `-d, --depth <DEPTH>`   | `2`     | How deep to traverse links |
+| `-v, --verbose <LEVEL>` | `0`     | Verbosity level            |
+
 
 ## What It Does
 
-1. Starts from the specified document
-2. Traverses [inclusion links](inclusion-links.md) up to specified depth
-3. Combines content into a single markdown document
-4. Converts linked sections to inline sections
-5. Adjusts header levels to maintain hierarchy
+1.  Starts from the specified document
+2.  Traverses [Inclusion Links](inclusion-links.md) up to specified depth
+3.  Combines content into a single markdown document
+4.  Converts linked sections to inline sections
+5.  Adjusts header levels to maintain hierarchy
 
 ## Output Format
 
 Given this document structure:
 
 `project-overview.md`:
+
 ``` markdown
 # Project Overview
 
@@ -44,6 +47,7 @@ Introduction to the project.
 ```
 
 `goals.md`:
+
 ``` markdown
 # Goals
 
@@ -94,11 +98,12 @@ iwe squash research-notes --depth 3 -v 2
 
 When documents are inlined, their header levels are adjusted:
 
-| Original Level | Becomes | Reason |
-|----------------|---------|--------|
-| `#` (h1) | `##` (h2) | Linked document becomes section |
-| `##` (h2) | `###` (h3) | Preserves relative hierarchy |
-| `###` (h3) | `####` (h4) | And so on... |
+| Original Level | Becomes     | Reason                          |
+| -------------- | ----------- | ------------------------------- |
+| `#` (h1)       | `##` (h2)   | Linked document becomes section |
+| `##` (h2)      | `###` (h3)  | Preserves relative hierarchy    |
+| `###` (h3)     | `####` (h4) | And so on...                    |
+
 
 This ensures the squashed document maintains a logical structure with the root document as the top-level heading.
 

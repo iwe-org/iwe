@@ -6,9 +6,9 @@ IWE provides file renaming through the LSP `rename` refactoring feature. When yo
 
 When you trigger a rename operation on a markdown file:
 
-1. **Rename the file** - The file is renamed to your specified name
-2. **Update all references** - Every link pointing to the old filename is updated to use the new name
-3. **Preserve link titles** - Link display text remains unchanged
+1.  **Rename the file** - The file is renamed to your specified name
+2.  **Update all references** - Every link pointing to the old filename is updated to use the new name
+3.  **Preserve link titles** - Link display text remains unchanged
 
 This ensures your knowledge graph stays consistent without manual search-and-replace operations.
 
@@ -16,27 +16,29 @@ This ensures your knowledge graph stays consistent without manual search-and-rep
 
 ### In Your Editor
 
-1. Open a markdown file you want to rename
-2. Trigger the LSP rename command:
-   - **VS Code**: `F2` or right-click and select "Rename Symbol"
-   - **Neovim**: `:lua vim.lsp.buf.rename()` or your configured keybinding
-   - **Helix**: `space` + `r`
-3. Enter the new filename
-4. Confirm the rename
+1.  Open a markdown file you want to rename
+2.  Trigger the LSP rename command:
+    - **VS Code**: `F2` or right-click and select "Rename Symbol"
+    - **Neovim**: `:lua vim.lsp.buf.rename()` or your configured keybinding
+    - **Helix**: `space` + `r`
+3.  Enter the new filename
+4.  Confirm the rename
 
 ### Example
 
 **Before renaming:**
 
 `old-topic.md`:
-```markdown
+
+``` markdown
 # Old Topic
 
 Some content here.
 ```
 
 `index.md`:
-```markdown
+
+``` markdown
 # Index
 
 See [Old Topic](old-topic) for details.
@@ -46,14 +48,16 @@ Check also [Old Topic](old-topic) in another context.
 **After renaming to `new-topic.md`:**
 
 `new-topic.md`:
-```markdown
+
+``` markdown
 # Old Topic
 
 Some content here.
 ```
 
 `index.md`:
-```markdown
+
+``` markdown
 # Index
 
 See [Old Topic](new-topic) for details.
@@ -66,7 +70,7 @@ Note that the link text ("Old Topic") is preserved while the link target is upda
 
 You can also rename documents using the CLI:
 
-```bash
+``` bash
 # Basic rename
 iwe rename old-topic new-topic
 
@@ -77,7 +81,7 @@ iwe rename old-topic new-topic --dry-run
 iwe rename old-topic new-topic --keys
 ```
 
-See [cli-rename](cli-rename.md) for full documentation.
+See [IWE Rename](cli-rename.md) for full documentation.
 
 ## Benefits
 

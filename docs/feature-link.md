@@ -6,9 +6,9 @@ The "link" code action allows you to quickly convert text under your cursor or s
 
 When you place your cursor on a word or select text and trigger a code action, IWE can:
 
-1. **Create a new note** based on the text at your cursor or selection
-2. **Replace the text** with a link to the newly created note
-3. **Use templates** to control where the new note is created and how it's named
+1.  **Create a new note** based on the text at your cursor or selection
+2.  **Replace the text** with a link to the newly created note
+3.  **Use templates** to control where the new note is created and how it's named
 
 The link action works on a single line - you can either place your cursor on a word (and IWE will detect the word boundaries) or select a specific range of text.
 
@@ -16,7 +16,7 @@ The link action works on a single line - you can either place your cursor on a w
 
 Configure link actions in your `.iwe/config.toml`:
 
-```toml
+``` toml
 [actions.link]
 type = "link"
 title = "Link word"
@@ -38,7 +38,7 @@ link_type = "Markdown"            # Optional: "Markdown" or "WikiLink"
 
 Create notes with auto-generated numeric IDs:
 
-```toml
+``` toml
 [actions.link]
 type = "link"
 title = "Link word"
@@ -46,16 +46,17 @@ key_template = "{{id}}"
 ```
 
 **Workflow:**
-1. Place cursor on "important" or select "important concept"
-2. Trigger code action and select "Link word"
-3. Text becomes `[important](2)` and a new note `2.md` is created with `# important`
-4. Or if you selected "important concept", it becomes `[important concept](2)` with `# important concept`
+
+1.  Place cursor on "important" or select "important concept"
+2.  Trigger code action and select "Link word"
+3.  Text becomes `[important](2)` and a new note `2.md` is created with `# important`
+4.  Or if you selected "important concept", it becomes `[important concept](2)` with `# important concept`
 
 ### Slug-Based Links
 
 Use slugified versions of the text as the note key:
 
-```toml
+``` toml
 [actions.link]
 type = "link"
 title = "Link word"
@@ -63,6 +64,7 @@ key_template = "{{slug}}"
 ```
 
 **Example:**
+
 - Cursor on "Important Concept" → `[Important Concept](important-concept)` → `important-concept.md`
 - Selected "My Idea" → `[My Idea](my-idea)` → `my-idea.md`
 
@@ -70,7 +72,7 @@ key_template = "{{slug}}"
 
 Use the exact text (sanitized for filenames) as the key:
 
-```toml
+``` toml
 [actions.link]
 type = "link"
 title = "Link word"
@@ -78,6 +80,7 @@ key_template = "{{title}}"
 ```
 
 **Example:**
+
 - Cursor on "MyWord" → `[MyWord](MyWord)` → `MyWord.md`
 - Selected "Project Ideas" → `[Project Ideas](Project Ideas)` → `Project Ideas.md`
 
@@ -85,7 +88,7 @@ key_template = "{{title}}"
 
 Use WikiLink style instead of Markdown:
 
-```toml
+``` toml
 [actions.wiki_link]
 type = "link"
 title = "Link word (wiki)"
@@ -94,6 +97,7 @@ link_type = "WikiLink"
 ```
 
 **Example:**
+
 - Cursor on "concept" → `[[2]]` → `2.md`
 - Selected "important idea" → `[[2]]` → `2.md` with `# important idea`
 
@@ -102,6 +106,7 @@ link_type = "WikiLink"
 The link action supports two modes:
 
 ### Cursor Mode (Word Detection)
+
 - Place your cursor anywhere within a word
 - IWE automatically detects word boundaries
 - Words can include alphanumeric characters, underscores, hyphens, and Unicode characters
@@ -111,6 +116,7 @@ The link action supports two modes:
   - Cursor on "some_|function" → detects "some_function"
 
 ### Selection Mode
+
 - Select any text range on a single line
 - IWE uses exactly what you selected
 - Perfect for phrases with spaces or partial words
@@ -133,6 +139,7 @@ Link actions support several template variables:
 If a note with the generated key already exists, IWE automatically appends a numeric suffix:
 
 **Example:**
+
 - First link: `concept` → `concept.md`
 - Second link: `concept` → `concept-1.md`
 - Third link: `concept` → `concept-2.md`
@@ -141,7 +148,7 @@ If a note with the generated key already exists, IWE automatically appends a num
 
 Configure different link actions for different purposes:
 
-```toml
+``` toml
 [actions.link]
 type = "link"
 title = "Quick Link"

@@ -33,20 +33,21 @@ IWE provides comprehensive features for markdown-based knowledge management:
 
 Here's a reference connecting each LSP request with IWE features:
 
-|IWE Feature|LSP Request|Description|
-|-----------|-----------|-----------|
-|Extract/Inline Notes|Code Action|Split sections into files or merge them back|
-|Text Transformation|Code Action|Generate, rewrite, or modify text using CLI commands|
-|Text Transformation|Code Action|Convert lists to headers, change list types|
-|Link Navigation|Go To Definition|Follow markdown links to target documents|
-|Hover Preview|Hover|Preview linked notes without opening the file|
-|Backlinks|Go To References|Find all documents referencing current document|
-|Document Outline|Document Symbols|View table of contents for navigation|
-|Global Search|Workspace Symbols|Search through all notes with fuzzy matching|
-|Auto-Format|Document Formatting|Normalize structure, headers, and links|
-|File Renaming|Rename Symbol|Rename files and update all references|
-|Link Completion|Completion|Auto-complete links as you type|
-|Visual Hints|Inlay Hints|Show parent references and link counts|
+| IWE Feature          | LSP Request         | Description                                          |
+| -------------------- | ------------------- | ---------------------------------------------------- |
+| Extract/Inline Notes | Code Action         | Split sections into files or merge them back         |
+| Text Transformation  | Code Action         | Generate, rewrite, or modify text using CLI commands |
+| Text Transformation  | Code Action         | Convert lists to headers, change list types          |
+| Link Navigation      | Go To Definition    | Follow markdown links to target documents            |
+| Hover Preview        | Hover               | Preview linked notes without opening the file        |
+| Backlinks            | Go To References    | Find all documents referencing current document      |
+| Document Outline     | Document Symbols    | View table of contents for navigation                |
+| Global Search        | Workspace Symbols   | Search through all notes with fuzzy matching         |
+| Auto-Format          | Document Formatting | Normalize structure, headers, and links              |
+| File Renaming        | Rename Symbol       | Rename files and update all references               |
+| Link Completion      | Completion          | Auto-complete links as you type                      |
+| Visual Hints         | Inlay Hints         | Show parent references and link counts               |
+
 
 ## Usage Example
 

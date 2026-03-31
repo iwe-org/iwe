@@ -4,7 +4,7 @@ Retrieves document content with graph expansion and relationship context. Design
 
 ## Usage
 
-```bash
+``` bash
 iwe retrieve [OPTIONS]
 ```
 
@@ -12,27 +12,28 @@ Without `-k`, reads the document key from stdin (for piping).
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-k, --key <KEY>` | Document key(s) to retrieve (can be specified multiple times) | stdin |
-| `-e, --exclude <KEY>` | Exclude document key(s) from results (can be specified multiple times) | none |
-| `-d, --depth <N>` | Follow children down N levels | 1 |
-| `-c, --context <N>` | Include N levels of parent context | 1 |
-| `-l, --links` | Include inline referenced documents | false |
-| `-b, --backlinks` | Include incoming references in output | true |
-| `-f, --format <FMT>` | Output format: `markdown`, `keys`, `json` | markdown |
-| `--no-content` | Exclude content, show child documents instead (metadata only) | false |
-| `--dry-run` | Show document count and total lines without content | false |
+| Flag                  | Description                                                            | Default  |
+| --------------------- | ---------------------------------------------------------------------- | -------- |
+| `-k, --key <KEY>`     | Document key(s) to retrieve (can be specified multiple times)          | stdin    |
+| `-e, --exclude <KEY>` | Exclude document key(s) from results (can be specified multiple times) | none     |
+| `-d, --depth <N>`     | Follow children down N levels                                          | 1        |
+| `-c, --context <N>`   | Include N levels of parent context                                     | 1        |
+| `-l, --links`         | Include inline referenced documents                                    | false    |
+| `-b, --backlinks`     | Include incoming references in output                                  | true     |
+| `-f, --format <FMT>`  | Output format: `markdown`, `keys`, `json`                              | markdown |
+| `--no-content`        | Exclude content, show child documents instead (metadata only)          | false    |
+| `--dry-run`           | Show document count and total lines without content                    | false    |
+
 
 ## How It Works
 
 The `retrieve` command collects documents in a specific order:
 
-1. **Main document** - The document specified by `-k`
-2. **Children** (`-d N`) - Documents included via [inclusion links](inclusion-links.md), expanded N levels deep
-3. **Context** (`-c N`) - Parent documents of the main document, up N levels
-4. **Sub-document parents** - Parents of direct sub-documents (only when both `-d > 0` and `-c > 0`)
-5. **Links** (`-l`) - Documents referenced inline within the main document
+1.  **Main document** - The document specified by `-k`
+2.  **Children** (`-d N`) - Documents included via [Inclusion Links](inclusion-links.md), expanded N levels deep
+3.  **Context** (`-c N`) - Parent documents of the main document, up N levels
+4.  **Sub-document parents** - Parents of direct sub-documents (only when both `-d > 0` and `-c > 0`)
+5.  **Links** (`-l`) - Documents referenced inline within the main document
 
 Documents are deduplicated - each document appears only once in the output.
 
@@ -67,7 +68,7 @@ iwe retrieve -k mobile-app -d 1 -c 1
 
 The output for the `button` sub-document shows its other parents:
 
-```markdown
+``` markdown
 # Button
 
 [Button](button) <- [Web Dashboard](web-dashboard)
@@ -78,9 +79,10 @@ A reusable button component.
 The `<-` notation lists other documents where `button` is embedded. Since we're already viewing `button` from within `mobile-app`, only `web-dashboard` is shown — revealing that this component is shared across projects.
 
 **Result includes:**
-1. `mobile-app` — the main document
-2. `button` — sub-document (via `-d 1`)
-3. `web-dashboard` — another parent of `button` (via `-c 1`)
+
+1.  `mobile-app` — the main document
+2.  `button` — sub-document (via `-d 1`)
+3.  `web-dashboard` — another parent of `button` (via `-c 1`)
 
 The `web-dashboard` document is fetched because it's a parent of `button`. This context helps understand what the component is and where else it's used.
 
@@ -90,7 +92,7 @@ The `web-dashboard` document is fetched because it's a parent of `button`. This 
 
 When enabled, includes documents that are referenced inline (not as inclusion links):
 
-```markdown
+``` markdown
 # Main Document
 
 See [Related Topic](related-topic) for more details.
@@ -103,7 +105,8 @@ With `-l`, `related-topic` would be included in the output.
 ### Parent Documents vs Back Links
 
 **Parent Documents** - Inclusion links (document embedded in another):
-```markdown
+
+``` markdown
 # Parent Document
 
 ## Overview
@@ -114,7 +117,8 @@ With `-l`, `related-topic` would be included in the output.
 The child document shows: `**Parent documents:** [Parent Document](parent) > Overview`
 
 **Back Links** - Inline references (links within text):
-```markdown
+
+``` markdown
 # Some Document
 
 See [target](target) for more details.   <- Inline reference creates backlink
@@ -128,7 +132,7 @@ The target document shows: `**Back links:** [Some Document](some-document)`
 
 Documents are rendered with YAML frontmatter containing metadata, followed by the document content:
 
-```markdown
+``` markdown
 ---
 document:
   key: my-document
@@ -144,11 +148,10 @@ document:
 # My Document
 
 Original document content preserved exactly as written.
-
-
 ```
 
 Each document in the result set includes:
+
 - YAML frontmatter with `key`, `title`, `parents`, and `back-links`
 - Document content with original headers preserved
 - Two empty lines after each document for easy parsing
@@ -167,7 +170,7 @@ One key per line, suitable for piping to other commands or building exclude list
 
 ### JSON Format (`-f json`)
 
-```json
+``` json
 {
   "documents": [
     {
@@ -197,7 +200,7 @@ One key per line, suitable for piping to other commands or building exclude list
 
 Shows statistics without outputting content:
 
-```bash
+``` bash
 $ iwe retrieve -k my-document --dry-run
 documents: 5
 lines: 234
@@ -207,7 +210,7 @@ Useful for checking how much content would be retrieved before fetching it.
 
 ## Examples
 
-```bash
+``` bash
 # Retrieve single document with defaults (depth=1, context=1)
 iwe retrieve -k my-document
 
@@ -251,7 +254,7 @@ iwe retrieve -k my-document -b false
 
 Build rich context for AI agents navigating the knowledge base:
 
-```bash
+``` bash
 # Get document with immediate context
 iwe retrieve -k authentication
 
@@ -264,7 +267,7 @@ iwe retrieve -k authentication -d 2 -c 2
 
 ### Understanding Document Relationships
 
-```bash
+``` bash
 # See where a document is used (parent documents in output)
 iwe retrieve -k my-topic -d 0 -c 0
 
@@ -274,7 +277,7 @@ iwe retrieve -k my-topic -l
 
 ### Exploring Knowledge Base Structure
 
-```bash
+``` bash
 # Start from an entry point and expand
 iwe retrieve -k index -d 2
 
@@ -286,7 +289,7 @@ iwe retrieve -k project-overview -d 1 -f json
 
 Use the `keys` format to chain retrieval operations and exclude already-fetched documents:
 
-```bash
+``` bash
 # Get keys from first retrieval
 KEYS_A=$(iwe retrieve -k topic-a -f keys)
 

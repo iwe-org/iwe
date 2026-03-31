@@ -52,24 +52,26 @@ The IWE extension requires the `iwes` LSP server binary to be installed on your 
 
 ### Core Actions
 
-|IWE Feature|VS Code Shortcut|Alternative Access|
-|-----------|----------------|------------------|
-|**Code Actions** (Extract/Inline/Transform)|Ctrl+. / Cmd+.|Right-click → "Quick Fix..."|
-|**Go to Definition** (Follow Links)|F12|Right-click → "Go to Definition"|
-|**Find All References** (Backlinks)|Shift+F12|Right-click → "Go to References"|
-|**Document Symbols** (Table of Contents)|Ctrl+Shift+O / Cmd+Shift+O|Command Palette → "Go to Symbol"|
-|**Workspace Search** (Global Search)|Ctrl+T / Cmd+T|Command Palette → "Go to Symbol in Workspace"|
-|**Format Document** (Auto-Format)|Shift+Alt+F / Shift+Option+F|Right-click → "Format Document"|
-|**Rename Symbol** (Rename File)|F2|Right-click → "Rename Symbol"|
+| IWE Feature                                 | VS Code Shortcut             | Alternative Access                            |
+| ------------------------------------------- | ---------------------------- | --------------------------------------------- |
+| **Code Actions** (Extract/Inline/Transform) | Ctrl+. / Cmd+.               | Right-click → "Quick Fix..."                  |
+| **Go to Definition** (Follow Links)         | F12                          | Right-click → "Go to Definition"              |
+| **Find All References** (Backlinks)         | Shift+F12                    | Right-click → "Go to References"              |
+| **Document Symbols** (Table of Contents)    | Ctrl+Shift+O / Cmd+Shift+O   | Command Palette → "Go to Symbol"              |
+| **Workspace Search** (Global Search)        | Ctrl+T / Cmd+T               | Command Palette → "Go to Symbol in Workspace" |
+| **Format Document** (Auto-Format)           | Shift+Alt+F / Shift+Option+F | Right-click → "Format Document"               |
+| **Rename Symbol** (Rename File)             | F2                           | Right-click → "Rename Symbol"                 |
+
 
 ### Additional VS Code Features
 
-|Feature|Shortcut|Description|
-|-------|--------|-----------|
-|**Command Palette**|Ctrl+Shift+P / Cmd+Shift+P|Access all IWE commands|
-|**Auto-Complete**|Ctrl+Space / Cmd+Space|Trigger link completion while typing|
-|**Peek Definition**|Alt+F12 / Option+F12|Preview linked document without opening|
-|**Peek References**|Shift+Alt+F12 / Shift+Option+F12|Preview backlinks without opening|
+| Feature             | Shortcut                         | Description                             |
+| ------------------- | -------------------------------- | --------------------------------------- |
+| **Command Palette** | Ctrl+Shift+P / Cmd+Shift+P       | Access all IWE commands                 |
+| **Auto-Complete**   | Ctrl+Space / Cmd+Space           | Trigger link completion while typing    |
+| **Peek Definition** | Alt+F12 / Option+F12             | Preview linked document without opening |
+| **Peek References** | Shift+Alt+F12 / Shift+Option+F12 | Preview backlinks without opening       |
+
 
 ### Command Palette Access
 

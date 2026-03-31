@@ -2,11 +2,11 @@
 
 The "attach" code action allows you to link content under your cursor to another document. This feature is perfect for creating daily notes, collecting ideas in an inbox, or organizing thoughts into topic-specific documents.
 
-Note: Enable [Inlay hints](feature-inlay-hints.md) to see the action results immediately. (the list of backlinks will be updated automatically)
+Note: Enable [Inlay Hints](feature-inlay-hints.md) to see the action results immediately. (the list of backlinks will be updated automatically)
 
 ## How It Works
 
-When you place your cursor on an [inclusion link](inclusion-links.md) and trigger a code action, IWE can:
+When you place your cursor on an [Inclusion Links](inclusion-links.md) and trigger a code action, IWE can:
 
 1.  **Create or open** a target file based on your configuration
 2.  **Append** inclusion link under cursor to the target file

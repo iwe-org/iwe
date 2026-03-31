@@ -4,35 +4,36 @@ Search and discover documents in your knowledge base with fuzzy matching and rel
 
 ## Usage
 
-```bash
+``` bash
 iwe find [QUERY] [OPTIONS]
 ```
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `[QUERY]` | Fuzzy search on document title and key | none (lists all) |
-| `--roots` | Only show root documents (no parents) | false |
-| `--refs-to <KEY>` | Documents that reference this key | none |
-| `--refs-from <KEY>` | Documents referenced by this key | none |
-| `-l, --limit <N>` | Maximum number of results | 50 |
-| `-f, --format <FMT>` | Output format: `markdown`, `keys`, `json` | markdown |
+| Flag                 | Description                               | Default          |
+| -------------------- | ----------------------------------------- | ---------------- |
+| `[QUERY]`            | Fuzzy search on document title and key    | none (lists all) |
+| `--roots`            | Only show root documents (no parents)     | false            |
+| `--refs-to <KEY>`    | Documents that reference this key         | none             |
+| `--refs-from <KEY>`  | Documents referenced by this key          | none             |
+| `-l, --limit <N>`    | Maximum number of results                 | 50               |
+| `-f, --format <FMT>` | Output format: `markdown`, `keys`, `json` | markdown         |
+
 
 ## How It Works
 
 The `find` command searches and filters documents in your knowledge base:
 
-1. **Fuzzy matching** - Uses the same fuzzy search algorithm as the LSP server (SkimMatcherV2)
-2. **Ranking** - Without a query, documents are sorted by popularity (incoming references count)
-3. **Filtering** - Apply filters for root documents or reference relationships
-4. **Parent context** - Results include parent document information
+1.  **Fuzzy matching** - Uses the same fuzzy search algorithm as the LSP server (SkimMatcherV2)
+2.  **Ranking** - Without a query, documents are sorted by popularity (incoming references count)
+3.  **Filtering** - Apply filters for root documents or reference relationships
+4.  **Parent context** - Results include parent document information
 
 ### Fuzzy Search
 
 The fuzzy matcher searches across both the document key and title:
 
-```bash
+``` bash
 # Finds "authentication.md" with title "User Authentication"
 iwe find auth
 
@@ -44,7 +45,7 @@ iwe find api
 
 Root documents are entry points - documents with no parents:
 
-```bash
+``` bash
 # List only root documents (no parents)
 iwe find --roots
 ```
@@ -53,7 +54,7 @@ iwe find --roots
 
 Find documents based on their relationships:
 
-```bash
+``` bash
 # Documents that reference "authentication"
 iwe find --refs-to authentication
 
@@ -65,7 +66,7 @@ iwe find --refs-from index
 
 ### Markdown Format (default)
 
-```markdown
+``` markdown
 ## Documents
 
 Found 3 results:
@@ -76,6 +77,7 @@ Found 3 results:
 ```
 
 Each result shows:
+
 - Document title and key as a markdown link
 - `(root)` indicator if no parents
 - Parent documents shown with `<-` arrow
@@ -92,7 +94,7 @@ One key per line, suitable for piping to other commands.
 
 ### JSON Format (`-f json`)
 
-```json
+``` json
 {
   "query": "auth",
   "total": 3,
@@ -124,6 +126,7 @@ One key per line, suitable for piping to other commands.
 ```
 
 Fields:
+
 - `query` - The search query (null if no query provided)
 - `total` - Total matching documents (before limit applied)
 - `results` - Array of matching documents
@@ -134,7 +137,7 @@ Fields:
 
 ## Examples
 
-```bash
+``` bash
 # List all documents (sorted by popularity)
 iwe find
 
@@ -173,7 +176,7 @@ iwe find --roots -f keys | head -5 | xargs -I {} iwe retrieve -k {}
 
 Find root documents that serve as entry points to different topics:
 
-```bash
+``` bash
 iwe find --roots
 ```
 
@@ -181,7 +184,7 @@ iwe find --roots
 
 See what documents reference or are referenced by a specific document:
 
-```bash
+``` bash
 # What uses this document?
 iwe find --refs-to authentication
 
@@ -193,7 +196,7 @@ iwe find --refs-from index
 
 Fuzzy search when you remember part of a document name:
 
-```bash
+``` bash
 iwe find deploy    # Finds "deployment", "deploy-script", etc.
 iwe find config    # Finds "configuration", "config-options", etc.
 ```
@@ -202,7 +205,7 @@ iwe find config    # Finds "configuration", "config-options", etc.
 
 Use keys format for scripting:
 
-```bash
+``` bash
 # Retrieve content for top 5 root documents
 iwe find --roots -l 5 -f keys | while read key; do
   iwe retrieve -k "$key" -d 0
@@ -216,7 +219,7 @@ iwe find --roots -f keys | xargs -I {} sh -c 'iwe retrieve -k {} > {}.out.md'
 
 Use JSON output for analysis:
 
-```bash
+``` bash
 # Find most referenced documents
 iwe find -f json | jq '.results | sort_by(-.incoming_refs) | .[0:5]'
 
@@ -230,4 +233,4 @@ iwe find --roots -f json | jq '.results | map(select(.outgoing_refs == 0))'
 - With a query, results are sorted by fuzzy match score
 - The limit is applied after sorting, so you get the top N results
 - Parent documents show section path breadcrumbs when applicable
-- Both [inclusion links](inclusion-links.md) and inline references count toward `incoming_refs`
+- Both [Inclusion Links](inclusion-links.md) and inline references count toward `incoming_refs`

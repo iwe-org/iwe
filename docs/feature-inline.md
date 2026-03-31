@@ -15,7 +15,7 @@ You can define custom `inline` actions in your `config.toml` file within the `.i
 
 Here is an example of how to configure two different inline actions: one for inlining as a section and another for inlining as a quote.
 
-```toml
+``` toml
 [actions]
 
 # Inlines the content of the linked document and deletes the original file.
@@ -27,20 +27,20 @@ inline_quote = { type = "inline", title = "Inline as Quote", inline_type = "quot
 
 ### Configuration Keys:
 
--   `type`: Must be set to `"inline"`.
--   `title`: The text that will appear in the code action menu in your editor (e.g., "Inline Section").
--   `inline_type`: Determines how the content is embedded.
-    -   `"section"`: Embeds the full content.
-    -   `"quote"`: Wraps the content in a blockquote.
--   `keep_target` (optional, defaults to `false`):
-    -   If `false`, the original source file of the link will be deleted after its content is inlined. The action will also clean up any other references to the deleted file across your workspace.
-    -   If `true`, the original source file is left untouched.
+- `type`: Must be set to `"inline"`.
+- `title`: The text that will appear in the code action menu in your editor (e.g., "Inline Section").
+- `inline_type`: Determines how the content is embedded.
+  - `"section"`: Embeds the full content.
+  - `"quote"`: Wraps the content in a blockquote.
+- `keep_target` (optional, defaults to `false`):
+  - If `false`, the original source file of the link will be deleted after its content is inlined. The action will also clean up any other references to the deleted file across your workspace.
+  - If `true`, the original source file is left untouched.
 
 ## Command Line Usage
 
 You can also inline references using the CLI:
 
-```bash
+``` bash
 # List all [inclusion links](inclusion-links.md) with numbers
 iwe inline my-document --list
 
@@ -60,4 +60,4 @@ iwe inline my-document --block 2 --keep-target
 iwe inline my-document --reference "design" --dry-run
 ```
 
-See [cli-inline](cli-inline.md) for full documentation.
+See [IWE Inline](cli-inline.md) for full documentation.

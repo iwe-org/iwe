@@ -9,7 +9,8 @@ Convert a list into a series of headers/sections. Each list item becomes a secti
 ### Example
 
 **Before:**
-```markdown
+
+``` markdown
 # Topics
 
 - Project A
@@ -20,7 +21,8 @@ Convert a list into a series of headers/sections. Each list item becomes a secti
 ```
 
 **After:**
-```markdown
+
+``` markdown
 # Topics
 
 ## Project A
@@ -47,7 +49,8 @@ Convert a series of headers back into a list. This is the reverse of "List to Se
 ### Example
 
 **Before:**
-```markdown
+
+``` markdown
 # Topics
 
 ## Project A
@@ -60,7 +63,8 @@ Details about project B
 ```
 
 **After:**
-```markdown
+
+``` markdown
 # Topics
 
 - Project A
@@ -82,14 +86,16 @@ Toggle between bullet lists and ordered (numbered) lists.
 ### Example
 
 **Before (bullet list):**
-```markdown
+
+``` markdown
 - First item
 - Second item
 - Third item
 ```
 
 **After (ordered list):**
-```markdown
+
+``` markdown
 1. First item
 2. Second item
 3. Third item
@@ -108,7 +114,8 @@ Sort list items alphabetically or by other criteria.
 ### Example
 
 **Before:**
-```markdown
+
+``` markdown
 - Zebra
 - Apple
 - Mango
@@ -116,7 +123,8 @@ Sort list items alphabetically or by other criteria.
 ```
 
 **After:**
-```markdown
+
+``` markdown
 - Apple
 - Banana
 - Mango
@@ -131,9 +139,9 @@ Sort list items alphabetically or by other criteria.
 
 ## Usage
 
-1. Place your cursor on the list or section you want to transform
-2. Open the code actions menu:
-   - **VS Code**: `Ctrl+.` / `Cmd+.`
-   - **Neovim**: `:lua vim.lsp.buf.code_action()`
-   - **Helix**: `space` + `a`
-3. Select the desired transformation from the menu
+1.  Place your cursor on the list or section you want to transform
+2.  Open the code actions menu:
+    - **VS Code**: `Ctrl+.` / `Cmd+.`
+    - **Neovim**: `:lua vim.lsp.buf.code_action()`
+    - **Helix**: `space` + `a`
+3.  Select the desired transformation from the menu

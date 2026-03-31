@@ -8,16 +8,16 @@ Jump directly to linked documents using the LSP "Go To Definition" command.
 
 ### Usage
 
-1. Place your cursor on a markdown link like `[Topic](topic-file)`
-2. Trigger Go To Definition:
-   - **VS Code**: `F12` or `Ctrl+Click` / `Cmd+Click`
-   - **Neovim**: `gd` or `:lua vim.lsp.buf.definition()`
-   - **Helix**: `gd`
-3. The linked document opens automatically
+1.  Place your cursor on a markdown link like `[Topic](topic-file)`
+2.  Trigger Go To Definition:
+    - **VS Code**: `F12` or `Ctrl+Click` / `Cmd+Click`
+    - **Neovim**: `gd` or `:lua vim.lsp.buf.definition()`
+    - **Helix**: `gd`
+3.  The linked document opens automatically
 
 ### Example
 
-```markdown
+``` markdown
 # My Notes
 
 Check out [Project Ideas](project-ideas) for brainstorming.
@@ -31,12 +31,12 @@ View the structure of your current document using the LSP "Document Symbols" com
 
 ### Usage
 
-1. Open any markdown file
-2. Trigger Document Symbols:
-   - **VS Code**: `Ctrl+Shift+O` / `Cmd+Shift+O`
-   - **Neovim**: `:lua vim.lsp.buf.document_symbol()` or use Telescope
-   - **Helix**: `space` + `s`
-3. Navigate through headers and sections
+1.  Open any markdown file
+2.  Trigger Document Symbols:
+    - **VS Code**: `Ctrl+Shift+O` / `Cmd+Shift+O`
+    - **Neovim**: `:lua vim.lsp.buf.document_symbol()` or use Telescope
+    - **Helix**: `space` + `s`
+3.  Navigate through headers and sections
 
 This provides an outline view of your document, showing all headers in a hierarchical tree. You can quickly jump to any section.
 
@@ -46,12 +46,12 @@ Find all documents that link to the current document using the LSP "Find Referen
 
 ### Usage
 
-1. Open a document you want to find references to
-2. Trigger Find References:
-   - **VS Code**: `Shift+F12` or right-click and select "Find All References"
-   - **Neovim**: `:lua vim.lsp.buf.references()` or `gr`
-   - **Helix**: `gr`
-3. View all documents containing links to this file
+1.  Open a document you want to find references to
+2.  Trigger Find References:
+    - **VS Code**: `Shift+F12` or right-click and select "Find All References"
+    - **Neovim**: `:lua vim.lsp.buf.references()` or `gr`
+    - **Helix**: `gr`
+3.  View all documents containing links to this file
 
 ### Example
 

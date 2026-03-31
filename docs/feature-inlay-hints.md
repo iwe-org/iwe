@@ -26,7 +26,7 @@ This tells you that "Index" links to this document and there are 3 total backlin
 
 ## Inclusion Hints
 
-When viewing an [inclusion link](inclusion-links.md), inlay hints show which notes directly reference the linked content.
+When viewing an [Inclusion Links](inclusion-links.md), inlay hints show which notes directly reference the linked content.
 
 ### What's Shown
 
@@ -34,7 +34,7 @@ When viewing an [inclusion link](inclusion-links.md), inlay hints show which not
 
 ### Example
 
-```markdown
+``` markdown
 # Daily Notes
 
 [Meeting Notes](meeting-2024)           [Index, Journal]
@@ -48,21 +48,21 @@ The hint `[Index, Journal]` shows that the linked note is referenced from both "
 
 Inlay hints should work automatically. If not visible, check:
 
-1. Open Settings (`Ctrl+,` / `Cmd+,`)
-2. Search for "inlay hints"
-3. Enable "Editor: Inlay Hints"
+1.  Open Settings (`Ctrl+,` / `Cmd+,`)
+2.  Search for "inlay hints"
+3.  Enable "Editor: Inlay Hints"
 
 ### Neovim
 
 Enable inlay hints in your LSP configuration:
 
-```lua
+``` lua
 vim.lsp.inlay_hint.enable(true)
 ```
 
 Or toggle with a keybinding:
 
-```lua
+``` lua
 vim.keymap.set('n', '<leader>ih', function()
   vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
 end)
@@ -72,7 +72,7 @@ end)
 
 Inlay hints are enabled by default. Configure in `config.toml`:
 
-```toml
+``` toml
 [editor.lsp]
 display-inlay-hints = true
 ```

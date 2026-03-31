@@ -44,6 +44,7 @@ link_format = "markdown"
 Date formats use [chrono format specifiers](https://docs.rs/chrono/latest/chrono/format/strftime/index.html):
 
 **Date specifiers:**
+
 - `%Y`: 4-digit year (2024)
 - `%y`: 2-digit year (24)
 - `%m`: Month as number (01-12)
@@ -54,11 +55,13 @@ Date formats use [chrono format specifiers](https://docs.rs/chrono/latest/chrono
 - `%a`: Abbreviated weekday name (Mon)
 
 **Time specifiers:**
+
 - `%H`: Hour in 24-hour format (00-23)
 - `%M`: Minute (00-59)
 - `%S`: Second (00-59)
 
 **Combined examples:**
+
 - `"%Y-%m-%d %H:%M"` → "2024-01-15 14:30"
 - `"%b %d, %Y %H:%M:%S"` → "Jan 15, 2024 14:30:45"
 - `"%Y%m%d%H%M"` → "202401151430" (useful for sortable file keys)
@@ -83,6 +86,7 @@ locale = "de_DE"
 ```
 
 With this configuration:
+
 - File keys use English day/month names: `journal/Friday-March-27`
 - Document content uses German: `# Freitag, 27. März 2026`
 
@@ -152,6 +156,7 @@ Commands are executed with the processed input template piped to stdin. The comm
 ### Example Commands
 
 **Using Claude CLI:**
+
 ``` toml
 [commands.claude]
 run = "claude -p"
@@ -159,6 +164,7 @@ timeout_seconds = 120
 ```
 
 **Using a custom script:**
+
 ``` toml
 [commands.rewriter]
 run = "python ~/scripts/rewrite.py"
@@ -166,6 +172,7 @@ timeout_seconds = 30
 ```
 
 **Simple text transformation:**
+
 ``` toml
 [commands.uppercase]
 run = "tr '[:lower:]' '[:upper:]'"
@@ -173,6 +180,7 @@ timeout_seconds = 5
 ```
 
 **Direct execution with arguments (no shell):**
+
 ``` toml
 [commands.claude_direct]
 run = "claude"
@@ -182,6 +190,7 @@ timeout_seconds = 120
 ```
 
 **With environment variables:**
+
 ``` toml
 [commands.custom_api]
 run = "my-api-tool"
@@ -190,6 +199,7 @@ timeout_seconds = 60
 ```
 
 **With custom working directory:**
+
 ``` toml
 [commands.project_script]
 run = "./scripts/process.sh"
@@ -340,14 +350,15 @@ input_template = "{{context}}"
 
 If you're upgrading from a configuration using the old `[models]` section, IWE will automatically migrate your configuration to version 3. The migration:
 
-1. Renames `[models]` section to `[commands]` with empty `run` values
-2. Renames `model` field to `command` in transform actions
-3. Renames `prompt_template` field to `input_template` in transform actions
-4. Removes the `context` field from transform actions
+1.  Renames `[models]` section to `[commands]` with empty `run` values
+2.  Renames `model` field to `command` in transform actions
+3.  Renames `prompt_template` field to `input_template` in transform actions
+4.  Removes the `context` field from transform actions
 
 After migration, you'll need to manually update the `run` field in each command to specify the actual CLI command to execute.
 
 **Before (version 2):**
+
 ``` toml
 version = 2
 
@@ -365,6 +376,7 @@ context = "Document"
 ```
 
 **After (version 3):**
+
 ``` toml
 version = 3
 

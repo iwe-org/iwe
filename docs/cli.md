@@ -59,43 +59,48 @@ normalize_lists = true
 
 ### Document Management
 
-| Command | Description | Documentation |
-|---------|-------------|---------------|
-| `init` | Initialize a new IWE project | [cli-init](cli-init.md) |
-| `new` | Create a new document | [cli-new](cli-new.md) |
-| `normalize` | Normalize all documents | [cli-normalize](cli-normalize.md) |
+| Command     | Description                  | Documentation                     |
+| ----------- | ---------------------------- | --------------------------------- |
+| `init`      | Initialize a new IWE project | [IWE Init](cli-init.md)           |
+| `new`       | Create a new document        | [IWE New](cli-new.md)             |
+| `normalize` | Normalize all documents      | [IWE Normalize](cli-normalize.md) |
+
 
 ### Document Retrieval
 
-| Command | Description | Documentation |
-|---------|-------------|---------------|
-| `retrieve` | Retrieve document with context | [cli-retrieve](cli-retrieve.md) |
-| `find` | Search and discover documents | [cli-find](cli-find.md) |
-| `tree` | Display document hierarchy | [cli-tree](cli-tree.md) |
+| Command    | Description                    | Documentation                   |
+| ---------- | ------------------------------ | ------------------------------- |
+| `retrieve` | Retrieve document with context | [IWE Retrieve](cli-retrieve.md) |
+| `find`     | Search and discover documents  | [IWE Find](cli-find.md)         |
+| `tree`     | Display document hierarchy     | [IWE Tree](cli-tree.md)         |
+
 
 ### Refactoring Operations
 
-| Command | Description | Documentation |
-|---------|-------------|---------------|
-| `rename` | Rename a document and update references | [cli-rename](cli-rename.md) |
-| `delete` | Delete a document and clean up references | [cli-delete](cli-delete.md) |
-| `extract` | Extract a section to a new document | [cli-extract](cli-extract.md) |
-| `inline` | Inline a referenced document | [cli-inline](cli-inline.md) |
+| Command   | Description                               | Documentation                 |
+| --------- | ----------------------------------------- | ----------------------------- |
+| `rename`  | Rename a document and update references   | [IWE Rename](cli-rename.md)   |
+| `delete`  | Delete a document and clean up references | [IWE Delete](cli-delete.md)   |
+| `extract` | Extract a section to a new document       | [IWE Extract](cli-extract.md) |
+| `inline`  | Inline a referenced document              | [IWE Inline](cli-inline.md)   |
+
 
 ### Analysis & Export
 
-| Command | Description | Documentation |
-|---------|-------------|---------------|
-| `stats` | Analyze knowledge base statistics | [cli-stats](cli-stats.md) |
-| `export` | Export graph visualization | [cli-export](cli-export.md) |
-| `squash` | Squash documents | [cli-squash](cli-squash.md) |
+| Command  | Description                       | Documentation               |
+| -------- | --------------------------------- | --------------------------- |
+| `stats`  | Analyze knowledge base statistics | [IWE Stats](cli-stats.md)   |
+| `export` | Export graph visualization        | [IWE Export](cli-export.md) |
+| `squash` | Squash documents                  | [IWE Squash](cli-squash.md) |
+
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success - command completed without errors |
-| `1` | Error - invalid arguments, missing files, operation failed |
+| Code | Meaning                                                    |
+| ---- | ---------------------------------------------------------- |
+| `0`  | Success - command completed without errors                 |
+| `1`  | Error - invalid arguments, missing files, operation failed |
+
 
 All commands return exit code `0` on success. On error, commands print a message to stderr and return exit code `1`.
 
