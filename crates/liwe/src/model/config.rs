@@ -60,11 +60,15 @@ impl Default for LibraryOptions {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Configuration {
     pub version: Option<u32>,
+    #[serde(default)]
     pub markdown: MarkdownOptions,
+    #[serde(default)]
     pub library: LibraryOptions,
     #[serde(default)]
     pub completion: CompletionOptions,
+    #[serde(default)]
     pub commands: HashMap<String, Command>,
+    #[serde(default)]
     pub actions: HashMap<String, ActionDefinition>,
     #[serde(default)]
     pub templates: HashMap<String, NoteTemplate>,
