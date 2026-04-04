@@ -789,4 +789,31 @@ impl ActionContext for &Server {
     fn get_document_markdown(&self, key: &Key) -> Option<String> {
         self.graph.get_document(key)
     }
+
+    fn get_link_key_at(&self, key: &Key, line: usize, character: usize) -> Option<Key> {
+        let parser = self.graph().parser(key)?;
+        let position = liwe::model::Position {
+            line,
+            character,
+        };
+        let url = parser.url_at(position)?;
+
+        if !is_ref_url(&url) {
+            return None;
+        }
+
+        let target_key = Key::from_rel_link_url(&url, &key.parent());
+        self.graph.maybe_key(&target_key)?;
+        Some(target_key)
+    }
+
+    fn get_link_text_at(&self, key: &Key, line: usize, character: usize) -> Option<String> {
+        let parser = self.graph().parser(key)?;
+        let position = liwe::model::Position {
+            line,
+            character,
+        };
+        let link = parser.link_at(position)?;
+        Some(link.to_plain_text())
+    }
 }
