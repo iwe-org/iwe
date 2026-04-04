@@ -50,7 +50,7 @@ impl Server {
         search_index.update(&graph);
 
         Server {
-            base_path: BasePath::new(format!("file://{}/", config.base_path)),
+            base_path: BasePath::from_path(&config.base_path),
             graph,
             lsp_client: config.lsp_client,
             configuration: config.configuration,
