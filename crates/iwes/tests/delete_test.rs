@@ -179,6 +179,46 @@ fn delete_non_block_reference_no_action() {
     );
 }
 
+#[test]
+fn delete_inline_link() {
+    Fixture::with(indoc! {"
+        # title a
+
+        Some text with [title b](2) link.
+        _
+        # title b
+
+        some content
+    "})
+    .code_action(
+        uri(1).to_code_action_params_at_position(2, 17, "refactor.delete"),
+        vec![uri(2).to_delete_file(), uri(1).to_edit(indoc! {"
+            # title a
+
+            Some text with title b link.
+        "})]
+        .to_workspace_edit()
+        .to_code_action("Delete", "refactor.delete"),
+    );
+}
+
+#[test]
+fn delete_inline_link_no_action_outside_link() {
+    assert_no_delete_action_at_position(
+        indoc! {"
+            # title a
+
+            Some text with [title b](2) link.
+            _
+            # title b
+
+            some content
+        "},
+        2,
+        5,
+    );
+}
+
 fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
     let mut operations = vec![uri(2).to_delete_file()];
 
@@ -196,4 +236,9 @@ fn assert_deleted(source: &str, line: u32, expected_edits: Vec<(u32, &str)>) {
 
 fn assert_no_delete_action(source: &str, line: u32) {
     Fixture::with(source).no_code_action(uri(1).to_code_action_params(line, "refactor.delete"));
+}
+
+fn assert_no_delete_action_at_position(source: &str, line: u32, character: u32) {
+    Fixture::with(source)
+        .no_code_action(uri(1).to_code_action_params_at_position(line, character, "refactor.delete"));
 }

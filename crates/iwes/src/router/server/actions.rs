@@ -54,6 +54,8 @@ pub trait ActionContext {
     fn get_ref_text(&self, key: &Key) -> Option<String>;
     fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId>;
     fn get_document_markdown(&self, key: &Key) -> Option<String>;
+    fn get_link_key_at(&self, key: &Key, line: usize, character: usize) -> Option<Key>;
+    fn get_link_text_at(&self, key: &Key, line: usize, character: usize) -> Option<String>;
 }
 
 #[derive(Clone)]

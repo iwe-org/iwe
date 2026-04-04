@@ -69,7 +69,31 @@ impl ActionProvider for AttachAction {
         context: impl ActionContext,
     ) -> Option<Action> {
         let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
-        let reference_key = context.collect(&key).find_reference_key(target_id);
+        let tree = context.collect(&key);
+
+        let (reference_key, _reference_text) = if tree.get(target_id).is_reference() {
+            let ref_key = tree.find_reference_key(target_id);
+            let ref_text = tree
+                .find_id(target_id)
+                .and_then(|t| t.node.reference_text())
+                .unwrap_or_default();
+            (ref_key, ref_text)
+        } else {
+            let ref_key = context.get_link_key_at(
+                &key,
+                selection.start.line as usize,
+                selection.start.character as usize,
+            )?;
+            let ref_text = context
+                .get_link_text_at(
+                    &key,
+                    selection.start.line as usize,
+                    selection.start.character as usize,
+                )
+                .unwrap_or_default();
+            (ref_key, ref_text)
+        };
+
         let attach_to_key = self.format_target_key();
 
         if context.key_exists(&attach_to_key)
@@ -77,20 +101,18 @@ impl ActionProvider for AttachAction {
                 .collect(&attach_to_key)
                 .get_all_block_reference_keys()
                 .contains(&reference_key)
-            {
-                return None;
-            }
+        {
+            return None;
+        }
 
-        context
-            .collect(&key)
-            .find_id(target_id)
-            .filter(|target| target.is_reference())
-            .map(|_| Action {
-                title: self.title.clone(),
-                identifier: self.identifier(),
-                key: key.clone(),
-                range: selection.clone(),
-            })
+        context.graph().maybe_key(&reference_key)?;
+
+        Some(Action {
+            title: self.title.clone(),
+            identifier: self.identifier(),
+            key: key.clone(),
+            range: selection.clone(),
+        })
     }
 
     fn changes(
@@ -100,19 +122,37 @@ impl ActionProvider for AttachAction {
         context: impl ActionContext,
     ) -> Option<Changes> {
         let target_id = context.get_node_id_at(&key, selection.start.line as usize)?;
-        let reference_key = context.collect(&key).find_reference_key(target_id);
+        let tree = context.collect(&key);
+
+        let (reference_key, reference_text) = if tree.get(target_id).is_reference() {
+            let ref_key = tree.find_reference_key(target_id);
+            let ref_text = tree
+                .find_id(target_id)
+                .and_then(|t| t.node.reference_text())
+                .unwrap_or_default();
+            (ref_key, ref_text)
+        } else {
+            let ref_key = context.get_link_key_at(
+                &key,
+                selection.start.line as usize,
+                selection.start.character as usize,
+            )?;
+            let ref_text = context
+                .get_link_text_at(
+                    &key,
+                    selection.start.line as usize,
+                    selection.start.character as usize,
+                )
+                .unwrap_or_default();
+            (ref_key, ref_text)
+        };
+
         let attach_to_key = self.format_target_key();
         let reference = Tree {
             id: None,
             node: Node::Reference(Reference {
                 key: reference_key,
-                text: {
-                    context
-                        .collect(&key)
-                        .find_id(target_id)
-                        .and_then(|tree| tree.node.reference_text())
-                        .unwrap_or_default()
-                },
+                text: reference_text,
                 reference_type: ReferenceType::Regular,
             }),
             children: vec![],
@@ -130,17 +170,14 @@ impl ActionProvider for AttachAction {
                     .to_markdown(&attach_to_key.parent(), context.markdown_options()),
             ))
         } else {
-            Some(
-                Changes::new()
-                    .create(
-                        attach_to_key.clone(),
-                        self.format_target_document(
-                            reference
-                                .iter()
-                                .to_markdown(&attach_to_key.parent(), context.markdown_options()),
-                        ),
-                    ),
-            )
+            Some(Changes::new().create(
+                attach_to_key.clone(),
+                self.format_target_document(
+                    reference
+                        .iter()
+                        .to_markdown(&attach_to_key.parent(), context.markdown_options()),
+                ),
+            ))
         }
     }
 }

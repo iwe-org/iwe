@@ -359,3 +359,68 @@ fn attach_with_separate_locales() {
         .to_code_action("Attach", "custom.attach"),
     );
 }
+
+#[test]
+fn attach_inline_link() {
+    let mut configuration = Configuration::default();
+
+    configuration.actions.insert(
+        "attach".into(),
+        ActionDefinition::Attach(Attach {
+            title: "Attach".into(),
+            key_template: "3".into(),
+            document_template: "# template\n\n{{content}}".into(),
+        }),
+    );
+
+    Fixture::with_config(
+        indoc! {"
+            # title a
+
+            Some text with [title b](2) link.
+            _
+            # title b
+            _
+            # target
+        "},
+        configuration,
+    )
+    .code_action(
+        uri(1).to_code_action_params_at_position(2, 17, "custom.attach"),
+        vec![uri(3).to_edit(indoc! {"
+            # target
+
+            [title b](2)
+        "})]
+        .to_workspace_edit()
+        .to_code_action("Attach", "custom.attach"),
+    );
+}
+
+#[test]
+fn attach_inline_link_no_action_outside_link() {
+    let mut configuration = Configuration::default();
+
+    configuration.actions.insert(
+        "attach".into(),
+        ActionDefinition::Attach(Attach {
+            title: "Attach".into(),
+            key_template: "3".into(),
+            document_template: "# template\n\n{{content}}".into(),
+        }),
+    );
+
+    Fixture::with_config(
+        indoc! {"
+            # title a
+
+            Some text with [title b](2) link.
+            _
+            # title b
+            _
+            # target
+        "},
+        configuration,
+    )
+    .no_code_action(uri(1).to_code_action_params_at_position(2, 5, "custom.attach"));
+}
