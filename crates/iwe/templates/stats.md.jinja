@@ -76,6 +76,15 @@
 - **Tables:** {{ tables }}
 - **Quotes:** {{ quotes }}
 
+{%- if broken_links %}
+
+## Broken Links
+
+{% for link in broken_links -%}
+- {{ link.source_key }} -> {{ link.target_key }}
+{% endfor %}
+{%- endif %}
+
 ## Network Analysis
 
 - **Average references/doc:** {{ avg_refs_per_doc|round(2) }}

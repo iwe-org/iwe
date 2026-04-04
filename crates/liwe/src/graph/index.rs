@@ -38,6 +38,14 @@ impl RefIndex {
             .unwrap_or_default()
     }
 
+    pub fn block_reference_target_keys(&self) -> impl Iterator<Item = &Key> {
+        self.block_references.keys()
+    }
+
+    pub fn inline_reference_target_keys(&self) -> impl Iterator<Item = &Key> {
+        self.inline_references.keys()
+    }
+
     pub fn index_node(&mut self, graph: &Graph, node_id: NodeId) {
         match graph.graph_node(node_id) {
             GraphNode::Reference(reference) => {

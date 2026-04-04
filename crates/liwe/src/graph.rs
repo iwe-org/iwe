@@ -149,6 +149,14 @@ impl Graph {
         self.keys.keys().cloned().collect()
     }
 
+    pub fn block_reference_target_keys(&self) -> Vec<Key> {
+        self.index.block_reference_target_keys().cloned().collect()
+    }
+
+    pub fn inline_reference_target_keys(&self) -> Vec<Key> {
+        self.index.inline_reference_target_keys().cloned().collect()
+    }
+
     pub fn with<F>(f: F) -> Graph
     where
         F: FnOnce(&mut Self),
