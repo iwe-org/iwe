@@ -1,16 +1,68 @@
 mod key_statistics;
 
+use std::collections::HashSet;
 use std::io::Write;
 
 use itertools::Itertools;
 use minijinja::Environment;
 use serde::Serialize;
 
-use liwe::graph::Graph;
+use liwe::graph::{Graph, GraphContext};
+use liwe::model::is_ref_url;
+use liwe::model::Key;
 
 pub use key_statistics::KeyStatistics;
 
 const STATS_TEMPLATE: &str = include_str!("../templates/stats.md.jinja");
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BrokenLink {
+    #[serde(serialize_with = "serialize_key")]
+    pub source_key: Key,
+    #[serde(serialize_with = "serialize_key")]
+    pub target_key: Key,
+}
+
+fn serialize_key<S: serde::Serializer>(key: &Key, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&key.to_string())
+}
+
+fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
+    let existing_keys: HashSet<Key> = graph.keys().into_iter().collect();
+    let mut seen = HashSet::new();
+    let mut broken = Vec::new();
+
+    for target_key in graph.block_reference_target_keys() {
+        if !existing_keys.contains(&target_key) {
+            for node_id in graph.get_block_references_to(&target_key) {
+                let source_key = graph.key_of(node_id);
+                if seen.insert((source_key.clone(), target_key.clone())) {
+                    broken.push(BrokenLink {
+                        source_key,
+                        target_key: target_key.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    for target_key in graph.inline_reference_target_keys() {
+        if !existing_keys.contains(&target_key) && is_ref_url(&target_key.to_string()) {
+            for node_id in graph.get_inline_references_to(&target_key) {
+                let source_key = graph.key_of(node_id);
+                if seen.insert((source_key.clone(), target_key.clone())) {
+                    broken.push(BrokenLink {
+                        source_key,
+                        target_key: target_key.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    broken.sort_by(|a, b| (&a.source_key, &a.target_key).cmp(&(&b.source_key, &b.target_key)));
+    broken
+}
 
 #[derive(Debug, Serialize)]
 pub struct GraphStatistics {
@@ -52,6 +104,9 @@ pub struct GraphStatistics {
 
     avg_refs_per_doc: f64,
     most_connected: Vec<KeyStatistics>,
+
+    broken_link_count: usize,
+    broken_links: Vec<BrokenLink>,
 }
 
 impl GraphStatistics {
@@ -69,6 +124,7 @@ impl GraphStatistics {
 
     pub fn from_graph(graph: &Graph) -> Self {
         let key_stats = KeyStatistics::from_graph(graph);
+        let broken_links = broken_links(graph);
 
         let all_nodes = graph.nodes();
         let paths = graph.paths();
@@ -89,6 +145,7 @@ impl GraphStatistics {
             root_sections,
             max_path_depth,
             avg_path_depth,
+            broken_links,
         )
     }
 
@@ -99,6 +156,7 @@ impl GraphStatistics {
         root_sections: usize,
         max_path_depth: usize,
         avg_path_depth: f64,
+        broken_links: Vec<BrokenLink>,
     ) -> Self {
         let total_documents = key_stats.len();
 
@@ -238,6 +296,8 @@ impl GraphStatistics {
             quotes,
             avg_refs_per_doc,
             most_connected,
+            broken_link_count: broken_links.len(),
+            broken_links,
         }
     }
 

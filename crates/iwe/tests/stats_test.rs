@@ -113,6 +113,94 @@ fn test_stats_with_various_elements() {
     assert!(quotes > 0, "Should count quotes");
 }
 
+#[test]
+fn test_stats_broken_links_local_included() {
+    let temp_dir = setup_test_workspace_with_broken_links();
+    let output = run_stats_command(&temp_dir, &[]);
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+
+    assert!(
+        stdout.contains("## Broken Links"),
+        "Should contain Broken Links section"
+    );
+    assert!(
+        stdout.contains("-> nonexistent"),
+        "Should report broken link to nonexistent document"
+    );
+    assert!(
+        stdout.contains("-> also-missing"),
+        "Should report broken block reference to also-missing document"
+    );
+}
+
+#[test]
+fn test_stats_broken_links_external_excluded() {
+    let temp_dir = setup_test_workspace_with_broken_links();
+    let output = run_stats_command(&temp_dir, &[]);
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+
+    assert!(
+        !stdout.contains("https://example.com"),
+        "Should not report external links as broken"
+    );
+    assert!(
+        !stdout.contains("http://example.org"),
+        "Should not report external links as broken"
+    );
+}
+
+fn setup_test_workspace_with_broken_links() -> TempDir {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
+
+    let config = Configuration {
+        library: LibraryOptions {
+            path: "".to_string(),
+            ..Default::default()
+        },
+        markdown: MarkdownOptions {
+            refs_extension: "".to_string(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let config_content = toml::to_string(&config).expect("Failed to serialize config to TOML");
+    write(temp_path.join(".iwe/config.toml"), config_content).expect("Failed to write config file");
+
+    let doc_with_broken_inline = indoc! {"
+        # Document With Links
+
+        This has a [broken link](nonexistent) and an [external link](https://example.com).
+
+        Also links to [another external](http://example.org) site.
+    "};
+
+    write(temp_path.join("doc-with-links.md"), doc_with_broken_inline)
+        .expect("Failed to write doc file");
+
+    let doc_with_broken_block = indoc! {"
+        # Document With Block Ref
+
+        Some content here.
+
+        [also-missing](also-missing)
+    "};
+
+    write(temp_path.join("doc-with-block-ref.md"), doc_with_broken_block)
+        .expect("Failed to write doc file");
+
+    temp_dir
+}
+
 fn setup_test_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
