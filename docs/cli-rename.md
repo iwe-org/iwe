@@ -4,33 +4,35 @@ Rename a document and update all references to it across the knowledge base.
 
 ## Usage
 
-```bash
+``` bash
 iwe rename <OLD_KEY> <NEW_KEY> [OPTIONS]
 ```
 
 ## Arguments
 
-| Argument | Description |
-|----------|-------------|
+| Argument    | Description          |
+| ----------- | -------------------- |
 | `<OLD_KEY>` | Current document key |
-| `<NEW_KEY>` | New document key |
+| `<NEW_KEY>` | New document key     |
+
 
 ## Options
 
-| Flag | Description |
-|------|-------------|
-| `--dry-run` | Preview changes without writing to disk |
-| `--quiet` | Suppress progress output |
-| `--keys` | Print affected document keys (one per line) |
+| Flag        | Description                                 |
+| ----------- | ------------------------------------------- |
+| `--dry-run` | Preview changes without writing to disk     |
+| `--quiet`   | Suppress progress output                    |
+| `--keys`    | Print affected document keys (one per line) |
+
 
 ## How It Works
 
 The `rename` command performs a safe document rename with full reference tracking:
 
-1. **Renames the document file** - Moves the document from old key to new key
-2. **Updates [inclusion links](inclusion-links.md)** - All inclusion links pointing to the old key are updated
-3. **Updates inline links** - All inline references to the old key are updated
-4. **Maintains integrity** - Ensures no broken references after renaming
+1.  **Renames the document file** - Moves the document from old key to new key
+2.  **Updates [Inclusion Links](inclusion-links.md)** - All inclusion links pointing to the old key are updated
+3.  **Updates inline links** - All inline references to the old key are updated
+4.  **Maintains integrity** - Ensures no broken references after renaming
 
 ## Output Modes
 
@@ -38,7 +40,7 @@ The `rename` command performs a safe document rename with full reference trackin
 
 Shows progress and summary:
 
-```bash
+``` bash
 $ iwe rename old-document new-document
 Renaming 'old-document' to 'new-document'
 Updated 3 document(s)
@@ -48,7 +50,7 @@ Updated 3 document(s)
 
 Preview what would happen without making changes:
 
-```bash
+``` bash
 $ iwe rename old-document new-document --dry-run
 Would rename 'old-document' to 'new-document'
 Would update 3 document(s)
@@ -61,7 +63,7 @@ Would update 3 document(s)
 
 Print affected document keys for scripting:
 
-```bash
+``` bash
 $ iwe rename old-document new-document --keys
 old-document
 new-document
@@ -74,13 +76,13 @@ related-topic
 
 Suppress all output except errors:
 
-```bash
+``` bash
 $ iwe rename old-document new-document --quiet
 ```
 
 ## Examples
 
-```bash
+``` bash
 # Basic rename
 iwe rename my-note renamed-note
 
@@ -100,7 +102,7 @@ iwe rename doc new-doc --quiet
 
 Rename documents to follow a new naming convention:
 
-```bash
+``` bash
 # Check what would be affected
 iwe rename user-auth authentication --dry-run
 
@@ -112,7 +114,7 @@ iwe rename user-auth authentication
 
 Move a document into a subdirectory:
 
-```bash
+``` bash
 # Move from root to subdirectory
 iwe rename config settings/config
 ```
@@ -121,7 +123,7 @@ iwe rename config settings/config
 
 Use with other commands for batch operations:
 
-```bash
+``` bash
 # Get list of affected documents for further processing
 iwe rename old-api api-v2 --keys | while read key; do
   echo "Affected: $key"
@@ -131,6 +133,7 @@ done
 ## Error Handling
 
 The command fails with an error if:
+
 - The source document does not exist
 - The target key already exists
 - There are filesystem permission issues

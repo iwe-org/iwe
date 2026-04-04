@@ -24,6 +24,7 @@ use liwe::model::config::MarkdownOptions;
 pub struct Fixture {
     req_id: Cell<i32>,
     messages: RefCell<Vec<Message>>,
+    last_show_document_uri: RefCell<Option<String>>,
     client: Connection,
     _thread: std::thread::JoinHandle<()>,
 }
@@ -477,6 +478,7 @@ impl Fixture {
         Fixture {
             req_id: Cell::new(1),
             messages: Default::default(),
+            last_show_document_uri: RefCell::new(None),
             client,
             _thread,
         }
@@ -657,6 +659,23 @@ impl Fixture {
         self
     }
 
+    pub fn go_to_definition_external(
+        &self,
+        params: GotoDefinitionParams,
+        expected_url: &str,
+    ) -> &Self {
+        *self.last_show_document_uri.borrow_mut() = None;
+        self.assert_response::<GotoDefinition>(params, Some(GotoDefinitionResponse::Array(vec![])));
+        let captured_uri = self.last_show_document_uri.borrow().clone();
+        assert_eq!(
+            captured_uri,
+            Some(expected_url.to_string()),
+            "Expected window/showDocument to be called with URL: {}",
+            expected_url
+        );
+        self
+    }
+
     pub fn did_change_text_document(&self, params: DidChangeTextDocumentParams) -> &Self {
         self.notification::<DidChangeTextDocument>(params);
         self
@@ -709,6 +728,12 @@ impl Fixture {
                         {
                             continue;
                         }
+                    }
+                    if req.method == "window/showDocument" {
+                        if let Some(uri) = req.params.get("uri").and_then(|v| v.as_str()) {
+                            *self.last_show_document_uri.borrow_mut() = Some(uri.to_string());
+                        }
+                        continue;
                     }
                     panic!("unexpected request: {req:?}")
                 }

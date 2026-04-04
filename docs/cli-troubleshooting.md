@@ -4,22 +4,23 @@ Best practices and solutions to common issues when using the IWE CLI.
 
 ## Best practices
 
-1. **Start small**: Test commands on a few files before processing large libraries
-2. **Backup first**: Always backup before running `normalize` or other bulk operations
-3. **Use debug mode**: Add `-v 2` to see detailed debug information
-4. **Iterate gradually**: Use increasing depth values to explore graph complexity
-5. **Visualize regularly**: Export graphs to understand document relationships
-6. **Monitor root documents**: Use `tree` to track entry points as your library grows
+1.  **Start small**: Test commands on a few files before processing large libraries
+2.  **Backup first**: Always backup before running `normalize` or other bulk operations
+3.  **Use debug mode**: Add `-v 2` to see detailed debug information
+4.  **Iterate gradually**: Use increasing depth values to explore graph complexity
+5.  **Visualize regularly**: Export graphs to understand document relationships
+6.  **Monitor root documents**: Use `tree` to track entry points as your library grows
 
 ## Common issues
 
-| Issue | Solution |
-|-------|----------|
-| No changes after normalize | Check that files are properly formatted markdown |
-| Export produces no output | Verify documents contain links and references |
-| Squash fails | Ensure the specified key exists and is accessible |
-| Command not found | Ensure IWE is installed and available in your PATH |
-| Permission denied | Check file permissions in your project directory |
+| Issue                      | Solution                                           |
+| -------------------------- | -------------------------------------------------- |
+| No changes after normalize | Check that files are properly formatted markdown   |
+| Export produces no output  | Verify documents contain links and references      |
+| Squash fails               | Ensure the specified key exists and is accessible  |
+| Command not found          | Ensure IWE is installed and available in your PATH |
+| Permission denied          | Check file permissions in your project directory   |
+
 
 ## Debugging
 
@@ -39,12 +40,13 @@ iwe -v 2 <command>
 
 When no markdown files exist:
 
-| Command | Behavior |
-|---------|----------|
-| `tree` | No output |
-| `find` | No matches found |
-| `stats` | Shows zero counts |
+| Command      | Behavior             |
+| ------------ | -------------------- |
+| `tree`       | No output            |
+| `find`       | No matches found     |
+| `stats`      | Shows zero counts    |
 | `export dot` | Produces empty graph |
+
 
 ### Missing Referenced Documents
 

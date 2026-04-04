@@ -10,18 +10,20 @@ iwe export [OPTIONS] <FORMAT>
 
 ## Available Formats
 
-| Format | Description |
-|--------|-------------|
-| `dot` | Graphviz DOT format for graph visualization |
+| Format | Description                                 |
+| ------ | ------------------------------------------- |
+| `dot`  | Graphviz DOT format for graph visualization |
+
 
 ## Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-k, --key <KEY>` | all roots | Filter to specific document and its connections |
-| `-d, --depth <DEPTH>` | `0` | Maximum depth to include (0 = unlimited) |
-| `--include-headers` | false | Include section headers and create detailed subgraphs |
-| `-v, --verbose <LEVEL>` | `0` | Verbosity level |
+| Option                  | Default   | Description                                           |
+| ----------------------- | --------- | ----------------------------------------------------- |
+| `-k, --key <KEY>`       | all roots | Filter to specific document and its connections       |
+| `-d, --depth <DEPTH>`   | `0`       | Maximum depth to include (0 = unlimited)              |
+| `--include-headers`     | false     | Include section headers and create detailed subgraphs |
+| `-v, --verbose <LEVEL>` | `0`       | Verbosity level                                       |
+
 
 ## DOT Output Format
 
@@ -86,19 +88,21 @@ iwe export dot | dot -Tsvg > graph.svg && open graph.svg
 
 ## Depth Behavior
 
-| Depth | Behavior |
-|-------|----------|
-| `0` | Unlimited - include all reachable documents |
-| `1` | Only the specified document |
-| `2` | Document and its direct links |
-| `3+` | Document and N-1 levels of connections |
+| Depth | Behavior                                    |
+| ----- | ------------------------------------------- |
+| `0`   | Unlimited - include all reachable documents |
+| `1`   | Only the specified document                 |
+| `2`   | Document and its direct links               |
+| `3+`  | Document and N-1 levels of connections      |
+
 
 ## With vs Without Headers
 
-| Mode | Use Case |
-|------|----------|
-| Without `--include-headers` | High-level document relationships |
-| With `--include-headers` | Detailed view showing internal sections |
+| Mode                        | Use Case                                |
+| --------------------------- | --------------------------------------- |
+| Without `--include-headers` | High-level document relationships       |
+| With `--include-headers`    | Detailed view showing internal sections |
+
 
 ## AI Agent Tips
 

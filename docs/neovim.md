@@ -87,33 +87,36 @@ The plugin provides these default keybindings (can be customized):
 
 ## IWE Feature Keybindings
 
-|IWE Feature|Neovim Shortcut|Mode|Description|
-|-----------|---------------|----|-----------|
-|**Code Actions**|\<leader>ca|Normal|Extract/Inline/Transform code actions|
-|**Go to Definition**|gd|Normal|Go to definition of symbol under cursor|
-|**Find References**|gr|Normal|Find backlinks to current document|
-|**Document Symbols**|\<leader>ds|Normal|Navigate document outline|
-|**Workspace Search**|\<leader>ws|Normal|Global search with Telescope|
-|**Format Document**|\<leader>f|Normal/Visual|Auto-format document|
-|**Rename Symbol**|\<leader>rn|Normal|Rename symbol (including file & references)|
+| IWE Feature          | Neovim Shortcut | Mode          | Description                                 |
+| -------------------- | --------------- | ------------- | ------------------------------------------- |
+| **Code Actions**     | <leader>ca      | Normal        | Extract/Inline/Transform code actions       |
+| **Go to Definition** | gd              | Normal        | Go to definition of symbol under cursor     |
+| **Find References**  | gr              | Normal        | Find backlinks to current document          |
+| **Document Symbols** | <leader>ds      | Normal        | Navigate document outline                   |
+| **Workspace Search** | <leader>ws      | Normal        | Global search with Telescope                |
+| **Format Document**  | <leader>f       | Normal/Visual | Auto-format document                        |
+| **Rename Symbol**    | <leader>rn      | Normal        | Rename symbol (including file & references) |
+
 
 ## LSP Keybindings
 
-|Feature|Shortcut|Description|
-|-------|--------|-----------|
-|**Hover Info**|K|Show information about current element|
-|**Signature Help**|\<C-k>|Show function signature (Insert mode)|
-|**Code Action**|\<leader>ca|Show available code actions|
-|**Diagnostic Next**|\]d|Jump to next diagnostic|
-|**Diagnostic Previous**|\[d|Jump to previous diagnostic|
+| Feature                 | Shortcut   | Description                            |
+| ----------------------- | ---------- | -------------------------------------- |
+| **Hover Info**          | K          | Show information about current element |
+| **Signature Help**      | <C-k>      | Show function signature (Insert mode)  |
+| **Code Action**         | <leader>ca | Show available code actions            |
+| **Diagnostic Next**     | ]d         | Jump to next diagnostic                |
+| **Diagnostic Previous** | [d         | Jump to previous diagnostic            |
+
 
 ## Telescope Integration
 
-|Command|Shortcut|Description|
-|-------|--------|-----------|
-|:Telescope iwe search|\<leader>ws|Search through all notes|
-|:Telescope iwe backlinks|\<leader>wb|Find backlinks to current document|
-|:Telescope iwe links|\<leader>wl|Browse all links in current document|
+| Command                  | Shortcut   | Description                          |
+| ------------------------ | ---------- | ------------------------------------ |
+| :Telescope iwe search    | <leader>ws | Search through all notes             |
+| :Telescope iwe backlinks | <leader>wb | Find backlinks to current document   |
+| :Telescope iwe links     | <leader>wl | Browse all links in current document |
+
 
 ## Configuration
 
@@ -311,15 +314,16 @@ require("which-key").register({
 :Telescope lsp_workspace_symbols
 ```
 
-|Key|Action|
-|---|------|
-|\<CR>|Open selected item|
-|\<C-x>|Open in horizontal split|
-|\<C-v>|Open in vertical split|
-|\<C-t>|Open in new tab|
-|\<C-u>|Scroll preview up|
-|\<C-d>|Scroll preview down|
-|\<C-q>|Send to quickfix list|
+| Key   | Action                   |
+| ----- | ------------------------ |
+| <CR>  | Open selected item       |
+| <C-x> | Open in horizontal split |
+| <C-v> | Open in vertical split   |
+| <C-t> | Open in new tab          |
+| <C-u> | Scroll preview up        |
+| <C-d> | Scroll preview down      |
+| <C-q> | Send to quickfix list    |
+
 
 ## Health Check
 

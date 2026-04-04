@@ -9,12 +9,14 @@ IWE provides auto-formatting through the LSP formatting feature. This typically 
 Link titles are automatically updated to match the header of the linked document.
 
 **Before:**
-```markdown
+
+``` markdown
 See [old title](my-note) for details.
 ```
 
 **After** (if `my-note.md` has header "# My Updated Note"):
-```markdown
+
+``` markdown
 See [My Updated Note](my-note) for details.
 ```
 
@@ -23,7 +25,8 @@ See [My Updated Note](my-note) for details.
 Header levels are adjusted to maintain a proper tree structure. This ensures that nested sections have correct relative header levels.
 
 **Before:**
-```markdown
+
+``` markdown
 # Main Document
 
 #### Incorrectly Deep Section
@@ -32,7 +35,8 @@ Some content.
 ```
 
 **After:**
-```markdown
+
+``` markdown
 # Main Document
 
 ## Incorrectly Deep Section
@@ -45,14 +49,16 @@ Some content.
 Ordered lists are renumbered sequentially, regardless of the original numbers.
 
 **Before:**
-```markdown
+
+``` markdown
 1. First item
 5. Second item
 3. Third item
 ```
 
 **After:**
-```markdown
+
+``` markdown
 1. First item
 2. Second item
 3. Third item
@@ -63,7 +69,8 @@ Ordered lists are renumbered sequentially, regardless of the original numbers.
 List structure is normalized with consistent indentation and proper newlines.
 
 **Before:**
-```markdown
+
+``` markdown
 - Item one
     - Badly indented
   - Inconsistent
@@ -71,7 +78,8 @@ List structure is normalized with consistent indentation and proper newlines.
 ```
 
 **After:**
-```markdown
+
+``` markdown
 - Item one
   - Badly indented
   - Inconsistent
@@ -104,7 +112,7 @@ Trigger formatting manually:
 
 Formatting behavior can be configured in `.iwe/config.toml`:
 
-```toml
+``` toml
 [markdown]
 normalize_headers = true  # Adjust header levels
 normalize_lists = true    # Fix list formatting
@@ -114,4 +122,4 @@ normalize_lists = true    # Fix list formatting
 
 - **Enable format-on-save** for consistent formatting across your library
 - **Use with version control** to easily review formatting changes
-- If you notice unexpected formatting, check [Header levels normalization](feature-normalization.md) for detailed header adjustment rules
+- If you notice unexpected formatting, check [Header Levels Normalization](feature-normalization.md) for detailed header adjustment rules

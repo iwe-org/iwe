@@ -10,12 +10,13 @@ iwe tree [OPTIONS]
 
 ## Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-f, --format <FORMAT>` | `markdown` | Output format: markdown, keys, json |
-| `-k, --key <KEY>` | - | Start tree from specific document(s), can be repeated |
-| `-d, --depth <DEPTH>` | `4` | Maximum depth to traverse |
-| `-v, --verbose <LEVEL>` | `0` | Verbosity level (1=info, 2=debug) |
+| Option                  | Default    | Description                                           |
+| ----------------------- | ---------- | ----------------------------------------------------- |
+| `-f, --format <FORMAT>` | `markdown` | Output format: markdown, keys, json                   |
+| `-k, --key <KEY>`       | -          | Start tree from specific document(s), can be repeated |
+| `-d, --depth <DEPTH>`   | `4`        | Maximum depth to traverse                             |
+| `-v, --verbose <LEVEL>` | `0`        | Verbosity level (1=info, 2=debug)                     |
+
 
 ## Output Formats
 
@@ -103,12 +104,13 @@ iwe tree -f keys | grep cli
 
 ## Depth Impact
 
-| Depth | Shows |
-|-------|-------|
-| 1 | Root documents only |
-| 2 | Roots and their direct children |
-| 3 | Up to grandchildren |
-| 4+ | Deeper nested relationships |
+| Depth | Shows                           |
+| ----- | ------------------------------- |
+| 1     | Root documents only             |
+| 2     | Roots and their direct children |
+| 3     | Up to grandchildren             |
+| 4+    | Deeper nested relationships     |
+
 
 ## AI Agent Tips
 

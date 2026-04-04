@@ -2,35 +2,35 @@
 
 ## Installation
 
-[How to install](how-to-install.md)
+[How to Install](how-to-install.md)
 
 ## Usage Guide
 
-[How to use with your text editor](how-to-use.md)
+[How to Use with Your Text Editor](how-to-use.md)
 
-[How to use in command line](cli.md)
+[How to Use in Command Line](cli.md)
 
 ### CLI Commands
 
-[iwe init](cli-init.md)
+[IWE Init](cli-init.md)
 
-[iwe new](cli-new.md)
+[IWE New](cli-new.md)
 
-[iwe retrieve](cli-retrieve.md)
+[IWE Retrieve](cli-retrieve.md)
 
-[iwe find](cli-find.md)
+[IWE Find](cli-find.md)
 
-[iwe normalize](cli-normalize.md)
+[IWE Normalize](cli-normalize.md)
 
-[iwe tree](cli-tree.md)
+[IWE Tree](cli-tree.md)
 
-[iwe squash](cli-squash.md)
+[IWE Squash](cli-squash.md)
 
-[iwe stats](cli-stats.md)
+[IWE Stats](cli-stats.md)
 
-[iwe export](cli-export.md)
+[IWE Export](cli-export.md)
 
-[CLI Workflows](cli-workflows.md)
+[CLI Workflow Examples](cli-workflows.md)
 
 [CLI Troubleshooting](cli-troubleshooting.md)
 
@@ -44,39 +44,39 @@
 
 ## Features
 
-[Notes search](feature-search.md)
+[Notes Search](feature-search.md)
 
-[Extract Notes](feature-extract.md)
+[Extract Actions](feature-extract.md)
 
 [Inline Notes](feature-inline.md)
 
-[Linking and note templates](feature-attach.md)
+[Linking and Note Templates](feature-attach.md)
 
-[Creating links from text](feature-link.md)
+[Creating Links from Text](feature-link.md)
 
-[Delete inclusions](feature-delete.md)
+[Delete Action](feature-delete.md)
 
 [Navigation](feature-navigation.md)
 
-[Hover preview](feature-hover-preview.md)
+[Hover Preview](feature-hover-preview.md)
 
-[Text structure normalization / formatting](feature-auto-format.md)
+[Text Structure Normalization / Formatting](feature-auto-format.md)
 
-[Inlay hints](feature-inlay-hints.md)
+[Inlay Hints](feature-inlay-hints.md)
 
-[Auto-complete](feature-autocomplete.md)
+[Auto-Complete](feature-autocomplete.md)
 
-[Text manipulation](feature-text-manipulation.md)
+[Text Manipulation](feature-text-manipulation.md)
 
-[Header levels normalization](feature-normalization.md)
+[Header Levels Normalization](feature-normalization.md)
 
-[Files renaming](feature-renaming.md)
+[Files Renaming](feature-renaming.md)
 
 [Graph Visualization](feature-visualization.md)
 
-[Sub-directories](feature-subdirectories.md)
+[Sub-Directories](feature-subdirectories.md)
 
-[Custom text commands](feature-ai-commands.md)
+[Custom Text Commands](feature-ai-commands.md)
 
 ## Editor specifics
 
@@ -88,14 +88,10 @@
 
 [Zed](zed.md)
 
-## Examples
-
-[Basic journal example](example-journal.md)
-
 ## About the project
 
-[Why it exists](why-it-exists.md)
+[Why It Exists](why-it-exists.md)
 
-[Design principles](design-principles.md)
+[Design Principles](design-principles.md)
 
 [Architecture](architecture.md)

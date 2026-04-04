@@ -12,6 +12,7 @@ link_format = "wiki"
 ```
 
 Available options:
+
 - `"markdown"` (default): Creates `[title](key)` style links
 - `"wiki"`: Creates `[[key]]` style WikiLinks
 

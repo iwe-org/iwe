@@ -26,6 +26,7 @@ Traditional ways of organizing information don't match how knowledge actually wo
 File systems force everything into a single hierarchy. A note about "Meditation" must live in either `/health/` or `/productivity/`—it can't naturally exist in both.
 
 This leads to:
+
 - Arbitrary placement decisions
 - Broken references when folders change
 - Duplicates or "misc" folders when nothing fits
@@ -47,7 +48,7 @@ A note tagged `#health #productivity #mindfulness` doesn't explain how these top
 
 An **inclusion link** is a markdown link placed on its own line:
 
-```markdown
+``` markdown
 # Photography
 
 [Composition](composition.md)
@@ -57,8 +58,7 @@ An **inclusion link** is a markdown link placed on its own line:
 [Post-Processing](post-processing.md)
 ```
 
-When a link appears on its own line, it defines structure:
-"Photography" becomes the parent of the linked documents.
+When a link appears on its own line, it defines structure: "Photography" becomes the parent of the linked documents.
 
 This simple rule turns plain markdown into a structured, navigable system.
 
@@ -70,7 +70,7 @@ A document can belong to multiple parents.
 
 **In `health-practices.md`:**
 
-```markdown
+``` markdown
 # Health Practices
 
 [Meditation](meditation.md)
@@ -78,7 +78,7 @@ A document can belong to multiple parents.
 
 **In `productivity-tools.md`:**
 
-```markdown
+``` markdown
 # Productivity Tools
 
 [Meditation](meditation.md)
@@ -90,21 +90,25 @@ The same document appears in both contexts without duplication.
 
 Unlike tags, inclusion links allow ordering, grouping, and explanation:
 
-```markdown
+``` markdown
 # Psychology
 
 ## Cognitive
 
-[Memory](memory.md)
 How we encode, store, and retrieve information
 
-[Decision Making](decision-making.md)
+[Memory](memory.md)
+
 Biases, heuristics, and rational choice
+
+[Decision Making](decision-making.md)
 
 ## Behavioral
 
-[Habit Formation](habit-formation.md)
 Cue, routine, reward loops
+
+[Habit Formation](habit-formation.md)
+
 ```
 
 You're not just grouping items—you're adding context.
@@ -126,14 +130,16 @@ When a document appears under a parent, it inherits meaning from that relationsh
 
 The parent page can also add explicit context:
 
-```markdown
+``` markdown
 # Cognitive Psychology
 
-[Memory](memory.md)
 Foundation of learning and recall
 
-[Attention](attention.md)
+[Memory](memory.md)
+
 Selective focus and its limits
+
+[Attention](attention.md)
 ```
 
 These descriptions aren't part of the child documents—they live in the parent, explaining why each child belongs here.
@@ -162,13 +168,14 @@ With `--depth 3`, the full subtree expands:
 - Habit Formation
 ```
 
-Use [Extract](feature-extract.md) to move details into separate documents, or [Inline](feature-inline.md) to expand linked content in place.
+Use [Extract Actions](feature-extract.md) to move details into separate documents, or [Inline Notes](feature-inline.md) to expand linked content in place.
 
 ## Inclusion Links vs Inline Links
 
 ### Inclusion Links (Structure)
 
 Inclusion links define parent-child relationships and are used for:
+
 - Navigation
 - Hierarchical traversal (`--depth`)
 - Structured views
@@ -177,7 +184,7 @@ Inclusion links define parent-child relationships and are used for:
 
 Links inside text create conceptual connections:
 
-```markdown
+``` markdown
 # Habit Formation
 
 The [Habit Loop](habit-loop.md) consists of cue, routine, and reward.
@@ -185,6 +192,7 @@ This process is driven by [Dopamine Pathways](dopamine.md) in the brain.
 ```
 
 These links:
+
 - Create backlinks
 - Show relationships between ideas
 - Do not affect structure
@@ -193,11 +201,11 @@ These links:
 
 When retrieving content with depth:
 
-```bash
+``` bash
 iwe retrieve psychology --depth 2
 ```
 
-The `--depth` flag controls how many levels of inclusion links to expand. See [CLI Retrieve](cli-retrieve.md) for details.
+The `--depth` flag controls how many levels of inclusion links to expand. See [IWE Retrieve](cli-retrieve.md) for details.
 
 - Inclusion links expand into full content
 - Inline links remain references only

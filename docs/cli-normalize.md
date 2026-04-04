@@ -10,25 +10,28 @@ iwe normalize
 
 ## Operations Performed
 
-| Operation | Description |
-|-----------|-------------|
-| Link title sync | Updates link text to match target document headers |
-| Header leveling | Adjusts header levels for consistent hierarchy |
-| List renumbering | Fixes ordered list numbering (1, 2, 3...) |
-| Whitespace normalization | Standardizes newlines and indentation |
-| List formatting | Ensures consistent list item formatting |
-| Structure cleanup | Removes redundant empty lines |
+| Operation                | Description                                        |
+| ------------------------ | -------------------------------------------------- |
+| Link title sync          | Updates link text to match target document headers |
+| Header leveling          | Adjusts header levels for consistent hierarchy     |
+| List renumbering         | Fixes ordered list numbering (1, 2, 3...)          |
+| Whitespace normalization | Standardizes newlines and indentation              |
+| List formatting          | Ensures consistent list item formatting            |
+| Structure cleanup        | Removes redundant empty lines                      |
+
 
 ## Before/After Examples
 
 ### Link Title Sync
 
 Before:
+
 ``` markdown
 See the [old title](project-docs) for details.
 ```
 
 After (if `project-docs.md` has header `# Project Documentation`):
+
 ``` markdown
 See the [Project Documentation](project-docs) for details.
 ```
@@ -36,6 +39,7 @@ See the [Project Documentation](project-docs) for details.
 ### List Renumbering
 
 Before:
+
 ``` markdown
 1. First item
 1. Second item
@@ -43,6 +47,7 @@ Before:
 ```
 
 After:
+
 ``` markdown
 1. First item
 2. Second item
@@ -52,6 +57,7 @@ After:
 ### Whitespace Normalization
 
 Before:
+
 ``` markdown
 # Title
 
@@ -64,6 +70,7 @@ Another paragraph.
 ```
 
 After:
+
 ``` markdown
 # Title
 

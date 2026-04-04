@@ -123,6 +123,7 @@ More information:
 - [CLI Reference](https://iwe.md/docs/cli/) — Command-line tools
 - [Working with AI](https://iwe.md/docs/agentic/) — AI agent integration
 - [Configuration](https://iwe.md/docs/configuration/) — Settings and customization
+- [Examples](https://iwe.md/docs/examples/) — Example projects and case studies
 
 ## Get Involved
 

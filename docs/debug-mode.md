@@ -2,7 +2,7 @@
 
 For the LSP server, set the `IWE_DEBUG` environment variable. In debug mode, IWE LSP will generate a detailed log file named `iwe.log` in the directory where you started it:
 
-```bash
+``` bash
 export IWE_DEBUG=true; nvim
 ```
 

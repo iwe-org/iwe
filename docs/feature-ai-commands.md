@@ -6,18 +6,18 @@ Transform actions work by piping content through external commands. You can use 
 
 ## How It Works
 
-1. Select or place cursor on a text block in your editor
-2. Open the code actions menu (`Ctrl+.` or `Cmd+.`)
-3. Select a transform action (e.g., "Rewrite", "Expand")
-4. The text is processed through your configured command
-5. The result replaces the original content
+1.  Select or place cursor on a text block in your editor
+2.  Open the code actions menu (`Ctrl+.` or `Cmd+.`)
+3.  Select a transform action (e.g., "Rewrite", "Expand")
+4.  The text is processed through your configured command
+5.  The result replaces the original content
 
 ## Configuration
 
 Transform actions require two parts:
 
-1. **Command definition** - the CLI tool to run
-2. **Action definition** - how to use the command
+1.  **Command definition** - the CLI tool to run
+2.  **Action definition** - how to use the command
 
 ``` toml
 [commands.claude]
@@ -41,6 +41,7 @@ Check [Configuration](configuration.md) section for detailed instructions on how
 ## Example Commands
 
 **Using Claude CLI:**
+
 ``` toml
 [commands.claude]
 run = "claude -p"
@@ -48,6 +49,7 @@ timeout_seconds = 120
 ```
 
 **Using a Python script:**
+
 ``` toml
 [commands.summarize]
 run = "python ~/scripts/summarize.py"
@@ -55,6 +57,7 @@ timeout_seconds = 30
 ```
 
 **Using standard Unix tools:**
+
 ``` toml
 [commands.uppercase]
 run = "tr '[:lower:]' '[:upper:]'"

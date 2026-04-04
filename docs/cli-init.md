@@ -69,24 +69,27 @@ document_template = "# {{title}}\n\n{{content}}"
 
 ### Library Section
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `path` | `""` | Subdirectory containing markdown files (empty = project root) |
-| `date_format` | `%Y-%m-%d` | Format for dates in document keys |
-| `default_template` | `null` | Template name for `iwe new` command |
+| Option             | Default    | Description                                                   |
+| ------------------ | ---------- | ------------------------------------------------------------- |
+| `path`             | `""`       | Subdirectory containing markdown files (empty = project root) |
+| `date_format`      | `%Y-%m-%d` | Format for dates in document keys                             |
+| `default_template` | `null`     | Template name for `iwe new` command                           |
+
 
 ### Markdown Section
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `refs_extension` | `""` | File extension to append to references (e.g., `.md`) |
-| `date_format` | `%b %d, %Y` | Format for dates displayed in documents |
+| Option           | Default     | Description                                          |
+| ---------------- | ----------- | ---------------------------------------------------- |
+| `refs_extension` | `""`        | File extension to append to references (e.g., `.md`) |
+| `date_format`    | `%b %d, %Y` | Format for dates displayed in documents              |
+
 
 ### Completion Section
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `link_format` | `null` | Link style for completions: `markdown` or `wiki` |
+| Option        | Default | Description                                      |
+| ------------- | ------- | ------------------------------------------------ |
+| `link_format` | `null`  | Link style for completions: `markdown` or `wiki` |
+
 
 ## Example
 
