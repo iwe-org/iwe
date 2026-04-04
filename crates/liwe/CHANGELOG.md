@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.66](https://github.com/iwe-org/iwe/compare/liwe-v0.0.65...liwe-v0.0.66) - 2026-04-04
+
+### Added
+
+- List broken links in the stats command output  ([#252](https://github.com/iwe-org/iwe/pull/252))
+- Go to definition for external URL's ([#247](https://github.com/iwe-org/iwe/pull/247))
+
 ## [0.0.65](https://github.com/iwe-org/iwe/compare/liwe-v0.0.64...liwe-v0.0.65) - 2026-03-28
 
 ### Added
