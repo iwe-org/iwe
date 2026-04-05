@@ -1,12 +1,35 @@
-pub mod output;
-
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
-use liwe::graph::{Graph, GraphContext};
-use liwe::model::node::{NodeIter, NodePointer};
-use liwe::model::{Key, NodeId};
+use serde::Serialize;
+use crate::graph::{Graph, GraphContext};
+use crate::model::node::{NodeIter, NodePointer};
+use crate::model::{Key, NodeId};
 
-use output::{FindOutput, FindResult, ParentDocumentInfo};
+#[derive(Debug, Clone, Serialize)]
+pub struct ParentDocumentInfo {
+    pub key: String,
+    pub title: String,
+    pub section_path: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FindResult {
+    pub key: String,
+    pub title: String,
+    pub display_title: String,
+    pub is_root: bool,
+    pub incoming_refs: usize,
+    pub outgoing_refs: usize,
+    pub parent_documents: Vec<ParentDocumentInfo>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FindOutput {
+    pub query: Option<String>,
+    pub limit: Option<usize>,
+    pub total: usize,
+    pub results: Vec<FindResult>,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct FindOptions {

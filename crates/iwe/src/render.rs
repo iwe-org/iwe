@@ -5,9 +5,8 @@ use liwe::model::node::NodePointer;
 use liwe::model::projector::Projector;
 use liwe::model::tree::TreeIter;
 use liwe::model::Key;
+use liwe::retrieve::{DocumentOutput, RetrieveOutput};
 use serde::Serialize;
-
-use super::output::{DocumentOutput, RetrieveOutput};
 
 #[derive(Serialize)]
 struct DocumentFrontmatter {

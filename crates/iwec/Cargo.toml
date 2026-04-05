@@ -1,0 +1,37 @@
+[package]
+name = "iwec"
+description = "IWE MCP server"
+include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs"]
+
+version.workspace = true
+repository.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "iwec"
+path = "src/main.rs"
+
+[dependencies]
+liwe.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+anyhow.workspace = true
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std"] }
+rmcp = { version = "1", features = ["server", "macros", "transport-io", "schemars"] }
+schemars = "1.0"
+notify = "7"
+minijinja.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+liwe.workspace = true
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-util", "test-util"] }
+rmcp = { version = "1", features = ["server", "client", "macros", "transport-io", "transport-async-rw", "schemars"] }
+anyhow = "1"

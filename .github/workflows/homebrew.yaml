@@ -70,11 +70,13 @@ jobs:
             def install
               bin.install "iwe"
               bin.install "iwes"
+              bin.install "iwec"
             end
 
             test do
               system "#{bin}/iwe", "--version"
               system "#{bin}/iwes", "--version"
+              system "#{bin}/iwec", "--version"
             end
           end
           FORMULA

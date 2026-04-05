@@ -17,6 +17,12 @@ git_release_draft = false
 changelog_update = true
 
 [[package]]
+name = "iwec"
+git_release_enable = false
+git_release_draft = false
+changelog_update = true
+
+[[package]]
 name = "liwe"
 git_release_enable = false
 git_release_draft = false

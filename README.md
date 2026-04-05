@@ -25,7 +25,7 @@ IWE has **no** built-in AI — it's designed to work with external AI tools (lik
 
 - **Local-first** — your data stays on your machine as directory with Markdown files
 - **Hierarchical knowledge graph** — same note in multiple contexts without duplication using [inclusion links](https://iwe.md/docs/concepts/inclusion-links/)
-- **External memory for AI** — [CLI](https://iwe.md/docs/cli/) tools let AI agents retrieve and update your knowledge with full context
+- **External memory for AI** — [CLI](https://iwe.md/docs/cli/) and [MCP server](https://iwe.md/docs/agentic/mcp/) let AI agents retrieve and update your knowledge with full context
 - **Editor integration** — search, navigate, refactor notes via LSP ([VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/))
 - **Blazing fast** — Rust-powered, processes thousands of notes instantly
 
@@ -61,9 +61,11 @@ IWE understands document structure—headers, lists, and links—and provides ad
 
 More information: [LSP Features](https://iwe.md/docs/getting-started/usage/)
 
-## Working with AI (CLI)
+## Working with AI
 
-IWE provides CLI tools for AI agents to read, navigate, and modify your knowledge graph:
+IWE gives AI agents structured access to your knowledge graph through two interfaces: a CLI for scripting and shell-based workflows, and an MCP server for native integration with AI tools. Both expose the same operations — search, retrieve, create, refactor — so you can choose whichever fits your workflow.
+
+### CLI
 
 **Read**
 - **find** — search documents with fuzzy matching and relationship filters
@@ -83,6 +85,16 @@ Example: retrieve a topic with 2 levels of children and 1 level of parent contex
 iwe retrieve -k topic -d 2 -c 1
 ```
 
+### MCP Server
+
+The MCP server (`iwec`) speaks the [Model Context Protocol](https://modelcontextprotocol.io), giving AI tools access to your knowledge graph.
+
+The server exposes 13 tools (find, retrieve, tree, stats, squash, create, update, delete, rename, extract, inline, normalize, attach), 3 prompts (explore, review, refactor), and resources for reading documents and graph structure. It watches the filesystem for changes, so edits in your editor are reflected immediately.
+
+More information: [MCP Server Documentation](https://iwe.md/docs/agentic/mcp/)
+
+---
+
 Unlike vector databases where agent memory becomes opaque—embeddings you can't read or edit—IWE keeps everything in plain Markdown. No similarity thresholds, no "maybe relevant" results. The agent gets exactly the documents that connect to the topic.
 
 You remain in control. The files are yours, readable and editable. Agents become collaborators that can navigate your knowledge, not black boxes that store it.
@@ -90,6 +102,7 @@ You remain in control. The files are yours, readable and editable. Agents become
 More information:
 - [Working with AI Documentation](https://iwe.md/docs/agentic/)
 - [CLI Reference](https://iwe.md/docs/cli/)
+- [MCP Server](https://iwe.md/docs/agentic/mcp/)
 
 ## Quick Start
 
@@ -103,7 +116,7 @@ More information:
 
    Or using Cargo:
    ```bash
-   cargo install iwe iwes
+   cargo install iwe iwes iwec
    ```
 
 2. **Initialize** your workspace:
@@ -122,6 +135,7 @@ More information:
 - [Usage Guide](https://iwe.md/docs/getting-started/usage/) — Editor features and workflows
 - [CLI Reference](https://iwe.md/docs/cli/) — Command-line tools
 - [Working with AI](https://iwe.md/docs/agentic/) — AI agent integration
+- [MCP Server](https://iwe.md/docs/agentic/mcp/) — Native AI tool integration via Model Context Protocol
 - [Configuration](https://iwe.md/docs/configuration/) — Settings and customization
 - [Examples](https://iwe.md/docs/examples/) — Example projects and case studies
 

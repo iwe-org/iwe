@@ -1,14 +1,45 @@
-pub mod output;
-pub mod render;
-
 use std::collections::HashSet;
 
 use itertools::Itertools;
-use liwe::graph::{Graph, GraphContext};
-use liwe::model::node::{NodeIter, NodePointer};
-use liwe::model::{Key, NodeId};
+use serde::Serialize;
+use crate::graph::{Graph, GraphContext};
+use crate::model::node::{NodeIter, NodePointer};
+use crate::model::{Key, NodeId};
 
-use output::{BacklinkInfo, ChildDocumentInfo, DocumentOutput, ParentDocumentInfo, RetrieveOutput};
+#[derive(Debug, Clone, Serialize)]
+pub struct ParentDocumentInfo {
+    pub key: String,
+    pub title: String,
+    pub section_path: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BacklinkInfo {
+    pub key: String,
+    pub title: String,
+    pub section_path: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ChildDocumentInfo {
+    pub key: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DocumentOutput {
+    pub key: String,
+    pub title: String,
+    pub content: String,
+    pub parent_documents: Vec<ParentDocumentInfo>,
+    pub child_documents: Vec<ChildDocumentInfo>,
+    pub backlinks: Vec<BacklinkInfo>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RetrieveOutput {
+    pub documents: Vec<DocumentOutput>,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct RetrieveOptions {

@@ -34,6 +34,8 @@
 
 [CLI Troubleshooting](cli-troubleshooting.md)
 
+[MCP Server](mcp.md)
+
 [Configuration](configuration.md)
 
 [Debug Mode](debug-mode.md)
