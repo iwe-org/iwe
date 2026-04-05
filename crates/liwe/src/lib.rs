@@ -1,4 +1,5 @@
 pub mod file;
+pub mod find;
 pub mod fs;
 pub mod graph;
 pub mod locale;
@@ -6,4 +7,6 @@ pub mod markdown;
 pub mod model;
 pub mod operations;
 pub mod parser;
+pub mod retrieve;
 pub mod state;
+pub mod stats;

@@ -36,7 +36,6 @@ minijinja.workspace = true
 csv.workspace = true
 chrono.workspace = true
 sys-locale.workspace = true
-fuzzy-matcher.workspace = true
 serde_yaml.workspace = true
 sanitize-filename.workspace = true
 

@@ -11,9 +11,9 @@ use itertools::Itertools;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::find::{DocumentFinder, FindOptions};
 use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
-use iwe::retrieve::render::RetrieveRenderer;
+use iwe::render::RetrieveRenderer;
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
-use iwe::stats::GraphStatistics;
+use iwe::stats::{render_stats, GraphStatistics};
 use liwe::fs::new_for_path;
 use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
@@ -591,7 +591,7 @@ fn find_command(args: Find) {
     }
 }
 
-fn render_find_output(output: &iwe::find::output::FindOutput) -> String {
+fn render_find_output(output: &iwe::find::FindOutput) -> String {
     let mut result = String::new();
 
     result.push_str(&format!("Found {} results", output.total));
@@ -943,7 +943,7 @@ fn stats_command(args: Stats) {
     match args.format {
         StatsFormat::Markdown => {
             let stats = GraphStatistics::from_graph(&graph);
-            let output = stats.render();
+            let output = render_stats(&stats);
             print!("{}", output);
         }
         StatsFormat::Csv => {

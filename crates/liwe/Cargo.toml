@@ -36,6 +36,8 @@ ignore.workspace = true
 serde_yaml.workspace = true
 minijinja.workspace = true
 sanitize-filename.workspace = true
+fuzzy-matcher.workspace = true
+csv.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

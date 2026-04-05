@@ -46,7 +46,7 @@ jobs:
         with:
           # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.
           # Note that glob pattern is not supported yet.
-          bin: iwe,iwes
+          bin: iwe,iwes,iwec
           archive: $tag-$target
           # (optional) Target triple, default is host triple.
           target: ${{ matrix.target }}

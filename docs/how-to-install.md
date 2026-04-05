@@ -11,7 +11,7 @@ brew tap iwe-org/iwe
 brew install iwe
 ```
 
-This installs both the CLI (`iwe`) and the LSP server (`iwes`).
+This installs the CLI (`iwe`), the LSP server (`iwes`), and the MCP server (`iwec`).
 
 ## From Crates.IO
 
@@ -22,6 +22,7 @@ IWE is available at [crates.io](https://crates.io/crates/iwe). You can install I
 ``` sh
 cargo install iwe
 cargo install iwes
+cargo install iwec
 ```
 
 The binaries will be installed to `$HOME/.cargo/bin`. You may need to add it to your `$PATH`.
