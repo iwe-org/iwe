@@ -325,6 +325,61 @@ fn setup_test_workspace_with_elements() -> TempDir {
     temp_dir
 }
 
+#[test]
+fn test_stats_broken_inline_links_in_table() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
+
+    let config = Configuration {
+        library: LibraryOptions {
+            path: "".to_string(),
+            ..Default::default()
+        },
+        markdown: MarkdownOptions {
+            refs_extension: "".to_string(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let config_content = toml::to_string(&config).expect("Failed to serialize config to TOML");
+    write(temp_path.join(".iwe/config.toml"), config_content).expect("Failed to write config file");
+
+    let doc = indoc! {"
+        # Document With Table
+
+        | Name | Link |
+        |------|------|
+        | A    | [missing](nonexistent) |
+        | B    | [valid](existing) |
+
+        This paragraph has a [broken link](also-missing) after the table.
+    "};
+
+    write(temp_path.join("doc.md"), doc).expect("Failed to write doc file");
+    write(temp_path.join("existing.md"), "# Existing\n").expect("Failed to write existing file");
+
+    let output = run_stats_command(&temp_dir, &[]);
+    assert!(output.status.success(), "Command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+
+    assert!(
+        stdout.contains("-> nonexistent"),
+        "Should detect broken inline link inside table cell"
+    );
+    assert!(
+        stdout.contains("-> also-missing"),
+        "Should detect broken inline link after the table"
+    );
+    assert!(
+        !stdout.contains("-> existing"),
+        "Should not report valid link as broken"
+    );
+}
+
 fn run_stats_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Output {
     let binary_path = common::get_iwe_binary_path();
 
