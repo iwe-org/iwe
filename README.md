@@ -8,6 +8,8 @@
 [![Build](https://github.com/iwe-org/iwe/workflows/Rust/badge.svg)](https://github.com/iwe-org/iwe/actions)
 [![Documentation](https://img.shields.io/badge/docs-iwe.md-blue)](https://iwe.md)
 [![Discussions](https://img.shields.io/github/discussions/iwe-org/iwe)](https://github.com/iwe-org/iwe/discussions)
+[![Twitter](https://img.shields.io/badge/Twitter-@iwe__md-blue?logo=x)](https://x.com/iwe_md)
+[![Reddit](https://img.shields.io/badge/Reddit-r%2Fiwe-orange?logo=reddit)](https://www.reddit.com/r/iwe/)
 
 ![Knowledge Graph](docs/docs-detailed.svg)
 
@@ -142,6 +144,8 @@ More information:
 ## Get Involved
 
 IWE is open source and community-driven. Join the [discussions](https://github.com/iwe-org/iwe/discussions), report [issues](https://github.com/iwe-org/iwe/issues), or contribute to the [documentation](docs/).
+
+**Community:** [Twitter/X](https://x.com/iwe_md) · [Reddit](https://www.reddit.com/r/iwe/) · [Discussions](https://github.com/iwe-org/iwe/discussions)
 
 **Editor plugins:** [VS Code](https://github.com/iwe-org/vscode-iwe) · [Neovim](https://github.com/iwe-org/iwe.nvim) · [Zed](https://github.com/iwe-org/zed-iwe)
 
