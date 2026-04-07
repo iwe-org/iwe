@@ -61,7 +61,9 @@ pub fn start_polling(
 ) {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
-    let config = notify::Config::default().with_poll_interval(interval);
+    let config = notify::Config::default()
+        .with_poll_interval(interval)
+        .with_compare_contents(true);
     let mut watcher = notify::PollWatcher::new(
         move |res: notify::Result<Event>| {
             if let Ok(event) = res {

@@ -125,7 +125,29 @@ impl RefIndex {
                     self.index_node(graph, child_id);
                 }
             }
-            GraphNode::Table(_) => {}
+            GraphNode::Table(table) => {
+                for line_id in table.header() {
+                    for key in graph.get_line(*line_id).ref_keys() {
+                        self.inline_references
+                            .entry(key.clone())
+                            .or_default()
+                            .insert(table.id());
+                    }
+                }
+                for row in table.rows() {
+                    for line_id in row {
+                        for key in graph.get_line(*line_id).ref_keys() {
+                            self.inline_references
+                                .entry(key.clone())
+                                .or_default()
+                                .insert(table.id());
+                        }
+                    }
+                }
+                if let Some(next_id) = table.next_id() {
+                    self.index_node(graph, next_id);
+                }
+            }
         }
     }
 }

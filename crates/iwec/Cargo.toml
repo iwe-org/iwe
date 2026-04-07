@@ -23,8 +23,8 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 anyhow.workspace = true
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std"] }
 rmcp = { version = "1", features = ["server", "macros", "transport-io", "schemars"] }
-schemars = "1.0"
-notify = "7"
+schemars = "1.2"
+notify = "8"
 minijinja.workspace = true
 chrono.workspace = true
 
