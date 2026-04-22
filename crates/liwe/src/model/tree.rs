@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use itertools::Itertools;
 
 use super::{
-    document::LinkType,
     graph::GraphInline,
     node::{Node, NodeIter, NodePointer, Reference, ReferenceType},
     Key, NodeId,
@@ -595,13 +594,19 @@ impl Tree {
         inlines
             .iter()
             .map(|inline| match inline {
-                GraphInline::Link(url, _, _, _) => {
-                    if &Key::name(url) == target_key {
-                        GraphInline::Str(inline.plain_text())
+                GraphInline::Reference(reference) => {
+                    if &reference.key == target_key {
+                        GraphInline::Str(reference.text.clone())
                     } else {
                         inline.clone()
                     }
                 }
+                GraphInline::Link(url, title, link_type, nested) => GraphInline::Link(
+                    url.clone(),
+                    title.clone(),
+                    *link_type,
+                    Self::remove_inline_links_to_rec(nested, target_key),
+                ),
                 GraphInline::Emph(nested) => {
                     GraphInline::Emph(Self::remove_inline_links_to_rec(nested, target_key))
                 }
@@ -638,6 +643,7 @@ impl Tree {
     where
         F: Fn(&Key) -> Vec<(Key, String)>,
     {
+        let _ = parent_key;
         match &self.node {
             Node::Reference(reference) => {
                 let parents = parent_lookup(&reference.key);
@@ -645,24 +651,21 @@ impl Tree {
                     self.clone()
                 } else {
                     let mut inlines = vec![];
-                    let ref_url = reference.key.to_rel_link_url(parent_key);
-                    inlines.push(GraphInline::Link(
-                        ref_url,
-                        String::new(),
-                        reference.reference_type.to_link_type(),
-                        vec![GraphInline::Str(reference.text.clone())],
-                    ));
+                    inlines.push(GraphInline::Reference(Reference {
+                        key: reference.key.clone(),
+                        text: reference.text.clone(),
+                        reference_type: reference.reference_type,
+                    }));
                     inlines.push(GraphInline::Str(" <- ".to_string()));
                     for (i, (p_key, p_title)) in parents.iter().enumerate() {
                         if i > 0 {
                             inlines.push(GraphInline::Str(", ".to_string()));
                         }
-                        inlines.push(GraphInline::Link(
-                            p_key.to_rel_link_url(parent_key),
-                            String::new(),
-                            LinkType::Markdown,
-                            vec![GraphInline::Str(p_title.clone())],
-                        ));
+                        inlines.push(GraphInline::Reference(Reference {
+                            key: p_key.clone(),
+                            text: p_title.clone(),
+                            reference_type: ReferenceType::Regular,
+                        }));
                     }
 
                     Tree {

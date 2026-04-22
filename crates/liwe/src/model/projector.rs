@@ -1,4 +1,4 @@
-use crate::model::graph::{GraphBlock, GraphInline};
+use crate::model::graph::{GraphBlock, GraphInline, GraphInlines};
 use crate::model::node::{Node, NodeIter, ReferenceType};
 
 pub struct Projector {
@@ -22,6 +22,45 @@ impl Projector {
         }
     }
 
+    fn resolve_inlines(&self, inlines: GraphInlines) -> GraphInlines {
+        inlines
+            .into_iter()
+            .map(|i| self.resolve_inline(i))
+            .collect()
+    }
+
+    fn resolve_inline(&self, inline: GraphInline) -> GraphInline {
+        match inline {
+            GraphInline::Reference(reference) => {
+                let url = reference.key.to_rel_link_url(&self.parent);
+                let inlines = match reference.reference_type {
+                    ReferenceType::WikiLink => vec![],
+                    _ => vec![GraphInline::Str(reference.text)],
+                };
+                GraphInline::Link(
+                    url,
+                    String::default(),
+                    reference.reference_type.to_link_type(),
+                    inlines,
+                )
+            }
+            GraphInline::Emph(v) => GraphInline::Emph(self.resolve_inlines(v)),
+            GraphInline::Strong(v) => GraphInline::Strong(self.resolve_inlines(v)),
+            GraphInline::Strikeout(v) => GraphInline::Strikeout(self.resolve_inlines(v)),
+            GraphInline::Underline(v) => GraphInline::Underline(self.resolve_inlines(v)),
+            GraphInline::Superscript(v) => GraphInline::Superscript(self.resolve_inlines(v)),
+            GraphInline::Subscript(v) => GraphInline::Subscript(self.resolve_inlines(v)),
+            GraphInline::SmallCaps(v) => GraphInline::SmallCaps(self.resolve_inlines(v)),
+            GraphInline::Image(url, title, v) => {
+                GraphInline::Image(url, title, self.resolve_inlines(v))
+            }
+            GraphInline::Link(url, title, lt, v) => {
+                GraphInline::Link(url, title, lt, self.resolve_inlines(v))
+            }
+            other => other,
+        }
+    }
+
     fn project_node<'a>(&self, iter: impl NodeIter<'a>) -> Vec<GraphBlock> {
         let mut blocks = vec![];
 
@@ -41,7 +80,7 @@ impl Projector {
             Node::Section(_) => {
                 blocks.push(GraphBlock::Header(
                     self.header_level as u8 + 1,
-                    iter.inlines(),
+                    self.resolve_inlines(iter.inlines()),
                 ));
 
                 if let Some(child) = iter.child() {
@@ -68,7 +107,7 @@ impl Projector {
                 }
             }
             Node::Leaf(_) => {
-                blocks.push(GraphBlock::Para(iter.inlines()));
+                blocks.push(GraphBlock::Para(self.resolve_inlines(iter.inlines())));
             }
             Node::Raw(_, _) => {
                 blocks.push(GraphBlock::CodeBlock(
@@ -81,7 +120,7 @@ impl Projector {
             }
             Node::Reference(_) => {
                 let inlines = match iter.ref_type().unwrap() {
-                    ReferenceType::Regular => iter.inlines(),
+                    ReferenceType::Regular => self.resolve_inlines(iter.inlines()),
                     ReferenceType::WikiLink => vec![],
                     ReferenceType::WikiLinkPiped => {
                         vec![GraphInline::Str(iter.ref_text().unwrap_or_default())]
@@ -99,12 +138,20 @@ impl Projector {
             }
             Node::Table(_) => {
                 blocks.push(GraphBlock::Table(
-                    iter.table_header().unwrap_or_default().to_vec(),
+                    iter.table_header()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|cell| self.resolve_inlines(cell))
+                        .collect(),
                     iter.table_alignment().unwrap_or_default(),
                     iter.table_rows()
                         .unwrap_or_default()
-                        .iter()
-                        .map(|row| row.to_vec())
+                        .into_iter()
+                        .map(|row| {
+                            row.into_iter()
+                                .map(|cell| self.resolve_inlines(cell))
+                                .collect()
+                        })
                         .collect(),
                 ));
             }
@@ -123,9 +170,9 @@ impl Projector {
         }
 
         if iter.child().map(|n| n.is_leaf()).unwrap_or(false) {
-            items.push(vec![GraphBlock::Para(iter.inlines())]);
+            items.push(vec![GraphBlock::Para(self.resolve_inlines(iter.inlines()))]);
         } else {
-            items.push(vec![GraphBlock::Plain(iter.inlines())]);
+            items.push(vec![GraphBlock::Plain(self.resolve_inlines(iter.inlines()))]);
         }
 
         if let Some(sub_list) = iter.child().map(|child| self.with(0).project_node(child)) {

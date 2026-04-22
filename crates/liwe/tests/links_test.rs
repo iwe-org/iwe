@@ -164,6 +164,26 @@ fn sub_links_text_updated_from_referenced_header() {
 }
 
 #[test]
+fn sub_dir_relative_inline_link_resolved() {
+    compare_state(
+        vec![
+            (
+                "docs/guide",
+                "See [API reference](api/reference) for details.\n",
+            ),
+            ("docs/api/reference", "# API reference\n"),
+        ],
+        vec![
+            (
+                "docs/guide",
+                "See [old text](api/reference) for details.",
+            ),
+            ("docs/api/reference", "# API reference"),
+        ],
+    );
+}
+
+#[test]
 fn normalization_of_refs_extensions() {
     setup();
 

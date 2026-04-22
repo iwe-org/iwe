@@ -4,6 +4,7 @@ use crate::model;
 use crate::model::config::MarkdownOptions;
 use crate::model::document::DocumentInlines;
 use crate::model::node::ColumnAlignment;
+use crate::model::reference::{Reference, ReferenceType};
 use crate::model::{InlinesContext, Key, Lang, Level, LibraryUrl, Title};
 
 pub type Blocks = Vec<GraphBlock>;
@@ -36,6 +37,7 @@ pub enum GraphInline {
     Image(LibraryUrl, Title, GraphInlines),
     LineBreak,
     Link(LibraryUrl, Title, LinkType, GraphInlines),
+    Reference(Reference),
     Math(String),
     RawInline(Lang, String),
     SmallCaps(GraphInlines),
@@ -182,12 +184,27 @@ impl GraphInline {
                 if *link_type == LinkType::WikiLink {
                     return format!("[[{}]]", url);
                 }
-                if !self.is_ref() && text.eq_ignore_ascii_case(url) {
-                    format!("<{}>", url)
-                } else if self.is_ref() {
+                if model::is_ref_url(url) {
                     format!("[{}]({}{})", text, url, options.refs_extension)
+                } else if text.eq_ignore_ascii_case(url) {
+                    format!("<{}>", url)
                 } else {
                     format!("[{}]({})", text, url)
+                }
+            }
+            GraphInline::Reference(reference) => {
+                let url = reference.key.to_library_url();
+                match reference.reference_type {
+                    ReferenceType::WikiLinkPiped => {
+                        format!("[[{}|{}]]", url, reference.text)
+                    }
+                    ReferenceType::WikiLink => format!("[[{}]]", url),
+                    ReferenceType::Regular => {
+                        format!(
+                            "[{}]({}{})",
+                            reference.text, url, options.refs_extension
+                        )
+                    }
                 }
             }
             GraphInline::Image(url, _, inlines) => {
@@ -212,6 +229,7 @@ impl GraphInline {
             GraphInline::SoftBreak => "\n".into(),
             GraphInline::LineBreak => "\n".into(),
             GraphInline::Link(_, _, _, inlines) => to_plain_text(inlines),
+            GraphInline::Reference(reference) => reference.text.clone(),
             GraphInline::Image(_, _, inlines) => to_plain_text(inlines),
             GraphInline::RawInline(_, content) => content.clone(),
             _ => "".into(),
@@ -244,9 +262,11 @@ impl GraphInline {
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
-            GraphInline::Link(_, _, _, _) => {
-                self.ref_key().map(|key| vec![key]).unwrap_or_default()
-            }
+            GraphInline::Link(_, _, _, inlines) => inlines
+                .iter()
+                .flat_map(|inline| inline.ref_keys())
+                .collect(),
+            GraphInline::Reference(reference) => vec![reference.key.clone()],
             GraphInline::Image(_, _, inlines) => inlines
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
@@ -294,21 +314,20 @@ impl GraphInline {
                     .map(|inline| inline.normalize(context))
                     .collect(),
             ),
-            GraphInline::Link(url, title, link_type, inlines) => {
-                if self.is_ref() {
-                    let new_inlines = match *link_type {
-                        LinkType::Markdown => context
-                            .get_ref_title(&Key::name(url))
-                            .map(|title| vec![GraphInline::Str(title)])
-                            .unwrap_or(inlines.clone()),
-                        LinkType::WikiLink => vec![],
-                        LinkType::WikiLinkPiped => inlines.clone(),
-                    };
+            GraphInline::Reference(reference) => {
+                let new_text = match reference.reference_type {
+                    ReferenceType::Regular => context
+                        .get_ref_title(&reference.key)
+                        .unwrap_or_else(|| reference.text.clone()),
+                    ReferenceType::WikiLink => String::new(),
+                    ReferenceType::WikiLinkPiped => reference.text.clone(),
+                };
 
-                    return GraphInline::Link(url.clone(), title.clone(), *link_type, new_inlines);
-                }
-
-                self.clone()
+                GraphInline::Reference(Reference {
+                    key: reference.key.clone(),
+                    text: new_text,
+                    reference_type: reference.reference_type,
+                })
             }
             _ => self.clone(),
         }
@@ -353,16 +372,14 @@ impl GraphInline {
                     .map(|inline| inline.change_key(target_key, updated_key))
                     .collect(),
             ),
-            GraphInline::Link(_, title, link_type, inlines) => {
-                if self.is_ref() && self.ref_key().is_some_and(|key| key.eq(target_key)) {
-                    return GraphInline::Link(
-                        updated_key.to_string(),
-                        title.clone(),
-                        *link_type,
-                        inlines.clone(),
-                    );
+            GraphInline::Reference(reference) => {
+                if reference.key.eq(target_key) {
+                    return GraphInline::Reference(Reference {
+                        key: updated_key.clone(),
+                        text: reference.text.clone(),
+                        reference_type: reference.reference_type,
+                    });
                 }
-
                 self.clone()
             }
             _ => self.clone(),
@@ -370,17 +387,7 @@ impl GraphInline {
     }
 
     pub fn is_ref(&self) -> bool {
-        match self {
-            GraphInline::Link(url, _, _, _) => model::is_ref_url(url),
-            _ => false,
-        }
-    }
-
-    fn ref_key(&self) -> Option<Key> {
-        match self {
-            GraphInline::Link(url, _, _, _) => Some(Key::name(url)),
-            _ => None,
-        }
+        matches!(self, GraphInline::Reference(_))
     }
 }
 
