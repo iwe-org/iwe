@@ -43,6 +43,7 @@ pub struct LibraryOptions {
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
 pub struct CompletionOptions {
     pub link_format: Option<LinkType>,
+    pub min_prefix_length: Option<usize>,
 }
 
 impl Default for LibraryOptions {
