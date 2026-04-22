@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.68](https://github.com/iwe-org/iwe/compare/liwe-v0.0.67...liwe-v0.0.68) - 2026-04-22
+
+### Added
+
+- Add min prefix length for completions ([#262](https://github.com/iwe-org/iwe/pull/262))
+
+### Fixed
+
+- Relative inline links ([#263](https://github.com/iwe-org/iwe/pull/263))
+- Index links inside the tables ([#255](https://github.com/iwe-org/iwe/pull/255))
+
 ## [0.0.66](https://github.com/iwe-org/iwe/compare/liwe-v0.0.65...liwe-v0.0.66) - 2026-04-04
 
 ### Added
