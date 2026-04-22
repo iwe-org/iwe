@@ -186,6 +186,16 @@ impl MarkdownWriter {
                         events.push(Event::End(TagEnd::Link));
                     }
                 }
+                GraphInline::Reference(reference) => {
+                    events.push(Event::Start(Tag::Link {
+                        title: "".into(),
+                        link_type: link_type(reference.reference_type.to_link_type()),
+                        dest_url: reference.key.to_library_url().into(),
+                        id: "".into(),
+                    }));
+                    events.push(Event::Text(reference.text.into()));
+                    events.push(Event::End(TagEnd::Link));
+                }
                 GraphInline::Math(math) => {
                     events.push(Event::Html(format!("\\({}\\)", math).into()));
                 }

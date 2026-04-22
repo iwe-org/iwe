@@ -1,4 +1,3 @@
-use crate::model::document::LinkType;
 use crate::model::graph::{blocks_to_markdown_sparce_skip_frontmatter, GraphInlines};
 use crate::model::{Key, NodeId};
 
@@ -6,6 +5,8 @@ use super::config::MarkdownOptions;
 use super::graph::{blocks_to_markdown_sparce, GraphInline};
 use super::projector::Projector;
 use super::tree::Tree;
+
+pub use crate::model::reference::{Reference, ReferenceType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
@@ -49,30 +50,6 @@ impl Node {
     pub fn is_reference(&self) -> bool {
         matches!(self, Node::Reference(_))
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ReferenceType {
-    Regular,
-    WikiLink,
-    WikiLinkPiped,
-}
-
-impl ReferenceType {
-    pub fn to_link_type(&self) -> LinkType {
-        match self {
-            ReferenceType::Regular => LinkType::Markdown,
-            ReferenceType::WikiLink => LinkType::WikiLink,
-            ReferenceType::WikiLinkPiped => LinkType::WikiLinkPiped,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Reference {
-    pub key: Key,
-    pub text: String,
-    pub reference_type: ReferenceType,
 }
 
 #[derive(Clone, Debug, PartialEq)]
