@@ -18,6 +18,7 @@ frontmatter_document_title = "title"
 
 [completion]
 link_format = "markdown"
+min_prefix_length = 3
 ```
 
 ### Markdown Settings
@@ -38,6 +39,7 @@ link_format = "markdown"
 - `link_format`: Format for auto-completed links (default: `"markdown"`)
   - `"markdown"`: Creates `[title](key)` style links
   - `"wiki"`: Creates `[[key]]` style WikiLinks
+- `min_prefix_length`: Minimum number of characters typed before completions appear (default: `3`). Set to `0` to always show completions.
 
 ### Date Format Patterns
 

@@ -16,6 +16,17 @@ Available options:
 - `"markdown"` (default): Creates `[title](key)` style links
 - `"wiki"`: Creates `[[key]]` style WikiLinks
 
+## Minimum prefix length
+
+By default, IWE requires at least 3 characters before showing completion suggestions. You can adjust this threshold:
+
+``` toml
+[completion]
+min_prefix_length = 3
+```
+
+Set to `0` to always show completions regardless of how many characters have been typed.
+
 ## Document Titles
 
 By default, IWE uses the first header of a document as its title in completion suggestions. You can configure IWE to use a YAML frontmatter field instead:

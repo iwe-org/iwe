@@ -157,6 +157,36 @@ impl Server {
     }
 
     pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
+        let min_length = self.configuration.completion.min_prefix_length.unwrap_or(3);
+
+        if min_length > 0 {
+            let position = params.text_document_position.position;
+            let key = params
+                .text_document_position
+                .text_document
+                .uri
+                .to_key(&self.base_path);
+
+            let prefix_len = self
+                .graph
+                .get_document(&key)
+                .and_then(|content| {
+                    let line = content.lines().nth(position.line as usize)?;
+                    let before_cursor =
+                        &line[..std::cmp::min(position.character as usize, line.len())];
+                    let prefix = before_cursor.split_whitespace().last().unwrap_or("");
+                    Some(prefix.len())
+                })
+                .unwrap_or(0);
+
+            if prefix_len < min_length {
+                return CompletionResponse::List(CompletionList {
+                    is_incomplete: false,
+                    items: vec![],
+                });
+            }
+        }
+
         CompletionResponse::List(CompletionList {
             is_incomplete: false,
             items: self.handle_link_completion(params),
