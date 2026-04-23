@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.69](https://github.com/iwe-org/iwe/compare/iwes-v0.0.68...iwes-v0.0.69) - 2026-04-23
+
+### Added
+
+- Custom Markdown formatting ([#266](https://github.com/iwe-org/iwe/pull/266))
+
 ## [0.0.68](https://github.com/iwe-org/iwe/compare/iwes-v0.0.67...iwes-v0.0.68) - 2026-04-22
 
 ### Added
