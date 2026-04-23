@@ -99,11 +99,20 @@ impl GraphBlock {
                 .map(|line| inlines_to_markdown(line, options))
                 .collect::<Vec<String>>()
                 .join("\n"),
-            GraphBlock::CodeBlock(lang, text) => lang
-                .clone()
-                .filter(|lang| !lang.trim().is_empty())
-                .map(|lang| format!("``` {}\n{}\n```\n", lang, text.trim_matches('\n')))
-                .unwrap_or_else(|| format!("```\n{}\n```\n", text.trim_matches('\n'))),
+            GraphBlock::CodeBlock(lang, text) => {
+                let fence = options
+                    .formatting
+                    .code_block_token()
+                    .repeat(options.formatting.code_block_token_count());
+                lang.clone()
+                    .filter(|lang| !lang.trim().is_empty())
+                    .map(|lang| {
+                        format!("{} {}\n{}\n{}\n", fence, lang, text.trim_matches('\n'), fence)
+                    })
+                    .unwrap_or_else(|| {
+                        format!("{}\n{}\n{}\n", fence, text.trim_matches('\n'), fence)
+                    })
+            }
             GraphBlock::RawBlock(_, text) => text.clone(),
             GraphBlock::BlockQuote(blocks) => {
                 blocks_to_markdown_sparce(blocks, options)
@@ -118,9 +127,15 @@ impl GraphBlock {
                 .iter()
                 .enumerate()
                 .map(|(n, item)| {
+                    let num = if options.formatting.increment_ordered_list_bullets() {
+                        n + 1
+                    } else {
+                        1
+                    };
                     left_pad_and_prefix_num(
                         &blocks_to_markdown_and(item, self.is_sparce_list(), options),
-                        n + 1,
+                        num,
+                        options.formatting.ordered_list_token_char(),
                     )
                 })
                 .collect::<Vec<String>>()
@@ -128,11 +143,10 @@ impl GraphBlock {
             GraphBlock::BulletList(items) => items
                 .iter()
                 .map(|item| {
-                    left_pad_and_prefix(&blocks_to_markdown_and(
-                        item,
-                        self.is_sparce_list(),
-                        options,
-                    ))
+                    left_pad_and_prefix(
+                        &blocks_to_markdown_and(item, self.is_sparce_list(), options),
+                        options.formatting.list_token(),
+                    )
                 })
                 .collect::<Vec<String>>()
                 .join(if self.is_sparce_list() { "\n" } else { "" }),
@@ -143,7 +157,10 @@ impl GraphBlock {
                     inlines_to_markdown(inlines, options)
                 )
             }
-            GraphBlock::HorizontalRule => format!("{}\n", "-".repeat(72)),
+            GraphBlock::HorizontalRule => {
+                let fmt = &options.formatting;
+                format!("{}\n", fmt.rule_token().repeat(fmt.rule_token_count()))
+            }
             GraphBlock::Table(_, _, _) => {
                 let writer = MarkdownWriter::new(options.clone());
                 format!("{}\n", writer.write(vec![self.clone()]))
@@ -159,9 +176,15 @@ impl GraphInline {
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
             GraphInline::Str(text) => text.clone(),
-            GraphInline::Emph(emph) => format!("*{}*", inlines_to_markdown(emph, options)),
+            GraphInline::Emph(emph) => {
+                let t = options.formatting.emphasis_token();
+                format!("{t}{}{t}", inlines_to_markdown(emph, options))
+            }
             GraphInline::Underline(underline) => inlines_to_markdown(underline, options),
-            GraphInline::Strong(strong) => format!("**{}**", inlines_to_markdown(strong, options)),
+            GraphInline::Strong(strong) => {
+                let t = options.formatting.strong_token();
+                format!("{t}{}{t}", inlines_to_markdown(strong, options))
+            }
             GraphInline::Strikeout(strikeout) => {
                 format!("~~{}~~", inlines_to_markdown(strikeout, options))
             }
@@ -391,23 +414,23 @@ impl GraphInline {
     }
 }
 
-fn left_pad_and_prefix(text: &str) -> String {
+fn left_pad_and_prefix(text: &str, list_token: &str) -> String {
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {
             result.push('\n');
         } else if n == 0 {
-            result.push_str(&format!("- {}\n", line));
+            result.push_str(&format!("{} {}\n", list_token, line));
         } else {
-            result.push_str(&format!("  {}\n", line));
+            result.push_str(&format!("{} {}\n", " ".repeat(list_token.len()), line));
         }
     }
 
     result
 }
 
-fn left_pad_and_prefix_num(text: &str, num: usize) -> String {
-    let prefix = format!("{}.{}", num, if num > 9 { "" } else { " " });
+fn left_pad_and_prefix_num(text: &str, num: usize, ordered_list_token: char) -> String {
+    let prefix = format!("{}{}{}", num, ordered_list_token, if num > 9 { "" } else { " " });
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {

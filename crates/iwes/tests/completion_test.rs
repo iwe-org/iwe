@@ -42,6 +42,7 @@ fn completion_test_with_refs_extension() {
             refs_extension: ".md".to_string(),
             date_format: None,
             locale: None,
+            formatting: Default::default(),
         },
         completion: CompletionOptions {
             min_prefix_length: Some(0),
@@ -108,6 +109,7 @@ fn completion_relative_test_with_refs_extension() {
         refs_extension: ".html".to_string(),
         date_format: None,
         locale: None,
+        formatting: Default::default(),
     };
 
     let config = Configuration {
@@ -285,6 +287,7 @@ fn completion_with_wikilink_and_refs_extension() {
             refs_extension: ".md".to_string(),
             date_format: None,
             locale: None,
+            formatting: Default::default(),
         },
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),
