@@ -78,7 +78,9 @@ impl Key {
 
     pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
         let key = url.trim_end_matches(".md").to_string();
-        let path = RelativePath::new(relative_to).join(key).to_string();
+        let path = RelativePath::new(relative_to)
+            .join_normalized(key)
+            .to_string();
         Key {
             relative_path: Arc::new(path),
         }
