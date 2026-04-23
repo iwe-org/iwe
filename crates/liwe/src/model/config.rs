@@ -1,5 +1,6 @@
 use indoc::indoc;
 use log::debug;
+use pulldown_cmark_to_cmark::Options as CmarkOptions;
 use std::{collections::HashMap, env, fs::read_to_string};
 use toml_edit::{value, DocumentMut, Item};
 
@@ -16,9 +17,12 @@ pub const DEFAULT_KEY_DATE_FORMAT: &str = "%Y-%m-%d";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct MarkdownOptions {
+    #[serde(default)]
     pub refs_extension: String,
     pub date_format: Option<String>,
     pub locale: Option<String>,
+    #[serde(default)]
+    pub formatting: FormattingOptions,
 }
 
 impl Default for MarkdownOptions {
@@ -27,12 +31,130 @@ impl Default for MarkdownOptions {
             refs_extension: String::new(),
             date_format: Some("%b %d, %Y".into()),
             locale: None,
+            formatting: FormattingOptions::default(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+pub struct FormattingOptions {
+    pub emphasis_token: Option<String>,
+    pub strong_token: Option<String>,
+    pub list_token: Option<String>,
+    pub ordered_list_token: Option<String>,
+    pub code_block_token: Option<String>,
+    pub code_block_token_count: Option<usize>,
+    pub increment_ordered_list_bullets: Option<bool>,
+    pub rule_token: Option<String>,
+    pub rule_token_count: Option<usize>,
+}
+
+impl FormattingOptions {
+    pub fn validated(self) -> Self {
+        Self {
+            emphasis_token: self
+                .emphasis_token
+                .filter(|v| matches!(v.as_str(), "*" | "_")),
+            strong_token: self
+                .strong_token
+                .filter(|v| matches!(v.as_str(), "**" | "__")),
+            list_token: self
+                .list_token
+                .filter(|v| matches!(v.as_str(), "*" | "-" | "+")),
+            ordered_list_token: self
+                .ordered_list_token
+                .filter(|v| matches!(v.as_str(), "." | ")")),
+            code_block_token: self
+                .code_block_token
+                .filter(|v| matches!(v.as_str(), "`" | "~")),
+            code_block_token_count: self.code_block_token_count.filter(|&v| v >= 3),
+            increment_ordered_list_bullets: self.increment_ordered_list_bullets,
+            rule_token: self
+                .rule_token
+                .filter(|v| matches!(v.as_str(), "-" | "*" | "_")),
+            rule_token_count: self.rule_token_count.filter(|&v| v >= 3),
+        }
+    }
+
+    pub fn emphasis_token(&self) -> &str {
+        self.emphasis_token.as_deref().unwrap_or("*")
+    }
+
+    pub fn strong_token(&self) -> &str {
+        self.strong_token.as_deref().unwrap_or("**")
+    }
+
+    pub fn list_token(&self) -> &str {
+        self.list_token.as_deref().unwrap_or("-")
+    }
+
+    pub fn list_token_char(&self) -> char {
+        self.list_token().chars().next().unwrap_or('-')
+    }
+
+    pub fn ordered_list_token(&self) -> &str {
+        self.ordered_list_token.as_deref().unwrap_or(".")
+    }
+
+    pub fn ordered_list_token_char(&self) -> char {
+        self.ordered_list_token().chars().next().unwrap_or('.')
+    }
+
+    pub fn code_block_token(&self) -> &str {
+        self.code_block_token.as_deref().unwrap_or("`")
+    }
+
+    pub fn code_block_token_char(&self) -> char {
+        self.code_block_token().chars().next().unwrap_or('`')
+    }
+
+    pub fn code_block_token_count(&self) -> usize {
+        self.code_block_token_count.unwrap_or(3)
+    }
+
+    pub fn increment_ordered_list_bullets(&self) -> bool {
+        self.increment_ordered_list_bullets.unwrap_or(true)
+    }
+
+    pub fn rule_token(&self) -> &str {
+        self.rule_token.as_deref().unwrap_or("-")
+    }
+
+    pub fn rule_token_count(&self) -> usize {
+        self.rule_token_count.unwrap_or(72)
+    }
+
+    pub fn to_cmark_options(&self) -> CmarkOptions<'_> {
+        CmarkOptions {
+            newlines_after_headline: 2,
+            newlines_after_paragraph: 2,
+            newlines_after_codeblock: 2,
+            newlines_after_htmlblock: 1,
+            newlines_after_table: 2,
+            newlines_after_rule: 2,
+            newlines_after_list: 2,
+            newlines_after_blockquote: 2,
+            newlines_after_rest: 1,
+            newlines_after_metadata: 1,
+            code_block_token_count: self.code_block_token_count(),
+            code_block_token: self.code_block_token_char(),
+            list_token: self.list_token_char(),
+            ordered_list_token: self.ordered_list_token_char(),
+            increment_ordered_list_bullets: self.increment_ordered_list_bullets(),
+            emphasis_token: self.emphasis_token_char(),
+            strong_token: self.strong_token(),
+            use_html_for_super_sub_script: false,
+        }
+    }
+
+    fn emphasis_token_char(&self) -> char {
+        self.emphasis_token().chars().next().unwrap_or('*')
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct LibraryOptions {
+    #[serde(default)]
     pub path: String,
     pub date_format: Option<String>,
     pub default_template: Option<String>,
@@ -61,11 +183,15 @@ impl Default for LibraryOptions {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Configuration {
     pub version: Option<u32>,
+    #[serde(default)]
     pub markdown: MarkdownOptions,
+    #[serde(default)]
     pub library: LibraryOptions,
     #[serde(default)]
     pub completion: CompletionOptions,
+    #[serde(default)]
     pub commands: HashMap<String, Command>,
+    #[serde(default)]
     pub actions: HashMap<String, ActionDefinition>,
     #[serde(default)]
     pub templates: HashMap<String, NoteTemplate>,
@@ -416,7 +542,10 @@ pub fn load_config() -> Configuration {
 
         let configuration = migrate(&read_to_string(config_path).expect("to read config file"));
 
-        toml::from_str::<Configuration>(&configuration).expect("to parse config file")
+        let mut config =
+            toml::from_str::<Configuration>(&configuration).expect("to parse config file");
+        config.markdown.formatting = config.markdown.formatting.validated();
+        config
     } else {
         debug!("using default configuration");
         Configuration::template()

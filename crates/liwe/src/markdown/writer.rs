@@ -1,5 +1,5 @@
 use pulldown_cmark::{Event, HeadingLevel, MetadataBlockKind, Tag, TagEnd};
-use pulldown_cmark_to_cmark::{cmark_with_options, Options};
+use pulldown_cmark_to_cmark::cmark_with_options;
 
 use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
@@ -23,26 +23,7 @@ impl MarkdownWriter {
         cmark_with_options(
             self.blocks_events(blocks).iter().cloned(),
             &mut buf,
-            Options {
-                newlines_after_headline: 2,
-                newlines_after_paragraph: 2,
-                newlines_after_codeblock: 2,
-                newlines_after_htmlblock: 1,
-                newlines_after_table: 2,
-                newlines_after_rule: 2,
-                newlines_after_list: 2,
-                newlines_after_blockquote: 2,
-                newlines_after_rest: 1,
-                newlines_after_metadata: 1,
-                code_block_token_count: 4,
-                code_block_token: '`',
-                list_token: '*',
-                ordered_list_token: '.',
-                increment_ordered_list_bullets: false,
-                emphasis_token: '*',
-                strong_token: "**",
-                use_html_for_super_sub_script: false,
-            },
+            self.options.formatting.to_cmark_options(),
         )
         .unwrap();
         buf

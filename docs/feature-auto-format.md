@@ -118,6 +118,19 @@ normalize_headers = true  # Adjust header levels
 normalize_lists = true    # Fix list formatting
 ```
 
+### Custom Formatting Tokens
+
+You can customize the markdown syntax used during formatting. For example, to use underscores for emphasis and plus signs for lists:
+
+``` toml
+[markdown.formatting]
+emphasis_token = "_"
+strong_token = "__"
+list_token = "+"
+```
+
+See [Configuration](configuration.md) for all available formatting options.
+
 ## Tips
 
 - **Enable format-on-save** for consistent formatting across your library

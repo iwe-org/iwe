@@ -10,6 +10,17 @@ refs_extension = ""
 date_format = "%b %d, %Y"
 locale = "de_DE"
 
+[markdown.formatting]
+emphasis_token = "_"
+strong_token = "__"
+list_token = "-"
+ordered_list_token = "."
+code_block_token = "`"
+code_block_token_count = 3
+increment_ordered_list_bullets = true
+rule_token = "-"
+rule_token_count = 72
+
 [library]
 path = ""
 date_format = "%Y-%m-%d"
@@ -26,6 +37,27 @@ min_prefix_length = 3
 - `refs_extension`: File extension for markdown references (default: empty, uses `.md`)
 - `date_format`: Date format for markdown content display (default: `"%b %d, %Y"`, e.g., "Jan 15, 2024")
 - `locale`: Locale for date formatting in document content (default: system locale). Allows different localization for content than for file keys.
+
+### Formatting Settings
+
+Control how IWE renders markdown when normalizing or formatting documents. All fields are optional and use sensible defaults. Invalid values fall back to defaults.
+
+``` toml
+[markdown.formatting]
+emphasis_token = "_"
+strong_token = "__"
+list_token = "-"
+```
+
+- `emphasis_token`: Character for italic text (default: `"*"`). Options: `"*"` or `"_"`
+- `strong_token`: Characters for bold text (default: `"**"`). Options: `"**"` or `"__"`
+- `list_token`: Character for unordered list items (default: `"-"`). Options: `"-"`, `"*"`, or `"+"`
+- `ordered_list_token`: Character after numbers in ordered lists (default: `"."`). Options: `"."` (`1. item`) or `")"` (`1) item`)
+- `code_block_token`: Character for code block fences (default: `` "`" ``). Options: `` "`" `` or `"~"`
+- `code_block_token_count`: Minimum number of fence characters (default: `3`)
+- `increment_ordered_list_bullets`: Whether to increment ordered list numbers (default: `true`). When `true`, items use `1.`, `2.`, `3.`; when `false`, all items use `1.`
+- `rule_token`: Character for horizontal rules (default: `"-"`). Options: `"-"`, `"*"`, or `"_"`
+- `rule_token_count`: Number of characters in horizontal rules (default: `72`)
 
 ### Library Settings
 
