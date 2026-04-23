@@ -184,6 +184,46 @@ fn sub_dir_relative_inline_link_resolved() {
 }
 
 #[test]
+fn parent_dir_relative_inline_link_resolved() {
+    compare_state(
+        vec![
+            (
+                "docs/notes/note",
+                "See [Other Note](../assets/Other-Note) for details.\n",
+            ),
+            ("docs/assets/Other-Note", "# Other Note\n"),
+        ],
+        vec![
+            (
+                "docs/notes/note",
+                "See [old text](../assets/Other-Note) for details.",
+            ),
+            ("docs/assets/Other-Note", "# Other Note"),
+        ],
+    );
+}
+
+#[test]
+fn nested_parent_dir_relative_inline_link_resolved() {
+    compare_state(
+        vec![
+            (
+                "docs/notes/sub/note",
+                "See [Other Note](../../assets/Other-Note) for details.\n",
+            ),
+            ("docs/assets/Other-Note", "# Other Note\n"),
+        ],
+        vec![
+            (
+                "docs/notes/sub/note",
+                "See [old text](../../assets/Other-Note) for details.",
+            ),
+            ("docs/assets/Other-Note", "# Other Note"),
+        ],
+    );
+}
+
+#[test]
 fn normalization_of_refs_extensions() {
     setup();
 
