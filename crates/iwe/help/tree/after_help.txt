@@ -1,10 +1,19 @@
 Examples:
-  iwe tree                     Show full tree with markdown links
-  iwe tree -f keys             Show tree with document keys only
-  iwe tree -f json             Show tree as JSON
-  iwe tree -k my-doc           Show tree starting from 'my-doc'
-  iwe tree -k doc-a -k doc-b   Show trees from multiple starting points
-  iwe tree --depth 2           Show only 2 levels deep
+  iwe tree                           Show full tree with markdown links
+  iwe tree -f keys                   Show tree with document keys only
+  iwe tree -f json                   Show tree as JSON
+  iwe tree -k my-doc                 Show tree starting from 'my-doc'
+  iwe tree -k doc-a -k doc-b         Show trees from multiple starting points
+  iwe tree --depth 2                 Show only 2 levels deep
+  iwe tree --in projects/alpha       Tree rooted at sub-documents of projects/alpha
+  iwe tree --in-any a --in-any b     Tree rooted at union of two subtrees
+  iwe tree --in a --not-in archive   Sub-documents of a, excluding archive
+
+Structural set selector (--in family):
+  --in KEY[:DEPTH]      Sub-documents of EVERY listed key (AND). Repeatable.
+  --in-any KEY[:DEPTH]  Sub-documents of AT LEAST ONE listed key (OR).
+  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
+  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
 
 When documents form circular references (A→B→C→A), they have no natural root.
 Use -k to start from any document in the cycle:

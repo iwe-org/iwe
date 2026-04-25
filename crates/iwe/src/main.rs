@@ -433,7 +433,11 @@ struct Extract {
 }
 
 #[derive(Debug, Args)]
-#[clap(about = "Overwrite a document's full markdown content")]
+#[clap(
+    about = help::update::ABOUT,
+    long_about = help::update::LONG_ABOUT,
+    after_help = help::update::AFTER_HELP
+)]
 struct Update {
     #[clap(long, short = 'k', help = "Document key to update")]
     key: String,
@@ -453,7 +457,11 @@ struct Update {
 }
 
 #[derive(Debug, Args)]
-#[clap(about = "Attach a document as a block reference via one or more configured attach actions")]
+#[clap(
+    about = help::attach::ABOUT,
+    long_about = help::attach::LONG_ABOUT,
+    after_help = help::attach::AFTER_HELP
+)]
 struct Attach {
     #[clap(
         long,

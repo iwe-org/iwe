@@ -6,3 +6,8 @@ Documents are collected in order:
 3. Parent context (-c N levels up)
 4. Parents of sub-documents (when -d > 0 and -c > 0)
 5. Inline linked documents (-l)
+
+Without -k, --in, or stdin, the command exits with an error. When --in / --in-any /
+--not-in / --max-depth are provided, the selector resolves to a set of keys to retrieve.
+Combining -k with the selector intersects the two — explicit keys filtered through the
+selector. Empty intersection produces an empty result.

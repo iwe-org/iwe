@@ -1,0 +1,16 @@
+EXAMPLES:
+
+  # Replace a document with a fixed string
+  iwe update -k notes/draft -c "# Draft\n\nNew content."
+
+  # Pipe content from another command
+  cat new-content.md | iwe update -k notes/draft -c -
+
+  # Preview without writing
+  iwe update -k notes/draft -c "..." --dry-run
+
+NOTES:
+
+  - The target document must already exist; update does not create new docs.
+  - Use `iwe new` to create documents from a template.
+  - Use `iwe attach` to append a block reference instead of overwriting.

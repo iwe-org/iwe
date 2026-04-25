@@ -8,6 +8,10 @@ Use -k/--key to start the tree from specific document(s), regardless of whether
 they are roots. This is useful for viewing subtrees or documents involved in
 circular references that have no natural root.
 
+When --in / --in-any / --not-in is provided, the selector resolves to a set of
+keys and those keys are used as the tree roots. Combining -k with the selector
+intersects the two — empty intersection yields an empty tree.
+
 Output formats:
   markdown  Nested list with links (default): - [Title](key)
   keys      Document keys only
