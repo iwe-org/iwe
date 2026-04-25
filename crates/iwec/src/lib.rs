@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use liwe::find::{DocumentFinder, FindOptions, FindOutput};
 use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
+use liwe::selector::{KeyDepth, Selector};
 use liwe::stats::{GraphStatistics, KeyStatistics};
 use liwe::fs::{new_for_path, new_from_hashmap};
 use liwe::graph::{Graph, GraphContext};
@@ -42,6 +43,63 @@ fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum KeyDepthParam {
+    Bare(String),
+    Qualified {
+        key: String,
+        depth: Option<u8>,
+    },
+}
+
+impl From<KeyDepthParam> for KeyDepth {
+    fn from(p: KeyDepthParam) -> Self {
+        match p {
+            KeyDepthParam::Bare(s) => KeyDepth::bare(Key::name(&s)),
+            KeyDepthParam::Qualified { key, depth } => match depth {
+                Some(d) => KeyDepth::with_depth(Key::name(&key), d),
+                None => KeyDepth::bare(Key::name(&key)),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+pub struct SelectorParams {
+    #[schemars(
+        description = "Restrict to candidates that are sub-documents of EVERY listed key (AND). Each entry is either a bare KEY or {key, depth}."
+    )]
+    #[serde(rename = "in", default)]
+    pub in_: Vec<KeyDepthParam>,
+    #[schemars(
+        description = "Restrict to candidates that are sub-documents of AT LEAST ONE listed key (OR)."
+    )]
+    #[serde(default)]
+    pub in_any: Vec<KeyDepthParam>,
+    #[schemars(
+        description = "Exclude candidates that are sub-documents of ANY listed key (NOT)."
+    )]
+    #[serde(default)]
+    pub not_in: Vec<KeyDepthParam>,
+    #[schemars(
+        description = "Default depth for in / in_any / not_in entries that don't specify their own depth. Omit for unbounded."
+    )]
+    #[serde(default)]
+    pub max_depth: Option<u8>,
+}
+
+impl From<SelectorParams> for Selector {
+    fn from(p: SelectorParams) -> Self {
+        Selector {
+            in_: p.in_.into_iter().map(Into::into).collect(),
+            in_any: p.in_any.into_iter().map(Into::into).collect(),
+            not_in: p.not_in.into_iter().map(Into::into).collect(),
+            max_depth: p.max_depth,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct FindParams {
     #[schemars(description = "Fuzzy search query matching against document title and key")]
     pub query: Option<String>,
@@ -53,6 +111,8 @@ pub struct FindParams {
     pub refs_from: Option<String>,
     #[schemars(description = "Maximum number of results to return")]
     pub limit: Option<usize>,
+    #[serde(flatten)]
+    pub selector: SelectorParams,
 }
 
 impl From<FindParams> for FindOptions {
@@ -62,6 +122,7 @@ impl From<FindParams> for FindOptions {
             roots: p.roots.unwrap_or(false),
             refs_to: p.refs_to.map(|k| Key::name(&k)),
             refs_from: p.refs_from.map(|k| Key::name(&k)),
+            selector: p.selector.into(),
             limit: p.limit,
         }
     }
@@ -69,7 +130,8 @@ impl From<FindParams> for FindOptions {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RetrieveParams {
-    #[schemars(description = "Document keys to retrieve")]
+    #[schemars(description = "Document keys to retrieve. Can be empty when a structural selector is provided.")]
+    #[serde(default)]
     pub keys: Vec<String>,
     #[schemars(description = "Levels of block references to expand (0 = document only, 1 = include direct sub-documents). Default: 1")]
     pub depth: Option<u8>,
@@ -83,6 +145,8 @@ pub struct RetrieveParams {
     pub exclude: Option<Vec<String>>,
     #[schemars(description = "Return metadata only without document content. Default: false")]
     pub no_content: Option<bool>,
+    #[serde(flatten)]
+    pub selector: SelectorParams,
 }
 
 impl From<RetrieveParams> for RetrieveOptions {
@@ -99,16 +163,19 @@ impl From<RetrieveParams> for RetrieveOptions {
                 .map(|k| Key::name(&k))
                 .collect::<HashSet<_>>(),
             no_content: p.no_content.unwrap_or(false),
+            selector: p.selector.into(),
         }
     }
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TreeParams {
-    #[schemars(description = "Starting document keys. If empty, shows all root documents")]
+    #[schemars(description = "Starting document keys. If empty and no selector, shows all root documents.")]
     pub keys: Option<Vec<String>>,
     #[schemars(description = "Maximum traversal depth. Default: 4")]
     pub depth: Option<u8>,
+    #[serde(flatten)]
+    pub selector: SelectorParams,
 }
 
 #[derive(Debug, Serialize)]
@@ -237,12 +304,11 @@ struct ReferenceEntry {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AttachParams {
-    #[schemars(description = "Name of the configured attach action (e.g. 'today')")]
-    pub action: Option<String>,
-    #[schemars(description = "Document key to attach as a block reference in the target")]
+    #[schemars(description = "Configured attach action(s) to attach to (e.g. 'today'). Pass one or more action names; the source is attached under each resolved target.")]
+    #[serde(default)]
+    pub to: Vec<String>,
+    #[schemars(description = "Document key to attach as a block reference in the target(s)")]
     pub key: Option<String>,
-    #[schemars(description = "Custom reference text (defaults to document title)")]
-    pub text: Option<String>,
     #[schemars(description = "List available attach actions instead of executing. Default: false")]
     pub list: Option<bool>,
     #[schemars(description = "Preview changes without applying. Default: false")]
@@ -352,7 +418,7 @@ pub struct IweServer {
 
 #[tool_router]
 impl IweServer {
-    #[tool(description = "Search and discover documents in the knowledge graph by fuzzy query, structural filters, or reference relationships")]
+    #[tool(description = "Search and discover documents in the knowledge graph. Supports fuzzy text query (`query`), root filter (`roots`), direct-reference filters (`refs_to`, `refs_from`), and the structural set selector (`in` / `in_any` / `not_in` / `max_depth`) for transitive sub-document AND/OR/NOT queries with configurable depth.")]
     async fn iwe_find(
         &self,
         Parameters(params): Parameters<FindParams>,
@@ -376,14 +442,34 @@ impl IweServer {
         to_json_result(&output)
     }
 
-    #[tool(description = "View the hierarchical tree structure of the knowledge graph showing how documents are connected via block references")]
+    #[tool(description = "View the hierarchical tree structure of the knowledge graph showing how documents are connected via block references. Supports the structural set selector (in / in_any / not_in / max_depth) — when provided, the tree roots are restricted to (or selected from) that set.")]
     async fn iwe_tree(
         &self,
         Parameters(params): Parameters<TreeParams>,
     ) -> Result<CallToolResult, McpError> {
         let graph = self.graph.lock().await;
-        let root_keys: Vec<Key> = if let Some(keys) = params.keys.filter(|k| !k.is_empty()) {
-            keys.iter().map(|k| Key::name(k)).collect()
+
+        let selector: Selector = params.selector.into();
+        let explicit_keys: Vec<Key> = params
+            .keys
+            .filter(|k| !k.is_empty())
+            .map(|ks| ks.iter().map(|k| Key::name(k)).collect())
+            .unwrap_or_default();
+
+        let root_keys: Vec<Key> = if !selector.is_empty() {
+            let selector_set = selector.resolve(&graph);
+            if explicit_keys.is_empty() {
+                let mut v: Vec<Key> = selector_set.into_iter().collect();
+                v.sort();
+                v
+            } else {
+                explicit_keys
+                    .into_iter()
+                    .filter(|k| selector_set.contains(k))
+                    .collect()
+            }
+        } else if !explicit_keys.is_empty() {
+            explicit_keys
         } else {
             let paths = graph.paths();
             let mut keys: Vec<Key> = paths
@@ -764,7 +850,7 @@ impl IweServer {
         })
     }
 
-    #[tool(description = "Attach a document as a block reference in a target document determined by a configured attach action. The target key is derived from the action's key_template (e.g. daily/{{today}}). Use list mode to discover available attach actions")]
+    #[tool(description = "Attach a document as a block reference in one or more target documents determined by configured attach actions. Each target key is derived from the action's key_template (e.g. daily/{{today}}). The `to` field accepts a list of action names; the source is attached under each resolved target. Targets that already contain the source are silently skipped. Use list mode to discover available attach actions.")]
     async fn iwe_attach(
         &self,
         Parameters(params): Parameters<AttachParams>,
@@ -789,34 +875,19 @@ impl IweServer {
             return to_json_result(&entries);
         }
 
-        let action_name = params.action.as_deref().ok_or_else(|| {
-            McpError::invalid_params("'action' is required when not in list mode".to_string(), None)
-        })?;
+        if params.to.is_empty() {
+            return Err(McpError::invalid_params(
+                "'to' is required when not in list mode (pass one or more action names)".to_string(),
+                None,
+            ));
+        }
         let source_key_str = params.key.as_deref().ok_or_else(|| {
             McpError::invalid_params("'key' is required when not in list mode".to_string(), None)
         })?;
 
-        let attach = match self.config.actions.get(action_name) {
-            Some(ActionDefinition::Attach(a)) => a,
-            Some(_) => {
-                return Err(McpError::invalid_params(
-                    format!("Action '{}' is not an attach action", action_name),
-                    None,
-                ));
-            }
-            None => {
-                return Err(McpError::invalid_params(
-                    format!("Action '{}' not found", action_name),
-                    None,
-                ));
-            }
-        };
-
-        let target_key = Key::name(&self.render_key_template(&attach.key_template));
-        let source_key = Key::name(source_key_str);
-
         let mut graph = self.graph.lock().await;
 
+        let source_key = Key::name(source_key_str);
         if (&*graph).get_node_id(&source_key).is_none() {
             return Err(McpError::invalid_params(
                 format!("Document '{}' not found", source_key_str),
@@ -824,65 +895,79 @@ impl IweServer {
             ));
         }
 
-        let reference_text = params.text.unwrap_or_else(|| {
-            (&*graph)
-                .get_key_title(&source_key)
-                .unwrap_or_else(|| source_key_str.to_string())
-        });
+        let reference_text = (&*graph)
+            .get_key_title(&source_key)
+            .unwrap_or_else(|| source_key_str.to_string());
 
-        if (&*graph).get_node_id(&target_key).is_some() {
-            let tree = (&*graph).collect(&target_key);
-            if tree
-                .get_all_block_reference_keys()
-                .contains(&source_key)
-            {
-                return Err(McpError::invalid_params(
-                    format!(
-                        "Document '{}' is already attached in '{}'",
-                        source_key_str, target_key
-                    ),
-                    None,
-                ));
+        let mut combined = Changes::new();
+        let markdown_options = graph.markdown_options();
+
+        for action_name in &params.to {
+            let attach = match self.config.actions.get(action_name) {
+                Some(ActionDefinition::Attach(a)) => a,
+                Some(_) => {
+                    return Err(McpError::invalid_params(
+                        format!("Action '{}' is not an attach action", action_name),
+                        None,
+                    ));
+                }
+                None => {
+                    return Err(McpError::invalid_params(
+                        format!("Action '{}' not found", action_name),
+                        None,
+                    ));
+                }
+            };
+
+            let target_key = Key::name(&self.render_key_template(&attach.key_template));
+
+            if (&*graph).get_node_id(&target_key).is_some() {
+                let tree = (&*graph).collect(&target_key);
+                if tree
+                    .get_all_block_reference_keys()
+                    .contains(&source_key)
+                {
+                    continue;
+                }
+            }
+
+            let reference = Tree {
+                id: None,
+                node: Node::Reference(Reference {
+                    key: source_key.clone(),
+                    text: reference_text.clone(),
+                    reference_type: ReferenceType::Regular,
+                }),
+                children: vec![],
+            };
+
+            if (&*graph).get_node_id(&target_key).is_some() {
+                let tree = (&*graph).collect(&target_key);
+                let updated = tree.attach(reference);
+                combined.add_update(
+                    target_key.clone(),
+                    updated
+                        .iter()
+                        .to_markdown(&target_key.parent(), &markdown_options),
+                );
+            } else {
+                let content = reference
+                    .iter()
+                    .to_markdown(&target_key.parent(), &markdown_options);
+                let document = self.render_document_template(
+                    &attach.document_template,
+                    &content,
+                );
+                combined.add_create(target_key.clone(), document);
             }
         }
 
-        let reference = Tree {
-            id: None,
-            node: Node::Reference(Reference {
-                key: source_key,
-                text: reference_text,
-                reference_type: ReferenceType::Regular,
-            }),
-            children: vec![],
-        };
-
-        let markdown_options = graph.markdown_options();
-        let changes = if (&*graph).get_node_id(&target_key).is_some() {
-            let tree = (&*graph).collect(&target_key);
-            let updated = tree.attach(reference);
-            Changes::new().update(
-                target_key.clone(),
-                updated
-                    .iter()
-                    .to_markdown(&target_key.parent(), &markdown_options),
-            )
-        } else {
-            let content = reference
-                .iter()
-                .to_markdown(&target_key.parent(), &markdown_options);
-            let document = self.render_document_template(
-                &attach.document_template,
-                &content,
-            );
-            Changes::new().create(target_key.clone(), document)
-        };
-
         if !params.dry_run.unwrap_or(false) {
-            Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes);
+            Self::apply_changes(&mut graph, &combined);
+            self.write_changes(&combined);
         }
 
-        to_json_result(&ChangesOutput::from(&changes))
+        to_json_result(&ChangesOutput::from(&combined))
     }
 }
 

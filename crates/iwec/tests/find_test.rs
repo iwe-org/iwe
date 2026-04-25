@@ -70,3 +70,126 @@ async fn find_with_limit() {
     assert_eq!(output["results"].as_array().unwrap().len(), 2);
     assert_eq!(output["total"], 3);
 }
+
+fn keys(output: &serde_json::Value) -> Vec<String> {
+    let mut v: Vec<String> = output["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["key"].as_str().unwrap().to_string())
+        .collect();
+    v.sort();
+    v
+}
+
+#[tokio::test]
+async fn find_selector_in_intersects_two_parents() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[X](x)\n\n[Y](y)\n"),
+        ("b", "# B\n\n[X](x)\n"),
+        ("x", "# X\n"),
+        ("y", "# Y\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"in": ["a", "b"]}))
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(keys(&output), vec!["x"]);
+}
+
+#[tokio::test]
+async fn find_selector_in_any_unions_parents() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[X](x)\n"),
+        ("b", "# B\n\n[Y](y)\n"),
+        ("x", "# X\n"),
+        ("y", "# Y\n"),
+        ("z", "# Z\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"in_any": ["a", "b"]}))
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(keys(&output), vec!["x", "y"]);
+}
+
+#[tokio::test]
+async fn find_selector_not_in_subtracts() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[X](x)\n\n[Y](y)\n"),
+        ("archive", "# Archive\n\n[Y](y)\n"),
+        ("x", "# X\n"),
+        ("y", "# Y\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool(
+            "iwe_find",
+            json!({"in": ["a"], "not_in": ["archive"]}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(keys(&output), vec!["x"]);
+}
+
+#[tokio::test]
+async fn find_selector_per_key_depth() {
+    // a → b → c. Per-key depth `a:1` keeps only direct children → {b}.
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[B](b)\n"),
+        ("b", "# B\n\n[C](c)\n"),
+        ("c", "# C\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool(
+            "iwe_find",
+            json!({"in": [{"key": "a", "depth": 1}]}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(keys(&output), vec!["b"]);
+}
+
+#[tokio::test]
+async fn find_selector_max_depth() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[B](b)\n"),
+        ("b", "# B\n\n[C](c)\n"),
+        ("c", "# C\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"in": ["a"], "max_depth": 1}))
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(keys(&output), vec!["b"]);
+}
+
+#[tokio::test]
+async fn find_selector_combines_with_query() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[Design notes](design)\n\n[Random](random)\n"),
+        ("design", "# Design notes\n"),
+        ("random", "# Random\n"),
+        ("design2", "# Design 2\n"),
+    ])
+    .await;
+
+    // Selector limits to A's subtree; query further filters to "design".
+    let result = f
+        .call_tool(
+            "iwe_find",
+            json!({"in": ["a"], "query": "design"}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(keys(&output), vec!["design"]);
+}

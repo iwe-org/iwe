@@ -85,7 +85,10 @@ fn run_export_dot_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Ou
     let binary_path = common::get_iwe_binary_path();
 
     let mut cmd = Command::new(binary_path);
-    cmd.current_dir(temp_dir.path()).arg("export").arg("dot");
+    cmd.current_dir(temp_dir.path())
+        .arg("export")
+        .arg("-f")
+        .arg("dot");
 
     for arg in args {
         cmd.arg(arg);

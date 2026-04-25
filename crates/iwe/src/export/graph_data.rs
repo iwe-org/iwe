@@ -50,12 +50,12 @@ struct GraphCache {
     backlinks: HashSet<(Key, Key)>,
 }
 
-pub fn graph_data(key_filter: Option<Key>, depth: u8, graph: &Graph) -> GraphData {
-    let keys = filter_keys(graph, key_filter.clone(), depth);
+pub fn graph_data(key_filter: Vec<Key>, depth: u8, graph: &Graph) -> GraphData {
+    let keys = filter_keys(graph, key_filter, depth);
 
     keys.iter()
         .map(|pair| {
-            
+
             build_graph_data(graph, pair.0, *pair.1)
         })
         .fold(
@@ -155,11 +155,18 @@ fn build_sections(
     })
 }
 
-fn filter_keys(graph: &Graph, key_filter: Option<Key>, depth_limit: u8) -> HashMap<Key, u8> {
-    key_filter
-        .clone()
-        .map(|key| filter_key(graph, key, depth_limit))
-        .unwrap_or_else(|| top_level_keys(graph, depth_limit))
+fn filter_keys(graph: &Graph, key_filter: Vec<Key>, depth_limit: u8) -> HashMap<Key, u8> {
+    if key_filter.is_empty() {
+        top_level_keys(graph, depth_limit)
+    } else {
+        let mut result = HashMap::new();
+        for key in key_filter {
+            for (k, d) in filter_key(graph, key, depth_limit) {
+                result.entry(k).or_insert(d);
+            }
+        }
+        result
+    }
 }
 
 fn top_level_keys(graph: &Graph, depth_limit: u8) -> HashMap<Key, u8> {

@@ -10,9 +10,11 @@ iwe stats [OPTIONS]
 
 ## Options
 
-- `-f, --format <FORMAT>`: Output format (default: markdown)
+- `-f, --format <FORMAT>`: Output format (default: `markdown`)
   - `markdown`: Human-readable formatted statistics
   - `csv`: Machine-readable CSV format with per-document statistics
+  - `json`: JSON output (aggregate stats only; ignored when `-k` is given — per-key stats always serialize as JSON)
+- `-k, --key <KEY>`: Document key for per-document statistics (always JSON output). Omit for aggregate graph statistics.
 
 ## What it shows
 

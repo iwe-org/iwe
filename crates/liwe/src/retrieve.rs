@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
+use crate::selector::Selector;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParentDocumentInfo {
@@ -49,6 +50,7 @@ pub struct RetrieveOptions {
     pub backlinks: bool,
     pub exclude: HashSet<Key>,
     pub no_content: bool,
+    pub selector: Selector,
 }
 
 pub struct DocumentReader<'a> {
@@ -80,10 +82,26 @@ impl<'a> DocumentReader<'a> {
     }
 
     pub fn retrieve_many(&self, keys: &[Key], options: &RetrieveOptions) -> RetrieveOutput {
+        let effective_keys: Vec<Key> = if options.selector.is_empty() {
+            keys.to_vec()
+        } else {
+            let selector_set = options.selector.resolve(self.graph);
+            if keys.is_empty() {
+                let mut v: Vec<Key> = selector_set.into_iter().collect();
+                v.sort();
+                v
+            } else {
+                keys.iter()
+                    .filter(|k| selector_set.contains(k))
+                    .cloned()
+                    .collect()
+            }
+        };
+
         let mut documents = Vec::new();
         let mut seen_keys = HashSet::new();
 
-        for key in keys {
+        for key in &effective_keys {
             let keys_to_process = self.collect_document_keys(key, options);
 
             for doc_key in keys_to_process {

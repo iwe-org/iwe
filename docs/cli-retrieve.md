@@ -23,6 +23,22 @@ Without `-k`, reads the document key from stdin (for piping).
 | `-f, --format <FMT>`  | Output format: `markdown`, `keys`, `json`                              | markdown |
 | `--no-content`        | Exclude content, show child documents instead (metadata only)          | false    |
 | `--dry-run`           | Show document count and total lines without content                    | false    |
+| `--in <KEY[:DEPTH]>`  | Sub-documents of EVERY listed key (AND). Repeatable.                   | none     |
+| `--in-any <KEY...>`   | Sub-documents of AT LEAST ONE listed key (OR). Repeatable.             | none     |
+| `--not-in <KEY...>`   | Exclude sub-documents of any listed key (NOT). Repeatable.             | none     |
+| `--max-depth <N>`     | Default depth for `--in` family. Unbounded if omitted.                 | none     |
+
+### Structural set selector
+
+When `--in` / `--in-any` / `--not-in` flags are provided, `retrieve` reads the documents that match the selector. With both `-k` and `--in`, the result is the **intersection** — explicit keys filtered through the selector. Empty intersection produces an empty result.
+
+``` bash
+# Read content of all docs that are sub-documents of A AND B
+iwe retrieve --in projects/alpha --in people/dmytro --depth 0
+
+# Read explicit keys but only those inside projects/alpha's subtree
+iwe retrieve -k x -k y -k z --in projects/alpha
+```
 
 
 ## How It Works

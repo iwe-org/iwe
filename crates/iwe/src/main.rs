@@ -13,6 +13,7 @@ use iwe::find::{DocumentFinder, FindOptions};
 use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
 use iwe::render::RetrieveRenderer;
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
+use iwe::selector::SelectorArgs;
 use iwe::stats::{render_stats, GraphStatistics};
 use liwe::fs::new_for_path;
 use liwe::graph::{Graph, GraphContext};
@@ -59,6 +60,8 @@ enum Command {
     Delete(Delete),
     Extract(Extract),
     Inline(Inline),
+    Update(Update),
+    Attach(Attach),
 }
 
 #[derive(Debug, Args)]
@@ -104,6 +107,9 @@ struct Retrieve {
 
     #[clap(long, help = "Exclude document content from results (metadata only)")]
     no_content: bool,
+
+    #[clap(flatten)]
+    selector: SelectorArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -143,6 +149,9 @@ struct Find {
 
     #[clap(long, short = 'f', value_enum, default_value = "markdown")]
     format: FindFormat,
+
+    #[clap(flatten)]
+    selector: SelectorArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -227,6 +236,9 @@ struct TreeArgs {
         help = "Maximum depth to traverse"
     )]
     depth: u8,
+
+    #[clap(flatten)]
+    selector: SelectorArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -259,12 +271,20 @@ struct Stats {
         help = "Output format for statistics"
     )]
     format: StatsFormat,
+
+    #[clap(
+        long,
+        short = 'k',
+        help = "Document key for per-document stats. Omit for aggregate graph statistics."
+    )]
+    key: Option<String>,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
 enum StatsFormat {
     Markdown,
     Csv,
+    Json,
 }
 
 #[derive(Debug, Args)]
@@ -274,13 +294,20 @@ enum StatsFormat {
     after_help = help::export::AFTER_HELP
 )]
 struct Export {
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "dot",
+        help = "Output format"
+    )]
     format: Format,
     #[clap(
         long,
         short = 'k',
-        help = "Filter nodes by specific key. If not provided, exports all root notes by default"
+        help = "Filter nodes by document key. Repeatable; if omitted, exports all root notes."
     )]
-    key: Option<String>,
+    key: Vec<String>,
     #[clap(
         long,
         short = 'd',
@@ -297,6 +324,9 @@ struct Export {
         help = "Include section headers and create subgraphs for detailed visualization. When enabled, shows document structure with sections grouped in colored subgraphs"
     )]
     include_headers: bool,
+
+    #[clap(flatten)]
+    selector: SelectorArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -403,6 +433,48 @@ struct Extract {
 }
 
 #[derive(Debug, Args)]
+#[clap(about = "Overwrite a document's full markdown content")]
+struct Update {
+    #[clap(long, short = 'k', help = "Document key to update")]
+    key: String,
+
+    #[clap(
+        long,
+        short = 'c',
+        help = "New full markdown content. Use '-' to read from stdin."
+    )]
+    content: String,
+
+    #[clap(long, help = "Preview without writing")]
+    dry_run: bool,
+
+    #[clap(long, help = "Suppress progress output")]
+    quiet: bool,
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Attach a document as a block reference via one or more configured attach actions")]
+struct Attach {
+    #[clap(
+        long,
+        help = "Configured attach action(s) to attach to. Repeatable for multiple targets."
+    )]
+    to: Vec<String>,
+
+    #[clap(long, short = 'k', help = "Source document key to attach")]
+    key: Option<String>,
+
+    #[clap(long, help = "List configured attach actions")]
+    list: bool,
+
+    #[clap(long, help = "Preview without writing")]
+    dry_run: bool,
+
+    #[clap(long, help = "Suppress progress output")]
+    quiet: bool,
+}
+
+#[derive(Debug, Args)]
 #[clap(
     about = help::inline::ABOUT,
     long_about = help::inline::LONG_ABOUT,
@@ -477,6 +549,8 @@ fn main() {
         Command::Delete(delete) => delete_command(delete),
         Command::Extract(extract) => extract_command(extract),
         Command::Inline(inline) => inline_command(inline),
+        Command::Update(update) => update_command(update),
+        Command::Attach(attach) => attach_command(attach),
     }
 }
 
@@ -485,6 +559,12 @@ fn retrieve_command(args: Retrieve) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
+    let selector_args = args.selector.clone();
+    let selector_provided = !selector_args.in_.is_empty()
+        || !selector_args.in_any.is_empty()
+        || !selector_args.not_in.is_empty()
+        || selector_args.max_depth.is_some();
+
     let key_strings: Vec<String> = if args.key.is_empty() {
         let stdin_content = read_stdin_if_available();
         let keys: Vec<String> = stdin_content
@@ -492,8 +572,8 @@ fn retrieve_command(args: Retrieve) {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        if keys.is_empty() {
-            eprintln!("Error: No document key provided. Use -k <key> or pipe keys via stdin.");
+        if keys.is_empty() && !selector_provided {
+            eprintln!("Error: No document key provided. Use -k <key>, --in <key>, or pipe keys via stdin.");
             std::process::exit(1);
         }
         keys
@@ -524,6 +604,7 @@ fn retrieve_command(args: Retrieve) {
         backlinks: args.backlinks,
         exclude,
         no_content: args.no_content,
+        selector: args.selector.into(),
     };
 
     let output = reader.retrieve_many(&keys, &options);
@@ -569,6 +650,7 @@ fn find_command(args: Find) {
         roots: args.roots,
         refs_to: args.refs_to.map(|s| Key::name(&s)),
         refs_from: args.refs_from.map(|s| Key::name(&s)),
+        selector: args.selector.into(),
         limit: args.limit,
     };
 
@@ -691,7 +773,23 @@ fn tree_command(args: TreeArgs) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let root_keys: Vec<Key> = if args.key.is_empty() {
+    let selector: liwe::selector::Selector = args.selector.into();
+
+    let explicit_keys: Vec<Key> = args.key.iter().map(|k| Key::name(k)).collect();
+
+    let root_keys: Vec<Key> = if !selector.is_empty() {
+        let selector_set = selector.resolve(&graph);
+        if explicit_keys.is_empty() {
+            let mut v: Vec<Key> = selector_set.into_iter().collect();
+            v.sort();
+            v
+        } else {
+            explicit_keys
+                .into_iter()
+                .filter(|k| selector_set.contains(k))
+                .collect()
+        }
+    } else if explicit_keys.is_empty() {
         let paths = graph.paths();
         paths
             .iter()
@@ -702,7 +800,7 @@ fn tree_command(args: TreeArgs) {
             .unique()
             .collect()
     } else {
-        args.key.iter().map(|k| Key::name(k)).collect()
+        explicit_keys
     };
 
     for root_key in &root_keys {
@@ -940,6 +1038,25 @@ fn stats_command(args: Stats) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
+    if let Some(key_str) = args.key {
+        let key_stats = liwe::stats::KeyStatistics::from_graph(&graph);
+        let entry = key_stats
+            .into_iter()
+            .find(|s| s.key == key_str);
+        match entry {
+            Some(s) => {
+                let json = serde_json::to_string_pretty(&s)
+                    .expect("Failed to serialize stats");
+                println!("{}", json);
+            }
+            None => {
+                eprintln!("Error: Document '{}' not found", key_str);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     match args.format {
         StatsFormat::Markdown => {
             let stats = GraphStatistics::from_graph(&graph);
@@ -953,6 +1070,12 @@ fn stats_command(args: Stats) {
                 std::process::exit(1);
             }
         }
+        StatsFormat::Json => {
+            let stats = GraphStatistics::from_graph(&graph);
+            let json = serde_json::to_string_pretty(&stats)
+                .expect("Failed to serialize stats");
+            println!("{}", json);
+        }
     }
 }
 
@@ -960,11 +1083,27 @@ fn stats_command(args: Stats) {
 fn export_command(args: Export) {
     let config = get_configuration();
     let graph = load_graph(&config);
-    let data = graph_data::graph_data(
-        args.key.clone().map(|s| Key::name(&s)).clone(),
-        args.depth,
-        &graph,
-    );
+
+    let explicit_keys: Vec<Key> = args.key.iter().map(|s| Key::name(s)).collect();
+
+    let selector: liwe::selector::Selector = args.selector.into();
+    let resolved_keys: Vec<Key> = if !selector.is_empty() {
+        let selector_set = selector.resolve(&graph);
+        let mut v: Vec<Key> = if explicit_keys.is_empty() {
+            selector_set.into_iter().collect()
+        } else {
+            explicit_keys
+                .into_iter()
+                .filter(|k| selector_set.contains(k))
+                .collect()
+        };
+        v.sort();
+        v
+    } else {
+        explicit_keys
+    };
+
+    let data = graph_data::graph_data(resolved_keys, args.depth, &graph);
 
     let output = match args.format {
         Format::Dot => {
@@ -1397,4 +1536,177 @@ fn inline_command(args: Inline) {
             println!("Done");
         }
     }
+}
+
+#[tracing::instrument(level = "debug")]
+fn update_command(args: Update) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let key = Key::name(&args.key);
+    if (&graph).get_node_id(&key).is_none() {
+        eprintln!("Error: Document '{}' not found", args.key);
+        std::process::exit(1);
+    }
+
+    let content = if args.content == "-" {
+        let stdin_content = read_stdin_if_available();
+        if stdin_content.is_empty() {
+            eprintln!("Error: '--content -' requires content piped via stdin");
+            std::process::exit(1);
+        }
+        stdin_content
+    } else {
+        args.content
+    };
+
+    if args.dry_run {
+        if !args.quiet {
+            println!("Would update '{}' ({} bytes)", args.key, content.len());
+        }
+        return;
+    }
+
+    let library_path = get_library_path(&config);
+    let file_path = library_path.join(format!("{}.md", key));
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(&file_path, &content).expect("Failed to write document file");
+
+    if !args.quiet {
+        println!("Updated '{}'", args.key);
+    }
+}
+
+#[tracing::instrument(level = "debug")]
+fn attach_command(args: Attach) {
+    let config = get_configuration();
+
+    if args.list {
+        for (name, action) in &config.actions {
+            if let ActionDefinition::Attach(a) = action {
+                let target = render_key_template(&a.key_template);
+                println!("{}\t{}\t{}", name, a.title, target);
+            }
+        }
+        return;
+    }
+
+    if args.to.is_empty() {
+        eprintln!("Error: --to <ACTION> is required when not in --list mode (repeatable)");
+        std::process::exit(1);
+    }
+    let source_key_str = args.key.clone().unwrap_or_else(|| {
+        eprintln!("Error: --key is required when not in --list mode");
+        std::process::exit(1)
+    });
+    let source_key = Key::name(&source_key_str);
+
+    let graph = load_graph(&config);
+    if (&graph).get_node_id(&source_key).is_none() {
+        eprintln!("Error: Source document '{}' not found", source_key_str);
+        std::process::exit(1);
+    }
+
+    let reference_text = (&graph)
+        .get_key_title(&source_key)
+        .unwrap_or_else(|| source_key_str.clone());
+
+    let library_path = get_library_path(&config);
+
+    for action_name in &args.to {
+        let attach = match config.actions.get(action_name) {
+            Some(ActionDefinition::Attach(a)) => a.clone(),
+            Some(_) => {
+                eprintln!("Error: Action '{}' is not an attach action", action_name);
+                std::process::exit(1);
+            }
+            None => {
+                eprintln!("Error: Action '{}' not found", action_name);
+                std::process::exit(1);
+            }
+        };
+
+        let target_key_str = render_key_template(&attach.key_template);
+        let target_key = Key::name(&target_key_str);
+
+        if (&graph).get_node_id(&target_key).is_some() {
+            let tree = (&graph).collect(&target_key);
+            if tree.get_all_block_reference_keys().contains(&source_key) {
+                continue;
+            }
+        }
+
+        if args.dry_run {
+            if !args.quiet {
+                println!(
+                    "Would attach '{}' to '{}' as [{}]({})",
+                    source_key_str, target_key, reference_text, source_key_str
+                );
+            }
+            continue;
+        }
+
+        let target_path = library_path.join(format!("{}.md", target_key));
+        let line = format!("[{}]({})\n", reference_text, source_key);
+
+        if let Some(parent) = target_path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+
+        if target_path.exists() {
+            let mut existing = std::fs::read_to_string(&target_path)
+                .expect("Failed to read existing target file");
+            if !existing.ends_with('\n') {
+                existing.push('\n');
+            }
+            existing.push('\n');
+            existing.push_str(&line);
+            std::fs::write(&target_path, existing).expect("Failed to write target file");
+        } else {
+            let title = render_attach_title(&attach.title);
+            let initial = format!("# {}\n\n{}", title, line);
+            std::fs::write(&target_path, initial).expect("Failed to write target file");
+        }
+
+        if !args.quiet {
+            println!(
+                "Attached '{}' to '{}' as [{}]",
+                source_key_str, target_key, reference_text
+            );
+        }
+    }
+}
+
+fn render_key_template(template: &str) -> String {
+    use chrono::Local;
+    use minijinja::{context, Environment};
+    let now = Local::now();
+    let formatted = now.format("%Y-%m-%d").to_string();
+    Environment::new()
+        .template_from_str(template)
+        .expect("valid key template")
+        .render(context! {
+            today => &formatted,
+            now => &formatted,
+        })
+        .expect("key template to render")
+}
+
+fn render_attach_title(template: &str) -> String {
+    use chrono::Local;
+    use minijinja::{context, Environment};
+    let now = Local::now();
+    let formatted = now.format("%Y-%m-%d").to_string();
+    Environment::new()
+        .template_from_str(template)
+        .map(|t| {
+            t.render(context! {
+                today => &formatted,
+                now => &formatted,
+            })
+            .unwrap_or_else(|_| template.to_string())
+        })
+        .unwrap_or_else(|_| template.to_string())
 }

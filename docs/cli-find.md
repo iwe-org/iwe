@@ -10,14 +10,41 @@ iwe find [QUERY] [OPTIONS]
 
 ## Options
 
-| Flag                 | Description                               | Default          |
-| -------------------- | ----------------------------------------- | ---------------- |
-| `[QUERY]`            | Fuzzy search on document title and key    | none (lists all) |
-| `--roots`            | Only show root documents (no parents)     | false            |
-| `--refs-to <KEY>`    | Documents that reference this key         | none             |
-| `--refs-from <KEY>`  | Documents referenced by this key          | none             |
-| `-l, --limit <N>`    | Maximum number of results                 | 50               |
-| `-f, --format <FMT>` | Output format: `markdown`, `keys`, `json` | markdown         |
+| Flag                 | Description                                                      | Default          |
+| -------------------- | ---------------------------------------------------------------- | ---------------- |
+| `[QUERY]`            | Fuzzy search on document title and key                           | none (lists all) |
+| `--roots`            | Only show root documents (no parents)                            | false            |
+| `--refs-to <KEY>`    | Documents that reference this key (direct, includes inline)      | none             |
+| `--refs-from <KEY>`  | Documents referenced by this key (direct, includes inline)       | none             |
+| `--in <KEY[:DEPTH]>` | Sub-documents of EVERY listed key (AND). Repeatable.             | none             |
+| `--in-any <KEY...>`  | Sub-documents of AT LEAST ONE listed key (OR). Repeatable.       | none             |
+| `--not-in <KEY...>`  | Exclude sub-documents of any listed key (NOT). Repeatable.       | none             |
+| `--max-depth <N>`    | Default depth for `--in` / `--in-any` / `--not-in`. Unbounded if omitted. | none      |
+| `-l, --limit <N>`    | Maximum number of results                                        | 50               |
+| `-f, --format <FMT>` | Output format: `markdown`, `keys`, `json`                        | markdown         |
+
+## Structural set selector (`--in` family)
+
+The `--in`, `--in-any`, `--not-in`, and `--max-depth` flags together form a **set selector** over block-reference relationships. They answer questions like "documents that are sub-documents of A and B within depth N":
+
+``` bash
+# Sub-documents of A AND B (intersection, unbounded depth)
+iwe find --in projects/alpha --in people/dmytro
+
+# Same, bounded to 2 hops from each parent
+iwe find --in projects/alpha --in people/dmytro --max-depth 2
+
+# Per-parent depth: A within 3 hops, Dmytro within 1
+iwe find --in projects/alpha:3 --in people/dmytro:1
+
+# Sub-documents of A OR B (union)
+iwe find --in-any projects/alpha --in-any projects/beta
+
+# Sub-documents of A but NOT B
+iwe find --in projects/alpha --not-in archive
+```
+
+The same selector flags are also accepted by `iwe retrieve`, `iwe tree`, and `iwe export`. See those commands for set-aware reads.
 
 
 ## How It Works
