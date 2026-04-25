@@ -98,6 +98,20 @@ impl<'a> DocumentCreator<'a> {
             .clone()
             .unwrap_or_else(|| "%b %d, %Y".to_string());
 
+        let key_time_format = self
+            .config
+            .library
+            .time_format
+            .clone()
+            .unwrap_or_else(|| key_date_format.clone());
+
+        let markdown_time_format = self
+            .config
+            .markdown
+            .time_format
+            .clone()
+            .unwrap_or_else(|| markdown_date_format.clone());
+
         let key_locale = get_locale(self.config.library.locale.as_deref());
         let markdown_locale = get_locale(self.config.markdown.locale.as_deref());
 
@@ -105,6 +119,10 @@ impl<'a> DocumentCreator<'a> {
         let key_today = now.format_localized(&key_date_format, key_locale).to_string();
         let markdown_today = now
             .format_localized(&markdown_date_format, markdown_locale)
+            .to_string();
+        let key_now = now.format_localized(&key_time_format, key_locale).to_string();
+        let markdown_now = now
+            .format_localized(&markdown_time_format, markdown_locale)
             .to_string();
 
         let slug = string_to_slug(&options.title);
@@ -115,6 +133,7 @@ impl<'a> DocumentCreator<'a> {
             &options.title,
             &slug,
             &key_today,
+            &key_now,
             &id,
             &content,
         )?;
@@ -124,6 +143,7 @@ impl<'a> DocumentCreator<'a> {
             &options.title,
             &slug,
             &markdown_today,
+            &markdown_now,
             &id,
             &content,
         )?;
@@ -175,6 +195,7 @@ fn render_template(
     title: &str,
     slug: &str,
     today: &str,
+    now: &str,
     id: &str,
     content: &str,
 ) -> Result<String, String> {
@@ -185,7 +206,7 @@ fn render_template(
             title => title,
             slug => slug,
             today => today,
-            now => today,
+            now => now,
             id => id,
             content => content,
         })

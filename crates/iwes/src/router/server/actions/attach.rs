@@ -1,4 +1,6 @@
-use chrono::{Local, Locale};
+use std::time::SystemTime;
+
+use chrono::{DateTime, Local, Locale};
 use minijinja::{context, Environment};
 
 use liwe::model::node::NodeIter;
@@ -16,16 +18,21 @@ pub struct AttachAction {
     pub key_template: String,
     pub document_template: String,
     pub markdown_date_format: String,
+    pub markdown_time_format: String,
     pub key_date_format: String,
+    pub key_time_format: String,
     pub key_locale: Locale,
     pub markdown_locale: Locale,
 }
 
 impl AttachAction {
-    fn format_target_key(&self) -> Key {
-        let now = Local::now();
-        let formatted = now
+    fn format_target_key(&self, now: SystemTime) -> Key {
+        let now: DateTime<Local> = now.into();
+        let today_formatted = now
             .format_localized(&self.key_date_format, self.key_locale)
+            .to_string();
+        let now_formatted = now
+            .format_localized(&self.key_time_format, self.key_locale)
             .to_string();
 
         Key::name(
@@ -33,24 +40,27 @@ impl AttachAction {
                 .template_from_str(&self.key_template)
                 .expect("correct template")
                 .render(context! {
-                today => formatted,
-                now => formatted,
+                today => today_formatted,
+                now => now_formatted,
                 })
                 .expect("template to work"),
         )
     }
 
-    fn format_target_document(&self, content: String) -> String {
-        let now = Local::now();
-        let formatted = now
+    fn format_target_document(&self, now: SystemTime, content: String) -> String {
+        let now: DateTime<Local> = now.into();
+        let today_formatted = now
             .format_localized(&self.markdown_date_format, self.markdown_locale)
+            .to_string();
+        let now_formatted = now
+            .format_localized(&self.markdown_time_format, self.markdown_locale)
             .to_string();
         Environment::new()
             .template_from_str(&self.document_template)
             .expect("correct template")
             .render(context! {
-            today => formatted,
-            now => formatted,
+            today => today_formatted,
+            now => now_formatted,
             content => content
             })
             .expect("template to work")
@@ -94,7 +104,8 @@ impl ActionProvider for AttachAction {
             (ref_key, ref_text)
         };
 
-        let attach_to_key = self.format_target_key();
+        let now = context.now();
+        let attach_to_key = self.format_target_key(now);
 
         if context.key_exists(&attach_to_key)
             && context
@@ -147,7 +158,8 @@ impl ActionProvider for AttachAction {
             (ref_key, ref_text)
         };
 
-        let attach_to_key = self.format_target_key();
+        let now = context.now();
+        let attach_to_key = self.format_target_key(now);
         let reference = Tree {
             id: None,
             node: Node::Reference(Reference {
@@ -173,6 +185,7 @@ impl ActionProvider for AttachAction {
             Some(Changes::new().create(
                 attach_to_key.clone(),
                 self.format_target_document(
+                    now,
                     reference
                         .iter()
                         .to_markdown(&attach_to_key.parent(), context.markdown_options()),

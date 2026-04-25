@@ -18,6 +18,8 @@ use lsp_types::{notification::*, request::*, *};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use std::time::SystemTime;
+
 use iwes::{main_loop, ServerParams};
 use liwe::model::config::MarkdownOptions;
 
@@ -422,11 +424,11 @@ impl Fixture {
             .into_iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
-        Self::with_options_and_client(state, Configuration::default(), "")
+        Self::with_options_and_client(state, Configuration::default(), "", None)
     }
 
     pub fn with(indoc: &str) -> Fixture {
-        Self::with_options_and_client(from_indoc(indoc), Configuration::default(), "")
+        Self::with_options_and_client(from_indoc(indoc), Configuration::default(), "", None)
     }
 
     pub fn with_options(indoc: &str, markdown_options: MarkdownOptions) -> Fixture {
@@ -435,21 +437,30 @@ impl Fixture {
             ..Default::default()
         };
 
-        Self::with_options_and_client(from_indoc(indoc), config, "")
+        Self::with_options_and_client(from_indoc(indoc), config, "", None)
     }
 
     pub fn with_config(indoc: &str, config: Configuration) -> Fixture {
-        Self::with_options_and_client(from_indoc(indoc), config, "")
+        Self::with_options_and_client(from_indoc(indoc), config, "", None)
+    }
+
+    pub fn with_config_and_now(
+        indoc: &str,
+        config: Configuration,
+        now: SystemTime,
+    ) -> Fixture {
+        Self::with_options_and_client(from_indoc(indoc), config, "", Some(now))
     }
 
     pub fn with_client(indoc: &str, client: &str) -> Fixture {
-        Self::with_options_and_client(from_indoc(indoc), Configuration::default(), client)
+        Self::with_options_and_client(from_indoc(indoc), Configuration::default(), client, None)
     }
 
     pub fn with_options_and_client(
         state: HashMap<String, String>,
         configuration: Configuration,
         lsp_client_name: &str,
+        override_now: Option<SystemTime>,
     ) -> Fixture {
         let (connection, client) = Connection::memory();
         let client_name = Some(lsp_client_name.to_string());
@@ -469,6 +480,7 @@ impl Fixture {
                         sequential_ids: Some(true),
                         base_path: "/basepath".to_string(),
                         configuration,
+                        override_now,
                     },
                 )
                 .unwrap()

@@ -61,7 +61,7 @@ impl ActionProvider for ExtractAll {
                     locale: self.locale,
                 };
 
-                extract_all(graph, &key, target_id, &config).ok()
+                extract_all(graph, &key, target_id, &config, context.now()).ok()
             })
     }
 }

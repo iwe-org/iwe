@@ -56,6 +56,7 @@ pub trait ActionContext {
     fn get_document_markdown(&self, key: &Key) -> Option<String>;
     fn get_link_key_at(&self, key: &Key, line: usize, character: usize) -> Option<Key>;
     fn get_link_text_at(&self, key: &Key, line: usize, character: usize) -> Option<String>;
+    fn now(&self) -> std::time::SystemTime;
 }
 
 #[derive(Clone)]
@@ -281,21 +282,33 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     })
                 }
                 ActionDefinition::Attach(attach) => {
+                    let md_date_fmt = configuration
+                        .clone()
+                        .markdown
+                        .date_format
+                        .unwrap_or("%b %d, %Y".into());
+                    let key_date_fmt = configuration
+                        .clone()
+                        .library
+                        .date_format
+                        .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into());
                     ActionEnum::AttachAction(AttachAction {
                         title: attach.title.clone(),
                         identifier: identifier.clone(),
                         document_template: attach.document_template.clone(),
                         key_template: attach.key_template.clone(),
-                        markdown_date_format: configuration
+                        markdown_date_format: md_date_fmt.clone(),
+                        markdown_time_format: configuration
                             .clone()
                             .markdown
-                            .date_format
-                            .unwrap_or("%b %d, %Y".into()),
-                        key_date_format: configuration
+                            .time_format
+                            .unwrap_or_else(|| md_date_fmt.clone()),
+                        key_date_format: key_date_fmt.clone(),
+                        key_time_format: configuration
                             .clone()
                             .library
-                            .date_format
-                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                            .time_format
+                            .unwrap_or_else(|| key_date_fmt.clone()),
                         key_locale,
                         markdown_locale,
                     })

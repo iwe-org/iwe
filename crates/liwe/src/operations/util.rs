@@ -1,4 +1,6 @@
-use chrono::{Local, Locale};
+use std::time::SystemTime;
+
+use chrono::{DateTime, Local, Locale};
 use minijinja::{context, Environment};
 use sanitize_filename::sanitize;
 
@@ -31,8 +33,9 @@ pub fn format_target_key<C: GraphContext>(
     locale: Locale,
     fmt_ctx: &KeyFormatContext,
     graph_ctx: C,
+    now: SystemTime,
 ) -> Key {
-    let now = Local::now();
+    let now: DateTime<Local> = now.into();
     let formatted_date = now.format_localized(key_date_format, locale).to_string();
 
     let slug = string_to_slug(&fmt_ctx.title);

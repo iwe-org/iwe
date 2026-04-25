@@ -20,6 +20,7 @@ pub struct MarkdownOptions {
     #[serde(default)]
     pub refs_extension: String,
     pub date_format: Option<String>,
+    pub time_format: Option<String>,
     pub locale: Option<String>,
     #[serde(default)]
     pub formatting: FormattingOptions,
@@ -30,6 +31,7 @@ impl Default for MarkdownOptions {
         Self {
             refs_extension: String::new(),
             date_format: Some("%b %d, %Y".into()),
+            time_format: None,
             locale: None,
             formatting: FormattingOptions::default(),
         }
@@ -157,6 +159,7 @@ pub struct LibraryOptions {
     #[serde(default)]
     pub path: String,
     pub date_format: Option<String>,
+    pub time_format: Option<String>,
     pub default_template: Option<String>,
     pub frontmatter_document_title: Option<String>,
     pub locale: Option<String>,
@@ -173,6 +176,7 @@ impl Default for LibraryOptions {
         Self {
             path: String::new(),
             date_format: Some(DEFAULT_KEY_DATE_FORMAT.into()),
+            time_format: None,
             default_template: None,
             frontmatter_document_title: None,
             locale: None,

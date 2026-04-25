@@ -41,6 +41,7 @@ fn completion_test_with_refs_extension() {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
             date_format: None,
+            time_format: None,
             locale: None,
             formatting: Default::default(),
         },
@@ -83,6 +84,7 @@ fn completion_relative_test() {
         .collect(),
         no_min_prefix(),
         "",
+        None,
     )
     .completion(
         uri_from("dir/sub").to_completion_params(2, 0),
@@ -108,6 +110,7 @@ fn completion_relative_test_with_refs_extension() {
     let markdown_options = MarkdownOptions {
         refs_extension: ".html".to_string(),
         date_format: None,
+        time_format: None,
         locale: None,
         formatting: Default::default(),
     };
@@ -153,6 +156,7 @@ fn completion_after_file_deleted() {
         .collect(),
         no_min_prefix(),
         "",
+        None,
     )
     .completion(
         uri_from("first").to_completion_params(2, 0),
@@ -233,6 +237,7 @@ fn completion_with_wikilink_format_multiple_documents() {
         .collect(),
         config,
         "",
+        None,
     )
     .completion(
         uri_from("first").to_completion_params(2, 0),
@@ -286,6 +291,7 @@ fn completion_with_wikilink_and_refs_extension() {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
             date_format: None,
+            time_format: None,
             locale: None,
             formatting: Default::default(),
         },
@@ -342,6 +348,7 @@ fn completion_uses_frontmatter_title() {
         .collect(),
         config,
         "",
+        None,
     )
     .completion(
         uri_from("doc").to_completion_params(5, 0),
@@ -379,6 +386,7 @@ fn completion_fallback_to_header_when_frontmatter_missing() {
         .collect(),
         config,
         "",
+        None,
     )
     .completion(
         uri_from("doc").to_completion_params(2, 0),
@@ -405,6 +413,7 @@ fn completion_returns_empty_when_prefix_too_short() {
         .collect(),
         Configuration::default(),
         "",
+        None,
     )
     .completion(
         uri_from("doc").to_completion_params(1, 2),
@@ -454,6 +463,7 @@ fn completion_respects_custom_min_prefix_length() {
         .collect(),
         config,
         "",
+        None,
     )
     .completion(
         uri_from("doc").to_completion_params(1, 4),

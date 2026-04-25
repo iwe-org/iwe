@@ -38,6 +38,7 @@ pub struct ServerConfig {
     pub sequential_ids: Option<bool>,
     pub configuration: Configuration,
     pub lsp_client: LspClient,
+    pub override_now: Option<std::time::SystemTime>,
 }
 
 #[derive(Clone)]
