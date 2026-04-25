@@ -75,3 +75,15 @@ pub mod inline {
     pub const LONG_ABOUT: &str = include_str!("../help/inline/long_about.txt");
     pub const AFTER_HELP: &str = include_str!("../help/inline/after_help.txt");
 }
+
+pub mod update {
+    pub const ABOUT: &str = include_str!("../help/update/about.txt");
+    pub const LONG_ABOUT: &str = include_str!("../help/update/long_about.txt");
+    pub const AFTER_HELP: &str = include_str!("../help/update/after_help.txt");
+}
+
+pub mod attach {
+    pub const ABOUT: &str = include_str!("../help/attach/about.txt");
+    pub const LONG_ABOUT: &str = include_str!("../help/attach/long_about.txt");
+    pub const AFTER_HELP: &str = include_str!("../help/attach/after_help.txt");
+}

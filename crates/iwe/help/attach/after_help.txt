@@ -1,0 +1,22 @@
+CONFIGURATION:
+
+  Define an attach action in `.iwe/config.toml`:
+
+    [actions.today]
+    type = "attach"
+    title = "{{today}}"
+    key_template = "daily/{{today}}"
+
+EXAMPLES:
+
+  # Discover available attach actions
+  iwe attach --list
+
+  # Attach a document under one configured target
+  iwe attach --to today -k meetings/standup
+
+  # Attach the same document under multiple targets at once
+  iwe attach --to today --to weekly -k meetings/standup
+
+  # Preview without writing
+  iwe attach --to today --to weekly -k meetings/standup --dry-run

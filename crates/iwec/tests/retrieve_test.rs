@@ -98,3 +98,77 @@ async fn retrieve_with_backlinks() {
     assert_eq!(backlinks.len(), 1);
     assert_eq!(backlinks[0]["key"], "1");
 }
+
+fn doc_keys(output: &serde_json::Value) -> Vec<String> {
+    let mut v: Vec<String> = output["documents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| d["key"].as_str().unwrap().to_string())
+        .collect();
+    v.sort();
+    v
+}
+
+#[tokio::test]
+async fn retrieve_selector_only_uses_selected_set() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[X](x)\n\n[Y](y)\n"),
+        ("b", "# B\n\n[X](x)\n"),
+        ("x", "# X\n"),
+        ("y", "# Y\n"),
+    ])
+    .await;
+
+    // No explicit keys; selector intersection picks {x}.
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"in": ["a", "b"], "depth": 0, "context": 0, "backlinks": false}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(doc_keys(&output), vec!["x"]);
+}
+
+#[tokio::test]
+async fn retrieve_explicit_keys_intersected_with_selector() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[X](x)\n\n[Y](y)\n"),
+        ("x", "# X\n"),
+        ("y", "# Y\n"),
+        ("z", "# Z\n"),
+    ])
+    .await;
+
+    // Explicit asks for [x, y, z]; selector limits to A's subtree {x, y};
+    // intersection is {x, y}.
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["x", "y", "z"], "in": ["a"], "depth": 0, "context": 0, "backlinks": false}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(doc_keys(&output), vec!["x", "y"]);
+}
+
+#[tokio::test]
+async fn retrieve_empty_intersection_yields_empty() {
+    let f = Fixture::with_documents(vec![
+        ("a", "# A\n\n[X](x)\n"),
+        ("b", "# B\n\n[Y](y)\n"),
+        ("x", "# X\n"),
+        ("y", "# Y\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["x"], "in": ["b"], "depth": 0, "context": 0, "backlinks": false}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert!(output["documents"].as_array().unwrap().is_empty());
+}

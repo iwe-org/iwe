@@ -5,7 +5,7 @@ Exports graph structure in various formats for visualization and analysis.
 ## Usage
 
 ``` bash
-iwe export [OPTIONS] <FORMAT>
+iwe export -f <FORMAT> [OPTIONS]
 ```
 
 ## Available Formats
@@ -17,12 +17,19 @@ iwe export [OPTIONS] <FORMAT>
 
 ## Options
 
-| Option                  | Default   | Description                                           |
-| ----------------------- | --------- | ----------------------------------------------------- |
-| `-k, --key <KEY>`       | all roots | Filter to specific document and its connections       |
-| `-d, --depth <DEPTH>`   | `0`       | Maximum depth to include (0 = unlimited)              |
-| `--include-headers`     | false     | Include section headers and create detailed subgraphs |
-| `-v, --verbose <LEVEL>` | `0`       | Verbosity level                                       |
+| Option                  | Default   | Description                                                       |
+| ----------------------- | --------- | ----------------------------------------------------------------- |
+| `-f, --format <FORMAT>` | `dot`     | Output format                                                     |
+| `-k, --key <KEY>`       | all roots | Filter to specific document(s). Repeatable.                       |
+| `-d, --depth <DEPTH>`   | `0`       | Maximum depth to include (0 = unlimited)                          |
+| `--in <KEY[:DEPTH]>`    | -         | Restrict to sub-documents of EVERY listed key (AND). Repeatable.  |
+| `--in-any <KEY...>`     | -         | Restrict to sub-documents of ANY listed key (OR). Repeatable.     |
+| `--not-in <KEY...>`     | -         | Exclude sub-documents of any listed key (NOT). Repeatable.        |
+| `--max-depth <N>`       | -         | Default depth for `--in` family. Unbounded if omitted.            |
+| `--include-headers`     | false     | Include section headers and create detailed subgraphs             |
+| `-v, --verbose <LEVEL>` | `0`       | Verbosity level                                                   |
+
+> **Breaking change:** in earlier versions, `iwe export <FORMAT>` accepted the format as a positional argument. The format is now the `-f / --format` flag with a default of `dot`. The previous `iwe export dot` becomes `iwe export -f dot` (or simply `iwe export`).
 
 
 ## DOT Output Format

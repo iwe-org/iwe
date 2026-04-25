@@ -26,3 +26,25 @@ JSON (-f json):
     {"query": "...", "total": 3, "results": [
       {"key": "...", "title": "...", "is_root": true,
        "incoming_refs": 5, "outgoing_refs": 2, "parent_documents": [...]}]}
+
+STRUCTURAL SET SELECTOR (--in family):
+
+  --in KEY[:DEPTH]      Sub-documents of EVERY listed key (AND). Repeatable.
+                        KEY:DEPTH overrides --max-depth per entry.
+  --in-any KEY[:DEPTH]  Sub-documents of AT LEAST ONE listed key (OR).
+  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
+  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
+
+EXAMPLES:
+
+  # Sub-documents of A AND B (intersection, unbounded)
+  iwe find --in projects/alpha --in people/dmytro
+
+  # Per-parent depth: A within 3 hops, Dmytro within 1
+  iwe find --in projects/alpha:3 --in people/dmytro:1
+
+  # Sub-documents of A OR B (union)
+  iwe find --in-any projects/alpha --in-any projects/beta
+
+  # Sub-documents of A but NOT in archive
+  iwe find --in projects/alpha --not-in archive

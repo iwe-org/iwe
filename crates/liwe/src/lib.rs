@@ -8,5 +8,6 @@ pub mod model;
 pub mod operations;
 pub mod parser;
 pub mod retrieve;
+pub mod selector;
 pub mod state;
 pub mod stats;

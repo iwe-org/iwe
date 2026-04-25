@@ -1,0 +1,14 @@
+Attach a source document as a block reference under one or more configured
+attach actions defined in `.iwe/config.toml`.
+
+For each --to <NAME>:
+1. Look up <NAME> in [actions]; the action must be of type `attach`.
+2. Render the action's key_template to compute the target key
+   (e.g. `daily/{{today}}` becomes `daily/2026-04-25`).
+3. If the target document doesn't exist yet, create it with the action's
+   `title` as the H1 and the new block reference as the body.
+4. If the target exists, append the new block reference.
+5. If the source is already attached in the target, that target is silently
+   skipped — no error, no warning, no duplicate write.
+
+The reference text on the new block is the source document's title.

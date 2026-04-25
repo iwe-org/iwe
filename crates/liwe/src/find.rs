@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
+use crate::selector::Selector;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParentDocumentInfo {
@@ -37,6 +38,7 @@ pub struct FindOptions {
     pub roots: bool,
     pub refs_to: Option<Key>,
     pub refs_from: Option<Key>,
+    pub selector: Selector,
     pub limit: Option<usize>,
 }
 
@@ -52,11 +54,22 @@ impl<'a> DocumentFinder<'a> {
     pub fn find(&self, options: &FindOptions) -> FindOutput {
         let matcher = SkimMatcherV2::default();
 
+        let candidate_set = if options.selector.is_empty() {
+            None
+        } else {
+            Some(options.selector.resolve(self.graph))
+        };
+
         let mut results: Vec<(Key, i64)> = self
             .graph
             .keys()
             .into_iter()
             .filter_map(|key| {
+                if let Some(set) = &candidate_set {
+                    if !set.contains(&key) {
+                        return None;
+                    }
+                }
                 if options.roots && !self.is_root(&key) {
                     return None;
                 }

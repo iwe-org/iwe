@@ -11,6 +11,13 @@ CSV (-f csv):
   outgoing_inline_refs, total_connections, bullet_lists, ordered_lists,
   code_blocks, tables, quotes
 
+JSON (-f json):
+  Aggregate graph statistics serialized as JSON. Ignored when -k is given —
+  per-document stats are always emitted as JSON regardless of -f.
+
+PER-DOCUMENT STATS (-k <KEY>):
+  Returns the JSON record for a single document. Useful for scripting.
+
 EXAMPLES:
 
   # Generate human-readable statistics
@@ -18,6 +25,12 @@ EXAMPLES:
 
   # Export per-document statistics as CSV
   iwe stats --format csv > stats.csv
+
+  # Aggregate stats as JSON
+  iwe stats -f json
+
+  # Per-document stats (always JSON)
+  iwe stats -k my-document
 
   # Find most connected documents
   iwe stats -f csv | tail -n +2 | sort -t, -k12 -nr | head -5

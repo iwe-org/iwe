@@ -20,29 +20,41 @@ DOT OUTPUT FORMAT:
       }
     }
 
+STRUCTURAL SET SELECTOR (--in family):
+
+  --in KEY[:DEPTH]      Restrict to sub-documents of EVERY listed key (AND). Repeatable.
+  --in-any KEY[:DEPTH]  Restrict to sub-documents of AT LEAST ONE listed key (OR).
+  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
+  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
+
 EXAMPLES:
 
   # Export entire graph
-  iwe export dot
+  iwe export
 
-  # Export specific document and connections
-  iwe export dot --key "project-main"
+  # Export specific document(s) and connections (-k is repeatable)
+  iwe export --key project-main
+  iwe export -k project-main -k project-beta
 
   # Include section headers for detailed view
-  iwe export dot --include-headers
+  iwe export --include-headers
 
   # Control connection depth
-  iwe export dot --key "index" --depth 2
+  iwe export --key index --depth 2
+
+  # Restrict to a subtree via the selector
+  iwe export --in projects/alpha
+  iwe export --in projects/alpha --not-in archive
 
 USING DOT OUTPUT:
 
   # Generate PNG visualization
-  iwe export dot > graph.dot
+  iwe export > graph.dot
   dot -Tpng graph.dot -o graph.png
 
   # Generate SVG for web use
-  iwe export dot --include-headers > detailed.dot
+  iwe export --include-headers > detailed.dot
   dot -Tsvg detailed.dot -o detailed.svg
 
   # Interactive exploration with xdot
-  iwe export dot | xdot -
+  iwe export | xdot -

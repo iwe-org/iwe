@@ -1,0 +1,7 @@
+Overwrite the full markdown content of an existing document.
+
+The document at -k/--key is rewritten with -c/--content. Use '-' as the value of
+--content to read from stdin instead of passing inline.
+
+The graph is not mutated by update itself; the file change is picked up on the
+next read. Run `iwe normalize` afterward if you want to canonicalize the output.

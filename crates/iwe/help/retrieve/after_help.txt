@@ -44,3 +44,22 @@ JSON (-f json):
     {"documents": [{"key": "...", "title": "...",
       "content": "...", "parent_documents": [...],
       "child_documents": [...], "backlinks": [...]}]}
+
+STRUCTURAL SET SELECTOR (--in family):
+
+  --in KEY[:DEPTH]      Restrict to sub-documents of EVERY listed key (AND).
+                        Repeatable. KEY:DEPTH overrides --max-depth per entry.
+  --in-any KEY[:DEPTH]  Restrict to sub-documents of AT LEAST ONE listed key (OR).
+  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
+  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
+
+EXAMPLES:
+
+  # Retrieve all sub-documents of A AND B (intersection)
+  iwe retrieve --in projects/alpha --in people/dmytro --depth 0
+
+  # Read explicit keys but only those inside projects/alpha's subtree
+  iwe retrieve -k x -k y -k z --in projects/alpha
+
+  # Sub-documents of A within 2 hops, excluding archive
+  iwe retrieve --in projects/alpha:2 --not-in archive

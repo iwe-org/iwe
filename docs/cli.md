@@ -11,11 +11,13 @@ IWE provides a powerful command-line interface for managing markdown-based knowl
 5.  **Normalize all documents**: `iwe normalize`
 6.  **View document hierarchy**: `iwe tree`
 7.  **Analyze your knowledge base**: `iwe stats`
-8.  **Export graph visualization**: `iwe export dot`
+8.  **Export graph visualization**: `iwe export -f dot`
 9.  **Rename a document**: `iwe rename old-key new-key`
 10. **Delete a document**: `iwe delete document-key`
 11. **Extract a section**: `iwe extract document --section "Title"`
 12. **Inline a reference**: `iwe inline document --reference "other-doc"`
+13. **Update a document**: `iwe update -k document-key -c "new content"`
+14. **Attach via configured action**: `iwe attach --action today -k document-key`
 
 ## Installation & Setup
 

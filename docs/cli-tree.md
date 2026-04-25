@@ -10,12 +10,18 @@ iwe tree [OPTIONS]
 
 ## Options
 
-| Option                  | Default    | Description                                           |
-| ----------------------- | ---------- | ----------------------------------------------------- |
-| `-f, --format <FORMAT>` | `markdown` | Output format: markdown, keys, json                   |
-| `-k, --key <KEY>`       | -          | Start tree from specific document(s), can be repeated |
-| `-d, --depth <DEPTH>`   | `4`        | Maximum depth to traverse                             |
-| `-v, --verbose <LEVEL>` | `0`        | Verbosity level (1=info, 2=debug)                     |
+| Option                  | Default    | Description                                                            |
+| ----------------------- | ---------- | ---------------------------------------------------------------------- |
+| `-f, --format <FORMAT>` | `markdown` | Output format: markdown, keys, json                                    |
+| `-k, --key <KEY>`       | -          | Start tree from specific document(s), can be repeated                  |
+| `-d, --depth <DEPTH>`   | `4`        | Maximum depth to traverse                                              |
+| `--in <KEY[:DEPTH]>`    | -          | Use sub-documents of EVERY listed key (AND) as tree roots. Repeatable. |
+| `--in-any <KEY...>`     | -          | Use sub-documents of ANY listed key (OR) as tree roots. Repeatable.    |
+| `--not-in <KEY...>`     | -          | Exclude sub-documents of any listed key (NOT). Repeatable.             |
+| `--max-depth <N>`       | -          | Default depth for `--in` family. Unbounded if omitted.                 |
+| `-v, --verbose <LEVEL>` | `0`        | Verbosity level (1=info, 2=debug)                                      |
+
+When `--in` / `--in-any` / `--not-in` is provided, the selector resolves to a set of keys and those keys are used as the tree roots. Combining `-k` with the selector intersects the two — empty intersection yields an empty tree.
 
 
 ## Output Formats
