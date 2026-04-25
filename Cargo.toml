@@ -8,11 +8,11 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.82"
 repository = "https://github.com/iwe-org/iwe"
-version = "0.0.69"
+version = "0.0.70"
 
 [workspace.dependencies]
-liwe = { path = "./crates/liwe", version = "0.0.69" }
-iwe = { path = "./crates/iwe", version = "0.0.69" }
+liwe = { path = "./crates/liwe", version = "0.0.70" }
+iwe = { path = "./crates/iwe", version = "0.0.70" }
 anyhow = "1.0.102"
 clap = { version = "4.5", features = ["derive"] }
 crossbeam-channel = "0.5.15"

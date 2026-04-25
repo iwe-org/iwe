@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.70](https://github.com/iwe-org/iwe/compare/iwes-v0.0.69...iwes-v0.0.70) - 2026-04-25
+
+### Added
+
+- Add time format in addition to date format ([#268](https://github.com/iwe-org/iwe/pull/268))
+
+### Other
+
+- Update readme
+
 ## [0.0.69](https://github.com/iwe-org/iwe/compare/iwes-v0.0.68...iwes-v0.0.69) - 2026-04-23
 
 ### Added

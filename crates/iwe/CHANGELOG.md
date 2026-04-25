@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.70](https://github.com/iwe-org/iwe/compare/iwe-v0.0.69...iwe-v0.0.70) - 2026-04-25
+
+### Added
+
+- Add --in structural set selector across read commands ([#269](https://github.com/iwe-org/iwe/pull/269))
+- Add time format in addition to date format ([#268](https://github.com/iwe-org/iwe/pull/268))
+
+### Other
+
+- Update readme
+
 ## [0.0.68](https://github.com/iwe-org/iwe/compare/iwe-v0.0.67...iwe-v0.0.68) - 2026-04-22
 
 ### Fixed
