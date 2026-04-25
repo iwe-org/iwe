@@ -2,6 +2,8 @@ use std::str::FromStr;
 use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
+use std::time::SystemTime;
+
 use liwe::model::config::Configuration;
 use lsp_server::Connection;
 
@@ -17,6 +19,8 @@ pub struct ServerParams {
     pub client_name: Option<String>,
     pub configuration: Configuration,
     pub base_path: String,
+    #[serde(skip)]
+    pub override_now: Option<SystemTime>,
 }
 
 pub fn main_loop(connection: Connection, params: ServerParams) -> Result<()> {
@@ -36,6 +40,7 @@ pub fn main_loop(connection: Connection, params: ServerParams) -> Result<()> {
                 sequential_ids: Some(true),
                 lsp_client: client,
                 configuration: params.configuration,
+                override_now: params.override_now,
             },
         )
     } else {
@@ -47,6 +52,7 @@ pub fn main_loop(connection: Connection, params: ServerParams) -> Result<()> {
                 sequential_ids: None,
                 lsp_client: client,
                 configuration: params.configuration,
+                override_now: params.override_now,
             },
         )
     };

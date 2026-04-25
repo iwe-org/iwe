@@ -8,6 +8,7 @@ IWE projects are configured through a `.iwe/config.toml` file in your project ro
 [markdown]
 refs_extension = ""
 date_format = "%b %d, %Y"
+time_format = "%b %d, %Y %H:%M"
 locale = "de_DE"
 
 [markdown.formatting]
@@ -24,6 +25,7 @@ rule_token_count = 72
 [library]
 path = ""
 date_format = "%Y-%m-%d"
+time_format = "%Y-%m-%d %H:%M"
 locale = "en_US"
 frontmatter_document_title = "title"
 
@@ -35,7 +37,8 @@ min_prefix_length = 3
 ### Markdown Settings
 
 - `refs_extension`: File extension for markdown references (default: empty, uses `.md`)
-- `date_format`: Date format for markdown content display (default: `"%b %d, %Y"`, e.g., "Jan 15, 2024")
+- `date_format`: Date format for markdown content display and the `{{today}}` variable (default: `"%b %d, %Y"`, e.g., "Jan 15, 2024")
+- `time_format`: Format for the `{{now}}` variable in document content (default: falls back to `date_format`). Use this to include time components like `%H`, `%M`, `%S` in `{{now}}` while keeping `{{today}}` date-only.
 - `locale`: Locale for date formatting in document content (default: system locale). Allows different localization for content than for file keys.
 
 ### Formatting Settings
@@ -62,7 +65,8 @@ list_token = "-"
 ### Library Settings
 
 - `path`: Subdirectory for markdown files relative to project root (default: empty, uses root)
-- `date_format`: Date format for file key generation (default: `"%Y-%m-%d"`, e.g., "2024-01-15")
+- `date_format`: Date format for file key generation and the `{{today}}` variable (default: `"%Y-%m-%d"`, e.g., "2024-01-15")
+- `time_format`: Format for the `{{now}}` variable in file key generation (default: falls back to `date_format`). Use this to include time components in keys, e.g., `"%Y-%m-%d-%H%M"` for sortable keys with time.
 - `locale`: Locale for date formatting (default: auto-detected from system). Affects day and month names when using `%A`, `%B`, etc.
 - `frontmatter_document_title`: YAML frontmatter field to use as document title (default: none, uses first header)
 
@@ -299,8 +303,8 @@ Attach action parameters:
 
 **Attach Actions** support:
 
-- `{{now}}`: Current date/time formatted using `library.date_format` (for keys) or `markdown.date_format` (for content). Supports both date and time specifiers.
-- `{{today}}`: Alias for `{{now}}`
+- `{{today}}`: Current date formatted using `library.date_format` (for keys) or `markdown.date_format` (for content). Intended for date-only formatting.
+- `{{now}}`: Current date/time formatted using `library.time_format` (for keys) or `markdown.time_format` (for content). Falls back to `date_format` if `time_format` is not set. Intended for date+time formatting.
 - `{{content}}`: The content being attached
 
 **Transform Actions** support:

@@ -1,4 +1,6 @@
-use chrono::Local;
+use std::time::SystemTime;
+
+use chrono::{Local, TimeZone};
 use indoc::indoc;
 use liwe::{
     model::config::{ActionDefinition, Configuration, Extract, LinkType},
@@ -274,6 +276,7 @@ fn test_extracted_relative() {
             .collect(),
         config,
         "",
+        None,
     )
     .code_action(
         uri_from("d/1").to_code_action_params(2, "custom.extract"),
@@ -338,7 +341,7 @@ fn assert_extracted_wiki(source: &str, line: u32, target: &str, extracted: &str)
 }
 
 fn assert_extracted_helix(source: &str, line: u32, target: &str, extracted: &str) {
-    Fixture::with_options_and_client(from_indoc(source), extract_config(), "helix").code_action(
+    Fixture::with_options_and_client(from_indoc(source), extract_config(), "helix", None).code_action(
         uri(1).to_code_action_params(line, "custom.extract"),
         vec![
             uri(2).to_create_file(),
@@ -364,7 +367,7 @@ fn extract_section_with_simple_key_collision() {
     );
     files.insert("extracted".to_string(), "# existing content\n".to_string());
 
-    Fixture::with_options_and_client(files, create_extract_config("extracted", None), "")
+    Fixture::with_options_and_client(files, create_extract_config("extracted", None), "", None)
         .code_action(
             uri(1).to_code_action_params(2, "custom.extract"),
             vec![
@@ -399,7 +402,7 @@ fn extract_section_with_multiple_simple_collisions() {
         "# existing content 2\n".to_string(),
     );
 
-    Fixture::with_options_and_client(files, create_extract_config("extracted", None), "")
+    Fixture::with_options_and_client(files, create_extract_config("extracted", None), "", None)
         .code_action(
             uri(1).to_code_action_params(2, "custom.extract"),
             vec![
@@ -412,22 +415,27 @@ fn extract_section_with_multiple_simple_collisions() {
         );
 }
 
+fn fixed_now() -> SystemTime {
+    Local
+        .with_ymd_and_hms(2026, 3, 27, 14, 30, 0)
+        .unwrap()
+        .into()
+}
+
 fn assert_extracted_with_date_template(source: &str, line: u32, target: &str, extracted: &str) {
-    let now = Local::now();
-    let formatted_date = now.format("%Y-%m-%d").to_string();
+    let target_with_date = target.replace("{{today}}", "2026-03-27");
 
-    let target_with_date = target.replace("{{today}}", &formatted_date);
-
-    Fixture::with_config(source, create_extract_config("{{today}}", None)).code_action(
-        uri(1).to_code_action_params(line, "custom.extract"),
-        vec![
-            uri_from(&formatted_date).to_create_file(),
-            uri_from(&formatted_date).to_edit(extracted),
-            uri(1).to_edit(&target_with_date),
-        ]
-        .to_workspace_edit()
-        .to_code_action("Extract section", "custom.extract"),
-    );
+    Fixture::with_config_and_now(source, create_extract_config("{{today}}", None), fixed_now())
+        .code_action(
+            uri(1).to_code_action_params(line, "custom.extract"),
+            vec![
+                uri_from("2026-03-27").to_create_file(),
+                uri_from("2026-03-27").to_edit(extracted),
+                uri(1).to_edit(&target_with_date),
+            ]
+            .to_workspace_edit()
+            .to_code_action("Extract section", "custom.extract"),
+        );
 }
 
 fn assert_no_action(source: &str, line: u32) {
@@ -514,7 +522,7 @@ fn extract_section_with_source_title_template() {
         .to_string(),
     );
 
-    Fixture::with_options_and_client(files, create_extract_config("{{source.title}}-{{title}}", None), "")
+    Fixture::with_options_and_client(files, create_extract_config("{{source.title}}-{{title}}", None), "", None)
         .code_action(
             uri_from("source-document").to_code_action_params(2, "custom.extract"),
             vec![
@@ -546,6 +554,7 @@ fn extract_section_with_source_template() {
         files,
         create_extract_config("{{source.file}}-{{title}}", None),
         "",
+        None,
     )
     .code_action(
         uri_from("docs/guide").to_code_action_params(2, "custom.extract"),
@@ -576,6 +585,7 @@ fn extract_section_with_path_template() {
         files,
         create_extract_config("extracted-{{title}}", None),
         "",
+        None,
     )
     .code_action(
         uri_from("docs/tutorial/basics").to_code_action_params(2, "custom.extract"),
@@ -648,7 +658,7 @@ fn extract_section_with_source_slug_template() {
         .to_string(),
     );
 
-    Fixture::with_options_and_client(files, create_extract_config("{{source.slug}}-{{slug}}", None), "")
+    Fixture::with_options_and_client(files, create_extract_config("{{source.slug}}-{{slug}}", None), "", None)
         .code_action(
             uri_from("user-guide-manual").to_code_action_params(2, "custom.extract"),
             vec![

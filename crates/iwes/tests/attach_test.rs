@@ -1,6 +1,15 @@
-use chrono::Local;
-use indoc::{formatdoc, indoc};
+use std::time::SystemTime;
+
+use chrono::{Local, TimeZone};
+use indoc::indoc;
 use liwe::model::config::{ActionDefinition, Attach, Configuration};
+
+fn fixed_now() -> SystemTime {
+    Local
+        .with_ymd_and_hms(2026, 3, 27, 14, 30, 0)
+        .unwrap()
+        .into()
+}
 
 mod fixture;
 use crate::fixture::*;
@@ -46,10 +55,6 @@ fn alreary_attached() {
 
 #[test]
 fn attach_to_date_template() {
-    let now = Local::now();
-    let markdown_format = now.format("%b %d, %Y").to_string();
-    let key_format = now.format("%Y-%m-%d").to_string();
-
     assert_attached_template(
         indoc! {"
             # title a
@@ -59,13 +64,12 @@ fn attach_to_date_template() {
             # title b
             "},
         2,
-        &formatdoc! {"
-            # {date}
+        indoc! {"
+            # Mar 27, 2026
 
             [title b](2)
-        ",
-        date = markdown_format },
-        &key_format,
+        "},
+        "2026-03-27",
     );
 }
 
@@ -255,7 +259,7 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
 
     let expected_uri = uri_from(expected_key);
 
-    Fixture::with_config(source, configuration).code_action(
+    Fixture::with_config_and_now(source, configuration, fixed_now()).code_action(
         uri(1).to_code_action_params(line, "custom.attach"),
         vec![
             expected_uri.clone().to_create_file(),
@@ -268,10 +272,6 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
 
 #[test]
 fn attach_with_time_format() {
-    let now = Local::now();
-    let markdown_format = now.format("%b %d, %Y %H:%M").to_string();
-    let key_format = now.format("%Y%m%d%H%M").to_string();
-
     let mut configuration = Configuration::default();
     configuration.markdown.date_format = Some("%b %d, %Y %H:%M".into());
     configuration.library.date_format = Some("%Y%m%d%H%M".into());
@@ -285,10 +285,9 @@ fn attach_with_time_format() {
         }),
     );
 
-    let expected_uri = uri_from(&key_format);
-    let expected_doc = format!("# {}\n\n[title b](2)\n", markdown_format);
+    let expected_uri = uri_from("202603271430");
 
-    Fixture::with_config(
+    Fixture::with_config_and_now(
         indoc! {"
             # title a
 
@@ -297,12 +296,13 @@ fn attach_with_time_format() {
             # title b
             "},
         configuration,
+        fixed_now(),
     )
     .code_action(
         uri(1).to_code_action_params(2, "custom.attach"),
         vec![
             expected_uri.clone().to_create_file(),
-            expected_uri.to_edit(&expected_doc),
+            expected_uri.to_edit("# Mar 27, 2026 14:30\n\n[title b](2)\n"),
         ]
         .to_workspace_edit()
         .to_code_action("Attach", "custom.attach"),
@@ -311,16 +311,6 @@ fn attach_with_time_format() {
 
 #[test]
 fn attach_with_separate_locales() {
-    use chrono::Locale;
-
-    let now = Local::now();
-    let key_format = now
-        .format_localized("%A-%B-%d", Locale::en_US)
-        .to_string();
-    let markdown_format = now
-        .format_localized("%A, %d. %B %Y", Locale::de_DE)
-        .to_string();
-
     let mut configuration = Configuration::default();
     configuration.library.locale = Some("en_US".into());
     configuration.library.date_format = Some("%A-%B-%d".into());
@@ -336,10 +326,9 @@ fn attach_with_separate_locales() {
         }),
     );
 
-    let expected_uri = uri_from(&key_format);
-    let expected_doc = format!("# {}\n\n[title b](2)\n", markdown_format);
+    let expected_uri = uri_from("Friday-March-27");
 
-    Fixture::with_config(
+    Fixture::with_config_and_now(
         indoc! {"
             # title a
 
@@ -348,12 +337,54 @@ fn attach_with_separate_locales() {
             # title b
             "},
         configuration,
+        fixed_now(),
     )
     .code_action(
         uri(1).to_code_action_params(2, "custom.attach"),
         vec![
             expected_uri.clone().to_create_file(),
-            expected_uri.to_edit(&expected_doc),
+            expected_uri.to_edit("# Freitag, 27. März 2026\n\n[title b](2)\n"),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Attach", "custom.attach"),
+    );
+}
+
+#[test]
+fn attach_with_separate_time_format() {
+    let mut configuration = Configuration::default();
+    configuration.library.date_format = Some("%Y-%m-%d".into());
+    configuration.library.time_format = Some("%Y-%m-%d-%H%M".into());
+    configuration.markdown.date_format = Some("%b %d, %Y".into());
+    configuration.markdown.time_format = Some("%b %d, %Y %H:%M".into());
+
+    configuration.actions.insert(
+        "attach".into(),
+        ActionDefinition::Attach(Attach {
+            title: "Attach".into(),
+            key_template: "{{today}}-{{now}}".into(),
+            document_template: "# {{today}}\n\nCreated: {{now}}\n\n{{content}}".into(),
+        }),
+    );
+
+    let expected_uri = uri_from("2026-03-27-2026-03-27-1430");
+
+    Fixture::with_config_and_now(
+        indoc! {"
+            # title a
+
+            [title b](2)
+            _
+            # title b
+            "},
+        configuration,
+        fixed_now(),
+    )
+    .code_action(
+        uri(1).to_code_action_params(2, "custom.attach"),
+        vec![
+            expected_uri.clone().to_create_file(),
+            expected_uri.to_edit("# Mar 27, 2026\n\nCreated: Mar 27, 2026 14:30\n\n[title b](2)\n"),
         ]
         .to_workspace_edit()
         .to_code_action("Attach", "custom.attach"),

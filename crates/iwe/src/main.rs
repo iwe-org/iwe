@@ -1240,7 +1240,7 @@ fn extract_command(args: Extract) {
         locale,
     };
 
-    let result = match op_extract(&graph, &source_key, section_id, &extract_config) {
+    let result = match op_extract(&graph, &source_key, section_id, &extract_config, std::time::SystemTime::now()) {
         Ok(changes) => changes,
         Err(e) => {
             eprintln!("Error: {}", e);

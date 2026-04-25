@@ -57,7 +57,7 @@ fn hover_preview_for_markdown_link() {
         ),
     ]);
 
-    Fixture::with_options_and_client(state, Default::default(), "")
+    Fixture::with_options_and_client(state, Default::default(), "", None)
         .assert_response::<HoverRequest>(
             uri(1).to_hover_params(0, 7),
             Some(Hover {

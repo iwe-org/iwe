@@ -254,7 +254,7 @@ fn link_word_with_collision() {
     );
     files.insert("existing".to_string(), "# existing\n".to_string());
 
-    Fixture::with_options_and_client(files, create_link_config("existing", None), "").code_action(
+    Fixture::with_options_and_client(files, create_link_config("existing", None), "", None).code_action(
         uri(1).to_code_action_params(2, "custom.link"),
         vec![
             uri_from("existing-1").to_create_file(),

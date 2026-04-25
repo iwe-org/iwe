@@ -60,7 +60,7 @@ impl ActionProvider for SectionExtract {
                     locale: self.locale,
                 };
 
-                extract(graph, &key, target_id, &config).ok()
+                extract(graph, &key, target_id, &config, context.now()).ok()
             })
     }
 }

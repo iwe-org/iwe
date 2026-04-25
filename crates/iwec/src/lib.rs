@@ -638,7 +638,7 @@ impl IweServer {
             .ok_or_else(|| McpError::invalid_params("Section not found", None))?;
 
         let config = ExtractConfig::default();
-        let changes = op_extract(&graph, &source_key, section_id, &config).map_err(op_error_to_mcp)?;
+        let changes = op_extract(&graph, &source_key, section_id, &config, std::time::SystemTime::now()).map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
             Self::apply_changes(&mut graph, &changes);

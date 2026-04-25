@@ -1,4 +1,6 @@
-use chrono::Local;
+use std::time::SystemTime;
+
+use chrono::{Local, TimeZone};
 use indoc::indoc;
 use liwe::model::config::{ActionDefinition, Configuration, ExtractAll, LinkType};
 
@@ -312,7 +314,7 @@ fn extract_sub_sections_with_source_slug_template() {
         .to_string(),
     );
 
-    Fixture::with_options_and_client(files, create_extract_all_config("{{source.slug}}-{{slug}}", LinkType::Markdown), "")
+    Fixture::with_options_and_client(files, create_extract_all_config("{{source.slug}}-{{slug}}", LinkType::Markdown), "", None)
         .code_action(
             uri_from("user-guide-manual").to_code_action_params(0, "custom.extract_all"),
             vec![
@@ -344,21 +346,26 @@ fn extract_all_config() -> Configuration {
     create_extract_all_config("{{id}}", LinkType::Markdown)
 }
 
+fn fixed_now() -> SystemTime {
+    Local
+        .with_ymd_and_hms(2026, 3, 27, 14, 30, 0)
+        .unwrap()
+        .into()
+}
+
 fn assert_extracted_with_date_template(source: &str, line: u32, target: &str, extracted: &str) {
-    let now = Local::now();
-    let formatted_date = now.format("%Y-%m-%d").to_string();
+    let target_with_date = target.replace("{{today}}", "2026-03-27");
 
-    let target_with_date = target.replace("{{today}}", &formatted_date);
-
-    Fixture::with_config(
+    Fixture::with_config_and_now(
         source,
         create_extract_all_config("{{today}}", LinkType::Markdown),
+        fixed_now(),
     )
     .code_action(
         uri(1).to_code_action_params(line, "custom.extract_all"),
         vec![
-            uri_from(&formatted_date).to_create_file(),
-            uri_from(&formatted_date).to_edit(extracted),
+            uri_from("2026-03-27").to_create_file(),
+            uri_from("2026-03-27").to_edit(extracted),
             uri(1).to_edit(&target_with_date),
         ]
         .to_workspace_edit()

@@ -1,4 +1,5 @@
 use actions::{all_action_types, ActionContext, ActionProvider};
+use std::time::SystemTime;
 use itertools::Itertools;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
@@ -36,6 +37,7 @@ pub struct Server {
     lsp_client: LspClient,
     configuration: Configuration,
     search_index: SearchIndex,
+    override_now: Option<SystemTime>,
 }
 
 impl Server {
@@ -55,6 +57,7 @@ impl Server {
             lsp_client: config.lsp_client,
             configuration: config.configuration,
             search_index,
+            override_now: config.override_now,
         }
     }
     pub fn graph(&self) -> impl DatabaseContext + '_ {
@@ -845,5 +848,9 @@ impl ActionContext for &Server {
         };
         let link = parser.link_at(position)?;
         Some(link.to_plain_text())
+    }
+
+    fn now(&self) -> SystemTime {
+        self.override_now.unwrap_or_else(SystemTime::now)
     }
 }
