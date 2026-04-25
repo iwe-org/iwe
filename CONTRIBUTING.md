@@ -20,7 +20,9 @@ By submitting a contribution to this project, you agree to the following terms:
 
 ## Contribution Guidelines
 
-### What We Accept
+Before opening a PR, please file an issue (for bugs) or start a discussion (for features) so we can align on the approach.
+
+### What We May Accept
 
 - **Bug fixes**: Well-documented bug fixes with test cases
 - **New features**: Must start with a discussion (see below)
@@ -47,37 +49,19 @@ We will reject pull requests that only contain:
 
 This helps avoid wasted effort on features that may not align with the project's direction or may already be in development.
 
-## How to Contribute
+## Maintainers Wanted: Editor Plugins
 
-### Getting Started
+We are actively looking for maintainers for the IWE editor plugins. If you use IWE with one of these editors and want to help shape its integration, please reach out by opening an issue in the relevant repository.
 
-1. Fork the repository
-2. Create a new branch for your feature or bugfix
-3. Make your changes
-4. Test your changes thoroughly
-5. Submit a pull request
+- **Neovim**: [iwe-org/iwe.nvim](https://github.com/iwe-org/iwe.nvim)
+- **VSCode**: [iwe-org/vscode-iwe](https://github.com/iwe-org/vscode-iwe)
+- **Zed**: [iwe-org/zed-iwe](https://github.com/iwe-org/zed-iwe)
 
-### Development Setup
+Maintainer responsibilities include triaging issues, reviewing pull requests, and keeping the plugin compatible with the latest IWE LSP server (`iwes`).
 
-See the [CLAUDE.md](CLAUDE.md) file for detailed development instructions for different parts of the monorepo:
+## Contributors Wanted: Agentic Skills
 
-- **Rust workspace** (CLI and LSP): See "Rust Development" section
-- **VS Code extension**: See "VS Code Extension" section
-- **Neovim plugin**: See "Neovim Plugin Development" section
-- **Documentation**: See "Documentation Site" and "Book Documentation" sections
-
-### Code Standards
-
-- Follow the existing code style and conventions
-- Run tests and linting before submitting
-- Write clear commit messages
-- Update documentation as needed
-
-### Testing
-
-- **Rust**: Run `cargo test` to execute all tests
-- **VS Code Extension**: Run `npm test`
-- **Neovim Plugin**: Run `make test`
+We are also looking for contributors to the [iwe-org/skills](https://github.com/iwe-org/skills) repository, which hosts agentic AI skills for knowledge graph management. If you have ideas for new skills, improvements to existing ones, or workflows that pair well with IWE, contributions are welcome.
 
 ## Questions?
 

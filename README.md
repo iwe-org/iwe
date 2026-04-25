@@ -149,6 +149,8 @@ IWE is open source and community-driven. Join the [discussions](https://github.c
 
 **Editor plugins:** [VS Code](https://github.com/iwe-org/vscode-iwe) · [Neovim](https://github.com/iwe-org/iwe.nvim) · [Zed](https://github.com/iwe-org/zed-iwe)
 
+**Agentic skills:** [iwe-org/skills](https://github.com/iwe-org/skills) — agentic AI skills for knowledge graph management. Contributors welcome.
+
 ## License
 
 [Apache License 2.0](LICENSE-APACHE)
