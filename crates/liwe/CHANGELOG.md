@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.70](https://github.com/iwe-org/iwe/compare/liwe-v0.0.69...liwe-v0.0.70) - 2026-04-25
+
+### Added
+
+- Add --in structural set selector across read commands ([#269](https://github.com/iwe-org/iwe/pull/269))
+- Add time format in addition to date format ([#268](https://github.com/iwe-org/iwe/pull/268))
+
+### Other
+
+- Update readme
+
 ## [0.0.69](https://github.com/iwe-org/iwe/compare/liwe-v0.0.68...liwe-v0.0.69) - 2026-04-23
 
 ### Added
