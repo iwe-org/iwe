@@ -5,6 +5,7 @@ use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
 use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
+use serde_yaml::{Mapping, Value};
 
 use crate::model::document::*;
 use crate::model::*;
@@ -17,7 +18,7 @@ pub struct MarkdownEventsReader {
     blocks: DocumentBlocks,
     line_starts: Vec<usize>,
     metadata_block: bool,
-    metadata: Option<String>,
+    frontmatter: Option<Mapping>,
     content: Option<String>,
 }
 
@@ -37,7 +38,7 @@ impl MarkdownEventsReader {
             blocks: Vec::new(),
             line_starts: Vec::new(),
             metadata_block: false,
-            metadata: None,
+            frontmatter: None,
             content: None,
         }
     }
@@ -51,7 +52,7 @@ impl MarkdownEventsReader {
             blocks: Vec::new(),
             line_starts: Vec::new(),
             metadata_block: false,
-            metadata: None,
+            frontmatter: None,
             content: None,
         }
     }
@@ -60,8 +61,8 @@ impl MarkdownEventsReader {
         self.blocks.clone()
     }
 
-    pub fn metadata(&self) -> Option<String> {
-        self.metadata.clone()
+    pub fn frontmatter(&self) -> Option<Mapping> {
+        self.frontmatter.clone()
     }
 
     pub fn top_block(&mut self) -> &mut DocumentBlock {
@@ -108,7 +109,7 @@ impl MarkdownEventsReader {
                             }
                         }
                     } else {
-                        self.metadata = Some(text.to_string());
+                        self.frontmatter = Some(parse_frontmatter(&text));
                     }
                 }
                 Code(text) => {
@@ -439,6 +440,16 @@ impl MarkdownEventsReader {
         }
 
         start..end
+    }
+}
+
+fn parse_frontmatter(text: &str) -> Mapping {
+    if text.trim().is_empty() {
+        return Mapping::new();
+    }
+    match serde_yaml::from_str::<Value>(text) {
+        Ok(Value::Mapping(m)) => m,
+        _ => Mapping::new(),
     }
 }
 

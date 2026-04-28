@@ -9,6 +9,7 @@ use index::RefIndex;
 use log::debug;
 use rand::distr::{Alphanumeric, SampleString};
 use sections_builder::SectionsBuilder;
+use serde_yaml::Mapping;
 
 use crate::{
     markdown::MarkdownReader,
@@ -52,7 +53,7 @@ pub struct Graph {
     sequential_keys: bool,
     keys_to_ref_text: HashMap<Key, String>,
     markdown_options: MarkdownOptions,
-    metadata: HashMap<Key, String>,
+    frontmatter: HashMap<Key, Mapping>,
     content: Documents,
     frontmatter_document_title: Option<String>,
 }
@@ -95,7 +96,7 @@ impl Graph {
     pub fn new_patch(&self) -> Graph {
         Graph {
             markdown_options: self.markdown_options.clone(),
-            metadata: self.metadata.clone(),
+            frontmatter: self.frontmatter.clone(),
             frontmatter_document_title: self.frontmatter_document_title.clone(),
             ..Default::default()
         }
@@ -134,7 +135,7 @@ impl Graph {
         self.keys.remove(&key);
         self.nodes_map.remove(&key);
         self.keys_to_ref_text.remove(&key);
-        self.metadata.remove(&key);
+        self.frontmatter.remove(&key);
         self.content.remove(&key);
     }
 
@@ -200,7 +201,7 @@ impl Graph {
         let id = self.arena.new_node_id();
         self.keys.insert(key.clone(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.clone(), id, None));
+            .set_node(id, GraphNode::new_root(key.clone(), id));
         GraphBuilder::new(self, id)
     }
 
@@ -223,7 +224,7 @@ impl Graph {
         let id = self.arena.new_node_id();
         self.keys.insert(key.clone(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.clone(), id, None));
+            .set_node(id, GraphNode::new_root(key.clone(), id));
         f(&mut GraphBuilder::new(self, id));
 
         self.extract_ref_text(key)
@@ -251,9 +252,16 @@ impl Graph {
 
     fn extract_frontmatter_title(&self, key: &Key) -> Option<String> {
         let title_key = self.frontmatter_document_title.as_ref()?;
-        let metadata = self.metadata.get(key)?;
-        let yaml_value: serde_yaml::Value = serde_yaml::from_str(metadata).ok()?;
-        yaml_value.get(title_key)?.as_str().map(|s| s.to_string())
+        let mapping = self.frontmatter.get(key)?;
+        mapping
+            .get(serde_yaml::Value::String(title_key.clone()))?
+            .as_str()
+            .map(|s| s.to_string())
+    }
+
+
+    pub fn frontmatter(&self, key: &Key) -> Option<&Mapping> {
+        self.frontmatter.get(key)
     }
 
     pub fn maybe_key(&self, key: &Key) -> Option<impl NodePointer<'_>> {
@@ -272,10 +280,10 @@ impl Graph {
     pub fn from_markdown(&mut self, key: Key, content: &str, reader: impl Reader) {
         let document = reader.document(content, &self.markdown_options);
 
-        if let Some(meta) = document.metadata {
-            self.metadata.insert(key.clone(), meta);
+        if let Some(fm) = document.frontmatter {
+            self.frontmatter.insert(key.clone(), fm);
         } else {
-            self.metadata.remove(&key);
+            self.frontmatter.remove(&key);
         }
 
         let mut build_key = self.build_key(&key);
@@ -368,10 +376,10 @@ impl Graph {
             .collect::<Vec<_>>();
 
         for (key, document) in blocks.into_iter() {
-            if let Some(meta) = document.metadata.clone() {
-                graph.metadata.insert(key.clone(), meta);
+            if let Some(fm) = document.frontmatter.clone() {
+                graph.frontmatter.insert(key.clone(), fm);
             } else {
-                graph.metadata.remove(&key);
+                graph.frontmatter.remove(&key);
             }
 
             let nodes_map =
@@ -442,7 +450,7 @@ impl Graph {
     }
 
     pub fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
-        // remove empty node ids
+
         self.index
             .get_block_references_to(key)
             .iter()
@@ -464,7 +472,7 @@ impl Graph {
     }
 
     pub fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
-        // remove empty node ids
+
         self.index
             .get_inline_references_to(key)
             .iter()
