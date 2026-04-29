@@ -142,11 +142,6 @@ pub enum Filter {
     Or(Vec<Filter>),
     Not(Box<Filter>),
     Field { path: FieldPath, op: FieldOp },
-    Graph(GraphOp),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum GraphOp {
     Key(KeyOp),
     IncludesCount(CountArg),
     IncludedByCount(CountArg),
@@ -319,12 +314,8 @@ impl Filter {
         Self::field(path, FieldOp::Exists(present))
     }
 
-    pub fn graph(op: GraphOp) -> Self {
-        Filter::Graph(op)
-    }
-
     pub fn key(op: KeyOp) -> Self {
-        Filter::Graph(GraphOp::Key(op))
+        Filter::Key(op)
     }
 
     fn field(path: &str, op: FieldOp) -> Self {

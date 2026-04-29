@@ -1,6 +1,6 @@
 use indoc::indoc;
 use liwe::query::{
-    parse_operation, CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, GraphOp,
+    parse_operation, CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp,
     InclusionAnchor, KeyOp, Limit, MaxDepth, NumExpr, Operation, OperationKind,
     Projection, ReferenceAnchor, Sort, Update, UpdateOp, UpdateOperator, YamlType,
 };
@@ -614,9 +614,9 @@ fn includes_count_bare_int() {
     assert_parse(
         "filter:\n  $includesCount: 0\n",
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
             CountArg::direct(NumExpr::eq(0)),
-        )))),
+        ))),
     );
 }
 
@@ -625,9 +625,9 @@ fn includes_count_bare_expr() {
     assert_parse(
         "filter:\n  $includesCount: { $gte: 3 }\n",
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
             CountArg::direct(NumExpr::gte(3)),
-        )))),
+        ))),
     );
 }
 
@@ -641,13 +641,13 @@ fn includes_count_full_form_with_unbounded() {
                 $maxDepth: -1
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
             CountArg {
                 count: NumExpr::gte(10),
                 min_depth: 1,
                 max_depth: MaxDepth::Any,
             },
-        )))),
+        ))),
     );
 }
 
@@ -662,13 +662,13 @@ fn includes_count_range() {
                 $maxDepth: 4
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
             CountArg {
                 count: NumExpr::gte(1),
                 min_depth: 2,
                 max_depth: MaxDepth::Bounded(4),
             },
-        )))),
+        ))),
     );
 }
 
@@ -677,9 +677,9 @@ fn included_by_count_zero() {
     assert_parse(
         "filter:\n  $includedByCount: 0\n",
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludedByCount(
+        Operation::Find(FindOp::new().filter(Filter::IncludedByCount(
             CountArg::direct(NumExpr::eq(0)),
-        )))),
+        ))),
     );
 }
 
@@ -730,9 +730,9 @@ fn includes_single_anchor() {
     assert_parse(
         "filter:\n  $includes: { $key: roadmap/q2, $maxDepth: 2 }\n",
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::Includes(vec![
+        Operation::Find(FindOp::new().filter(Filter::Includes(vec![
             InclusionAnchor::with_max("roadmap/q2", 2),
-        ])))),
+        ]))),
     );
 }
 
@@ -747,9 +747,9 @@ fn included_by_range() {
                 $maxDepth: 5
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        Operation::Find(FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::new("projects/alpha", 2, 5),
-        ])))),
+        ]))),
     );
 }
 
@@ -763,10 +763,10 @@ fn includes_multi_anchor_array() {
                 - { $key: research/q2, $maxDepth: 2 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        Operation::Find(FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("projects/alpha", 5),
             InclusionAnchor::with_max("research/q2", 2),
-        ])))),
+        ]))),
     );
 }
 
@@ -820,9 +820,9 @@ fn references_with_distance() {
     assert_parse(
         "filter:\n  $references: { $key: people/dmytro, $maxDistance: 1 }\n",
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::References(vec![
+        Operation::Find(FindOp::new().filter(Filter::References(vec![
             ReferenceAnchor::with_max("people/dmytro", 1),
-        ])))),
+        ]))),
     );
 }
 
@@ -837,9 +837,9 @@ fn referenced_by_range() {
                 $maxDistance: 3
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::ReferencedBy(vec![
+        Operation::Find(FindOp::new().filter(Filter::ReferencedBy(vec![
             ReferenceAnchor::new("archive/index", 1, 3),
-        ])))),
+        ]))),
     );
 }
 

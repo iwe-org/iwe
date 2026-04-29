@@ -6,7 +6,9 @@ use crate::graph::Graph;
 use crate::model::Key;
 use crate::query::document::{FieldOp, FieldPath, Filter, YamlType};
 use crate::query::frontmatter::is_reserved_segment;
-use crate::query::graph_match::match_graph_op;
+use crate::query::graph_match::{
+    match_inclusion_count, match_inclusion_walk, match_key_op, match_reference_walk,
+};
 
 pub fn matches(filter: &Filter, doc: &Mapping, key: &Key, graph: &Graph) -> bool {
     match filter {
@@ -17,7 +19,13 @@ pub fn matches(filter: &Filter, doc: &Mapping, key: &Key, graph: &Graph) -> bool
             Resolution::Present(value) => match_field_op(op, Some(value)),
             Resolution::Missing => match_field_op(op, None),
         },
-        Filter::Graph(op) => match_graph_op(op, key, graph),
+        Filter::Key(op) => match_key_op(op, key),
+        Filter::IncludesCount(arg) => match_inclusion_count(arg, key, graph, true),
+        Filter::IncludedByCount(arg) => match_inclusion_count(arg, key, graph, false),
+        Filter::Includes(anchors) => match_inclusion_walk(anchors, key, graph, true),
+        Filter::IncludedBy(anchors) => match_inclusion_walk(anchors, key, graph, false),
+        Filter::References(anchors) => match_reference_walk(anchors, key, graph, true),
+        Filter::ReferencedBy(anchors) => match_reference_walk(anchors, key, graph, false),
     }
 }
 

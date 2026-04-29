@@ -12,7 +12,7 @@ pub mod wire;
 
 pub use builder::{parse_operation, ParseError};
 pub use document::{
-    CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, GraphOp, InclusionAnchor,
+    CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor,
     KeyOp, Limit, MaxDepth, NumExpr, NumOp, Operation, OperationKind, Projection,
     ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };

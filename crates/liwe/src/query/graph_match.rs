@@ -1,25 +1,13 @@
 use crate::graph::Graph;
 use crate::model::Key;
 use crate::query::document::{
-    CountArg, GraphOp, InclusionAnchor, KeyOp, MaxDepth, NumExpr, NumOp, ReferenceAnchor,
+    CountArg, InclusionAnchor, KeyOp, MaxDepth, NumExpr, NumOp, ReferenceAnchor,
 };
 use crate::query::graph_walk::{
     ancestors_inclusion, descendants_inclusion, inbound_reference, outbound_reference,
 };
 
-pub(crate) fn match_graph_op(op: &GraphOp, key: &Key, graph: &Graph) -> bool {
-    match op {
-        GraphOp::Key(k) => match_key_op(k, key),
-        GraphOp::IncludesCount(arg) => match_inclusion_count(arg, key, graph, true),
-        GraphOp::IncludedByCount(arg) => match_inclusion_count(arg, key, graph, false),
-        GraphOp::Includes(anchors) => match_inclusion_walk(anchors, key, graph, true),
-        GraphOp::IncludedBy(anchors) => match_inclusion_walk(anchors, key, graph, false),
-        GraphOp::References(anchors) => match_reference_walk(anchors, key, graph, true),
-        GraphOp::ReferencedBy(anchors) => match_reference_walk(anchors, key, graph, false),
-    }
-}
-
-fn match_key_op(op: &KeyOp, key: &Key) -> bool {
+pub(crate) fn match_key_op(op: &KeyOp, key: &Key) -> bool {
     match op {
         KeyOp::Eq(target) => key == target,
         KeyOp::Ne(target) => key != target,
@@ -28,7 +16,7 @@ fn match_key_op(op: &KeyOp, key: &Key) -> bool {
     }
 }
 
-fn match_inclusion_count(arg: &CountArg, key: &Key, graph: &Graph, outbound: bool) -> bool {
+pub(crate) fn match_inclusion_count(arg: &CountArg, key: &Key, graph: &Graph, outbound: bool) -> bool {
     let max = match arg.max_depth {
         MaxDepth::Bounded(n) => n,
         MaxDepth::Any => u32::MAX,
@@ -45,7 +33,7 @@ fn match_inclusion_count(arg: &CountArg, key: &Key, graph: &Graph, outbound: boo
     eval_num_expr(&arg.count, count)
 }
 
-fn match_inclusion_walk(
+pub(crate) fn match_inclusion_walk(
     anchors: &[InclusionAnchor],
     key: &Key,
     graph: &Graph,
@@ -70,7 +58,7 @@ fn match_inclusion_walk(
     })
 }
 
-fn match_reference_walk(
+pub(crate) fn match_reference_walk(
     anchors: &[ReferenceAnchor],
     key: &Key,
     graph: &Graph,

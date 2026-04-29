@@ -2,7 +2,7 @@ use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::{
-    execute, Filter, GraphOp, InclusionAnchor, Operation, Outcome, Update, UpdateOp, UpdateOperator,
+    execute, Filter, InclusionAnchor, Operation, Outcome, Update, UpdateOp, UpdateOperator,
 };
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
@@ -183,9 +183,7 @@ fn update_with_graph_filter_targets_descendants() {
             # C
         "},
         UpdateOp::new(
-            Filter::graph(GraphOp::IncludedBy(vec![InclusionAnchor::with_max(
-                "1", 5,
-            )])),
+            Filter::IncludedBy(vec![InclusionAnchor::with_max("1", 5)]),
             Update::new(vec![UpdateOperator::set("reviewed", true)]),
         ),
         indoc! {"

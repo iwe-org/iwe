@@ -2,14 +2,13 @@ use serde_yaml::{Mapping, Value};
 
 use crate::model::Key;
 use crate::query::document::{
-    CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, GraphOp, InclusionAnchor,
-    KeyOp, Limit, MaxDepth, NumExpr, NumOp, Operation, OperationKind, Projection,
-    ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
+    CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp,
+    Limit, MaxDepth, NumExpr, NumOp, Operation, OperationKind, Projection, ReferenceAnchor, Sort,
+    SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
 use crate::query::wire::{
     self, RawAnchor, RawAnchorArg, RawCountArg, RawCountArgMap, RawCountValue, RawFilter,
-    RawKeyOpMap, RawKeyValue, RawNumExprMap, RawOperation, RawProjection, RawSort,
-    RawUpdate,
+    RawKeyOpMap, RawKeyValue, RawNumExprMap, RawOperation, RawProjection, RawSort, RawUpdate,
 };
 
 #[derive(Debug)]
@@ -263,7 +262,7 @@ fn build_filter_at(map: Mapping, path: &[String]) -> Result<Filter, ParseError> 
         let mut clauses: Vec<Filter> = Vec::new();
         for op in dollar_keys {
             let value = &map[Value::String(op.clone())];
-            clauses.push(build_logical_op(&op, value, path)?);
+            clauses.push(build_filter_op(&op, value, path)?);
         }
         if clauses.len() == 1 {
             Ok(clauses.into_iter().next().unwrap())
@@ -308,59 +307,60 @@ fn classify_keys(map: &Mapping) -> Result<(Vec<String>, Vec<String>), ParseError
     Ok((dollar, bare))
 }
 
-fn build_logical_op(op: &str, value: &Value, path: &[String]) -> Result<Filter, ParseError> {
-    if let Some(graph_op_name) = graph_op_name(op) {
-        return build_graph_op(graph_op_name, value).map(Filter::Graph);
-    }
+fn build_filter_op(op: &str, value: &Value, path: &[String]) -> Result<Filter, ParseError> {
     match op {
-        "$and" | "$or" => {
-            let list = value
-                .as_sequence()
-                .ok_or(ParseError::OperatorExpectedList {
-                    op: static_op_name(op),
-                })?;
-            if list.is_empty() {
-                return Err(ParseError::EmptyOperatorList {
-                    op: static_op_name(op),
-                });
-            }
-            let mut sub = Vec::with_capacity(list.len());
-            for elem in list {
-                let m = elem
-                    .as_mapping()
-                    .ok_or(ParseError::OperatorExpectedMapping {
-                        op: static_op_name(op),
-                    })?
-                    .clone();
-                sub.push(build_filter_at(m, path)?);
-            }
-            if op == "$and" {
-                Ok(Filter::And(sub))
-            } else {
-                Ok(Filter::Or(sub))
-            }
-        }
-        "$not" => {
-            let m = value
-                .as_mapping()
-                .ok_or(ParseError::OperatorExpectedMapping { op: "$not" })?
-                .clone();
-
-            if m.len() == 1 {
-                if let Some(Value::String(s)) = m.keys().next() {
-                    if s == "$not" {
-                        return Err(ParseError::DoubleNot);
-                    }
-                }
-            }
-            let inner = build_filter_at(m, path)?;
-            Ok(Filter::Not(Box::new(inner)))
-        }
+        "$and" => Ok(Filter::And(parse_filter_list(value, "$and", path)?)),
+        "$or" => Ok(Filter::Or(parse_filter_list(value, "$or", path)?)),
+        "$not" => Ok(Filter::Not(Box::new(parse_not(value, path)?))),
+        "$key" => Ok(Filter::Key(parse_key_op(value, "$key")?)),
+        "$includesCount" => Ok(Filter::IncludesCount(parse_count_arg(value, "$includesCount")?)),
+        "$includedByCount" => Ok(Filter::IncludedByCount(parse_count_arg(value, "$includedByCount")?)),
+        "$includes" => Ok(Filter::Includes(parse_inclusion_anchors(value, "$includes")?)),
+        "$includedBy" => Ok(Filter::IncludedBy(parse_inclusion_anchors(value, "$includedBy")?)),
+        "$references" => Ok(Filter::References(parse_reference_anchors(value, "$references")?)),
+        "$referencedBy" => Ok(Filter::ReferencedBy(parse_reference_anchors(value, "$referencedBy")?)),
         other => Err(ParseError::UnknownOperator {
             op: other.to_string(),
             path: path.to_vec(),
         }),
     }
+}
+
+fn parse_filter_list(
+    value: &Value,
+    op: &'static str,
+    path: &[String],
+) -> Result<Vec<Filter>, ParseError> {
+    let list = value
+        .as_sequence()
+        .ok_or(ParseError::OperatorExpectedList { op })?;
+    if list.is_empty() {
+        return Err(ParseError::EmptyOperatorList { op });
+    }
+    list.iter()
+        .map(|elem| {
+            let m = elem
+                .as_mapping()
+                .ok_or(ParseError::OperatorExpectedMapping { op })?
+                .clone();
+            build_filter_at(m, path)
+        })
+        .collect()
+}
+
+fn parse_not(value: &Value, path: &[String]) -> Result<Filter, ParseError> {
+    let m = value
+        .as_mapping()
+        .ok_or(ParseError::OperatorExpectedMapping { op: "$not" })?
+        .clone();
+    if m.len() == 1 {
+        if let Some(Value::String(s)) = m.keys().next() {
+            if s == "$not" {
+                return Err(ParseError::DoubleNot);
+            }
+        }
+    }
+    build_filter_at(m, path)
 }
 
 fn static_op_name(op: &str) -> &'static str {
@@ -760,32 +760,6 @@ fn check_reserved_prefix(segments: &[String]) -> Result<(), ParseError> {
         }
     }
     Ok(())
-}
-
-fn graph_op_name(op: &str) -> Option<&'static str> {
-    match op {
-        "$key" => Some("$key"),
-        "$includesCount" => Some("$includesCount"),
-        "$includedByCount" => Some("$includedByCount"),
-        "$includes" => Some("$includes"),
-        "$includedBy" => Some("$includedBy"),
-        "$references" => Some("$references"),
-        "$referencedBy" => Some("$referencedBy"),
-        _ => None,
-    }
-}
-
-fn build_graph_op(op: &'static str, value: &Value) -> Result<GraphOp, ParseError> {
-    match op {
-        "$key" => Ok(GraphOp::Key(parse_key_op(value, op)?)),
-        "$includesCount" => Ok(GraphOp::IncludesCount(parse_count_arg(value, op)?)),
-        "$includedByCount" => Ok(GraphOp::IncludedByCount(parse_count_arg(value, op)?)),
-        "$includes" => Ok(GraphOp::Includes(parse_inclusion_anchors(value, op)?)),
-        "$includedBy" => Ok(GraphOp::IncludedBy(parse_inclusion_anchors(value, op)?)),
-        "$references" => Ok(GraphOp::References(parse_reference_anchors(value, op)?)),
-        "$referencedBy" => Ok(GraphOp::ReferencedBy(parse_reference_anchors(value, op)?)),
-        _ => unreachable!(),
-    }
 }
 
 fn parse_key_op(value: &Value, op: &'static str) -> Result<KeyOp, ParseError> {

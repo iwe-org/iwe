@@ -2,7 +2,7 @@ use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::{
-    execute, CountArg, Filter, FindOp, GraphOp, InclusionAnchor, KeyOp, MaxDepth, NumExpr,
+    execute, CountArg, Filter, FindOp, InclusionAnchor, KeyOp, MaxDepth, NumExpr,
     Operation, Outcome, ReferenceAnchor,
 };
 use liwe::state::from_indoc;
@@ -78,9 +78,9 @@ fn included_by_count_zero_selects_roots() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedByCount(
+        FindOp::new().filter(Filter::IncludedByCount(
             CountArg::direct(NumExpr::eq(0)),
-        ))),
+        )),
         &["1"],
     );
 }
@@ -95,9 +95,9 @@ fn includes_count_zero_selects_leaves() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(CountArg::direct(
+        FindOp::new().filter(Filter::IncludesCount(CountArg::direct(
             NumExpr::eq(0),
-        )))),
+        ))),
         &["3"],
     );
 }
@@ -112,11 +112,11 @@ fn includes_count_transitive_any() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(CountArg {
+        FindOp::new().filter(Filter::IncludesCount(CountArg {
             count: NumExpr::gte(2),
             min_depth: 1,
             max_depth: MaxDepth::Any,
-        }))),
+        })),
         &["1"],
     );
 }
@@ -131,9 +131,9 @@ fn included_by_direct() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("1", 1),
-        ]))),
+        ])),
         &["2"],
     );
 }
@@ -148,9 +148,9 @@ fn included_by_transitive() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("1", 5),
-        ]))),
+        ])),
         &["2", "3"],
     );
 }
@@ -165,9 +165,9 @@ fn included_by_range_excludes_direct() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::new("1", 2, 5),
-        ]))),
+        ])),
         &["3"],
     );
 }
@@ -182,9 +182,9 @@ fn includes_outbound() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::Includes(vec![
+        FindOp::new().filter(Filter::Includes(vec![
             InclusionAnchor::with_max("3", 5),
-        ]))),
+        ])),
         &["1", "2"],
     );
 }
@@ -199,9 +199,9 @@ fn anchor_excluded_from_walk_results() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("1", 5),
-        ]))),
+        ])),
         &["2", "3"],
     );
 }
@@ -216,10 +216,10 @@ fn multi_anchor_intersects() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("1", 5),
             InclusionAnchor::with_max("2", 5),
-        ]))),
+        ])),
         &["3"],
     );
 }
@@ -234,9 +234,9 @@ fn references_by_inline_link_in_text() {
             _
             # B
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::References(vec![
+        FindOp::new().filter(Filter::References(vec![
             ReferenceAnchor::with_max("2", 1),
-        ]))),
+        ])),
         &["1"],
     );
 }
@@ -251,9 +251,9 @@ fn referenced_by_inline() {
             _
             # B
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::ReferencedBy(vec![
+        FindOp::new().filter(Filter::ReferencedBy(vec![
             ReferenceAnchor::with_max("1", 1),
-        ]))),
+        ])),
         &["2"],
     );
 }
@@ -264,9 +264,9 @@ fn missing_anchor_returns_empty() {
         indoc! {"
             # A
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("does-not-exist", 5),
-        ]))),
+        ])),
         &[],
     );
 }
@@ -278,9 +278,9 @@ fn empty_corpus_returns_empty() {
         MarkdownOptions::default(),
         None,
     );
-    let op = FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(CountArg::direct(
+    let op = FindOp::new().filter(Filter::IncludesCount(CountArg::direct(
         NumExpr::eq(0),
-    ))));
+    )));
     match execute(&Operation::Find(op), &graph) {
         Outcome::Find { matches } => assert!(matches.is_empty()),
         other => panic!("{:?}", other),
@@ -302,7 +302,7 @@ fn graph_op_combines_with_frontmatter_predicate() {
             # B
         "},
         FindOp::new().filter(Filter::and(vec![
-            Filter::graph(GraphOp::IncludedByCount(CountArg::direct(NumExpr::eq(0)))),
+            Filter::IncludedByCount(CountArg::direct(NumExpr::eq(0))),
             Filter::eq("status", "draft"),
         ])),
         &["1"],
@@ -349,9 +349,9 @@ fn included_by_count_polyhierarchy() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedByCount(
+        FindOp::new().filter(Filter::IncludedByCount(
             CountArg::direct(NumExpr::gte(2)),
-        ))),
+        )),
         &["3"],
     );
 }
@@ -368,9 +368,9 @@ fn includes_count_exact_n() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+        FindOp::new().filter(Filter::IncludesCount(
             CountArg::direct(NumExpr::eq(2)),
-        ))),
+        )),
         &["1"],
     );
 }
@@ -387,11 +387,11 @@ fn includes_count_range_band() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(CountArg {
+        FindOp::new().filter(Filter::IncludesCount(CountArg {
             count: NumExpr::gte(1),
             min_depth: 2,
             max_depth: MaxDepth::Bounded(4),
-        }))),
+        })),
         &["1", "2"],
     );
 }
@@ -406,11 +406,11 @@ fn includes_count_zero_at_depth_2() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(CountArg {
+        FindOp::new().filter(Filter::IncludesCount(CountArg {
             count: NumExpr::eq(0),
             min_depth: 2,
             max_depth: MaxDepth::Any,
-        }))),
+        })),
         &["2", "3"],
     );
 }
@@ -427,9 +427,9 @@ fn included_by_chain_at_depth_3() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::new("1", 3, 3),
-        ]))),
+        ])),
         &["4"],
     );
 }
@@ -446,9 +446,9 @@ fn includes_outbound_chain() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::Includes(vec![
+        FindOp::new().filter(Filter::Includes(vec![
             InclusionAnchor::with_max("4", 5),
-        ]))),
+        ])),
         &["1", "2", "3"],
     );
 }
@@ -463,10 +463,10 @@ fn included_by_polyhierarchy_set_semantics() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("1", 5),
             InclusionAnchor::with_max("2", 5),
-        ]))),
+        ])),
         &["3"],
     );
 }
@@ -481,9 +481,9 @@ fn references_multi_hop() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::References(vec![
+        FindOp::new().filter(Filter::References(vec![
             ReferenceAnchor::with_max("3", 2),
-        ]))),
+        ])),
         &["1", "2"],
     );
 }
@@ -498,9 +498,9 @@ fn referenced_by_multi_hop() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::ReferencedBy(vec![
+        FindOp::new().filter(Filter::ReferencedBy(vec![
             ReferenceAnchor::with_max("1", 2),
-        ]))),
+        ])),
         &["2", "3"],
     );
 }
@@ -511,9 +511,9 @@ fn reference_self_link_excluded_from_walk() {
         indoc! {"
             See [self](1).
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::References(vec![
+        FindOp::new().filter(Filter::References(vec![
             ReferenceAnchor::with_max("1", 1),
-        ]))),
+        ])),
         &[],
     );
 }
@@ -528,9 +528,9 @@ fn referenced_by_range_excludes_direct() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::ReferencedBy(vec![
+        FindOp::new().filter(Filter::ReferencedBy(vec![
             ReferenceAnchor::new("1", 2, 3),
-        ]))),
+        ])),
         &["3"],
     );
 }
@@ -546,10 +546,10 @@ fn or_of_two_graph_ops() {
             # C
         "},
         FindOp::new().filter(Filter::or(vec![
-            Filter::graph(GraphOp::IncludedByCount(CountArg::direct(NumExpr::eq(0)))),
-            Filter::graph(GraphOp::IncludedBy(vec![InclusionAnchor::with_max(
+            Filter::IncludedByCount(CountArg::direct(NumExpr::eq(0))),
+            Filter::IncludedBy(vec![InclusionAnchor::with_max(
                 "2", 1,
-            )])),
+            )]),
         ])),
         &["1", "3"],
     );
@@ -571,9 +571,9 @@ fn not_wraps_count() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::Not(Box::new(Filter::graph(GraphOp::IncludesCount(
+        FindOp::new().filter(Filter::Not(Box::new(Filter::IncludesCount(
             CountArg::direct(NumExpr::gte(2)),
-        ))))),
+        )))),
         &["2", "3", "4"],
     );
 }
@@ -588,9 +588,9 @@ fn not_wraps_walk() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::Not(Box::new(Filter::graph(GraphOp::IncludedBy(
+        FindOp::new().filter(Filter::Not(Box::new(Filter::IncludedBy(
             vec![InclusionAnchor::with_max("1", 5)],
-        ))))),
+        )))),
         &["1", "3"],
     );
 }
@@ -621,8 +621,8 @@ fn combined_three_predicates_hub_under_anchor() {
         "},
         FindOp::new().filter(Filter::and(vec![
             Filter::eq("status", "draft"),
-            Filter::graph(GraphOp::IncludedBy(vec![InclusionAnchor::with_max("1", 5)])),
-            Filter::graph(GraphOp::IncludesCount(CountArg::direct(NumExpr::gte(3)))),
+            Filter::IncludedBy(vec![InclusionAnchor::with_max("1", 5)]),
+            Filter::IncludesCount(CountArg::direct(NumExpr::gte(3))),
         ])),
         &["2"],
     );
@@ -640,9 +640,9 @@ fn or_anchor_or_descendants() {
         "},
         FindOp::new().filter(Filter::or(vec![
             Filter::key(KeyOp::eq("1")),
-            Filter::graph(GraphOp::IncludedBy(vec![InclusionAnchor::with_max(
+            Filter::IncludedBy(vec![InclusionAnchor::with_max(
                 "1", 5,
-            )])),
+            )]),
         ])),
         &["1", "2", "3"],
     );
@@ -661,9 +661,9 @@ fn exclude_inside_descendants() {
             # C
         "},
         FindOp::new().filter(Filter::and(vec![
-            Filter::graph(GraphOp::IncludedBy(vec![InclusionAnchor::with_max(
+            Filter::IncludedBy(vec![InclusionAnchor::with_max(
                 "1", 5,
-            )])),
+            )]),
             Filter::key(KeyOp::ne("3")),
         ])),
         &["2"],
@@ -682,9 +682,9 @@ fn disconnected_components() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+        FindOp::new().filter(Filter::IncludedBy(vec![
             InclusionAnchor::with_max("1", 100),
-        ]))),
+        ])),
         &["2"],
     );
 }
@@ -709,9 +709,9 @@ fn sort_after_graph_filter() {
             # D
         "},
         FindOp::new()
-            .filter(Filter::graph(GraphOp::IncludedByCount(CountArg::direct(
+            .filter(Filter::IncludedByCount(CountArg::direct(
                 NumExpr::eq(0),
-            ))))
+            )))
             .sort(Sort::asc("created"))
             .limit(2),
         &["1", "3"],
