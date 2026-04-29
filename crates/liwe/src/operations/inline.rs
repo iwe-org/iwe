@@ -68,8 +68,8 @@ pub fn inline(
     if !config.keep_target {
         result.add_remove(inline_key.clone());
 
-        let block_refs = graph.get_block_references_to(&inline_key);
-        let inline_refs = graph.get_inline_references_to(&inline_key);
+        let block_refs = graph.get_inclusion_edges_to(&inline_key);
+        let inline_refs = graph.get_reference_edges_to(&inline_key);
 
         let additional_refs: HashSet<Key> = block_refs
             .into_iter()
@@ -81,7 +81,7 @@ pub fn inline(
         for ref_key in additional_refs.iter().sorted() {
             let tree = graph.collect(ref_key);
             let updated = tree
-                .remove_block_references_to(&inline_key)
+                .remove_inclusion_edges_to(&inline_key)
                 .remove_inline_links_to(&inline_key);
             let markdown = updated.iter().to_markdown(&ref_key.parent(), &options);
             result.add_update(ref_key.clone(), markdown);

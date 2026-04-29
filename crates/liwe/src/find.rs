@@ -137,9 +137,9 @@ impl<'a> DocumentFinder<'a> {
             title,
             display_title,
             is_root: self.is_root(key),
-            incoming_refs: self.graph.get_block_references_to(key).len()
-                + self.graph.get_inline_references_to(key).len(),
-            outgoing_refs: self.graph.get_block_references_in(key).len(),
+            incoming_refs: self.graph.get_inclusion_edges_to(key).len()
+                + self.graph.get_reference_edges_to(key).len(),
+            outgoing_refs: self.graph.get_inclusion_edges_in(key).len(),
             parent_documents,
         }
     }
@@ -158,16 +158,16 @@ impl<'a> DocumentFinder<'a> {
     }
 
     fn is_root(&self, key: &Key) -> bool {
-        self.graph.get_block_references_to(key).is_empty()
+        self.graph.get_inclusion_edges_to(key).is_empty()
     }
 
     fn node_rank(&self, key: &Key) -> usize {
-        self.graph.get_inline_references_to(key).len()
-            + self.graph.get_block_references_to(key).len()
+        self.graph.get_reference_edges_to(key).len()
+            + self.graph.get_inclusion_edges_to(key).len()
     }
 
     fn references(&self, source: &Key, target: &Key) -> bool {
-        let block_refs = self.graph.get_block_references_in(source);
+        let block_refs = self.graph.get_inclusion_edges_in(source);
         for ref_id in block_refs {
             if let Some(ref_key) = self.graph.graph_node(ref_id).ref_key() {
                 if &ref_key == target {
@@ -194,7 +194,7 @@ impl<'a> DocumentFinder<'a> {
     }
 
     fn get_parent_documents(&self, key: &Key) -> Vec<ParentDocumentInfo> {
-        let refs = self.graph.get_block_references_to(key);
+        let refs = self.graph.get_inclusion_edges_to(key);
         let mut parents = Vec::new();
 
         for ref_id in refs {

@@ -6,8 +6,8 @@ use super::{graph_node::GraphNode, Graph};
 
 #[derive(Default, Clone)]
 pub struct RefIndex {
-    block_references: HashMap<Key, HashSet<NodeId>>,
-    inline_references: HashMap<Key, HashSet<NodeId>>,
+    inclusion_edges: HashMap<Key, HashSet<NodeId>>,
+    reference_edges: HashMap<Key, HashSet<NodeId>>,
 }
 
 impl RefIndex {
@@ -16,40 +16,40 @@ impl RefIndex {
     }
 
     pub fn merge(&mut self, other: RefIndex) {
-        for (key, set) in other.block_references {
-            self.block_references.entry(key).or_default().extend(set);
+        for (key, set) in other.inclusion_edges {
+            self.inclusion_edges.entry(key).or_default().extend(set);
         }
-        for (key, set) in other.inline_references {
-            self.inline_references.entry(key).or_default().extend(set);
+        for (key, set) in other.reference_edges {
+            self.reference_edges.entry(key).or_default().extend(set);
         }
     }
 
-    pub fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.block_references
+    pub fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
+        self.inclusion_edges
             .get(key)
             .map(|set| set.iter().cloned().collect())
             .unwrap_or_default()
     }
 
-    pub fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.inline_references
+    pub fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
+        self.reference_edges
             .get(key)
             .map(|set| set.iter().cloned().collect())
             .unwrap_or_default()
     }
 
-    pub fn block_reference_target_keys(&self) -> impl Iterator<Item = &Key> {
-        self.block_references.keys()
+    pub fn inclusion_edge_target_keys(&self) -> impl Iterator<Item = &Key> {
+        self.inclusion_edges.keys()
     }
 
-    pub fn inline_reference_target_keys(&self) -> impl Iterator<Item = &Key> {
-        self.inline_references.keys()
+    pub fn reference_edge_target_keys(&self) -> impl Iterator<Item = &Key> {
+        self.reference_edges.keys()
     }
 
     pub fn index_node(&mut self, graph: &Graph, node_id: NodeId) {
         match graph.graph_node(node_id) {
             GraphNode::Reference(reference) => {
-                self.block_references
+                self.inclusion_edges
                     .entry(reference.key().clone())
                     .or_default()
                     .insert(reference.id());
@@ -60,7 +60,7 @@ impl RefIndex {
             }
             GraphNode::Section(section) => {
                 for key in graph.get_line(section.line_id()).ref_keys() {
-                    self.inline_references
+                    self.reference_edges
                         .entry(key.clone())
                         .or_default()
                         .insert(section.id());
@@ -75,7 +75,7 @@ impl RefIndex {
             }
             GraphNode::Leaf(leaf) => {
                 for key in graph.get_line(leaf.line_id()).ref_keys() {
-                    self.inline_references
+                    self.reference_edges
                         .entry(key.clone())
                         .or_default()
                         .insert(leaf.id());
@@ -128,7 +128,7 @@ impl RefIndex {
             GraphNode::Table(table) => {
                 for line_id in table.header() {
                     for key in graph.get_line(*line_id).ref_keys() {
-                        self.inline_references
+                        self.reference_edges
                             .entry(key.clone())
                             .or_default()
                             .insert(table.id());
@@ -137,7 +137,7 @@ impl RefIndex {
                 for row in table.rows() {
                     for line_id in row {
                         for key in graph.get_line(*line_id).ref_keys() {
-                            self.inline_references
+                            self.reference_edges
                                 .entry(key.clone())
                                 .or_default()
                                 .insert(table.id());

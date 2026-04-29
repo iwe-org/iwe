@@ -1,10 +1,16 @@
 use serde_yaml::{Mapping, Value};
 
+use crate::model::Key;
 use crate::query::document::{
-    CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, Limit, Operation, OperationKind,
-    Projection, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
+    CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, GraphOp, InclusionAnchor,
+    KeyOp, Limit, MaxDepth, NumExpr, NumOp, Operation, OperationKind, Projection,
+    ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
-use crate::query::wire::{self, RawOperation};
+use crate::query::wire::{
+    self, RawAnchor, RawAnchorArg, RawCountArg, RawCountArgMap, RawCountValue, RawFilter,
+    RawKeyOpMap, RawKeyValue, RawMaxDepth, RawNumExprMap, RawOperation, RawProjection, RawSort,
+    RawUpdate,
+};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -75,6 +81,51 @@ pub enum ParseError {
     },
     EmptyFieldPath,
     NonStringKey,
+    GraphOpExpectedScalarOrMapping {
+        op: &'static str,
+    },
+    GraphOpExpectedAnchor {
+        op: &'static str,
+    },
+    EmptyAnchorList {
+        op: &'static str,
+    },
+    AnchorMissingBound {
+        op: &'static str,
+    },
+    WrongBoundFamily {
+        op: &'static str,
+        modifier: &'static str,
+    },
+    DepthRangeInverted {
+        op: &'static str,
+    },
+    KeyOpForbidden {
+        op: &'static str,
+    },
+    WalkKeyNotScalar {
+        op: &'static str,
+    },
+    AnchorMissingKey {
+        op: &'static str,
+    },
+    UnknownAnchorField {
+        op: &'static str,
+        field: String,
+    },
+    InvalidDepthValue {
+        op: &'static str,
+        modifier: &'static str,
+    },
+    MissingCountField {
+        op: &'static str,
+    },
+    InvalidCountValue {
+        op: &'static str,
+    },
+    NumExprMixedInWithComparisons {
+        op: &'static str,
+    },
 }
 
 impl std::fmt::Display for ParseError {
@@ -189,8 +240,8 @@ fn build_delete(raw: RawOperation) -> Result<DeleteOp, ParseError> {
 }
 
 
-fn build_filter(map: Mapping) -> Result<Filter, ParseError> {
-    build_filter_at(map, &[])
+fn build_filter(raw: RawFilter) -> Result<Filter, ParseError> {
+    build_filter_at(raw.0, &[])
 }
 
 fn build_filter_at(map: Mapping, path: &[String]) -> Result<Filter, ParseError> {
@@ -258,6 +309,9 @@ fn classify_keys(map: &Mapping) -> Result<(Vec<String>, Vec<String>), ParseError
 }
 
 fn build_logical_op(op: &str, value: &Value, path: &[String]) -> Result<Filter, ParseError> {
+    if let Some(graph_op_name) = graph_op_name(op) {
+        return build_graph_op(graph_op_name, value).map(Filter::Graph);
+    }
     match op {
         "$and" | "$or" => {
             let list = value
@@ -527,9 +581,9 @@ fn parse_type_name(name: &str) -> Result<YamlType, ParseError> {
 }
 
 
-fn build_projection(map: Mapping) -> Result<Projection, ParseError> {
+fn build_projection(raw: RawProjection) -> Result<Projection, ParseError> {
     let mut fields: Vec<FieldPath> = Vec::new();
-    walk_projection(&map, &[], &mut fields)?;
+    walk_projection(&raw.0, &[], &mut fields)?;
     Ok(Projection { fields })
 }
 
@@ -571,14 +625,15 @@ fn walk_projection(
 }
 
 
-fn build_sort(raw: Mapping) -> Result<Sort, ParseError> {
-    if raw.is_empty() {
+fn build_sort(raw: RawSort) -> Result<Sort, ParseError> {
+    let map = raw.0;
+    if map.is_empty() {
         return Err(ParseError::EmptySort);
     }
-    if raw.len() > 1 {
+    if map.len() > 1 {
         return Err(ParseError::MultiKeySortNotSupportedV1);
     }
-    let (k, v) = raw.into_iter().next().unwrap();
+    let (k, v) = map.into_iter().next().unwrap();
     let key_str = k.as_str().ok_or(ParseError::NonStringKey)?.to_string();
     let dir_int = match v {
         Value::Number(n) => n.as_i64().ok_or(ParseError::InvalidSortValue {
@@ -620,38 +675,22 @@ fn build_limit(raw: i64) -> Result<Limit, ParseError> {
 }
 
 
-fn build_update_doc(map: Mapping) -> Result<Update, ParseError> {
-    if map.is_empty() {
+fn build_update_doc(raw: RawUpdate) -> Result<Update, ParseError> {
+    if raw.set.is_none() && raw.unset.is_none() {
         return Err(ParseError::EmptyUpdate);
     }
     let mut operators: Vec<UpdateOperator> = Vec::new();
-    for (k, v) in &map {
-        let op_name = k.as_str().ok_or(ParseError::NonStringKey)?;
-        match op_name {
-            "$set" => {
-                let inner = v
-                    .as_mapping()
-                    .ok_or(ParseError::UpdateOperatorExpectedMapping { op: "$set" })?;
-                if inner.is_empty() {
-                    return Err(ParseError::EmptyUpdateOperator { op: "$set" });
-                }
-                walk_update_set(inner, &[], &mut operators)?;
-            }
-            "$unset" => {
-                let inner = v
-                    .as_mapping()
-                    .ok_or(ParseError::UpdateOperatorExpectedMapping { op: "$unset" })?;
-                if inner.is_empty() {
-                    return Err(ParseError::EmptyUpdateOperator { op: "$unset" });
-                }
-                walk_update_unset(inner, &[], &mut operators)?;
-            }
-            other => {
-                return Err(ParseError::UnknownUpdateOperator {
-                    op: other.to_string(),
-                });
-            }
+    if let Some(set) = raw.set {
+        if set.is_empty() {
+            return Err(ParseError::EmptyUpdateOperator { op: "$set" });
         }
+        walk_update_set(&set, &[], &mut operators)?;
+    }
+    if let Some(unset) = raw.unset {
+        if unset.is_empty() {
+            return Err(ParseError::EmptyUpdateOperator { op: "$unset" });
+        }
+        walk_update_unset(&unset, &[], &mut operators)?;
     }
     check_update_conflicts(&operators)?;
     Ok(Update { operators })
@@ -721,6 +760,392 @@ fn check_reserved_prefix(segments: &[String]) -> Result<(), ParseError> {
         }
     }
     Ok(())
+}
+
+fn graph_op_name(op: &str) -> Option<&'static str> {
+    match op {
+        "$key" => Some("$key"),
+        "$includesCount" => Some("$includesCount"),
+        "$includedByCount" => Some("$includedByCount"),
+        "$includes" => Some("$includes"),
+        "$includedBy" => Some("$includedBy"),
+        "$references" => Some("$references"),
+        "$referencedBy" => Some("$referencedBy"),
+        _ => None,
+    }
+}
+
+fn build_graph_op(op: &'static str, value: &Value) -> Result<GraphOp, ParseError> {
+    match op {
+        "$key" => Ok(GraphOp::Key(parse_key_op(value, op)?)),
+        "$includesCount" => Ok(GraphOp::IncludesCount(parse_count_arg(value, op)?)),
+        "$includedByCount" => Ok(GraphOp::IncludedByCount(parse_count_arg(value, op)?)),
+        "$includes" => Ok(GraphOp::Includes(parse_inclusion_anchors(value, op)?)),
+        "$includedBy" => Ok(GraphOp::IncludedBy(parse_inclusion_anchors(value, op)?)),
+        "$references" => Ok(GraphOp::References(parse_reference_anchors(value, op)?)),
+        "$referencedBy" => Ok(GraphOp::ReferencedBy(parse_reference_anchors(value, op)?)),
+        _ => unreachable!(),
+    }
+}
+
+fn parse_key_op(value: &Value, op: &'static str) -> Result<KeyOp, ParseError> {
+    if let Some(s) = value.as_str() {
+        return Ok(KeyOp::Eq(Key::name(s)));
+    }
+    if !value.is_mapping() {
+        return Err(ParseError::GraphOpExpectedScalarOrMapping { op });
+    }
+    let m: RawKeyOpMap = serde_yaml::from_value(value.clone())
+        .map_err(|_| ParseError::KeyOpForbidden { op })?;
+    key_op_from_map(m, op)
+}
+
+fn key_op_from_map(m: RawKeyOpMap, op: &'static str) -> Result<KeyOp, ParseError> {
+    let count = m.eq.is_some() as u8 + m.ne.is_some() as u8 + m.in_.is_some() as u8
+        + m.nin.is_some() as u8;
+    if count != 1 {
+        return Err(ParseError::KeyOpForbidden { op });
+    }
+    if let Some(s) = m.eq {
+        return Ok(KeyOp::Eq(Key::name(&s)));
+    }
+    if let Some(s) = m.ne {
+        return Ok(KeyOp::Ne(Key::name(&s)));
+    }
+    if let Some(list) = m.in_ {
+        return Ok(KeyOp::In(string_list(list, op)?));
+    }
+    if let Some(list) = m.nin {
+        return Ok(KeyOp::Nin(string_list(list, op)?));
+    }
+    unreachable!()
+}
+
+fn string_list(list: Vec<Value>, op: &'static str) -> Result<Vec<Key>, ParseError> {
+    if list.is_empty() {
+        return Err(ParseError::EmptyOperatorList { op });
+    }
+    list.into_iter()
+        .map(|v| {
+            v.as_str()
+                .map(Key::name)
+                .ok_or(ParseError::OperatorExpectedString { op })
+        })
+        .collect()
+}
+
+fn parse_count_arg(value: &Value, op: &'static str) -> Result<CountArg, ParseError> {
+    let raw: RawCountArg = serde_yaml::from_value(value.clone())
+        .map_err(|_| ParseError::GraphOpExpectedScalarOrMapping { op })?;
+    match raw {
+        RawCountArg::Number(i) => bare_count(i, op),
+        RawCountArg::Map(m) => count_arg_from_map(m, op),
+    }
+}
+
+fn bare_count(i: i64, op: &'static str) -> Result<CountArg, ParseError> {
+    if i < 0 {
+        return Err(ParseError::InvalidCountValue { op });
+    }
+    Ok(CountArg {
+        count: NumExpr::eq(i as u64),
+        min_depth: 1,
+        max_depth: MaxDepth::Bounded(1),
+    })
+}
+
+fn count_arg_from_map(m: RawCountArgMap, op: &'static str) -> Result<CountArg, ParseError> {
+    if m.max_distance.is_some() {
+        return Err(ParseError::WrongBoundFamily {
+            op,
+            modifier: "$maxDistance",
+        });
+    }
+    if m.min_distance.is_some() {
+        return Err(ParseError::WrongBoundFamily {
+            op,
+            modifier: "$minDistance",
+        });
+    }
+    let has_depth_key = m.max_depth.is_some() || m.min_depth.is_some();
+    let bare_ops = num_expr_from_count_map(&m);
+    if let Some(raw_count) = m.count {
+        if !bare_ops.0.is_empty() {
+            return Err(ParseError::MissingCountField { op });
+        }
+        let count = num_expr_from_value(raw_count, op)?;
+        let min_depth = match m.min_depth {
+            Some(i) => pos_u32(i, op, "$minDepth")?,
+            None => 1,
+        };
+        let max_depth = match m.max_depth {
+            Some(d) => max_depth_from_raw(d, op)?,
+            None => MaxDepth::Bounded(1),
+        };
+        let max_bound = match max_depth {
+            MaxDepth::Bounded(n) => n,
+            MaxDepth::Any => u32::MAX,
+        };
+        if min_depth > max_bound {
+            return Err(ParseError::DepthRangeInverted { op });
+        }
+        return Ok(CountArg {
+            count,
+            min_depth,
+            max_depth,
+        });
+    }
+    if has_depth_key {
+        return Err(ParseError::MissingCountField { op });
+    }
+    if bare_ops.0.is_empty() {
+        return Err(ParseError::MissingCountField { op });
+    }
+    Ok(CountArg {
+        count: bare_ops,
+        min_depth: 1,
+        max_depth: MaxDepth::Bounded(1),
+    })
+}
+
+fn num_expr_from_count_map(m: &RawCountArgMap) -> NumExpr {
+    let mut ops = Vec::new();
+    if let Some(n) = m.eq {
+        ops.push(NumOp::Eq(n.max(0) as u64));
+    }
+    if let Some(n) = m.ne {
+        ops.push(NumOp::Ne(n.max(0) as u64));
+    }
+    if let Some(n) = m.gt {
+        ops.push(NumOp::Gt(n.max(0) as u64));
+    }
+    if let Some(n) = m.gte {
+        ops.push(NumOp::Gte(n.max(0) as u64));
+    }
+    if let Some(n) = m.lt {
+        ops.push(NumOp::Lt(n.max(0) as u64));
+    }
+    if let Some(n) = m.lte {
+        ops.push(NumOp::Lte(n.max(0) as u64));
+    }
+    if let Some(list) = &m.in_ {
+        ops.push(NumOp::In(list.iter().map(|n| (*n).max(0) as u64).collect()));
+    }
+    if let Some(list) = &m.nin {
+        ops.push(NumOp::Nin(list.iter().map(|n| (*n).max(0) as u64).collect()));
+    }
+    NumExpr(ops)
+}
+
+fn num_expr_from_value(raw: RawCountValue, op: &'static str) -> Result<NumExpr, ParseError> {
+    match raw {
+        RawCountValue::Number(i) => {
+            if i < 0 {
+                return Err(ParseError::InvalidCountValue { op });
+            }
+            Ok(NumExpr::eq(i as u64))
+        }
+        RawCountValue::Map(m) => num_expr_from_map(m, op),
+    }
+}
+
+fn num_expr_from_map(m: RawNumExprMap, op: &'static str) -> Result<NumExpr, ParseError> {
+    let mut ops = Vec::new();
+    let mut comparison_count = 0u8;
+    let mut list_count = 0u8;
+    macro_rules! push_int {
+        ($field:expr, $variant:ident) => {
+            if let Some(n) = $field {
+                if n < 0 {
+                    return Err(ParseError::InvalidCountValue { op });
+                }
+                ops.push(NumOp::$variant(n as u64));
+                comparison_count += 1;
+            }
+        };
+    }
+    push_int!(m.eq, Eq);
+    push_int!(m.ne, Ne);
+    push_int!(m.gt, Gt);
+    push_int!(m.gte, Gte);
+    push_int!(m.lt, Lt);
+    push_int!(m.lte, Lte);
+    if let Some(list) = m.in_ {
+        if list.is_empty() {
+            return Err(ParseError::EmptyOperatorList { op });
+        }
+        let nums = list
+            .into_iter()
+            .map(|n| {
+                if n < 0 {
+                    Err(ParseError::InvalidCountValue { op })
+                } else {
+                    Ok(n as u64)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        ops.push(NumOp::In(nums));
+        list_count += 1;
+    }
+    if let Some(list) = m.nin {
+        if list.is_empty() {
+            return Err(ParseError::EmptyOperatorList { op });
+        }
+        let nums = list
+            .into_iter()
+            .map(|n| {
+                if n < 0 {
+                    Err(ParseError::InvalidCountValue { op })
+                } else {
+                    Ok(n as u64)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        ops.push(NumOp::Nin(nums));
+        list_count += 1;
+    }
+    if list_count > 0 && (comparison_count > 0 || list_count > 1) {
+        return Err(ParseError::NumExprMixedInWithComparisons { op });
+    }
+    if ops.is_empty() {
+        return Err(ParseError::InvalidCountValue { op });
+    }
+    Ok(NumExpr(ops))
+}
+
+fn max_depth_from_raw(raw: RawMaxDepth, op: &'static str) -> Result<MaxDepth, ParseError> {
+    match raw {
+        RawMaxDepth::Symbol(s) if s == "any" => Ok(MaxDepth::Any),
+        RawMaxDepth::Symbol(_) => Err(ParseError::InvalidDepthValue {
+            op,
+            modifier: "$maxDepth",
+        }),
+        RawMaxDepth::Number(n) => Ok(MaxDepth::Bounded(pos_u32(n, op, "$maxDepth")?)),
+    }
+}
+
+fn pos_u32(i: i64, op: &'static str, modifier: &'static str) -> Result<u32, ParseError> {
+    if i >= 1 {
+        Ok(i as u32)
+    } else {
+        Err(ParseError::InvalidDepthValue { op, modifier })
+    }
+}
+
+fn parse_inclusion_anchors(
+    value: &Value,
+    op: &'static str,
+) -> Result<Vec<InclusionAnchor>, ParseError> {
+    let raws = parse_anchor_arg(value, op)?;
+    raws.into_iter()
+        .map(|raw| inclusion_anchor_from_raw(raw, op))
+        .collect()
+}
+
+fn parse_reference_anchors(
+    value: &Value,
+    op: &'static str,
+) -> Result<Vec<ReferenceAnchor>, ParseError> {
+    let raws = parse_anchor_arg(value, op)?;
+    raws.into_iter()
+        .map(|raw| reference_anchor_from_raw(raw, op))
+        .collect()
+}
+
+fn parse_anchor_arg(value: &Value, op: &'static str) -> Result<Vec<RawAnchor>, ParseError> {
+    if matches!(value, Value::Mapping(m) if m.is_empty()) {
+        return Err(ParseError::EmptyAnchorList { op });
+    }
+    if matches!(value, Value::Sequence(s) if s.is_empty()) {
+        return Err(ParseError::EmptyAnchorList { op });
+    }
+    let raw: RawAnchorArg = serde_yaml::from_value(value.clone())
+        .map_err(|_| ParseError::GraphOpExpectedAnchor { op })?;
+    Ok(match raw {
+        RawAnchorArg::Single(a) => vec![a],
+        RawAnchorArg::List(l) => l,
+    })
+}
+
+fn inclusion_anchor_from_raw(raw: RawAnchor, op: &'static str) -> Result<InclusionAnchor, ParseError> {
+    if raw.max_distance.is_some() {
+        return Err(ParseError::WrongBoundFamily {
+            op,
+            modifier: "$maxDistance",
+        });
+    }
+    if raw.min_distance.is_some() {
+        return Err(ParseError::WrongBoundFamily {
+            op,
+            modifier: "$minDistance",
+        });
+    }
+    let key = anchor_key(raw.key, op)?;
+    if raw.max_depth.is_none() && raw.min_depth.is_none() {
+        return Err(ParseError::AnchorMissingBound { op });
+    }
+    let max_depth = match raw.max_depth {
+        Some(n) => pos_u32(n, op, "$maxDepth")?,
+        None => u32::MAX,
+    };
+    let min_depth = match raw.min_depth {
+        Some(n) => pos_u32(n, op, "$minDepth")?,
+        None => 1,
+    };
+    if min_depth > max_depth {
+        return Err(ParseError::DepthRangeInverted { op });
+    }
+    Ok(InclusionAnchor {
+        key,
+        min_depth,
+        max_depth,
+    })
+}
+
+fn reference_anchor_from_raw(
+    raw: RawAnchor,
+    op: &'static str,
+) -> Result<ReferenceAnchor, ParseError> {
+    if raw.max_depth.is_some() {
+        return Err(ParseError::WrongBoundFamily {
+            op,
+            modifier: "$maxDepth",
+        });
+    }
+    if raw.min_depth.is_some() {
+        return Err(ParseError::WrongBoundFamily {
+            op,
+            modifier: "$minDepth",
+        });
+    }
+    let key = anchor_key(raw.key, op)?;
+    if raw.max_distance.is_none() && raw.min_distance.is_none() {
+        return Err(ParseError::AnchorMissingBound { op });
+    }
+    let max_distance = match raw.max_distance {
+        Some(n) => pos_u32(n, op, "$maxDistance")?,
+        None => u32::MAX,
+    };
+    let min_distance = match raw.min_distance {
+        Some(n) => pos_u32(n, op, "$minDistance")?,
+        None => 1,
+    };
+    if min_distance > max_distance {
+        return Err(ParseError::DepthRangeInverted { op });
+    }
+    Ok(ReferenceAnchor {
+        key,
+        min_distance,
+        max_distance,
+    })
+}
+
+fn anchor_key(raw: Option<RawKeyValue>, op: &'static str) -> Result<Key, ParseError> {
+    match raw {
+        None => Err(ParseError::AnchorMissingKey { op }),
+        Some(RawKeyValue::Scalar(s)) => Ok(Key::name(&s)),
+        Some(RawKeyValue::Other(_)) => Err(ParseError::WalkKeyNotScalar { op }),
+    }
 }
 
 fn check_update_conflicts(ops: &[UpdateOperator]) -> Result<(), ParseError> {

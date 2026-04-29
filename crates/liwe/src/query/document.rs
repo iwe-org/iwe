@@ -1,5 +1,7 @@
 use serde_yaml::Value;
 
+use crate::model::Key;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OperationKind {
     Find,
@@ -140,6 +142,140 @@ pub enum Filter {
     Or(Vec<Filter>),
     Not(Box<Filter>),
     Field { path: FieldPath, op: FieldOp },
+    Graph(GraphOp),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GraphOp {
+    Key(KeyOp),
+    IncludesCount(CountArg),
+    IncludedByCount(CountArg),
+    Includes(Vec<InclusionAnchor>),
+    IncludedBy(Vec<InclusionAnchor>),
+    References(Vec<ReferenceAnchor>),
+    ReferencedBy(Vec<ReferenceAnchor>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum KeyOp {
+    Eq(Key),
+    Ne(Key),
+    In(Vec<Key>),
+    Nin(Vec<Key>),
+}
+
+impl KeyOp {
+    pub fn eq(key: impl Into<String>) -> Self {
+        KeyOp::Eq(Key::name(&key.into()))
+    }
+    pub fn ne(key: impl Into<String>) -> Self {
+        KeyOp::Ne(Key::name(&key.into()))
+    }
+    pub fn in_(keys: &[&str]) -> Self {
+        KeyOp::In(keys.iter().map(|s| Key::name(s)).collect())
+    }
+    pub fn nin(keys: &[&str]) -> Self {
+        KeyOp::Nin(keys.iter().map(|s| Key::name(s)).collect())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CountArg {
+    pub count: NumExpr,
+    pub min_depth: u32,
+    pub max_depth: MaxDepth,
+}
+
+impl CountArg {
+    pub fn direct(count: NumExpr) -> Self {
+        CountArg {
+            count,
+            min_depth: 1,
+            max_depth: MaxDepth::Bounded(1),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MaxDepth {
+    Bounded(u32),
+    Any,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NumExpr(pub Vec<NumOp>);
+
+impl NumExpr {
+    pub fn eq(n: u64) -> Self {
+        NumExpr(vec![NumOp::Eq(n)])
+    }
+    pub fn ne(n: u64) -> Self {
+        NumExpr(vec![NumOp::Ne(n)])
+    }
+    pub fn gt(n: u64) -> Self {
+        NumExpr(vec![NumOp::Gt(n)])
+    }
+    pub fn gte(n: u64) -> Self {
+        NumExpr(vec![NumOp::Gte(n)])
+    }
+    pub fn lt(n: u64) -> Self {
+        NumExpr(vec![NumOp::Lt(n)])
+    }
+    pub fn lte(n: u64) -> Self {
+        NumExpr(vec![NumOp::Lte(n)])
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NumOp {
+    Eq(u64),
+    Ne(u64),
+    Gt(u64),
+    Gte(u64),
+    Lt(u64),
+    Lte(u64),
+    In(Vec<u64>),
+    Nin(Vec<u64>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InclusionAnchor {
+    pub key: Key,
+    pub min_depth: u32,
+    pub max_depth: u32,
+}
+
+impl InclusionAnchor {
+    pub fn new(key: impl Into<String>, min_depth: u32, max_depth: u32) -> Self {
+        InclusionAnchor {
+            key: Key::name(&key.into()),
+            min_depth,
+            max_depth,
+        }
+    }
+    pub fn with_max(key: impl Into<String>, max_depth: u32) -> Self {
+        Self::new(key, 1, max_depth)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReferenceAnchor {
+    pub key: Key,
+    pub min_distance: u32,
+    pub max_distance: u32,
+}
+
+impl ReferenceAnchor {
+    pub fn new(key: impl Into<String>, min_distance: u32, max_distance: u32) -> Self {
+        ReferenceAnchor {
+            key: Key::name(&key.into()),
+            min_distance,
+            max_distance,
+        }
+    }
+    pub fn with_max(key: impl Into<String>, max_distance: u32) -> Self {
+        Self::new(key, 1, max_distance)
+    }
 }
 
 impl Filter {
@@ -181,6 +317,14 @@ impl Filter {
 
     pub fn exists(path: &str, present: bool) -> Self {
         Self::field(path, FieldOp::Exists(present))
+    }
+
+    pub fn graph(op: GraphOp) -> Self {
+        Filter::Graph(op)
+    }
+
+    pub fn key(op: KeyOp) -> Self {
+        Filter::Graph(GraphOp::Key(op))
     }
 
     fn field(path: &str, op: FieldOp) -> Self {

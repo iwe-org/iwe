@@ -166,7 +166,7 @@ impl<'a> DocumentReader<'a> {
         }
 
         let mut parents = Vec::new();
-        let refs = self.graph.get_block_references_to(key);
+        let refs = self.graph.get_inclusion_edges_to(key);
 
         for ref_id in refs {
             let node = self.graph.node(ref_id);
@@ -194,7 +194,7 @@ impl<'a> DocumentReader<'a> {
 
     fn collect_sub_document_parents(&self, key: &Key, levels: u8) -> Vec<Key> {
         let mut parents = Vec::new();
-        let sub_docs = self.graph.get_block_references_in(key);
+        let sub_docs = self.graph.get_inclusion_edges_in(key);
 
         for ref_id in sub_docs {
             if let Some(sub_key) = self.graph.graph_node(ref_id).ref_key() {
@@ -234,7 +234,7 @@ impl<'a> DocumentReader<'a> {
     fn get_expanded_keys(&self, key: &Key, depth: u8) -> Vec<Key> {
         let mut keys = Vec::new();
 
-        let refs = self.graph.get_block_references_in(key);
+        let refs = self.graph.get_inclusion_edges_in(key);
         for ref_id in refs {
             if let Some(ref_key) = self.graph.graph_node(ref_id).ref_key() {
                 if !keys.contains(&ref_key) {
@@ -295,7 +295,7 @@ impl<'a> DocumentReader<'a> {
     }
 
     fn get_parent_documents(&self, key: &Key) -> Vec<ParentDocumentInfo> {
-        let refs = self.graph.get_block_references_to(key);
+        let refs = self.graph.get_inclusion_edges_to(key);
         let mut parents = Vec::new();
 
         for ref_id in refs {
@@ -323,7 +323,7 @@ impl<'a> DocumentReader<'a> {
     }
 
     fn get_child_documents(&self, key: &Key) -> Vec<ChildDocumentInfo> {
-        let refs = self.graph.get_block_references_in(key);
+        let refs = self.graph.get_inclusion_edges_in(key);
         let mut children = Vec::new();
 
         for ref_id in refs {
@@ -344,7 +344,7 @@ impl<'a> DocumentReader<'a> {
     }
 
     fn get_backlinks(&self, key: &Key) -> Vec<BacklinkInfo> {
-        let inline_refs = self.graph.get_inline_references_to(key);
+        let inline_refs = self.graph.get_reference_edges_to(key);
 
         let mut backlinks = Vec::new();
         let mut seen_keys = HashSet::new();

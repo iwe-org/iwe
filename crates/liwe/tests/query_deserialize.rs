@@ -1,7 +1,8 @@
 use indoc::indoc;
 use liwe::query::{
-    parse_operation, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, Limit, Operation,
-    OperationKind, Projection, Sort, Update, UpdateOp, UpdateOperator, YamlType,
+    parse_operation, CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, GraphOp,
+    InclusionAnchor, KeyOp, Limit, MaxDepth, NumExpr, Operation, OperationKind,
+    Projection, ReferenceAnchor, Sort, Update, UpdateOp, UpdateOperator, YamlType,
 };
 use serde_yaml::Value;
 
@@ -552,4 +553,310 @@ fn delete_zero_limit_unbounded() {
         ),
     );
     assert!(Limit(0).is_unbounded());
+}
+
+#[test]
+fn key_scalar_parses_to_eq() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $key: notes/foo
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::key(KeyOp::eq("notes/foo")))),
+    );
+}
+
+#[test]
+fn key_explicit_eq() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $key: { $eq: notes/foo }
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::key(KeyOp::eq("notes/foo")))),
+    );
+}
+
+#[test]
+fn key_in_list() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $key: { $in: [a, b, c] }
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::key(KeyOp::in_(&["a", "b", "c"])))),
+    );
+}
+
+#[test]
+fn key_gt_rejected() {
+    assert_parse_error(
+        "filter:\n  $key: { $gt: foo }\n",
+        OperationKind::Find,
+        "KeyOpForbidden",
+    );
+}
+
+#[test]
+fn key_in_with_non_string_rejected() {
+    assert_parse_error(
+        "filter:\n  $key: { $in: [1, 2] }\n",
+        OperationKind::Find,
+        "OperatorExpectedString",
+    );
+}
+
+#[test]
+fn includes_count_bare_int() {
+    assert_parse(
+        "filter:\n  $includesCount: 0\n",
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+            CountArg::direct(NumExpr::eq(0)),
+        )))),
+    );
+}
+
+#[test]
+fn includes_count_bare_expr() {
+    assert_parse(
+        "filter:\n  $includesCount: { $gte: 3 }\n",
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+            CountArg::direct(NumExpr::gte(3)),
+        )))),
+    );
+}
+
+#[test]
+fn includes_count_full_form_with_any() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includesCount:
+                $count: { $gte: 10 }
+                $maxDepth: any
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+            CountArg {
+                count: NumExpr::gte(10),
+                min_depth: 1,
+                max_depth: MaxDepth::Any,
+            },
+        )))),
+    );
+}
+
+#[test]
+fn includes_count_range() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includesCount:
+                $count: { $gte: 1 }
+                $minDepth: 2
+                $maxDepth: 4
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(
+            CountArg {
+                count: NumExpr::gte(1),
+                min_depth: 2,
+                max_depth: MaxDepth::Bounded(4),
+            },
+        )))),
+    );
+}
+
+#[test]
+fn included_by_count_zero() {
+    assert_parse(
+        "filter:\n  $includedByCount: 0\n",
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludedByCount(
+            CountArg::direct(NumExpr::eq(0)),
+        )))),
+    );
+}
+
+#[test]
+fn count_missing_count_field_rejected() {
+    assert_parse_error(
+        "filter:\n  $includesCount: { $maxDepth: 3 }\n",
+        OperationKind::Find,
+        "MissingCountField",
+    );
+}
+
+#[test]
+fn count_zero_max_depth_rejected() {
+    assert_parse_error(
+        "filter:\n  $includesCount: { $count: 1, $maxDepth: 0 }\n",
+        OperationKind::Find,
+        "InvalidDepthValue",
+    );
+}
+
+#[test]
+fn count_inverted_range_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $includesCount:
+                $count: 1
+                $minDepth: 5
+                $maxDepth: 2
+        "},
+        OperationKind::Find,
+        "DepthRangeInverted",
+    );
+}
+
+#[test]
+fn count_distance_modifier_rejected() {
+    assert_parse_error(
+        "filter:\n  $includesCount: { $count: 1, $maxDistance: 1 }\n",
+        OperationKind::Find,
+        "WrongBoundFamily",
+    );
+}
+
+#[test]
+fn includes_single_anchor() {
+    assert_parse(
+        "filter:\n  $includes: { $key: roadmap/q2, $maxDepth: 2 }\n",
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::Includes(vec![
+            InclusionAnchor::with_max("roadmap/q2", 2),
+        ])))),
+    );
+}
+
+#[test]
+fn included_by_range() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includedBy:
+                $key: projects/alpha
+                $minDepth: 2
+                $maxDepth: 5
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+            InclusionAnchor::new("projects/alpha", 2, 5),
+        ])))),
+    );
+}
+
+#[test]
+fn includes_multi_anchor_array() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includedBy:
+                - { $key: projects/alpha, $maxDepth: 5 }
+                - { $key: research/q2, $maxDepth: 2 }
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludedBy(vec![
+            InclusionAnchor::with_max("projects/alpha", 5),
+            InclusionAnchor::with_max("research/q2", 2),
+        ])))),
+    );
+}
+
+#[test]
+fn anchor_missing_bound_rejected() {
+    assert_parse_error(
+        "filter:\n  $includes: { $key: K }\n",
+        OperationKind::Find,
+        "AnchorMissingBound",
+    );
+}
+
+#[test]
+fn anchor_wrong_bound_family_rejected() {
+    assert_parse_error(
+        "filter:\n  $includes: { $key: K, $maxDistance: 1 }\n",
+        OperationKind::Find,
+        "WrongBoundFamily",
+    );
+}
+
+#[test]
+fn walk_key_op_expression_rejected() {
+    assert_parse_error(
+        "filter:\n  $includes: { $key: { $in: [a, b] }, $maxDepth: 1 }\n",
+        OperationKind::Find,
+        "WalkKeyNotScalar",
+    );
+}
+
+#[test]
+fn empty_anchor_list_rejected() {
+    assert_parse_error(
+        "filter:\n  $includes: []\n",
+        OperationKind::Find,
+        "EmptyAnchorList",
+    );
+}
+
+#[test]
+fn empty_anchor_mapping_rejected() {
+    assert_parse_error(
+        "filter:\n  $includes: {}\n",
+        OperationKind::Find,
+        "EmptyAnchorList",
+    );
+}
+
+#[test]
+fn references_with_distance() {
+    assert_parse(
+        "filter:\n  $references: { $key: people/dmytro, $maxDistance: 1 }\n",
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::References(vec![
+            ReferenceAnchor::with_max("people/dmytro", 1),
+        ])))),
+    );
+}
+
+#[test]
+fn referenced_by_range() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $referencedBy:
+                $key: archive/index
+                $minDistance: 1
+                $maxDistance: 3
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::ReferencedBy(vec![
+            ReferenceAnchor::new("archive/index", 1, 3),
+        ])))),
+    );
+}
+
+#[test]
+fn references_with_depth_modifier_rejected() {
+    assert_parse_error(
+        "filter:\n  $references: { $key: K, $maxDepth: 1 }\n",
+        OperationKind::Find,
+        "WrongBoundFamily",
+    );
+}
+
+#[test]
+fn references_zero_distance_rejected() {
+    assert_parse_error(
+        "filter:\n  $references: { $key: K, $maxDistance: 0 }\n",
+        OperationKind::Find,
+        "InvalidDepthValue",
+    );
 }

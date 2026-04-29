@@ -81,7 +81,7 @@ fn rename_updates_affected_files() {
 }
 
 #[test]
-fn rename_inline_references() {
+fn rename_reference_edges() {
     assert_rename_at(
         indoc! {"
             # title

@@ -86,7 +86,7 @@ pub fn descendants_at_depth(graph: &Graph, origin: &Key, depth: Option<u8>) -> H
 
         let mut next: Vec<Key> = Vec::new();
         for current in &frontier {
-            for ref_id in graph.get_block_references_in(current) {
+            for ref_id in graph.get_inclusion_edges_in(current) {
                 if let Some(ref_key) = graph.graph_node(ref_id).ref_key() {
                     if &ref_key == origin {
                         continue;

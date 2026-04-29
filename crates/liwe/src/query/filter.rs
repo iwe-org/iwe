@@ -2,19 +2,22 @@ use std::cmp::Ordering;
 
 use serde_yaml::{Mapping, Value};
 
+use crate::graph::Graph;
+use crate::model::Key;
 use crate::query::document::{FieldOp, FieldPath, Filter, YamlType};
 use crate::query::frontmatter::is_reserved_segment;
+use crate::query::graph_match::match_graph_op;
 
-
-pub fn matches(filter: &Filter, doc: &Mapping) -> bool {
+pub fn matches(filter: &Filter, doc: &Mapping, key: &Key, graph: &Graph) -> bool {
     match filter {
-        Filter::And(children) => children.iter().all(|c| matches(c, doc)),
-        Filter::Or(children) => children.iter().any(|c| matches(c, doc)),
-        Filter::Not(child) => !matches(child, doc),
+        Filter::And(children) => children.iter().all(|c| matches(c, doc, key, graph)),
+        Filter::Or(children) => children.iter().any(|c| matches(c, doc, key, graph)),
+        Filter::Not(child) => !matches(child, doc, key, graph),
         Filter::Field { path, op } => match resolve_path(doc, path) {
             Resolution::Present(value) => match_field_op(op, Some(value)),
             Resolution::Missing => match_field_op(op, None),
         },
+        Filter::Graph(op) => match_graph_op(op, key, graph),
     }
 }
 
@@ -256,8 +259,10 @@ mod tests {
     fn null() -> Value { Value::Null }
 
     fn check(filter: &Filter, doc: &Mapping, expected: bool) {
+        let g = Graph::new();
+        let k = Key::name("test");
         assert_eq!(
-            matches(filter, doc),
+            matches(filter, doc, &k, &g),
             expected,
             "filter: {:?}\ndoc: {:?}",
             filter,
@@ -500,8 +505,13 @@ mod tests {
         };
         let dotted_filter = eq("author.name", "dmytro");
         let d = doc(vec![("author", nested(vec![("name", "dmytro".into())]))]);
-        assert_eq!(matches(&nested_filter, &d), matches(&dotted_filter, &d));
-        assert!(matches(&nested_filter, &d));
+        let g = Graph::new();
+        let k = Key::name("test");
+        assert_eq!(
+            matches(&nested_filter, &d, &k, &g),
+            matches(&dotted_filter, &d, &k, &g)
+        );
+        assert!(matches(&nested_filter, &d, &k, &g));
     }
 
     #[test]

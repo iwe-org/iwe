@@ -924,7 +924,7 @@ impl IweServer {
             if (&*graph).get_node_id(&target_key).is_some() {
                 let tree = (&*graph).collect(&target_key);
                 if tree
-                    .get_all_block_reference_keys()
+                    .get_all_inclusion_edge_keys()
                     .contains(&source_key)
                 {
                     continue;
@@ -992,7 +992,7 @@ fn build_tree_node(
     visited.insert(key.clone());
 
     let children = if max_depth > 1 {
-        let ref_node_ids = graph.get_block_references_in(key);
+        let ref_node_ids = graph.get_inclusion_edges_in(key);
         let mut refs: Vec<Key> = ref_node_ids
             .iter()
             .filter_map(|id| graph.graph_node(*id).ref_key())

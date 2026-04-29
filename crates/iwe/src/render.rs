@@ -105,7 +105,7 @@ impl<'a> RetrieveRenderer<'a> {
         let tree = self.graph.collect(key);
 
         let parent_lookup = |ref_key: &Key| -> Vec<(Key, String)> {
-            let refs = self.graph.get_block_references_to(ref_key);
+            let refs = self.graph.get_inclusion_edges_to(ref_key);
             let mut parents = Vec::new();
 
             for ref_id in refs {

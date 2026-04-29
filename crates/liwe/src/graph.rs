@@ -150,12 +150,12 @@ impl Graph {
         self.keys.keys().cloned().collect()
     }
 
-    pub fn block_reference_target_keys(&self) -> Vec<Key> {
-        self.index.block_reference_target_keys().cloned().collect()
+    pub fn inclusion_edge_target_keys(&self) -> Vec<Key> {
+        self.index.inclusion_edge_target_keys().cloned().collect()
     }
 
-    pub fn inline_reference_target_keys(&self) -> Vec<Key> {
-        self.index.inline_reference_target_keys().cloned().collect()
+    pub fn reference_edge_target_keys(&self) -> Vec<Key> {
+        self.index.reference_edge_target_keys().cloned().collect()
     }
 
     pub fn with<F>(f: F) -> Graph
@@ -449,17 +449,17 @@ impl Graph {
         }
     }
 
-    pub fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
+    pub fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
 
         self.index
-            .get_block_references_to(key)
+            .get_inclusion_edges_to(key)
             .iter()
             .filter(|id| !self.graph_node(**id).is_empty())
             .cloned()
             .collect()
     }
 
-    pub fn get_block_references_in(&self, key: &Key) -> Vec<NodeId> {
+    pub fn get_inclusion_edges_in(&self, key: &Key) -> Vec<NodeId> {
         self.maybe_key(key)
             .map(|node| {
                 node.get_all_sub_nodes()
@@ -471,14 +471,43 @@ impl Graph {
             .unwrap_or_default()
     }
 
-    pub fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
+    pub fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
 
         self.index
-            .get_inline_references_to(key)
+            .get_reference_edges_to(key)
             .iter()
             .filter(|id| !self.graph_node(**id).is_empty())
             .cloned()
             .collect()
+    }
+
+    pub fn get_reference_edges_in(&self, key: &Key) -> Vec<Key> {
+        let Some(pointer) = self.maybe_key(key) else {
+            return Vec::new();
+        };
+        let mut keys = Vec::new();
+        for node_id in pointer.get_all_sub_nodes() {
+            match self.graph_node(node_id) {
+                GraphNode::Section(section) => {
+                    keys.extend(self.get_line(section.line_id()).ref_keys());
+                }
+                GraphNode::Leaf(leaf) => {
+                    keys.extend(self.get_line(leaf.line_id()).ref_keys());
+                }
+                GraphNode::Table(table) => {
+                    for line_id in table.header() {
+                        keys.extend(self.get_line(*line_id).ref_keys());
+                    }
+                    for row in table.rows() {
+                        for line_id in row {
+                            keys.extend(self.get_line(*line_id).ref_keys());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        keys
     }
 }
 

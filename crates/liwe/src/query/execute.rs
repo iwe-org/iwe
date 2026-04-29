@@ -51,7 +51,7 @@ fn select(filter: Option<&crate::query::document::Filter>, graph: &Graph) -> Vec
             let mapping = graph.frontmatter(key).cloned().unwrap_or_default();
             match filter {
                 None => Some((key.clone(), mapping)),
-                Some(f) => matches(f, &mapping).then_some((key.clone(), mapping)),
+                Some(f) => matches(f, &mapping, key, graph).then_some((key.clone(), mapping)),
             }
         })
         .collect();

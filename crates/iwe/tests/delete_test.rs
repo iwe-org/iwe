@@ -32,7 +32,7 @@ fn test_delete_basic() {
 }
 
 #[test]
-fn test_delete_removes_multiple_block_references() {
+fn test_delete_removes_multiple_inclusion_edges() {
     let temp_dir = setup_workspace_with_docs(vec![
         ("a", indoc! {"
             # Doc A
@@ -53,7 +53,7 @@ fn test_delete_removes_multiple_block_references() {
 }
 
 #[test]
-fn test_delete_updates_inline_references() {
+fn test_delete_updates_reference_edges() {
     let temp_dir = setup_workspace_with_docs(vec![
         ("a", indoc! {"
             # Doc A

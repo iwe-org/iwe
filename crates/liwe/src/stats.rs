@@ -28,9 +28,9 @@ fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
     let mut seen = HashSet::new();
     let mut broken = Vec::new();
 
-    for target_key in graph.block_reference_target_keys() {
+    for target_key in graph.inclusion_edge_target_keys() {
         if !existing_keys.contains(&target_key) {
-            for node_id in graph.get_block_references_to(&target_key) {
+            for node_id in graph.get_inclusion_edges_to(&target_key) {
                 let source_key = graph.key_of(node_id);
                 if seen.insert((source_key.clone(), target_key.clone())) {
                     broken.push(BrokenLink {
@@ -42,9 +42,9 @@ fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
         }
     }
 
-    for target_key in graph.inline_reference_target_keys() {
+    for target_key in graph.reference_edge_target_keys() {
         if !existing_keys.contains(&target_key) && is_ref_url(&target_key.to_string()) {
-            for node_id in graph.get_inline_references_to(&target_key) {
+            for node_id in graph.get_reference_edges_to(&target_key) {
                 let source_key = graph.key_of(node_id);
                 if seen.insert((source_key.clone(), target_key.clone())) {
                     broken.push(BrokenLink {
@@ -172,10 +172,10 @@ impl KeyStatistics {
                     stats.words = content.split_whitespace().count();
                 }
 
-                stats.incoming_block_refs = graph.get_block_references_to(key).len();
-                stats.incoming_inline_refs = graph.get_inline_references_to(key).len();
+                stats.incoming_block_refs = graph.get_inclusion_edges_to(key).len();
+                stats.incoming_inline_refs = graph.get_reference_edges_to(key).len();
                 stats.total_incoming_refs = stats.incoming_block_refs + stats.incoming_inline_refs;
-                stats.outgoing_block_refs = graph.get_block_references_in(key).len();
+                stats.outgoing_block_refs = graph.get_inclusion_edges_in(key).len();
                 stats.total_connections = stats.incoming_block_refs
                     + stats.incoming_inline_refs
                     + stats.outgoing_block_refs
@@ -202,8 +202,8 @@ pub struct GraphStatistics {
     pub total_paragraphs: usize,
     pub avg_paragraphs_per_doc: f64,
 
-    pub block_references: usize,
-    pub inline_references: usize,
+    pub inclusion_edges: usize,
+    pub reference_edges: usize,
     pub total_references: usize,
     pub orphaned_documents: usize,
     pub orphaned_percentage: f64,
@@ -309,8 +309,8 @@ impl GraphStatistics {
 
         let total_incoming_block: usize = key_stats.iter().map(|ks| ks.incoming_block_refs).sum();
         let total_incoming_inline: usize = key_stats.iter().map(|ks| ks.incoming_inline_refs).sum();
-        let block_references = total_incoming_block;
-        let inline_references = total_incoming_inline;
+        let inclusion_edges = total_incoming_block;
+        let reference_edges = total_incoming_inline;
 
         let orphaned_documents = key_stats
             .iter()
@@ -384,7 +384,7 @@ impl GraphStatistics {
             .collect();
 
         let avg_refs_per_doc = if total_documents > 0 {
-            (block_references + inline_references) as f64 / total_documents as f64
+            (inclusion_edges + reference_edges) as f64 / total_documents as f64
         } else {
             0.0
         };
@@ -398,9 +398,9 @@ impl GraphStatistics {
             top_docs_by_sections,
             total_paragraphs,
             avg_paragraphs_per_doc,
-            block_references,
-            inline_references,
-            total_references: block_references + inline_references,
+            inclusion_edges,
+            reference_edges,
+            total_references: inclusion_edges + reference_edges,
             orphaned_documents,
             orphaned_percentage,
             leaf_documents,

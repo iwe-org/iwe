@@ -1,7 +1,9 @@
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
-use liwe::query::{execute, Filter, Operation, Outcome, Update, UpdateOp, UpdateOperator};
+use liwe::query::{
+    execute, Filter, GraphOp, InclusionAnchor, Operation, Outcome, Update, UpdateOp, UpdateOperator,
+};
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
 
@@ -157,6 +159,54 @@ fn update_only_matched_docs_change() {
             ---
 
             # B
+        "},
+    );
+}
+
+#[test]
+fn update_with_graph_filter_targets_descendants() {
+    assert_update(
+        indoc! {"
+            ---
+            status: draft
+            ---
+            [b](2)
+            _
+            ---
+            status: draft
+            ---
+            # B
+            _
+            ---
+            status: draft
+            ---
+            # C
+        "},
+        UpdateOp::new(
+            Filter::graph(GraphOp::IncludedBy(vec![InclusionAnchor::with_max(
+                "1", 5,
+            )])),
+            Update::new(vec![UpdateOperator::set("reviewed", true)]),
+        ),
+        indoc! {"
+            ---
+            status: draft
+            ---
+
+            [B](2)
+            _
+            ---
+            status: draft
+            reviewed: true
+            ---
+
+            # B
+            _
+            ---
+            status: draft
+            ---
+
+            # C
         "},
     );
 }
