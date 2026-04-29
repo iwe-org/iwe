@@ -8,8 +8,6 @@ This document specifies the IWE query language: a YAML-based, MongoDB-style lang
 - The four **operations** — find, count, update, delete — and the shape of an operation document.
 - The **language constructs** — filter operators, projection, sort, limit, update operators — plus how they compose. Graph operators that extend filter with cross-document selection live in `query-graph-spec.md`.
 
-This spec describes the YAML language only. Any host that consumes operation documents — a CLI, a library, an MCP tool — exposes it through its own surface; that surface is out of scope here. See `query-graph-spec.md` for the `$`-prefixed graph operators that extend filter with cross-document selection, `query-cli-spec.md` for the CLI surface, `query-language-mcp.md` for MCP guidance, and `tree-spec.md` for the AST-walk extension.
-
 ## 2. Corpus model
 
 ### 2.1 Documents
@@ -711,7 +709,8 @@ After selection:
 
 ## 12. Companion specs
 
-- **Graph operators:** `query-graph-spec.md` — `$`-prefixed operators that extend filter with cross-document selection (`$child_of`, `$parent_of`, `$refs_to`, `$refs_from`, `$key`, `$is_root`, `$is_leaf`, `$is_orphan`, `$depth`, `$*_count`).
+- **Graph operators:** `query-graph-spec.md` — `$`-prefixed operators that extend filter with cross-document selection (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`, `$includesCount`, `$includedByCount`).
+- **Grammar reference:** `query-language-grammar.md` — full BNF covering operation documents, filter, projection, sort, limit, update operators, and graph operators.
 - **CLI surface:** `query-cli-spec.md` — `iwe find`, `iwe update`, `iwe delete` flags.
 - **MCP guide:** `query-language-mcp.md` — combined queries for AI agents.
 - **Tree extension:** `tree-spec.md` — `$walk` operator. The `$do` action verbs (`$keep`, `$remove`, `$set`, `$replace`, `$replace_with`) belong to the update context and live in mutation operation documents.
