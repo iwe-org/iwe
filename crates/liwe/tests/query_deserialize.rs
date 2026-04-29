@@ -632,13 +632,13 @@ fn includes_count_bare_expr() {
 }
 
 #[test]
-fn includes_count_full_form_with_any() {
+fn includes_count_full_form_with_unbounded() {
     assert_parse(
         indoc! {"
             filter:
               $includesCount:
                 $count: { $gte: 10 }
-                $maxDepth: any
+                $maxDepth: -1
         "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::graph(GraphOp::IncludesCount(

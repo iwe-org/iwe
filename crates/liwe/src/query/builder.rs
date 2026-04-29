@@ -8,7 +8,7 @@ use crate::query::document::{
 };
 use crate::query::wire::{
     self, RawAnchor, RawAnchorArg, RawCountArg, RawCountArgMap, RawCountValue, RawFilter,
-    RawKeyOpMap, RawKeyValue, RawMaxDepth, RawNumExprMap, RawOperation, RawProjection, RawSort,
+    RawKeyOpMap, RawKeyValue, RawNumExprMap, RawOperation, RawProjection, RawSort,
     RawUpdate,
 };
 
@@ -1013,14 +1013,11 @@ fn num_expr_from_map(m: RawNumExprMap, op: &'static str) -> Result<NumExpr, Pars
     Ok(NumExpr(ops))
 }
 
-fn max_depth_from_raw(raw: RawMaxDepth, op: &'static str) -> Result<MaxDepth, ParseError> {
-    match raw {
-        RawMaxDepth::Symbol(s) if s == "any" => Ok(MaxDepth::Any),
-        RawMaxDepth::Symbol(_) => Err(ParseError::InvalidDepthValue {
-            op,
-            modifier: "$maxDepth",
-        }),
-        RawMaxDepth::Number(n) => Ok(MaxDepth::Bounded(pos_u32(n, op, "$maxDepth")?)),
+fn max_depth_from_raw(raw: i64, op: &'static str) -> Result<MaxDepth, ParseError> {
+    if raw == -1 {
+        Ok(MaxDepth::Any)
+    } else {
+        Ok(MaxDepth::Bounded(pos_u32(raw, op, "$maxDepth")?))
     }
 }
 

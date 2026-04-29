@@ -70,13 +70,6 @@ pub struct RawKeyOpMap {
     pub nin: Option<Vec<Value>>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum RawMaxDepth {
-    Number(i64),
-    Symbol(String),
-}
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawNumExprMap {
@@ -111,7 +104,7 @@ pub struct RawCountArgMap {
     #[serde(rename = "$count", default)]
     pub count: Option<RawCountValue>,
     #[serde(rename = "$maxDepth", default)]
-    pub max_depth: Option<RawMaxDepth>,
+    pub max_depth: Option<i64>,
     #[serde(rename = "$minDepth", default)]
     pub min_depth: Option<i64>,
     #[serde(rename = "$maxDistance", default)]
