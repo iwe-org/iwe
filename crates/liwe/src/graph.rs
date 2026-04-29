@@ -40,6 +40,7 @@ mod index;
 pub mod path;
 pub mod sections_builder;
 mod squash_iter;
+pub mod walk;
 
 type Documents = HashMap<Key, Content>;
 

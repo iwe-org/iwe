@@ -5,9 +5,9 @@ use crate::graph::{Graph, GraphContext};
 use crate::model::node::{Node, NodeIter};
 use crate::model::Key;
 use crate::query::document::{
-    CountOp, DeleteOp, FindOp, Limit, Operation, Projection, Sort, UpdateOp,
+    CountOp, DeleteOp, Filter, FindOp, Limit, Operation, Projection, Sort, UpdateOp,
 };
-use crate::query::filter::matches;
+use crate::query::eval;
 use crate::query::frontmatter::strip_reserved;
 use crate::query::project::shape;
 use crate::query::sort::sort_in_place;
@@ -43,20 +43,21 @@ pub fn execute(op: &Operation, graph: &Graph) -> Outcome {
     }
 }
 
-fn select(filter: Option<&crate::query::document::Filter>, graph: &Graph) -> Vec<(Key, Mapping)> {
-    let mut rows: Vec<(Key, Mapping)> = graph
-        .keys()
-        .par_iter()
-        .filter_map(|key| {
-            let mapping = graph.frontmatter(key).cloned().unwrap_or_default();
-            match filter {
-                None => Some((key.clone(), mapping)),
-                Some(f) => matches(f, &mapping, key, graph).then_some((key.clone(), mapping)),
-            }
+fn select(filter: Option<&Filter>, graph: &Graph) -> Vec<(Key, Mapping)> {
+    let keys: Vec<Key> = match filter {
+        None => {
+            let mut k = graph.keys();
+            k.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            k
+        }
+        Some(f) => eval::evaluate(f, graph),
+    };
+    keys.into_par_iter()
+        .map(|key| {
+            let mapping = graph.frontmatter(&key).cloned().unwrap_or_default();
+            (key, mapping)
         })
-        .collect();
-    rows.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
-    rows
+        .collect()
 }
 
 fn apply_sort_and_limit(

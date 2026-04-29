@@ -1,6 +1,6 @@
 use serde_yaml::{Mapping, Value};
 
-pub(crate) fn strip_reserved(mapping: &mut Mapping) {
+pub fn strip_reserved(mapping: &mut Mapping) {
     let keys_to_remove: Vec<Value> = mapping
         .iter()
         .filter_map(|(k, _)| match k.as_str() {
@@ -13,7 +13,7 @@ pub(crate) fn strip_reserved(mapping: &mut Mapping) {
     }
 }
 
-pub(crate) fn is_reserved_segment(s: &str) -> bool {
+pub fn is_reserved_segment(s: &str) -> bool {
     matches!(s.chars().next(), Some('_' | '$' | '.' | '#' | '@'))
 }
 

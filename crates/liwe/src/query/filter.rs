@@ -2,40 +2,16 @@ use std::cmp::Ordering;
 
 use serde_yaml::{Mapping, Value};
 
-use crate::graph::Graph;
-use crate::model::Key;
-use crate::query::document::{FieldOp, FieldPath, Filter, YamlType};
+use crate::query::document::{FieldOp, FieldPath, YamlType};
 use crate::query::frontmatter::is_reserved_segment;
-use crate::query::graph_match::{
-    match_inclusion_count, match_inclusion_walk, match_key_op, match_reference_walk,
-};
-
-pub fn matches(filter: &Filter, doc: &Mapping, key: &Key, graph: &Graph) -> bool {
-    match filter {
-        Filter::And(children) => children.iter().all(|c| matches(c, doc, key, graph)),
-        Filter::Or(children) => children.iter().any(|c| matches(c, doc, key, graph)),
-        Filter::Not(child) => !matches(child, doc, key, graph),
-        Filter::Field { path, op } => match resolve_path(doc, path) {
-            Resolution::Present(value) => match_field_op(op, Some(value)),
-            Resolution::Missing => match_field_op(op, None),
-        },
-        Filter::Key(op) => match_key_op(op, key),
-        Filter::IncludesCount(arg) => match_inclusion_count(arg, key, graph, true),
-        Filter::IncludedByCount(arg) => match_inclusion_count(arg, key, graph, false),
-        Filter::Includes(anchors) => match_inclusion_walk(anchors, key, graph, true),
-        Filter::IncludedBy(anchors) => match_inclusion_walk(anchors, key, graph, false),
-        Filter::References(anchors) => match_reference_walk(anchors, key, graph, true),
-        Filter::ReferencedBy(anchors) => match_reference_walk(anchors, key, graph, false),
-    }
-}
 
 #[derive(Debug)]
-enum Resolution<'a> {
+pub enum Resolution<'a> {
     Present(&'a Value),
     Missing,
 }
 
-fn resolve_path<'a>(doc: &'a Mapping, path: &FieldPath) -> Resolution<'a> {
+pub fn resolve_path<'a>(doc: &'a Mapping, path: &FieldPath) -> Resolution<'a> {
     let segments = path.segments();
     if segments.is_empty() {
         return Resolution::Missing;
@@ -60,7 +36,7 @@ fn resolve_path<'a>(doc: &'a Mapping, path: &FieldPath) -> Resolution<'a> {
     Resolution::Present(current)
 }
 
-fn match_field_op(op: &FieldOp, value: Option<&Value>) -> bool {
+pub fn match_field_op(op: &FieldOp, value: Option<&Value>) -> bool {
     match op {
         FieldOp::Eq(target) => match value {
             Some(v) => eq_with_membership(v, target),
@@ -266,11 +242,22 @@ mod tests {
     fn list(values: Vec<Value>) -> Value { Value::Sequence(values) }
     fn null() -> Value { Value::Null }
 
+    fn matches_doc(filter: &Filter, doc: &Mapping) -> bool {
+        match filter {
+            Filter::And(children) => children.iter().all(|c| matches_doc(c, doc)),
+            Filter::Or(children) => children.iter().any(|c| matches_doc(c, doc)),
+            Filter::Not(child) => !matches_doc(child, doc),
+            Filter::Field { path, op } => match resolve_path(doc, path) {
+                Resolution::Present(v) => match_field_op(op, Some(v)),
+                Resolution::Missing => match_field_op(op, None),
+            },
+            _ => panic!("unit tests cover only doc-local filters"),
+        }
+    }
+
     fn check(filter: &Filter, doc: &Mapping, expected: bool) {
-        let g = Graph::new();
-        let k = Key::name("test");
         assert_eq!(
-            matches(filter, doc, &k, &g),
+            matches_doc(filter, doc),
             expected,
             "filter: {:?}\ndoc: {:?}",
             filter,
@@ -513,13 +500,11 @@ mod tests {
         };
         let dotted_filter = eq("author.name", "dmytro");
         let d = doc(vec![("author", nested(vec![("name", "dmytro".into())]))]);
-        let g = Graph::new();
-        let k = Key::name("test");
         assert_eq!(
-            matches(&nested_filter, &d, &k, &g),
-            matches(&dotted_filter, &d, &k, &g)
+            matches_doc(&nested_filter, &d),
+            matches_doc(&dotted_filter, &d)
         );
-        assert!(matches(&nested_filter, &d, &k, &g));
+        assert!(matches_doc(&nested_filter, &d));
     }
 
     #[test]

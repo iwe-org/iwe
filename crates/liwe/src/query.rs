@@ -1,10 +1,10 @@
 pub mod builder;
 pub mod document;
+mod eval;
 pub mod execute;
 pub mod filter;
 pub mod frontmatter;
 mod graph_match;
-mod graph_walk;
 pub mod project;
 pub mod sort;
 pub mod update;

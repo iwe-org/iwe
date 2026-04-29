@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::graph::walk::descendants_inclusion;
 use crate::graph::Graph;
 use crate::model::Key;
 
@@ -73,39 +74,8 @@ impl Selector {
 }
 
 pub fn descendants_at_depth(graph: &Graph, origin: &Key, depth: Option<u8>) -> HashSet<Key> {
-    let mut result: HashSet<Key> = HashSet::new();
-    let mut frontier: Vec<Key> = vec![origin.clone()];
-    let mut walked: u8 = 0;
-
-    loop {
-        if let Some(d) = depth {
-            if walked >= d {
-                break;
-            }
-        }
-
-        let mut next: Vec<Key> = Vec::new();
-        for current in &frontier {
-            for ref_id in graph.get_inclusion_edges_in(current) {
-                if let Some(ref_key) = graph.graph_node(ref_id).ref_key() {
-                    if &ref_key == origin {
-                        continue;
-                    }
-                    if result.insert(ref_key.clone()) {
-                        next.push(ref_key);
-                    }
-                }
-            }
-        }
-
-        if next.is_empty() {
-            break;
-        }
-        frontier = next;
-        walked = walked.saturating_add(1);
-    }
-
-    result
+    let max = depth.map(u32::from).unwrap_or(u32::MAX);
+    descendants_inclusion(graph, origin, max).into_keys().collect()
 }
 
 #[cfg(test)]
