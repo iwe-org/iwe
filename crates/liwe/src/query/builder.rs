@@ -710,15 +710,14 @@ fn walk_update_unset(
 
 fn check_reserved_prefix(segments: &[String]) -> Result<(), ParseError> {
     for seg in segments {
-        let first = seg.chars().next();
-        match first {
+        match seg.chars().next() {
             None => return Err(ParseError::EmptyFieldPath),
-            Some(c) if c.is_ascii_alphanumeric() => {}
-            Some(_) => {
+            Some('_' | '$' | '.' | '#' | '@') => {
                 return Err(ParseError::ReservedPrefixField {
                     path: segments.to_vec(),
                 });
             }
+            _ => {}
         }
     }
     Ok(())
