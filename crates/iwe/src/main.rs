@@ -567,11 +567,7 @@ fn retrieve_command(args: Retrieve) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let selector_args = args.selector.clone();
-    let selector_provided = !selector_args.in_.is_empty()
-        || !selector_args.in_any.is_empty()
-        || !selector_args.not_in.is_empty()
-        || selector_args.max_depth.is_some();
+    let selector_provided = !args.selector.is_empty();
 
     let key_strings: Vec<String> = if args.key.is_empty() {
         let stdin_content = read_stdin_if_available();
@@ -612,7 +608,7 @@ fn retrieve_command(args: Retrieve) {
         backlinks: args.backlinks,
         exclude,
         no_content: args.no_content,
-        selector: args.selector.into(),
+        filter: args.selector.to_filter(),
     };
 
     let output = reader.retrieve_many(&keys, &options);
@@ -658,7 +654,7 @@ fn find_command(args: Find) {
         roots: args.roots,
         refs_to: args.refs_to.map(|s| Key::name(&s)),
         refs_from: args.refs_from.map(|s| Key::name(&s)),
-        selector: args.selector.into(),
+        filter: args.selector.to_filter(),
         limit: args.limit,
     };
 
@@ -781,12 +777,13 @@ fn tree_command(args: TreeArgs) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let selector: liwe::selector::Selector = args.selector.into();
+    let filter = args.selector.to_filter();
 
     let explicit_keys: Vec<Key> = args.key.iter().map(|k| Key::name(k)).collect();
 
-    let root_keys: Vec<Key> = if !selector.is_empty() {
-        let selector_set = selector.resolve(&graph);
+    let root_keys: Vec<Key> = if let Some(f) = filter {
+        let selector_set: std::collections::HashSet<Key> =
+            liwe::query::evaluate(&f, &graph).into_iter().collect();
         if explicit_keys.is_empty() {
             let mut v: Vec<Key> = selector_set.into_iter().collect();
             v.sort();
@@ -1094,9 +1091,9 @@ fn export_command(args: Export) {
 
     let explicit_keys: Vec<Key> = args.key.iter().map(|s| Key::name(s)).collect();
 
-    let selector: liwe::selector::Selector = args.selector.into();
-    let resolved_keys: Vec<Key> = if !selector.is_empty() {
-        let selector_set = selector.resolve(&graph);
+    let resolved_keys: Vec<Key> = if let Some(f) = args.selector.to_filter() {
+        let selector_set: std::collections::HashSet<Key> =
+            liwe::query::evaluate(&f, &graph).into_iter().collect();
         let mut v: Vec<Key> = if explicit_keys.is_empty() {
             selector_set.into_iter().collect()
         } else {

@@ -16,4 +16,5 @@ pub use document::{
     KeyOp, Limit, MaxDepth, NumExpr, NumOp, Operation, OperationKind, Projection,
     ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
+pub use eval::evaluate;
 pub use execute::{execute, FindMatch, Outcome};

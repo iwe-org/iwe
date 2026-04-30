@@ -4,7 +4,9 @@ use serde::Serialize;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
-use crate::selector::Selector;
+use crate::query::{
+    self, CountArg, Filter, InclusionAnchor, NumExpr, ReferenceAnchor,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParentDocumentInfo {
@@ -38,12 +40,26 @@ pub struct FindOptions {
     pub roots: bool,
     pub refs_to: Option<Key>,
     pub refs_from: Option<Key>,
-    pub selector: Selector,
+    pub filter: Option<Filter>,
     pub limit: Option<usize>,
 }
 
 pub struct DocumentFinder<'a> {
     graph: &'a Graph,
+}
+
+enum Order<'a> {
+    Fuzzy(&'a str),
+    Rank,
+}
+
+impl<'a> Order<'a> {
+    fn from_options(options: &'a FindOptions) -> Order<'a> {
+        match &options.query {
+            Some(q) => Order::Fuzzy(q),
+            None => Order::Rank,
+        }
+    }
 }
 
 impl<'a> DocumentFinder<'a> {
@@ -52,71 +68,16 @@ impl<'a> DocumentFinder<'a> {
     }
 
     pub fn find(&self, options: &FindOptions) -> FindOutput {
-        let matcher = SkimMatcherV2::default();
+        let candidates = self.candidates(options);
+        let ordered = self.order(candidates, Order::from_options(options));
 
-        let candidate_set = if options.selector.is_empty() {
-            None
-        } else {
-            Some(options.selector.resolve(self.graph))
-        };
-
-        let mut results: Vec<(Key, i64)> = self
-            .graph
-            .keys()
+        let total = ordered.len();
+        let take = options.limit.unwrap_or(total);
+        let results: Vec<FindResult> = ordered
             .into_iter()
-            .filter_map(|key| {
-                if let Some(set) = &candidate_set {
-                    if !set.contains(&key) {
-                        return None;
-                    }
-                }
-                if options.roots && !self.is_root(&key) {
-                    return None;
-                }
-                if let Some(ref target) = options.refs_to {
-                    if !self.references(&key, target) {
-                        return None;
-                    }
-                }
-                if let Some(ref source) = options.refs_from {
-                    if !self.references(source, &key) {
-                        return None;
-                    }
-                }
-
-                let title = self.graph.get_key_title(&key).unwrap_or_default();
-                let search_text = format!("{} {}", key, title);
-
-                let score = options
-                    .query
-                    .as_ref()
-                    .map(|q| matcher.fuzzy_match(&search_text, q).unwrap_or(0))
-                    .unwrap_or(self.node_rank(&key) as i64);
-
-                if options.query.is_some() && score == 0 {
-                    return None;
-                }
-
-                Some((key, score))
-            })
+            .take(take)
+            .map(|key| self.build_result(&key))
             .collect();
-
-        results.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-
-        let total = results.len();
-        let results: Vec<FindResult> = if let Some(limit) = options.limit {
-            results
-                .into_iter()
-                .take(limit)
-                .map(|(key, _)| self.build_result(&key))
-                .collect()
-        } else {
-            results
-                .into_iter()
-                .map(|(key, _)| self.build_result(&key))
-                .collect()
-        };
-
         let limit = options.limit.filter(|&l| l < total);
 
         FindOutput {
@@ -125,6 +86,39 @@ impl<'a> DocumentFinder<'a> {
             total,
             results,
         }
+    }
+
+    fn candidates(&self, options: &FindOptions) -> Vec<Key> {
+        match build_filter(options) {
+            None => self.graph.keys(),
+            Some(f) => query::evaluate(&f, self.graph),
+        }
+    }
+
+    fn order(&self, candidates: Vec<Key>, order: Order<'_>) -> Vec<Key> {
+        let mut scored: Vec<(Key, i64)> = match order {
+            Order::Fuzzy(q) => {
+                let matcher = SkimMatcherV2::default();
+                candidates
+                    .into_iter()
+                    .filter_map(|key| {
+                        let title = self.graph.get_key_title(&key).unwrap_or_default();
+                        let text = format!("{} {}", key, title);
+                        let score = matcher.fuzzy_match(&text, q).unwrap_or(0);
+                        (score > 0).then_some((key, score))
+                    })
+                    .collect()
+            }
+            Order::Rank => candidates
+                .into_iter()
+                .map(|key| {
+                    let rank = self.node_rank(&key) as i64;
+                    (key, rank)
+                })
+                .collect(),
+        };
+        scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        scored.into_iter().map(|(k, _)| k).collect()
     }
 
     fn build_result(&self, key: &Key) -> FindResult {
@@ -164,33 +158,6 @@ impl<'a> DocumentFinder<'a> {
     fn node_rank(&self, key: &Key) -> usize {
         self.graph.get_reference_edges_to(key).len()
             + self.graph.get_inclusion_edges_to(key).len()
-    }
-
-    fn references(&self, source: &Key, target: &Key) -> bool {
-        let block_refs = self.graph.get_inclusion_edges_in(source);
-        for ref_id in block_refs {
-            if let Some(ref_key) = self.graph.graph_node(ref_id).ref_key() {
-                if &ref_key == target {
-                    return true;
-                }
-            }
-        }
-
-        if let Some(node_id) = self.graph.get_node_id(source) {
-            let sub_nodes = self.graph.node(node_id).get_all_sub_nodes();
-            for sub_node_id in sub_nodes {
-                if let Some(line_id) = self.graph.graph_node(sub_node_id).line_id() {
-                    let line = self.graph.get_line(line_id);
-                    for ref_key in line.ref_keys() {
-                        if &ref_key == target {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        false
     }
 
     fn get_parent_documents(&self, key: &Key) -> Vec<ParentDocumentInfo> {
@@ -241,5 +208,29 @@ impl<'a> DocumentFinder<'a> {
             current = parent;
         }
         path
+    }
+}
+
+fn build_filter(options: &FindOptions) -> Option<Filter> {
+    let mut conjuncts: Vec<Filter> = options.filter.clone().into_iter().collect();
+    if options.roots {
+        conjuncts.push(Filter::IncludedByCount(CountArg::direct(NumExpr::eq(0))));
+    }
+    if let Some(target) = &options.refs_to {
+        conjuncts.push(Filter::Or(vec![
+            Filter::Includes(vec![InclusionAnchor::with_max(target.to_string(), 1)]),
+            Filter::References(vec![ReferenceAnchor::with_max(target.to_string(), 1)]),
+        ]));
+    }
+    if let Some(source) = &options.refs_from {
+        conjuncts.push(Filter::Or(vec![
+            Filter::IncludedBy(vec![InclusionAnchor::with_max(source.to_string(), 1)]),
+            Filter::ReferencedBy(vec![ReferenceAnchor::with_max(source.to_string(), 1)]),
+        ]));
+    }
+    if conjuncts.is_empty() {
+        None
+    } else {
+        Some(Filter::And(conjuncts))
     }
 }
