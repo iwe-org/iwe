@@ -3,6 +3,7 @@ EXAMPLES:
   iwe tree                                # full tree with markdown links
   iwe tree -f keys                        # tree with document keys only
   iwe tree -f json                        # tree as JSON
+  iwe tree -f yaml                        # tree as YAML
   iwe tree -k my-doc                      # subtree starting from 'my-doc'
   iwe tree -k doc-a -k doc-b              # subtrees from multiple roots
   iwe tree --depth 2                      # 2 levels deep

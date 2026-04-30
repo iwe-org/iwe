@@ -12,7 +12,7 @@ FILTER FLAGS (compose via AND with positional QUERY):
 
 SHAPE FLAGS:
 
-  --project f1,f2             Frontmatter fields to include in JSON output.
+  --project f1,f2             Frontmatter fields to include in JSON/YAML output.
   --sort field:1|-1           Sort by frontmatter field (1=asc, -1=desc).
   -l, --limit N               Cap results (0 = unlimited).
 
@@ -21,6 +21,7 @@ OUTPUT FORMATS:
   -f markdown (default)       Found N results: - [Title](key)
   -f keys                     One key per line.
   -f json                     Structured output with metadata.
+  -f yaml                     Structured output with metadata as YAML.
 
 EXAMPLES:
 

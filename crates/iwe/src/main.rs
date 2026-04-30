@@ -118,6 +118,7 @@ enum RetrieveFormat {
     Markdown,
     Keys,
     Json,
+    Yaml,
 }
 
 #[derive(Debug, Args)]
@@ -164,6 +165,7 @@ enum FindFormat {
     Markdown,
     Keys,
     Json,
+    Yaml,
 }
 
 #[derive(Debug, Args)]
@@ -243,7 +245,7 @@ struct TreeArgs {
         short = 'f',
         value_enum,
         default_value = "markdown",
-        help = "Output format: markdown (nested list with links), keys, json"
+        help = "Output format: markdown (nested list with links), keys, json, yaml"
     )]
     format: TreeFormat,
 
@@ -264,6 +266,7 @@ enum TreeFormat {
     Markdown,
     Keys,
     Json,
+    Yaml,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -303,6 +306,7 @@ enum StatsFormat {
     Markdown,
     Csv,
     Json,
+    Yaml,
 }
 
 #[derive(Debug, Args)]
@@ -704,6 +708,10 @@ fn retrieve_command(args: Retrieve) {
             let json = serde_json::to_string_pretty(&output).expect("Failed to serialize to JSON");
             println!("{}", json);
         }
+        RetrieveFormat::Yaml => {
+            let yaml = serde_yaml::to_string(&output).expect("Failed to serialize to YAML");
+            print!("{}", yaml);
+        }
         RetrieveFormat::Keys => {
             for doc in &output.documents {
                 println!("{}", doc.key);
@@ -756,6 +764,10 @@ fn find_command(args: Find) {
         FindFormat::Json => {
             let json = serde_json::to_string_pretty(&output).expect("Failed to serialize to JSON");
             println!("{}", json);
+        }
+        FindFormat::Yaml => {
+            let yaml = serde_yaml::to_string(&output).expect("Failed to serialize to YAML");
+            print!("{}", yaml);
         }
         FindFormat::Keys => {
             for result in &output.results {
@@ -950,7 +962,7 @@ fn tree_command(args: TreeArgs) {
     }
 
     match args.format {
-        TreeFormat::Json => {
+        TreeFormat::Json | TreeFormat::Yaml => {
             let mut trees: Vec<TreeNode> = Vec::new();
             for root_key in &root_keys {
                 let mut visited: std::collections::HashSet<Key> = std::collections::HashSet::new();
@@ -958,10 +970,19 @@ fn tree_command(args: TreeArgs) {
                     trees.push(node);
                 }
             }
-            let json = serde_json::to_string_pretty(&trees).expect("Failed to serialize to JSON");
-            println!("{}", json);
+            match args.format {
+                TreeFormat::Yaml => {
+                    let yaml = serde_yaml::to_string(&trees).expect("Failed to serialize to YAML");
+                    print!("{}", yaml);
+                }
+                _ => {
+                    let json = serde_json::to_string_pretty(&trees)
+                        .expect("Failed to serialize to JSON");
+                    println!("{}", json);
+                }
+            }
         }
-        _ => {
+        TreeFormat::Markdown | TreeFormat::Keys => {
             let mut tree_lines: std::collections::BTreeMap<String, Vec<(usize, String)>> =
                 std::collections::BTreeMap::new();
 
@@ -1061,7 +1082,7 @@ fn build_tree_lines(
             let text = graph.get_ref_text(key).unwrap_or_default();
             format!("[{}]({})", text, key)
         }
-        TreeFormat::Json => unreachable!(),
+        TreeFormat::Json | TreeFormat::Yaml => unreachable!(),
     };
 
     tree_lines
@@ -1208,11 +1229,18 @@ fn stats_command(args: Stats) {
             .into_iter()
             .find(|s| s.key == key_str);
         match entry {
-            Some(s) => {
-                let json = serde_json::to_string_pretty(&s)
-                    .expect("Failed to serialize stats");
-                println!("{}", json);
-            }
+            Some(s) => match args.format {
+                StatsFormat::Yaml => {
+                    let yaml = serde_yaml::to_string(&s)
+                        .expect("Failed to serialize stats");
+                    print!("{}", yaml);
+                }
+                _ => {
+                    let json = serde_json::to_string_pretty(&s)
+                        .expect("Failed to serialize stats");
+                    println!("{}", json);
+                }
+            },
             None => {
                 eprintln!("Error: Document '{}' not found", key_str);
                 std::process::exit(1);
@@ -1239,6 +1267,12 @@ fn stats_command(args: Stats) {
             let json = serde_json::to_string_pretty(&stats)
                 .expect("Failed to serialize stats");
             println!("{}", json);
+        }
+        StatsFormat::Yaml => {
+            let stats = GraphStatistics::from_graph(&graph);
+            let yaml = serde_yaml::to_string(&stats)
+                .expect("Failed to serialize stats");
+            print!("{}", yaml);
         }
     }
 }

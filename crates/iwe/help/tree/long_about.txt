@@ -14,5 +14,6 @@ Output formats:
   markdown  Nested list with links (default): - [Title](key)
   keys      Document keys only
   json      JSON array with nested structure
+  yaml      YAML rendering of the same structure
 
 Use -d/--depth to limit how deep to traverse (default: 4).

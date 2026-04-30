@@ -76,13 +76,87 @@ fn test_find_lists_all_documents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 2);
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 2,
+          "results": [
+            {
+              "key": "doc1",
+              "title": "Document One",
+              "display_title": "Document One",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            },
+            {
+              "key": "doc2",
+              "title": "Document Two",
+              "display_title": "Document Two",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    let results = parsed["results"].as_array().unwrap();
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-    assert!(keys.contains(&"doc1"));
-    assert!(keys.contains(&"doc2"));
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_yaml_format() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Document One
+
+            Content one.
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("doc2.md"),
+        indoc! {"
+            # Document Two
+
+            Content two.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "yaml"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        query: null
+        limit: null
+        total: 2
+        results:
+        - key: doc1
+          title: Document One
+          display_title: Document One
+          is_root: true
+          incoming_refs: 0
+          outgoing_refs: 0
+          parent_documents: []
+        - key: doc2
+          title: Document Two
+          display_title: Document Two
+          is_root: true
+          incoming_refs: 0
+          outgoing_refs: 0
+          parent_documents: []
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -97,11 +171,26 @@ fn test_find_fuzzy_search() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": "auth",
+          "limit": null,
+          "total": 1,
+          "results": [
+            {
+              "key": "authentication",
+              "title": "User Authentication",
+              "display_title": "User Authentication",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    assert!(!results.is_empty(), "Should find at least one result");
-    assert_eq!(results[0]["key"], "authentication");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -125,14 +214,35 @@ fn test_find_roots_only() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 2,
+          "results": [
+            {
+              "key": "orphan",
+              "title": "Orphan",
+              "display_title": "Orphan",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            },
+            {
+              "key": "parent",
+              "title": "Parent",
+              "display_title": "Parent",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 1,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-
-    assert!(keys.contains(&"parent"), "parent should be a root");
-    assert!(keys.contains(&"orphan"), "orphan should be a root");
-    assert!(!keys.contains(&"child"), "child should NOT be a root");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -166,15 +276,35 @@ fn test_find_refs_to() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 2,
+          "results": [
+            {
+              "key": "doc1",
+              "title": "Doc One",
+              "display_title": "Doc One",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 1,
+              "parent_documents": []
+            },
+            {
+              "key": "doc2",
+              "title": "Doc Two",
+              "display_title": "Doc Two",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 1,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-
-    assert!(keys.contains(&"doc1"), "doc1 references target");
-    assert!(keys.contains(&"doc2"), "doc2 references target");
-    assert!(!keys.contains(&"doc3"), "doc3 does not reference target");
-    assert!(!keys.contains(&"target"), "target does not reference itself");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -201,15 +331,51 @@ fn test_find_refs_from() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 2,
+          "results": [
+            {
+              "key": "child1",
+              "title": "Child One",
+              "display_title": "Child One ↖Source",
+              "is_root": false,
+              "incoming_refs": 1,
+              "outgoing_refs": 0,
+              "parent_documents": [
+                {
+                  "key": "source",
+                  "title": "Source",
+                  "section_path": [
+                    "Source"
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "child2",
+              "title": "Child Two",
+              "display_title": "Child Two ↖Source",
+              "is_root": false,
+              "incoming_refs": 1,
+              "outgoing_refs": 0,
+              "parent_documents": [
+                {
+                  "key": "source",
+                  "title": "Source",
+                  "section_path": [
+                    "Source"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+    "#};
 
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-
-    assert!(keys.contains(&"child1"), "child1 is referenced by source");
-    assert!(keys.contains(&"child2"), "child2 is referenced by source");
-    assert!(!keys.contains(&"other"), "other is not referenced by source");
-    assert!(!keys.contains(&"source"), "source does not reference itself");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -228,9 +394,44 @@ fn test_find_limit() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 10, "total should be 10");
-    assert_eq!(parsed["results"].as_array().unwrap().len(), 3, "should return only 3 results");
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": 3,
+          "total": 10,
+          "results": [
+            {
+              "key": "doc1",
+              "title": "Document 1",
+              "display_title": "Document 1",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            },
+            {
+              "key": "doc10",
+              "title": "Document 10",
+              "display_title": "Document 10",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            },
+            {
+              "key": "doc2",
+              "title": "Document 2",
+              "display_title": "Document 2",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -311,18 +512,43 @@ fn test_find_with_parent_documents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 2,
+          "results": [
+            {
+              "key": "child",
+              "title": "Child",
+              "display_title": "Child ↖Parent",
+              "is_root": false,
+              "incoming_refs": 1,
+              "outgoing_refs": 0,
+              "parent_documents": [
+                {
+                  "key": "parent",
+                  "title": "Parent",
+                  "section_path": [
+                    "Parent"
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "parent",
+              "title": "Parent",
+              "display_title": "Parent",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 1,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    let child = results.iter().find(|r| r["key"] == "child").unwrap();
-
-    assert_eq!(child["is_root"], false);
-    assert_eq!(child["display_title"], "Child ↖Parent");
-
-    let parents = child["parent_documents"].as_array().unwrap();
-    assert_eq!(parents.len(), 1);
-    assert_eq!(parents[0]["key"], "parent");
-    assert_eq!(parents[0]["title"], "Parent");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -345,14 +571,43 @@ fn test_find_is_root_flag() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 2,
+          "results": [
+            {
+              "key": "child",
+              "title": "Child",
+              "display_title": "Child ↖Parent",
+              "is_root": false,
+              "incoming_refs": 1,
+              "outgoing_refs": 0,
+              "parent_documents": [
+                {
+                  "key": "parent",
+                  "title": "Parent",
+                  "section_path": [
+                    "Parent"
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "parent",
+              "title": "Parent",
+              "display_title": "Parent",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 1,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    let parent = results.iter().find(|r| r["key"] == "parent").unwrap();
-    let child = results.iter().find(|r| r["key"] == "child").unwrap();
-
-    assert_eq!(parent["is_root"], true, "parent should be root");
-    assert_eq!(child["is_root"], false, "child should not be root");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -388,13 +643,69 @@ fn test_find_incoming_outgoing_refs() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 4,
+          "results": [
+            {
+              "key": "child1",
+              "title": "Child One",
+              "display_title": "Child One ↖Hub",
+              "is_root": false,
+              "incoming_refs": 1,
+              "outgoing_refs": 0,
+              "parent_documents": [
+                {
+                  "key": "hub",
+                  "title": "Hub",
+                  "section_path": [
+                    "Hub"
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "child2",
+              "title": "Child Two",
+              "display_title": "Child Two ↖Hub",
+              "is_root": false,
+              "incoming_refs": 1,
+              "outgoing_refs": 0,
+              "parent_documents": [
+                {
+                  "key": "hub",
+                  "title": "Hub",
+                  "section_path": [
+                    "Hub"
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "hub",
+              "title": "Hub",
+              "display_title": "Hub",
+              "is_root": true,
+              "incoming_refs": 1,
+              "outgoing_refs": 2,
+              "parent_documents": []
+            },
+            {
+              "key": "referrer",
+              "title": "Referrer",
+              "display_title": "Referrer",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    let hub = results.iter().find(|r| r["key"] == "hub").unwrap();
-
-    assert_eq!(hub["outgoing_refs"], 2);
-    assert_eq!(hub["incoming_refs"], 1);
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -405,9 +716,16 @@ fn test_find_empty_workspace() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 0);
-    assert_eq!(parsed["results"].as_array().unwrap().len(), 0);
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 0,
+          "results": []
+        }
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -420,9 +738,16 @@ fn test_find_query_with_no_match() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 0);
-    assert_eq!(parsed["results"].as_array().unwrap().len(), 0);
+    let expected = indoc! {r#"
+        {
+          "query": "zzzznonexistent",
+          "limit": null,
+          "total": 0,
+          "results": []
+        }
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -435,8 +760,16 @@ fn test_find_search_query_in_output() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["query"], "myquery");
+    let expected = indoc! {r#"
+        {
+          "query": "myquery",
+          "limit": null,
+          "total": 0,
+          "results": []
+        }
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -449,8 +782,26 @@ fn test_find_no_query_null_in_output() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert!(parsed["query"].is_null());
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 1,
+          "results": [
+            {
+              "key": "test",
+              "title": "Test",
+              "display_title": "Test",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -486,10 +837,24 @@ fn test_find_refs_to_inline_link() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        {
+          "query": null,
+          "limit": null,
+          "total": 1,
+          "results": [
+            {
+              "key": "doc1",
+              "title": "Doc One",
+              "display_title": "Doc One",
+              "is_root": true,
+              "incoming_refs": 0,
+              "outgoing_refs": 0,
+              "parent_documents": []
+            }
+          ]
+        }
+    "#};
 
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-
-    assert!(keys.contains(&"doc1"), "doc1 references target via inline link");
+    assert_eq!(stdout, expected);
 }

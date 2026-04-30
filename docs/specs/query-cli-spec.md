@@ -154,6 +154,7 @@ iwe find --included-by projects/alpha:5             # descendants within 5 level
 iwe find --references people/dmytro                 # docs that reference dmytro
 iwe find --filter 'priority: { $gt: 3 }' --sort modified_at:-1
 iwe find --project title,modified_at -f json        # only project two fields
+iwe find --project title,modified_at -f yaml        # same, as YAML
 ```
 
 ### 9.2 Count

@@ -45,6 +45,9 @@ JSON (-f json):
       "content": "...", "parent_documents": [...],
       "child_documents": [...], "backlinks": [...]}]}
 
+YAML (-f yaml):
+  Same shape as JSON, rendered as YAML.
+
 STRUCTURAL SET SELECTOR (--in family):
 
   --in KEY[:DEPTH]      Restrict to sub-documents of EVERY listed key (AND).

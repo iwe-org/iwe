@@ -243,7 +243,10 @@ impl<'a> DocumentFinder<'a> {
             }
         }
 
-        parents.into_iter().unique_by(|p| p.key.clone()).collect()
+        let mut parents: Vec<ParentDocumentInfo> =
+            parents.into_iter().unique_by(|p| p.key.clone()).collect();
+        parents.sort_by(|a, b| a.key.cmp(&b.key));
+        parents
     }
 
     fn get_section_path(&self, node_id: NodeId) -> Vec<String> {

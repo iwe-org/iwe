@@ -242,7 +242,10 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
-        parents.into_iter().unique_by(|p| p.key.clone()).collect()
+        let mut parents: Vec<ParentDocumentInfo> =
+            parents.into_iter().unique_by(|p| p.key.clone()).collect();
+        parents.sort_by(|a, b| a.key.cmp(&b.key));
+        parents
     }
 
     fn get_child_documents(&self, key: &Key) -> Vec<ChildDocumentInfo> {
@@ -263,7 +266,10 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
-        children.into_iter().unique_by(|c| c.key.clone()).collect()
+        let mut children: Vec<ChildDocumentInfo> =
+            children.into_iter().unique_by(|c| c.key.clone()).collect();
+        children.sort_by(|a, b| a.key.cmp(&b.key));
+        children
     }
 
     fn get_backlinks(&self, key: &Key) -> Vec<BacklinkInfo> {
@@ -298,6 +304,7 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
+        backlinks.sort_by(|a, b| a.key.cmp(&b.key));
         backlinks
     }
 
