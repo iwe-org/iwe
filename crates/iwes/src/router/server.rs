@@ -29,6 +29,7 @@ use self::search::SearchIndex;
 pub mod actions;
 pub mod base_path;
 mod extensions;
+pub mod query;
 pub mod search;
 
 pub struct Server {
@@ -144,11 +145,10 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        self.graph
-            .keys()
+        query::all_keys(&self.graph)
             .iter()
-            .map(|key| {
-                key.to_completion(
+            .map(|m| {
+                m.key.to_completion(
                     &current_key.parent(),
                     &self.graph,
                     &self.configuration.completion,
@@ -313,7 +313,7 @@ impl Server {
     }
 
     pub fn refs_counter_hints(&self, key: &Key) -> Vec<InlayHint> {
-        let inline_refs = self.graph.get_reference_edges_to(key).len();
+        let inline_refs = query::reference_count(&self.graph, key);
 
         if inline_refs > 0 {
             vec![format!("‹{}›", inline_refs).to_hint_at(0)]
@@ -385,11 +385,7 @@ impl Server {
         &self,
         params: RenameParams,
     ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-        if self
-            .graph
-            .maybe_key(&params.new_name.clone().into())
-            .is_some()
-        {
+        if query::key_exists(&self.graph, &params.new_name.clone().into()) {
             return Result::Err(ResponseError {
                 code: 1,
                 message: format!("The file name {} is already taken", params.new_name),
@@ -417,14 +413,9 @@ impl Server {
                 .map(|url| {
                     let key = Key::from_rel_link_url(&url, relative_to);
 
-                    let affected_keys = self
-                        .graph
-                        .get_inclusion_edges_to(&key.clone())
+                    let affected_keys = query::all_backlinks(&self.graph, &key)
                         .into_iter()
-                        .chain(self.graph.get_reference_edges_to(&key.clone()))
-                        .map(|node_id| (&self.graph).node(node_id).node_key())
                         .filter(|k| k != &key)
-                        .unique()
                         .sorted()
                         .collect_vec();
 
