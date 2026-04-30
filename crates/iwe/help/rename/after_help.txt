@@ -10,16 +10,13 @@ EXAMPLES:
   iwe rename old-key new-key --quiet
 
   # Output affected document keys for scripting
-  iwe rename old-key new-key --keys
+  iwe rename old-key new-key -f keys
 
 OUTPUT:
 
-  Default: Progress messages showing rename action and updated documents.
+  -f markdown (default): progress messages showing rename action and updated docs.
+  -f keys: one affected document key per line (target plus every doc whose
+    references were rewritten), suitable for piping. Matches `iwe find -f keys`
+    in shape.
 
-  --dry-run: Shows what would happen without making changes.
-
-  --keys: One affected document key per line (suitable for piping):
-
-    new-key
-    referencing-doc-1
-    referencing-doc-2
+  --dry-run: shows what would happen without making changes.

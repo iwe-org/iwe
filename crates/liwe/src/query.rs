@@ -10,7 +10,7 @@ pub mod sort;
 pub mod update;
 pub mod wire;
 
-pub use builder::{parse_operation, ParseError};
+pub use builder::{parse_filter_expression, parse_operation, ParseError};
 pub use document::{
     CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor,
     KeyOp, Limit, MaxDepth, NumExpr, NumOp, Operation, OperationKind, Projection,

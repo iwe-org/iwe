@@ -5,12 +5,10 @@ and their children organized in a tree format. Each level of nesting represents
 a block reference relationship between documents.
 
 Use -k/--key to start the tree from specific document(s), regardless of whether
-they are roots. This is useful for viewing subtrees or documents involved in
-circular references that have no natural root.
+they are roots. -k accepts repeats: 1 key uses $eq semantics, 2+ uses $in.
 
-When --in / --in-any / --not-in is provided, the selector resolves to a set of
-keys and those keys are used as the tree roots. Combining -k with the selector
-intersects the two — empty intersection yields an empty tree.
+Combine with --filter / --included-by / --references / etc. to narrow the
+roots further (intersection). Empty intersection yields an empty tree.
 
 Output formats:
   markdown  Nested list with links (default): - [Title](key)

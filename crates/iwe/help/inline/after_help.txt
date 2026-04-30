@@ -16,3 +16,12 @@ EXAMPLES:
 
     # Inline as blockquote instead of section
     iwe inline notes/index --reference "notes" --as-quote
+
+    # Output affected document keys for scripting
+    iwe inline notes/index --reference "design" -f keys
+
+OUTPUT:
+
+    -f markdown (default): progress messages showing inline action.
+    -f keys: one affected document key per line. Matches `iwe find -f keys`
+        in shape.

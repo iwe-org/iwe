@@ -1,0 +1,5 @@
+EXAMPLES:
+    iwe count
+    iwe count --filter 'status: draft'
+    iwe count --included-by-count 0
+    iwe count --included-by projects/alpha:5

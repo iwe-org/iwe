@@ -146,6 +146,26 @@ pub fn parse_operation(yaml: &str, kind: OperationKind) -> Result<Operation, Par
     }
 }
 
+pub fn parse_filter_expression(expr: &str) -> Result<Filter, ParseError> {
+    let trimmed = expr.trim();
+    if trimmed.is_empty() {
+        return Ok(Filter::And(Vec::new()));
+    }
+    let mapping = parse_to_mapping(trimmed)
+        .or_else(|_| parse_to_mapping(&format!("{{{}}}", trimmed)))
+        .map_err(ParseError::Wire)?;
+    build_filter_at(mapping, &[])
+}
+
+fn parse_to_mapping(yaml: &str) -> Result<Mapping, serde_yaml::Error> {
+    let value: Value = serde_yaml::from_str(yaml)?;
+    match value {
+        Value::Mapping(m) => Ok(m),
+        Value::Null => Ok(Mapping::new()),
+        _ => serde_yaml::from_str::<Mapping>(yaml),
+    }
+}
+
 
 fn build_find(raw: RawOperation) -> Result<FindOp, ParseError> {
     if raw.update.is_some() {

@@ -1,5 +1,9 @@
-Delete a document and clean up all references to it.
+Delete documents and clean up all references to them.
 
-Removes the document file and cleans up all references across the
-knowledge base. Inclusion links are removed entirely and inline links
+Targets are selected by either a positional KEY (sugar for '$key: K') or
+--filter EXPR (inline YAML filter document, per the spec). Both may be
+given; the union is deleted. The confirmation prompt and reference cleanup
+apply once over the whole matched set.
+
+Inclusion links to deleted documents are removed entirely; inline links
 are converted to plain text. Use --force to skip the confirmation prompt.

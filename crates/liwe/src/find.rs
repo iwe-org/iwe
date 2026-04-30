@@ -1,12 +1,16 @@
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use serde::Serialize;
+use serde_yaml::Mapping;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
 use crate::query::{
-    self, CountArg, Filter, InclusionAnchor, NumExpr, ReferenceAnchor,
+    self, CountArg, Filter, InclusionAnchor, NumExpr, Projection, ReferenceAnchor, Sort,
 };
+use crate::query::frontmatter::strip_reserved;
+use crate::query::project::shape;
+use crate::query::sort::sort_in_place;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParentDocumentInfo {
@@ -24,6 +28,8 @@ pub struct FindResult {
     pub incoming_refs: usize,
     pub outgoing_refs: usize,
     pub parent_documents: Vec<ParentDocumentInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frontmatter: Option<Mapping>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +48,8 @@ pub struct FindOptions {
     pub refs_from: Option<Key>,
     pub filter: Option<Filter>,
     pub limit: Option<usize>,
+    pub sort: Option<Sort>,
+    pub project: Option<Projection>,
 }
 
 pub struct DocumentFinder<'a> {
@@ -69,16 +77,26 @@ impl<'a> DocumentFinder<'a> {
 
     pub fn find(&self, options: &FindOptions) -> FindOutput {
         let candidates = self.candidates(options);
-        let ordered = self.order(candidates, Order::from_options(options));
+
+        let candidates = match (&options.sort, &options.query) {
+            (Some(_), _) => self.fuzzy_filter_only(candidates, options.query.as_deref()),
+            (None, _) => candidates,
+        };
+
+        let ordered = if let Some(s) = &options.sort {
+            self.sort_by_frontmatter(candidates, s)
+        } else {
+            self.order(candidates, Order::from_options(options))
+        };
 
         let total = ordered.len();
-        let take = options.limit.unwrap_or(total);
+        let take = options.limit.filter(|&l| l > 0).unwrap_or(total);
         let results: Vec<FindResult> = ordered
             .into_iter()
             .take(take)
-            .map(|key| self.build_result(&key))
+            .map(|key| self.build_result(&key, options.project.as_ref()))
             .collect();
-        let limit = options.limit.filter(|&l| l < total);
+        let limit = options.limit.filter(|&l| l > 0 && l < total);
 
         FindOutput {
             query: options.query.clone(),
@@ -86,6 +104,33 @@ impl<'a> DocumentFinder<'a> {
             total,
             results,
         }
+    }
+
+    fn fuzzy_filter_only(&self, candidates: Vec<Key>, query: Option<&str>) -> Vec<Key> {
+        let Some(q) = query else {
+            return candidates;
+        };
+        let matcher = SkimMatcherV2::default();
+        candidates
+            .into_iter()
+            .filter(|key| {
+                let title = self.graph.get_key_title(key).unwrap_or_default();
+                let text = format!("{} {}", key, title);
+                matcher.fuzzy_match(&text, q).unwrap_or(0) > 0
+            })
+            .collect()
+    }
+
+    fn sort_by_frontmatter(&self, candidates: Vec<Key>, sort: &Sort) -> Vec<Key> {
+        let mut rows: Vec<(Key, Mapping)> = candidates
+            .into_iter()
+            .map(|k| {
+                let m = self.graph.frontmatter(&k).cloned().unwrap_or_default();
+                (k, m)
+            })
+            .collect();
+        sort_in_place(&mut rows, sort);
+        rows.into_iter().map(|(k, _)| k).collect()
     }
 
     fn candidates(&self, options: &FindOptions) -> Vec<Key> {
@@ -121,10 +166,22 @@ impl<'a> DocumentFinder<'a> {
         scored.into_iter().map(|(k, _)| k).collect()
     }
 
-    fn build_result(&self, key: &Key) -> FindResult {
+    fn build_result(&self, key: &Key, project: Option<&Projection>) -> FindResult {
         let title = self.graph.get_key_title(key).unwrap_or_default();
         let parent_documents = self.get_parent_documents(key);
         let display_title = Self::render_display_title(&title, &parent_documents);
+        let frontmatter = project.map(|p| {
+            let m = self.graph.frontmatter(key).cloned().unwrap_or_default();
+            shape(p, &m)
+        }).or_else(|| {
+            let mut m = self.graph.frontmatter(key).cloned()?;
+            strip_reserved(&mut m);
+            if m.is_empty() {
+                None
+            } else {
+                Some(m)
+            }
+        });
 
         FindResult {
             key: key.to_string(),
@@ -135,6 +192,7 @@ impl<'a> DocumentFinder<'a> {
                 + self.graph.get_reference_edges_to(key).len(),
             outgoing_refs: self.graph.get_inclusion_edges_in(key).len(),
             parent_documents,
+            frontmatter,
         }
     }
 

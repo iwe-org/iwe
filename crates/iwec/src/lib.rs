@@ -145,6 +145,8 @@ impl From<FindParams> for FindOptions {
             refs_from: p.refs_from.map(|k| Key::name(&k)),
             filter: p.selector.to_filter(),
             limit: p.limit,
+            sort: None,
+            project: None,
         }
     }
 }

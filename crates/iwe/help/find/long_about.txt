@@ -1,6 +1,9 @@
 Search and discover documents in your knowledge base.
 
-Uses fuzzy matching on document title and key. Without a query, documents are
-sorted by popularity (incoming references count). Supports filtering by root
-documents, reference relationships, and structural sub-document membership
-via the --in / --in-any / --not-in / --max-depth selector.
+Combines fuzzy text matching (positional QUERY on title and key) with
+spec-aligned filter operators. Without a query, documents are sorted by
+popularity (incoming references count); with --sort, frontmatter sort wins.
+
+Filter shorthand flags are spec-named (--key, --included-by, --references,
+--included-by-count, etc.). Use --filter for inline YAML predicates such as
+--filter 'status: draft'.

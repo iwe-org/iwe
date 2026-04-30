@@ -13,7 +13,10 @@ use iwe::find::{DocumentFinder, FindOptions};
 use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
 use iwe::render::RetrieveRenderer;
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
-use iwe::selector::SelectorArgs;
+use iwe::filter_args::FilterArgs;
+use liwe::query::{
+    FieldPath, Filter, Projection as QueryProjection, Sort as QuerySort, SortDir,
+};
 use iwe::stats::{render_stats, GraphStatistics};
 use liwe::fs::new_for_path;
 use liwe::graph::{Graph, GraphContext};
@@ -51,6 +54,7 @@ enum Command {
     New(New),
     Retrieve(Retrieve),
     Find(Find),
+    Count(Count),
     Normalize(Normalize),
     Tree(TreeArgs),
     Squash(Squash),
@@ -71,9 +75,6 @@ enum Command {
     after_help = help::retrieve::AFTER_HELP
 )]
 struct Retrieve {
-    #[clap(long, short = 'k', help = "Document key(s) to retrieve (can be specified multiple times)")]
-    key: Vec<String>,
-
     #[clap(
         long,
         short = 'd',
@@ -109,7 +110,7 @@ struct Retrieve {
     no_content: bool,
 
     #[clap(flatten)]
-    selector: SelectorArgs,
+    selector: FilterArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -135,23 +136,27 @@ struct Find {
     #[clap(help = "Search query (fuzzy match on title and key)")]
     query: Option<String>,
 
-    #[clap(long, help = "Only root documents (no incoming block refs)")]
-    roots: bool,
-
-    #[clap(long, help = "Documents that reference this key")]
-    refs_to: Option<String>,
-
-    #[clap(long, help = "Documents referenced by this key")]
-    refs_from: Option<String>,
-
-    #[clap(long, short = 'l', help = "Maximum results")]
+    #[clap(long, short = 'l', help = "Maximum results (0 = unlimited)")]
     limit: Option<usize>,
+
+    #[clap(
+        long,
+        value_delimiter = ',',
+        help = "Frontmatter fields to include in JSON output (CSV)."
+    )]
+    project: Vec<String>,
+
+    #[clap(
+        long,
+        help = "Sort by frontmatter field. Format: field:1 (asc) or field:-1 (desc)."
+    )]
+    sort: Option<String>,
 
     #[clap(long, short = 'f', value_enum, default_value = "markdown")]
     format: FindFormat,
 
     #[clap(flatten)]
-    selector: SelectorArgs,
+    selector: FilterArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -159,6 +164,26 @@ enum FindFormat {
     Markdown,
     Keys,
     Json,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::count::ABOUT,
+    long_about = help::count::LONG_ABOUT,
+    after_help = help::count::AFTER_HELP
+)]
+struct Count {
+    #[clap(long, short = 'l', help = "Cap the number of matches counted (0 = unlimited)")]
+    limit: Option<usize>,
+
+    #[clap(
+        long,
+        help = "Sort by frontmatter field. Format: field:1 (asc) or field:-1 (desc)."
+    )]
+    sort: Option<String>,
+
+    #[clap(flatten)]
+    selector: FilterArgs,
 }
 
 #[derive(Debug, Args)]
@@ -224,13 +249,6 @@ struct TreeArgs {
 
     #[clap(
         long,
-        short = 'k',
-        help = "Filter to paths starting from specific document(s)"
-    )]
-    key: Vec<String>,
-
-    #[clap(
-        long,
         short = 'd',
         default_value = "4",
         help = "Maximum depth to traverse"
@@ -238,7 +256,7 @@ struct TreeArgs {
     depth: u8,
 
     #[clap(flatten)]
-    selector: SelectorArgs,
+    selector: FilterArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -304,12 +322,6 @@ struct Export {
     format: Format,
     #[clap(
         long,
-        short = 'k',
-        help = "Filter nodes by document key. Repeatable; if omitted, exports all root notes."
-    )]
-    key: Vec<String>,
-    #[clap(
-        long,
         short = 'd',
         global = true,
         required = false,
@@ -326,12 +338,18 @@ struct Export {
     include_headers: bool,
 
     #[clap(flatten)]
-    selector: SelectorArgs,
+    selector: FilterArgs,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
 enum Format {
     Dot,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum, PartialEq, Eq)]
+enum MutationFormat {
+    Markdown,
+    Keys,
 }
 
 #[derive(Debug, Args)]
@@ -373,8 +391,17 @@ struct Rename {
     #[clap(long, help = "Suppress progress output")]
     quiet: bool,
 
-    #[clap(long, help = "Print affected document keys (one per line)")]
-    keys: bool,
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "markdown",
+        help = "Output format. `keys` prints affected document keys (one per line) and suppresses progress."
+    )]
+    format: MutationFormat,
+
+    #[clap(long = "keys", hide = true)]
+    keys_legacy: bool,
 }
 
 #[derive(Debug, Args)]
@@ -384,8 +411,11 @@ struct Rename {
     after_help = help::delete::AFTER_HELP
 )]
 struct Delete {
-    #[clap(help = "Document key to delete")]
-    key: String,
+    #[clap(help = "Document key to delete (sugar for --filter '$key: K')")]
+    key: Option<String>,
+
+    #[clap(long, help = "Filter expression (inline YAML). Required if positional KEY omitted.")]
+    filter: Option<String>,
 
     #[clap(long, help = "Preview changes without writing to disk")]
     dry_run: bool,
@@ -393,8 +423,17 @@ struct Delete {
     #[clap(long, help = "Suppress progress output")]
     quiet: bool,
 
-    #[clap(long, help = "Print affected document keys (one per line)")]
-    keys: bool,
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "markdown",
+        help = "Output format. `keys` prints affected document keys (one per line) and suppresses progress."
+    )]
+    format: MutationFormat,
+
+    #[clap(long = "keys", hide = true)]
+    keys_legacy: bool,
 
     #[clap(long, help = "Skip confirmation prompt")]
     force: bool,
@@ -428,8 +467,17 @@ struct Extract {
     #[clap(long, help = "Suppress progress output")]
     quiet: bool,
 
-    #[clap(long, help = "Print affected document keys (one per line)")]
-    keys: bool,
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "markdown",
+        help = "Output format. `keys` prints affected document keys (one per line) and suppresses progress."
+    )]
+    format: MutationFormat,
+
+    #[clap(long = "keys", hide = true)]
+    keys_legacy: bool,
 }
 
 #[derive(Debug, Args)]
@@ -439,15 +487,30 @@ struct Extract {
     after_help = help::update::AFTER_HELP
 )]
 struct Update {
-    #[clap(long, short = 'k', help = "Document key to update")]
-    key: String,
+    #[clap(long, short = 'k', help = "Document key. Required for body-overwrite mode; optional in frontmatter mutation mode.")]
+    key: Option<String>,
 
     #[clap(
         long,
         short = 'c',
-        help = "New full markdown content. Use '-' to read from stdin."
+        help = "New full markdown content (body-overwrite mode). Use '-' to read from stdin."
     )]
-    content: String,
+    content: Option<String>,
+
+    #[clap(
+        long,
+        help = "Filter expression for frontmatter mutation mode (inline YAML). Combined with -k via AND."
+    )]
+    filter: Option<String>,
+
+    #[clap(
+        long,
+        help = "Frontmatter $set assignment FIELD=VALUE. VALUE is parsed as a YAML scalar."
+    )]
+    set: Vec<String>,
+
+    #[clap(long, help = "Frontmatter $unset field name.")]
+    unset: Vec<String>,
 
     #[clap(long, help = "Preview without writing")]
     dry_run: bool,
@@ -516,8 +579,17 @@ struct Inline {
     #[clap(long, help = "Suppress progress output")]
     quiet: bool,
 
-    #[clap(long, help = "Print affected document keys (one per line)")]
-    keys: bool,
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "markdown",
+        help = "Output format. `keys` prints affected document keys (one per line) and suppresses progress."
+    )]
+    format: MutationFormat,
+
+    #[clap(long = "keys", hide = true)]
+    keys_legacy: bool,
 }
 
 fn main() {
@@ -551,6 +623,7 @@ fn main() {
         Command::New(new) => new_command(new),
         Command::Retrieve(retrieve) => retrieve_command(retrieve),
         Command::Find(find) => find_command(find),
+        Command::Count(count) => count_command(count),
         Command::Export(export) => export_command(export),
         Command::Stats(stats) => stats_command(stats),
         Command::Rename(rename) => rename_command(rename),
@@ -567,22 +640,23 @@ fn retrieve_command(args: Retrieve) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let selector_provided = !args.selector.is_empty();
+    let explicit_keys = args.selector.key.clone();
+    let other_selectors_present = args.selector.has_non_key_clauses();
 
-    let key_strings: Vec<String> = if args.key.is_empty() {
+    let key_strings: Vec<String> = if explicit_keys.is_empty() {
         let stdin_content = read_stdin_if_available();
         let keys: Vec<String> = stdin_content
             .lines()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        if keys.is_empty() && !selector_provided {
-            eprintln!("Error: No document key provided. Use -k <key>, --in <key>, or pipe keys via stdin.");
+        if keys.is_empty() && !other_selectors_present {
+            eprintln!("Error: No document key provided. Use -k <key>, --filter, or pipe keys via stdin.");
             std::process::exit(1);
         }
         keys
     } else {
-        args.key
+        explicit_keys
     };
 
     let mut keys = Vec::new();
@@ -608,7 +682,7 @@ fn retrieve_command(args: Retrieve) {
         backlinks: args.backlinks,
         exclude,
         no_content: args.no_content,
-        filter: args.selector.to_filter(),
+        filter: resolve_filter(&args.selector),
     };
 
     let output = reader.retrieve_many(&keys, &options);
@@ -648,14 +722,32 @@ fn find_command(args: Find) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
+    let sort = args.sort.as_deref().map(parse_sort_arg).transpose().unwrap_or_else(|e| {
+        eprintln!("error: {}", e);
+        std::process::exit(2);
+    });
+    let project = if args.project.is_empty() {
+        None
+    } else {
+        Some(QueryProjection {
+            fields: args
+                .project
+                .iter()
+                .map(|s| FieldPath::from_dotted(s))
+                .collect(),
+        })
+    };
+
     let finder = DocumentFinder::new(&graph);
     let options = FindOptions {
         query: args.query,
-        roots: args.roots,
-        refs_to: args.refs_to.map(|s| Key::name(&s)),
-        refs_from: args.refs_from.map(|s| Key::name(&s)),
-        filter: args.selector.to_filter(),
+        roots: false,
+        refs_to: None,
+        refs_from: None,
+        filter: resolve_filter(&args.selector),
         limit: args.limit,
+        sort,
+        project,
     };
 
     let output = finder.find(&options);
@@ -675,6 +767,41 @@ fn find_command(args: Find) {
             print!("{}", rendered);
         }
     }
+}
+
+#[tracing::instrument(level = "debug")]
+fn count_command(args: Count) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let filter = resolve_filter(&args.selector);
+    let mut keys = match filter {
+        Some(f) => liwe::query::evaluate(&f, &graph),
+        None => graph.keys(),
+    };
+
+    if let Some(sort_str) = args.sort.as_deref() {
+        let sort = parse_sort_arg(sort_str).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
+        let mut rows: Vec<(Key, serde_yaml::Mapping)> = keys
+            .into_iter()
+            .map(|k| {
+                let m = graph.frontmatter(&k).cloned().unwrap_or_default();
+                (k, m)
+            })
+            .collect();
+        liwe::query::sort::sort_in_place(&mut rows, &sort);
+        keys = rows.into_iter().map(|(k, _)| k).collect();
+    }
+
+    let total = keys.len();
+    let count = match args.limit {
+        Some(n) if n > 0 => total.min(n),
+        _ => total,
+    };
+    println!("{}", count);
 }
 
 fn render_find_output(output: &iwe::find::FindOutput) -> String {
@@ -777,9 +904,16 @@ fn tree_command(args: TreeArgs) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let filter = args.selector.to_filter();
-
-    let explicit_keys: Vec<Key> = args.key.iter().map(|k| Key::name(k)).collect();
+    let explicit_keys: Vec<Key> = args.selector.key.iter().map(|k| Key::name(k)).collect();
+    let other_selectors = args.selector.has_non_key_clauses();
+    let filter_for_narrowing = if other_selectors {
+        let mut s = args.selector.clone();
+        s.key.clear();
+        resolve_filter(&s)
+    } else {
+        None
+    };
+    let filter = filter_for_narrowing;
 
     let root_keys: Vec<Key> = if let Some(f) = filter {
         let selector_set: std::collections::HashSet<Key> =
@@ -1028,6 +1162,31 @@ fn get_library_path(configuration: &Configuration) -> PathBuf {
     library_path
 }
 
+fn parse_sort_arg(s: &str) -> Result<QuerySort, String> {
+    let (field, dir) = s
+        .rsplit_once(':')
+        .ok_or_else(|| format!("invalid --sort value '{}': expected FIELD:1 or FIELD:-1", s))?;
+    let dir = match dir {
+        "1" => SortDir::Asc,
+        "-1" => SortDir::Desc,
+        _ => return Err(format!("invalid sort direction '{}': expected 1 or -1", dir)),
+    };
+    if field.is_empty() {
+        return Err(format!("invalid --sort value '{}': empty field", s));
+    }
+    Ok(QuerySort {
+        key: FieldPath::from_dotted(field),
+        dir,
+    })
+}
+
+fn resolve_filter(args: &FilterArgs) -> Option<Filter> {
+    args.to_filter().unwrap_or_else(|e| {
+        eprintln!("error: {}", e);
+        std::process::exit(2);
+    })
+}
+
 fn get_configuration() -> Configuration {
     let config = load_config();
     if log::log_enabled!(log::Level::Debug) {
@@ -1089,9 +1248,16 @@ fn export_command(args: Export) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let explicit_keys: Vec<Key> = args.key.iter().map(|s| Key::name(s)).collect();
+    let explicit_keys: Vec<Key> = args.selector.key.iter().map(|s| Key::name(s)).collect();
+    let filter_for_narrowing = if args.selector.has_non_key_clauses() {
+        let mut s = args.selector.clone();
+        s.key.clear();
+        resolve_filter(&s)
+    } else {
+        None
+    };
 
-    let resolved_keys: Vec<Key> = if let Some(f) = args.selector.to_filter() {
+    let resolved_keys: Vec<Key> = if let Some(f) = filter_for_narrowing {
         let selector_set: std::collections::HashSet<Key> =
             liwe::query::evaluate(&f, &graph).into_iter().collect();
         let mut v: Vec<Key> = if explicit_keys.is_empty() {
@@ -1139,7 +1305,9 @@ fn rename_command(args: Rename) {
         }
     };
 
-    if args.keys {
+    let keys_mode = args.format == MutationFormat::Keys || args.keys_legacy;
+
+    if keys_mode {
         for key in result.affected_keys() {
             println!("{}", key);
         }
@@ -1148,7 +1316,7 @@ fn rename_command(args: Rename) {
         }
     }
 
-    if !args.quiet && !args.keys {
+    if !args.quiet && !keys_mode {
         if args.dry_run {
             println!("Would rename '{}' to '{}'", old_key, new_key);
             println!("Would update {} document(s)", result.updates.len());
@@ -1162,7 +1330,7 @@ fn rename_command(args: Rename) {
 
     if !args.dry_run {
         apply_changes(&result, &config);
-        if !args.quiet && !args.keys {
+        if !args.quiet && !keys_mode {
             println!("Updated {} document(s)", result.updates.len());
         }
     }
@@ -1173,18 +1341,29 @@ fn delete_command(args: Delete) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let target_key = Key::name(&args.key);
-
-    let result = match op_delete(&graph, &target_key) {
-        Ok(changes) => changes,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
+    let targets = resolve_delete_targets(&args, &graph);
+    if targets.is_empty() {
+        if !args.quiet {
+            eprintln!("No documents matched");
         }
-    };
+        return;
+    }
 
-    if args.keys {
-        for key in result.affected_keys() {
+    let mut combined = liwe::operations::Changes::default();
+    for target in &targets {
+        match op_delete(&graph, target) {
+            Ok(changes) => merge_changes(&mut combined, changes),
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    let keys_mode = args.format == MutationFormat::Keys || args.keys_legacy;
+
+    if keys_mode {
+        for key in combined.affected_keys() {
             println!("{}", key);
         }
         if args.dry_run {
@@ -1192,10 +1371,12 @@ fn delete_command(args: Delete) {
         }
     }
 
-    if !args.quiet && !args.keys && args.dry_run {
-        println!("Would delete '{}'", target_key);
-        println!("Would update {} document(s)", result.updates.len());
-        for (key, _) in &result.updates {
+    if !args.quiet && !keys_mode && args.dry_run {
+        for target in &targets {
+            println!("Would delete '{}'", target);
+        }
+        println!("Would update {} document(s)", combined.updates.len());
+        for (key, _) in &combined.updates {
             println!("  {}", key);
         }
         return;
@@ -1203,9 +1384,9 @@ fn delete_command(args: Delete) {
 
     if !args.force && !args.dry_run {
         print!(
-            "Delete '{}' and update {} reference(s)? [y/N] ",
-            target_key,
-            result.updates.len()
+            "Delete {} document(s) and update {} reference(s)? [y/N] ",
+            targets.len(),
+            combined.updates.len()
         );
         io::stdout().flush().expect("Failed to flush stdout");
 
@@ -1219,14 +1400,58 @@ fn delete_command(args: Delete) {
         }
     }
 
-    if !args.quiet && !args.keys {
-        println!("Deleting '{}'", target_key);
+    if !args.quiet && !keys_mode {
+        for target in &targets {
+            println!("Deleting '{}'", target);
+        }
     }
 
     if !args.dry_run {
-        apply_changes(&result, &config);
-        if !args.quiet && !args.keys {
-            println!("Updated {} document(s)", result.updates.len());
+        apply_changes(&combined, &config);
+        if !args.quiet && !keys_mode {
+            println!("Updated {} document(s)", combined.updates.len());
+        }
+    }
+}
+
+fn resolve_delete_targets(args: &Delete, graph: &Graph) -> Vec<Key> {
+    let mut targets: Vec<Key> = Vec::new();
+    if let Some(k) = &args.key {
+        targets.push(Key::name(k));
+    }
+    if let Some(expr) = &args.filter {
+        let filter = liwe::query::parse_filter_expression(expr).unwrap_or_else(|e| {
+            eprintln!("error: invalid --filter expression: {}", e);
+            std::process::exit(2);
+        });
+        let matched = liwe::query::evaluate(&filter, graph);
+        targets.extend(matched);
+    }
+    if targets.is_empty() {
+        eprintln!("Error: provide a positional KEY or --filter");
+        std::process::exit(1);
+    }
+    targets.sort();
+    targets.dedup();
+    targets
+}
+
+fn merge_changes(into: &mut liwe::operations::Changes, other: liwe::operations::Changes) {
+    for k in other.removes {
+        if !into.removes.contains(&k) {
+            into.removes.push(k);
+        }
+    }
+    for (k, v) in other.creates {
+        if !into.creates.iter().any(|(kk, _)| kk == &k) {
+            into.creates.push((k, v));
+        }
+    }
+    for (k, v) in other.updates {
+        if let Some(slot) = into.updates.iter_mut().find(|(kk, _)| kk == &k) {
+            slot.1 = v;
+        } else {
+            into.updates.push((k, v));
         }
     }
 }
@@ -1398,7 +1623,9 @@ fn extract_command(args: Extract) {
         .map(|(k, _)| k.clone())
         .expect("Extract should create a new document");
 
-    if args.keys {
+    let keys_mode = args.format == MutationFormat::Keys || args.keys_legacy;
+
+    if keys_mode {
         for key in result.affected_keys() {
             println!("{}", key);
         }
@@ -1407,7 +1634,7 @@ fn extract_command(args: Extract) {
         }
     }
 
-    if !args.quiet && !args.keys {
+    if !args.quiet && !keys_mode {
         if args.dry_run {
             println!("Would extract section '{}' to '{}'", section_title, new_key);
             println!("Would update '{}'", source_key);
@@ -1418,7 +1645,7 @@ fn extract_command(args: Extract) {
 
     if !args.dry_run {
         apply_changes(&result, &config);
-        if !args.quiet && !args.keys {
+        if !args.quiet && !keys_mode {
             println!("Done");
         }
     }
@@ -1503,7 +1730,9 @@ fn inline_command(args: Inline) {
         }
     };
 
-    if args.keys {
+    let keys_mode = args.format == MutationFormat::Keys || args.keys_legacy;
+
+    if keys_mode {
         for key in result.affected_keys() {
             println!("{}", key);
         }
@@ -1512,7 +1741,7 @@ fn inline_command(args: Inline) {
         }
     }
 
-    if !args.quiet && !args.keys {
+    if !args.quiet && !keys_mode {
         if args.dry_run {
             println!(
                 "Would inline [{}]({}) into '{}'",
@@ -1537,7 +1766,7 @@ fn inline_command(args: Inline) {
 
     if !args.dry_run {
         apply_changes(&result, &config);
-        if !args.quiet && !args.keys {
+        if !args.quiet && !keys_mode {
             println!("Done");
         }
     }
@@ -1545,16 +1774,41 @@ fn inline_command(args: Inline) {
 
 #[tracing::instrument(level = "debug")]
 fn update_command(args: Update) {
-    let config = get_configuration();
-    let graph = load_graph(&config);
+    let body_mode = args.content.is_some();
+    let mutation_mode = !args.set.is_empty() || !args.unset.is_empty();
 
-    let key = Key::name(&args.key);
-    if (&graph).get_node_id(&key).is_none() {
-        eprintln!("Error: Document '{}' not found", args.key);
+    if body_mode && mutation_mode {
+        eprintln!("Error: --content cannot be combined with --set or --unset");
+        std::process::exit(1);
+    }
+    if !body_mode && !mutation_mode {
+        eprintln!("Error: provide either --content (body overwrite) or --set/--unset (frontmatter mutation)");
         std::process::exit(1);
     }
 
-    let content = if args.content == "-" {
+    if body_mode {
+        update_body(args);
+    } else {
+        update_frontmatter(args);
+    }
+}
+
+fn update_body(args: Update) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let key_str = args.key.clone().unwrap_or_else(|| {
+        eprintln!("Error: -k/--key is required for body-overwrite mode");
+        std::process::exit(1);
+    });
+    let key = Key::name(&key_str);
+    if (&graph).get_node_id(&key).is_none() {
+        eprintln!("Error: Document '{}' not found", key_str);
+        std::process::exit(1);
+    }
+
+    let raw = args.content.expect("body mode implies content present");
+    let content = if raw == "-" {
         let stdin_content = read_stdin_if_available();
         if stdin_content.is_empty() {
             eprintln!("Error: '--content -' requires content piped via stdin");
@@ -1562,12 +1816,12 @@ fn update_command(args: Update) {
         }
         stdin_content
     } else {
-        args.content
+        raw
     };
 
     if args.dry_run {
         if !args.quiet {
-            println!("Would update '{}' ({} bytes)", args.key, content.len());
+            println!("Would update '{}' ({} bytes)", key_str, content.len());
         }
         return;
     }
@@ -1580,8 +1834,101 @@ fn update_command(args: Update) {
     std::fs::write(&file_path, &content).expect("Failed to write document file");
 
     if !args.quiet {
-        println!("Updated '{}'", args.key);
+        println!("Updated '{}'", key_str);
     }
+}
+
+fn update_frontmatter(args: Update) {
+    use liwe::query::{
+        execute as run_op, FieldPath, Operation, Outcome, Update as UpdateDoc, UpdateOp,
+        UpdateOperator,
+    };
+
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let mut conjuncts: Vec<Filter> = Vec::new();
+    if let Some(expr) = &args.filter {
+        let parsed = liwe::query::parse_filter_expression(expr).unwrap_or_else(|e| {
+            eprintln!("error: invalid --filter expression: {}", e);
+            std::process::exit(2);
+        });
+        conjuncts.push(parsed);
+    }
+    if let Some(k) = &args.key {
+        conjuncts.push(Filter::Key(liwe::query::KeyOp::Eq(Key::name(k))));
+    }
+    if conjuncts.is_empty() {
+        eprintln!("Error: --filter or -k/--key required for frontmatter mutation mode");
+        std::process::exit(1);
+    }
+    let filter = if conjuncts.len() == 1 {
+        conjuncts.into_iter().next().unwrap()
+    } else {
+        Filter::And(conjuncts)
+    };
+
+    let mut operators: Vec<UpdateOperator> = Vec::new();
+    for assign in &args.set {
+        let (path, value) = parse_set_assignment(assign).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
+        operators.push(UpdateOperator::Set { path, value });
+    }
+    for field in &args.unset {
+        operators.push(UpdateOperator::Unset {
+            path: FieldPath::from_dotted(field),
+        });
+    }
+
+    let op = Operation::Update(UpdateOp::new(filter, UpdateDoc::new(operators)));
+    let outcome = run_op(&op, &graph);
+    let (changes, failed) = match outcome {
+        Outcome::Update { changes, failed } => (changes, failed),
+        _ => unreachable!(),
+    };
+
+    if !failed.is_empty() {
+        for (key, err) in &failed {
+            eprintln!("warning: {}: {:?}", key, err);
+        }
+    }
+
+    if args.dry_run {
+        if !args.quiet {
+            println!("Would update {} document(s)", changes.len());
+            for (key, _) in &changes {
+                println!("  {}", key);
+            }
+        }
+        return;
+    }
+
+    let library_path = get_library_path(&config);
+    for (key, markdown) in &changes {
+        let file_path = library_path.join(format!("{}.md", key));
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(&file_path, markdown).expect("Failed to write document file");
+    }
+
+    if !args.quiet {
+        println!("Updated {} document(s)", changes.len());
+    }
+}
+
+fn parse_set_assignment(s: &str) -> Result<(liwe::query::FieldPath, serde_yaml::Value), String> {
+    let (field, value) = s
+        .split_once('=')
+        .ok_or_else(|| format!("invalid --set assignment '{}': expected FIELD=VALUE", s))?;
+    if field.is_empty() {
+        return Err(format!("invalid --set assignment '{}': empty field", s));
+    }
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(value)
+        .map_err(|e| format!("invalid --set value for '{}': {}", field, e))?;
+    Ok((liwe::query::FieldPath::from_dotted(field), yaml_value))
 }
 
 #[tracing::instrument(level = "debug")]
