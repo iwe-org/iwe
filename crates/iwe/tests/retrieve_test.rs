@@ -119,9 +119,9 @@ fn test_retrieve_json_format() {
               "key": "test-doc",
               "title": "Test Document",
               "content": "# Test Document\n\nContent here.\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -156,9 +156,9 @@ fn test_retrieve_yaml_format() {
             # Test Document
 
             Content here.
-          parent_documents: []
-          child_documents: []
-          backlinks: []
+          includedBy: []
+          includes: []
+          referencedBy: []
     "};
 
     assert_eq!(stdout, expected);
@@ -861,23 +861,23 @@ fn test_retrieve_context_json_format() {
               "key": "child",
               "title": "Child",
               "content": "# Child\n\nContent.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "parent",
                   "title": "Parent",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "parent",
               "title": "Parent",
               "content": "# Parent\n\n[Child](child)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1102,56 +1102,56 @@ fn test_retrieve_deduplication_same_doc_multiple_paths() {
               "key": "root",
               "title": "Root",
               "content": "# Root\n\n[A](a)\n\n[B](b)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "a",
               "title": "A",
               "content": "# A\n\n[Common](common)\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "root",
                   "title": "Root",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "b",
               "title": "B",
               "content": "# B\n\n[Common](common)\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "root",
                   "title": "Root",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "common",
               "title": "Common",
               "content": "# Common\n\nShared content.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "a",
                   "title": "A",
-                  "section_path": []
+                  "sectionPath": []
                 },
                 {
                   "key": "b",
                   "title": "B",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1345,49 +1345,49 @@ fn test_retrieve_all_document_types_json() {
               "key": "main",
               "title": "Main",
               "content": "# Main\n\n[Child](child)\n\nAlso see [Linked](linked).\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "parent",
                   "title": "Parent",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "child",
               "title": "Child",
               "content": "# Child\n\nChild content.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "main",
                   "title": "Main",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "parent",
               "title": "Parent",
               "content": "# Parent\n\n[Main](main)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "linked",
               "title": "Linked",
               "content": "# Linked\n\nLinked content.\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": [
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": [
                 {
                   "key": "main",
                   "title": "Main",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ]
             }
@@ -1443,36 +1443,36 @@ fn test_retrieve_context_multiple_parents() {
               "key": "child",
               "title": "Child",
               "content": "# Child\n\nShared child.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "parent1",
                   "title": "Parent One",
-                  "section_path": []
+                  "sectionPath": []
                 },
                 {
                   "key": "parent2",
                   "title": "Parent Two",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "parent1",
               "title": "Parent One",
               "content": "# Parent One\n\n[Child](child)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "parent2",
               "title": "Parent Two",
               "content": "# Parent Two\n\n[Child](child)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1526,36 +1526,36 @@ fn test_retrieve_context_includes_parents_of_sub_documents() {
               "key": "main",
               "title": "Main Document",
               "content": "# Main Document\n\n[Document A](a)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "a",
               "title": "Document A",
               "content": "# Document A\n\nContent of A.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "main",
                   "title": "Main Document",
-                  "section_path": []
+                  "sectionPath": []
                 },
                 {
                   "key": "parent2",
                   "title": "Parent Two",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "parent2",
               "title": "Parent Two",
               "content": "# Parent Two\n\n[Document A](a)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1609,9 +1609,9 @@ fn test_retrieve_context_sub_document_parents_without_depth() {
               "key": "main",
               "title": "Main Document",
               "content": "# Main Document\n\n[Document A](a)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1675,42 +1675,42 @@ fn test_retrieve_context_only_direct_sub_document_parents() {
               "key": "main",
               "title": "Main",
               "content": "# Main\n\n[Level 1](level1)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "level1",
               "title": "Level 1",
               "content": "# Level 1\n\n[Level 2](level2)\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "main",
                   "title": "Main",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "level2",
               "title": "Level 2",
               "content": "# Level 2\n\nFinal content.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "level1",
                   "title": "Level 1",
-                  "section_path": []
+                  "sectionPath": []
                 },
                 {
                   "key": "other-parent",
                   "title": "Other Parent",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1828,25 +1828,25 @@ fn test_retrieve_multiple_keys() {
               "key": "doc1",
               "title": "Document One",
               "content": "# Document One\n\nContent one.\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "doc2",
               "title": "Document Two",
               "content": "# Document Two\n\nContent two.\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "doc3",
               "title": "Document Three",
               "content": "# Document Three\n\nContent three.\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1900,36 +1900,36 @@ fn test_retrieve_multiple_keys_with_deduplication() {
               "key": "doc1",
               "title": "Document One",
               "content": "# Document One\n\n[Shared](shared)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "shared",
               "title": "Shared",
               "content": "# Shared\n\nShared content.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "doc1",
                   "title": "Document One",
-                  "section_path": []
+                  "sectionPath": []
                 },
                 {
                   "key": "doc2",
                   "title": "Document Two",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "doc2",
               "title": "Document Two",
               "content": "# Document Two\n\n[Shared](shared)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -1973,9 +1973,9 @@ fn test_retrieve_exclude_single_key() {
               "key": "parent",
               "title": "Parent",
               "content": "# Parent\n\n[Child](child)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -2017,23 +2017,23 @@ fn test_retrieve_exclude_multiple_keys() {
               "key": "root",
               "title": "Root",
               "content": "# Root\n\n[A](a)\n\n[B](b)\n\n[C](c)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "b",
               "title": "B",
               "content": "# B\n\nContent B.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "root",
                   "title": "Root",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -2094,9 +2094,9 @@ fn test_retrieve_no_content_flag() {
               "key": "doc",
               "title": "Document",
               "content": "",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -2140,28 +2140,28 @@ fn test_retrieve_no_content_with_multiple_documents() {
               "key": "parent",
               "title": "Parent",
               "content": "",
-              "parent_documents": [],
-              "child_documents": [
+              "includedBy": [],
+              "includes": [
                 {
                   "key": "child",
                   "title": "Child"
                 }
               ],
-              "backlinks": []
+              "referencedBy": []
             },
             {
               "key": "child",
               "title": "Child",
               "content": "",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "parent",
                   "title": "Parent",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -2205,15 +2205,15 @@ fn test_retrieve_no_content_preserves_parent_documents() {
               "key": "child",
               "title": "Child",
               "content": "",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "parent",
                   "title": "Parent",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -2377,23 +2377,23 @@ fn test_retrieve_default_depth() {
               "key": "root",
               "title": "Root",
               "content": "# Root\n\n[Child](child)\n",
-              "parent_documents": [],
-              "child_documents": [],
-              "backlinks": []
+              "includedBy": [],
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "child",
               "title": "Child",
               "content": "# Child\n\nChild content.\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "root",
                   "title": "Root",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -2437,29 +2437,29 @@ fn test_retrieve_cyclic_references() {
               "key": "a",
               "title": "Document A",
               "content": "# Document A\n\n[Document B](b)\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "b",
                   "title": "Document B",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             },
             {
               "key": "b",
               "title": "Document B",
               "content": "# Document B\n\n[Document A](a)\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "a",
                   "title": "Document A",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }
@@ -2562,15 +2562,15 @@ fn test_retrieve_self_referencing_document() {
               "key": "self",
               "title": "Self Reference",
               "content": "# Self Reference\n\n[Self Reference](self)\n",
-              "parent_documents": [
+              "includedBy": [
                 {
                   "key": "self",
                   "title": "Self Reference",
-                  "section_path": []
+                  "sectionPath": []
                 }
               ],
-              "child_documents": [],
-              "backlinks": []
+              "includes": [],
+              "referencedBy": []
             }
           ]
         }

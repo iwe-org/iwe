@@ -94,7 +94,7 @@ async fn retrieve_with_backlinks() {
         .await;
     let output = Fixture::result_json(&result);
 
-    let backlinks = output["documents"][0]["backlinks"].as_array().unwrap();
+    let backlinks = output["documents"][0]["referencedBy"].as_array().unwrap();
     assert_eq!(backlinks.len(), 1);
     assert_eq!(backlinks[0]["key"], "1");
 }

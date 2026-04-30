@@ -13,6 +13,7 @@ use crate::query::project::shape;
 use crate::query::sort::sort_in_place;
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ParentDocumentInfo {
     pub key: String,
     pub title: String,
@@ -20,19 +21,21 @@ pub struct ParentDocumentInfo {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FindResult {
     pub key: String,
     pub title: String,
-    pub display_title: String,
-    pub is_root: bool,
-    pub incoming_refs: usize,
-    pub outgoing_refs: usize,
-    pub parent_documents: Vec<ParentDocumentInfo>,
+    pub includes_count: usize,
+    pub included_by_count: usize,
+    pub references_count: usize,
+    pub referenced_by_count: usize,
+    pub included_by: Vec<ParentDocumentInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frontmatter: Option<Mapping>,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FindOutput {
     pub query: Option<String>,
     pub limit: Option<usize>,
@@ -168,8 +171,7 @@ impl<'a> DocumentFinder<'a> {
 
     fn build_result(&self, key: &Key, project: Option<&Projection>) -> FindResult {
         let title = self.graph.get_key_title(key).unwrap_or_default();
-        let parent_documents = self.get_parent_documents(key);
-        let display_title = Self::render_display_title(&title, &parent_documents);
+        let included_by = self.get_parent_documents(key);
         let frontmatter = project.map(|p| {
             let m = self.graph.frontmatter(key).cloned().unwrap_or_default();
             shape(p, &m)
@@ -186,31 +188,13 @@ impl<'a> DocumentFinder<'a> {
         FindResult {
             key: key.to_string(),
             title,
-            display_title,
-            is_root: self.is_root(key),
-            incoming_refs: self.graph.get_inclusion_edges_to(key).len()
-                + self.graph.get_reference_edges_to(key).len(),
-            outgoing_refs: self.graph.get_inclusion_edges_in(key).len(),
-            parent_documents,
+            includes_count: self.graph.get_inclusion_edges_in(key).len(),
+            included_by_count: self.graph.get_inclusion_edges_to(key).len(),
+            references_count: self.graph.get_reference_edges_in(key).len(),
+            referenced_by_count: self.graph.get_reference_edges_to(key).len(),
+            included_by,
             frontmatter,
         }
-    }
-
-    fn render_display_title(title: &str, parent_documents: &[ParentDocumentInfo]) -> String {
-        if parent_documents.is_empty() {
-            title.to_string()
-        } else {
-            let parents = parent_documents
-                .iter()
-                .map(|p| format!("↖{}", p.title))
-                .collect::<Vec<_>>()
-                .join(" ");
-            format!("{} {}", title, parents)
-        }
-    }
-
-    fn is_root(&self, key: &Key) -> bool {
-        self.graph.get_inclusion_edges_to(key).is_empty()
     }
 
     fn node_rank(&self, key: &Key) -> usize {

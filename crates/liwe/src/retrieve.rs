@@ -11,6 +11,7 @@ use crate::model::{Key, NodeId};
 use crate::query::{self, Filter};
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ParentDocumentInfo {
     pub key: String,
     pub title: String,
@@ -18,6 +19,7 @@ pub struct ParentDocumentInfo {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BacklinkInfo {
     pub key: String,
     pub title: String,
@@ -25,22 +27,25 @@ pub struct BacklinkInfo {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChildDocumentInfo {
     pub key: String,
     pub title: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DocumentOutput {
     pub key: String,
     pub title: String,
     pub content: String,
-    pub parent_documents: Vec<ParentDocumentInfo>,
-    pub child_documents: Vec<ChildDocumentInfo>,
-    pub backlinks: Vec<BacklinkInfo>,
+    pub included_by: Vec<ParentDocumentInfo>,
+    pub includes: Vec<ChildDocumentInfo>,
+    pub referenced_by: Vec<BacklinkInfo>,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RetrieveOutput {
     pub documents: Vec<DocumentOutput>,
 }
@@ -189,15 +194,15 @@ impl<'a> DocumentReader<'a> {
         } else {
             self.get_document_content(key)
         };
-        let parent_documents = self.get_parent_documents(key);
+        let included_by = self.get_parent_documents(key);
 
-        let child_documents = if options.no_content {
+        let includes = if options.no_content {
             self.get_child_documents(key)
         } else {
             Vec::new()
         };
 
-        let backlinks = if options.backlinks {
+        let referenced_by = if options.backlinks {
             self.get_backlinks(key)
         } else {
             Vec::new()
@@ -207,9 +212,9 @@ impl<'a> DocumentReader<'a> {
             key: key.to_string(),
             title,
             content,
-            parent_documents,
-            child_documents,
-            backlinks,
+            included_by,
+            includes,
+            referenced_by,
         }
     }
 

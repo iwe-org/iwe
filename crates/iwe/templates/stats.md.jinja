@@ -2,20 +2,20 @@
 
 ## Overview
 
-- **Total documents:** {{ total_documents }}
-- **Total nodes:** {{ total_nodes }}
-- **Total paths:** {{ total_paths }}
+- **Total documents:** {{ totalDocuments }}
+- **Total nodes:** {{ totalNodes }}
+- **Total paths:** {{ totalPaths }}
 
 ## Document Statistics
 
-- **Total sections:** {{ total_sections }}
-- **Average sections/doc:** {{ avg_sections_per_doc|round(2) }}
+- **Total sections:** {{ totalSections }}
+- **Average sections/doc:** {{ avgSectionsPerDoc|round(2) }}
 
-{%- if top_docs_by_sections %}
+{%- if topDocsBySections %}
 
 ### Top Documents by Sections
 
-{% for item in top_docs_by_sections -%}
+{% for item in topDocsBySections -%}
 {{ loop.index }}. **{{ item.title }}** ({{ item.sections }} sections)
 {% endfor %}
 {%- endif %}
@@ -24,76 +24,76 @@
 
 - **Block references:** {{ block_references }}
 - **Inline references:** {{ inline_references }}
-- **Total references:** {{ total_references }}
-- **Orphaned documents:** {{ orphaned_documents }} ({{ orphaned_percentage|round(1) }}%)
-- **Leaf documents:** {{ leaf_documents }} ({{ leaf_percentage|round(1) }}%)
+- **Total references:** {{ totalReferences }}
+- **Orphaned documents:** {{ orphanedDocuments }} ({{ orphanedPercentage|round(1) }}%)
+- **Leaf documents:** {{ leafDocuments }} ({{ leafPercentage|round(1) }}%)
 
-{%- if top_referenced %}
+{%- if topReferenced %}
 
 ### Top Referenced Documents
 
-{% for item in top_referenced -%}
-{{ loop.index }}. **{{ item.title }}** ({{ item.total_incoming_refs }})
+{% for item in topReferenced -%}
+{{ loop.index }}. **{{ item.title }}** ({{ item.incomingEdgesCount }})
 {% endfor %}
 {%- endif %}
 
 ## Lines Statistics
 
-- **Total lines:** {{ total_lines }}
-- **Average lines/doc:** {{ avg_lines_per_doc|round(2) }}
+- **Total lines:** {{ totalLines }}
+- **Average lines/doc:** {{ avgLinesPerDoc|round(2) }}
 
-{%- if top_docs_by_lines %}
+{%- if topDocsByLines %}
 
 ### Top Documents by Lines
 
-{% for item in top_docs_by_lines -%}
+{% for item in topDocsByLines -%}
 {{ loop.index }}. **{{ item.title }}** ({{ item.lines }} lines)
 {% endfor %}
 {%- endif %}
 
 ## Words Statistics
 
-- **Total words:** {{ total_words }}
-- **Average words/doc:** {{ avg_words_per_doc|round(2) }}
+- **Total words:** {{ totalWords }}
+- **Average words/doc:** {{ avgWordsPerDoc|round(2) }}
 
-{%- if top_docs_by_words %}
+{%- if topDocsByWords %}
 
 ### Top Documents by Words
 
-{% for item in top_docs_by_words -%}
+{% for item in topDocsByWords -%}
 {{ loop.index }}. **{{ item.title }}** ({{ item.words }} words)
 {% endfor %}
 {%- endif %}
 
 ## Structure Statistics
 
-- **Root sections:** {{ root_sections }}
-- **Maximum path depth:** {{ max_path_depth }}
-- **Average path depth:** {{ avg_path_depth|round(2) }}
-- **Bullet lists:** {{ bullet_lists }}
-- **Ordered lists:** {{ ordered_lists }}
-- **Code blocks:** {{ code_blocks }}
+- **Root sections:** {{ rootSections }}
+- **Maximum path depth:** {{ maxPathDepth }}
+- **Average path depth:** {{ avgPathDepth|round(2) }}
+- **Bullet lists:** {{ bulletLists }}
+- **Ordered lists:** {{ orderedLists }}
+- **Code blocks:** {{ codeBlocks }}
 - **Tables:** {{ tables }}
 - **Quotes:** {{ quotes }}
 
-{%- if broken_links %}
+{%- if brokenLinks %}
 
 ## Broken Links
 
-{% for link in broken_links -%}
-- {{ link.source_key }} -> {{ link.target_key }}
+{% for link in brokenLinks -%}
+- {{ link.sourceKey }} -> {{ link.targetKey }}
 {% endfor %}
 {%- endif %}
 
 ## Network Analysis
 
-- **Average references/doc:** {{ avg_refs_per_doc|round(2) }}
+- **Average references/doc:** {{ avgRefsPerDoc|round(2) }}
 
-{%- if most_connected %}
+{%- if mostConnected %}
 
 ### Most Connected Documents
 
-{% for item in most_connected -%}
-{{ loop.index }}. **{{ item.title }}** ({{ item.total_connections }} connections)
+{% for item in mostConnected -%}
+{{ loop.index }}. **{{ item.title }}** ({{ item.totalEdgesCount }} connections)
 {% endfor %}
 {%- endif %}

@@ -61,7 +61,7 @@ impl<'a> RetrieveRenderer<'a> {
                 key: doc.key.clone(),
                 title: doc.title.clone(),
                 parents: doc
-                    .parent_documents
+                    .included_by
                     .iter()
                     .map(|p| LinkMeta {
                         key: p.key.clone(),
@@ -69,7 +69,7 @@ impl<'a> RetrieveRenderer<'a> {
                     })
                     .collect(),
                 back_links: doc
-                    .backlinks
+                    .referenced_by
                     .iter()
                     .map(|b| LinkMeta {
                         key: b.key.clone(),

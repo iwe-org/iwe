@@ -270,6 +270,7 @@ enum TreeFormat {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TreeNode {
     key: String,
     title: String,
@@ -829,7 +830,18 @@ fn render_find_output(output: &iwe::find::FindOutput) -> String {
     result.push_str(":\n\n");
 
     for r in &output.results {
-        result.push_str(&format!("{}   #{}\n", r.display_title, r.key));
+        let display_title = if r.included_by.is_empty() {
+            r.title.clone()
+        } else {
+            let parents = r
+                .included_by
+                .iter()
+                .map(|p| format!("↖{}", p.title))
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!("{} {}", r.title, parents)
+        };
+        result.push_str(&format!("{}   #{}\n", display_title, r.key));
     }
 
     result

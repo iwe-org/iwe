@@ -85,20 +85,20 @@ fn test_find_lists_all_documents() {
             {
               "key": "doc1",
               "title": "Document One",
-              "display_title": "Document One",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             },
             {
               "key": "doc2",
               "title": "Document Two",
-              "display_title": "Document Two",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -142,18 +142,18 @@ fn test_find_yaml_format() {
         results:
         - key: doc1
           title: Document One
-          display_title: Document One
-          is_root: true
-          incoming_refs: 0
-          outgoing_refs: 0
-          parent_documents: []
+          includesCount: 0
+          includedByCount: 0
+          referencesCount: 0
+          referencedByCount: 0
+          includedBy: []
         - key: doc2
           title: Document Two
-          display_title: Document Two
-          is_root: true
-          incoming_refs: 0
-          outgoing_refs: 0
-          parent_documents: []
+          includesCount: 0
+          includedByCount: 0
+          referencesCount: 0
+          referencedByCount: 0
+          includedBy: []
     "};
 
     assert_eq!(stdout, expected);
@@ -180,11 +180,11 @@ fn test_find_fuzzy_search() {
             {
               "key": "authentication",
               "title": "User Authentication",
-              "display_title": "User Authentication",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -223,20 +223,20 @@ fn test_find_roots_only() {
             {
               "key": "orphan",
               "title": "Orphan",
-              "display_title": "Orphan",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             },
             {
               "key": "parent",
               "title": "Parent",
-              "display_title": "Parent",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 1,
-              "parent_documents": []
+              "includesCount": 1,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -285,20 +285,20 @@ fn test_find_refs_to() {
             {
               "key": "doc1",
               "title": "Doc One",
-              "display_title": "Doc One",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 1,
-              "parent_documents": []
+              "includesCount": 1,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             },
             {
               "key": "doc2",
               "title": "Doc Two",
-              "display_title": "Doc Two",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 1,
-              "parent_documents": []
+              "includesCount": 1,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -340,15 +340,15 @@ fn test_find_refs_from() {
             {
               "key": "child1",
               "title": "Child One",
-              "display_title": "Child One ↖Source",
-              "is_root": false,
-              "incoming_refs": 1,
-              "outgoing_refs": 0,
-              "parent_documents": [
+              "includesCount": 0,
+              "includedByCount": 1,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": [
                 {
                   "key": "source",
                   "title": "Source",
-                  "section_path": [
+                  "sectionPath": [
                     "Source"
                   ]
                 }
@@ -357,15 +357,15 @@ fn test_find_refs_from() {
             {
               "key": "child2",
               "title": "Child Two",
-              "display_title": "Child Two ↖Source",
-              "is_root": false,
-              "incoming_refs": 1,
-              "outgoing_refs": 0,
-              "parent_documents": [
+              "includesCount": 0,
+              "includedByCount": 1,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": [
                 {
                   "key": "source",
                   "title": "Source",
-                  "section_path": [
+                  "sectionPath": [
                     "Source"
                   ]
                 }
@@ -403,29 +403,29 @@ fn test_find_limit() {
             {
               "key": "doc1",
               "title": "Document 1",
-              "display_title": "Document 1",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             },
             {
               "key": "doc10",
               "title": "Document 10",
-              "display_title": "Document 10",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             },
             {
               "key": "doc2",
               "title": "Document 2",
-              "display_title": "Document 2",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -521,15 +521,15 @@ fn test_find_with_parent_documents() {
             {
               "key": "child",
               "title": "Child",
-              "display_title": "Child ↖Parent",
-              "is_root": false,
-              "incoming_refs": 1,
-              "outgoing_refs": 0,
-              "parent_documents": [
+              "includesCount": 0,
+              "includedByCount": 1,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": [
                 {
                   "key": "parent",
                   "title": "Parent",
-                  "section_path": [
+                  "sectionPath": [
                     "Parent"
                   ]
                 }
@@ -538,11 +538,11 @@ fn test_find_with_parent_documents() {
             {
               "key": "parent",
               "title": "Parent",
-              "display_title": "Parent",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 1,
-              "parent_documents": []
+              "includesCount": 1,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -580,15 +580,15 @@ fn test_find_is_root_flag() {
             {
               "key": "child",
               "title": "Child",
-              "display_title": "Child ↖Parent",
-              "is_root": false,
-              "incoming_refs": 1,
-              "outgoing_refs": 0,
-              "parent_documents": [
+              "includesCount": 0,
+              "includedByCount": 1,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": [
                 {
                   "key": "parent",
                   "title": "Parent",
-                  "section_path": [
+                  "sectionPath": [
                     "Parent"
                   ]
                 }
@@ -597,11 +597,11 @@ fn test_find_is_root_flag() {
             {
               "key": "parent",
               "title": "Parent",
-              "display_title": "Parent",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 1,
-              "parent_documents": []
+              "includesCount": 1,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -652,15 +652,15 @@ fn test_find_incoming_outgoing_refs() {
             {
               "key": "child1",
               "title": "Child One",
-              "display_title": "Child One ↖Hub",
-              "is_root": false,
-              "incoming_refs": 1,
-              "outgoing_refs": 0,
-              "parent_documents": [
+              "includesCount": 0,
+              "includedByCount": 1,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": [
                 {
                   "key": "hub",
                   "title": "Hub",
-                  "section_path": [
+                  "sectionPath": [
                     "Hub"
                   ]
                 }
@@ -669,15 +669,15 @@ fn test_find_incoming_outgoing_refs() {
             {
               "key": "child2",
               "title": "Child Two",
-              "display_title": "Child Two ↖Hub",
-              "is_root": false,
-              "incoming_refs": 1,
-              "outgoing_refs": 0,
-              "parent_documents": [
+              "includesCount": 0,
+              "includedByCount": 1,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": [
                 {
                   "key": "hub",
                   "title": "Hub",
-                  "section_path": [
+                  "sectionPath": [
                     "Hub"
                   ]
                 }
@@ -686,20 +686,20 @@ fn test_find_incoming_outgoing_refs() {
             {
               "key": "hub",
               "title": "Hub",
-              "display_title": "Hub",
-              "is_root": true,
-              "incoming_refs": 1,
-              "outgoing_refs": 2,
-              "parent_documents": []
+              "includesCount": 2,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 1,
+              "includedBy": []
             },
             {
               "key": "referrer",
               "title": "Referrer",
-              "display_title": "Referrer",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 1,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -791,11 +791,11 @@ fn test_find_no_query_null_in_output() {
             {
               "key": "test",
               "title": "Test",
-              "display_title": "Test",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 0,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }
@@ -846,11 +846,11 @@ fn test_find_refs_to_inline_link() {
             {
               "key": "doc1",
               "title": "Doc One",
-              "display_title": "Doc One",
-              "is_root": true,
-              "incoming_refs": 0,
-              "outgoing_refs": 0,
-              "parent_documents": []
+              "includesCount": 0,
+              "includedByCount": 0,
+              "referencesCount": 1,
+              "referencedByCount": 0,
+              "includedBy": []
             }
           ]
         }

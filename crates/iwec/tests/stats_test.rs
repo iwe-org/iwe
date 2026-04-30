@@ -14,8 +14,8 @@ async fn stats_aggregate() {
     let result = f.call_tool("iwe_stats", json!({})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["total_documents"], 2);
-    assert!(output["total_nodes"].as_u64().unwrap() > 0);
+    assert_eq!(output["totalDocuments"], 2);
+    assert!(output["totalNodes"].as_u64().unwrap() > 0);
 }
 
 #[tokio::test]
@@ -55,5 +55,5 @@ async fn stats_broken_links() {
     let result = f.call_tool("iwe_stats", json!({})).await;
     let output = Fixture::result_json(&result);
 
-    assert!(output["broken_link_count"].as_u64().unwrap() >= 1);
+    assert!(output["brokenLinkCount"].as_u64().unwrap() >= 1);
 }

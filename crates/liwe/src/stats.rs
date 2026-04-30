@@ -12,6 +12,7 @@ use crate::model::node::{Node, NodeIter, NodePointer};
 use crate::model::Key;
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BrokenLink {
     #[serde(serialize_with = "serialize_key")]
     pub source_key: Key,
@@ -61,6 +62,7 @@ fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct KeyStatistics {
     pub key: String,
     pub title: String,
@@ -68,12 +70,12 @@ pub struct KeyStatistics {
     pub paragraphs: usize,
     pub lines: usize,
     pub words: usize,
-    pub incoming_block_refs: usize,
-    pub incoming_inline_refs: usize,
-    pub total_incoming_refs: usize,
-    pub outgoing_block_refs: usize,
-    pub outgoing_inline_refs: usize,
-    pub total_connections: usize,
+    pub included_by_count: usize,
+    pub referenced_by_count: usize,
+    pub incoming_edges_count: usize,
+    pub includes_count: usize,
+    pub references_count: usize,
+    pub total_edges_count: usize,
     pub bullet_lists: usize,
     pub ordered_lists: usize,
     pub code_blocks: usize,
@@ -108,12 +110,12 @@ impl KeyStatistics {
         self.paragraphs += other.paragraphs;
         self.lines += other.lines;
         self.words += other.words;
-        self.incoming_block_refs += other.incoming_block_refs;
-        self.incoming_inline_refs += other.incoming_inline_refs;
-        self.total_incoming_refs += other.total_incoming_refs;
-        self.outgoing_block_refs += other.outgoing_block_refs;
-        self.outgoing_inline_refs += other.outgoing_inline_refs;
-        self.total_connections += other.total_connections;
+        self.included_by_count += other.included_by_count;
+        self.referenced_by_count += other.referenced_by_count;
+        self.incoming_edges_count += other.incoming_edges_count;
+        self.includes_count += other.includes_count;
+        self.references_count += other.references_count;
+        self.total_edges_count += other.total_edges_count;
         self.bullet_lists += other.bullet_lists;
         self.ordered_lists += other.ordered_lists;
         self.code_blocks += other.code_blocks;
@@ -132,7 +134,7 @@ impl KeyStatistics {
 
             if let Some(id) = iter.id() {
                 if let Some(line_id) = graph.graph_node(id).line_id() {
-                    stats.outgoing_inline_refs += graph.get_line(line_id).ref_keys().len();
+                    stats.references_count += graph.get_line(line_id).ref_keys().len();
                 }
             }
         }
@@ -172,14 +174,14 @@ impl KeyStatistics {
                     stats.words = content.split_whitespace().count();
                 }
 
-                stats.incoming_block_refs = graph.get_inclusion_edges_to(key).len();
-                stats.incoming_inline_refs = graph.get_reference_edges_to(key).len();
-                stats.total_incoming_refs = stats.incoming_block_refs + stats.incoming_inline_refs;
-                stats.outgoing_block_refs = graph.get_inclusion_edges_in(key).len();
-                stats.total_connections = stats.incoming_block_refs
-                    + stats.incoming_inline_refs
-                    + stats.outgoing_block_refs
-                    + stats.outgoing_inline_refs;
+                stats.included_by_count = graph.get_inclusion_edges_to(key).len();
+                stats.referenced_by_count = graph.get_reference_edges_to(key).len();
+                stats.incoming_edges_count = stats.included_by_count + stats.referenced_by_count;
+                stats.includes_count = graph.get_inclusion_edges_in(key).len();
+                stats.total_edges_count = stats.included_by_count
+                    + stats.referenced_by_count
+                    + stats.includes_count
+                    + stats.references_count;
 
                 stats
             })
@@ -191,6 +193,7 @@ impl KeyStatistics {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GraphStatistics {
     pub total_documents: usize,
     pub total_nodes: usize,
@@ -307,14 +310,14 @@ impl GraphStatistics {
             0.0
         };
 
-        let total_incoming_block: usize = key_stats.iter().map(|ks| ks.incoming_block_refs).sum();
-        let total_incoming_inline: usize = key_stats.iter().map(|ks| ks.incoming_inline_refs).sum();
+        let total_incoming_block: usize = key_stats.iter().map(|ks| ks.included_by_count).sum();
+        let total_incoming_inline: usize = key_stats.iter().map(|ks| ks.referenced_by_count).sum();
         let inclusion_edges = total_incoming_block;
         let reference_edges = total_incoming_inline;
 
         let orphaned_documents = key_stats
             .iter()
-            .filter(|ks| ks.total_incoming_refs == 0)
+            .filter(|ks| ks.incoming_edges_count == 0)
             .count();
         let orphaned_percentage = if total_documents > 0 {
             (orphaned_documents as f64 / total_documents as f64) * 100.0
@@ -324,7 +327,7 @@ impl GraphStatistics {
 
         let leaf_documents = key_stats
             .iter()
-            .filter(|ks| ks.outgoing_block_refs == 0)
+            .filter(|ks| ks.includes_count == 0)
             .count();
         let leaf_percentage = if total_documents > 0 {
             (leaf_documents as f64 / total_documents as f64) * 100.0
@@ -334,8 +337,8 @@ impl GraphStatistics {
 
         let top_referenced: Vec<KeyStatistics> = key_stats
             .iter()
-            .filter(|ks| ks.total_incoming_refs > 0)
-            .sorted_by(|a, b| b.total_incoming_refs.cmp(&a.total_incoming_refs))
+            .filter(|ks| ks.incoming_edges_count > 0)
+            .sorted_by(|a, b| b.incoming_edges_count.cmp(&a.incoming_edges_count))
             .take(10)
             .cloned()
             .collect();
@@ -377,8 +380,8 @@ impl GraphStatistics {
 
         let most_connected: Vec<KeyStatistics> = key_stats
             .iter()
-            .filter(|ks| ks.total_connections > 0)
-            .sorted_by(|a, b| b.total_connections.cmp(&a.total_connections))
+            .filter(|ks| ks.total_edges_count > 0)
+            .sorted_by(|a, b| b.total_edges_count.cmp(&a.total_edges_count))
             .take(10)
             .cloned()
             .collect();
