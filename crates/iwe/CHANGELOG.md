@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/iwe-org/iwe/compare/iwe-v0.0.70...iwe-v0.1.0) - 2026-05-01
+
+### Added
+
+- `iwe count` command — returns an integer count of matched documents, mirroring the `find` filter semantics
+- Universal `--filter "<YAML>"` flag for inline query expressions on `find`, `count`, `retrieve`, `tree`, `export`, `delete`, and `update`
+- Structural anchor flags — `-k/--key` (repeatable), `--includes`, `--included-by`, `--references`, `--referenced-by`, with `KEY[:DEPTH]` syntax
+- `--max-depth` and `--max-distance` defaults applied to anchor flags lacking an explicit colon-suffix
+- `--project f1,f2` and `-f json` on `find`, `tree`, and `retrieve` for projecting frontmatter fields into structured output
+- `iwe update` command with body-overwrite (`-k -c`) and frontmatter mutation (`--filter` + `--set`/`--unset`) modes, plus `--dry-run`
+
+### Changed
+
+- Help text refreshed across `count`, `delete`, `extract`, `find`, `inline`, `rename`, `retrieve`, `stats`, `tree`, and `update`
+
+### Removed
+
+- `--roots` flag — equivalent now expressed via the query language as `--filter '$includedByCount: 0'`
+
+### Deprecated
+
+- `--in`, `--in-any`, `--not-in`, `--refs-to`, `--refs-from` retained as hidden aliases for the new spec-named structural anchor flags
+
 ## [0.0.70](https://github.com/iwe-org/iwe/compare/iwe-v0.0.69...iwe-v0.0.70) - 2026-04-25
 
 ### Added

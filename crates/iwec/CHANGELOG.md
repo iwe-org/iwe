@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/iwe-org/iwe/compare/iwec-v0.0.70...iwec-v0.1.0) - 2026-05-01
+
+### Changed
+
+- `find`, `retrieve`, `stats`, and prompt assembly rewired onto the new query engine; tests updated for the new wire format
+
 ## [0.0.70](https://github.com/iwe-org/iwe/compare/iwec-v0.0.69...iwec-v0.0.70) - 2026-04-25
 
 ### Added

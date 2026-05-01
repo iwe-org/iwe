@@ -10,18 +10,21 @@ iwe tree [OPTIONS]
 
 ## Options
 
-| Option                  | Default    | Description                                                            |
-| ----------------------- | ---------- | ---------------------------------------------------------------------- |
-| `-f, --format <FORMAT>` | `markdown` | Output format: markdown, keys, json                                    |
-| `-k, --key <KEY>`       | -          | Start tree from specific document(s), can be repeated                  |
-| `-d, --depth <DEPTH>`   | `4`        | Maximum depth to traverse                                              |
-| `--in <KEY[:DEPTH]>`    | -          | Use sub-documents of EVERY listed key (AND) as tree roots. Repeatable. |
-| `--in-any <KEY...>`     | -          | Use sub-documents of ANY listed key (OR) as tree roots. Repeatable.    |
-| `--not-in <KEY...>`     | -          | Exclude sub-documents of any listed key (NOT). Repeatable.             |
-| `--max-depth <N>`       | -          | Default depth for `--in` family. Unbounded if omitted.                 |
-| `-v, --verbose <LEVEL>` | `0`        | Verbosity level (1=info, 2=debug)                                      |
+| Option                          | Default    | Description                                                                          |
+| ------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
+| `-f, --format <FORMAT>`         | `markdown` | Output format: `markdown`, `keys`, `json`, `yaml`.                                   |
+| `-d, --depth <DEPTH>`           | `4`        | Maximum depth to traverse.                                                           |
+| `--filter <EXPR>`               | -          | Inline YAML filter expression. See [Query Language](query-language.md).              |
+| `-k, --key <KEY>`               | -          | Start tree from specific document(s); repeatable.                                    |
+| `--includes <KEY[:DEPTH]>`      | -          | `$includes` anchor. Repeatable; anchors are ANDed.                                   |
+| `--included-by <KEY[:DEPTH]>`   | -          | `$includedBy` anchor. Repeatable; anchors are ANDed.                                 |
+| `--references <KEY[:DIST]>`     | -          | `$references` anchor. Repeatable; anchors are ANDed.                                 |
+| `--referenced-by <KEY[:DIST]>`  | -          | `$referencedBy` anchor. Repeatable; anchors are ANDed.                               |
+| `--max-depth <N>`               | `1`        | Session default for inclusion anchor flags without a colon-suffix. `0` = unbounded.  |
+| `--max-distance <N>`            | `1`        | Session default for reference anchor flags without a colon-suffix. `0` = unbounded.  |
+| `-v, --verbose <LEVEL>`         | `0`        | Verbosity level (1=info, 2=debug).                                                   |
 
-When `--in` / `--in-any` / `--not-in` is provided, the selector resolves to a set of keys and those keys are used as the tree roots. Combining `-k` with the selector intersects the two — empty intersection yields an empty tree.
+When filter or anchor flags are provided, the selector resolves to a set of keys and those keys are used as the tree roots. Combining `-k` with the selector intersects the two — empty intersection yields an empty tree.
 
 
 ## Output Formats
@@ -101,11 +104,18 @@ Output shows the cycle:
 iwe tree
 iwe tree -f keys
 iwe tree -f json
+iwe tree -f yaml
 iwe tree -k my-doc
 iwe tree -k doc-a -k doc-b
 iwe tree --depth 2
 iwe tree | grep -i api
 iwe tree -f keys | grep cli
+
+# Roots inside an anchor's subtree
+iwe tree --included-by projects/alpha:0
+
+# Tree restricted to drafts
+iwe tree --filter 'status: draft'
 ```
 
 ## Depth Impact
@@ -122,7 +132,19 @@ iwe tree -f keys | grep cli
 
 - Use `tree` to understand the overall structure of a knowledge base
 - Use `-f keys` for programmatic processing
-- Use `-f json` for structured data consumption
+- Use `-f json` or `-f yaml` for structured data consumption
 - Pipe through `grep` to filter results
 - Use `-k` to explore documents involved in circular references
 - Use `--depth 2` to quickly identify major topic areas
+
+## Deprecated aliases
+
+The following flags pre-date the query language and remain accepted for backward compatibility. Each invocation prints a one-line `warning: ... is deprecated` to stderr.
+
+| Deprecated         | Use instead                                                                 |
+| ------------------ | --------------------------------------------------------------------------- |
+| `--in KEY[:N]`     | `--included-by KEY[:N]`                                                     |
+| `--in-any K1 K2`   | `--filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'`                |
+| `--not-in KEY`     | `--filter '$not: { $includedBy: KEY }'`                                     |
+| `--refs-to KEY`    | `--references KEY` (legacy semantics: ORs `$includes` and `$references`)    |
+| `--refs-from KEY`  | `--referenced-by KEY` (legacy semantics: ORs `$includedBy` and `$referencedBy`) |

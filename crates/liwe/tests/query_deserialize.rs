@@ -1,8 +1,12 @@
 use indoc::indoc;
+use liwe::query::prelude::{
+    all, and, count, delete, eq, exists, filter, find, gt, gte, in_, included_by, includes,
+    key_eq, key_in, lt, lte, ne, nin, nor, not, or, referenced_by, references, size, type_of,
+    update, update_op,
+};
 use liwe::query::{
-    parse_operation, CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp,
-    InclusionAnchor, KeyOp, Limit, MaxDepth, NumExpr, Operation, OperationKind,
-    Projection, ReferenceAnchor, Sort, Update, UpdateOp, UpdateOperator, YamlType,
+    parse_operation, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, Limit,
+    Operation, OperationKind, Projection, ReferenceAnchor, Sort, Update, UpdateOperator, YamlType,
 };
 use serde_yaml::Value;
 
@@ -32,13 +36,10 @@ fn find_round_trips_filter_project_sort_limit() {
             limit: 5
         "},
         OperationKind::Find,
-        Operation::Find(
-            FindOp::new()
-                .filter(Filter::eq("status", "draft"))
-                .project(Projection::fields(&["title"]))
-                .sort(Sort::desc("modified"))
-                .limit(5),
-        ),
+        find(filter::<FindOp>(eq("status", "draft"))
+            .project(Projection::fields(&["title"]))
+            .sort(Sort::desc("modified"))
+            .limit(5)),
     );
 }
 
@@ -51,7 +52,7 @@ fn count_round_trips_filter_and_limit() {
             limit: 0
         "},
         OperationKind::Count,
-        Operation::Count(CountOp::new().filter(Filter::eq("status", "draft")).limit(0)),
+        count(filter::<CountOp>(eq("status", "draft")).limit(0)),
     );
 }
 
@@ -68,8 +69,8 @@ fn update_round_trips_set_and_unset() {
                 stale: ""
         "#},
         OperationKind::Update,
-        Operation::Update(UpdateOp::new(
-            Filter::eq("status", "draft"),
+        update(update_op(
+            eq("status", "draft"),
             Update::new(vec![
                 UpdateOperator::set("reviewed", true),
                 UpdateOperator::unset("stale"),
@@ -86,7 +87,7 @@ fn delete_round_trips_filter() {
               status: archived
         "},
         OperationKind::Delete,
-        Operation::Delete(DeleteOp::new(Filter::eq("status", "archived"))),
+        delete(filter(eq("status", "archived"))),
     );
 }
 
@@ -95,7 +96,7 @@ fn empty_yaml_parses_to_default_find() {
     assert_parse(
         "",
         OperationKind::Find,
-        Operation::Find(FindOp::new()),
+        find(FindOp::new()),
     );
 }
 
@@ -107,7 +108,7 @@ fn sort_positive_one_means_ascending() {
               modified: 1
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().sort(Sort::asc("modified"))),
+        find(FindOp::new().sort(Sort::asc("modified"))),
     );
 }
 
@@ -119,7 +120,7 @@ fn filter_eq_bare() {
               x: 5
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::eq("x", 5i64))),
+        find(filter(eq("x", 5i64))),
     );
 }
 
@@ -131,7 +132,7 @@ fn filter_eq_explicit_operator() {
               x: { $eq: 5 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::eq("x", 5i64))),
+        find(filter(eq("x", 5i64))),
     );
 }
 
@@ -143,7 +144,7 @@ fn filter_ne_round_trip() {
               status: { $ne: draft }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::ne("status", "draft"))),
+        find(filter(ne("status", "draft"))),
     );
 }
 
@@ -158,11 +159,11 @@ fn filter_comparison_operators_round_trip() {
               d: { $lte: 4 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::and(vec![
-            Filter::gt("a", 1i64),
-            Filter::gte("b", 2i64),
-            Filter::lt("c", 3i64),
-            Filter::lte("d", 4i64),
+        find(filter(and(vec![
+            gt("a", 1i64),
+            gte("b", 2i64),
+            lt("c", 3i64),
+            lte("d", 4i64),
         ]))),
     );
 }
@@ -175,13 +176,7 @@ fn filter_in_round_trip() {
               tags: { $in: [rust, go] }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Field {
-            path: FieldPath::from_dotted("tags"),
-            op: FieldOp::In(vec![
-                Value::String("rust".into()),
-                Value::String("go".into()),
-            ]),
-        })),
+        find(filter(in_("tags", ["rust", "go"]))),
     );
 }
 
@@ -193,10 +188,7 @@ fn filter_nin_round_trip() {
               tags: { $nin: [rust] }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Field {
-            path: FieldPath::from_dotted("tags"),
-            op: FieldOp::Nin(vec![Value::String("rust".into())]),
-        })),
+        find(filter(nin("tags", ["rust"]))),
     );
 }
 
@@ -208,7 +200,7 @@ fn filter_exists_true() {
               x: { $exists: true }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::exists("x", true))),
+        find(filter(exists("x", true))),
     );
 }
 
@@ -220,7 +212,7 @@ fn filter_exists_false() {
               x: { $exists: false }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::exists("x", false))),
+        find(filter(exists("x", false))),
     );
 }
 
@@ -232,10 +224,7 @@ fn filter_type_single() {
               x: { $type: string }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Field {
-            path: FieldPath::from_dotted("x"),
-            op: FieldOp::Type(vec![YamlType::String]),
-        })),
+        find(filter(type_of("x", [YamlType::String]))),
     );
 }
 
@@ -247,10 +236,7 @@ fn filter_type_multiple() {
               x: { $type: [string, number] }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Field {
-            path: FieldPath::from_dotted("x"),
-            op: FieldOp::Type(vec![YamlType::String, YamlType::Number]),
-        })),
+        find(filter(type_of("x", [YamlType::String, YamlType::Number]))),
     );
 }
 
@@ -262,13 +248,7 @@ fn filter_all_round_trip() {
               tags: { $all: [rust, async] }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Field {
-            path: FieldPath::from_dotted("tags"),
-            op: FieldOp::All(vec![
-                Value::String("rust".into()),
-                Value::String("async".into()),
-            ]),
-        })),
+        find(filter(all("tags", ["rust", "async"]))),
     );
 }
 
@@ -280,10 +260,7 @@ fn filter_size_round_trip() {
               tags: { $size: 3 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Field {
-            path: FieldPath::from_dotted("tags"),
-            op: FieldOp::Size(3),
-        })),
+        find(filter(size("tags", 3))),
     );
 }
 
@@ -295,7 +272,7 @@ fn filter_field_level_not() {
               x: { $not: { $eq: 1 } }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Field {
+        find(filter(Filter::Field {
             path: FieldPath::from_dotted("x"),
             op: FieldOp::Not(Box::new(FieldOp::Eq(Value::Number(1.into())))),
         })),
@@ -312,9 +289,9 @@ fn filter_and() {
                 - { y: 2 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::and(vec![
-            Filter::eq("x", 1i64),
-            Filter::eq("y", 2i64),
+        find(filter(and(vec![
+            eq("x", 1i64),
+            eq("y", 2i64),
         ]))),
     );
 }
@@ -329,9 +306,9 @@ fn filter_or() {
                 - { y: 2 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::or(vec![
-            Filter::eq("x", 1i64),
-            Filter::eq("y", 2i64),
+        find(filter(or(vec![
+            eq("x", 1i64),
+            eq("y", 2i64),
         ]))),
     );
 }
@@ -345,10 +322,85 @@ fn filter_top_level_not() {
                 x: 1
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Not(Box::new(Filter::eq(
-            "x",
-            1i64,
-        ))))),
+        find(filter(not(eq("x", 1i64)))),
+    );
+}
+
+#[test]
+fn filter_nor() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $nor:
+                - { status: archived }
+                - { status: deleted }
+        "},
+        OperationKind::Find,
+        find(filter(nor(vec![
+            eq("status", "archived"),
+            eq("status", "deleted"),
+        ]))),
+    );
+}
+
+#[test]
+fn filter_nor_empty_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $nor: []
+        "},
+        OperationKind::Find,
+        "EmptyOperatorList",
+    );
+}
+
+#[test]
+fn filter_nested_not_top_level_parses() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $not:
+                $not:
+                  x: 1
+        "},
+        OperationKind::Find,
+        find(filter(not(not(eq("x", 1i64))))),
+    );
+}
+
+#[test]
+fn filter_per_field_nested_not_parses() {
+    assert_parse(
+        indoc! {"
+            filter:
+              priority: { $not: { $not: { $gt: 5 } } }
+        "},
+        OperationKind::Find,
+        find(filter(Filter::Field {
+            path: FieldPath::from_dotted("priority"),
+            op: FieldOp::Not(Box::new(FieldOp::Not(Box::new(FieldOp::Gt(
+                Value::from(5i64),
+            ))))),
+        })),
+    );
+}
+
+#[test]
+fn filter_per_field_not_wraps_multi_operator_range() {
+    assert_parse(
+        indoc! {"
+            filter:
+              priority: { $not: { $gt: 5, $lt: 10 } }
+        "},
+        OperationKind::Find,
+        find(filter(Filter::Field {
+            path: FieldPath::from_dotted("priority"),
+            op: FieldOp::Not(Box::new(FieldOp::And(vec![
+                FieldOp::Gt(Value::from(5i64)),
+                FieldOp::Lt(Value::from(10i64)),
+            ]))),
+        })),
     );
 }
 
@@ -359,7 +411,7 @@ fn filter_dotted_and_nested_paths_produce_same_path() {
     assert_eq!(dotted, nested);
     assert_eq!(
         dotted,
-        Operation::Find(FindOp::new().filter(Filter::eq("a.b", 1i64))),
+        find(filter(eq("a.b", 1i64))),
     );
 }
 
@@ -371,7 +423,7 @@ fn filter_array_literal_decodes_as_eq_with_sequence() {
               tags: [rust, async]
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::eq(
+        find(filter(eq(
             "tags",
             Value::Sequence(vec![
                 Value::String("rust".into()),
@@ -391,7 +443,7 @@ fn update_set_dotted_path_round_trip() {
                 "a.b.c": 1
         "#},
         OperationKind::Update,
-        Operation::Update(UpdateOp::new(
+        update(update_op(
             Filter::all(),
             Update::new(vec![UpdateOperator::set("a.b.c", 1i64)]),
         )),
@@ -548,9 +600,7 @@ fn delete_zero_limit_unbounded() {
             limit: 0
         "},
         OperationKind::Delete,
-        Operation::Delete(
-            DeleteOp::new(Filter::eq("status", "archived")).limit(0),
-        ),
+        delete(filter::<DeleteOp>(eq("status", "archived")).limit(0)),
     );
     assert!(Limit(0).is_unbounded());
 }
@@ -563,7 +613,7 @@ fn key_scalar_parses_to_eq() {
               $key: notes/foo
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::key(KeyOp::eq("notes/foo")))),
+        find(filter(key_eq("notes/foo"))),
     );
 }
 
@@ -575,7 +625,7 @@ fn key_explicit_eq() {
               $key: { $eq: notes/foo }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::key(KeyOp::eq("notes/foo")))),
+        find(filter(key_eq("notes/foo"))),
     );
 }
 
@@ -587,7 +637,7 @@ fn key_in_list() {
               $key: { $in: [a, b, c] }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::key(KeyOp::in_(&["a", "b", "c"])))),
+        find(filter(key_in(&["a", "b", "c"]))),
     );
 }
 
@@ -616,135 +666,26 @@ fn key_in_with_non_string_rejected() {
 }
 
 #[test]
-fn includes_count_bare_int() {
-    assert_parse(
+fn includes_count_operator_rejected() {
+    assert_parse_error(
         indoc! {"
             filter:
               $includesCount: 0
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
-            CountArg::direct(NumExpr::eq(0)),
-        ))),
+        "UnknownOperator",
     );
 }
 
 #[test]
-fn includes_count_bare_expr() {
-    assert_parse(
-        indoc! {"
-            filter:
-              $includesCount: { $gte: 3 }
-        "},
-        OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
-            CountArg::direct(NumExpr::gte(3)),
-        ))),
-    );
-}
-
-#[test]
-fn includes_count_full_form_with_unbounded() {
-    assert_parse(
-        indoc! {"
-            filter:
-              $includesCount:
-                count: { $gte: 10 }
-        "},
-        OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
-            CountArg {
-                count: NumExpr::gte(10),
-                min_depth: 1,
-                max_depth: MaxDepth::Any,
-            },
-        ))),
-    );
-}
-
-#[test]
-fn includes_count_range() {
-    assert_parse(
-        indoc! {"
-            filter:
-              $includesCount:
-                count: { $gte: 1 }
-                minDepth: 2
-                maxDepth: 4
-        "},
-        OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::IncludesCount(
-            CountArg {
-                count: NumExpr::gte(1),
-                min_depth: 2,
-                max_depth: MaxDepth::Bounded(4),
-            },
-        ))),
-    );
-}
-
-#[test]
-fn included_by_count_zero() {
-    assert_parse(
+fn included_by_count_operator_rejected() {
+    assert_parse_error(
         indoc! {"
             filter:
               $includedByCount: 0
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::IncludedByCount(
-            CountArg::direct(NumExpr::eq(0)),
-        ))),
-    );
-}
-
-#[test]
-fn count_missing_count_field_rejected() {
-    assert_parse_error(
-        indoc! {"
-            filter:
-              $includesCount: { maxDepth: 3 }
-        "},
-        OperationKind::Find,
-        "MissingCountField",
-    );
-}
-
-#[test]
-fn count_zero_max_depth_rejected() {
-    assert_parse_error(
-        indoc! {"
-            filter:
-              $includesCount: { count: 1, maxDepth: 0 }
-        "},
-        OperationKind::Find,
-        "InvalidDepthValue",
-    );
-}
-
-#[test]
-fn count_inverted_range_rejected() {
-    assert_parse_error(
-        indoc! {"
-            filter:
-              $includesCount:
-                count: 1
-                minDepth: 5
-                maxDepth: 2
-        "},
-        OperationKind::Find,
-        "DepthRangeInverted",
-    );
-}
-
-#[test]
-fn count_distance_modifier_rejected() {
-    assert_parse_error(
-        indoc! {"
-            filter:
-              $includesCount: { count: 1, maxDistance: 1 }
-        "},
-        OperationKind::Find,
-        "WrongBoundFamily",
+        "UnknownOperator",
     );
 }
 
@@ -756,9 +697,7 @@ fn includes_scalar_shorthand() {
               $includes: roadmap/q2
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Includes(vec![
-            InclusionAnchor::new("roadmap/q2", 1, 1),
-        ]))),
+        find(filter(includes(InclusionAnchor::new("roadmap/q2", 1, 1)))),
     );
 }
 
@@ -770,9 +709,7 @@ fn includes_single_anchor() {
               $includes: { match: { $key: roadmap/q2 }, maxDepth: 2 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Includes(vec![
-            InclusionAnchor::with_max("roadmap/q2", 2),
-        ]))),
+        find(filter(includes(InclusionAnchor::with_max("roadmap/q2", 2)))),
     );
 }
 
@@ -787,9 +724,7 @@ fn included_by_range() {
                 maxDepth: 5
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::new("projects/alpha", 2, 5),
-        ]))),
+        find(filter(included_by(InclusionAnchor::new("projects/alpha", 2, 5)))),
     );
 }
 
@@ -815,9 +750,7 @@ fn anchor_full_form_omitted_bounds_unbounded() {
               $includes: { match: { $key: K } }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::Includes(vec![
-            InclusionAnchor::new("K", 1, u32::MAX),
-        ]))),
+        find(filter(includes(InclusionAnchor::new("K", 1, u32::MAX)))),
     );
 }
 
@@ -834,14 +767,18 @@ fn anchor_wrong_bound_family_rejected() {
 }
 
 #[test]
-fn walk_key_op_expression_rejected() {
-    assert_parse_error(
+fn walk_key_in_expression_anchors_set() {
+    assert_parse(
         indoc! {"
             filter:
               $includes: { match: { $key: { $in: [a, b] } }, maxDepth: 1 }
         "},
         OperationKind::Find,
-        "MatchKeyExpressionRequired",
+        find(filter(includes(InclusionAnchor::with_match(
+            key_in(&["a", "b"]),
+            1,
+            1,
+        )))),
     );
 }
 
@@ -870,14 +807,78 @@ fn empty_anchor_mapping_rejected() {
 }
 
 #[test]
-fn match_predicate_form_deferred() {
-    assert_parse_error(
+fn match_predicate_form_anchors_by_frontmatter() {
+    assert_parse(
         indoc! {"
             filter:
               $includes: { match: { status: draft }, maxDepth: 2 }
         "},
         OperationKind::Find,
-        "MatchFormUnsupportedV1",
+        find(filter(includes(InclusionAnchor::with_match(
+            eq("status", "draft"),
+            1,
+            2,
+        )))),
+    );
+}
+
+#[test]
+fn match_compound_predicate_anchors_with_full_filter() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includedBy:
+                match:
+                  type: project
+                  status: active
+                maxDepth: 5
+        "},
+        OperationKind::Find,
+        find(filter(included_by(InclusionAnchor::with_match(
+            and(vec![eq("type", "project"), eq("status", "active")]),
+            1,
+            5,
+        )))),
+    );
+}
+
+#[test]
+fn match_or_expression_anchors_with_filter() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includes:
+                match:
+                  $or:
+                    - status: draft
+                    - tag: important
+                maxDepth: 2
+        "},
+        OperationKind::Find,
+        find(filter(includes(InclusionAnchor::with_match(
+            or(vec![eq("status", "draft"), eq("tag", "important")]),
+            1,
+            2,
+        )))),
+    );
+}
+
+#[test]
+fn match_nested_relational_anchor() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includedBy:
+                match:
+                  $includedBy: { match: { $key: projects/alpha }, maxDepth: 5 }
+                maxDepth: 5
+        "},
+        OperationKind::Find,
+        find(filter(included_by(InclusionAnchor::with_match(
+            included_by(InclusionAnchor::with_max("projects/alpha", 5)),
+            1,
+            5,
+        )))),
     );
 }
 
@@ -889,9 +890,7 @@ fn references_scalar_shorthand() {
               $references: people/alice
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::References(vec![
-            ReferenceAnchor::new("people/alice", 1, 1),
-        ]))),
+        find(filter(references(ReferenceAnchor::new("people/alice", 1, 1)))),
     );
 }
 
@@ -903,9 +902,7 @@ fn references_with_distance() {
               $references: { match: { $key: people/dmytro }, maxDistance: 1 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::References(vec![
-            ReferenceAnchor::with_max("people/dmytro", 1),
-        ]))),
+        find(filter(references(ReferenceAnchor::with_max("people/dmytro", 1)))),
     );
 }
 
@@ -920,9 +917,7 @@ fn referenced_by_range() {
                 maxDistance: 3
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::ReferencedBy(vec![
-            ReferenceAnchor::new("archive/index", 1, 3),
-        ]))),
+        find(filter(referenced_by(ReferenceAnchor::new("archive/index", 1, 3)))),
     );
 }
 

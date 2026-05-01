@@ -1,40 +1,45 @@
 # IWE Delete
 
-Delete a document and clean up all references to it across the knowledge base.
+Delete one or many documents and clean up references to them across the knowledge base.
 
 ## Usage
 
 ``` bash
 iwe delete <KEY> [OPTIONS]
+iwe delete --filter "EXPR" [OPTIONS]
+iwe delete <KEY> --filter "EXPR" [OPTIONS]
 ```
+
+Either a positional `KEY` or `--filter` is required. When both are given, the union is deleted.
 
 ## Arguments
 
-| Argument | Description            |
-| -------- | ---------------------- |
-| `<KEY>`  | Document key to delete |
-
+| Argument | Description                                          |
+| -------- | ---------------------------------------------------- |
+| `<KEY>`  | Document key to delete (sugar for `--filter '$key: K'`). |
 
 ## Options
 
-| Flag        | Description                                 |
-| ----------- | ------------------------------------------- |
-| `--dry-run` | Preview changes without writing to disk     |
-| `--quiet`   | Suppress progress output                    |
-| `--keys`    | Print affected document keys (one per line) |
-| `--force`   | Skip confirmation prompt                    |
+| Flag                 | Description                                                                                  | Default    |
+| -------------------- | -------------------------------------------------------------------------------------------- | ---------- |
+| `--filter <EXPR>`    | Inline YAML filter expression. See [Query Language](query-language.md).                      | none       |
+| `--dry-run`          | Preview changes without writing to disk.                                                     | false      |
+| `--quiet`            | Suppress progress output.                                                                    | false      |
+| `-f, --format <FMT>` | Output format: `markdown` or `keys`. `keys` prints affected keys (one per line).             | `markdown` |
 
+`delete` does not prompt before writing. Use `--dry-run` to preview the matched set before applying.
 
-## How It Works
+## How it works
 
-The `delete` command performs a safe document deletion with full reference cleanup:
+1. **Resolve the target set** — positional `KEY` and `--filter` matches are unioned, deduplicated, and sorted.
+2. **Delete the document files** — every target is removed from the filesystem.
+3. **Remove inclusion links** — [Inclusion Links](inclusion-links.md) pointing at any deleted document are dropped.
+4. **Convert inline references** — inline links to deleted documents become plain text (link text is preserved).
+5. **Maintain integrity** — the operation runs once across the whole matched set; no broken references remain after.
 
-1.  **Deletes the document file** - Removes the document from the filesystem
-2.  **Removes [Inclusion Links](inclusion-links.md)** - Inclusion links pointing to the deleted document are removed
-3.  **Converts inline links** - Inline references are converted to plain text (preserving readability)
-4.  **Maintains integrity** - Ensures no broken references remain
+The reference cleanup step runs once over the union of targets, not per document. Documents that reference each other are handled correctly even when both are in the matched set.
 
-## Reference Cleanup
+## Reference cleanup
 
 ### Inclusion Links
 
@@ -74,22 +79,21 @@ After deleting `deleted-topic`:
 For more details, see Deleted Topic and [Other](other).
 ```
 
-## Output Modes
+## Output modes
 
-### Default Output
+### Default (`-f markdown`)
 
-Shows confirmation prompt and progress:
+Shows progress as documents are deleted:
 
 ``` bash
 $ iwe delete my-document
-Delete 'my-document' and update 2 reference(s)? [y/N] y
 Deleting 'my-document'
 Updated 2 document(s)
 ```
 
-### Dry Run (`--dry-run`)
+### Dry run (`--dry-run`)
 
-Preview what would happen without making changes:
+Preview without writing:
 
 ``` bash
 $ iwe delete my-document --dry-run
@@ -99,59 +103,52 @@ Would update 2 document(s)
   overview
 ```
 
-### Keys Output (`--keys`)
+### Keys (`-f keys`)
 
-Print affected document keys for scripting:
+Print affected document keys (the deleted target plus every doc whose references were rewritten):
 
 ``` bash
-$ iwe delete my-document --keys
+$ iwe delete my-document -f keys
 my-document
 index
 overview
 ```
 
-### Force Mode (`--force`)
+Suitable for scripting. `--dry-run` combines with `-f keys` to preview affected keys.
 
-Skip the confirmation prompt:
+### Quiet (`--quiet`)
 
-``` bash
-$ iwe delete my-document --force
-Deleting 'my-document'
-Updated 2 document(s)
-```
-
-### Quiet Mode (`--quiet`)
-
-Suppress all output except errors:
+Suppress all non-error output:
 
 ``` bash
-$ iwe delete my-document --quiet --force
+$ iwe delete my-document --quiet
 ```
 
 ## Examples
 
 ``` bash
-# Delete with confirmation
+# Single doc
 iwe delete old-notes
 
-# Preview changes first
+# Preview first
 iwe delete obsolete-doc --dry-run
 
-# Force delete without confirmation
-iwe delete temp-note --force
+# Bulk delete by filter
+iwe delete --filter 'status: archived'
 
-# Get affected keys for processing
-iwe delete my-doc --keys --dry-run
+# Bulk delete with preview
+iwe delete --filter 'status: archived' --dry-run
 
-# Silent delete (for scripts)
-iwe delete doc --quiet --force
+# Delete every descendant of a hub (unbounded)
+iwe delete --filter '$includedBy: { match: { $key: archive/2024 } }'
+
+# Affected keys for downstream processing
+iwe delete my-doc -f keys --dry-run
 ```
 
-## Use Cases
+## Use cases
 
-### Cleaning Up Obsolete Documents
-
-Remove outdated documents while preserving references:
+### Cleaning up obsolete documents
 
 ``` bash
 # Check what would be affected
@@ -161,39 +158,55 @@ iwe delete old-feature --dry-run
 iwe delete old-feature
 ```
 
-### Batch Deletion
+### Bulk archival cleanup
 
-Delete multiple documents based on a pattern:
+Use a filter to match many documents at once:
 
 ``` bash
-# Find and delete all temp documents
+# Archive everything under a hub, then verify
+iwe delete --filter 'status: archived' --dry-run -f keys > affected.txt
+iwe delete --filter 'status: archived' --quiet
+```
+
+### Pipeline integration
+
+Pair with [`iwe find`](cli-find.md) for ad-hoc selections:
+
+``` bash
 iwe find temp -f keys | while read key; do
-  iwe delete "$key" --force --quiet
+  iwe delete "$key" --quiet
 done
 ```
 
-### Safe Cleanup
-
-Preview all changes before committing:
+For a single-pass equivalent, prefer `--filter`:
 
 ``` bash
-# See full impact
-iwe delete important-doc --dry-run
-
-# Check affected documents
-iwe delete important-doc --keys --dry-run
+iwe delete --filter '$key: { $in: [a, b, c] }'
 ```
 
-## Error Handling
+## Deprecated aliases
 
-The command fails with an error if:
+| Deprecated | Use instead                  |
+| ---------- | ---------------------------- |
+| `--keys`   | `-f keys` (equivalent; `--keys` is still accepted silently) |
 
-- The document does not exist
-- There are filesystem permission issues
+## Error handling
 
-## Technical Notes
+The command fails (exit code 1) when:
 
-- Inclusion links are completely removed from documents
-- Inline references are converted to plain text (the link text is preserved)
-- The operation is atomic - either all changes succeed or none are applied
-- Use `--dry-run` to preview changes before committing
+- Neither a positional `KEY` nor `--filter` is provided.
+- The `--filter` expression cannot be parsed.
+- A target document does not exist.
+- Filesystem permissions prevent writing.
+
+## Technical notes
+
+- The operation is atomic over the full matched set — either every change succeeds or none are applied.
+- Inclusion links to deleted documents are removed entirely; inline references are converted to plain text (link text preserved).
+- `--dry-run` prints the would-be changes and exits without touching disk.
+
+## Related
+
+- [Query Language](query-language.md) — filter syntax.
+- [`iwe find`](cli-find.md) — preview which documents a filter selects.
+- [`iwe count`](cli-count.md) — count the matched set before deleting.

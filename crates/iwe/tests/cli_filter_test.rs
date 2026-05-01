@@ -104,13 +104,6 @@ fn count_filter_status_draft() {
     assert_eq!(stdout.trim(), "2");
 }
 
-#[test]
-fn count_included_by_count_zero_matches_roots() {
-    let dir = setup();
-    let (stdout, _, ok) = run(dir.path(), "count", &["--included-by-count", "0"]);
-    assert!(ok);
-    assert_eq!(stdout.trim(), "3");
-}
 
 #[test]
 fn find_filter_status_draft_returns_two_keys() {
@@ -150,27 +143,6 @@ fn find_in_alias_warns_and_works() {
         "expected deprecation warning, got: {}",
         stderr
     );
-}
-
-#[test]
-fn find_roots_alias_warns_and_matches_count_form() {
-    let dir = setup();
-    let (out_old, stderr_old, ok_old) = run(dir.path(), "find", &["--roots", "-f", "keys"]);
-    assert!(ok_old);
-    assert!(stderr_old.contains("--roots is deprecated"));
-
-    let (out_new, _, ok_new) = run(
-        dir.path(),
-        "find",
-        &["--included-by-count", "0", "-f", "keys"],
-    );
-    assert!(ok_new);
-
-    let mut a: Vec<&str> = out_old.lines().collect();
-    let mut b: Vec<&str> = out_new.lines().collect();
-    a.sort();
-    b.sort();
-    assert_eq!(a, b);
 }
 
 #[test]
@@ -221,7 +193,7 @@ fn delete_filter_matches_multi_doc() {
     let (_, _, ok) = run(
         dir.path(),
         "delete",
-        &["--filter", "status: draft", "--force", "--quiet"],
+        &["--filter", "status: draft", "--quiet"],
     );
     assert!(ok);
     assert!(!dir.path().join("a.md").exists());
@@ -305,19 +277,121 @@ fn find_max_distance_widens_references_anchor() {
 }
 
 #[test]
-fn find_max_depth_widens_included_by_count() {
+fn update_set_reserved_top_level_rejected() {
     let dir = setup();
-    let (out_default, _, ok1) = run(
+    let (_, stderr, ok) = run(
         dir.path(),
-        "find",
-        &["--included-by-count", "0", "-f", "keys"],
+        "update",
+        &["-k", "a", "--set", "_hidden=1"],
     );
-    assert!(ok1);
-    let (out_widened, _, ok2) = run(
-        dir.path(),
-        "find",
-        &["--max-depth", "5", "--included-by-count", "0", "-f", "keys"],
+    assert!(!ok);
+    assert!(
+        stderr.contains("ReservedPrefix"),
+        "expected reserved-prefix error, got: {}",
+        stderr
     );
-    assert!(ok2);
-    let _ = (out_default, out_widened);
+    let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
+    assert!(!body.contains("_hidden"));
 }
+
+#[test]
+fn update_set_reserved_dotted_segment_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "author._hidden=1"],
+    );
+    assert!(!ok);
+    assert!(
+        stderr.contains("ReservedPrefix"),
+        "expected reserved-prefix error, got: {}",
+        stderr
+    );
+    let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
+    assert!(!body.contains("_hidden"));
+    assert!(!body.contains("author:"));
+}
+
+#[test]
+fn update_set_reserved_in_nested_value_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "author={_hidden: 1}"],
+    );
+    assert!(!ok);
+    assert!(
+        stderr.contains("ReservedPrefix"),
+        "expected reserved-prefix error, got: {}",
+        stderr
+    );
+    let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
+    assert!(!body.contains("_hidden"));
+}
+
+#[test]
+fn update_set_whitespace_segment_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", " foo=1"],
+    );
+    assert!(!ok);
+    assert!(
+        stderr.contains("InvalidPathSegment"),
+        "expected invalid-path-segment error, got: {}",
+        stderr
+    );
+}
+
+#[test]
+fn update_set_control_char_segment_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "foo\tbar=1"],
+    );
+    assert!(!ok);
+    assert!(
+        stderr.contains("InvalidPathSegment"),
+        "expected invalid-path-segment error, got: {}",
+        stderr
+    );
+}
+
+#[test]
+fn update_set_prefix_overlap_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "x=1", "--set", "x.y=2"],
+    );
+    assert!(!ok);
+    assert!(
+        stderr.contains("SetUnsetConflict"),
+        "expected set/unset conflict error, got: {}",
+        stderr
+    );
+}
+
+#[test]
+fn update_set_unset_overlap_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "x=1", "--unset", "x.y"],
+    );
+    assert!(!ok);
+    assert!(
+        stderr.contains("SetUnsetConflict"),
+        "expected set/unset conflict error, got: {}",
+        stderr
+    );
+}
+

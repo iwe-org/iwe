@@ -1,72 +1,50 @@
 use liwe::graph::Graph;
 use liwe::model::Key;
-use liwe::query::{
-    execute, CountOp, FindMatch, Filter, FindOp, InclusionAnchor, KeyOp, Operation, Outcome,
-    ReferenceAnchor,
-};
+use liwe::query::execute;
+use liwe::query::prelude::{count, filter, find, includes, key_eq, or, references};
+use liwe::query::{FindMatch, FindOp, Filter, InclusionAnchor, Outcome, ReferenceAnchor};
 
 pub fn all_keys(graph: &Graph) -> Vec<FindMatch> {
-    match execute(&Operation::Find(FindOp::new()), graph) {
+    match execute(&find(FindOp::new()), graph) {
         Outcome::Find { matches } => matches,
         _ => unreachable!("Find returns Find"),
     }
 }
 
 pub fn key_exists(graph: &Graph, key: &Key) -> bool {
-    let op = CountOp::new().filter(Filter::key(KeyOp::Eq(key.clone())));
-    match execute(&Operation::Count(op), graph) {
+    match execute(&count(filter(key_eq(key.to_string()))), graph) {
         Outcome::Count(n) => n > 0,
         _ => unreachable!("Count returns Count"),
     }
 }
 
 pub fn inclusion_backlinks(graph: &Graph, key: &Key) -> Vec<Key> {
-    keys_of(execute(
-        &Operation::Find(FindOp::new().filter(includes_direct(key))),
-        graph,
-    ))
+    keys_of(execute(&find(filter(includes_direct(key))), graph))
 }
 
 pub fn reference_backlinks(graph: &Graph, key: &Key) -> Vec<Key> {
-    keys_of(execute(
-        &Operation::Find(FindOp::new().filter(references_direct(key))),
-        graph,
-    ))
+    keys_of(execute(&find(filter(references_direct(key))), graph))
 }
 
 pub fn all_backlinks(graph: &Graph, key: &Key) -> Vec<Key> {
-    let filter = Filter::Or(vec![includes_direct(key), references_direct(key)]);
-    keys_of(execute(&Operation::Find(FindOp::new().filter(filter)), graph))
+    let f = or(vec![includes_direct(key), references_direct(key)]);
+    keys_of(execute(&find(filter(f)), graph))
 }
 
 pub fn inclusion_count(graph: &Graph, key: &Key) -> usize {
-    count_of(execute(
-        &Operation::Count(CountOp::new().filter(includes_direct(key))),
-        graph,
-    ))
+    count_of(execute(&count(filter(includes_direct(key))), graph))
 }
 
 pub fn reference_count(graph: &Graph, key: &Key) -> usize {
-    count_of(execute(
-        &Operation::Count(CountOp::new().filter(references_direct(key))),
-        graph,
-    ))
+    count_of(execute(&count(filter(references_direct(key))), graph))
 }
 
 fn includes_direct(key: &Key) -> Filter {
-    Filter::Includes(vec![InclusionAnchor {
-        key: key.clone(),
-        min_depth: 1,
-        max_depth: 1,
-    }])
+    includes(InclusionAnchor::new(key.to_string(), 1, 1))
 }
 
 fn references_direct(key: &Key) -> Filter {
-    Filter::References(vec![ReferenceAnchor {
-        key: key.clone(),
-        min_distance: 1,
-        max_distance: 1,
-    }])
+    references(ReferenceAnchor::new(key.to_string(), 1, 1))
 }
 
 fn keys_of(outcome: Outcome) -> Vec<Key> {

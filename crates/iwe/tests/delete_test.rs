@@ -22,7 +22,7 @@ fn test_delete_basic() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_delete_command(temp_path, &["b", "--force"]);
+    let output = run_delete_command(temp_path, &["b"]);
     assert!(output.status.success(), "Delete command should succeed");
 
     assert!(!temp_path.join("b.md").exists(), "File should be deleted");
@@ -45,7 +45,7 @@ fn test_delete_removes_multiple_inclusion_edges() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_delete_command(temp_path, &["b", "--force"]);
+    let output = run_delete_command(temp_path, &["b"]);
     assert!(output.status.success());
 
     let a_content = read_to_string(temp_path.join("a.md")).unwrap();
@@ -64,7 +64,7 @@ fn test_delete_updates_reference_edges() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_delete_command(temp_path, &["b", "--force"]);
+    let output = run_delete_command(temp_path, &["b"]);
     assert!(output.status.success());
 
     let a_content = read_to_string(temp_path.join("a.md")).unwrap();
@@ -95,7 +95,7 @@ fn test_delete_updates_multiple_files() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_delete_command(temp_path, &["target", "--force"]);
+    let output = run_delete_command(temp_path, &["target"]);
     assert!(output.status.success());
 
     let a_content = read_to_string(temp_path.join("a.md")).unwrap();
@@ -112,7 +112,7 @@ fn test_delete_nonexistent_key() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_delete_command(temp_path, &["nonexistent", "--force"]);
+    let output = run_delete_command(temp_path, &["nonexistent"]);
     assert!(!output.status.success(), "Should fail for nonexistent key");
 
     let stderr = String::from_utf8(output.stderr).unwrap();
@@ -170,7 +170,7 @@ fn test_delete_quiet_mode() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_delete_command(temp_path, &["b", "--quiet", "--force"]);
+    let output = run_delete_command(temp_path, &["b", "--quiet"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -197,7 +197,7 @@ fn test_delete_preserves_other_content() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_delete_command(temp_path, &["b", "--force"]);
+    let output = run_delete_command(temp_path, &["b"]);
     assert!(output.status.success());
 
     let a_content = read_to_string(temp_path.join("a.md")).unwrap();

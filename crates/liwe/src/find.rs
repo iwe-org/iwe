@@ -5,9 +5,7 @@ use serde_yaml::Mapping;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
-use crate::query::{
-    self, CountArg, Filter, InclusionAnchor, NumExpr, Projection, ReferenceAnchor, Sort,
-};
+use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
 use crate::query::frontmatter::strip_reserved;
 use crate::query::project::shape;
 use crate::query::sort::sort_in_place;
@@ -46,7 +44,6 @@ pub struct FindOutput {
 #[derive(Debug, Clone, Default)]
 pub struct FindOptions {
     pub query: Option<String>,
-    pub roots: bool,
     pub refs_to: Option<Key>,
     pub refs_from: Option<Key>,
     pub filter: Option<Filter>,
@@ -258,19 +255,16 @@ impl<'a> DocumentFinder<'a> {
 
 fn build_filter(options: &FindOptions) -> Option<Filter> {
     let mut conjuncts: Vec<Filter> = options.filter.clone().into_iter().collect();
-    if options.roots {
-        conjuncts.push(Filter::IncludedByCount(CountArg::direct(NumExpr::eq(0))));
-    }
     if let Some(target) = &options.refs_to {
         conjuncts.push(Filter::Or(vec![
-            Filter::Includes(vec![InclusionAnchor::with_max(target.to_string(), 1)]),
-            Filter::References(vec![ReferenceAnchor::with_max(target.to_string(), 1)]),
+            Filter::Includes(Box::new(InclusionAnchor::with_max(target.to_string(), 1))),
+            Filter::References(Box::new(ReferenceAnchor::with_max(target.to_string(), 1))),
         ]));
     }
     if let Some(source) = &options.refs_from {
         conjuncts.push(Filter::Or(vec![
-            Filter::IncludedBy(vec![InclusionAnchor::with_max(source.to_string(), 1)]),
-            Filter::ReferencedBy(vec![ReferenceAnchor::with_max(source.to_string(), 1)]),
+            Filter::IncludedBy(Box::new(InclusionAnchor::with_max(source.to_string(), 1))),
+            Filter::ReferencedBy(Box::new(ReferenceAnchor::with_max(source.to_string(), 1))),
         ]));
     }
     if conjuncts.is_empty() {

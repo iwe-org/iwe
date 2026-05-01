@@ -26,7 +26,9 @@ Frontmatter field names whose **first character is `_`, `$`, `.`, `#`, or `@`** 
 
 A reserved-prefix entry may exist in a file's raw frontmatter on disk — the engine does not refuse to load it — but every user-visible touchpoint (queries, results, mutated output) behaves as if it weren't there. Update writeback is the round-trip moment when such entries are dropped: any document the user mutates loses its reserved-prefix entries on the way out.
 
-User frontmatter field names must not begin with any of the five reserved characters. Any other leading character — letter, digit, hyphen, slash, parenthesis, etc. — is unreserved and addressable as a regular field. Subsequent characters within a name are unconstrained per YAML rules.
+User frontmatter field names must not begin with any of the five reserved characters. Any other leading character — letter, digit, hyphen, slash, parenthesis, etc. — is unreserved and addressable as a regular field. Subsequent characters within a name are unconstrained per YAML rules, with one exception: a literal `.` is reserved as a path separator (§4.4) and cannot appear inside a single segment.
+
+Beyond the reserved-prefix and dot rules, a field-path segment used in a filter, projection, sort, or update path must be a **non-empty** string with **no Unicode whitespace** (leading, trailing, or embedded) and **no Unicode control characters**. An empty-string segment, a whitespace-only segment, or a segment containing control characters is a parse-time error. Other characters — digits, hyphens, slashes, parentheses, Unicode letters — are unrestricted.
 
 The reserved prefixes have distinct roles:
 
@@ -121,7 +123,7 @@ limit: 500
 
 A filter document is a predicate evaluated against each document in the corpus. A document matches when every top-level key matches.
 
-Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the logical operators (`$and`, `$or`, `$not`; §4.6) and the **graph operators** (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`, `$includesCount`, `$includedByCount`) defined in `query-graph-spec.md`. Both kinds compose freely with frontmatter predicates under the same algebra.
+Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the logical operators (`$and`, `$or`, `$not`, `$nor`; §4.6) and the **graph operators** (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`) defined in `query-graph-spec.md`. Both kinds compose freely with frontmatter predicates under the same algebra.
 
 ### 4.1 Implicit equality (bare values)
 
@@ -213,7 +215,7 @@ review:
   reviewer: alice
 ```
 
-Dots inside the key string always denote path separators. User frontmatter field names that contain a literal `.` cannot use the shorthand — fall back to the nested-mapping form (or quote each segment in YAML if a tooling roundtrip preserves the dotted name as one segment).
+Dots inside the key string always denote path separators. **Frontmatter fields whose name contains a literal `.` are not addressable in v1**: neither the dotted shorthand nor the nested-mapping form can reference such a field, because path resolution always splits on `.` after YAML parsing. Quoting the dotted name in the source (`"foo.bar"`) does not change this — the parser still sees a string with a dot and splits it. Document authors should avoid creating field names that contain `.`. An escape syntax (e.g. `foo\.bar`) is deferred to a future revision; see §11.
 
 Operator expressions on a dotted key carry the same shape as on a nested key:
 
@@ -263,7 +265,7 @@ tags: { $eq: rust }                  # membership (same as bare scalar)
 A frontmatter field with explicit value `null` is **present** with value `null`:
 
 - Matches `$eq: null` and bare `null`.
-- Matches `$exists: true` and `$type: null`.
+- Matches `$exists: true` and `$type: "null"`.
 - Does NOT match `$exists: false`.
 
 A field absent from frontmatter is **missing**:
@@ -282,14 +284,27 @@ A field absent from frontmatter is **missing**:
 |---|---|---|
 | numeric | integer, float | numerical |
 | string | string | Unicode codepoint |
-| temporal | date, datetime | chronological |
 | boolean | boolean | `false < true` |
 
 Cross-group comparison is always false (e.g. comparing a number with a string is false; a boolean with a number is false). Null is not orderable; ordering operators against null are always false. Use `$exists` / `$eq: null` to test for null explicitly.
 
+**Temporal values.** YAML date and datetime scalars are stored on the wire as strings — the engine's `Value` type does not carry a distinct temporal variant (§4.8 preserves the `date` / `datetime` names for `$type` matching only). Ordering operators on temporal-shaped values therefore reduce to the **string** group above: lexicographic Unicode-codepoint comparison. For ISO-8601 forms (`YYYY-MM-DD`, `YYYY-MM-DDTHH:MM:SS[Z|±HH:MM]`) lexicographic ordering is equivalent to chronological ordering, which is the only form documents and filters are expected to use. Mixing ISO-8601 with non-ISO date strings produces undefined ordering.
+
+#### Common YAML pitfalls
+
+Filter values are parsed by the YAML resolver before they reach the language. The resolver promotes bare scalars based on their lexical form, which can cause filters to silently never match documents whose stored values have a different type:
+
+| Filter source | Parses as | Document stores | Match? |
+|---|---|---|---|
+| `modified_at: 2026-01-01` | date scalar | string `"2026-01-01"` | no — date vs string is cross-group, always false |
+| `priority: "3"` | string `"3"` | integer `3` | no — string vs number |
+| `active: "true"` | string `"true"` | boolean `true` | no — string vs boolean |
+
+When in doubt, quote the value to force the string type, or leave it bare to accept YAML's auto-resolution. Equality is type-strict; there is no implicit coercion. Keep the document and the filter on the same side of the quoting boundary.
+
 ### 4.6 Logical operators
 
-Three operators compose filters: `$and`, `$or`, `$not`.
+Four operators compose filters: `$and`, `$or`, `$not`, `$nor`.
 
 #### `$and: [filter1, filter2, ...]`
 
@@ -348,7 +363,25 @@ priority: { $not: { $gt: 5 } }
 - Takes a single filter document (not a list).
 - Negates the result.
 - **Missing-field interaction:** `$not: { reviewed: true }` matches docs without a `reviewed` field, because the inner predicate doesn't match (missing field), and `$not` flips that to true. To require presence and inequality, combine: `reviewed: { $exists: true, $ne: true }`.
-- `$not` cannot wrap a `$not` directly (`$not: { $not: ... }`) — double negation is redundant; use the inner expression.
+- `$not` may wrap any filter, including another `$not`. Double negation is redundant but legal — `$not: { $not: X }` parses and is equivalent to `X`.
+- For "none of these match" over multiple sibling filters, use `$nor` (below) rather than `$not: { $or: [...] }`. Both forms are semantically equivalent; `$nor` is the idiomatic spelling.
+
+#### `$nor: [filter1, filter2, ...]`
+
+None of the listed filters may match. Equivalent to `$not: { $or: [filter1, filter2, ...] }` by De Morgan's law, and provided as a direct top-level operator because it's the conventional spelling for negative composition.
+
+```yaml
+$nor:
+  - status: archived
+  - status: deleted
+  - tags: spam
+```
+
+- Every list element is a filter document.
+- A document matches if **every** sub-filter fails to match.
+- **Empty list** `$nor: []` is a parse-time error.
+- Sub-filters are independent — each is evaluated against the whole document.
+- **Missing-field interaction** follows the same rule as `$not`: a sub-filter that fails because the field is missing counts as a non-match, contributing to a `$nor` match. Use `$exists: true` inside the sub-filter when presence matters.
 
 ### 4.7 Comparison operators
 
@@ -458,10 +491,12 @@ Accepted type names:
 | `date` | YAML date scalars (e.g. `2026-04-26`). |
 | `datetime` | YAML timestamp scalars (e.g. `2026-04-26T10:30:00Z`). |
 
-- A field with explicit null matches `$type: null` and no other type.
+- A field with explicit null matches `$type: "null"` and no other type.
 - Missing field does not match any `$type`. Use `$exists: false` for absence.
 - The list form is OR over types: `$type: [string, number]` matches if the value is either.
 - **Empty list** `$type: []` is a parse-time error.
+
+Type names are matched as YAML strings. To test for the null type, write `$type: "null"` (quoted) — the bare YAML null literal `$type: null` is a parse-time error, because YAML resolves it to the null value rather than to a type-name string. The other names follow the same rule: `$type: number` is accepted because YAML resolves the bare word `number` to the string `"number"`; `$type: True` (which YAML resolves to a boolean) is a parse-time error.
 
 ### 4.9 Array operators
 
@@ -542,6 +577,8 @@ Each entry's value indicates "include this field". Three forms are accepted and 
 | `true` | Include the field. |
 | `null` (YAML `~` or empty value) | Include the field. |
 
+The accepted values are type-strict. The integer `1`, the boolean `true`, and the YAML null literal are equivalent. Any other value is a parse-time error: `0`, `false`, the string `"1"`, the string `"true"`, the string `"null"`, floats (`1.0`), and any other scalar. Exclusion-style values (`0`, `false`) are reserved for the future exclusion mode and rejected today.
+
 There is no exclusion mode in v1 (you cannot say "give me everything except X"). To omit fields from the output, simply leave them out of `project`. Exclusion-style projection may be added in a future revision; out of scope here.
 
 ### 5.1 Nested fields
@@ -577,6 +614,8 @@ sort:
 |---|---|
 | `1` | Ascending |
 | `-1` | Descending |
+
+The sort direction is type-strict: integer `1` (ascending) or integer `-1` (descending). Floats (`1.0`), strings (`"1"`), booleans, and null are parse-time errors. (YAML `+1` resolves to the same integer as `1` and is accepted.)
 
 **v1 accepts exactly one sort key.** A `sort` mapping with two or more entries is a parse-time error. Multi-key sort (compound ordering, applied left-to-right) is deferred to a future revision.
 
@@ -621,7 +660,13 @@ update:
     "review.reviewer": alice
 ```
 
-Adds the field if absent, replaces it otherwise. Nested paths can be expressed via nested mappings or dotted-key shorthand (matching §4.4). Intermediate mappings are auto-created when a dotted path writes through a missing parent: `$set: { "a.b.c": 1 }` on a doc without `a` produces `a: { b: { c: 1 } }`.
+Adds the field if absent, replaces it otherwise. Nested paths can be expressed via nested mappings or dotted-key shorthand (matching §4.4).
+
+Intermediate mappings are auto-created when a dotted path writes through a missing parent: `$set: { "a.b.c": 1 }` on a doc without `a` produces `a: { b: { c: 1 } }`. A dotted path that traverses a present-but-non-mapping intermediate **coerces the intermediate to a fresh mapping** holding the new leaf — `$set: { "a.b": 1 }` against `{ a: "scalar" }` produces `{ a: { b: 1 } }`. The previous scalar value is discarded; the user took explicit action by writing through that path. This is the symmetric write-side rule to §4.4, which on read treats a non-mapping intermediate as a missing leaf.
+
+Mapping values **replace wholesale**. `$set: { author: { name: alice } }` overwrites the existing `author` field with the literal mapping `{ name: alice }`; any pre-existing keys under `author` (e.g. `email`) are dropped. To merge into an existing mapping, address the inner fields with dotted shorthand (`$set: { "author.name": alice }`); per §4.4, that is equivalent in *path* to the nested-mapping form, but the dotted form only writes the named leaves and leaves siblings intact.
+
+`$set` requires at least one entry. Empty `$set: {}` is a parse-time error.
 
 #### `$unset`
 
@@ -632,14 +677,14 @@ update:
     temporary: ""
 ```
 
-Values are ignored. Absent field → no-op.
+Values are ignored. Absent field → no-op. `$unset` requires at least one entry; empty `$unset: {}` is a parse-time error (same reason as `$set`).
 
 ### 8.2 Reserved-prefix protection
 
-Reserved-prefix names (`_`, `$`, `.`, `#`, `@`) are invisible to query operations and are dropped on update writeback — see §2.3. On the mutation side, **operators that target a reserved-prefix field are parse-time errors**:
+Reserved-prefix names (`_`, `$`, `.`, `#`, `@`) are invisible to query operations and are dropped on update writeback — see §2.3. On the mutation side, **operators that target a reserved-prefix segment in any path are parse-time errors**. The check applies to every segment — top-level keys, dotted-shorthand segments, and nested-mapping keys at every depth — not only the leaf or the top-level segment.
 
 ```yaml
-# ERROR — any reserved-prefix name is rejected
+# ERROR — top-level reserved-prefix names
 update:
   $set:
     _hidden: 1
@@ -648,13 +693,43 @@ update:
     "@user": bar
 ```
 
-The error is detected during update-document validation. Without it, a `$set: { _hidden: 1 }` would be silently lost when writeback strips reserved-prefix entries from the rendered frontmatter — the parse-time error makes the failure loud instead. It also reserves the namespace against collision with future engine pseudo-fields introduced by spec amendments or extensions like `tree-spec.md`.
+```yaml
+# ERROR — dotted segment with reserved prefix
+update:
+  $set:
+    "author._hidden": 1
+```
+
+```yaml
+# ERROR — reserved prefix on a nested-mapping key (any depth)
+update:
+  $set:
+    author:
+      _hidden: 1
+```
+
+```yaml
+# ERROR — reserved prefix on a leaf segment
+update:
+  $set:
+    "review.@user": alice
+```
+
+The error is detected during update-document validation. Without it, a top-level `$set: { _hidden: 1 }` would be silently lost when writeback strips reserved-prefix entries from the rendered frontmatter — the parse-time error makes the failure loud instead. Extending the check to every segment keeps the reserved namespace consistent across the language: a name that is forbidden as a top-level frontmatter field is also forbidden as a nested key. It also reserves the namespace against collision with future engine pseudo-fields introduced by spec amendments or extensions like `tree-spec.md`.
 
 ### 8.3 Combining operators
 
-Multiple operators in one update document apply atomically per matched document. Conflicts are errors:
+Multiple operators in one update document apply atomically per matched document. `$set` and `$unset` paths are checked for **prefix overlap**: two paths conflict when, after canonicalizing nested-mapping form into dotted form per §4.4, one path is equal to or a prefix of the other.
 
-- `$set` and `$unset` on the same field.
+Conflicts are parse-time errors. The rule applies both across operators (`$set` vs `$unset`) and within a single operator (e.g. two `$set` entries that overlap after canonicalization).
+
+| Update document | Result |
+|---|---|
+| `$set: { "a.b": 1 }, $unset: { a: "" }` | error — `a` is a prefix of `a.b` |
+| `$set: { a: 1 }, $unset: { "a.b": "" }` | error — same prefix relation, opposite direction |
+| `$set: { author: { name: alice } }, $set: { "author.name": bob }` | error — both canonicalize to writes overlapping `author.name` |
+| `$set: { "a.b": 1 }, $unset: { "a.c": "" }` | OK — sibling paths, no overlap |
+| `$set: { a: 1 }, $unset: { b: "" }` | OK — disjoint top-level fields |
 
 ### 8.4 Update requirements (use-case checklist)
 
@@ -671,11 +746,11 @@ Other patterns — rename a field, increment a counter, add / remove array eleme
 
 ### 9.1 Per-document
 
-All operators in one update document apply atomically per matched document: either every operator succeeds and the engine emits a single rewritten frontmatter for that document, or the document is reported in the failure list with an error and no replacement is emitted. There is no half-applied frontmatter — a field-level error (e.g. a `$set` / `$unset` conflict caught at parse time, or any future runtime error in `update::apply`) aborts the operation for that document only.
+All operators in one update document apply atomically per matched document: either every operator succeeds and the engine emits a single rewritten frontmatter for that document, or no replacement is emitted for that document. There is no half-applied frontmatter. The v1 operators (`$set`, `$unset`) have no runtime failure modes — invalid update documents are rejected at parse time (`$set` / `$unset` conflict, reserved-prefix paths, etc.) before any matching runs. Future operators that introduce runtime failures will report them out-of-band without affecting other documents in the same operation.
 
 ### 9.2 Across-document
 
-Across-document atomicity is **not** provided. The engine itself is a pure function: given an `update` operation it returns `(changes, failed)` — `changes` lists `(key, new markdown)` pairs the host should write, `failed` lists `(key, error)` pairs that did not produce a change. A `delete` operation returns the list of keys to remove. The host applies these effects to its storage; how it sequences writes, recovers from partial application, or surfaces partial success is host-defined.
+Across-document atomicity is **not** provided. The engine itself is a pure function: given an `update` operation it returns `changes` — a list of `(key, new markdown)` pairs the host should write. A `delete` operation returns the list of keys to remove. The host applies these effects to its storage; how it sequences writes, recovers from partial application, or surfaces partial success is host-defined.
 
 Because the engine never writes itself, a "preview-only mode" requires no special flag: the host simply consumes the outcome without applying it. Engine output contains everything needed to render the post-operation state in memory.
 
@@ -706,10 +781,11 @@ After selection:
 - **Across-document atomicity.** Per-document only.
 - **Bulk operations on reserved fields.** Renaming, key changes, etc. go through dedicated graph commands, not through update operators.
 - **`update` in a `delete` operation.** Delete is filter-driven removal; mutating fields on docs being deleted is incoherent.
+- **Escape syntax for dots in field names.** A frontmatter field whose name contains a literal `.` (e.g. `foo.bar` as a single segment) cannot be addressed in v1 because the dot is reserved as a path separator (§4.4). An escape syntax (e.g. `foo\.bar`) is deferred to a future revision.
 
 ## 12. Companion specs
 
-- **Graph operators:** `query-graph-spec.md` — `$`-prefixed operators that extend filter with cross-document selection (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`, `$includesCount`, `$includedByCount`).
+- **Graph operators:** `query-graph-spec.md` — `$`-prefixed operators that extend filter with cross-document selection (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`).
 - **Grammar reference:** `query-language-grammar.md` — full BNF covering operation documents, filter, projection, sort, limit, update operators, and graph operators.
 - **CLI surface:** `query-cli-spec.md` — `iwe find`, `iwe update`, `iwe delete` flags.
 - **MCP guide:** `query-language-mcp.md` — combined queries for AI agents.

@@ -66,9 +66,15 @@ fn rejects_mixed_dollar_and_bare_at_same_level() {
 }
 
 #[test]
-fn rejects_double_not() {
-    let err = parse_filter_expression("$not: { $not: { status: draft } }");
-    assert!(err.is_err(), "expected DoubleNot error");
+fn parses_nested_not() {
+    let f = parse_filter_expression("$not: { $not: { status: draft } }").unwrap();
+    match f {
+        Filter::Not(inner) => match *inner {
+            Filter::Not(_) => {}
+            other => panic!("expected nested Not, got {:?}", other),
+        },
+        other => panic!("expected Not, got {:?}", other),
+    }
 }
 
 #[test]
@@ -86,10 +92,12 @@ fn parses_graph_anchor_with_max_depth() {
     let expr = "$includedBy: { match: { $key: projects/alpha }, maxDepth: 5 }";
     let f = parse_filter_expression(expr).unwrap();
     match f {
-        Filter::IncludedBy(anchors) => {
-            assert_eq!(anchors.len(), 1);
-            assert_eq!(anchors[0].key.to_string(), "projects/alpha");
-            assert_eq!(anchors[0].max_depth, 5);
+        Filter::IncludedBy(anchor) => {
+            match &anchor.match_filter {
+                Filter::Key(KeyOp::Eq(k)) => assert_eq!(k.to_string(), "projects/alpha"),
+                other => panic!("expected Key(Eq), got {:?}", other),
+            }
+            assert_eq!(anchor.max_depth, 5);
         }
         other => panic!("expected IncludedBy, got {:?}", other),
     }
@@ -100,11 +108,13 @@ fn parses_graph_anchor_scalar_shorthand() {
     let expr = "$includedBy: projects/alpha";
     let f = parse_filter_expression(expr).unwrap();
     match f {
-        Filter::IncludedBy(anchors) => {
-            assert_eq!(anchors.len(), 1);
-            assert_eq!(anchors[0].key.to_string(), "projects/alpha");
-            assert_eq!(anchors[0].max_depth, 1);
-            assert_eq!(anchors[0].min_depth, 1);
+        Filter::IncludedBy(anchor) => {
+            match &anchor.match_filter {
+                Filter::Key(KeyOp::Eq(k)) => assert_eq!(k.to_string(), "projects/alpha"),
+                other => panic!("expected Key(Eq), got {:?}", other),
+            }
+            assert_eq!(anchor.max_depth, 1);
+            assert_eq!(anchor.min_depth, 1);
         }
         other => panic!("expected IncludedBy, got {:?}", other),
     }

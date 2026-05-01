@@ -5,10 +5,10 @@ use rayon::prelude::*;
 use crate::graph::Graph;
 use crate::model::Key;
 use crate::query::document::{
-    CountArg, FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, MaxDepth, ReferenceAnchor,
+    FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, ReferenceAnchor,
 };
 use crate::query::filter::{match_field_op, resolve_path, Resolution};
-use crate::query::graph_match::{eval_num_expr, match_key_op};
+use crate::query::graph_match::match_key_op;
 use crate::graph::walk::{
     ancestors_inclusion, descendants_inclusion, inbound_reference, outbound_reference,
 };
@@ -30,23 +30,19 @@ fn eval(filter: &Filter, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet
     match filter {
         Filter::And(children) => eval_and(children, graph, scope),
         Filter::Or(children) => eval_or(children, graph, scope),
+        Filter::Nor(children) => eval_nor(children, graph, scope),
         Filter::Not(inner) => eval_not(inner, graph, scope),
         Filter::Field { path, op } => eval_field(path, op, graph, scope),
         Filter::Key(op) => eval_key(op, graph, scope),
-        Filter::Includes(anchors) => eval_inclusion(anchors, graph, scope, true),
-        Filter::IncludedBy(anchors) => eval_inclusion(anchors, graph, scope, false),
-        Filter::References(anchors) => eval_reference(anchors, graph, scope, true),
-        Filter::ReferencedBy(anchors) => eval_reference(anchors, graph, scope, false),
-        Filter::IncludesCount(arg) => eval_count(arg, graph, scope, true),
-        Filter::IncludedByCount(arg) => eval_count(arg, graph, scope, false),
+        Filter::Includes(anchor) => eval_inclusion(anchor, graph, scope, true),
+        Filter::IncludedBy(anchor) => eval_inclusion(anchor, graph, scope, false),
+        Filter::References(anchor) => eval_reference(anchor, graph, scope, true),
+        Filter::ReferencedBy(anchor) => eval_reference(anchor, graph, scope, false),
     }
 }
 
 fn is_predicate(filter: &Filter) -> bool {
-    matches!(
-        filter,
-        Filter::Field { .. } | Filter::IncludesCount(_) | Filter::IncludedByCount(_)
-    )
+    matches!(filter, Filter::Field { .. } | Filter::Key(_))
 }
 
 fn eval_and(children: &[Filter], graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<Key> {
@@ -99,6 +95,12 @@ fn eval_not(inner: &Filter, graph: &Graph, scope: Option<&HashSet<Key>>) -> Hash
     universe.into_iter().filter(|k| !inner_set.contains(k)).collect()
 }
 
+fn eval_nor(children: &[Filter], graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<Key> {
+    let universe = scope.cloned().unwrap_or_else(|| all_keys(graph));
+    let union = eval_or(children, graph, Some(&universe));
+    universe.into_iter().filter(|k| !union.contains(k)).collect()
+}
+
 fn eval_field(
     path: &FieldPath,
     op: &FieldOp,
@@ -115,105 +117,61 @@ fn eval_key(op: &KeyOp, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<
 }
 
 fn eval_inclusion(
-    anchors: &[InclusionAnchor],
+    anchor: &InclusionAnchor,
     graph: &Graph,
     scope: Option<&HashSet<Key>>,
     outbound: bool,
 ) -> HashSet<Key> {
-    if anchors.is_empty() {
-        return HashSet::new();
+    let anchor_keys = eval(&anchor.match_filter, graph, None);
+    let mut combined: HashSet<Key> = HashSet::new();
+    for ak in &anchor_keys {
+        let walk = if outbound {
+            ancestors_inclusion(graph, ak, anchor.max_depth)
+        } else {
+            descendants_inclusion(graph, ak, anchor.max_depth)
+        };
+        for (k, d) in walk {
+            if d >= anchor.min_depth && d <= anchor.max_depth {
+                combined.insert(k);
+            }
+        }
     }
-    let sets: Vec<HashSet<Key>> = anchors
-        .par_iter()
-        .map(|anchor| {
-            let walk = if outbound {
-                ancestors_inclusion(graph, &anchor.key, anchor.max_depth)
-            } else {
-                descendants_inclusion(graph, &anchor.key, anchor.max_depth)
-            };
-            let mut set: HashSet<Key> = walk
-                .into_iter()
-                .filter(|(_, d)| *d >= anchor.min_depth && *d <= anchor.max_depth)
-                .map(|(k, _)| k)
-                .collect();
-            set.remove(&anchor.key);
-            set
-        })
-        .collect();
-    let mut result = intersect_sets(sets);
+    for ak in &anchor_keys {
+        combined.remove(ak);
+    }
     if let Some(s) = scope {
-        result.retain(|k| s.contains(k));
+        combined.retain(|k| s.contains(k));
     }
-    result
+    combined
 }
 
 fn eval_reference(
-    anchors: &[ReferenceAnchor],
+    anchor: &ReferenceAnchor,
     graph: &Graph,
     scope: Option<&HashSet<Key>>,
     outbound: bool,
 ) -> HashSet<Key> {
-    if anchors.is_empty() {
-        return HashSet::new();
+    let anchor_keys = eval(&anchor.match_filter, graph, None);
+    let mut combined: HashSet<Key> = HashSet::new();
+    for ak in &anchor_keys {
+        let walk = if outbound {
+            inbound_reference(graph, ak, anchor.max_distance)
+        } else {
+            outbound_reference(graph, ak, anchor.max_distance)
+        };
+        for (k, d) in walk {
+            if d >= anchor.min_distance && d <= anchor.max_distance {
+                combined.insert(k);
+            }
+        }
     }
-    let sets: Vec<HashSet<Key>> = anchors
-        .par_iter()
-        .map(|anchor| {
-            let walk = if outbound {
-                inbound_reference(graph, &anchor.key, anchor.max_distance)
-            } else {
-                outbound_reference(graph, &anchor.key, anchor.max_distance)
-            };
-            let mut set: HashSet<Key> = walk
-                .into_iter()
-                .filter(|(_, d)| *d >= anchor.min_distance && *d <= anchor.max_distance)
-                .map(|(k, _)| k)
-                .collect();
-            set.remove(&anchor.key);
-            set
-        })
-        .collect();
-    let mut result = intersect_sets(sets);
+    for ak in &anchor_keys {
+        combined.remove(ak);
+    }
     if let Some(s) = scope {
-        result.retain(|k| s.contains(k));
+        combined.retain(|k| s.contains(k));
     }
-    result
-}
-
-fn eval_count(
-    arg: &CountArg,
-    graph: &Graph,
-    scope: Option<&HashSet<Key>>,
-    outbound: bool,
-) -> HashSet<Key> {
-    let candidate = scope.cloned().unwrap_or_else(|| all_keys(graph));
-    let keys: Vec<Key> = candidate.into_iter().collect();
-    if keys.len() >= PARALLEL_THRESHOLD {
-        keys.into_par_iter()
-            .filter(|k| count_matches(arg, k, graph, outbound))
-            .collect()
-    } else {
-        keys.into_iter()
-            .filter(|k| count_matches(arg, k, graph, outbound))
-            .collect()
-    }
-}
-
-fn count_matches(arg: &CountArg, key: &Key, graph: &Graph, outbound: bool) -> bool {
-    let max = match arg.max_depth {
-        MaxDepth::Bounded(n) => n,
-        MaxDepth::Any => u32::MAX,
-    };
-    let walk = if outbound {
-        descendants_inclusion(graph, key, max)
-    } else {
-        ancestors_inclusion(graph, key, max)
-    };
-    let count = walk
-        .values()
-        .filter(|&&d| d >= arg.min_depth && d <= max)
-        .count() as u64;
-    eval_num_expr(&arg.count, count)
+    combined
 }
 
 fn intersect_sets(mut sets: Vec<HashSet<Key>>) -> HashSet<Key> {
@@ -249,8 +207,7 @@ fn apply_predicates(
 fn run_predicate(filter: &Filter, key: &Key, graph: &Graph) -> bool {
     match filter {
         Filter::Field { path, op } => match_field_at(graph, key, path, op),
-        Filter::IncludesCount(arg) => count_matches(arg, key, graph, true),
-        Filter::IncludedByCount(arg) => count_matches(arg, key, graph, false),
+        Filter::Key(op) => match_key_op(op, key),
         _ => unreachable!("non-predicate filter passed to run_predicate"),
     }
 }

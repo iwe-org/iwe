@@ -140,15 +140,14 @@ impl DeleteOp {
 pub enum Filter {
     And(Vec<Filter>),
     Or(Vec<Filter>),
+    Nor(Vec<Filter>),
     Not(Box<Filter>),
     Field { path: FieldPath, op: FieldOp },
     Key(KeyOp),
-    IncludesCount(CountArg),
-    IncludedByCount(CountArg),
-    Includes(Vec<InclusionAnchor>),
-    IncludedBy(Vec<InclusionAnchor>),
-    References(Vec<ReferenceAnchor>),
-    ReferencedBy(Vec<ReferenceAnchor>),
+    Includes(Box<InclusionAnchor>),
+    IncludedBy(Box<InclusionAnchor>),
+    References(Box<ReferenceAnchor>),
+    ReferencedBy(Box<ReferenceAnchor>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -175,67 +174,8 @@ impl KeyOp {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CountArg {
-    pub count: NumExpr,
-    pub min_depth: u32,
-    pub max_depth: MaxDepth,
-}
-
-impl CountArg {
-    pub fn direct(count: NumExpr) -> Self {
-        CountArg {
-            count,
-            min_depth: 1,
-            max_depth: MaxDepth::Bounded(1),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MaxDepth {
-    Bounded(u32),
-    Any,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct NumExpr(pub Vec<NumOp>);
-
-impl NumExpr {
-    pub fn eq(n: u64) -> Self {
-        NumExpr(vec![NumOp::Eq(n)])
-    }
-    pub fn ne(n: u64) -> Self {
-        NumExpr(vec![NumOp::Ne(n)])
-    }
-    pub fn gt(n: u64) -> Self {
-        NumExpr(vec![NumOp::Gt(n)])
-    }
-    pub fn gte(n: u64) -> Self {
-        NumExpr(vec![NumOp::Gte(n)])
-    }
-    pub fn lt(n: u64) -> Self {
-        NumExpr(vec![NumOp::Lt(n)])
-    }
-    pub fn lte(n: u64) -> Self {
-        NumExpr(vec![NumOp::Lte(n)])
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum NumOp {
-    Eq(u64),
-    Ne(u64),
-    Gt(u64),
-    Gte(u64),
-    Lt(u64),
-    Lte(u64),
-    In(Vec<u64>),
-    Nin(Vec<u64>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct InclusionAnchor {
-    pub key: Key,
+    pub match_filter: Filter,
     pub min_depth: u32,
     pub max_depth: u32,
 }
@@ -243,7 +183,7 @@ pub struct InclusionAnchor {
 impl InclusionAnchor {
     pub fn new(key: impl Into<String>, min_depth: u32, max_depth: u32) -> Self {
         InclusionAnchor {
-            key: Key::name(&key.into()),
+            match_filter: Filter::Key(KeyOp::Eq(Key::name(&key.into()))),
             min_depth,
             max_depth,
         }
@@ -251,11 +191,18 @@ impl InclusionAnchor {
     pub fn with_max(key: impl Into<String>, max_depth: u32) -> Self {
         Self::new(key, 1, max_depth)
     }
+    pub fn with_match(match_filter: Filter, min_depth: u32, max_depth: u32) -> Self {
+        InclusionAnchor {
+            match_filter,
+            min_depth,
+            max_depth,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReferenceAnchor {
-    pub key: Key,
+    pub match_filter: Filter,
     pub min_distance: u32,
     pub max_distance: u32,
 }
@@ -263,13 +210,20 @@ pub struct ReferenceAnchor {
 impl ReferenceAnchor {
     pub fn new(key: impl Into<String>, min_distance: u32, max_distance: u32) -> Self {
         ReferenceAnchor {
-            key: Key::name(&key.into()),
+            match_filter: Filter::Key(KeyOp::Eq(Key::name(&key.into()))),
             min_distance,
             max_distance,
         }
     }
     pub fn with_max(key: impl Into<String>, max_distance: u32) -> Self {
         Self::new(key, 1, max_distance)
+    }
+    pub fn with_match(match_filter: Filter, min_distance: u32, max_distance: u32) -> Self {
+        ReferenceAnchor {
+            match_filter,
+            min_distance,
+            max_distance,
+        }
     }
 }
 
@@ -365,6 +319,7 @@ pub enum FieldOp {
     All(Vec<Value>),
     Size(u64),
     Not(Box<FieldOp>),
+    And(Vec<FieldOp>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

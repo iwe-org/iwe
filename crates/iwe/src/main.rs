@@ -32,7 +32,6 @@ use liwe::operations::{
     Changes, ExtractConfig, InlineConfig,
 };
 
-use std::io::{self, Write as IoWrite};
 use log::{debug, error, info};
 
 const CONFIG_FILE_NAME: &str = "config.toml";
@@ -439,9 +438,6 @@ struct Delete {
 
     #[clap(long = "keys", hide = true)]
     keys_legacy: bool,
-
-    #[clap(long, help = "Skip confirmation prompt")]
-    force: bool,
 }
 
 #[derive(Debug, Args)]
@@ -750,7 +746,6 @@ fn find_command(args: Find) {
     let finder = DocumentFinder::new(&graph);
     let options = FindOptions {
         query: args.query,
-        roots: false,
         refs_to: None,
         refs_from: None,
         filter: resolve_filter(&args.selector),
@@ -784,37 +779,32 @@ fn find_command(args: Find) {
 
 #[tracing::instrument(level = "debug")]
 fn count_command(args: Count) {
+    use liwe::query::{execute, CountOp, Operation, Outcome};
+
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let filter = resolve_filter(&args.selector);
-    let mut keys = match filter {
-        Some(f) => liwe::query::evaluate(&f, &graph),
-        None => graph.keys(),
-    };
-
+    let mut op = CountOp::new();
+    if let Some(f) = resolve_filter(&args.selector) {
+        op = op.filter(f);
+    }
     if let Some(sort_str) = args.sort.as_deref() {
         let sort = parse_sort_arg(sort_str).unwrap_or_else(|e| {
             eprintln!("error: {}", e);
             std::process::exit(2);
         });
-        let mut rows: Vec<(Key, serde_yaml::Mapping)> = keys
-            .into_iter()
-            .map(|k| {
-                let m = graph.frontmatter(&k).cloned().unwrap_or_default();
-                (k, m)
-            })
-            .collect();
-        liwe::query::sort::sort_in_place(&mut rows, &sort);
-        keys = rows.into_iter().map(|(k, _)| k).collect();
+        op = op.sort(sort);
+    }
+    if let Some(n) = args.limit {
+        if n > 0 {
+            op = op.limit(n as u64);
+        }
     }
 
-    let total = keys.len();
-    let count = match args.limit {
-        Some(n) if n > 0 => total.min(n),
-        _ => total,
-    };
-    println!("{}", count);
+    match execute(&Operation::Count(op), &graph) {
+        Outcome::Count(n) => println!("{}", n),
+        _ => unreachable!(),
+    }
 }
 
 fn render_find_output(output: &iwe::find::FindOutput) -> String {
@@ -1428,24 +1418,6 @@ fn delete_command(args: Delete) {
         return;
     }
 
-    if !args.force && !args.dry_run {
-        print!(
-            "Delete {} document(s) and update {} reference(s)? [y/N] ",
-            targets.len(),
-            combined.updates.len()
-        );
-        io::stdout().flush().expect("Failed to flush stdout");
-
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read input");
-        if !input.trim().eq_ignore_ascii_case("y") {
-            eprintln!("Aborted");
-            return;
-        }
-    }
-
     if !args.quiet && !keys_mode {
         for target in &targets {
             println!("Deleting '{}'", target);
@@ -1885,20 +1857,31 @@ fn update_body(args: Update) {
 }
 
 fn update_frontmatter(args: Update) {
-    use liwe::query::{
-        execute as run_op, FieldPath, Operation, Outcome, Update as UpdateDoc, UpdateOp,
-        UpdateOperator,
-    };
+    use liwe::query::prelude::{update, update_op};
+    use liwe::query::wire::RawUpdate;
+    use liwe::query::{build_update_doc, execute as run_op, Outcome};
+    use serde_yaml::{Mapping, Value};
 
     let config = get_configuration();
     let graph = load_graph(&config);
 
     let mut conjuncts: Vec<Filter> = Vec::new();
-    if let Some(expr) = &args.filter {
-        let parsed = liwe::query::parse_filter_expression(expr).unwrap_or_else(|e| {
+    let parsed_filter = args.filter.as_ref().map(|expr| {
+        liwe::query::parse_filter_expression(expr).unwrap_or_else(|e| {
             eprintln!("error: invalid --filter expression: {}", e);
             std::process::exit(2);
-        });
+        })
+    });
+    if let (Some(parsed), Some(_)) = (parsed_filter.as_ref(), args.key.as_ref()) {
+        if filter_has_top_level_key_predicate(parsed) {
+            eprintln!(
+                "error: -k / --key conflicts with a $key predicate at the top level of --filter; \
+                 use --filter '$or: [{{$key: a}}, {{$key: b}}]' for OR-of-keys, or pick one source"
+            );
+            std::process::exit(2);
+        }
+    }
+    if let Some(parsed) = parsed_filter {
         conjuncts.push(parsed);
     }
     if let Some(k) = &args.key {
@@ -1914,32 +1897,33 @@ fn update_frontmatter(args: Update) {
         Filter::And(conjuncts)
     };
 
-    let mut operators: Vec<UpdateOperator> = Vec::new();
+    let mut set_map = Mapping::new();
     for assign in &args.set {
-        let (path, value) = parse_set_assignment(assign).unwrap_or_else(|e| {
+        let (field, value) = parse_set_assignment(assign).unwrap_or_else(|e| {
             eprintln!("error: {}", e);
             std::process::exit(2);
         });
-        operators.push(UpdateOperator::Set { path, value });
+        set_map.insert(Value::String(field), value);
     }
+    let mut unset_map = Mapping::new();
     for field in &args.unset {
-        operators.push(UpdateOperator::Unset {
-            path: FieldPath::from_dotted(field),
-        });
+        unset_map.insert(Value::String(field.clone()), Value::String(String::new()));
     }
+    let raw_update = RawUpdate {
+        set: if set_map.is_empty() { None } else { Some(set_map) },
+        unset: if unset_map.is_empty() { None } else { Some(unset_map) },
+    };
+    let update_doc = build_update_doc(raw_update).unwrap_or_else(|e| {
+        eprintln!("error: invalid update: {}", e);
+        std::process::exit(2);
+    });
 
-    let op = Operation::Update(UpdateOp::new(filter, UpdateDoc::new(operators)));
+    let op = update(update_op(filter, update_doc));
     let outcome = run_op(&op, &graph);
-    let (changes, failed) = match outcome {
-        Outcome::Update { changes, failed } => (changes, failed),
+    let changes = match outcome {
+        Outcome::Update { changes } => changes,
         _ => unreachable!(),
     };
-
-    if !failed.is_empty() {
-        for (key, err) in &failed {
-            eprintln!("warning: {}: {:?}", key, err);
-        }
-    }
 
     if args.dry_run {
         if !args.quiet {
@@ -1965,7 +1949,15 @@ fn update_frontmatter(args: Update) {
     }
 }
 
-fn parse_set_assignment(s: &str) -> Result<(liwe::query::FieldPath, serde_yaml::Value), String> {
+fn filter_has_top_level_key_predicate(filter: &Filter) -> bool {
+    match filter {
+        Filter::Key(_) => true,
+        Filter::And(children) => children.iter().any(filter_has_top_level_key_predicate),
+        _ => false,
+    }
+}
+
+fn parse_set_assignment(s: &str) -> Result<(String, serde_yaml::Value), String> {
     let (field, value) = s
         .split_once('=')
         .ok_or_else(|| format!("invalid --set assignment '{}': expected FIELD=VALUE", s))?;
@@ -1974,7 +1966,7 @@ fn parse_set_assignment(s: &str) -> Result<(liwe::query::FieldPath, serde_yaml::
     }
     let yaml_value: serde_yaml::Value = serde_yaml::from_str(value)
         .map_err(|e| format!("invalid --set value for '{}': {}", field, e))?;
-    Ok((liwe::query::FieldPath::from_dotted(field), yaml_value))
+    Ok((field.to_string(), yaml_value))
 }
 
 #[tracing::instrument(level = "debug")]

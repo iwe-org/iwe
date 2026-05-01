@@ -11,7 +11,7 @@ use crate::query::eval;
 use crate::query::frontmatter::strip_reserved;
 use crate::query::project::shape;
 use crate::query::sort::sort_in_place;
-use crate::query::update::{self, UpdateError};
+use crate::query::update;
 
 #[derive(Debug)]
 pub enum Outcome {
@@ -21,7 +21,6 @@ pub enum Outcome {
     Count(usize),
     Update {
         changes: Vec<(Key, String)>,
-        failed: Vec<(Key, UpdateError)>,
     },
     Delete {
         removed: Vec<Key>,
@@ -109,17 +108,13 @@ fn execute_update(op: &UpdateOp, graph: &Graph) -> Outcome {
     let rows = select(Some(&op.filter), graph);
     let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
     let mut changes = Vec::new();
-    let mut failed = Vec::new();
     for (key, mut mapping) in rows {
-        if let Err(e) = update::apply(&op.update, &mut mapping) {
-            failed.push((key, e));
-            continue;
-        }
+        update::apply(&op.update, &mut mapping);
         strip_reserved(&mut mapping);
         let markdown = render_with_frontmatter(graph, &key, mapping);
         changes.push((key, markdown));
     }
-    Outcome::Update { changes, failed }
+    Outcome::Update { changes }
 }
 
 fn execute_delete(op: &DeleteOp, graph: &Graph) -> Outcome {

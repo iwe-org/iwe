@@ -194,58 +194,6 @@ fn test_find_fuzzy_search() {
 }
 
 #[test]
-fn test_find_roots_only() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("parent.md"),
-        indoc! {"
-            # Parent
-
-            [child](child)
-        "},
-    )
-    .unwrap();
-
-    write(dir.path().join("child.md"), "# Child\n\nChild content.").unwrap();
-    write(dir.path().join("orphan.md"), "# Orphan\n\nNo references.").unwrap();
-
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["--roots", "-f", "json"]);
-
-    assert!(success, "stderr: {}", stderr);
-
-    let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 2,
-          "results": [
-            {
-              "key": "orphan",
-              "title": "Orphan",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            },
-            {
-              "key": "parent",
-              "title": "Parent",
-              "includesCount": 1,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
-    "#};
-
-    assert_eq!(stdout, expected);
-}
-
-#[test]
 fn test_find_refs_to() {
     let dir = setup_workspace();
 

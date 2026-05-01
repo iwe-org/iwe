@@ -14,31 +14,42 @@ Without `-k`, reads the document key from stdin (for piping).
 
 | Flag                  | Description                                                            | Default  |
 | --------------------- | ---------------------------------------------------------------------- | -------- |
-| `-k, --key <KEY>`     | Document key(s) to retrieve (can be specified multiple times)          | stdin    |
-| `-e, --exclude <KEY>` | Exclude document key(s) from results (can be specified multiple times) | none     |
-| `-d, --depth <N>`     | Follow children down N levels                                          | 1        |
-| `-c, --context <N>`   | Include N levels of parent context                                     | 1        |
-| `-l, --links`         | Include inline referenced documents                                    | false    |
-| `-b, --backlinks`     | Include incoming references in output                                  | true     |
-| `-f, --format <FMT>`  | Output format: `markdown`, `keys`, `json`                              | markdown |
-| `--no-content`        | Exclude content, show child documents instead (metadata only)          | false    |
-| `--dry-run`           | Show document count and total lines without content                    | false    |
-| `--in <KEY[:DEPTH]>`  | Sub-documents of EVERY listed key (AND). Repeatable.                   | none     |
-| `--in-any <KEY...>`   | Sub-documents of AT LEAST ONE listed key (OR). Repeatable.             | none     |
-| `--not-in <KEY...>`   | Exclude sub-documents of any listed key (NOT). Repeatable.             | none     |
-| `--max-depth <N>`     | Default depth for `--in` family. Unbounded if omitted.                 | none     |
+| `-k, --key <KEY>`              | Document key(s) to retrieve (repeatable). 1 key = `$eq`, 2+ = `$in`.                  | stdin      |
+| `-e, --exclude <KEY>`          | Exclude document key(s) from results (repeatable).                                    | none       |
+| `-d, --depth <N>`              | Follow children down N levels.                                                        | 1          |
+| `-c, --context <N>`            | Include N levels of parent context.                                                   | 1          |
+| `-l, --links`                  | Include inline referenced documents.                                                  | false      |
+| `-b, --backlinks`              | Include incoming references in output.                                                | true       |
+| `-f, --format <FMT>`           | Output format: `markdown`, `keys`, `json`, `yaml`.                                    | `markdown` |
+| `--no-content`                 | Exclude content, show child documents instead (metadata only).                        | false      |
+| `--dry-run`                    | Show document count and total lines without content.                                  | false      |
+| `--filter <EXPR>`              | Inline YAML filter expression. See [Query Language](query-language.md).               | none       |
+| `--includes <KEY[:DEPTH]>`     | `$includes` anchor. Repeatable; anchors are ANDed.                                    | none       |
+| `--included-by <KEY[:DEPTH]>`  | `$includedBy` anchor. Repeatable; anchors are ANDed.                                  | none       |
+| `--references <KEY[:DIST]>`    | `$references` anchor. Repeatable; anchors are ANDed.                                  | none       |
+| `--referenced-by <KEY[:DIST]>` | `$referencedBy` anchor. Repeatable; anchors are ANDed.                                | none       |
+| `--max-depth <N>`              | Session default for inclusion anchor flags without a colon-suffix. `0` = unbounded.   | 1          |
+| `--max-distance <N>`           | Session default for reference anchor flags without a colon-suffix. `0` = unbounded.   | 1          |
 
-### Structural set selector
+### Filter and structural anchors
 
-When `--in` / `--in-any` / `--not-in` flags are provided, `retrieve` reads the documents that match the selector. With both `-k` and `--in`, the result is the **intersection** — explicit keys filtered through the selector. Empty intersection produces an empty result.
+When filter or anchor flags are provided, `retrieve` reads the documents that match. With both `-k` and a filter expression, the result is the **intersection** — `-k` clauses AND with the filter at the top level.
 
 ``` bash
-# Read content of all docs that are sub-documents of A AND B
-iwe retrieve --in projects/alpha --in people/dmytro --depth 0
+# Retrieve every doc under projects/alpha (unbounded)
+iwe retrieve --included-by projects/alpha:0 --depth 0
 
-# Read explicit keys but only those inside projects/alpha's subtree
-iwe retrieve -k x -k y -k z --in projects/alpha
+# Sub-documents of two anchors (intersection)
+iwe retrieve --included-by projects/alpha --included-by people/dmytro --depth 0
+
+# Restrict explicit keys to those inside an anchor's subtree
+iwe retrieve -k x -k y -k z --included-by projects/alpha
+
+# Filter by frontmatter
+iwe retrieve --filter 'status: draft' --depth 0
 ```
+
+See [Query Language](query-language.md) for the full filter syntax.
 
 
 ## How It Works
@@ -257,6 +268,9 @@ iwe retrieve -k my-document -d 2 -c 1 --dry-run
 # Get JSON output for programmatic processing
 iwe retrieve -k my-document -f json
 
+# Or YAML
+iwe retrieve -k my-document -f yaml
+
 # Pipe keys from stdin (one per line)
 echo -e "doc1\ndoc2\ndoc3" | iwe retrieve
 
@@ -315,6 +329,18 @@ iwe retrieve -k topic-b -e $KEYS_A
 # Or using command substitution with xargs
 iwe retrieve -k topic-b $(iwe retrieve -k topic-a -f keys | xargs -I {} echo "-e {}")
 ```
+
+## Deprecated aliases
+
+The following flags pre-date the query language and remain accepted for backward compatibility. Each invocation prints a one-line `warning: ... is deprecated` to stderr.
+
+| Deprecated         | Use instead                                                                 |
+| ------------------ | --------------------------------------------------------------------------- |
+| `--in KEY[:N]`     | `--included-by KEY[:N]`                                                     |
+| `--in-any K1 K2`   | `--filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'`                |
+| `--not-in KEY`     | `--filter '$not: { $includedBy: KEY }'`                                     |
+| `--refs-to KEY`    | `--references KEY` (legacy semantics: ORs `$includes` and `$references`)    |
+| `--refs-from KEY`  | `--referenced-by KEY` (legacy semantics: ORs `$includedBy` and `$referencedBy`) |
 
 ## Technical Notes
 

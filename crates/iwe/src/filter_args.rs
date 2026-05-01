@@ -1,14 +1,11 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-
 use clap::Args;
 
 use liwe::model::Key;
 use liwe::query::{
-    parse_filter_expression, CountArg, Filter, InclusionAnchor, KeyOp, MaxDepth, NumExpr, NumOp,
-    ReferenceAnchor,
+    parse_filter_expression, Filter, InclusionAnchor, KeyOp, ReferenceAnchor,
 };
 
-const LEGACY_REFS_DEPTH: u32 = 1;
+const LEGACY_ALIAS_DEPTH: u32 = 1;
 
 #[derive(Debug, Clone)]
 pub struct KeyDepth {
@@ -37,10 +34,12 @@ impl KeyDepth {
 }
 
 fn resolve_depth(explicit: Option<u8>, default: Option<u8>) -> u32 {
-    explicit
-        .or(default)
-        .map(u32::from)
-        .unwrap_or(1)
+    let raw = explicit.or(default).unwrap_or(1);
+    if raw == 0 {
+        u32::MAX
+    } else {
+        u32::from(raw)
+    }
 }
 
 #[derive(Debug, Args, Clone, Default)]
@@ -87,37 +86,17 @@ pub struct FilterArgs {
     pub referenced_by: Vec<KeyDepth>,
 
     #[clap(
-        long = "includes-count",
-        help = "$includesCount predicate. Lowers to direct-edge shorthand when --max-depth is unset or 1, full form { count: N, maxDepth: M } otherwise."
-    )]
-    pub includes_count: Option<u64>,
-
-    #[clap(
-        long = "included-by-count",
-        help = "$includedByCount predicate. Lowers to direct-edge shorthand when --max-depth is unset or 1, full form { count: N, maxDepth: M } otherwise."
-    )]
-    pub included_by_count: Option<u64>,
-
-    #[clap(
         long = "in",
         hide = true,
         value_parser = parse_key_depth,
     )]
     pub in_: Vec<KeyDepth>,
 
-    #[clap(
-        long = "in-any",
-        hide = true,
-        value_parser = parse_key_depth,
-    )]
-    pub in_any: Vec<KeyDepth>,
+    #[clap(long = "in-any", hide = true)]
+    pub in_any: Vec<String>,
 
-    #[clap(
-        long = "not-in",
-        hide = true,
-        value_parser = parse_key_depth,
-    )]
-    pub not_in: Vec<KeyDepth>,
+    #[clap(long = "not-in", hide = true)]
+    pub not_in: Vec<String>,
 
     #[clap(long = "refs-to", hide = true)]
     pub refs_to: Option<String>,
@@ -125,12 +104,9 @@ pub struct FilterArgs {
     #[clap(long = "refs-from", hide = true)]
     pub refs_from: Option<String>,
 
-    #[clap(long, hide = true)]
-    pub roots: bool,
-
     #[clap(
         long = "max-depth",
-        help = "Default maxDepth applied to inclusion anchor flags without a colon-suffix and to count predicates. Default 1."
+        help = "Default maxDepth applied to inclusion anchor flags without a colon-suffix. Default 1."
     )]
     pub max_depth: Option<u8>,
 
@@ -148,14 +124,11 @@ impl FilterArgs {
             || !self.included_by.is_empty()
             || !self.references.is_empty()
             || !self.referenced_by.is_empty()
-            || self.includes_count.is_some()
-            || self.included_by_count.is_some()
             || !self.in_.is_empty()
             || !self.in_any.is_empty()
             || !self.not_in.is_empty()
             || self.refs_to.is_some()
             || self.refs_from.is_some()
-            || self.roots
             || self.max_depth.is_some()
             || self.max_distance.is_some()
     }
@@ -167,14 +140,11 @@ impl FilterArgs {
             && self.included_by.is_empty()
             && self.references.is_empty()
             && self.referenced_by.is_empty()
-            && self.includes_count.is_none()
-            && self.included_by_count.is_none()
             && self.in_.is_empty()
             && self.in_any.is_empty()
             && self.not_in.is_empty()
             && self.refs_to.is_none()
             && self.refs_from.is_none()
-            && !self.roots
             && self.max_depth.is_none()
             && self.max_distance.is_none()
     }
@@ -188,6 +158,13 @@ impl FilterArgs {
         if let Some(expr) = &self.filter {
             let parsed = parse_filter_expression(expr)
                 .map_err(|e| format!("invalid --filter expression: {}", e))?;
+            if !self.key.is_empty() && filter_has_top_level_key(&parsed) {
+                return Err(
+                    "-k / --key conflicts with a $key predicate at the top level of --filter; \
+                     use --filter '$or: [{$key: a}, {$key: b}]' for OR-of-keys, or pick one source"
+                        .to_string(),
+                );
+            }
             conjuncts.push(parsed);
         }
 
@@ -200,61 +177,52 @@ impl FilterArgs {
         }
 
         for kd in &self.includes {
-            conjuncts.push(Filter::Includes(vec![kd.inclusion_anchor(self.max_depth)]));
+            conjuncts.push(Filter::Includes(Box::new(kd.inclusion_anchor(self.max_depth))));
         }
         for kd in &self.included_by {
-            conjuncts.push(Filter::IncludedBy(vec![kd.inclusion_anchor(self.max_depth)]));
+            conjuncts.push(Filter::IncludedBy(Box::new(kd.inclusion_anchor(self.max_depth))));
         }
         for kd in &self.references {
-            conjuncts.push(Filter::References(vec![kd.reference_anchor(self.max_distance)]));
+            conjuncts.push(Filter::References(Box::new(kd.reference_anchor(self.max_distance))));
         }
         for kd in &self.referenced_by {
-            conjuncts.push(Filter::ReferencedBy(vec![kd.reference_anchor(self.max_distance)]));
-        }
-
-        if let Some(n) = self.includes_count {
-            conjuncts.push(Filter::IncludesCount(count_with_default_depth(n, self.max_depth)));
-        }
-        if let Some(n) = self.included_by_count {
-            conjuncts.push(Filter::IncludedByCount(count_with_default_depth(n, self.max_depth)));
+            conjuncts.push(Filter::ReferencedBy(Box::new(kd.reference_anchor(self.max_distance))));
         }
 
         for kd in &self.in_ {
-            warn_once_in();
-            conjuncts.push(Filter::IncludedBy(vec![kd.inclusion_anchor(self.max_depth)]));
+            eprintln!("warning: --in is deprecated; use --included-by");
+            conjuncts.push(Filter::IncludedBy(Box::new(kd.inclusion_anchor(self.max_depth))));
         }
         if !self.in_any.is_empty() {
-            warn_once_in_any();
+            eprintln!(
+                "warning: --in-any is deprecated; use --filter '$or: [{{ $includedBy: K1 }}, {{ $includedBy: K2 }}]'"
+            );
             conjuncts.push(Filter::Or(
                 self.in_any
                     .iter()
-                    .map(|kd| Filter::IncludedBy(vec![kd.inclusion_anchor(self.max_depth)]))
+                    .map(|k| Filter::IncludedBy(Box::new(InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH))))
                     .collect(),
             ));
         }
-        for kd in &self.not_in {
-            warn_once_not_in();
-            conjuncts.push(Filter::Not(Box::new(Filter::IncludedBy(vec![
-                kd.inclusion_anchor(self.max_depth),
-            ]))));
+        for k in &self.not_in {
+            eprintln!("warning: --not-in is deprecated; use --filter '$not: {{ $includedBy: ... }}'");
+            conjuncts.push(Filter::Not(Box::new(Filter::IncludedBy(Box::new(
+                InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH),
+            )))));
         }
         if let Some(k) = &self.refs_to {
-            warn_once_refs_to();
+            eprintln!("warning: --refs-to is deprecated; use --references");
             conjuncts.push(Filter::Or(vec![
-                Filter::Includes(vec![InclusionAnchor::with_max(k, LEGACY_REFS_DEPTH)]),
-                Filter::References(vec![ReferenceAnchor::with_max(k, LEGACY_REFS_DEPTH)]),
+                Filter::Includes(Box::new(InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
+                Filter::References(Box::new(ReferenceAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
             ]));
         }
         if let Some(k) = &self.refs_from {
-            warn_once_refs_from();
+            eprintln!("warning: --refs-from is deprecated; use --referenced-by");
             conjuncts.push(Filter::Or(vec![
-                Filter::IncludedBy(vec![InclusionAnchor::with_max(k, LEGACY_REFS_DEPTH)]),
-                Filter::ReferencedBy(vec![ReferenceAnchor::with_max(k, LEGACY_REFS_DEPTH)]),
+                Filter::IncludedBy(Box::new(InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
+                Filter::ReferencedBy(Box::new(ReferenceAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
             ]));
-        }
-        if self.roots {
-            warn_once_roots();
-            conjuncts.push(Filter::IncludedByCount(direct_count(0)));
         }
 
         if conjuncts.is_empty() {
@@ -267,20 +235,11 @@ impl FilterArgs {
     }
 }
 
-fn direct_count(n: u64) -> CountArg {
-    CountArg {
-        count: NumExpr(vec![NumOp::Eq(n)]),
-        min_depth: 1,
-        max_depth: MaxDepth::Bounded(1),
-    }
-}
-
-fn count_with_default_depth(n: u64, default_depth: Option<u8>) -> CountArg {
-    let depth = default_depth.map(u32::from).unwrap_or(1).max(1);
-    CountArg {
-        count: NumExpr(vec![NumOp::Eq(n)]),
-        min_depth: 1,
-        max_depth: MaxDepth::Bounded(depth),
+fn filter_has_top_level_key(filter: &Filter) -> bool {
+    match filter {
+        Filter::Key(_) => true,
+        Filter::And(children) => children.iter().any(filter_has_top_level_key),
+        _ => false,
     }
 }
 
@@ -295,47 +254,3 @@ fn parse_key_depth(s: &str) -> Result<KeyDepth, String> {
     }
 }
 
-macro_rules! warn_once {
-    ($flag:ident, $msg:literal) => {{
-        static $flag: AtomicBool = AtomicBool::new(false);
-        if !$flag.swap(true, Ordering::Relaxed) {
-            eprintln!("warning: {}", $msg);
-        }
-    }};
-}
-
-fn warn_once_in() {
-    warn_once!(WARNED_IN, "--in is deprecated; use --included-by");
-}
-
-fn warn_once_in_any() {
-    warn_once!(
-        WARNED_IN_ANY,
-        "--in-any is deprecated; use --filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'"
-    );
-}
-
-fn warn_once_not_in() {
-    warn_once!(
-        WARNED_NOT_IN,
-        "--not-in is deprecated; use --filter '$not: { $includedBy: ... }'"
-    );
-}
-
-fn warn_once_refs_to() {
-    warn_once!(WARNED_REFS_TO, "--refs-to is deprecated; use --references");
-}
-
-fn warn_once_refs_from() {
-    warn_once!(
-        WARNED_REFS_FROM,
-        "--refs-from is deprecated; use --referenced-by"
-    );
-}
-
-fn warn_once_roots() {
-    warn_once!(
-        WARNED_ROOTS,
-        "--roots is deprecated; use --included-by-count 0"
-    );
-}

@@ -35,7 +35,6 @@ async fn explore_prompt() {
 
     let text = prompt_text(&result.messages[0]);
     assert!(text.contains("Statistics"));
-    assert!(text.contains("Root documents"));
 }
 
 #[tokio::test]

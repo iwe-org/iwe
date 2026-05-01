@@ -2,45 +2,27 @@ use serde_yaml::{Mapping, Value};
 
 use crate::query::document::{Update, UpdateOperator};
 
-#[derive(Debug)]
-pub enum UpdateError {
-    PathBlockedByScalar { path: Vec<String> },
-}
-
-impl std::fmt::Display for UpdateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl std::error::Error for UpdateError {}
-
-
-pub fn apply(update: &Update, doc: &mut Mapping) -> Result<(), UpdateError> {
+pub fn apply(update: &Update, doc: &mut Mapping) {
     for op in &update.operators {
         match op {
-            UpdateOperator::Set { path, value } => set_path(doc, &path.0, value.clone())?,
+            UpdateOperator::Set { path, value } => set_path(doc, &path.0, value.clone()),
             UpdateOperator::Unset { path } => {
                 unset_path(doc, &path.0);
             }
         }
     }
-    Ok(())
 }
 
-fn set_path(doc: &mut Mapping, segments: &[String], value: Value) -> Result<(), UpdateError> {
+fn set_path(doc: &mut Mapping, segments: &[String], value: Value) {
     if segments.is_empty() {
-        return Ok(());
+        return;
     }
     if segments.len() == 1 {
         doc.insert(Value::String(segments[0].clone()), value);
-        return Ok(());
+        return;
     }
     let head_key = Value::String(segments[0].clone());
-    let needs_init = match doc.get(&head_key) {
-        Some(Value::Mapping(_)) => false,
-        _ => true,
-    };
+    let needs_init = !matches!(doc.get(&head_key), Some(Value::Mapping(_)));
     if needs_init {
         doc.insert(head_key.clone(), Value::Mapping(Mapping::new()));
     }
@@ -107,7 +89,7 @@ mod tests {
         let u = Update {
             operators: vec![build_set(&["reviewed"], Value::Bool(true))],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         assert_eq!(d.get(key("reviewed")), Some(&Value::Bool(true)));
     }
 
@@ -117,7 +99,7 @@ mod tests {
         let u = Update {
             operators: vec![build_set(&["status"], Value::String("published".to_string()))],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         assert_eq!(d.get(key("status")), Some(&Value::String("published".into())));
     }
 
@@ -127,7 +109,7 @@ mod tests {
         let u = Update {
             operators: vec![build_set(&["a", "b", "c"], Value::Number(1.into()))],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         let a = d.get(key("a")).expect("a present").as_mapping().unwrap();
         let b = a.get(key("b")).expect("b present").as_mapping().unwrap();
         assert_eq!(b.get(key("c")), Some(&Value::Number(1.into())));
@@ -139,7 +121,7 @@ mod tests {
         let u = Update {
             operators: vec![build_set(&["a", "y"], Value::Number(2.into()))],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         let a = d.get(key("a")).unwrap().as_mapping().unwrap();
         assert_eq!(a.get(key("x")), Some(&Value::Number(1.into())));
         assert_eq!(a.get(key("y")), Some(&Value::Number(2.into())));
@@ -151,7 +133,7 @@ mod tests {
         let u = Update {
             operators: vec![build_set(&["a", "b"], Value::Number(1.into()))],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         let a = d.get(key("a")).expect("a present").as_mapping().unwrap();
         assert_eq!(a.get(key("b")), Some(&Value::Number(1.into())));
     }
@@ -165,7 +147,7 @@ mod tests {
         let u = Update {
             operators: vec![build_unset(&["reviewed"])],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         assert!(!d.contains_key(key("reviewed")));
     }
 
@@ -175,7 +157,7 @@ mod tests {
         let u = Update {
             operators: vec![build_unset(&["never_existed"])],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         assert_eq!(d.get(key("status")), Some(&Value::String("draft".into())));
     }
 
@@ -185,7 +167,7 @@ mod tests {
         let u = Update {
             operators: vec![build_unset(&["a", "b"])],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         assert_eq!(d.get(key("a")), Some(&Value::String("scalar".into())));
     }
 
@@ -198,7 +180,7 @@ mod tests {
                 build_unset(&["a"]),
             ],
         };
-        apply(&u, &mut d).unwrap();
+        apply(&u, &mut d);
         assert!(!d.contains_key(key("a")));
         assert_eq!(d.get(key("c")), Some(&Value::Number(3.into())));
     }

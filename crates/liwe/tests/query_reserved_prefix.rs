@@ -1,16 +1,16 @@
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
-use liwe::query::{
-    execute, Filter, FindOp, Operation, Outcome, Update, UpdateOp, UpdateOperator,
-};
+use liwe::query::execute;
+use liwe::query::prelude::{filter, find, update, update_op};
+use liwe::query::{Filter, FindOp, Outcome, Update, UpdateOp, UpdateOperator};
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
 use serde_yaml::{Mapping, Value};
 
 fn run_find(docs: &str, op: FindOp) -> Vec<Mapping> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&Operation::Find(op), &graph) {
+    match execute(&find(op), &graph) {
         Outcome::Find { matches } => matches.into_iter().map(|m| m.document).collect(),
         other => panic!("expected Find, got {:?}", other),
     }
@@ -19,9 +19,8 @@ fn run_find(docs: &str, op: FindOp) -> Vec<Mapping> {
 fn assert_update(docs: &str, op: UpdateOp, expected: &str) {
     let state = from_indoc(docs);
     let graph = Graph::import(&state, MarkdownOptions::default(), None);
-    match execute(&Operation::Update(op), &graph) {
-        Outcome::Update { changes, failed } => {
-            assert!(failed.is_empty(), "{:?}", failed);
+    match execute(&update(op), &graph) {
+        Outcome::Update { changes } => {
             let mut new_state = graph.export();
             for (key, markdown) in changes {
                 new_state.insert(key.to_string(), markdown);
@@ -43,7 +42,7 @@ fn reserved_prefix_keys_invisible_in_find_output() {
             ---
             # A
         "},
-        FindOp::new().filter(Filter::all()),
+        filter(Filter::all()),
     );
     assert_eq!(matches.len(), 1);
     let m = &matches[0];
@@ -62,7 +61,7 @@ fn update_round_trip_strips_pre_existing_reserved_keys() {
             ---
             # A
         "},
-        UpdateOp::new(
+        update_op(
             Filter::all(),
             Update::new(vec![UpdateOperator::set("name", "updated")]),
         ),

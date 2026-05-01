@@ -75,9 +75,8 @@ sub_field_entry ::= field_path : field_predicate
 logical_op ::=
     $and : [filter, ...]                           # non-empty
   | $or  : [filter, ...]                           # non-empty
+  | $nor : [filter, ...]                           # non-empty
   | $not : filter                                  # single filter, not list
-
-# $not: { $not: ... } is a parse-time error.
 ```
 
 ### 2.2 Field operators
@@ -110,31 +109,34 @@ array_op ::=
 type_name ::=
     "string" | "number" | "boolean" | "null"
   | "array"  | "object" | "date"    | "datetime"
+
+# Type names are YAML strings only. The bare YAML null literal ($type: null) is a
+# parse-time error — write $type: "null" to test for the null type.
 ```
 
 ### 2.3 Field paths
 
 ```
 field_path ::= segment ("." segment)*              # dotted shorthand
-segment    ::= identifier                          # YAML name not starting with $, _, ., #, @
+segment    ::= identifier                          # see query-language-spec.md §2.3
+                                                   # non-empty; no whitespace; no control chars; no `.`;
+                                                   # first char not in $, _, ., #, @
 ```
 
-A nested mapping (`author: { name: ... }`) is equivalent to the dotted form (`author.name: ...`). Field names containing a literal `.` cannot use the shorthand.
+A nested mapping (`author: { name: ... }`) is equivalent to the dotted form (`author.name: ...`). Field names containing a literal `.` are not addressable in v1 — neither shorthand nor nested-mapping form can reference them, because path resolution always splits on `.`.
 
 ## 3. Graph operators
 
 ```
 graph_op ::=
-    $key             : key_op
-  | $includesCount   : count_arg
-  | $includedByCount : count_arg
-  | $includes        : relational_arg
-  | $includedBy      : relational_arg
-  | $references      : relational_arg
-  | $referencedBy    : relational_arg
+    $key          : key_op
+  | $includes     : relational_arg
+  | $includedBy   : relational_arg
+  | $references   : relational_arg
+  | $referencedBy : relational_arg
 ```
 
-The `filter` production used inside relational operators (`match` field, §3.3) is the same `filter` production from §2 — the grammar is mutually recursive (filter contains graph_op contains relational_arg.match contains filter).
+The `filter` production used inside relational operators (`match` field, §3.2) is the same `filter` production from §2 — the grammar is mutually recursive (filter contains graph_op contains relational_arg.match contains filter).
 
 ### 3.1 Identity
 
@@ -150,25 +152,7 @@ key_expr ::=
 # $gt / $gte / $lt / $lte on $key are parse-time errors.
 ```
 
-### 3.2 Count operators
-
-```
-count_arg ::= int | num_expr | count_obj
-
-count_obj ::= {
-    count:    int | num_expr                       (required)
-    maxDepth: pos_int                              (optional; absent = unbounded)
-    minDepth: pos_int                              (optional; absent = 1)
-}
-
-# Bare-integer / numeric-expression shorthands expand to { count: ..., maxDepth: 1 }.
-# minDepth > maxDepth (when both are present) is a parse-time error.
-# No -1 sentinel; absence is the unbounded signal in the full count_obj form.
-# maxDistance / minDistance inside count operators are parse-time errors.
-# Field names inside count_obj are bare — $-prefix is reserved for evaluating operators.
-```
-
-### 3.3 Relational operators
+### 3.2 Relational operators
 
 ```
 relational_arg ::= key | relational_obj
@@ -193,30 +177,9 @@ relational_obj ::= {
 # All walk-parameter values are positive integers (>= 1).
 # No -1 sentinel; absence is the unbounded signal in the full relational_obj form.
 # Field names inside relational_obj are bare — $-prefix is reserved for evaluating operators.
+# The recognized key set is closed: any key other than match / maxDepth / minDepth /
+#   maxDistance / minDistance is a parse-time error (unknown keys are not silently ignored).
 # The filter inside `match` is the §2 filter production — the grammar is mutually recursive.
-```
-
-### 3.4 Numeric expression (used by count operators)
-
-```
-num_expr ::=
-    { num_expr_cmp }
-  | { num_expr_set }
-  | { num_expr_cmp, num_expr_cmp, ... }            # AND-composed
-
-num_expr_cmp ::=
-    $eq:  int
-  | $ne:  int
-  | $gt:  int
-  | $gte: int
-  | $lt:  int
-  | $lte: int
-
-num_expr_set ::=
-    $in:  [int, ...]                               # non-empty
-  | $nin: [int, ...]                               # non-empty
-
-# $in / $nin cannot be combined with other operators in the same expression.
 ```
 
 ## 4. Projection
@@ -229,6 +192,8 @@ project_entry ::=
   | field_path : nested_projection
 
 include_marker  ::= 1 | true | null                # all three mean "include"
+                                                   # type-strict: integer 1, bool true, or YAML null
+                                                   # 0, false, "1", "true", "null", 1.0 → parse-time error
 
 nested_projection ::= { (project_entry)+ }
 ```
@@ -237,7 +202,8 @@ nested_projection ::= { (project_entry)+ }
 
 ```
 sort     ::= { field_path : sort_dir }             # exactly one entry in v1
-sort_dir ::= 1 | -1
+sort_dir ::= 1 | -1                                # type-strict integer; YAML +1 normalizes to 1 and is accepted;
+                                                   # 1.0, "1", true, null → parse-time error
 ```
 
 ## 6. Limit
@@ -252,19 +218,28 @@ limit ::= non_neg_int                              # 0 = no limit
 update_doc ::= { (update_op_entry)+ }              # at least one operator
 
 update_op_entry ::=
-    $set:   { (field_path : value)+ }
-  | $unset: { (field_path : any_value)+ }          # values ignored
+    $set:   { (field_path : value)+ }              # body must be non-empty
+  | $unset: { (field_path : any_value)+ }          # body must be non-empty; values ignored
 
-# Targeting a reserved-prefix name (_, $, ., #, @ as first character) inside $set / $unset
-# is a parse-time error.
-# $set and $unset on the same field_path is a parse-time error.
+# Empty $set: {} / $unset: {} is a parse-time error (grammar requires +).
+# Targeting a reserved-prefix segment (_, $, ., #, @ as first character of any segment in
+#   any path — top-level, dotted, or nested mapping key, recursively) is a parse-time error.
+# Two paths in $set / $unset conflict when, after canonicalizing nested-mapping form
+#   to dotted form per §4.4, one path equals or is a prefix of the other. Conflicts are
+#   parse-time errors. The check applies across operators ($set vs $unset) and within
+#   a single operator (two $set entries).
+# A dotted $set path that traverses a present-but-non-mapping intermediate coerces the
+#   intermediate to a fresh mapping holding the new leaf (per language spec §8.1, $set).
+#   Not a parse-time error and not a runtime failure.
+# Mapping values in $set replace wholesale; use dotted shorthand to write subset leaves.
 ```
 
 ## 8. Primitives
 
 ```
 key         ::= string                             # document key (relative path without .md)
-identifier  ::= YAML name not starting with $, _, ., #, @
+identifier  ::= YAML name; non-empty; no whitespace; no control chars; no `.`;
+                first char not in $, _, ., #, @
 value       ::= scalar | array | mapping | null
 scalar      ::= string | number | boolean | date | datetime
 array       ::= [value, ...]

@@ -1,13 +1,15 @@
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
-use liwe::query::{execute, Filter, FindOp, Operation, Outcome, Projection, Sort};
+use liwe::query::execute;
+use liwe::query::prelude::{and, eq, exists, filter, find, gte, or};
+use liwe::query::{Filter, FindOp, Outcome, Projection, Sort};
 use liwe::state::from_indoc;
 use serde_yaml::{Mapping, Value};
 
 fn run_find(docs: &str, op: FindOp) -> Vec<(String, Mapping)> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&Operation::Find(op), &graph) {
+    match execute(&find(op), &graph) {
         Outcome::Find { matches } => matches
             .into_iter()
             .map(|m| (m.key.to_string(), m.document))
@@ -56,7 +58,7 @@ fn find_filter_status_draft() {
             ---
             # C
         "},
-        FindOp::new().filter(Filter::eq("status", "draft")),
+        filter(eq("status", "draft")),
         &["1", "3"],
     );
 }
@@ -90,9 +92,9 @@ fn find_filter_with_or_and_nested() {
             ---
             # D
         "},
-        FindOp::new().filter(Filter::and(vec![
-            Filter::gte("modified", "2026-04-01"),
-            Filter::or(vec![Filter::gte("priority", 8i64), Filter::eq("tags", "urgent")]),
+        filter(and(vec![
+            gte("modified", "2026-04-01"),
+            or(vec![gte("priority", 8i64), eq("tags", "urgent")]),
         ])),
         &["1", "2"],
     );
@@ -109,9 +111,7 @@ fn find_projection_drops_unprojected_fields() {
             ---
             # A
         "},
-        FindOp::new()
-            .filter(Filter::all())
-            .project(Projection::fields(&["title", "status"])),
+        filter::<FindOp>(Filter::all()).project(Projection::fields(&["title", "status"])),
     );
     assert_eq!(matches.len(), 1);
     let doc = &matches[0].1;
@@ -139,8 +139,7 @@ fn find_sort_and_limit() {
             ---
             # C
         "},
-        FindOp::new()
-            .filter(Filter::all())
+        filter::<FindOp>(Filter::all())
             .sort(Sort::desc("modified"))
             .limit(2),
         &["2", "3"],
@@ -154,7 +153,7 @@ fn find_empty_corpus_returns_empty() {
         MarkdownOptions::default(),
         None,
     );
-    match execute(&Operation::Find(FindOp::new()), &graph) {
+    match execute(&find(FindOp::new()), &graph) {
         Outcome::Find { matches } => assert!(matches.is_empty()),
         other => panic!("{:?}", other),
     }
@@ -171,7 +170,7 @@ fn find_doc_without_frontmatter_appears_as_empty_mapping() {
             ---
             # B
         "},
-        FindOp::new().filter(Filter::exists("status", false)),
+        filter(exists("status", false)),
         &["1"],
     );
 }

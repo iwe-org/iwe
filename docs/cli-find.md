@@ -1,6 +1,6 @@
 # IWE Find
 
-Search and discover documents in your knowledge base with fuzzy matching and relationship filtering.
+Search and discover documents in your knowledge base. Combines a fuzzy `QUERY` (matched against title and key) with a YAML-based filter language.
 
 ## Usage
 
@@ -10,88 +10,99 @@ iwe find [QUERY] [OPTIONS]
 
 ## Options
 
-| Flag                 | Description                                                      | Default          |
-| -------------------- | ---------------------------------------------------------------- | ---------------- |
-| `[QUERY]`            | Fuzzy search on document title and key                           | none (lists all) |
-| `--roots`            | Only show root documents (no parents)                            | false            |
-| `--refs-to <KEY>`    | Documents that reference this key (direct, includes inline)      | none             |
-| `--refs-from <KEY>`  | Documents referenced by this key (direct, includes inline)       | none             |
-| `--in <KEY[:DEPTH]>` | Sub-documents of EVERY listed key (AND). Repeatable.             | none             |
-| `--in-any <KEY...>`  | Sub-documents of AT LEAST ONE listed key (OR). Repeatable.       | none             |
-| `--not-in <KEY...>`  | Exclude sub-documents of any listed key (NOT). Repeatable.       | none             |
-| `--max-depth <N>`    | Default depth for `--in` / `--in-any` / `--not-in`. Unbounded if omitted. | none      |
-| `-l, --limit <N>`    | Maximum number of results                                        | 50               |
-| `-f, --format <FMT>` | Output format: `markdown`, `keys`, `json`                        | markdown         |
+| Flag                            | Description                                                                                  | Default    |
+| ------------------------------- | -------------------------------------------------------------------------------------------- | ---------- |
+| `[QUERY]`                       | Fuzzy search on document title and key                                                       | none       |
+| `--filter <EXPR>`               | Inline YAML filter expression. See [Query Language](query-language.md).                      | none       |
+| `-k, --key <KEY>`               | Match by document key. Repeatable: 1 key uses `$eq`, 2+ uses `$in`.                          | none       |
+| `--includes <KEY[:DEPTH]>`      | `$includes` anchor. Repeatable; anchors are ANDed.                                           | none       |
+| `--included-by <KEY[:DEPTH]>`   | `$includedBy` anchor. Repeatable; anchors are ANDed.                                         | none       |
+| `--references <KEY[:DIST]>`     | `$references` anchor. Repeatable; anchors are ANDed.                                         | none       |
+| `--referenced-by <KEY[:DIST]>`  | `$referencedBy` anchor. Repeatable; anchors are ANDed.                                       | none       |
+| `--max-depth <N>`               | Session default for inclusion anchor flags without a colon-suffix. `0` = unbounded.          | 1          |
+| `--max-distance <N>`            | Session default for reference anchor flags without a colon-suffix. `0` = unbounded.          | 1          |
+| `--project <f1,f2,...>`         | Frontmatter fields to include in JSON / YAML output (comma-separated).                       | none       |
+| `--sort <field:DIR>`            | Sort by frontmatter field. `DIR` is `1` (asc) or `-1` (desc).                                | none       |
+| `-l, --limit <N>`               | Maximum number of results (`0` = unlimited).                                                 | unlimited  |
+| `-f, --format <FMT>`            | Output format: `markdown`, `keys`, `json`, `yaml`.                                           | `markdown` |
 
-## Structural set selector (`--in` family)
+All filter clauses (positional `QUERY` plus every flag above) are AND-composed at the top level. For OR or NOT, write it inside `--filter`. See [Query Language](query-language.md).
 
-The `--in`, `--in-any`, `--not-in`, and `--max-depth` flags together form a **set selector** over block-reference relationships. They answer questions like "documents that are sub-documents of A and B within depth N":
+## Filter language
 
-``` bash
-# Sub-documents of A AND B (intersection, unbounded depth)
-iwe find --in projects/alpha --in people/dmytro
-
-# Same, bounded to 2 hops from each parent
-iwe find --in projects/alpha --in people/dmytro --max-depth 2
-
-# Per-parent depth: A within 3 hops, Dmytro within 1
-iwe find --in projects/alpha:3 --in people/dmytro:1
-
-# Sub-documents of A OR B (union)
-iwe find --in-any projects/alpha --in-any projects/beta
-
-# Sub-documents of A but NOT B
-iwe find --in projects/alpha --not-in archive
-```
-
-The same selector flags are also accepted by `iwe retrieve`, `iwe tree`, and `iwe export`. See those commands for set-aware reads.
-
-
-## How It Works
-
-The `find` command searches and filters documents in your knowledge base:
-
-1.  **Fuzzy matching** - Uses the same fuzzy search algorithm as the LSP server (SkimMatcherV2)
-2.  **Ranking** - Without a query, documents are sorted by popularity (incoming references count)
-3.  **Filtering** - Apply filters for root documents or reference relationships
-4.  **Parent context** - Results include parent document information
-
-### Fuzzy Search
-
-The fuzzy matcher searches across both the document key and title:
+`--filter` accepts a YAML mapping. Bare scalars become equality predicates; `$`-prefixed keys are operators.
 
 ``` bash
-# Finds "authentication.md" with title "User Authentication"
-iwe find auth
+# Bare equality on a frontmatter field
+iwe find --filter 'status: draft'
 
-# Finds documents with "api" in key or title
-iwe find api
+# Multiple top-level keys are ANDed
+iwe find --filter '{status: draft, priority: { $gt: 3 }}'
+
+# OR composition
+iwe find --filter '$or: [{ status: draft }, { status: review }]'
+
+# Comparison and ordering
+iwe find --filter 'priority: { $gte: 3, $lte: 7 }' --sort modified_at:-1
+
+# Membership
+iwe find --filter 'tags: rust'                                    # array membership
+iwe find --filter 'status: { $in: [draft, review] }'              # any of these
+
+# Presence
+iwe find --filter 'reviewed_by: { $exists: false }'
 ```
 
-### Root Documents
+See [Query Language](query-language.md) for the full operator vocabulary.
 
-Root documents are entry points - documents with no parents:
+## Structural anchors
+
+The four `$`-prefixed graph operators have CLI shortcuts. They walk inclusion edges (block-reference inclusion links) or reference edges (inline links), starting at the named anchor key.
 
 ``` bash
-# List only root documents (no parents)
-iwe find --roots
+# Direct sub-documents only — scalar shorthand fixes maxDepth: 1
+iwe find --included-by projects/alpha
+
+# Walk inclusion edges down 5 levels
+iwe find --included-by projects/alpha:5
+
+# Every descendant (unbounded — depth `0` is the unbounded sentinel)
+iwe find --included-by projects/alpha:0
+
+# Anchors are ANDed: documents under both alpha and dmytro
+iwe find --included-by projects/alpha --included-by people/dmytro
+
+# Per-anchor depth: alpha within 3 levels, dmytro direct only
+iwe find --included-by projects/alpha:3 --included-by people/dmytro:1
+
+# Session default for un-suffixed anchors
+iwe find --max-depth 5 --included-by projects/alpha --included-by research/q2
+
+# Documents that reference a specific document (inline links)
+iwe find --references people/alice
+
+# Walk reference edges within 3 hops
+iwe find --referenced-by archive/index:3
+
+# OR composition of structural anchors via --filter
+iwe find --filter '$or: [{ $includedBy: projects/alpha }, { $includedBy: projects/beta }]'
 ```
 
-### Reference Filters
+The same selector flags are accepted by [`iwe count`](cli-count.md), [`iwe retrieve`](cli-retrieve.md), [`iwe tree`](cli-tree.md), [`iwe export`](cli-export.md), [`iwe update`](cli-update.md), and [`iwe delete`](cli-delete.md).
 
-Find documents based on their relationships:
+## How it works
 
-``` bash
-# Documents that reference "authentication"
-iwe find --refs-to authentication
+1. **Fuzzy matching** — `QUERY` is matched against both the key and the title using SkimMatcherV2.
+2. **Filter** — `--filter` and the structural-anchor flags evaluate per document; results are intersected.
+3. **Sort** — `--sort field:DIR` orders the matched set; ties are broken by document key.
+4. **Limit** — applied last.
+5. **Project** — for `json` / `yaml` output, `--project` selects which frontmatter fields appear in each result.
 
-# Documents referenced by "index"
-iwe find --refs-from index
-```
+Without a query, results are sorted by incoming-reference popularity. With a query, they are sorted by fuzzy match score.
 
-## Output Formats
+## Output formats
 
-### Markdown Format (default)
+### Markdown (default)
 
 ``` markdown
 ## Documents
@@ -103,13 +114,7 @@ Found 3 results:
 - [Session Management](session-management) <- [User Authentication](authentication)
 ```
 
-Each result shows:
-
-- Document title and key as a markdown link
-- `(root)` indicator if no parents
-- Parent documents shown with `<-` arrow
-
-### Keys Format (`-f keys`)
+### Keys (`-f keys`)
 
 ```
 authentication
@@ -117,9 +122,9 @@ login-flow
 session-management
 ```
 
-One key per line, suitable for piping to other commands.
+One key per line; suitable for piping.
 
-### JSON Format (`-f json`)
+### JSON (`-f json`)
 
 ``` json
 {
@@ -133,131 +138,58 @@ One key per line, suitable for piping to other commands.
       "incoming_refs": 5,
       "outgoing_refs": 2,
       "parent_documents": []
-    },
-    {
-      "key": "login-flow",
-      "title": "Login Flow",
-      "is_root": false,
-      "incoming_refs": 2,
-      "outgoing_refs": 0,
-      "parent_documents": [
-        {
-          "key": "authentication",
-          "title": "User Authentication",
-          "section_path": ["Implementation"]
-        }
-      ]
     }
   ]
 }
 ```
 
-Fields:
+`--project title,modified_at` projects only those frontmatter fields into each result.
 
-- `query` - The search query (null if no query provided)
-- `total` - Total matching documents (before limit applied)
-- `results` - Array of matching documents
-  - `is_root` - True if no parents
-  - `incoming_refs` - Count of parents + inline references to this document
-  - `outgoing_refs` - Count of children in this document
-  - `parent_documents` - Documents that include this one
+### YAML (`-f yaml`)
+
+Same shape as JSON, rendered as YAML.
 
 ## Examples
 
 ``` bash
-# List all documents (sorted by popularity)
+# All documents, default markdown
 iwe find
 
-# Fuzzy search for documents
+# Fuzzy search
 iwe find authentication
-iwe find "api endpoint"
 
-# List only root documents (entry points)
-iwe find --roots
+# Fuzzy search AND a frontmatter filter
+iwe find auth --filter 'status: draft'
 
-# Find what references a specific document
-iwe find --refs-to my-document
+# Roots — documents with no incoming inclusion edges
+iwe find --filter '$not: { $includedBy: { match: {} } }'
 
-# Find what a document references
-iwe find --refs-from index
-
-# Combine search with filters
-iwe find api --roots
-
-# Limit results
+# Limit
 iwe find --limit 10
 
-# Get JSON for programmatic use
-iwe find -f json
+# JSON for programmatic use, project two fields
+iwe find --project title,modified_at -f json
 
-# Get keys for piping
-iwe find --roots -f keys
-
-# Pipe keys to retrieve command
-iwe find --roots -f keys | head -5 | xargs -I {} iwe retrieve -k {}
+# Pipe keys to retrieve
+iwe find --filter 'status: draft' -f keys | xargs -I {} iwe retrieve -k {}
 ```
 
-## Use Cases
+## Deprecated aliases
 
-### Discover Entry Points
+The following flags pre-date the query language and remain accepted for backward compatibility. Each invocation prints a one-line `warning: ... is deprecated` to stderr.
 
-Find root documents that serve as entry points to different topics:
+| Deprecated         | Use instead                                                                 |
+| ------------------ | --------------------------------------------------------------------------- |
+| `--in KEY[:N]`     | `--included-by KEY[:N]`                                                     |
+| `--in-any K1 K2`   | `--filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'`                |
+| `--not-in KEY`     | `--filter '$not: { $includedBy: KEY }'`                                     |
+| `--refs-to KEY`    | `--references KEY` (legacy semantics: ORs `$includes` and `$references`)    |
+| `--refs-from KEY`  | `--referenced-by KEY` (legacy semantics: ORs `$includedBy` and `$referencedBy`) |
+| `--roots`          | `--filter '$not: { $includedBy: { match: {} } }'`                           |
 
-``` bash
-iwe find --roots
-```
+## Technical notes
 
-### Explore Document Relationships
-
-See what documents reference or are referenced by a specific document:
-
-``` bash
-# What uses this document?
-iwe find --refs-to authentication
-
-# What does this document use?
-iwe find --refs-from index
-```
-
-### Quick Document Lookup
-
-Fuzzy search when you remember part of a document name:
-
-``` bash
-iwe find deploy    # Finds "deployment", "deploy-script", etc.
-iwe find config    # Finds "configuration", "config-options", etc.
-```
-
-### Pipeline Integration
-
-Use keys format for scripting:
-
-``` bash
-# Retrieve content for top 5 root documents
-iwe find --roots -l 5 -f keys | while read key; do
-  iwe retrieve -k "$key" -d 0
-done
-
-# Export all root documents to separate files
-iwe find --roots -f keys | xargs -I {} sh -c 'iwe retrieve -k {} > {}.out.md'
-```
-
-### Analyze Knowledge Base Structure
-
-Use JSON output for analysis:
-
-``` bash
-# Find most referenced documents
-iwe find -f json | jq '.results | sort_by(-.incoming_refs) | .[0:5]'
-
-# Find orphan documents (roots with no outgoing refs)
-iwe find --roots -f json | jq '.results | map(select(.outgoing_refs == 0))'
-```
-
-## Technical Notes
-
-- Without a query, documents are sorted by incoming reference count (popularity)
-- With a query, results are sorted by fuzzy match score
-- The limit is applied after sorting, so you get the top N results
-- Parent documents show section path breadcrumbs when applicable
-- Both [Inclusion Links](inclusion-links.md) and inline references count toward `incoming_refs`
+- All filter flags AND together at the top level. To compose with OR or NOT, wrap inside `--filter`.
+- The colon-suffix on an anchor flag (`KEY:N`) overrides `--max-depth` / `--max-distance` for that anchor only. `0` is the unbounded sentinel.
+- Combining `-k KEY` with a `--filter` whose top level also contains `$key` is a parse-time error. Use `-k a -k b` for multi-key match (lowers to `$key: { $in: [a, b] }`), or write the OR inside `--filter`.
+- Both [Inclusion Links](inclusion-links.md) and inline references count toward `incoming_refs`.

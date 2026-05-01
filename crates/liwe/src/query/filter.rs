@@ -78,6 +78,7 @@ pub fn match_field_op(op: &FieldOp, value: Option<&Value>) -> bool {
             _ => false,
         },
         FieldOp::Not(inner) => !match_field_op(inner, value),
+        FieldOp::And(inners) => inners.iter().all(|op| match_field_op(op, value)),
     }
 }
 
@@ -166,15 +167,83 @@ pub fn cmp_ordered(a: &Value, b: &Value) -> Option<Ordering> {
 }
 
 fn value_type_matches(v: &Value, t: YamlType) -> bool {
-
-
     match (v, t) {
         (Value::Null, YamlType::Null) => true,
         (Value::Bool(_), YamlType::Boolean) => true,
         (Value::Number(_), YamlType::Number) => true,
         (Value::String(_), YamlType::String) => true,
+        (Value::String(s), YamlType::Date) => is_iso_date(s),
+        (Value::String(s), YamlType::Datetime) => is_iso_datetime(s),
         (Value::Sequence(_), YamlType::Array) => true,
         (Value::Mapping(_), YamlType::Object) => true,
+        (Value::Tagged(t_val), ty) => value_type_matches(&t_val.value, ty),
+        _ => false,
+    }
+}
+
+fn is_iso_date(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[..4].iter().all(|b| b.is_ascii_digit())
+        && bytes[5..7].iter().all(|b| b.is_ascii_digit())
+        && bytes[8..10].iter().all(|b| b.is_ascii_digit())
+}
+
+fn is_iso_datetime(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    if bytes.len() < 19 {
+        return false;
+    }
+    if !(bytes[10] == b'T' || bytes[10] == b't' || bytes[10] == b' ') {
+        return false;
+    }
+    if !(bytes[13] == b':' && bytes[16] == b':') {
+        return false;
+    }
+    if !is_iso_date(&s[..10]) {
+        return false;
+    }
+    if !bytes[11..13].iter().all(|b| b.is_ascii_digit()) {
+        return false;
+    }
+    if !bytes[14..16].iter().all(|b| b.is_ascii_digit()) {
+        return false;
+    }
+    if !bytes[17..19].iter().all(|b| b.is_ascii_digit()) {
+        return false;
+    }
+    let mut tail = &s[19..];
+    if let Some(rest) = tail.strip_prefix('.') {
+        let frac_end = rest
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(rest.len());
+        if frac_end == 0 {
+            return false;
+        }
+        tail = &rest[frac_end..];
+    }
+    match tail {
+        "" | "Z" | "z" => true,
+        _ if tail.len() >= 3 => {
+            let bytes = tail.as_bytes();
+            let sign_ok = bytes[0] == b'+' || bytes[0] == b'-';
+            let hh_ok = bytes[1..3].iter().all(|b| b.is_ascii_digit());
+            let mm_part = &tail[3..];
+            let mm_ok = match mm_part {
+                "" => true,
+                ":mm" if mm_part.len() == 3 => {
+                    mm_part[1..].as_bytes().iter().all(|b| b.is_ascii_digit())
+                }
+                _ if mm_part.len() == 2 => mm_part.as_bytes().iter().all(|b| b.is_ascii_digit()),
+                _ if mm_part.len() == 3 && mm_part.as_bytes()[0] == b':' => {
+                    mm_part[1..].as_bytes().iter().all(|b| b.is_ascii_digit())
+                }
+                _ => false,
+            };
+            sign_ok && hh_ok && mm_ok
+        }
         _ => false,
     }
 }
@@ -533,5 +602,58 @@ mod tests {
     #[test]
     fn type_does_not_match_missing() {
         check(&type_of("x", YamlType::String), &Mapping::new(), false);
+    }
+
+    #[test]
+    fn type_date_matches_iso_date_string() {
+        check(
+            &type_of("d", YamlType::Date),
+            &doc(vec![("d", "2026-04-26".into())]),
+            true,
+        );
+        check(
+            &type_of("d", YamlType::Date),
+            &doc(vec![("d", "2026-04-26T10:30:00Z".into())]),
+            false,
+        );
+        check(
+            &type_of("d", YamlType::Date),
+            &doc(vec![("d", "not-a-date".into())]),
+            false,
+        );
+    }
+
+    #[test]
+    fn type_datetime_matches_iso_datetime_string() {
+        check(
+            &type_of("d", YamlType::Datetime),
+            &doc(vec![("d", "2026-04-26T10:30:00Z".into())]),
+            true,
+        );
+        check(
+            &type_of("d", YamlType::Datetime),
+            &doc(vec![("d", "2026-04-26T10:30:00+02:00".into())]),
+            true,
+        );
+        check(
+            &type_of("d", YamlType::Datetime),
+            &doc(vec![("d", "2026-04-26".into())]),
+            false,
+        );
+    }
+
+    #[test]
+    fn per_field_not_negates_multi_operator_range() {
+        let f = Filter::Field {
+            path: p("priority"),
+            op: FieldOp::Not(Box::new(FieldOp::And(vec![
+                FieldOp::Gt(Value::from(5i64)),
+                FieldOp::Lt(Value::from(10i64)),
+            ]))),
+        };
+        check(&f, &doc(vec![("priority", 7i64.into())]), false);
+        check(&f, &doc(vec![("priority", 3i64.into())]), true);
+        check(&f, &doc(vec![("priority", 15i64.into())]), true);
+        check(&f, &Mapping::new(), true);
     }
 }

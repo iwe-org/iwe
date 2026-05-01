@@ -1,15 +1,16 @@
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
-use liwe::query::{
-    execute, CountArg, Filter, FindOp, InclusionAnchor, KeyOp, MaxDepth, NumExpr,
-    Operation, Outcome, ReferenceAnchor,
+use liwe::query::prelude::{
+    and, eq, filter, find, included_by, includes, key_eq, key_in, key_ne, key_nin, nor, not, or,
+    referenced_by, references,
 };
+use liwe::query::{execute, FindOp, InclusionAnchor, Outcome, ReferenceAnchor};
 use liwe::state::from_indoc;
 
 fn run_find_keys(docs: &str, op: FindOp) -> Vec<String> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&Operation::Find(op), &graph) {
+    match execute(&find(op), &graph) {
         Outcome::Find { matches } => matches.into_iter().map(|m| m.key.to_string()).collect(),
         other => panic!("expected Find, got {:?}", other),
     }
@@ -33,7 +34,7 @@ fn key_eq_selects_one() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::key(KeyOp::eq("2"))),
+        filter(key_eq("2")),
         &["2"],
     );
 }
@@ -48,7 +49,7 @@ fn key_in_selects_subset() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::key(KeyOp::in_(&["1", "3"]))),
+        filter(key_in(&["1", "3"])),
         &["1", "3"],
     );
 }
@@ -63,61 +64,8 @@ fn key_ne_excludes() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::key(KeyOp::ne("2"))),
+        filter(key_ne("2")),
         &["1", "3"],
-    );
-}
-
-#[test]
-fn included_by_count_zero_selects_roots() {
-    assert_keys(
-        indoc! {"
-            [b](2)
-            _
-            [c](3)
-            _
-            # C
-        "},
-        FindOp::new().filter(Filter::IncludedByCount(
-            CountArg::direct(NumExpr::eq(0)),
-        )),
-        &["1"],
-    );
-}
-
-#[test]
-fn includes_count_zero_selects_leaves() {
-    assert_keys(
-        indoc! {"
-            [b](2)
-            _
-            [c](3)
-            _
-            # C
-        "},
-        FindOp::new().filter(Filter::IncludesCount(CountArg::direct(
-            NumExpr::eq(0),
-        ))),
-        &["3"],
-    );
-}
-
-#[test]
-fn includes_count_transitive_any() {
-    assert_keys(
-        indoc! {"
-            [b](2)
-            _
-            [c](3)
-            _
-            # C
-        "},
-        FindOp::new().filter(Filter::IncludesCount(CountArg {
-            count: NumExpr::gte(2),
-            min_depth: 1,
-            max_depth: MaxDepth::Any,
-        })),
-        &["1"],
     );
 }
 
@@ -131,9 +79,7 @@ fn included_by_direct() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("1", 1),
-        ])),
+        filter(included_by(InclusionAnchor::with_max("1", 1))),
         &["2"],
     );
 }
@@ -148,9 +94,7 @@ fn included_by_transitive() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("1", 5),
-        ])),
+        filter(included_by(InclusionAnchor::with_max("1", 5))),
         &["2", "3"],
     );
 }
@@ -165,9 +109,7 @@ fn included_by_range_excludes_direct() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::new("1", 2, 5),
-        ])),
+        filter(included_by(InclusionAnchor::new("1", 2, 5))),
         &["3"],
     );
 }
@@ -182,9 +124,7 @@ fn includes_outbound() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::Includes(vec![
-            InclusionAnchor::with_max("3", 5),
-        ])),
+        filter(includes(InclusionAnchor::with_max("3", 5))),
         &["1", "2"],
     );
 }
@@ -199,9 +139,7 @@ fn anchor_excluded_from_walk_results() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("1", 5),
-        ])),
+        filter(included_by(InclusionAnchor::with_max("1", 5))),
         &["2", "3"],
     );
 }
@@ -216,9 +154,9 @@ fn multi_anchor_intersects() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("1", 5),
-            InclusionAnchor::with_max("2", 5),
+        filter(and(vec![
+            included_by(InclusionAnchor::with_max("1", 5)),
+            included_by(InclusionAnchor::with_max("2", 5)),
         ])),
         &["3"],
     );
@@ -234,9 +172,7 @@ fn references_by_inline_link_in_text() {
             _
             # B
         "},
-        FindOp::new().filter(Filter::References(vec![
-            ReferenceAnchor::with_max("2", 1),
-        ])),
+        filter(references(ReferenceAnchor::with_max("2", 1))),
         &["1"],
     );
 }
@@ -251,9 +187,7 @@ fn referenced_by_inline() {
             _
             # B
         "},
-        FindOp::new().filter(Filter::ReferencedBy(vec![
-            ReferenceAnchor::with_max("1", 1),
-        ])),
+        filter(referenced_by(ReferenceAnchor::with_max("1", 1))),
         &["2"],
     );
 }
@@ -264,9 +198,7 @@ fn missing_anchor_returns_empty() {
         indoc! {"
             # A
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("does-not-exist", 5),
-        ])),
+        filter(included_by(InclusionAnchor::with_max("does-not-exist", 5))),
         &[],
     );
 }
@@ -278,10 +210,8 @@ fn empty_corpus_returns_empty() {
         MarkdownOptions::default(),
         None,
     );
-    let op = FindOp::new().filter(Filter::IncludesCount(CountArg::direct(
-        NumExpr::eq(0),
-    )));
-    match execute(&Operation::Find(op), &graph) {
+    let op = filter(key_eq("anything"));
+    match execute(&find(op), &graph) {
         Outcome::Find { matches } => assert!(matches.is_empty()),
         other => panic!("{:?}", other),
     }
@@ -301,11 +231,11 @@ fn graph_op_combines_with_frontmatter_predicate() {
             ---
             # B
         "},
-        FindOp::new().filter(Filter::and(vec![
-            Filter::IncludedByCount(CountArg::direct(NumExpr::eq(0))),
-            Filter::eq("status", "draft"),
+        filter(and(vec![
+            included_by(InclusionAnchor::with_max("1", 5)),
+            eq("status", "published"),
         ])),
-        &["1"],
+        &["2"],
     );
 }
 
@@ -321,7 +251,7 @@ fn key_nin_excludes_listed() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::key(KeyOp::nin(&["2", "4"]))),
+        filter(key_nin(&["2", "4"])),
         &["1", "3"],
     );
 }
@@ -334,84 +264,8 @@ fn key_eq_against_missing_returns_empty() {
             _
             # B
         "},
-        FindOp::new().filter(Filter::key(KeyOp::eq("missing"))),
+        filter(key_eq("missing")),
         &[],
-    );
-}
-
-#[test]
-fn included_by_count_polyhierarchy() {
-    assert_keys(
-        indoc! {"
-            [c](3)
-            _
-            [c](3)
-            _
-            # C
-        "},
-        FindOp::new().filter(Filter::IncludedByCount(
-            CountArg::direct(NumExpr::gte(2)),
-        )),
-        &["3"],
-    );
-}
-
-#[test]
-fn includes_count_exact_n() {
-    assert_keys(
-        indoc! {"
-            [b](2)
-
-            [c](3)
-            _
-            # B
-            _
-            # C
-        "},
-        FindOp::new().filter(Filter::IncludesCount(
-            CountArg::direct(NumExpr::eq(2)),
-        )),
-        &["1"],
-    );
-}
-
-#[test]
-fn includes_count_range_band() {
-    assert_keys(
-        indoc! {"
-            [b](2)
-            _
-            [c](3)
-            _
-            [d](4)
-            _
-            # D
-        "},
-        FindOp::new().filter(Filter::IncludesCount(CountArg {
-            count: NumExpr::gte(1),
-            min_depth: 2,
-            max_depth: MaxDepth::Bounded(4),
-        })),
-        &["1", "2"],
-    );
-}
-
-#[test]
-fn includes_count_zero_at_depth_2() {
-    assert_keys(
-        indoc! {"
-            [b](2)
-            _
-            [c](3)
-            _
-            # C
-        "},
-        FindOp::new().filter(Filter::IncludesCount(CountArg {
-            count: NumExpr::eq(0),
-            min_depth: 2,
-            max_depth: MaxDepth::Any,
-        })),
-        &["2", "3"],
     );
 }
 
@@ -427,9 +281,7 @@ fn included_by_chain_at_depth_3() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::new("1", 3, 3),
-        ])),
+        filter(included_by(InclusionAnchor::new("1", 3, 3))),
         &["4"],
     );
 }
@@ -446,9 +298,7 @@ fn includes_outbound_chain() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::Includes(vec![
-            InclusionAnchor::with_max("4", 5),
-        ])),
+        filter(includes(InclusionAnchor::with_max("4", 5))),
         &["1", "2", "3"],
     );
 }
@@ -463,9 +313,9 @@ fn included_by_polyhierarchy_set_semantics() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("1", 5),
-            InclusionAnchor::with_max("2", 5),
+        filter(and(vec![
+            included_by(InclusionAnchor::with_max("1", 5)),
+            included_by(InclusionAnchor::with_max("2", 5)),
         ])),
         &["3"],
     );
@@ -481,9 +331,7 @@ fn references_multi_hop() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::References(vec![
-            ReferenceAnchor::with_max("3", 2),
-        ])),
+        filter(references(ReferenceAnchor::with_max("3", 2))),
         &["1", "2"],
     );
 }
@@ -498,9 +346,7 @@ fn referenced_by_multi_hop() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::ReferencedBy(vec![
-            ReferenceAnchor::with_max("1", 2),
-        ])),
+        filter(referenced_by(ReferenceAnchor::with_max("1", 2))),
         &["2", "3"],
     );
 }
@@ -511,9 +357,7 @@ fn reference_self_link_excluded_from_walk() {
         indoc! {"
             See [self](1).
         "},
-        FindOp::new().filter(Filter::References(vec![
-            ReferenceAnchor::with_max("1", 1),
-        ])),
+        filter(references(ReferenceAnchor::with_max("1", 1))),
         &[],
     );
 }
@@ -528,9 +372,7 @@ fn referenced_by_range_excludes_direct() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::ReferencedBy(vec![
-            ReferenceAnchor::new("1", 2, 3),
-        ])),
+        filter(referenced_by(ReferenceAnchor::new("1", 2, 3))),
         &["3"],
     );
 }
@@ -545,36 +387,11 @@ fn or_of_two_graph_ops() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::or(vec![
-            Filter::IncludedByCount(CountArg::direct(NumExpr::eq(0))),
-            Filter::IncludedBy(vec![InclusionAnchor::with_max(
-                "2", 1,
-            )]),
+        filter(or(vec![
+            key_eq("1"),
+            included_by(InclusionAnchor::with_max("2", 1)),
         ])),
         &["1", "3"],
-    );
-}
-
-#[test]
-fn not_wraps_count() {
-    assert_keys(
-        indoc! {"
-            [b](2)
-
-            [c](3)
-
-            [d](4)
-            _
-            [b](2)
-            _
-            # B
-            _
-            # D
-        "},
-        FindOp::new().filter(Filter::Not(Box::new(Filter::IncludesCount(
-            CountArg::direct(NumExpr::gte(2)),
-        )))),
-        &["2", "3", "4"],
     );
 }
 
@@ -588,11 +405,42 @@ fn not_wraps_walk() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::Not(Box::new(Filter::IncludedBy(
-            vec![InclusionAnchor::with_max("1", 5)],
-        )))),
+        filter(not(included_by(InclusionAnchor::with_max("1", 5)))),
         &["1", "3"],
     );
+}
+
+#[test]
+fn nor_excludes_union_of_children() {
+    assert_keys(
+        indoc! {"
+            # A
+            _
+            # B
+            _
+            # C
+        "},
+        filter(nor(vec![key_eq("1"), key_eq("3")])),
+        &["2"],
+    );
+}
+
+#[test]
+fn nor_equivalent_to_not_or() {
+    let docs = indoc! {"
+        # A
+        _
+        # B
+        _
+        # C
+    "};
+    let nor_op = filter(nor(vec![key_eq("1"), key_eq("2")]));
+    let not_or = filter(not(or(vec![key_eq("1"), key_eq("2")])));
+    let mut a = run_find_keys(docs, nor_op);
+    let mut b = run_find_keys(docs, not_or);
+    a.sort();
+    b.sort();
+    assert_eq!(a, b);
 }
 
 #[test]
@@ -619,10 +467,9 @@ fn combined_three_predicates_hub_under_anchor() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::and(vec![
-            Filter::eq("status", "draft"),
-            Filter::IncludedBy(vec![InclusionAnchor::with_max("1", 5)]),
-            Filter::IncludesCount(CountArg::direct(NumExpr::gte(3))),
+        filter(and(vec![
+            eq("status", "draft"),
+            included_by(InclusionAnchor::with_max("1", 5)),
         ])),
         &["2"],
     );
@@ -638,11 +485,9 @@ fn or_anchor_or_descendants() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::or(vec![
-            Filter::key(KeyOp::eq("1")),
-            Filter::IncludedBy(vec![InclusionAnchor::with_max(
-                "1", 5,
-            )]),
+        filter(or(vec![
+            key_eq("1"),
+            included_by(InclusionAnchor::with_max("1", 5)),
         ])),
         &["1", "2", "3"],
     );
@@ -660,11 +505,11 @@ fn exclude_inside_descendants() {
             _
             # C
         "},
-        FindOp::new().filter(Filter::and(vec![
-            Filter::IncludedBy(vec![InclusionAnchor::with_max(
+        filter(and(vec![
+            included_by(InclusionAnchor::with_max(
                 "1", 5,
-            )]),
-            Filter::key(KeyOp::ne("3")),
+            )),
+            key_ne("3"),
         ])),
         &["2"],
     );
@@ -682,9 +527,7 @@ fn disconnected_components() {
             _
             # D
         "},
-        FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("1", 100),
-        ])),
+        filter(included_by(InclusionAnchor::with_max("1", 100))),
         &["2"],
     );
 }
@@ -692,6 +535,7 @@ fn disconnected_components() {
 #[test]
 fn sort_after_graph_filter() {
     use liwe::query::Sort;
+    use liwe::query::prelude::exists;
     assert_keys(
         indoc! {"
             ---
@@ -709,11 +553,84 @@ fn sort_after_graph_filter() {
             # D
         "},
         FindOp::new()
-            .filter(Filter::IncludedByCount(CountArg::direct(
-                NumExpr::eq(0),
-            )))
+            .filter(exists("created", true))
             .sort(Sort::asc("created"))
             .limit(2),
-        &["1", "3"],
+        &["1", "2"],
+    );
+}
+
+#[test]
+fn included_by_match_anchors_by_frontmatter() {
+    assert_keys(
+        indoc! {"
+            ---
+            kind: project
+            ---
+            [c](3)
+            _
+            ---
+            kind: project
+            ---
+            [d](4)
+            _
+            # C
+            _
+            # D
+        "},
+        filter(included_by(InclusionAnchor::with_match(
+            eq("kind", "project"),
+            1,
+            5,
+        ))),
+        &["3", "4"],
+    );
+}
+
+#[test]
+fn included_by_match_anchors_by_key_in() {
+    assert_keys(
+        indoc! {"
+            [c](3)
+            _
+            [d](4)
+            _
+            [e](5)
+            _
+            # D
+            _
+            # E
+        "},
+        filter(included_by(InclusionAnchor::with_match(
+            key_in(&["1", "2"]),
+            1,
+            5,
+        ))),
+        &["3", "4", "5"],
+    );
+}
+
+#[test]
+fn included_by_match_excludes_anchor_set() {
+    assert_keys(
+        indoc! {"
+            ---
+            kind: project
+            ---
+            [b](2)
+            _
+            ---
+            kind: project
+            ---
+            [c](3)
+            _
+            # C
+        "},
+        filter(included_by(InclusionAnchor::with_match(
+            eq("kind", "project"),
+            1,
+            5,
+        ))),
+        &["3"],
     );
 }

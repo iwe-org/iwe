@@ -2,13 +2,13 @@ use serde_yaml::{Mapping, Value};
 
 use crate::model::Key;
 use crate::query::document::{
-    CountArg, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp,
-    Limit, MaxDepth, NumExpr, NumOp, Operation, OperationKind, Projection, ReferenceAnchor, Sort,
-    SortDir, Update, UpdateOp, UpdateOperator, YamlType,
+    CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp, Limit,
+    Operation, OperationKind, Projection, ReferenceAnchor, Sort, SortDir, Update, UpdateOp,
+    UpdateOperator, YamlType,
 };
 use crate::query::wire::{
-    self, RawCountArg, RawCountArgMap, RawCountValue, RawFilter, RawKeyOpMap, RawNumExprMap,
-    RawOperation, RawProjection, RawRelationalObj, RawSort, RawUpdate,
+    self, RawFilter, RawKeyOpMap, RawOperation, RawProjection, RawRelationalObj, RawSort,
+    RawUpdate,
 };
 
 #[derive(Debug)]
@@ -26,7 +26,6 @@ pub enum ParseError {
     MixedDollarAndBare {
         path: Vec<String>,
     },
-    DoubleNot,
     UnknownOperator {
         op: String,
         path: Vec<String>,
@@ -47,6 +46,9 @@ pub enum ParseError {
         op: &'static str,
     },
     OperatorExpectedNonNegativeInt {
+        op: &'static str,
+    },
+    OperatorExpectedInteger {
         op: &'static str,
     },
     UnknownTypeName {
@@ -79,6 +81,10 @@ pub enum ParseError {
         path: Vec<String>,
     },
     EmptyFieldPath,
+    InvalidPathSegment {
+        path: Vec<String>,
+        reason: &'static str,
+    },
     NonStringKey,
     GraphOpExpectedScalarOrMapping {
         op: &'static str,
@@ -90,12 +96,6 @@ pub enum ParseError {
         op: &'static str,
     },
     MatchMissing {
-        op: &'static str,
-    },
-    MatchKeyExpressionRequired {
-        op: &'static str,
-    },
-    MatchFormUnsupportedV1 {
         op: &'static str,
     },
     WrongBoundFamily {
@@ -111,15 +111,6 @@ pub enum ParseError {
     InvalidDepthValue {
         op: &'static str,
         modifier: &'static str,
-    },
-    MissingCountField {
-        op: &'static str,
-    },
-    InvalidCountValue {
-        op: &'static str,
-    },
-    NumExprMixedInWithComparisons {
-        op: &'static str,
     },
 }
 
@@ -288,11 +279,12 @@ fn build_filter_at(map: Mapping, path: &[String]) -> Result<Filter, ParseError> 
     } else {
         let mut clauses: Vec<Filter> = Vec::new();
         for key_str in bare_keys {
-            let segments = if key_str.contains('.') {
+            let segments: Vec<String> = if key_str.contains('.') {
                 key_str.split('.').map(|s| s.to_string()).collect()
             } else {
                 vec![key_str.clone()]
             };
+            check_path_segments(&segments)?;
             let mut child_path = path.to_vec();
             child_path.extend(segments.iter().cloned());
             let value = map[Value::String(key_str.clone())].clone();
@@ -327,14 +319,13 @@ fn build_filter_op(op: &str, value: &Value, path: &[String]) -> Result<Filter, P
     match op {
         "$and" => Ok(Filter::And(parse_filter_list(value, "$and", path)?)),
         "$or" => Ok(Filter::Or(parse_filter_list(value, "$or", path)?)),
+        "$nor" => Ok(Filter::Nor(parse_filter_list(value, "$nor", path)?)),
         "$not" => Ok(Filter::Not(Box::new(parse_not(value, path)?))),
         "$key" => Ok(Filter::Key(parse_key_op(value, "$key")?)),
-        "$includesCount" => Ok(Filter::IncludesCount(parse_count_arg(value, "$includesCount")?)),
-        "$includedByCount" => Ok(Filter::IncludedByCount(parse_count_arg(value, "$includedByCount")?)),
-        "$includes" => Ok(Filter::Includes(parse_inclusion_anchors(value, "$includes")?)),
-        "$includedBy" => Ok(Filter::IncludedBy(parse_inclusion_anchors(value, "$includedBy")?)),
-        "$references" => Ok(Filter::References(parse_reference_anchors(value, "$references")?)),
-        "$referencedBy" => Ok(Filter::ReferencedBy(parse_reference_anchors(value, "$referencedBy")?)),
+        "$includes" => Ok(Filter::Includes(Box::new(parse_inclusion_arg(value, "$includes")?))),
+        "$includedBy" => Ok(Filter::IncludedBy(Box::new(parse_inclusion_arg(value, "$includedBy")?))),
+        "$references" => Ok(Filter::References(Box::new(parse_reference_arg(value, "$references")?))),
+        "$referencedBy" => Ok(Filter::ReferencedBy(Box::new(parse_reference_arg(value, "$referencedBy")?))),
         other => Err(ParseError::UnknownOperator {
             op: other.to_string(),
             path: path.to_vec(),
@@ -369,13 +360,6 @@ fn parse_not(value: &Value, path: &[String]) -> Result<Filter, ParseError> {
         .as_mapping()
         .ok_or(ParseError::OperatorExpectedMapping { op: "$not" })?
         .clone();
-    if m.len() == 1 {
-        if let Some(Value::String(s)) = m.keys().next() {
-            if s == "$not" {
-                return Err(ParseError::DoubleNot);
-            }
-        }
-    }
     build_filter_at(m, path)
 }
 
@@ -461,6 +445,7 @@ fn build_nested_field(
             s.push(key_str.to_string());
             s
         };
+        check_path_segments(&child_segments)?;
         let mut child_path = path.to_vec();
         for seg in child_segments.iter().skip(parent.len()) {
             child_path.push(seg.clone());
@@ -534,13 +519,13 @@ fn build_field_op(op: &str, value: Value, path: &[String]) -> Result<FieldOp, Pa
             Value::Number(n) => {
                 let i = n
                     .as_i64()
-                    .ok_or(ParseError::OperatorExpectedNonNegativeInt { op: "$size" })?;
+                    .ok_or(ParseError::OperatorExpectedInteger { op: "$size" })?;
                 if i < 0 {
                     return Err(ParseError::OperatorExpectedNonNegativeInt { op: "$size" });
                 }
                 Ok(FieldOp::Size(i as u64))
             }
-            _ => Err(ParseError::OperatorExpectedNonNegativeInt { op: "$size" }),
+            _ => Err(ParseError::OperatorExpectedInteger { op: "$size" }),
         },
         "$not" => {
             let m = value
@@ -557,21 +542,18 @@ fn build_field_op(op: &str, value: Value, path: &[String]) -> Result<FieldOp, Pa
                     path: path.to_vec(),
                 });
             }
-            if dollar_keys.len() == 1 && dollar_keys[0] == "$not" {
-                return Err(ParseError::DoubleNot);
-            }
 
-
-            if dollar_keys.len() == 1 {
-                let inner_op = dollar_keys[0].clone();
+            let mut inner_ops = Vec::with_capacity(dollar_keys.len());
+            for inner_op in dollar_keys {
                 let v = m[Value::String(inner_op.clone())].clone();
-                let inner = build_field_op(&inner_op, v, path)?;
-                Ok(FieldOp::Not(Box::new(inner)))
-            } else {
-
-
-                Err(ParseError::OperatorExpectedMapping { op: "$not" })
+                inner_ops.push(build_field_op(&inner_op, v, path)?);
             }
+            let inner = if inner_ops.len() == 1 {
+                inner_ops.into_iter().next().unwrap()
+            } else {
+                FieldOp::And(inner_ops)
+            };
+            Ok(FieldOp::Not(Box::new(inner)))
         }
         other => Err(ParseError::UnknownOperator {
             op: other.to_string(),
@@ -619,6 +601,7 @@ fn walk_projection(
             s.push(key_str.to_string());
             s
         };
+        check_path_segments(&segments)?;
         match v {
             Value::Number(n) if n.as_i64() == Some(1) => {
                 out.push(FieldPath(segments));
@@ -678,6 +661,7 @@ fn build_sort(raw: RawSort) -> Result<Sort, ParseError> {
     } else {
         FieldPath(vec![key_str])
     };
+    check_path_segments(&path.0)?;
     Ok(Sort { key: path, dir })
 }
 
@@ -691,7 +675,7 @@ fn build_limit(raw: i64) -> Result<Limit, ParseError> {
 }
 
 
-fn build_update_doc(raw: RawUpdate) -> Result<Update, ParseError> {
+pub fn build_update_doc(raw: RawUpdate) -> Result<Update, ParseError> {
     if raw.set.is_none() && raw.unset.is_none() {
         return Err(ParseError::EmptyUpdate);
     }
@@ -728,15 +712,39 @@ fn walk_update_set(
             s.push(key_str.to_string());
             s
         };
+        check_path_segments(&segments)?;
         check_reserved_prefix(&segments)?;
-
-
+        check_value_for_reserved(v, &segments)?;
         out.push(UpdateOperator::Set {
             path: FieldPath(segments),
             value: v.clone(),
         });
     }
     Ok(())
+}
+
+fn check_value_for_reserved(value: &Value, parent: &[String]) -> Result<(), ParseError> {
+    match value {
+        Value::Mapping(m) => {
+            for (k, inner) in m {
+                let key_str = k.as_str().ok_or(ParseError::NonStringKey)?;
+                let mut child = parent.to_vec();
+                child.push(key_str.to_string());
+                if matches!(key_str.chars().next(), Some('_' | '$' | '.' | '#' | '@')) {
+                    return Err(ParseError::ReservedPrefixField { path: child });
+                }
+                check_value_for_reserved(inner, &child)?;
+            }
+            Ok(())
+        }
+        Value::Sequence(seq) => {
+            for elem in seq {
+                check_value_for_reserved(elem, parent)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
 }
 
 fn walk_update_unset(
@@ -755,6 +763,7 @@ fn walk_update_unset(
             s.push(key_str.to_string());
             s
         };
+        check_path_segments(&segments)?;
         check_reserved_prefix(&segments)?;
         out.push(UpdateOperator::Unset {
             path: FieldPath(segments),
@@ -773,6 +782,30 @@ fn check_reserved_prefix(segments: &[String]) -> Result<(), ParseError> {
                 });
             }
             _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn check_path_segments(segments: &[String]) -> Result<(), ParseError> {
+    for seg in segments {
+        if seg.is_empty() {
+            return Err(ParseError::InvalidPathSegment {
+                path: segments.to_vec(),
+                reason: "empty segment",
+            });
+        }
+        if seg.chars().any(|c| c.is_whitespace()) {
+            return Err(ParseError::InvalidPathSegment {
+                path: segments.to_vec(),
+                reason: "segment contains whitespace",
+            });
+        }
+        if seg.chars().any(|c| c.is_control()) {
+            return Err(ParseError::InvalidPathSegment {
+                path: segments.to_vec(),
+                reason: "segment contains a control character",
+            });
         }
     }
     Ok(())
@@ -824,205 +857,12 @@ fn string_list(list: Vec<Value>, op: &'static str) -> Result<Vec<Key>, ParseErro
         .collect()
 }
 
-fn parse_count_arg(value: &Value, op: &'static str) -> Result<CountArg, ParseError> {
-    let raw: RawCountArg = serde_yaml::from_value(value.clone())
-        .map_err(|_| ParseError::GraphOpExpectedScalarOrMapping { op })?;
-    match raw {
-        RawCountArg::Number(i) => bare_count(i, op),
-        RawCountArg::Map(m) => count_arg_from_map(m, op),
-    }
-}
-
-fn bare_count(i: i64, op: &'static str) -> Result<CountArg, ParseError> {
-    if i < 0 {
-        return Err(ParseError::InvalidCountValue { op });
-    }
-    Ok(CountArg {
-        count: NumExpr::eq(i as u64),
-        min_depth: 1,
-        max_depth: MaxDepth::Bounded(1),
-    })
-}
-
-fn count_arg_from_map(m: RawCountArgMap, op: &'static str) -> Result<CountArg, ParseError> {
-    if m.max_distance.is_some() {
-        return Err(ParseError::WrongBoundFamily {
-            op,
-            modifier: "maxDistance",
-        });
-    }
-    if m.min_distance.is_some() {
-        return Err(ParseError::WrongBoundFamily {
-            op,
-            modifier: "minDistance",
-        });
-    }
-    let has_depth_key = m.max_depth.is_some() || m.min_depth.is_some();
-    let bare_ops = num_expr_from_count_map(&m);
-    if let Some(raw_count) = m.count {
-        if !bare_ops.0.is_empty() {
-            return Err(ParseError::MissingCountField { op });
-        }
-        let count = num_expr_from_value(raw_count, op)?;
-        let min_depth = match m.min_depth {
-            Some(i) => pos_u32(i, op, "minDepth")?,
-            None => 1,
-        };
-        let max_depth = match m.max_depth {
-            Some(d) => MaxDepth::Bounded(pos_u32(d, op, "maxDepth")?),
-            None => MaxDepth::Any,
-        };
-        let max_bound = match max_depth {
-            MaxDepth::Bounded(n) => n,
-            MaxDepth::Any => u32::MAX,
-        };
-        if min_depth > max_bound {
-            return Err(ParseError::DepthRangeInverted { op });
-        }
-        return Ok(CountArg {
-            count,
-            min_depth,
-            max_depth,
-        });
-    }
-    if has_depth_key {
-        return Err(ParseError::MissingCountField { op });
-    }
-    if bare_ops.0.is_empty() {
-        return Err(ParseError::MissingCountField { op });
-    }
-    Ok(CountArg {
-        count: bare_ops,
-        min_depth: 1,
-        max_depth: MaxDepth::Bounded(1),
-    })
-}
-
-fn num_expr_from_count_map(m: &RawCountArgMap) -> NumExpr {
-    let mut ops = Vec::new();
-    if let Some(n) = m.eq {
-        ops.push(NumOp::Eq(n.max(0) as u64));
-    }
-    if let Some(n) = m.ne {
-        ops.push(NumOp::Ne(n.max(0) as u64));
-    }
-    if let Some(n) = m.gt {
-        ops.push(NumOp::Gt(n.max(0) as u64));
-    }
-    if let Some(n) = m.gte {
-        ops.push(NumOp::Gte(n.max(0) as u64));
-    }
-    if let Some(n) = m.lt {
-        ops.push(NumOp::Lt(n.max(0) as u64));
-    }
-    if let Some(n) = m.lte {
-        ops.push(NumOp::Lte(n.max(0) as u64));
-    }
-    if let Some(list) = &m.in_ {
-        ops.push(NumOp::In(list.iter().map(|n| (*n).max(0) as u64).collect()));
-    }
-    if let Some(list) = &m.nin {
-        ops.push(NumOp::Nin(list.iter().map(|n| (*n).max(0) as u64).collect()));
-    }
-    NumExpr(ops)
-}
-
-fn num_expr_from_value(raw: RawCountValue, op: &'static str) -> Result<NumExpr, ParseError> {
-    match raw {
-        RawCountValue::Number(i) => {
-            if i < 0 {
-                return Err(ParseError::InvalidCountValue { op });
-            }
-            Ok(NumExpr::eq(i as u64))
-        }
-        RawCountValue::Map(m) => num_expr_from_map(m, op),
-    }
-}
-
-fn num_expr_from_map(m: RawNumExprMap, op: &'static str) -> Result<NumExpr, ParseError> {
-    let mut ops = Vec::new();
-    let mut comparison_count = 0u8;
-    let mut list_count = 0u8;
-    macro_rules! push_int {
-        ($field:expr, $variant:ident) => {
-            if let Some(n) = $field {
-                if n < 0 {
-                    return Err(ParseError::InvalidCountValue { op });
-                }
-                ops.push(NumOp::$variant(n as u64));
-                comparison_count += 1;
-            }
-        };
-    }
-    push_int!(m.eq, Eq);
-    push_int!(m.ne, Ne);
-    push_int!(m.gt, Gt);
-    push_int!(m.gte, Gte);
-    push_int!(m.lt, Lt);
-    push_int!(m.lte, Lte);
-    if let Some(list) = m.in_ {
-        if list.is_empty() {
-            return Err(ParseError::EmptyOperatorList { op });
-        }
-        let nums = list
-            .into_iter()
-            .map(|n| {
-                if n < 0 {
-                    Err(ParseError::InvalidCountValue { op })
-                } else {
-                    Ok(n as u64)
-                }
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        ops.push(NumOp::In(nums));
-        list_count += 1;
-    }
-    if let Some(list) = m.nin {
-        if list.is_empty() {
-            return Err(ParseError::EmptyOperatorList { op });
-        }
-        let nums = list
-            .into_iter()
-            .map(|n| {
-                if n < 0 {
-                    Err(ParseError::InvalidCountValue { op })
-                } else {
-                    Ok(n as u64)
-                }
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        ops.push(NumOp::Nin(nums));
-        list_count += 1;
-    }
-    if list_count > 0 && (comparison_count > 0 || list_count > 1) {
-        return Err(ParseError::NumExprMixedInWithComparisons { op });
-    }
-    if ops.is_empty() {
-        return Err(ParseError::InvalidCountValue { op });
-    }
-    Ok(NumExpr(ops))
-}
-
 fn pos_u32(i: i64, op: &'static str, modifier: &'static str) -> Result<u32, ParseError> {
     if i >= 1 {
         Ok(i as u32)
     } else {
         Err(ParseError::InvalidDepthValue { op, modifier })
     }
-}
-
-fn parse_inclusion_anchors(
-    value: &Value,
-    op: &'static str,
-) -> Result<Vec<InclusionAnchor>, ParseError> {
-    Ok(vec![parse_inclusion_arg(value, op)?])
-}
-
-fn parse_reference_anchors(
-    value: &Value,
-    op: &'static str,
-) -> Result<Vec<ReferenceAnchor>, ParseError> {
-    Ok(vec![parse_reference_arg(value, op)?])
 }
 
 fn parse_relational_obj(value: &Value, op: &'static str) -> Result<RawRelationalObj, ParseError> {
@@ -1039,21 +879,9 @@ fn parse_relational_obj(value: &Value, op: &'static str) -> Result<RawRelational
         .map_err(|_| ParseError::GraphOpExpectedScalarOrMapping { op })
 }
 
-fn match_to_anchor_key(raw: RawRelationalObj, op: &'static str) -> Result<(Key, RawRelationalObj), ParseError> {
+fn match_to_filter(raw: &RawRelationalObj, op: &'static str) -> Result<Filter, ParseError> {
     let m = raw.match_.as_ref().ok_or(ParseError::MatchMissing { op })?;
-    if m.len() != 1 {
-        return Err(ParseError::MatchFormUnsupportedV1 { op });
-    }
-    let (k, v) = m.iter().next().unwrap();
-    let k_str = k.as_str().ok_or(ParseError::NonStringKey)?;
-    if k_str != "$key" {
-        return Err(ParseError::MatchFormUnsupportedV1 { op });
-    }
-    let key = match v {
-        Value::String(s) => Key::name(s),
-        _ => return Err(ParseError::MatchKeyExpressionRequired { op }),
-    };
-    Ok((key, raw))
+    build_filter_at(m.clone(), &[])
 }
 
 fn parse_inclusion_arg(value: &Value, op: &'static str) -> Result<InclusionAnchor, ParseError> {
@@ -1073,7 +901,7 @@ fn parse_inclusion_arg(value: &Value, op: &'static str) -> Result<InclusionAncho
             modifier: "minDistance",
         });
     }
-    let (key, raw) = match_to_anchor_key(raw, op)?;
+    let match_filter = match_to_filter(&raw, op)?;
     let max_depth = match raw.max_depth {
         Some(n) => pos_u32(n, op, "maxDepth")?,
         None => u32::MAX,
@@ -1085,11 +913,7 @@ fn parse_inclusion_arg(value: &Value, op: &'static str) -> Result<InclusionAncho
     if min_depth > max_depth {
         return Err(ParseError::DepthRangeInverted { op });
     }
-    Ok(InclusionAnchor {
-        key,
-        min_depth,
-        max_depth,
-    })
+    Ok(InclusionAnchor::with_match(match_filter, min_depth, max_depth))
 }
 
 fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAnchor, ParseError> {
@@ -1109,7 +933,7 @@ fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAncho
             modifier: "minDepth",
         });
     }
-    let (key, raw) = match_to_anchor_key(raw, op)?;
+    let match_filter = match_to_filter(&raw, op)?;
     let max_distance = match raw.max_distance {
         Some(n) => pos_u32(n, op, "maxDistance")?,
         None => u32::MAX,
@@ -1121,11 +945,7 @@ fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAncho
     if min_distance > max_distance {
         return Err(ParseError::DepthRangeInverted { op });
     }
-    Ok(ReferenceAnchor {
-        key,
-        min_distance,
-        max_distance,
-    })
+    Ok(ReferenceAnchor::with_match(match_filter, min_distance, max_distance))
 }
 
 fn check_update_conflicts(ops: &[UpdateOperator]) -> Result<(), ParseError> {
@@ -1265,12 +1085,24 @@ mod tests {
     }
 
     #[test]
-    fn filter_double_not_rejected_top_level() {
-        let err = parse_err(
+    fn filter_double_not_top_level_parses() {
+        let op = parse(
             "filter:\n  $not:\n    $not:\n      status: draft\n",
             OperationKind::Find,
-        );
-        assert!(matches!(err, ParseError::DoubleNot));
+        )
+        .unwrap();
+        if let Operation::Find(find) = op {
+            let f = find.filter.unwrap();
+            match f {
+                Filter::Not(inner) => match *inner {
+                    Filter::Not(_) => {}
+                    other => panic!("expected nested Not, got {:?}", other),
+                },
+                other => panic!("expected Not, got {:?}", other),
+            }
+        } else {
+            panic!()
+        }
     }
 
     #[test]
@@ -1483,6 +1315,24 @@ mod tests {
     }
 
     #[test]
+    fn update_reserved_prefix_in_nested_value_rejected() {
+        let err = parse_err(
+            "filter: {}\nupdate:\n  $set:\n    author:\n      _hidden: 1\n",
+            OperationKind::Update,
+        );
+        assert!(matches!(err, ParseError::ReservedPrefixField { .. }));
+    }
+
+    #[test]
+    fn update_reserved_prefix_in_deeply_nested_value_rejected() {
+        let err = parse_err(
+            "filter: {}\nupdate:\n  $set:\n    author:\n      review:\n        \"#tag\": foo\n",
+            OperationKind::Update,
+        );
+        assert!(matches!(err, ParseError::ReservedPrefixField { .. }));
+    }
+
+    #[test]
     fn update_set_unset_same_path_rejected() {
         let err = parse_err(
             "filter: {}\nupdate:\n  $set:\n    a: 1\n  $unset:\n    a: \"\"\n",
@@ -1498,6 +1348,93 @@ mod tests {
             OperationKind::Update,
         );
         assert!(matches!(err, ParseError::SetUnsetConflict { .. }));
+    }
+
+    #[test]
+    fn explicit_and_with_single_child_is_preserved() {
+        let op = parse(
+            "filter:\n  $and:\n    - status: draft\n",
+            OperationKind::Find,
+        )
+        .unwrap();
+        if let Operation::Find(find) = op {
+            match find.filter.unwrap() {
+                Filter::And(children) => assert_eq!(children.len(), 1),
+                other => panic!("expected And wrapper, got {:?}", other),
+            }
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn explicit_or_with_single_child_is_preserved() {
+        let op = parse(
+            "filter:\n  $or:\n    - status: draft\n",
+            OperationKind::Find,
+        )
+        .unwrap();
+        if let Operation::Find(find) = op {
+            match find.filter.unwrap() {
+                Filter::Or(children) => assert_eq!(children.len(), 1),
+                other => panic!("expected Or wrapper, got {:?}", other),
+            }
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn size_float_distinguishes_from_negative() {
+        let float_err = parse_err(
+            "filter:\n  tags:\n    $size: 1.5\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(float_err, ParseError::OperatorExpectedInteger { op: "$size" }));
+        let neg_err = parse_err(
+            "filter:\n  tags:\n    $size: -1\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(
+            neg_err,
+            ParseError::OperatorExpectedNonNegativeInt { op: "$size" }
+        ));
+    }
+
+    #[test]
+    fn filter_path_with_whitespace_rejected() {
+        let err = parse_err(
+            "filter:\n  \"foo .bar\": 1\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::InvalidPathSegment { .. }));
+    }
+
+    #[test]
+    fn projection_path_with_whitespace_rejected() {
+        let err = parse_err(
+            "project:\n  \" foo\": 1\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::InvalidPathSegment { .. }));
+    }
+
+    #[test]
+    fn sort_path_with_empty_segment_rejected() {
+        let err = parse_err(
+            "sort:\n  \"a..b\": 1\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::InvalidPathSegment { .. }));
+    }
+
+    #[test]
+    fn update_set_path_with_control_char_rejected() {
+        let err = parse_err(
+            "filter: {}\nupdate:\n  $set:\n    \"foo\\tbar\": 1\n",
+            OperationKind::Update,
+        );
+        assert!(matches!(err, ParseError::InvalidPathSegment { .. }));
     }
 
     #[test]

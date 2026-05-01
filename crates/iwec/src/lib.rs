@@ -58,7 +58,12 @@ impl KeyDepthParam {
             KeyDepthParam::Bare(s) => (s.clone(), None),
             KeyDepthParam::Qualified { key, depth } => (key.clone(), *depth),
         };
-        let max = depth.or(default_depth).map(u32::from).unwrap_or(u32::MAX);
+        let raw = depth.or(default_depth);
+        let max = match raw {
+            None => u32::MAX,
+            Some(0) => u32::MAX,
+            Some(n) => u32::from(n),
+        };
         InclusionAnchor::with_max(key, max)
     }
 }
@@ -101,20 +106,20 @@ impl SelectorParams {
         }
         let mut conjuncts: Vec<Filter> = Vec::new();
         for kd in &self.in_ {
-            conjuncts.push(Filter::IncludedBy(vec![kd.anchor(self.max_depth)]));
+            conjuncts.push(Filter::IncludedBy(Box::new(kd.anchor(self.max_depth))));
         }
         if !self.in_any.is_empty() {
             conjuncts.push(Filter::Or(
                 self.in_any
                     .iter()
-                    .map(|kd| Filter::IncludedBy(vec![kd.anchor(self.max_depth)]))
+                    .map(|kd| Filter::IncludedBy(Box::new(kd.anchor(self.max_depth))))
                     .collect(),
             ));
         }
         for kd in &self.not_in {
-            conjuncts.push(Filter::Not(Box::new(Filter::IncludedBy(vec![
+            conjuncts.push(Filter::Not(Box::new(Filter::IncludedBy(Box::new(
                 kd.anchor(self.max_depth),
-            ]))));
+            )))));
         }
         Some(Filter::And(conjuncts))
     }
@@ -124,8 +129,6 @@ impl SelectorParams {
 pub struct FindParams {
     #[schemars(description = "Fuzzy search query matching against document title and key")]
     pub query: Option<String>,
-    #[schemars(description = "Only return root documents (no incoming block references)")]
-    pub roots: Option<bool>,
     #[schemars(description = "Only return documents that reference this key")]
     pub refs_to: Option<String>,
     #[schemars(description = "Only return documents referenced by this key")]
@@ -140,7 +143,6 @@ impl From<FindParams> for FindOptions {
     fn from(p: FindParams) -> Self {
         FindOptions {
             query: p.query,
-            roots: p.roots.unwrap_or(false),
             refs_to: p.refs_to.map(|k| Key::name(&k)),
             refs_from: p.refs_from.map(|k| Key::name(&k)),
             filter: p.selector.to_filter(),
@@ -1115,20 +1117,11 @@ impl IweServer {
         let stats_json =
             serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "{}".to_string());
 
-        let finder = DocumentFinder::new(&graph);
-        let roots = finder.find(&FindOptions {
-            roots: true,
-            limit: Some(20),
-            ..Default::default()
-        });
-        let roots_json =
-            serde_json::to_string_pretty(&roots).unwrap_or_else(|_| "[]".to_string());
-
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,
             format!(
-                "Here is an overview of the IWE knowledge graph.\n\n## Statistics\n\n```json\n{}\n```\n\n## Root documents\n\n```json\n{}\n```\n\nExplore the graph using iwe_retrieve to read documents, iwe_find to search, and iwe_tree to navigate the structure.",
-                stats_json, roots_json
+                "Here is an overview of the IWE knowledge graph.\n\n## Statistics\n\n```json\n{}\n```\n\nExplore the graph using iwe_retrieve to read documents, iwe_find to search, and iwe_tree to navigate the structure.",
+                stats_json
             ),
         )];
 

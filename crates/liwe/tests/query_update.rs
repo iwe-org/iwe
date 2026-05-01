@@ -1,9 +1,9 @@
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
-use liwe::query::{
-    execute, Filter, InclusionAnchor, Operation, Outcome, Update, UpdateOp, UpdateOperator,
-};
+use liwe::query::execute;
+use liwe::query::prelude::{eq, included_by, inclusion, update, update_op};
+use liwe::query::{Filter, Outcome, Update, UpdateOp, UpdateOperator};
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
 
@@ -11,12 +11,9 @@ use pretty_assertions::assert_str_eq;
 fn assert_update(docs: &str, op: UpdateOp, expected: &str) {
     let state = from_indoc(docs);
     let graph = Graph::import(&state, MarkdownOptions::default(), None);
-    let outcome = execute(&Operation::Update(op), &graph);
+    let outcome = execute(&update(op), &graph);
     match outcome {
-        Outcome::Update { changes, failed } => {
-            assert!(failed.is_empty(), "update failures: {:?}", failed);
-
-
+        Outcome::Update { changes } => {
             let mut new_state = graph.export();
             for (key, markdown) in changes {
                 new_state.insert(key.to_string(), markdown);
@@ -36,8 +33,8 @@ fn set_writes_new_field() {
             ---
             # A
         "},
-        UpdateOp::new(
-            Filter::eq("status", "draft"),
+        update_op(
+            eq("status", "draft"),
             Update::new(vec![UpdateOperator::set("reviewed", true)]),
         ),
         indoc! {"
@@ -61,8 +58,8 @@ fn unset_removes_existing_field() {
             ---
             # A
         "},
-        UpdateOp::new(
-            Filter::eq("status", "draft"),
+        update_op(
+            eq("status", "draft"),
             Update::new(vec![UpdateOperator::unset("reviewed")]),
         ),
         indoc! {"
@@ -84,8 +81,8 @@ fn set_dotted_path_persists_nested_structure() {
             ---
             # A
         "},
-        UpdateOp::new(
-            Filter::eq("status", "draft"),
+        update_op(
+            eq("status", "draft"),
             Update::new(vec![
                 UpdateOperator::set("author.name", "dmytro"),
                 UpdateOperator::set("author.email", "d@example.com"),
@@ -112,7 +109,7 @@ fn update_creates_frontmatter_when_absent() {
 
             body
         "},
-        UpdateOp::new(
+        update_op(
             Filter::all(),
             Update::new(vec![UpdateOperator::set("status", "published")]),
         ),
@@ -142,8 +139,8 @@ fn update_only_matched_docs_change() {
             ---
             # B
         "},
-        UpdateOp::new(
-            Filter::eq("status", "draft"),
+        update_op(
+            eq("status", "draft"),
             Update::new(vec![UpdateOperator::set("reviewed", true)]),
         ),
         indoc! {"
@@ -182,8 +179,8 @@ fn update_with_graph_filter_targets_descendants() {
             ---
             # C
         "},
-        UpdateOp::new(
-            Filter::IncludedBy(vec![InclusionAnchor::with_max("1", 5)]),
+        update_op(
+            included_by(inclusion("1", 5)),
             Update::new(vec![UpdateOperator::set("reviewed", true)]),
         ),
         indoc! {"

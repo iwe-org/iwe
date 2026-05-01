@@ -41,21 +41,6 @@ async fn find_by_query() {
 }
 
 #[tokio::test]
-async fn find_root_documents() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root doc\n\n[child](2)\n"),
-        ("2", "# Child doc\n"),
-    ])
-    .await;
-
-    let result = f.call_tool("iwe_find", json!({"roots": true})).await;
-    let output = Fixture::result_json(&result);
-
-    assert_eq!(output["total"], 1);
-    assert_eq!(output["results"][0]["key"], "1");
-}
-
-#[tokio::test]
 async fn find_with_limit() {
     let f = Fixture::with_documents(vec![
         ("1", "# Doc one\n"),
