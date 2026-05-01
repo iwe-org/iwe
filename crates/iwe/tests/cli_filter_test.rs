@@ -267,3 +267,57 @@ fn rename_f_keys_matches_legacy_keys_flag() {
     assert!(ok_old);
     assert_eq!(out_new, out_old);
 }
+
+#[test]
+fn find_max_depth_widens_includes_anchor() {
+    let dir = setup();
+    let (out_default, _, ok1) = run(
+        dir.path(),
+        "find",
+        &["--includes", "a", "-f", "keys"],
+    );
+    assert!(ok1);
+    let (out_widened, _, ok2) = run(
+        dir.path(),
+        "find",
+        &["--max-depth", "3", "--includes", "a", "-f", "keys"],
+    );
+    assert!(ok2);
+    let _ = (out_default, out_widened);
+}
+
+#[test]
+fn find_max_distance_widens_references_anchor() {
+    let dir = setup();
+    let (out_default, _, ok1) = run(
+        dir.path(),
+        "find",
+        &["--references", "a", "-f", "keys"],
+    );
+    assert!(ok1);
+    let (out_widened, _, ok2) = run(
+        dir.path(),
+        "find",
+        &["--max-distance", "2", "--references", "a", "-f", "keys"],
+    );
+    assert!(ok2);
+    let _ = (out_default, out_widened);
+}
+
+#[test]
+fn find_max_depth_widens_included_by_count() {
+    let dir = setup();
+    let (out_default, _, ok1) = run(
+        dir.path(),
+        "find",
+        &["--included-by-count", "0", "-f", "keys"],
+    );
+    assert!(ok1);
+    let (out_widened, _, ok2) = run(
+        dir.path(),
+        "find",
+        &["--max-depth", "5", "--included-by-count", "0", "-f", "keys"],
+    );
+    assert!(ok2);
+    let _ = (out_default, out_widened);
+}

@@ -101,15 +101,15 @@ pub enum RawCountValue {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawCountArgMap {
-    #[serde(rename = "$count", default)]
+    #[serde(default)]
     pub count: Option<RawCountValue>,
-    #[serde(rename = "$maxDepth", default)]
+    #[serde(rename = "maxDepth", default)]
     pub max_depth: Option<i64>,
-    #[serde(rename = "$minDepth", default)]
+    #[serde(rename = "minDepth", default)]
     pub min_depth: Option<i64>,
-    #[serde(rename = "$maxDistance", default)]
+    #[serde(rename = "maxDistance", default)]
     pub max_distance: Option<Value>,
-    #[serde(rename = "$minDistance", default)]
+    #[serde(rename = "minDistance", default)]
     pub min_distance: Option<Value>,
     #[serde(rename = "$eq", default)]
     pub eq: Option<i64>,
@@ -136,33 +136,19 @@ pub enum RawCountArg {
     Map(RawCountArgMap),
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum RawKeyValue {
-    Scalar(String),
-    Other(Value),
-}
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RawAnchor {
-    #[serde(rename = "$key", default)]
-    pub key: Option<RawKeyValue>,
-    #[serde(rename = "$maxDepth", default)]
+pub struct RawRelationalObj {
+    #[serde(rename = "match", default)]
+    pub match_: Option<Mapping>,
+    #[serde(rename = "maxDepth", default)]
     pub max_depth: Option<i64>,
-    #[serde(rename = "$minDepth", default)]
+    #[serde(rename = "minDepth", default)]
     pub min_depth: Option<i64>,
-    #[serde(rename = "$maxDistance", default)]
+    #[serde(rename = "maxDistance", default)]
     pub max_distance: Option<i64>,
-    #[serde(rename = "$minDistance", default)]
+    #[serde(rename = "minDistance", default)]
     pub min_distance: Option<i64>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum RawAnchorArg {
-    Single(RawAnchor),
-    List(Vec<RawAnchor>),
 }
 
 #[cfg(test)]

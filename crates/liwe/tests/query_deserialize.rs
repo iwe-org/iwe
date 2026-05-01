@@ -594,7 +594,10 @@ fn key_in_list() {
 #[test]
 fn key_gt_rejected() {
     assert_parse_error(
-        "filter:\n  $key: { $gt: foo }\n",
+        indoc! {"
+            filter:
+              $key: { $gt: foo }
+        "},
         OperationKind::Find,
         "KeyOpForbidden",
     );
@@ -603,7 +606,10 @@ fn key_gt_rejected() {
 #[test]
 fn key_in_with_non_string_rejected() {
     assert_parse_error(
-        "filter:\n  $key: { $in: [1, 2] }\n",
+        indoc! {"
+            filter:
+              $key: { $in: [1, 2] }
+        "},
         OperationKind::Find,
         "OperatorExpectedString",
     );
@@ -612,7 +618,10 @@ fn key_in_with_non_string_rejected() {
 #[test]
 fn includes_count_bare_int() {
     assert_parse(
-        "filter:\n  $includesCount: 0\n",
+        indoc! {"
+            filter:
+              $includesCount: 0
+        "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::IncludesCount(
             CountArg::direct(NumExpr::eq(0)),
@@ -623,7 +632,10 @@ fn includes_count_bare_int() {
 #[test]
 fn includes_count_bare_expr() {
     assert_parse(
-        "filter:\n  $includesCount: { $gte: 3 }\n",
+        indoc! {"
+            filter:
+              $includesCount: { $gte: 3 }
+        "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::IncludesCount(
             CountArg::direct(NumExpr::gte(3)),
@@ -637,8 +649,7 @@ fn includes_count_full_form_with_unbounded() {
         indoc! {"
             filter:
               $includesCount:
-                $count: { $gte: 10 }
-                $maxDepth: -1
+                count: { $gte: 10 }
         "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::IncludesCount(
@@ -657,9 +668,9 @@ fn includes_count_range() {
         indoc! {"
             filter:
               $includesCount:
-                $count: { $gte: 1 }
-                $minDepth: 2
-                $maxDepth: 4
+                count: { $gte: 1 }
+                minDepth: 2
+                maxDepth: 4
         "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::IncludesCount(
@@ -675,7 +686,10 @@ fn includes_count_range() {
 #[test]
 fn included_by_count_zero() {
     assert_parse(
-        "filter:\n  $includedByCount: 0\n",
+        indoc! {"
+            filter:
+              $includedByCount: 0
+        "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::IncludedByCount(
             CountArg::direct(NumExpr::eq(0)),
@@ -686,7 +700,10 @@ fn included_by_count_zero() {
 #[test]
 fn count_missing_count_field_rejected() {
     assert_parse_error(
-        "filter:\n  $includesCount: { $maxDepth: 3 }\n",
+        indoc! {"
+            filter:
+              $includesCount: { maxDepth: 3 }
+        "},
         OperationKind::Find,
         "MissingCountField",
     );
@@ -695,7 +712,10 @@ fn count_missing_count_field_rejected() {
 #[test]
 fn count_zero_max_depth_rejected() {
     assert_parse_error(
-        "filter:\n  $includesCount: { $count: 1, $maxDepth: 0 }\n",
+        indoc! {"
+            filter:
+              $includesCount: { count: 1, maxDepth: 0 }
+        "},
         OperationKind::Find,
         "InvalidDepthValue",
     );
@@ -707,9 +727,9 @@ fn count_inverted_range_rejected() {
         indoc! {"
             filter:
               $includesCount:
-                $count: 1
-                $minDepth: 5
-                $maxDepth: 2
+                count: 1
+                minDepth: 5
+                maxDepth: 2
         "},
         OperationKind::Find,
         "DepthRangeInverted",
@@ -719,16 +739,36 @@ fn count_inverted_range_rejected() {
 #[test]
 fn count_distance_modifier_rejected() {
     assert_parse_error(
-        "filter:\n  $includesCount: { $count: 1, $maxDistance: 1 }\n",
+        indoc! {"
+            filter:
+              $includesCount: { count: 1, maxDistance: 1 }
+        "},
         OperationKind::Find,
         "WrongBoundFamily",
     );
 }
 
 #[test]
+fn includes_scalar_shorthand() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includes: roadmap/q2
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::Includes(vec![
+            InclusionAnchor::new("roadmap/q2", 1, 1),
+        ]))),
+    );
+}
+
+#[test]
 fn includes_single_anchor() {
     assert_parse(
-        "filter:\n  $includes: { $key: roadmap/q2, $maxDepth: 2 }\n",
+        indoc! {"
+            filter:
+              $includes: { match: { $key: roadmap/q2 }, maxDepth: 2 }
+        "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::Includes(vec![
             InclusionAnchor::with_max("roadmap/q2", 2),
@@ -742,9 +782,9 @@ fn included_by_range() {
         indoc! {"
             filter:
               $includedBy:
-                $key: projects/alpha
-                $minDepth: 2
-                $maxDepth: 5
+                match: { $key: projects/alpha }
+                minDepth: 2
+                maxDepth: 5
         "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::IncludedBy(vec![
@@ -754,35 +794,40 @@ fn included_by_range() {
 }
 
 #[test]
-fn includes_multi_anchor_array() {
-    assert_parse(
+fn includes_array_form_rejected() {
+    assert_parse_error(
         indoc! {"
             filter:
               $includedBy:
-                - { $key: projects/alpha, $maxDepth: 5 }
-                - { $key: research/q2, $maxDepth: 2 }
+                - { match: { $key: projects/alpha }, maxDepth: 5 }
+                - { match: { $key: research/q2 }, maxDepth: 2 }
         "},
         OperationKind::Find,
-        Operation::Find(FindOp::new().filter(Filter::IncludedBy(vec![
-            InclusionAnchor::with_max("projects/alpha", 5),
-            InclusionAnchor::with_max("research/q2", 2),
-        ]))),
+        "ArrayFormRemoved",
     );
 }
 
 #[test]
-fn anchor_missing_bound_rejected() {
-    assert_parse_error(
-        "filter:\n  $includes: { $key: K }\n",
+fn anchor_full_form_omitted_bounds_unbounded() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includes: { match: { $key: K } }
+        "},
         OperationKind::Find,
-        "AnchorMissingBound",
+        Operation::Find(FindOp::new().filter(Filter::Includes(vec![
+            InclusionAnchor::new("K", 1, u32::MAX),
+        ]))),
     );
 }
 
 #[test]
 fn anchor_wrong_bound_family_rejected() {
     assert_parse_error(
-        "filter:\n  $includes: { $key: K, $maxDistance: 1 }\n",
+        indoc! {"
+            filter:
+              $includes: { match: { $key: K }, maxDistance: 1 }
+        "},
         OperationKind::Find,
         "WrongBoundFamily",
     );
@@ -791,34 +836,72 @@ fn anchor_wrong_bound_family_rejected() {
 #[test]
 fn walk_key_op_expression_rejected() {
     assert_parse_error(
-        "filter:\n  $includes: { $key: { $in: [a, b] }, $maxDepth: 1 }\n",
+        indoc! {"
+            filter:
+              $includes: { match: { $key: { $in: [a, b] } }, maxDepth: 1 }
+        "},
         OperationKind::Find,
-        "WalkKeyNotScalar",
+        "MatchKeyExpressionRequired",
     );
 }
 
 #[test]
 fn empty_anchor_list_rejected() {
     assert_parse_error(
-        "filter:\n  $includes: []\n",
+        indoc! {"
+            filter:
+              $includes: []
+        "},
         OperationKind::Find,
-        "EmptyAnchorList",
+        "ArrayFormRemoved",
     );
 }
 
 #[test]
 fn empty_anchor_mapping_rejected() {
     assert_parse_error(
-        "filter:\n  $includes: {}\n",
+        indoc! {"
+            filter:
+              $includes: {}
+        "},
         OperationKind::Find,
-        "EmptyAnchorList",
+        "EmptyAnchorMapping",
+    );
+}
+
+#[test]
+fn match_predicate_form_deferred() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $includes: { match: { status: draft }, maxDepth: 2 }
+        "},
+        OperationKind::Find,
+        "MatchFormUnsupportedV1",
+    );
+}
+
+#[test]
+fn references_scalar_shorthand() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $references: people/alice
+        "},
+        OperationKind::Find,
+        Operation::Find(FindOp::new().filter(Filter::References(vec![
+            ReferenceAnchor::new("people/alice", 1, 1),
+        ]))),
     );
 }
 
 #[test]
 fn references_with_distance() {
     assert_parse(
-        "filter:\n  $references: { $key: people/dmytro, $maxDistance: 1 }\n",
+        indoc! {"
+            filter:
+              $references: { match: { $key: people/dmytro }, maxDistance: 1 }
+        "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::References(vec![
             ReferenceAnchor::with_max("people/dmytro", 1),
@@ -832,9 +915,9 @@ fn referenced_by_range() {
         indoc! {"
             filter:
               $referencedBy:
-                $key: archive/index
-                $minDistance: 1
-                $maxDistance: 3
+                match: { $key: archive/index }
+                minDistance: 1
+                maxDistance: 3
         "},
         OperationKind::Find,
         Operation::Find(FindOp::new().filter(Filter::ReferencedBy(vec![
@@ -846,7 +929,10 @@ fn referenced_by_range() {
 #[test]
 fn references_with_depth_modifier_rejected() {
     assert_parse_error(
-        "filter:\n  $references: { $key: K, $maxDepth: 1 }\n",
+        indoc! {"
+            filter:
+              $references: { match: { $key: K }, maxDepth: 1 }
+        "},
         OperationKind::Find,
         "WrongBoundFamily",
     );
@@ -855,7 +941,10 @@ fn references_with_depth_modifier_rejected() {
 #[test]
 fn references_zero_distance_rejected() {
     assert_parse_error(
-        "filter:\n  $references: { $key: K, $maxDistance: 0 }\n",
+        indoc! {"
+            filter:
+              $references: { match: { $key: K }, maxDistance: 0 }
+        "},
         OperationKind::Find,
         "InvalidDepthValue",
     );

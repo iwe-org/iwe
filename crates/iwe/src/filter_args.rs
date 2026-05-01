@@ -61,40 +61,40 @@ pub struct FilterArgs {
     #[clap(
         long,
         value_parser = parse_key_depth,
-        help = "$includes anchor. KEY or KEY:DEPTH (default DEPTH=1). Repeatable; anchors are ANDed."
+        help = "$includes anchor. KEY or KEY:DEPTH (DEPTH defaults to --max-depth). Lowers to scalar shorthand when DEPTH=1, full form { match: { $key: KEY }, maxDepth: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub includes: Vec<KeyDepth>,
 
     #[clap(
         long = "included-by",
         value_parser = parse_key_depth,
-        help = "$includedBy anchor. KEY or KEY:DEPTH (default DEPTH=1). Repeatable; anchors are ANDed."
+        help = "$includedBy anchor. KEY or KEY:DEPTH (DEPTH defaults to --max-depth). Lowers to scalar shorthand when DEPTH=1, full form { match: { $key: KEY }, maxDepth: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub included_by: Vec<KeyDepth>,
 
     #[clap(
         long,
         value_parser = parse_key_depth,
-        help = "$references anchor. KEY or KEY:DIST (default DIST=1). Repeatable; anchors are ANDed."
+        help = "$references anchor. KEY or KEY:DIST (DIST defaults to --max-distance). Lowers to scalar shorthand when DIST=1, full form { match: { $key: KEY }, maxDistance: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub references: Vec<KeyDepth>,
 
     #[clap(
         long = "referenced-by",
         value_parser = parse_key_depth,
-        help = "$referencedBy anchor. KEY or KEY:DIST (default DIST=1). Repeatable; anchors are ANDed."
+        help = "$referencedBy anchor. KEY or KEY:DIST (DIST defaults to --max-distance). Lowers to scalar shorthand when DIST=1, full form { match: { $key: KEY }, maxDistance: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub referenced_by: Vec<KeyDepth>,
 
     #[clap(
         long = "includes-count",
-        help = "$includesCount predicate (direct count equality)."
+        help = "$includesCount predicate. Lowers to direct-edge shorthand when --max-depth is unset or 1, full form { count: N, maxDepth: M } otherwise."
     )]
     pub includes_count: Option<u64>,
 
     #[clap(
         long = "included-by-count",
-        help = "$includedByCount predicate (direct count equality)."
+        help = "$includedByCount predicate. Lowers to direct-edge shorthand when --max-depth is unset or 1, full form { count: N, maxDepth: M } otherwise."
     )]
     pub included_by_count: Option<u64>,
 
@@ -128,8 +128,17 @@ pub struct FilterArgs {
     #[clap(long, hide = true)]
     pub roots: bool,
 
-    #[clap(long = "max-depth", hide = true)]
+    #[clap(
+        long = "max-depth",
+        help = "Default maxDepth applied to inclusion anchor flags without a colon-suffix and to count predicates. Default 1."
+    )]
     pub max_depth: Option<u8>,
+
+    #[clap(
+        long = "max-distance",
+        help = "Default maxDistance applied to reference anchor flags without a colon-suffix. Default 1."
+    )]
+    pub max_distance: Option<u8>,
 }
 
 impl FilterArgs {
@@ -148,6 +157,7 @@ impl FilterArgs {
             || self.refs_from.is_some()
             || self.roots
             || self.max_depth.is_some()
+            || self.max_distance.is_some()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -166,6 +176,7 @@ impl FilterArgs {
             && self.refs_from.is_none()
             && !self.roots
             && self.max_depth.is_none()
+            && self.max_distance.is_none()
     }
 
     pub fn to_filter(&self) -> Result<Option<Filter>, String> {
@@ -189,23 +200,23 @@ impl FilterArgs {
         }
 
         for kd in &self.includes {
-            conjuncts.push(Filter::Includes(vec![kd.inclusion_anchor(None)]));
+            conjuncts.push(Filter::Includes(vec![kd.inclusion_anchor(self.max_depth)]));
         }
         for kd in &self.included_by {
-            conjuncts.push(Filter::IncludedBy(vec![kd.inclusion_anchor(None)]));
+            conjuncts.push(Filter::IncludedBy(vec![kd.inclusion_anchor(self.max_depth)]));
         }
         for kd in &self.references {
-            conjuncts.push(Filter::References(vec![kd.reference_anchor(None)]));
+            conjuncts.push(Filter::References(vec![kd.reference_anchor(self.max_distance)]));
         }
         for kd in &self.referenced_by {
-            conjuncts.push(Filter::ReferencedBy(vec![kd.reference_anchor(None)]));
+            conjuncts.push(Filter::ReferencedBy(vec![kd.reference_anchor(self.max_distance)]));
         }
 
         if let Some(n) = self.includes_count {
-            conjuncts.push(Filter::IncludesCount(direct_count(n)));
+            conjuncts.push(Filter::IncludesCount(count_with_default_depth(n, self.max_depth)));
         }
         if let Some(n) = self.included_by_count {
-            conjuncts.push(Filter::IncludedByCount(direct_count(n)));
+            conjuncts.push(Filter::IncludedByCount(count_with_default_depth(n, self.max_depth)));
         }
 
         for kd in &self.in_ {
@@ -264,6 +275,15 @@ fn direct_count(n: u64) -> CountArg {
     }
 }
 
+fn count_with_default_depth(n: u64, default_depth: Option<u8>) -> CountArg {
+    let depth = default_depth.map(u32::from).unwrap_or(1).max(1);
+    CountArg {
+        count: NumExpr(vec![NumOp::Eq(n)]),
+        min_depth: 1,
+        max_depth: MaxDepth::Bounded(depth),
+    }
+}
+
 fn parse_key_depth(s: &str) -> Result<KeyDepth, String> {
     if let Some((k, d)) = s.rsplit_once(':') {
         let depth: u8 = d
@@ -291,7 +311,7 @@ fn warn_once_in() {
 fn warn_once_in_any() {
     warn_once!(
         WARNED_IN_ANY,
-        "--in-any is deprecated; use --filter '$or: [{ $includedBy: ... }, ...]'"
+        "--in-any is deprecated; use --filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'"
     );
 }
 

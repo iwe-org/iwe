@@ -7,8 +7,8 @@ use crate::query::document::{
     SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
 use crate::query::wire::{
-    self, RawAnchor, RawAnchorArg, RawCountArg, RawCountArgMap, RawCountValue, RawFilter,
-    RawKeyOpMap, RawKeyValue, RawNumExprMap, RawOperation, RawProjection, RawSort, RawUpdate,
+    self, RawCountArg, RawCountArgMap, RawCountValue, RawFilter, RawKeyOpMap, RawNumExprMap,
+    RawOperation, RawProjection, RawRelationalObj, RawSort, RawUpdate,
 };
 
 #[derive(Debug)]
@@ -83,13 +83,19 @@ pub enum ParseError {
     GraphOpExpectedScalarOrMapping {
         op: &'static str,
     },
-    GraphOpExpectedAnchor {
+    ArrayFormRemoved {
         op: &'static str,
     },
-    EmptyAnchorList {
+    EmptyAnchorMapping {
         op: &'static str,
     },
-    AnchorMissingBound {
+    MatchMissing {
+        op: &'static str,
+    },
+    MatchKeyExpressionRequired {
+        op: &'static str,
+    },
+    MatchFormUnsupportedV1 {
         op: &'static str,
     },
     WrongBoundFamily {
@@ -101,16 +107,6 @@ pub enum ParseError {
     },
     KeyOpForbidden {
         op: &'static str,
-    },
-    WalkKeyNotScalar {
-        op: &'static str,
-    },
-    AnchorMissingKey {
-        op: &'static str,
-    },
-    UnknownAnchorField {
-        op: &'static str,
-        field: String,
     },
     InvalidDepthValue {
         op: &'static str,
@@ -852,13 +848,13 @@ fn count_arg_from_map(m: RawCountArgMap, op: &'static str) -> Result<CountArg, P
     if m.max_distance.is_some() {
         return Err(ParseError::WrongBoundFamily {
             op,
-            modifier: "$maxDistance",
+            modifier: "maxDistance",
         });
     }
     if m.min_distance.is_some() {
         return Err(ParseError::WrongBoundFamily {
             op,
-            modifier: "$minDistance",
+            modifier: "minDistance",
         });
     }
     let has_depth_key = m.max_depth.is_some() || m.min_depth.is_some();
@@ -869,12 +865,12 @@ fn count_arg_from_map(m: RawCountArgMap, op: &'static str) -> Result<CountArg, P
         }
         let count = num_expr_from_value(raw_count, op)?;
         let min_depth = match m.min_depth {
-            Some(i) => pos_u32(i, op, "$minDepth")?,
+            Some(i) => pos_u32(i, op, "minDepth")?,
             None => 1,
         };
         let max_depth = match m.max_depth {
-            Some(d) => max_depth_from_raw(d, op)?,
-            None => MaxDepth::Bounded(1),
+            Some(d) => MaxDepth::Bounded(pos_u32(d, op, "maxDepth")?),
+            None => MaxDepth::Any,
         };
         let max_bound = match max_depth {
             MaxDepth::Bounded(n) => n,
@@ -1007,14 +1003,6 @@ fn num_expr_from_map(m: RawNumExprMap, op: &'static str) -> Result<NumExpr, Pars
     Ok(NumExpr(ops))
 }
 
-fn max_depth_from_raw(raw: i64, op: &'static str) -> Result<MaxDepth, ParseError> {
-    if raw == -1 {
-        Ok(MaxDepth::Any)
-    } else {
-        Ok(MaxDepth::Bounded(pos_u32(raw, op, "$maxDepth")?))
-    }
-}
-
 fn pos_u32(i: i64, op: &'static str, modifier: &'static str) -> Result<u32, ParseError> {
     if i >= 1 {
         Ok(i as u32)
@@ -1027,60 +1015,71 @@ fn parse_inclusion_anchors(
     value: &Value,
     op: &'static str,
 ) -> Result<Vec<InclusionAnchor>, ParseError> {
-    let raws = parse_anchor_arg(value, op)?;
-    raws.into_iter()
-        .map(|raw| inclusion_anchor_from_raw(raw, op))
-        .collect()
+    Ok(vec![parse_inclusion_arg(value, op)?])
 }
 
 fn parse_reference_anchors(
     value: &Value,
     op: &'static str,
 ) -> Result<Vec<ReferenceAnchor>, ParseError> {
-    let raws = parse_anchor_arg(value, op)?;
-    raws.into_iter()
-        .map(|raw| reference_anchor_from_raw(raw, op))
-        .collect()
+    Ok(vec![parse_reference_arg(value, op)?])
 }
 
-fn parse_anchor_arg(value: &Value, op: &'static str) -> Result<Vec<RawAnchor>, ParseError> {
-    if matches!(value, Value::Mapping(m) if m.is_empty()) {
-        return Err(ParseError::EmptyAnchorList { op });
+fn parse_relational_obj(value: &Value, op: &'static str) -> Result<RawRelationalObj, ParseError> {
+    if matches!(value, Value::Sequence(_)) {
+        return Err(ParseError::ArrayFormRemoved { op });
     }
-    if matches!(value, Value::Sequence(s) if s.is_empty()) {
-        return Err(ParseError::EmptyAnchorList { op });
+    let mapping = value
+        .as_mapping()
+        .ok_or(ParseError::GraphOpExpectedScalarOrMapping { op })?;
+    if mapping.is_empty() {
+        return Err(ParseError::EmptyAnchorMapping { op });
     }
-    let raw: RawAnchorArg = serde_yaml::from_value(value.clone())
-        .map_err(|_| ParseError::GraphOpExpectedAnchor { op })?;
-    Ok(match raw {
-        RawAnchorArg::Single(a) => vec![a],
-        RawAnchorArg::List(l) => l,
-    })
+    serde_yaml::from_value(value.clone())
+        .map_err(|_| ParseError::GraphOpExpectedScalarOrMapping { op })
 }
 
-fn inclusion_anchor_from_raw(raw: RawAnchor, op: &'static str) -> Result<InclusionAnchor, ParseError> {
+fn match_to_anchor_key(raw: RawRelationalObj, op: &'static str) -> Result<(Key, RawRelationalObj), ParseError> {
+    let m = raw.match_.as_ref().ok_or(ParseError::MatchMissing { op })?;
+    if m.len() != 1 {
+        return Err(ParseError::MatchFormUnsupportedV1 { op });
+    }
+    let (k, v) = m.iter().next().unwrap();
+    let k_str = k.as_str().ok_or(ParseError::NonStringKey)?;
+    if k_str != "$key" {
+        return Err(ParseError::MatchFormUnsupportedV1 { op });
+    }
+    let key = match v {
+        Value::String(s) => Key::name(s),
+        _ => return Err(ParseError::MatchKeyExpressionRequired { op }),
+    };
+    Ok((key, raw))
+}
+
+fn parse_inclusion_arg(value: &Value, op: &'static str) -> Result<InclusionAnchor, ParseError> {
+    if let Some(s) = value.as_str() {
+        return Ok(InclusionAnchor::new(s, 1, 1));
+    }
+    let raw = parse_relational_obj(value, op)?;
     if raw.max_distance.is_some() {
         return Err(ParseError::WrongBoundFamily {
             op,
-            modifier: "$maxDistance",
+            modifier: "maxDistance",
         });
     }
     if raw.min_distance.is_some() {
         return Err(ParseError::WrongBoundFamily {
             op,
-            modifier: "$minDistance",
+            modifier: "minDistance",
         });
     }
-    let key = anchor_key(raw.key, op)?;
-    if raw.max_depth.is_none() && raw.min_depth.is_none() {
-        return Err(ParseError::AnchorMissingBound { op });
-    }
+    let (key, raw) = match_to_anchor_key(raw, op)?;
     let max_depth = match raw.max_depth {
-        Some(n) => pos_u32(n, op, "$maxDepth")?,
+        Some(n) => pos_u32(n, op, "maxDepth")?,
         None => u32::MAX,
     };
     let min_depth = match raw.min_depth {
-        Some(n) => pos_u32(n, op, "$minDepth")?,
+        Some(n) => pos_u32(n, op, "minDepth")?,
         None => 1,
     };
     if min_depth > max_depth {
@@ -1093,32 +1092,30 @@ fn inclusion_anchor_from_raw(raw: RawAnchor, op: &'static str) -> Result<Inclusi
     })
 }
 
-fn reference_anchor_from_raw(
-    raw: RawAnchor,
-    op: &'static str,
-) -> Result<ReferenceAnchor, ParseError> {
+fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAnchor, ParseError> {
+    if let Some(s) = value.as_str() {
+        return Ok(ReferenceAnchor::new(s, 1, 1));
+    }
+    let raw = parse_relational_obj(value, op)?;
     if raw.max_depth.is_some() {
         return Err(ParseError::WrongBoundFamily {
             op,
-            modifier: "$maxDepth",
+            modifier: "maxDepth",
         });
     }
     if raw.min_depth.is_some() {
         return Err(ParseError::WrongBoundFamily {
             op,
-            modifier: "$minDepth",
+            modifier: "minDepth",
         });
     }
-    let key = anchor_key(raw.key, op)?;
-    if raw.max_distance.is_none() && raw.min_distance.is_none() {
-        return Err(ParseError::AnchorMissingBound { op });
-    }
+    let (key, raw) = match_to_anchor_key(raw, op)?;
     let max_distance = match raw.max_distance {
-        Some(n) => pos_u32(n, op, "$maxDistance")?,
+        Some(n) => pos_u32(n, op, "maxDistance")?,
         None => u32::MAX,
     };
     let min_distance = match raw.min_distance {
-        Some(n) => pos_u32(n, op, "$minDistance")?,
+        Some(n) => pos_u32(n, op, "minDistance")?,
         None => 1,
     };
     if min_distance > max_distance {
@@ -1129,14 +1126,6 @@ fn reference_anchor_from_raw(
         min_distance,
         max_distance,
     })
-}
-
-fn anchor_key(raw: Option<RawKeyValue>, op: &'static str) -> Result<Key, ParseError> {
-    match raw {
-        None => Err(ParseError::AnchorMissingKey { op }),
-        Some(RawKeyValue::Scalar(s)) => Ok(Key::name(&s)),
-        Some(RawKeyValue::Other(_)) => Err(ParseError::WalkKeyNotScalar { op }),
-    }
 }
 
 fn check_update_conflicts(ops: &[UpdateOperator]) -> Result<(), ParseError> {
