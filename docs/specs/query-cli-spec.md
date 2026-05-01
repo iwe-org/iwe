@@ -141,10 +141,20 @@ Read-side commands (`find`, `retrieve`, `tree`, `export`) share one format set s
 | Flag | Lowers to | Operations |
 |---|---|---|
 | `--project f1,f2[,f3]` | `project: { f1: 1, f2: 1, f3: 1 }` | `find` only |
+| `--add-fields f1,f2[,f3]` | `addFields: { f1: 1, f2: 1, f3: 1 }` | `find` only |
 | `--sort field:1`, `--sort field:-1` | `sort: { field: 1 }` / `sort: { field: -1 }` | `find`, `count` |
 | `-l, --limit N` | `limit: N` (0 = unlimited, matching spec §7) | `find`, `count` |
 
 `--project` accepts a comma-separated list of dotted-path field names. Each entry maps to `field: 1` in the projection document.
+
+`--add-fields` shares the grammar of `--project` (see `query-projection-spec.md` §5.1) but is **additive** over the default projection rather than replacing it. The two flags are mutually exclusive — passing both is a parse-time error.
+
+Both flags accept two argument forms:
+
+- **Comma list:** `--add-fields body=$content,parents=$includedBy`
+- **Inline YAML mapping:** `--add-fields 'body: $content'` or `--add-fields '{body: $content, parents: $includedBy}'`
+
+The argument is parsed as YAML first; if it is a mapping, it is used as the projection document directly. Otherwise it is treated as a comma list. This mirrors the `--filter` lowering in §3.1.
 
 `--sort` accepts exactly one `field:DIR` pair, matching the spec's "exactly one sort key in v1" rule (§6).
 
@@ -224,6 +234,10 @@ iwe find --references people/alice                  # docs that reference alice
 iwe find --filter 'priority: { $gt: 3 }' --sort modified_at:-1
 iwe find --project title,modified_at -f json        # only project two fields
 iwe find --project title,modified_at -f yaml        # same, as YAML
+iwe find --filter 'status: draft' --add-fields body=$content
+                                                    # default projection + body
+iwe find --add-fields 'body=$content,parents=$includedBy' -f json
+                                                    # default projection + two structural fields
 ```
 
 ### 9.2 Count

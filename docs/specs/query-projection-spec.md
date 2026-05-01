@@ -113,13 +113,13 @@ When the operation document omits `project`, the command applies the **default p
 project:
   key: $key
   title: $title
-  includesCount: $includesCount
-  includedByCount: $includedByCount
-  referencesCount: $referencesCount
-  referencedByCount: $referencedByCount
+  references: $references
+  includes: $includes
+  referencedBy: $referencedBy
   includedBy: $includedBy
-  frontmatter: $frontmatter
 ```
+
+The four edge fields cover both inclusion directions (`includes` / `includedBy`) and both reference directions (`references` / `referencedBy`). User frontmatter is **not** wrapped under a `frontmatter:` key in the default — it is flat-merged at the top level of the result per `output-format-json-yaml-spec.md` §3.3. Callers who want the whole frontmatter map under a single key can project it explicitly with `addFields: { fm: $frontmatter }` or `project: { ..., frontmatter: $frontmatter }`.
 
 `count` returns an integer and has no projection.
 
@@ -132,12 +132,10 @@ When `project` is set explicitly, it **replaces** the default — there is no me
 project:
   key: $key
   title: $title
-  includesCount: $includesCount
-  includedByCount: $includedByCount
-  referencesCount: $referencesCount
-  referencedByCount: $referencedByCount
+  references: $references
+  includes: $includes
+  referencedBy: $referencedBy
   includedBy: $includedBy
-  frontmatter: $frontmatter
   body: $content                # added
 ```
 
@@ -169,6 +167,54 @@ On `retrieve` (deprecated — see §1), the legacy flag set (`-b`, `-c`, `-l`, `
 
 The empty form preserves stable schema (`output-format-json-yaml-spec.md` §6).
 
+### 3.5 `addFields` — additive projection
+
+For callers who want to *augment* the default projection rather than replace it, the operation document accepts an alternative key, `addFields`, alongside `project`.
+
+`addFields` follows the same grammar as `project` (§3.1). It does **not** replace the default — it extends it. The baseline that `addFields` augments is exactly the default projection from §3.2:
+
+```yaml
+key: $key
+title: $title
+references: $references
+includes: $includes
+referencedBy: $referencedBy
+includedBy: $includedBy
+```
+
+Combine rule:
+
+- Each entry in `addFields` is appended to the six default entries above.
+- Output names absent from the default are appended.
+- Output names that collide with a default-projection output name overwrite the default value with the projected value. For example, `addFields: { title: $key }` replaces the default `title: $title` mapping in the result.
+
+`project` and `addFields` are mutually exclusive within a single operation document. Setting both is a parse-time error.
+
+The conditional-source rule (§3.4) applies identically. A structural pseudo-field appearing under `addFields` on `find` implies the corresponding compute, just as it would under `project`.
+
+The frontmatter-precedence rule from §3.2 also applies: when an `addFields` entry maps a structural source onto an output name (e.g. `title: $title`) and the document's frontmatter already carries that name, the frontmatter value wins.
+
+Example — `find` with the body added:
+
+```yaml
+addFields:
+  body: $content
+```
+
+Result document carries the full `find` default projection (§3.2), the document's user frontmatter flat-merged at the top level (per `output-format-json-yaml-spec.md` §3.3), plus the `body` field:
+
+```yaml
+key: doc-1
+title: Doc One
+references: []
+includes: []
+referencedBy: []
+includedBy: []
+status: draft        # user frontmatter, flat-merged
+priority: 5          # user frontmatter, flat-merged
+body: "# Doc One\n\n..."
+```
+
 ## 4. Output shape under projection
 
 Projection shapes the per-document fields. The wire shape is **a flat array of projected documents** — no envelope. This matches `output-format-json-yaml-spec.md` §4.1.1 (`find`) and §4.2.1 (`retrieve`).
@@ -187,17 +233,24 @@ Once projection is unified, `find` and `retrieve` (deprecated) differ only in **
 
 A `find` invocation with `--project 'body=$content,parents=$includedBy'` produces the same per-document shape — and the same outer shape — as `retrieve --project 'body=$content,parents=$includedBy'`.
 
-## 5. CLI lowering (`--project`)
+## 5. CLI lowering (`--project`, `--add-fields`)
 
-Replaces and supersedes `query-cli-spec.md` §4.2 for `--project`.
+Replaces and supersedes `query-cli-spec.md` §4.2 for `--project`. Adds `--add-fields`.
 
 ### 5.1 Grammar
 
+Both flags accept either a comma-separated item list **or** an inline YAML mapping:
+
 ```
---project ITEM[,ITEM]...
+--project    ITEM[,ITEM]...    |    --project    'YAML-MAPPING'
+--add-fields ITEM[,ITEM]...    |    --add-fields 'YAML-MAPPING'
 ```
 
-Each `ITEM` lowers to a single `<outputName>: <source>` entry in the projection document:
+The argument is parsed as YAML first. If the parsed value is a mapping, it is used directly as the projection document — this mirrors the `--filter` lowering in `query-cli-spec.md` §3.1. Otherwise the argument is treated as a comma-separated `ITEM` list and lowered per the table below.
+
+`--project` populates the operation document's `project` key; `--add-fields` populates `addFields` (§3.5).
+
+**Comma-list form.** Each `ITEM` lowers to a single `<outputName>: <source>` entry:
 
 | ITEM form | Lowered entry | Notes |
 |---|---|---|
@@ -206,9 +259,21 @@ Each `ITEM` lowers to a single `<outputName>: <source>` entry in the projection 
 | `name=$selector` | `name: $selector` | Pseudo-field source, output as `name`. |
 | `$selector` | `selector: $selector` | Pseudo-field, output name = selector minus `$`. Convenience form. |
 
+**YAML form.** The argument is a YAML mapping written in the same shape as the `project` / `addFields` document body:
+
+```bash
+--add-fields 'body: $content'
+--add-fields '{body: $content, parents: $includedBy}'
+--project    '{key: $key, title: $title, body: $content}'
+```
+
+The two forms are interchangeable; pick whichever reads better at the call site. The comma-list form is shorter for trivial cases; the YAML form scales to larger projections without quoting gymnastics and matches the document body verbatim.
+
 Order of items is preserved (matters for human-facing rendering; structurally JSON/YAML mappings are unordered, but rendering implementations SHOULD preserve insertion order).
 
-**Shell quoting.** The `$`-prefix in source selectors triggers shell variable expansion in unquoted form. Quote `--project` arguments with single quotes: `--project 'body=$content,parents=$includedBy'`. Bash, zsh, fish, and PowerShell all preserve `$` inside single quotes.
+`--project` and `--add-fields` are mutually exclusive on a single invocation. Passing both is a CLI parse error, mirroring the document-level rule in §3.5.
+
+**Shell quoting.** The `$`-prefix in source selectors triggers shell variable expansion in unquoted form. Quote `--project` and `--add-fields` arguments with single quotes: `--add-fields 'body=$content,parents=$includedBy'` or `--add-fields 'body: $content'`. Bash, zsh, fish, and PowerShell all preserve `$` inside single quotes.
 
 ### 5.2 Examples
 
@@ -239,6 +304,20 @@ iwe find --filter 'status: draft' \
 
 # retrieve with a slim, renamed projection
 iwe retrieve -k notes/foo --project 'parents=$includedBy,backlinks=$referencedBy' -b
+
+# Default projection plus an extra field — no need to re-list every default
+iwe find --filter 'status: draft' --add-fields body=$content
+# → each array element = default fields (§3.2) + { body }
+
+# Default projection plus several structural fields
+iwe find --add-fields 'body=$content,parents=$includedBy' -f json
+
+# YAML form — same projection, written as YAML
+iwe find --filter 'status: draft' --add-fields 'body: $content'
+iwe find --add-fields '{body: $content, parents: $includedBy}' -f json
+
+# YAML form for --project too
+iwe find --project '{key: $key, title: $title, body: $content}'
 ```
 
 ## 6. Markdown rendering under projection
@@ -256,17 +335,17 @@ This spec is a forward-compatible extension where possible and a clean break whe
 
 | Current behavior | Under this spec |
 |---|---|
-| `find` with no `--project` emits frontmatter-with-reserved-stripped, omitted if empty (`crates/liwe/src/find.rs:175-183`). | Default projection (§3.2) emits `frontmatter: {}` when empty per the stable-schema rule. **Breaking** for callers that test `'frontmatter' in result`. |
-| `find --project f1,f2` emits *both* the default fields *and* the projected frontmatter subset. | `--project f1,f2` lowers to `{f1: 1, f2: 1}` and replaces defaults — the result carries only `f1` and `f2`. To keep `key`/`title`, project them explicitly. **Breaking.** |
+| `find` with no `--project` emits user frontmatter under a nested `frontmatter:` key (`crates/liwe/src/find.rs:175-183`). | User frontmatter is flat-merged at the top level of every result per `output-format-json-yaml-spec.md` §3.3. The default projection (§3.2) no longer carries a `frontmatter:` entry. **Breaking** for callers that read `result.frontmatter.X`; they should now read `result.X` directly, or opt into the nested form with `--add-fields frontmatter=$frontmatter`. |
+| `find --project f1,f2` emits *both* the default fields *and* the projected frontmatter subset. | `--project f1,f2` lowers to `{f1: 1, f2: 1}` and replaces defaults — the result carries only `f1` and `f2`. To keep `key`/`title`, project them explicitly, or use `--add-fields f1,f2` to keep the full default projection (§3.5). **Breaking.** |
 | `retrieve` always emits `content`, even when callers don't want it. | `retrieve --project 'parents=$includedBy'` emits only the requested fields. **Breaking** for callers that depended on `content` always being present, but they can project it explicitly. |
 | `find` and `retrieve` have separate default projections. | Unified default projection — same shape from both commands when neither passes `--project` (§3.2). |
 | `key` and `title` always emitted regardless of projection. | `key` and `title` appear only when the projection selects them (default projection includes both, so the no-`--project` case is unchanged). **Breaking** for callers that pass `--project` and rely on `key`/`title` still being present. |
 | `find` cannot return content. | `find --project '$content'` (or `body=$content`) does. New capability. |
 | `--project` lowering only knows frontmatter paths. | `--project` accepts frontmatter paths, `$`-prefixed source selectors, and `name=source` aliases. **Additive.** |
-| Output keys are fixed by the engine. | Output keys are chosen by the projection. Default projection preserves existing names (`key`, `title`, `includedBy`, `frontmatter`, etc.) for backward compatibility. **Additive — callers who do not pass `--project` see no rename.** |
+| Output keys are fixed by the engine. | Output keys are chosen by the projection. Default projection preserves existing names (`key`, `title`, `includedBy`, etc.) for backward compatibility. **Additive — callers who do not pass `--project` see no rename.** |
 | `EdgeRef` sub-fields named `key`, `title`, `sectionPath`. | Same. Unchanged. |
 
-The two breaking changes (default-replacement semantics for `find` and `retrieve`) are the price of a coherent projection model. They can be staged: a transitional release MAY emit a stderr warning when `--project` is used and the resulting fields would differ from what the legacy merge would have produced. Callers who need the legacy semantics for one more release cycle MAY opt back in with the CLI flag `--legacy-project-merge` (CLI-only; no equivalent in the query document; ignored if `--project` is not also set). The flag and the warning are removed in the next minor version.
+The two breaking changes (default-replacement semantics for `find` and `retrieve`) are the price of a coherent projection model. Callers who relied on the previous "default + projected subset" merge should switch to `--add-fields` (§3.5, §5.1), which is the explicit additive form.
 
 ## 8. Out of scope
 

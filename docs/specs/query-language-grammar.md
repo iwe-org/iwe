@@ -17,10 +17,11 @@ This document collects the full BNF grammar for the IWE query language: operatio
 operation ::= find_op | count_op | update_op | delete_op
 
 find_op ::= {
-    filter:  filter                                 (optional, default {})
-    project: projection                             (optional)
-    sort:    sort                                   (optional)
-    limit:   limit                                  (optional)
+    filter:    filter                               (optional, default {})
+    project:   projection                           (optional, mutually exclusive with addFields)
+    addFields: projection                           (optional, mutually exclusive with project)
+    sort:      sort                                 (optional)
+    limit:     limit                                (optional)
 }
 
 count_op ::= {
@@ -43,7 +44,7 @@ delete_op ::= {
 }
 ```
 
-Operation-inappropriate fields are parse-time errors (e.g. `project` outside `find`, `update` outside `update`).
+Operation-inappropriate fields are parse-time errors (e.g. `project` outside `find`, `update` outside `update`). `project` and `addFields` cannot both be set in a single `find_op` (see `query-projection-spec.md` §3.5).
 
 ## 2. Filter
 

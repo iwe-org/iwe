@@ -261,6 +261,7 @@ Per command, the flags that change the *shape* (not just the selection) of struc
 | Flag | Effect on shape |
 |---|---|
 | `--project f1,f2,...` | Each `FindResult` carries only the listed fields, in the listed order. System fields (`key`, `title`, `includedBy`) and user frontmatter fields are projectable interchangeably. With no `--project`: every system field plus every user frontmatter field, all merged at top level. |
+| `--add-fields f1,f2,...` | Each `FindResult` carries the default projection (`query-projection-spec.md` §3.2) **plus** the listed fields — additive, not replacing. Mutually exclusive with `--project`. See `query-projection-spec.md` §3.5. |
 
 ### 5.2 `iwe retrieve`
 

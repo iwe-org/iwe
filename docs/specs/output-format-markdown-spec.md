@@ -196,6 +196,7 @@ Flags that change the *shape* (not just the selection) of the markdown/keys outp
 | Flag | Effect on shape |
 |---|---|
 | `--project f1,f2,...` | No effect on `markdown` (titles only) or `keys` (keys only). For structured-format effects, see `output-format-json-yaml-spec.md` §5.1. |
+| `--add-fields f1,f2,...` | Same. The flag is additive over the default projection in structured output (`query-projection-spec.md` §3.5); `markdown` and `keys` still render as titles-only / keys-only. The block-vs-line decision in `query-projection-spec.md` §6 applies whether structural sources arrive via `--project` or `--add-fields`. |
 
 ### 6.2 `iwe retrieve`
 
