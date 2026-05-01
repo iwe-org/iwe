@@ -45,7 +45,7 @@ async fn inline_by_reference() {
         )
         .await;
     let docs = Fixture::result_json(&retrieve);
-    let content = docs["documents"][0]["content"].as_str().unwrap();
+    let content = docs[0]["content"].as_str().unwrap();
     assert!(content.contains("Child content"));
 }
 
@@ -68,7 +68,7 @@ async fn inline_keep_target() {
     assert!(output["removes"].as_array().unwrap().is_empty());
 
     let find = f.call_tool("iwe_find", json!({})).await;
-    assert_eq!(Fixture::result_json(&find)["total"], 2);
+    assert_eq!(Fixture::result_json(&find).as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -89,7 +89,7 @@ async fn inline_dry_run() {
     assert!(!output["removes"].as_array().unwrap().is_empty());
 
     let find = f.call_tool("iwe_find", json!({})).await;
-    assert_eq!(Fixture::result_json(&find)["total"], 2);
+    assert_eq!(Fixture::result_json(&find).as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -107,7 +107,7 @@ async fn extract_then_inline_round_trip() {
     .await;
 
     let find = f.call_tool("iwe_find", json!({})).await;
-    assert_eq!(Fixture::result_json(&find)["total"], 2);
+    assert_eq!(Fixture::result_json(&find).as_array().unwrap().len(), 2);
 
     let list = f
         .call_tool("iwe_inline", json!({"key": "1", "list": true}))
@@ -119,7 +119,7 @@ async fn extract_then_inline_round_trip() {
         .await;
 
     let find2 = f.call_tool("iwe_find", json!({})).await;
-    assert_eq!(Fixture::result_json(&find2)["total"], 1);
+    assert_eq!(Fixture::result_json(&find2).as_array().unwrap().len(), 1);
 
     let retrieve = f
         .call_tool(
@@ -128,6 +128,6 @@ async fn extract_then_inline_round_trip() {
         )
         .await;
     let docs = Fixture::result_json(&retrieve);
-    let content = docs["documents"][0]["content"].as_str().unwrap();
+    let content = docs[0]["content"].as_str().unwrap();
     assert!(content.contains("Sub content"));
 }

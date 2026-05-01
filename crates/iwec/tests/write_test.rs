@@ -20,7 +20,7 @@ async fn create_document() {
         )
         .await;
     let docs = Fixture::result_json(&retrieve);
-    assert_eq!(docs["documents"][0]["title"], "My New Document");
+    assert_eq!(docs[0]["title"], "My New Document");
 }
 
 #[tokio::test]
@@ -43,7 +43,7 @@ async fn create_with_content() {
         )
         .await;
     let docs = Fixture::result_json(&retrieve);
-    let content = docs["documents"][0]["content"].as_str().unwrap();
+    let content = docs[0]["content"].as_str().unwrap();
     assert!(content.contains("Some body text"));
 }
 
@@ -79,7 +79,7 @@ async fn update_document() {
         )
         .await;
     let docs = Fixture::result_json(&retrieve);
-    let content = docs["documents"][0]["content"].as_str().unwrap();
+    let content = docs[0]["content"].as_str().unwrap();
     assert!(content.contains("New content"));
 }
 
@@ -112,7 +112,7 @@ async fn delete_document() {
 
     let find = f.call_tool("iwe_find", json!({})).await;
     let find_output = Fixture::result_json(&find);
-    assert_eq!(find_output["total"], 1);
+    assert_eq!(find_output.as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -127,7 +127,7 @@ async fn delete_dry_run() {
 
     let find = f.call_tool("iwe_find", json!({})).await;
     let find_output = Fixture::result_json(&find);
-    assert_eq!(find_output["total"], 1);
+    assert_eq!(find_output.as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -162,13 +162,13 @@ async fn rename_document() {
         .call_tool("iwe_find", json!({"query": "child-renamed"}))
         .await;
     let find_output = Fixture::result_json(&find);
-    assert_eq!(find_output["total"], 1);
+    assert_eq!(find_output.as_array().unwrap().len(), 1);
 
     let old = f
         .call_tool("iwe_find", json!({"query": "2"}))
         .await;
     let old_output = Fixture::result_json(&old);
-    let has_old = old_output["results"]
+    let has_old = old_output
         .as_array()
         .unwrap()
         .iter()
@@ -191,7 +191,7 @@ async fn rename_dry_run() {
 
     let find = f.call_tool("iwe_find", json!({})).await;
     let find_output = Fixture::result_json(&find);
-    let keys: Vec<&str> = find_output["results"]
+    let keys: Vec<&str> = find_output
         .as_array()
         .unwrap()
         .iter()
@@ -232,7 +232,7 @@ async fn round_trip_create_retrieve_update_delete() {
             json!({"keys": [key], "depth": 0, "backlinks": false}),
         )
         .await;
-    let content = Fixture::result_json(&retrieve)["documents"][0]["content"]
+    let content = Fixture::result_json(&retrieve)[0]["content"]
         .as_str()
         .unwrap()
         .to_string();
@@ -250,7 +250,7 @@ async fn round_trip_create_retrieve_update_delete() {
             json!({"keys": [key], "depth": 0, "backlinks": false}),
         )
         .await;
-    let content2 = Fixture::result_json(&retrieve2)["documents"][0]["content"]
+    let content2 = Fixture::result_json(&retrieve2)[0]["content"]
         .as_str()
         .unwrap()
         .to_string();
@@ -259,5 +259,5 @@ async fn round_trip_create_retrieve_update_delete() {
     f.call_tool("iwe_delete", json!({"key": key})).await;
 
     let find = f.call_tool("iwe_find", json!({})).await;
-    assert_eq!(Fixture::result_json(&find)["total"], 0);
+    assert_eq!(Fixture::result_json(&find).as_array().unwrap().len(), 0);
 }

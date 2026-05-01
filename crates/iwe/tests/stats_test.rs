@@ -380,6 +380,28 @@ fn test_stats_broken_inline_links_in_table() {
     );
 }
 
+#[test]
+fn test_stats_per_doc_rejects_markdown_format() {
+    let temp_dir = setup_test_workspace();
+    let output = run_stats_command(&temp_dir, &["-k", "test", "-f", "markdown"]);
+
+    assert!(!output.status.success(), "Should reject markdown for per-doc");
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 output");
+    assert!(
+        stderr.contains("supports only -f json or -f yaml"),
+        "Should explain limitation; got: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_stats_per_doc_rejects_csv_format() {
+    let temp_dir = setup_test_workspace();
+    let output = run_stats_command(&temp_dir, &["-k", "test", "-f", "csv"]);
+
+    assert!(!output.status.success(), "Should reject csv for per-doc");
+}
+
 fn run_stats_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Output {
     let binary_path = common::get_iwe_binary_path();
 

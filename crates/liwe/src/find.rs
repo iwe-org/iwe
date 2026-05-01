@@ -1,7 +1,7 @@
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use serde::Serialize;
-use serde_yaml::Mapping;
+use serde_yaml::{Mapping, Value};
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
@@ -9,28 +9,9 @@ use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, S
 use crate::query::frontmatter::strip_reserved;
 use crate::query::project::shape;
 use crate::query::sort::sort_in_place;
+use crate::retrieve::EdgeRef;
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ParentDocumentInfo {
-    pub key: String,
-    pub title: String,
-    pub section_path: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FindResult {
-    pub key: String,
-    pub title: String,
-    pub includes_count: usize,
-    pub included_by_count: usize,
-    pub references_count: usize,
-    pub referenced_by_count: usize,
-    pub included_by: Vec<ParentDocumentInfo>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub frontmatter: Option<Mapping>,
-}
+pub type FindResult = Mapping;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -169,28 +150,24 @@ impl<'a> DocumentFinder<'a> {
     fn build_result(&self, key: &Key, project: Option<&Projection>) -> FindResult {
         let title = self.graph.get_key_title(key).unwrap_or_default();
         let included_by = self.get_parent_documents(key);
-        let frontmatter = project.map(|p| {
-            let m = self.graph.frontmatter(key).cloned().unwrap_or_default();
-            shape(p, &m)
-        }).or_else(|| {
-            let mut m = self.graph.frontmatter(key).cloned()?;
-            strip_reserved(&mut m);
-            if m.is_empty() {
-                None
-            } else {
-                Some(m)
-            }
-        });
 
-        FindResult {
-            key: key.to_string(),
-            title,
-            includes_count: self.graph.get_inclusion_edges_in(key).len(),
-            included_by_count: self.graph.get_inclusion_edges_to(key).len(),
-            references_count: self.graph.get_reference_edges_in(key).len(),
-            referenced_by_count: self.graph.get_reference_edges_to(key).len(),
-            included_by,
-            frontmatter,
+        let mut merged = Mapping::new();
+        merged.insert(Value::from("key"), Value::from(key.to_string()));
+        merged.insert(Value::from("title"), Value::from(title));
+        let included_by_value = serde_yaml::to_value(&included_by)
+            .unwrap_or(Value::Sequence(Vec::new()));
+        merged.insert(Value::from("includedBy"), included_by_value);
+
+        if let Some(mut user_fm) = self.graph.frontmatter(key).cloned() {
+            strip_reserved(&mut user_fm);
+            for (k, v) in user_fm {
+                merged.insert(k, v);
+            }
+        }
+
+        match project {
+            Some(p) => shape(p, &merged),
+            None => merged,
         }
     }
 
@@ -199,7 +176,7 @@ impl<'a> DocumentFinder<'a> {
             + self.graph.get_inclusion_edges_to(key).len()
     }
 
-    fn get_parent_documents(&self, key: &Key) -> Vec<ParentDocumentInfo> {
+    fn get_parent_documents(&self, key: &Key) -> Vec<EdgeRef> {
         let refs = self.graph.get_inclusion_edges_to(key);
         let mut parents = Vec::new();
 
@@ -215,7 +192,7 @@ impl<'a> DocumentFinder<'a> {
 
                     let section_path = self.get_section_path(ref_id);
 
-                    parents.push(ParentDocumentInfo {
+                    parents.push(EdgeRef {
                         key: doc_key.to_string(),
                         title,
                         section_path,
@@ -224,7 +201,7 @@ impl<'a> DocumentFinder<'a> {
             }
         }
 
-        let mut parents: Vec<ParentDocumentInfo> =
+        let mut parents: Vec<EdgeRef> =
             parents.into_iter().unique_by(|p| p.key.clone()).collect();
         parents.sort_by(|a, b| a.key.cmp(&b.key));
         parents

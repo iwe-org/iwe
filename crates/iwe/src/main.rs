@@ -108,6 +108,9 @@ struct Retrieve {
     #[clap(long, help = "Exclude document content from results (metadata only)")]
     no_content: bool,
 
+    #[clap(long, help = "Populate the `includes` array with child document edges")]
+    children: bool,
+
     #[clap(flatten)]
     selector: FilterArgs,
 }
@@ -256,6 +259,13 @@ struct TreeArgs {
     )]
     depth: u8,
 
+    #[clap(
+        long,
+        value_delimiter = ',',
+        help = "Frontmatter fields to include per node (CSV). System fields key/title/children and user frontmatter fields are projectable."
+    )]
+    project: Vec<String>,
+
     #[clap(flatten)]
     selector: FilterArgs,
 }
@@ -266,15 +276,6 @@ enum TreeFormat {
     Keys,
     Json,
     Yaml,
-}
-
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TreeNode {
-    key: String,
-    title: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    children: Vec<TreeNode>,
 }
 
 #[derive(Debug, Args)]
@@ -683,6 +684,7 @@ fn retrieve_command(args: Retrieve) {
         backlinks: args.backlinks,
         exclude,
         no_content: args.no_content,
+        children: args.children,
         filter: resolve_filter(&args.selector),
     };
 
@@ -695,18 +697,39 @@ fn retrieve_command(args: Retrieve) {
             .iter()
             .map(|doc| doc.content.lines().count())
             .sum();
-        println!("documents: {}", doc_count);
-        println!("lines: {}", total_lines);
+        match args.format {
+            RetrieveFormat::Json => {
+                let json = serde_json::to_string_pretty(&serde_json::json!({
+                    "documents": doc_count,
+                    "lines": total_lines,
+                }))
+                .expect("Failed to serialize to JSON");
+                println!("{}", json);
+            }
+            RetrieveFormat::Yaml => {
+                let mut map = serde_yaml::Mapping::new();
+                map.insert("documents".into(), (doc_count as u64).into());
+                map.insert("lines".into(), (total_lines as u64).into());
+                let yaml = serde_yaml::to_string(&map).expect("Failed to serialize to YAML");
+                print!("{}", yaml);
+            }
+            _ => {
+                println!("documents: {}", doc_count);
+                println!("lines: {}", total_lines);
+            }
+        }
         return;
     }
 
     match args.format {
         RetrieveFormat::Json => {
-            let json = serde_json::to_string_pretty(&output).expect("Failed to serialize to JSON");
+            let json = serde_json::to_string_pretty(&output.documents)
+                .expect("Failed to serialize to JSON");
             println!("{}", json);
         }
         RetrieveFormat::Yaml => {
-            let yaml = serde_yaml::to_string(&output).expect("Failed to serialize to YAML");
+            let yaml = serde_yaml::to_string(&output.documents)
+                .expect("Failed to serialize to YAML");
             print!("{}", yaml);
         }
         RetrieveFormat::Keys => {
@@ -758,16 +781,20 @@ fn find_command(args: Find) {
 
     match args.format {
         FindFormat::Json => {
-            let json = serde_json::to_string_pretty(&output).expect("Failed to serialize to JSON");
+            let json = serde_json::to_string_pretty(&output.results)
+                .expect("Failed to serialize to JSON");
             println!("{}", json);
         }
         FindFormat::Yaml => {
-            let yaml = serde_yaml::to_string(&output).expect("Failed to serialize to YAML");
+            let yaml = serde_yaml::to_string(&output.results)
+                .expect("Failed to serialize to YAML");
             print!("{}", yaml);
         }
         FindFormat::Keys => {
             for result in &output.results {
-                println!("{}", result.key);
+                if let Some(key) = result.get("key").and_then(|v| v.as_str()) {
+                    println!("{}", key);
+                }
             }
         }
         FindFormat::Markdown => {
@@ -820,18 +847,25 @@ fn render_find_output(output: &iwe::find::FindOutput) -> String {
     result.push_str(":\n\n");
 
     for r in &output.results {
-        let display_title = if r.included_by.is_empty() {
-            r.title.clone()
+        let key = r.get("key").and_then(|v| v.as_str()).unwrap_or("");
+        let title = r.get("title").and_then(|v| v.as_str()).unwrap_or("");
+        let included_by = r
+            .get("includedBy")
+            .and_then(|v| v.as_sequence())
+            .cloned()
+            .unwrap_or_default();
+        let display_title = if included_by.is_empty() {
+            title.to_string()
         } else {
-            let parents = r
-                .included_by
+            let parents = included_by
                 .iter()
-                .map(|p| format!("↖{}", p.title))
+                .filter_map(|p| p.get("title").and_then(|v| v.as_str()))
+                .map(|t| format!("↖{}", t))
                 .collect::<Vec<_>>()
                 .join(" ");
-            format!("{} {}", r.title, parents)
+            format!("{} {}", title, parents)
         };
-        result.push_str(&format!("{}   #{}\n", display_title, r.key));
+        result.push_str(&format!("{}   #{}\n", display_title, key));
     }
 
     result
@@ -965,10 +999,21 @@ fn tree_command(args: TreeArgs) {
 
     match args.format {
         TreeFormat::Json | TreeFormat::Yaml => {
-            let mut trees: Vec<TreeNode> = Vec::new();
+            let project: Option<Vec<String>> = if args.project.is_empty() {
+                None
+            } else {
+                Some(args.project.clone())
+            };
+            let mut trees: Vec<serde_yaml::Mapping> = Vec::new();
             for root_key in &root_keys {
                 let mut visited: std::collections::HashSet<Key> = std::collections::HashSet::new();
-                if let Some(node) = build_tree_node(&graph, root_key, args.depth, &mut visited) {
+                if let Some(node) = build_tree_node(
+                    &graph,
+                    root_key,
+                    args.depth,
+                    project.as_deref(),
+                    &mut visited,
+                ) {
                     trees.push(node);
                 }
             }
@@ -1024,39 +1069,55 @@ fn build_tree_node(
     graph: &Graph,
     key: &Key,
     max_depth: u8,
+    project: Option<&[String]>,
     visited: &mut std::collections::HashSet<Key>,
-) -> Option<TreeNode> {
+) -> Option<serde_yaml::Mapping> {
     graph.get_node_id(key)?;
 
     let title = graph.get_ref_text(key).unwrap_or_default();
     let key_str = key.to_string();
-
-    if visited.contains(key) {
-        return Some(TreeNode {
-            key: key_str,
-            title,
-            children: vec![],
-        });
+    let already_visited = visited.contains(key);
+    if !already_visited {
+        visited.insert(key.clone());
     }
-    visited.insert(key.clone());
 
-    let children = if max_depth > 1 {
+    let children: Vec<serde_yaml::Mapping> = if !already_visited && max_depth > 1 {
         let ref_node_ids = graph.get_inclusion_edges_in(key);
         ref_node_ids
             .iter()
             .filter_map(|id| graph.graph_node(*id).ref_key())
             .sorted()
-            .filter_map(|ref_key| build_tree_node(graph, &ref_key, max_depth - 1, visited))
+            .filter_map(|ref_key| {
+                build_tree_node(graph, &ref_key, max_depth - 1, project, visited)
+            })
             .collect()
     } else {
         vec![]
     };
 
-    Some(TreeNode {
-        key: key_str,
-        title,
-        children,
-    })
+    let mut node = serde_yaml::Mapping::new();
+    node.insert(serde_yaml::Value::from("key"), serde_yaml::Value::from(key_str));
+    node.insert(serde_yaml::Value::from("title"), serde_yaml::Value::from(title));
+
+    if let Some(fields) = project {
+        let mut user_fm = graph.frontmatter(key).cloned().unwrap_or_default();
+        liwe::query::frontmatter::strip_reserved(&mut user_fm);
+        for field in fields {
+            if field == "key" || field == "title" || field == "children" {
+                continue;
+            }
+            let key_val = serde_yaml::Value::from(field.as_str());
+            if let Some(value) = user_fm.get(&key_val) {
+                node.insert(key_val, value.clone());
+            }
+        }
+    }
+
+    let children_value = serde_yaml::to_value(&children)
+        .unwrap_or_else(|_| serde_yaml::Value::Sequence(Vec::new()));
+    node.insert(serde_yaml::Value::from("children"), children_value);
+
+    Some(node)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1226,6 +1287,15 @@ fn stats_command(args: Stats) {
     let graph = load_graph(&config);
 
     if let Some(key_str) = args.key {
+        match args.format {
+            StatsFormat::Markdown | StatsFormat::Csv => {
+                eprintln!(
+                    "error: stats -k KEY supports only -f json or -f yaml"
+                );
+                std::process::exit(2);
+            }
+            _ => {}
+        }
         let key_stats = liwe::stats::KeyStatistics::from_graph(&graph);
         let entry = key_stats
             .into_iter()

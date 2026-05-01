@@ -127,23 +127,18 @@ One key per line; suitable for piping.
 ### JSON (`-f json`)
 
 ``` json
-{
-  "query": "auth",
-  "total": 3,
-  "results": [
-    {
-      "key": "authentication",
-      "title": "User Authentication",
-      "is_root": true,
-      "incoming_refs": 5,
-      "outgoing_refs": 2,
-      "parent_documents": []
-    }
-  ]
-}
+[
+  {
+    "key": "authentication",
+    "title": "User Authentication",
+    "includedBy": []
+  }
+]
 ```
 
-`--project title,modified_at` projects only those frontmatter fields into each result.
+The top-level value is a bare array of result objects. Each object carries the system fields `key`, `title`, `includedBy`, and every user-frontmatter field merged at the top level. `includedBy` entries are `EdgeRef { key, title, sectionPath }`.
+
+`--project title,status` projects only those fields into each result, in the listed order. System fields and user frontmatter fields are projectable interchangeably.
 
 ### YAML (`-f yaml`)
 

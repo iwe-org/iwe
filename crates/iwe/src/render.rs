@@ -17,10 +17,10 @@ struct DocumentFrontmatter {
 struct DocumentMeta {
     key: String,
     title: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    parents: Vec<LinkMeta>,
-    #[serde(rename = "back-links", skip_serializing_if = "Vec::is_empty")]
-    back_links: Vec<LinkMeta>,
+    #[serde(rename = "includedBy", skip_serializing_if = "Vec::is_empty")]
+    included_by: Vec<LinkMeta>,
+    #[serde(rename = "referencedBy", skip_serializing_if = "Vec::is_empty")]
+    referenced_by: Vec<LinkMeta>,
 }
 
 #[derive(Serialize)]
@@ -60,7 +60,7 @@ impl<'a> RetrieveRenderer<'a> {
             document: DocumentMeta {
                 key: doc.key.clone(),
                 title: doc.title.clone(),
-                parents: doc
+                included_by: doc
                     .included_by
                     .iter()
                     .map(|p| LinkMeta {
@@ -68,7 +68,7 @@ impl<'a> RetrieveRenderer<'a> {
                         title: p.title.clone(),
                     })
                     .collect(),
-                back_links: doc
+                referenced_by: doc
                     .referenced_by
                     .iter()
                     .map(|b| LinkMeta {

@@ -63,11 +63,18 @@ Nested JSON array structure:
     "children": [
       {
         "key": "child",
-        "title": "Child Document"
+        "title": "Child Document",
+        "children": []
       }
     ]
   }
 ]
+```
+
+`children` is always present (empty array on leaves). With `--project f1,f2`, the listed user-frontmatter fields are emitted alongside `key`, `title`, `children` per node:
+
+``` bash
+iwe tree --project pillar,status -f json
 ```
 
 ## Starting from Specific Documents

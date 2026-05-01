@@ -12,25 +12,10 @@ use crate::query::{self, Filter};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ParentDocumentInfo {
+pub struct EdgeRef {
     pub key: String,
     pub title: String,
     pub section_path: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BacklinkInfo {
-    pub key: String,
-    pub title: String,
-    pub section_path: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ChildDocumentInfo {
-    pub key: String,
-    pub title: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -39,9 +24,9 @@ pub struct DocumentOutput {
     pub key: String,
     pub title: String,
     pub content: String,
-    pub included_by: Vec<ParentDocumentInfo>,
-    pub includes: Vec<ChildDocumentInfo>,
-    pub referenced_by: Vec<BacklinkInfo>,
+    pub included_by: Vec<EdgeRef>,
+    pub includes: Vec<EdgeRef>,
+    pub referenced_by: Vec<EdgeRef>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -58,6 +43,7 @@ pub struct RetrieveOptions {
     pub backlinks: bool,
     pub exclude: HashSet<Key>,
     pub no_content: bool,
+    pub children: bool,
     pub filter: Option<Filter>,
 }
 
@@ -196,7 +182,7 @@ impl<'a> DocumentReader<'a> {
         };
         let included_by = self.get_parent_documents(key);
 
-        let includes = if options.no_content {
+        let includes = if options.children {
             self.get_child_documents(key)
         } else {
             Vec::new()
@@ -222,7 +208,7 @@ impl<'a> DocumentReader<'a> {
         self.graph.to_markdown_skip_frontmatter(key)
     }
 
-    fn get_parent_documents(&self, key: &Key) -> Vec<ParentDocumentInfo> {
+    fn get_parent_documents(&self, key: &Key) -> Vec<EdgeRef> {
         let refs = self.graph.get_inclusion_edges_to(key);
         let mut parents = Vec::new();
 
@@ -238,7 +224,7 @@ impl<'a> DocumentReader<'a> {
 
                     let section_path = self.get_section_path(ref_id);
 
-                    parents.push(ParentDocumentInfo {
+                    parents.push(EdgeRef {
                         key: doc_key.to_string(),
                         title,
                         section_path,
@@ -247,13 +233,13 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
-        let mut parents: Vec<ParentDocumentInfo> =
+        let mut parents: Vec<EdgeRef> =
             parents.into_iter().unique_by(|p| p.key.clone()).collect();
         parents.sort_by(|a, b| a.key.cmp(&b.key));
         parents
     }
 
-    fn get_child_documents(&self, key: &Key) -> Vec<ChildDocumentInfo> {
+    fn get_child_documents(&self, key: &Key) -> Vec<EdgeRef> {
         let refs = self.graph.get_inclusion_edges_in(key);
         let mut children = Vec::new();
 
@@ -264,20 +250,23 @@ impl<'a> DocumentReader<'a> {
                     .get_key_title(&ref_key)
                     .unwrap_or_else(|| ref_key.to_string());
 
-                children.push(ChildDocumentInfo {
+                let section_path = self.get_section_path(ref_id);
+
+                children.push(EdgeRef {
                     key: ref_key.to_string(),
                     title,
+                    section_path,
                 });
             }
         }
 
-        let mut children: Vec<ChildDocumentInfo> =
+        let mut children: Vec<EdgeRef> =
             children.into_iter().unique_by(|c| c.key.clone()).collect();
         children.sort_by(|a, b| a.key.cmp(&b.key));
         children
     }
 
-    fn get_backlinks(&self, key: &Key) -> Vec<BacklinkInfo> {
+    fn get_backlinks(&self, key: &Key) -> Vec<EdgeRef> {
         let inline_refs = self.graph.get_reference_edges_to(key);
 
         let mut backlinks = Vec::new();
@@ -300,7 +289,7 @@ impl<'a> DocumentReader<'a> {
 
                     let section_path = self.get_section_path(ref_id);
 
-                    backlinks.push(BacklinkInfo {
+                    backlinks.push(EdgeRef {
                         key: doc_key.to_string(),
                         title,
                         section_path,

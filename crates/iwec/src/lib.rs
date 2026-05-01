@@ -170,6 +170,8 @@ pub struct RetrieveParams {
     pub exclude: Option<Vec<String>>,
     #[schemars(description = "Return metadata only without document content. Default: false")]
     pub no_content: Option<bool>,
+    #[schemars(description = "Populate the `includes` array with child document edges. Default: false")]
+    pub children: Option<bool>,
     #[serde(flatten)]
     pub selector: SelectorParams,
 }
@@ -188,6 +190,7 @@ impl From<RetrieveParams> for RetrieveOptions {
                 .map(|k| Key::name(&k))
                 .collect::<HashSet<_>>(),
             no_content: p.no_content.unwrap_or(false),
+            children: p.children.unwrap_or(false),
             filter: p.selector.to_filter(),
         }
     }
@@ -207,7 +210,6 @@ pub struct TreeParams {
 struct TreeNode {
     key: String,
     title: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     children: Vec<TreeNode>,
 }
 
@@ -451,7 +453,7 @@ impl IweServer {
         let graph = self.graph.lock().await;
         let finder = DocumentFinder::new(&graph);
         let output: FindOutput = finder.find(&params.into());
-        to_json_result(&output)
+        to_json_result(&output.results)
     }
 
     #[tool(description = "Retrieve documents from the knowledge graph with configurable depth expansion, parent context, backlinks, and linked documents")]
@@ -464,7 +466,7 @@ impl IweServer {
         let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
         let options: RetrieveOptions = params.into();
         let output: RetrieveOutput = reader.retrieve_many(&keys, &options);
-        to_json_result(&output)
+        to_json_result(&output.documents)
     }
 
     #[tool(description = "View the hierarchical tree structure of the knowledge graph showing how documents are connected via block references. Supports the structural set selector (in / in_any / not_in / max_depth) — when provided, the tree roots are restricted to (or selected from) that set.")]
@@ -1149,7 +1151,8 @@ impl IweServer {
                 ..Default::default()
             },
         );
-        let json = serde_json::to_string_pretty(&output).unwrap_or_else(|_| "{}".to_string());
+        let json = serde_json::to_string_pretty(&output.documents)
+            .unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -1183,7 +1186,8 @@ impl IweServer {
                 ..Default::default()
             },
         );
-        let json = serde_json::to_string_pretty(&output).unwrap_or_else(|_| "{}".to_string());
+        let json = serde_json::to_string_pretty(&output.documents)
+            .unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,

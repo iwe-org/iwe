@@ -57,7 +57,8 @@ fn test_tree_json_format() {
             "children": [
               {
                 "key": "child",
-                "title": "Child Document"
+                "title": "Child Document",
+                "children": []
               }
             ]
           }
@@ -82,6 +83,7 @@ fn test_tree_yaml_format() {
           children:
           - key: child
             title: Child Document
+            children: []
     "};
 
     assert_eq!(stdout, expected);
@@ -284,6 +286,58 @@ fn test_tree_self_referencing_document() {
     "};
 
     assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_tree_project_user_frontmatter() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    let parent = indoc! {"
+        ---
+        pillar: ai-memory
+        status: published
+        ---
+
+        # Parent
+
+        [child](child)
+    "};
+    let child = indoc! {"
+        ---
+        pillar: ai-memory
+        status: draft
+        ---
+
+        # Child
+
+        Child content.
+    "};
+
+    write(temp_path.join("parent.md"), parent).expect("Should write parent");
+    write(temp_path.join("child.md"), child).expect("Should write child");
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "parent", "--project", "pillar,status", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let parent_node = &parsed[0];
+    assert_eq!(parent_node["key"], "parent");
+    assert_eq!(parent_node["title"], "Parent");
+    assert_eq!(parent_node["pillar"], "ai-memory");
+    assert_eq!(parent_node["status"], "published");
+    let children = parent_node["children"].as_array().expect("children is array");
+    assert_eq!(children.len(), 1);
+    let child_node = &children[0];
+    assert_eq!(child_node["pillar"], "ai-memory");
+    assert_eq!(child_node["status"], "draft");
+    assert!(child_node["children"].is_array(), "children always present");
 }
 
 fn setup_workspace_with_self_reference() -> TempDir {

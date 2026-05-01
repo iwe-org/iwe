@@ -164,10 +164,10 @@ Documents are rendered with YAML frontmatter containing metadata, followed by th
 document:
   key: my-document
   title: My Document
-  parents:
+  includedBy:
   - key: index
     title: Index
-  back-links:
+  referencedBy:
   - key: related-doc
     title: Related Doc
 ---
@@ -179,7 +179,7 @@ Original document content preserved exactly as written.
 
 Each document in the result set includes:
 
-- YAML frontmatter with `key`, `title`, `parents`, and `back-links`
+- YAML frontmatter with `key`, `title`, `includedBy`, and `referencedBy`
 - Document content with original headers preserved
 - Two empty lines after each document for easy parsing
 
@@ -198,39 +198,52 @@ One key per line, suitable for piping to other commands or building exclude list
 ### JSON Format (`-f json`)
 
 ``` json
-{
-  "documents": [
-    {
-      "key": "my-document",
-      "title": "My Document",
-      "content": "# My Document\n\nContent here...",
-      "parent_documents": [
-        {
-          "key": "index",
-          "title": "Index",
-          "section_path": ["Topics", "My Topic"]
-        }
-      ],
-      "backlinks": [
-        {
-          "key": "related-doc",
-          "title": "Related Doc",
-          "section_path": []
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "key": "my-document",
+    "title": "My Document",
+    "content": "# My Document\n\nContent here...",
+    "includedBy": [
+      {
+        "key": "index",
+        "title": "Index",
+        "sectionPath": ["Topics", "My Topic"]
+      }
+    ],
+    "includes": [],
+    "referencedBy": [
+      {
+        "key": "related-doc",
+        "title": "Related Doc",
+        "sectionPath": []
+      }
+    ]
+  }
+]
 ```
+
+The top-level value is a bare array of document objects. Each carries `key`, `title`, `content`, and three edge arrays — `includedBy`, `includes`, `referencedBy` — using the same `EdgeRef { key, title, sectionPath }` shape. Empty arrays are emitted explicitly.
+
+`includes` is populated only when `--children` is passed; `--no-content` blanks `content` independently.
 
 ### Dry Run (`--dry-run`)
 
-Shows statistics without outputting content:
+Default (markdown / no `-f`): two-line prose summary.
 
 ``` bash
 $ iwe retrieve -k my-document --dry-run
 documents: 5
 lines: 234
+```
+
+With `-f json` or `-f yaml`, dry-run emits a structured summary instead:
+
+``` bash
+$ iwe retrieve -k my-document --dry-run -f json
+{
+  "documents": 5,
+  "lines": 234
+}
 ```
 
 Useful for checking how much content would be retrieved before fetching it.
@@ -261,6 +274,9 @@ iwe retrieve -k my-document -e already-loaded -e another-loaded
 
 # Get metadata only, no content
 iwe retrieve -k my-document --no-content
+
+# Populate the `includes` edge array (independent of --no-content)
+iwe retrieve -k my-document --children
 
 # Check size before retrieving
 iwe retrieve -k my-document -d 2 -c 1 --dry-run
@@ -345,7 +361,7 @@ The following flags pre-date the query language and remain accepted for backward
 ## Technical Notes
 
 - Documents use YAML frontmatter for metadata, content follows with original formatting
-- Empty `parents` or `back-links` fields are omitted from frontmatter
+- Empty `includedBy` or `referencedBy` fields are omitted from markdown frontmatter (JSON/YAML output always emits them as `[]`)
 - Original document headers are preserved (no level shifting)
 - Two empty lines separate documents for easier parsing
 - Duplicate documents are automatically filtered out

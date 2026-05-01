@@ -14,8 +14,7 @@ async fn find_all_documents() {
     let result = f.call_tool("iwe_find", json!({})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["total"], 2);
-    assert_eq!(output["results"].as_array().unwrap().len(), 2);
+    assert_eq!(output.as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -30,8 +29,8 @@ async fn find_by_query() {
     let result = f.call_tool("iwe_find", json!({"query": "rust"})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["total"], 2);
-    let titles: Vec<&str> = output["results"]
+    assert_eq!(output.as_array().unwrap().len(), 2);
+    let titles: Vec<&str> = output
         .as_array()
         .unwrap()
         .iter()
@@ -52,12 +51,11 @@ async fn find_with_limit() {
     let result = f.call_tool("iwe_find", json!({"limit": 2})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["results"].as_array().unwrap().len(), 2);
-    assert_eq!(output["total"], 3);
+    assert_eq!(output.as_array().unwrap().len(), 2);
 }
 
 fn keys(output: &serde_json::Value) -> Vec<String> {
-    let mut v: Vec<String> = output["results"]
+    let mut v: Vec<String> = output
         .as_array()
         .unwrap()
         .iter()

@@ -50,7 +50,7 @@ async fn extract_by_section_title() {
         )
         .await;
     let docs = Fixture::result_json(&retrieve);
-    let content = docs["documents"][0]["content"].as_str().unwrap();
+    let content = docs[0]["content"].as_str().unwrap();
     assert!(content.contains("Content A"));
 }
 
@@ -89,7 +89,7 @@ async fn extract_dry_run() {
     assert!(!output["creates"].as_array().unwrap().is_empty());
 
     let find = f.call_tool("iwe_find", json!({})).await;
-    assert_eq!(Fixture::result_json(&find)["total"], 1);
+    assert_eq!(Fixture::result_json(&find).as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]

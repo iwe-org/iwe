@@ -113,18 +113,16 @@ fn test_retrieve_json_format() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "test-doc",
-              "title": "Test Document",
-              "content": "# Test Document\n\nContent here.\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "test-doc",
+            "title": "Test Document",
+            "content": "# Test Document\n\nContent here.\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -149,7 +147,6 @@ fn test_retrieve_yaml_format() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        documents:
         - key: test-doc
           title: Test Document
           content: |
@@ -199,7 +196,7 @@ fn test_retrieve_with_parent_documents() {
         document:
           key: child
           title: Child Document
-          parents:
+          includedBy:
           - key: parent
             title: Parent Document
         ---
@@ -247,7 +244,7 @@ fn test_retrieve_with_backlinks() {
         document:
           key: target
           title: Target Document
-          back-links:
+          referencedBy:
           - key: referrer
             title: Referrer Document
         ---
@@ -305,10 +302,10 @@ fn test_retrieve_with_both_parent_and_backlinks() {
         document:
           key: child
           title: Child
-          parents:
+          includedBy:
           - key: parent
             title: Parent
-          back-links:
+          referencedBy:
           - key: referrer
             title: Referrer
         ---
@@ -412,7 +409,7 @@ fn test_retrieve_depth_one_includes_referenced_docs() {
         document:
           key: child
           title: Child
-          parents:
+          includedBy:
           - key: root
             title: Root
         ---
@@ -480,7 +477,7 @@ fn test_retrieve_depth_two_includes_nested_refs() {
         document:
           key: level1
           title: Level One
-          parents:
+          includedBy:
           - key: level0
             title: Level Zero
         ---
@@ -513,7 +510,7 @@ fn test_retrieve_depth_two_includes_nested_refs() {
         document:
           key: level1
           title: Level One
-          parents:
+          includedBy:
           - key: level0
             title: Level Zero
         ---
@@ -527,7 +524,7 @@ fn test_retrieve_depth_two_includes_nested_refs() {
         document:
           key: level2
           title: Level Two
-          parents:
+          includedBy:
           - key: level1
             title: Level One
         ---
@@ -575,7 +572,7 @@ fn test_retrieve_context_one_level() {
         document:
           key: child
           title: Child Document
-          parents:
+          includedBy:
           - key: parent
             title: Parent Document
         ---
@@ -644,7 +641,7 @@ fn test_retrieve_context_two_levels() {
         document:
           key: child
           title: Child
-          parents:
+          includedBy:
           - key: parent
             title: Parent
         ---
@@ -658,7 +655,7 @@ fn test_retrieve_context_two_levels() {
         document:
           key: parent
           title: Parent
-          parents:
+          includedBy:
           - key: grandparent
             title: Grandparent
         ---
@@ -727,7 +724,7 @@ fn test_retrieve_bidirectional() {
         document:
           key: middle
           title: Middle
-          parents:
+          includedBy:
           - key: parent
             title: Parent
         ---
@@ -741,7 +738,7 @@ fn test_retrieve_bidirectional() {
         document:
           key: child
           title: Child
-          parents:
+          includedBy:
           - key: middle
             title: Middle
         ---
@@ -811,7 +808,7 @@ fn test_retrieve_with_inline_links() {
         document:
           key: another
           title: Another Document
-          back-links:
+          referencedBy:
           - key: doc
             title: Document
         ---
@@ -855,32 +852,30 @@ fn test_retrieve_context_json_format() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "child",
-              "title": "Child",
-              "content": "# Child\n\nContent.\n",
-              "includedBy": [
-                {
-                  "key": "parent",
-                  "title": "Parent",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "parent",
-              "title": "Parent",
-              "content": "# Parent\n\n[Child](child)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nContent.\n",
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "# Parent\n\n[Child](child)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -986,7 +981,7 @@ fn test_retrieve_links_with_depth_and_context() {
         document:
           key: middle
           title: Middle
-          parents:
+          includedBy:
           - key: parent
             title: Parent
         ---
@@ -1002,7 +997,7 @@ fn test_retrieve_links_with_depth_and_context() {
         document:
           key: child
           title: Child
-          parents:
+          includedBy:
           - key: middle
             title: Middle
         ---
@@ -1016,7 +1011,7 @@ fn test_retrieve_links_with_depth_and_context() {
         document:
           key: parent
           title: Parent
-          parents:
+          includedBy:
           - key: grandparent
             title: Grandparent
         ---
@@ -1030,7 +1025,7 @@ fn test_retrieve_links_with_depth_and_context() {
         document:
           key: related
           title: Related
-          back-links:
+          referencedBy:
           - key: middle
             title: Middle
         ---
@@ -1096,65 +1091,63 @@ fn test_retrieve_deduplication_same_doc_multiple_paths() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "root",
-              "title": "Root",
-              "content": "# Root\n\n[A](a)\n\n[B](b)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "a",
-              "title": "A",
-              "content": "# A\n\n[Common](common)\n",
-              "includedBy": [
-                {
-                  "key": "root",
-                  "title": "Root",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "b",
-              "title": "B",
-              "content": "# B\n\n[Common](common)\n",
-              "includedBy": [
-                {
-                  "key": "root",
-                  "title": "Root",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "common",
-              "title": "Common",
-              "content": "# Common\n\nShared content.\n",
-              "includedBy": [
-                {
-                  "key": "a",
-                  "title": "A",
-                  "sectionPath": []
-                },
-                {
-                  "key": "b",
-                  "title": "B",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "root",
+            "title": "Root",
+            "content": "# Root\n\n[A](a)\n\n[B](b)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "a",
+            "title": "A",
+            "content": "# A\n\n[Common](common)\n",
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "b",
+            "title": "B",
+            "content": "# B\n\n[Common](common)\n",
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "common",
+            "title": "Common",
+            "content": "# Common\n\nShared content.\n",
+            "includedBy": [
+              {
+                "key": "a",
+                "title": "A",
+                "sectionPath": []
+              },
+              {
+                "key": "b",
+                "title": "B",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1214,7 +1207,7 @@ fn test_retrieve_multiple_inline_links() {
         document:
           key: first
           title: First
-          back-links:
+          referencedBy:
           - key: doc
             title: Document
         ---
@@ -1228,7 +1221,7 @@ fn test_retrieve_multiple_inline_links() {
         document:
           key: second
           title: Second
-          back-links:
+          referencedBy:
           - key: doc
             title: Document
         ---
@@ -1339,60 +1332,58 @@ fn test_retrieve_all_document_types_json() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "main",
-              "title": "Main",
-              "content": "# Main\n\n[Child](child)\n\nAlso see [Linked](linked).\n",
-              "includedBy": [
-                {
-                  "key": "parent",
-                  "title": "Parent",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "child",
-              "title": "Child",
-              "content": "# Child\n\nChild content.\n",
-              "includedBy": [
-                {
-                  "key": "main",
-                  "title": "Main",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "parent",
-              "title": "Parent",
-              "content": "# Parent\n\n[Main](main)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "linked",
-              "title": "Linked",
-              "content": "# Linked\n\nLinked content.\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": [
-                {
-                  "key": "main",
-                  "title": "Main",
-                  "sectionPath": []
-                }
-              ]
-            }
-          ]
-        }
+        [
+          {
+            "key": "main",
+            "title": "Main",
+            "content": "# Main\n\n[Child](child)\n\nAlso see [Linked](linked).\n",
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nChild content.\n",
+            "includedBy": [
+              {
+                "key": "main",
+                "title": "Main",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "# Parent\n\n[Main](main)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "linked",
+            "title": "Linked",
+            "content": "# Linked\n\nLinked content.\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": [
+              {
+                "key": "main",
+                "title": "Main",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1437,45 +1428,43 @@ fn test_retrieve_context_multiple_parents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "child",
-              "title": "Child",
-              "content": "# Child\n\nShared child.\n",
-              "includedBy": [
-                {
-                  "key": "parent1",
-                  "title": "Parent One",
-                  "sectionPath": []
-                },
-                {
-                  "key": "parent2",
-                  "title": "Parent Two",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "parent1",
-              "title": "Parent One",
-              "content": "# Parent One\n\n[Child](child)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "parent2",
-              "title": "Parent Two",
-              "content": "# Parent Two\n\n[Child](child)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nShared child.\n",
+            "includedBy": [
+              {
+                "key": "parent1",
+                "title": "Parent One",
+                "sectionPath": []
+              },
+              {
+                "key": "parent2",
+                "title": "Parent Two",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "parent1",
+            "title": "Parent One",
+            "content": "# Parent One\n\n[Child](child)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "parent2",
+            "title": "Parent Two",
+            "content": "# Parent Two\n\n[Child](child)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1520,45 +1509,43 @@ fn test_retrieve_context_includes_parents_of_sub_documents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "main",
-              "title": "Main Document",
-              "content": "# Main Document\n\n[Document A](a)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "a",
-              "title": "Document A",
-              "content": "# Document A\n\nContent of A.\n",
-              "includedBy": [
-                {
-                  "key": "main",
-                  "title": "Main Document",
-                  "sectionPath": []
-                },
-                {
-                  "key": "parent2",
-                  "title": "Parent Two",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "parent2",
-              "title": "Parent Two",
-              "content": "# Parent Two\n\n[Document A](a)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "main",
+            "title": "Main Document",
+            "content": "# Main Document\n\n[Document A](a)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "a",
+            "title": "Document A",
+            "content": "# Document A\n\nContent of A.\n",
+            "includedBy": [
+              {
+                "key": "main",
+                "title": "Main Document",
+                "sectionPath": []
+              },
+              {
+                "key": "parent2",
+                "title": "Parent Two",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "parent2",
+            "title": "Parent Two",
+            "content": "# Parent Two\n\n[Document A](a)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1603,18 +1590,16 @@ fn test_retrieve_context_sub_document_parents_without_depth() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "main",
-              "title": "Main Document",
-              "content": "# Main Document\n\n[Document A](a)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "main",
+            "title": "Main Document",
+            "content": "# Main Document\n\n[Document A](a)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1669,51 +1654,49 @@ fn test_retrieve_context_only_direct_sub_document_parents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "main",
-              "title": "Main",
-              "content": "# Main\n\n[Level 1](level1)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "level1",
-              "title": "Level 1",
-              "content": "# Level 1\n\n[Level 2](level2)\n",
-              "includedBy": [
-                {
-                  "key": "main",
-                  "title": "Main",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "level2",
-              "title": "Level 2",
-              "content": "# Level 2\n\nFinal content.\n",
-              "includedBy": [
-                {
-                  "key": "level1",
-                  "title": "Level 1",
-                  "sectionPath": []
-                },
-                {
-                  "key": "other-parent",
-                  "title": "Other Parent",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "main",
+            "title": "Main",
+            "content": "# Main\n\n[Level 1](level1)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "level1",
+            "title": "Level 1",
+            "content": "# Level 1\n\n[Level 2](level2)\n",
+            "includedBy": [
+              {
+                "key": "main",
+                "title": "Main",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "level2",
+            "title": "Level 2",
+            "content": "# Level 2\n\nFinal content.\n",
+            "includedBy": [
+              {
+                "key": "level1",
+                "title": "Level 1",
+                "sectionPath": []
+              },
+              {
+                "key": "other-parent",
+                "title": "Other Parent",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1784,6 +1767,124 @@ fn test_retrieve_dry_run_multiple_documents() {
 }
 
 #[test]
+fn test_retrieve_dry_run_json_format() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc.md"),
+        indoc! {"
+            # Test Document
+
+            Line one.
+            Line two.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "doc", "-d", "0", "--dry-run", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    assert_eq!(parsed["documents"], 1);
+    assert!(parsed["lines"].as_u64().unwrap() > 0);
+}
+
+#[test]
+fn test_retrieve_dry_run_yaml_format() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc.md"),
+        indoc! {"
+            # Test Document
+
+            Line one.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "doc", "-d", "0", "--dry-run", "-f", "yaml"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    assert!(stdout.contains("documents: 1"), "got: {}", stdout);
+    assert!(stdout.contains("lines: "), "got: {}", stdout);
+}
+
+#[test]
+fn test_retrieve_children_flag_populates_includes() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(dir.path().join("child.md"), "# Child\n\nChild content.").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "parent", "-d", "0", "--children", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("valid JSON output");
+    let parent = &parsed[0];
+    assert_eq!(parent["key"], "parent");
+    let includes = parent["includes"].as_array().expect("includes is array");
+    assert_eq!(includes.len(), 1);
+    assert_eq!(includes[0]["key"], "child");
+    assert_eq!(includes[0]["title"], "Child");
+    // content is NOT blanked because --no-content was not passed
+    assert!(parent["content"].as_str().unwrap().contains("# Parent"));
+}
+
+#[test]
+fn test_retrieve_no_content_does_not_populate_includes() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(dir.path().join("child.md"), "# Child\n\nChild content.").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "parent", "-d", "0", "--no-content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("valid JSON output");
+    let parent = &parsed[0];
+    assert_eq!(parent["content"], "");
+    let includes = parent["includes"].as_array().expect("includes is array");
+    assert!(includes.is_empty());
+}
+
+#[test]
 fn test_retrieve_multiple_keys() {
     let dir = setup_workspace();
 
@@ -1822,34 +1923,32 @@ fn test_retrieve_multiple_keys() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "doc1",
-              "title": "Document One",
-              "content": "# Document One\n\nContent one.\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "doc2",
-              "title": "Document Two",
-              "content": "# Document Two\n\nContent two.\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "doc3",
-              "title": "Document Three",
-              "content": "# Document Three\n\nContent three.\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "doc1",
+            "title": "Document One",
+            "content": "# Document One\n\nContent one.\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Document Two",
+            "content": "# Document Two\n\nContent two.\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "doc3",
+            "title": "Document Three",
+            "content": "# Document Three\n\nContent three.\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1894,45 +1993,43 @@ fn test_retrieve_multiple_keys_with_deduplication() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "doc1",
-              "title": "Document One",
-              "content": "# Document One\n\n[Shared](shared)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "shared",
-              "title": "Shared",
-              "content": "# Shared\n\nShared content.\n",
-              "includedBy": [
-                {
-                  "key": "doc1",
-                  "title": "Document One",
-                  "sectionPath": []
-                },
-                {
-                  "key": "doc2",
-                  "title": "Document Two",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "doc2",
-              "title": "Document Two",
-              "content": "# Document Two\n\n[Shared](shared)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "doc1",
+            "title": "Document One",
+            "content": "# Document One\n\n[Shared](shared)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "shared",
+            "title": "Shared",
+            "content": "# Shared\n\nShared content.\n",
+            "includedBy": [
+              {
+                "key": "doc1",
+                "title": "Document One",
+                "sectionPath": []
+              },
+              {
+                "key": "doc2",
+                "title": "Document Two",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Document Two",
+            "content": "# Document Two\n\n[Shared](shared)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -1967,18 +2064,16 @@ fn test_retrieve_exclude_single_key() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "parent",
-              "title": "Parent",
-              "content": "# Parent\n\n[Child](child)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "# Parent\n\n[Child](child)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -2011,32 +2106,30 @@ fn test_retrieve_exclude_multiple_keys() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "root",
-              "title": "Root",
-              "content": "# Root\n\n[A](a)\n\n[B](b)\n\n[C](c)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "b",
-              "title": "B",
-              "content": "# B\n\nContent B.\n",
-              "includedBy": [
-                {
-                  "key": "root",
-                  "title": "Root",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "root",
+            "title": "Root",
+            "content": "# Root\n\n[A](a)\n\n[B](b)\n\n[C](c)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "b",
+            "title": "B",
+            "content": "# B\n\nContent B.\n",
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -2061,9 +2154,7 @@ fn test_retrieve_exclude_main_document() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "documents": []
-        }
+        []
     "#};
 
     assert_eq!(stdout, expected);
@@ -2088,18 +2179,16 @@ fn test_retrieve_no_content_flag() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "documents": [
-            {
-              "key": "doc",
-              "title": "Document",
-              "content": "",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "doc",
+            "title": "Document",
+            "content": "",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -2129,42 +2218,41 @@ fn test_retrieve_no_content_with_multiple_documents() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "-c", "0", "--no-content", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "-c", "0", "--no-content", "--children", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "documents": [
-            {
-              "key": "parent",
-              "title": "Parent",
-              "content": "",
-              "includedBy": [],
-              "includes": [
-                {
-                  "key": "child",
-                  "title": "Child"
-                }
-              ],
-              "referencedBy": []
-            },
-            {
-              "key": "child",
-              "title": "Child",
-              "content": "",
-              "includedBy": [
-                {
-                  "key": "parent",
-                  "title": "Parent",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "",
+            "includedBy": [],
+            "includes": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": []
+          },
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "",
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -2199,24 +2287,22 @@ fn test_retrieve_no_content_preserves_parent_documents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "documents": [
-            {
-              "key": "child",
-              "title": "Child",
-              "content": "",
-              "includedBy": [
-                {
-                  "key": "parent",
-                  "title": "Parent",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "",
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -2371,32 +2457,30 @@ fn test_retrieve_default_depth() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "root",
-              "title": "Root",
-              "content": "# Root\n\n[Child](child)\n",
-              "includedBy": [],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "child",
-              "title": "Child",
-              "content": "# Child\n\nChild content.\n",
-              "includedBy": [
-                {
-                  "key": "root",
-                  "title": "Root",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "root",
+            "title": "Root",
+            "content": "# Root\n\n[Child](child)\n",
+            "includedBy": [],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nChild content.\n",
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -2431,38 +2515,36 @@ fn test_retrieve_cyclic_references() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "a",
-              "title": "Document A",
-              "content": "# Document A\n\n[Document B](b)\n",
-              "includedBy": [
-                {
-                  "key": "b",
-                  "title": "Document B",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            },
-            {
-              "key": "b",
-              "title": "Document B",
-              "content": "# Document B\n\n[Document A](a)\n",
-              "includedBy": [
-                {
-                  "key": "a",
-                  "title": "Document A",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "a",
+            "title": "Document A",
+            "content": "# Document A\n\n[Document B](b)\n",
+            "includedBy": [
+              {
+                "key": "b",
+                "title": "Document B",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          },
+          {
+            "key": "b",
+            "title": "Document B",
+            "content": "# Document B\n\n[Document A](a)\n",
+            "includedBy": [
+              {
+                "key": "a",
+                "title": "Document A",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);
@@ -2556,24 +2638,22 @@ fn test_retrieve_self_referencing_document() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r##"
-        {
-          "documents": [
-            {
-              "key": "self",
-              "title": "Self Reference",
-              "content": "# Self Reference\n\n[Self Reference](self)\n",
-              "includedBy": [
-                {
-                  "key": "self",
-                  "title": "Self Reference",
-                  "sectionPath": []
-                }
-              ],
-              "includes": [],
-              "referencedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "self",
+            "title": "Self Reference",
+            "content": "# Self Reference\n\n[Self Reference](self)\n",
+            "includedBy": [
+              {
+                "key": "self",
+                "title": "Self Reference",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": []
+          }
+        ]
     "##};
 
     assert_eq!(stdout, expected);

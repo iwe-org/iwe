@@ -77,31 +77,18 @@ fn test_find_lists_all_documents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 2,
-          "results": [
-            {
-              "key": "doc1",
-              "title": "Document One",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            },
-            {
-              "key": "doc2",
-              "title": "Document Two",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "doc1",
+            "title": "Document One",
+            "includedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Document Two",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -136,23 +123,11 @@ fn test_find_yaml_format() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        query: null
-        limit: null
-        total: 2
-        results:
         - key: doc1
           title: Document One
-          includesCount: 0
-          includedByCount: 0
-          referencesCount: 0
-          referencedByCount: 0
           includedBy: []
         - key: doc2
           title: Document Two
-          includesCount: 0
-          includedByCount: 0
-          referencesCount: 0
-          referencedByCount: 0
           includedBy: []
     "};
 
@@ -172,22 +147,13 @@ fn test_find_fuzzy_search() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": "auth",
-          "limit": null,
-          "total": 1,
-          "results": [
-            {
-              "key": "authentication",
-              "title": "User Authentication",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "authentication",
+            "title": "User Authentication",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -225,31 +191,18 @@ fn test_find_refs_to() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 2,
-          "results": [
-            {
-              "key": "doc1",
-              "title": "Doc One",
-              "includesCount": 1,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            },
-            {
-              "key": "doc2",
-              "title": "Doc Two",
-              "includesCount": 1,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "includedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Doc Two",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -280,47 +233,34 @@ fn test_find_refs_from() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 2,
-          "results": [
-            {
-              "key": "child1",
-              "title": "Child One",
-              "includesCount": 0,
-              "includedByCount": 1,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": [
-                {
-                  "key": "source",
-                  "title": "Source",
-                  "sectionPath": [
-                    "Source"
-                  ]
-                }
-              ]
-            },
-            {
-              "key": "child2",
-              "title": "Child Two",
-              "includesCount": 0,
-              "includedByCount": 1,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": [
-                {
-                  "key": "source",
-                  "title": "Source",
-                  "sectionPath": [
-                    "Source"
-                  ]
-                }
-              ]
-            }
-          ]
-        }
+        [
+          {
+            "key": "child1",
+            "title": "Child One",
+            "includedBy": [
+              {
+                "key": "source",
+                "title": "Source",
+                "sectionPath": [
+                  "Source"
+                ]
+              }
+            ]
+          },
+          {
+            "key": "child2",
+            "title": "Child Two",
+            "includedBy": [
+              {
+                "key": "source",
+                "title": "Source",
+                "sectionPath": [
+                  "Source"
+                ]
+              }
+            ]
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -343,40 +283,23 @@ fn test_find_limit() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": 3,
-          "total": 10,
-          "results": [
-            {
-              "key": "doc1",
-              "title": "Document 1",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            },
-            {
-              "key": "doc10",
-              "title": "Document 10",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            },
-            {
-              "key": "doc2",
-              "title": "Document 2",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "doc1",
+            "title": "Document 1",
+            "includedBy": []
+          },
+          {
+            "key": "doc10",
+            "title": "Document 10",
+            "includedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Document 2",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -461,39 +384,26 @@ fn test_find_with_parent_documents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 2,
-          "results": [
-            {
-              "key": "child",
-              "title": "Child",
-              "includesCount": 0,
-              "includedByCount": 1,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": [
-                {
-                  "key": "parent",
-                  "title": "Parent",
-                  "sectionPath": [
-                    "Parent"
-                  ]
-                }
-              ]
-            },
-            {
-              "key": "parent",
-              "title": "Parent",
-              "includesCount": 1,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": [
+                  "Parent"
+                ]
+              }
+            ]
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -520,39 +430,26 @@ fn test_find_is_root_flag() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 2,
-          "results": [
-            {
-              "key": "child",
-              "title": "Child",
-              "includesCount": 0,
-              "includedByCount": 1,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": [
-                {
-                  "key": "parent",
-                  "title": "Parent",
-                  "sectionPath": [
-                    "Parent"
-                  ]
-                }
-              ]
-            },
-            {
-              "key": "parent",
-              "title": "Parent",
-              "includesCount": 1,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": [
+                  "Parent"
+                ]
+              }
+            ]
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -592,65 +489,44 @@ fn test_find_incoming_outgoing_refs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 4,
-          "results": [
-            {
-              "key": "child1",
-              "title": "Child One",
-              "includesCount": 0,
-              "includedByCount": 1,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": [
-                {
-                  "key": "hub",
-                  "title": "Hub",
-                  "sectionPath": [
-                    "Hub"
-                  ]
-                }
-              ]
-            },
-            {
-              "key": "child2",
-              "title": "Child Two",
-              "includesCount": 0,
-              "includedByCount": 1,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": [
-                {
-                  "key": "hub",
-                  "title": "Hub",
-                  "sectionPath": [
-                    "Hub"
-                  ]
-                }
-              ]
-            },
-            {
-              "key": "hub",
-              "title": "Hub",
-              "includesCount": 2,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 1,
-              "includedBy": []
-            },
-            {
-              "key": "referrer",
-              "title": "Referrer",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 1,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "child1",
+            "title": "Child One",
+            "includedBy": [
+              {
+                "key": "hub",
+                "title": "Hub",
+                "sectionPath": [
+                  "Hub"
+                ]
+              }
+            ]
+          },
+          {
+            "key": "child2",
+            "title": "Child Two",
+            "includedBy": [
+              {
+                "key": "hub",
+                "title": "Hub",
+                "sectionPath": [
+                  "Hub"
+                ]
+              }
+            ]
+          },
+          {
+            "key": "hub",
+            "title": "Hub",
+            "includedBy": []
+          },
+          {
+            "key": "referrer",
+            "title": "Referrer",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -665,12 +541,7 @@ fn test_find_empty_workspace() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 0,
-          "results": []
-        }
+        []
     "#};
 
     assert_eq!(stdout, expected);
@@ -687,12 +558,7 @@ fn test_find_query_with_no_match() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": "zzzznonexistent",
-          "limit": null,
-          "total": 0,
-          "results": []
-        }
+        []
     "#};
 
     assert_eq!(stdout, expected);
@@ -709,12 +575,7 @@ fn test_find_search_query_in_output() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": "myquery",
-          "limit": null,
-          "total": 0,
-          "results": []
-        }
+        []
     "#};
 
     assert_eq!(stdout, expected);
@@ -731,22 +592,13 @@ fn test_find_no_query_null_in_output() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 1,
-          "results": [
-            {
-              "key": "test",
-              "title": "Test",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 0,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "test",
+            "title": "Test",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
@@ -786,22 +638,13 @@ fn test_find_refs_to_inline_link() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {r#"
-        {
-          "query": null,
-          "limit": null,
-          "total": 1,
-          "results": [
-            {
-              "key": "doc1",
-              "title": "Doc One",
-              "includesCount": 0,
-              "includedByCount": 0,
-              "referencesCount": 1,
-              "referencedByCount": 0,
-              "includedBy": []
-            }
-          ]
-        }
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "includedBy": []
+          }
+        ]
     "#};
 
     assert_eq!(stdout, expected);
