@@ -32,12 +32,16 @@ Each flag mirrors the spec operator name (camelCase → kebab-case). All flags a
 ```
 --filter "EXPR"             inline YAML; wrapped in `{}` if not already a mapping
 -k, --key KEY               $key match. 1 key = $eq, 2+ = $in.
---includes        KEY[:DEPTH]  $includes anchor (DEPTH defaults to 1)
---included-by     KEY[:DEPTH]  $includedBy anchor
---references      KEY[:DIST]   $references anchor
---referenced-by   KEY[:DIST]   $referencedBy anchor
+--includes        KEY[:DEPTH]  $includes anchor; DEPTH defaults to --max-depth (1)
+--included-by     KEY[:DEPTH]  $includedBy anchor; DEPTH defaults to --max-depth (1)
+--references      KEY[:DIST]   $references anchor; DIST defaults to --max-distance (1)
+--referenced-by   KEY[:DIST]   $referencedBy anchor; DIST defaults to --max-distance (1)
 --includes-count    N           $includesCount: N (direct edge equality)
 --included-by-count N           $includedByCount: N
+--max-depth         N           default maxDepth applied to inclusion anchor flags without
+                                a colon-suffix (and to count predicates). Default 1.
+--max-distance      N           default maxDistance applied to reference anchor flags without
+                                a colon-suffix. Default 1.
 ```
 
 ### 3.1 `--filter` lowering
@@ -54,20 +58,59 @@ The resulting filter document is parsed by the same builder that handles full op
 
 ### 3.2 Anchor depth syntax
 
-Inclusion anchors (`--includes`, `--included-by`) accept `KEY[:DEPTH]` where DEPTH is a positive integer that becomes `$maxDepth`. Reference anchors (`--references`, `--referenced-by`) use the same `KEY[:DIST]` syntax, lowered to `$maxDistance`. Bare `KEY` (no colon) defaults to depth/distance 1, supplying the bound modifier the spec §6.3 requires.
+Inclusion anchors (`--includes`, `--included-by`) accept `KEY[:DEPTH]` where DEPTH is a positive integer that becomes `maxDepth`. Reference anchors (`--references`, `--referenced-by`) use the same `KEY[:DIST]` syntax, lowered to `maxDistance`.
 
-For ranges (`$minDepth`/`$maxDepth`), `$minDistance`/`$maxDistance`, the unbounded count flag (`$maxDepth: -1`), and any combinations not expressible as a single anchor, use `--filter` directly.
+**Default values.** The CLI carries two session-level defaults, both starting at 1:
+
+- `--max-depth N` — applied to inclusion anchor flags (`--includes`, `--included-by`) and count predicates that omit a per-flag value.
+- `--max-distance N` — applied to reference anchor flags (`--references`, `--referenced-by`) that omit a per-flag value.
+
+A colon-suffix on a single anchor (`--includes KEY:5`) overrides the session default for that anchor only. The lowered shape depends on the default:
+
+- When the session default equals 1 (no `--max-depth` / `--max-distance` set), a bare `--includes KEY` lowers to **scalar shorthand** `$includes: KEY` — the language defines this as `{ match: { $key: KEY }, maxDepth: 1 }` (`query-graph-spec.md` §6.1).
+- When the user passes `--max-depth N` with N ≠ 1, a bare `--includes KEY` lowers to the **full form** `$includes: { match: { $key: KEY }, maxDepth: N }`. The session default appears explicitly in the lowered document; scalar shorthand is reserved for the depth-1 case.
+- A per-flag colon-suffix always wins over the session default.
+
+Lowering examples without `--max-depth` / `--max-distance` (defaults at 1):
+
+```
+--includes roadmap/q2          →   $includes: roadmap/q2
+                                   (scalar shorthand; expands to depth 1 by language rule)
+
+--includes roadmap/q2:2        →   $includes: { match: { $key: roadmap/q2 }, maxDepth: 2 }
+
+--included-by projects/alpha:5 →   $includedBy: { match: { $key: projects/alpha }, maxDepth: 5 }
+
+--references people/alice      →   $references: people/alice
+                                   (scalar shorthand; expands to distance 1 by language rule)
+
+--referenced-by archive/index:2 → $referencedBy: { match: { $key: archive/index }, maxDistance: 2 }
+```
+
+Lowering examples with `--max-depth 3 --max-distance 2`:
+
+```
+--max-depth 3 --includes roadmap/q2     →   $includes: { match: { $key: roadmap/q2 }, maxDepth: 3 }
+
+--max-depth 3 --includes roadmap/q2:1   →   $includes: { match: { $key: roadmap/q2 }, maxDepth: 1 }
+                                            (per-flag colon wins over the session default)
+
+--max-distance 2 --references people/alice
+                                        →   $references: { match: { $key: people/alice }, maxDistance: 2 }
+```
+
+For range bounds (`minDepth` / `maxDepth`, `minDistance` / `maxDistance`), anchoring by frontmatter predicate (`match: { status: draft }`), or any combination not expressible as a single keyed anchor, use `--filter` directly.
 
 ### 3.3 Count predicates
 
-`--includes-count N` and `--included-by-count N` accept a non-negative integer literal and lower to a direct-edge count equality:
+`--includes-count N` and `--included-by-count N` accept a non-negative integer literal and lower to the direct-edge count shorthand:
 
 ```
 --included-by-count 0   →   $includedByCount: 0
 --includes-count    5   →   $includesCount:   5
 ```
 
-Comparison predicates (`{ $gte: 3 }`), depth-bounded counts, and unbounded counts (`$maxDepth: -1`) require `--filter`.
+The bare-integer shorthand expands to `{ count: N, maxDepth: 1 }` per `query-graph-spec.md` §5.1. When the user passes `--max-depth M`, the CLI lowers count flags to the full form `$includesCount: { count: N, maxDepth: M }` (the session default applies to count predicates as well). Comparison predicates (`{ $gte: 3 }`) require `--filter`.
 
 ## 4. Shape flags
 
@@ -115,12 +158,11 @@ These flags predate the language and remain accepted on the commands they origin
 | Deprecated | Lowers to |
 |---|---|
 | `--in KEY[:N]` | `--included-by KEY[:N]` |
-| `--in-any K1 --in-any K2` | `$or: [{ $includedBy: K1, ... }, { $includedBy: K2, ... }]` |
-| `--not-in KEY[:N]` | `$not: { $includedBy: KEY:N }` |
-| `--refs-to KEY` | `$or: [{ $includes: KEY:1 }, { $references: KEY:1 }]` (legacy mixed-edge) |
-| `--refs-from KEY` | `$or: [{ $includedBy: KEY:1 }, { $referencedBy: KEY:1 }]` (legacy mixed-edge) |
+| `--in-any K1 --in-any K2` | `$or: [{ $includedBy: K1 }, { $includedBy: K2 }]` (scalar shorthand for each) |
+| `--not-in KEY[:N]` | `$not: { $includedBy: KEY[:N] }` |
+| `--refs-to KEY` | `$or: [{ $includes: KEY }, { $references: KEY }]` (scalar shorthand; legacy mixed-edge) |
+| `--refs-from KEY` | `$or: [{ $includedBy: KEY }, { $referencedBy: KEY }]` (scalar shorthand; legacy mixed-edge) |
 | `--roots` | `$includedByCount: 0` |
-| `--max-depth N` | global default for legacy anchors that omit `:N` |
 | `--keys` (on `delete`, `rename`, `extract`, `inline`) | `-f keys` |
 
 The mixed-edge lowering of `--refs-to` / `--refs-from` preserves their pre-spec semantics (matching either inclusion or reference edges to the target). New code should pick the spec operators directly.
@@ -151,7 +193,7 @@ iwe find --filter 'status: draft'                   # all drafts
 iwe find rust --filter 'status: draft'              # fuzzy AND status==draft
 iwe find --included-by-count 0                      # roots
 iwe find --included-by projects/alpha:5             # descendants within 5 levels
-iwe find --references people/dmytro                 # docs that reference dmytro
+iwe find --references people/alice                  # docs that reference alice
 iwe find --filter 'priority: { $gt: 3 }' --sort modified_at:-1
 iwe find --project title,modified_at -f json        # only project two fields
 iwe find --project title,modified_at -f yaml        # same, as YAML
@@ -198,4 +240,4 @@ iwe delete --filter '$includedByCount: 0' --dry-run # preview deleting roots
 - **Multi-key sort.** v1 of the language accepts exactly one sort key (`query-language-spec.md` §6); the CLI inherits the same constraint.
 - **Compound update on body and frontmatter in one call.** Two passes (one body-overwrite, one mutation) are required.
 - **Pattern matching on `$key`.** Glob / regex / prefix matching is reserved for a future revision (`query-graph-spec.md` §10).
-- **Range bounds via flag.** `$minDepth`/`$minDistance` and unbounded count (`$maxDepth: -1`) are only expressible via `--filter`.
+- **Range bounds via flag.** `minDepth` / `minDistance`, mixed per-anchor `min`/`max` ranges, and anchoring by frontmatter predicate (`match: { ... }`) are only expressible via `--filter`. The flag set covers `maxDepth` / `maxDistance` (`--max-depth`, `--max-distance`, and the colon-suffix) but no lower bound.

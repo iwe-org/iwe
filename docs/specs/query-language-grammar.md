@@ -126,13 +126,15 @@ A nested mapping (`author: { name: ... }`) is equivalent to the dotted form (`au
 ```
 graph_op ::=
     $key             : key_op
-  | $includesCount   : count_op_arg
-  | $includedByCount : count_op_arg
-  | $includes        : anchor | [anchor, ...]
-  | $includedBy      : anchor | [anchor, ...]
-  | $references      : anchor | [anchor, ...]
-  | $referencedBy    : anchor | [anchor, ...]
+  | $includesCount   : count_arg
+  | $includedByCount : count_arg
+  | $includes        : relational_arg
+  | $includedBy      : relational_arg
+  | $references      : relational_arg
+  | $referencedBy    : relational_arg
 ```
+
+The `filter` production used inside relational operators (`match` field, §3.3) is the same `filter` production from §2 — the grammar is mutually recursive (filter contains graph_op contains relational_arg.match contains filter).
 
 ### 3.1 Identity
 
@@ -151,34 +153,47 @@ key_expr ::=
 ### 3.2 Count operators
 
 ```
-count_op_arg ::= int | num_expr | count_arg
+count_arg ::= int | num_expr | count_obj
 
-count_arg ::= {
-    $count:    int | num_expr                      (required)
-    $maxDepth: pos_int | -1                        (optional, default 1; -1 = unbounded)
-    $minDepth: pos_int                             (optional, default 1)
+count_obj ::= {
+    count:    int | num_expr                       (required)
+    maxDepth: pos_int                              (optional; absent = unbounded)
+    minDepth: pos_int                              (optional; absent = 1)
 }
 
-# $minDepth > $maxDepth is a parse-time error (with -1 treated as unbounded).
-# $maxDistance / $minDistance inside count operators are parse-time errors.
+# Bare-integer / numeric-expression shorthands expand to { count: ..., maxDepth: 1 }.
+# minDepth > maxDepth (when both are present) is a parse-time error.
+# No -1 sentinel; absence is the unbounded signal in the full count_obj form.
+# maxDistance / minDistance inside count operators are parse-time errors.
+# Field names inside count_obj are bare — $-prefix is reserved for evaluating operators.
 ```
 
 ### 3.3 Relational operators
 
 ```
-anchor ::= {
-    $key:         key                              (required, scalar only)
-    $maxDepth:    pos_int                          (inclusion ops; required if $minDepth absent)
-    $minDepth:    pos_int                          (inclusion ops, optional)
-    $maxDistance: pos_int                          (reference ops; required if $minDistance absent)
-    $minDistance: pos_int                          (reference ops, optional)
+relational_arg ::= key | relational_obj
+
+relational_obj ::= {
+    match:       filter                            (required)
+    maxDepth:    pos_int                           (inclusion ops, optional; absent = unbounded)
+    minDepth:    pos_int                           (inclusion ops, optional; absent = 1)
+    maxDistance: pos_int                           (reference ops, optional; absent = unbounded)
+    minDistance: pos_int                           (reference ops, optional; absent = 1)
 }
 
-# Every anchor must carry at least one bound modifier.
-# Inclusion-edge ops accept $maxDepth / $minDepth only.
-# Reference-edge ops accept $maxDistance / $minDistance only.
-# $key inside an anchor accepts a scalar only — operator expressions are parse-time errors.
-# Empty $includedBy: {} or $includedBy: [] is a parse-time error.
+# Scalar `key` shorthand expands to:
+#   - inclusion ops:  { match: { $key: KEY }, maxDepth: 1 }
+#   - reference ops:  { match: { $key: KEY }, maxDistance: 1 }
+# Inclusion-edge ops accept maxDepth / minDepth only;
+#   maxDistance / minDistance are parse-time errors.
+# Reference-edge ops accept maxDistance / minDistance only;
+#   maxDepth / minDepth are parse-time errors.
+# match is required; an object without match is a parse-time error.
+# Empty mapping {} is a parse-time error. The array form [...] is a parse-time error.
+# All walk-parameter values are positive integers (>= 1).
+# No -1 sentinel; absence is the unbounded signal in the full relational_obj form.
+# Field names inside relational_obj are bare — $-prefix is reserved for evaluating operators.
+# The filter inside `match` is the §2 filter production — the grammar is mutually recursive.
 ```
 
 ### 3.4 Numeric expression (used by count operators)

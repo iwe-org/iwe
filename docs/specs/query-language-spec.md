@@ -77,7 +77,7 @@ Example — a complete `find` operation document combining selection, projection
 filter:
   $or:
     - $key: projects/alpha
-    - $child_of: { projects/alpha: { depth: 5 } }
+    - $includedBy: { match: { $key: projects/alpha }, maxDepth: 5 }
   status: draft
   priority: { $gte: 5 }
 project:
@@ -94,7 +94,7 @@ Example — an `update` operation document:
 filter:
   $or:
     - $key: projects/alpha
-    - $child_of: { projects/alpha: { depth: 5 } }
+    - $includedBy: { match: { $key: projects/alpha }, maxDepth: 5 }
   status: draft
   priority: { $gte: 5 }
 sort:
@@ -112,7 +112,7 @@ Example — a `delete` operation document:
 filter:
   $or:
     - $key: archive/2024
-    - $child_of: { archive/2024: { depth: 5 } }
+    - $includedBy: { match: { $key: archive/2024 }, maxDepth: 5 }
   status: archived
 limit: 500
 ```
@@ -121,7 +121,7 @@ limit: 500
 
 A filter document is a predicate evaluated against each document in the corpus. A document matches when every top-level key matches.
 
-Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the logical operators (`$and`, `$or`, `$not`; §4.6) and the **graph operators** (`$child_of`, `$is_root`, `$key`, etc.) defined in `query-graph-spec.md`. Both kinds compose freely with frontmatter predicates under the same algebra.
+Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the logical operators (`$and`, `$or`, `$not`; §4.6) and the **graph operators** (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`, `$includesCount`, `$includedByCount`) defined in `query-graph-spec.md`. Both kinds compose freely with frontmatter predicates under the same algebra.
 
 ### 4.1 Implicit equality (bare values)
 
@@ -163,16 +163,16 @@ A mapping with **mixed** `$`-prefixed and bare keys at the same level is an erro
 
 ```yaml
 # OK — operator expression
-author: { $eq: dmytro }
+author: { $eq: alice }
 
 # OK — nested field
 author:
-  name: dmytro
+  name: alice
 
 # ERROR — mixed
 author:
-  $eq: dmytro
-  name: dmytro
+  $eq: alice
+  name: alice
 ```
 
 ### 4.3 Multiple keys are ANDed
@@ -195,20 +195,20 @@ Nested fields can be addressed two ways. Both forms are equivalent:
 
 ```yaml
 author:
-  name: dmytro
+  name: alice
 ```
 
 **Dotted-key shorthand:**
 
 ```yaml
-author.name: dmytro
+author.name: alice
 ```
 
 Mixing forms in a single filter is allowed:
 
 ```yaml
 status: draft
-author.name: dmytro
+author.name: alice
 review:
   reviewer: alice
 ```
@@ -230,7 +230,7 @@ When evaluating a nested-field predicate:
 - If any intermediate path component is missing, or is present but not a mapping, the leaf is treated as **missing** (never matches an equality / comparison; matches `$exists: false`).
 - If the intermediate path leads to a mapping, evaluation continues recursively.
 
-Example: filter `author.name: dmytro` against document `{ author: "dmytro" }` (where `author` is a string, not a mapping) — the leaf `author.name` is missing; the predicate does not match.
+Example: filter `author.name: alice` against document `{ author: "alice" }` (where `author` is a string, not a mapping) — the leaf `author.name` is missing; the predicate does not match.
 
 ### 4.5 Equality, types, and missing fields
 
@@ -516,7 +516,7 @@ The language MUST express the following queries directly:
 | Tagged with both rust and async | `{tags: {$all: [rust, async]}}` |
 | Has no tags | `{$or: [{tags: {$exists: false}}, {tags: {$size: 0}}]}` |
 | Reviewed but no reviewer | `{reviewed_at: {$exists: true}, reviewed_by: {$exists: false}}` |
-| Drafts not by dmytro | `{status: draft, author: {$ne: dmytro}}` |
+| Drafts not by alice | `{status: draft, author: {$ne: alice}}` |
 | Recent high-priority | `{$and: [{modified_at: {$gte: 2026-04-01}}, {$or: [{priority: {$gte: 8}}, {tags: urgent}]}]}` |
 
 ## 5. Projection
@@ -617,7 +617,7 @@ update:
     reviewed: true
     audited_at: 2026-04-26
     author:
-      email: dmytro@example.com
+      email: alice@example.com
     "review.reviewer": alice
 ```
 
