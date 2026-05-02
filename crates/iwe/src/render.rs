@@ -5,28 +5,36 @@ use liwe::model::node::NodePointer;
 use liwe::model::projector::Projector;
 use liwe::model::tree::TreeIter;
 use liwe::model::Key;
-use liwe::retrieve::{DocumentOutput, RetrieveOutput};
+use liwe::retrieve::{DocumentOutput, EdgeRef, RetrieveOutput};
 use serde::Serialize;
 
 #[derive(Serialize)]
-struct DocumentFrontmatter {
-    document: DocumentMeta,
-}
-
-#[derive(Serialize)]
-struct DocumentMeta {
-    key: String,
+struct Frontmatter {
     title: String,
     #[serde(rename = "includedBy", skip_serializing_if = "Vec::is_empty")]
-    included_by: Vec<LinkMeta>,
+    included_by: Vec<EdgeRefMeta>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    includes: Vec<EdgeRefMeta>,
     #[serde(rename = "referencedBy", skip_serializing_if = "Vec::is_empty")]
-    referenced_by: Vec<LinkMeta>,
+    referenced_by: Vec<EdgeRefMeta>,
 }
 
 #[derive(Serialize)]
-struct LinkMeta {
+struct EdgeRefMeta {
     key: String,
     title: String,
+    #[serde(rename = "sectionPath", skip_serializing_if = "Vec::is_empty")]
+    section_path: Vec<String>,
+}
+
+impl From<&EdgeRef> for EdgeRefMeta {
+    fn from(e: &EdgeRef) -> Self {
+        EdgeRefMeta {
+            key: e.key.clone(),
+            title: e.title.clone(),
+            section_path: e.section_path.clone(),
+        }
+    }
 }
 
 pub struct RetrieveRenderer<'a> {
@@ -50,50 +58,43 @@ impl<'a> RetrieveRenderer<'a> {
             .iter()
             .map(|doc| self.render_document(doc))
             .collect::<Vec<String>>()
-            .join("")
+            .join("\n")
     }
 
     fn render_document(&self, doc: &DocumentOutput) -> String {
-        let mut output = String::new();
+        let frontmatter = Frontmatter {
+            title: doc.title.clone(),
+            included_by: doc.included_by.iter().map(EdgeRefMeta::from).collect(),
+            includes: doc.includes.iter().map(EdgeRefMeta::from).collect(),
+            referenced_by: doc.referenced_by.iter().map(EdgeRefMeta::from).collect(),
+        };
+        let yaml = serde_yaml::to_string(&frontmatter).expect("frontmatter serializes");
 
-        let frontmatter = DocumentFrontmatter {
-            document: DocumentMeta {
-                key: doc.key.clone(),
-                title: doc.title.clone(),
-                included_by: doc
-                    .included_by
-                    .iter()
-                    .map(|p| LinkMeta {
-                        key: p.key.clone(),
-                        title: p.title.clone(),
-                    })
-                    .collect(),
-                referenced_by: doc
-                    .referenced_by
-                    .iter()
-                    .map(|b| LinkMeta {
-                        key: b.key.clone(),
-                        title: b.title.clone(),
-                    })
-                    .collect(),
-            },
+        let body = if doc.content.is_empty() {
+            String::new()
+        } else {
+            let key = Key::name(&doc.key);
+            self.render_content_to_string(&key)
         };
 
-        if let Ok(yaml) = serde_yaml::to_string(&frontmatter) {
-            output.push_str("---\n");
-            output.push_str(&yaml);
-            output.push_str("---\n\n");
+        let fence = "`".repeat(outer_fence_len(&body));
+
+        let mut block = String::new();
+        block.push_str(&fence);
+        block.push_str("markdown #");
+        block.push_str(&doc.key);
+        block.push('\n');
+        block.push_str("---\n");
+        block.push_str(&yaml);
+        block.push_str("---\n");
+        if !body.is_empty() {
+            block.push('\n');
+            block.push_str(body.trim_end_matches('\n'));
+            block.push('\n');
         }
-
-        if !doc.content.is_empty() {
-            let key = Key::name(&doc.key);
-            let content = self.render_content_to_string(&key);
-            output.push_str(&content);
-        }
-
-        output.push_str("\n\n");
-
-        output
+        block.push_str(&fence);
+        block.push('\n');
+        block
     }
 
     fn render_content_to_string(&self, key: &Key) -> String {
@@ -132,5 +133,52 @@ impl<'a> RetrieveRenderer<'a> {
         let annotated = tree.annotate_references(&parent_lookup, &key.parent());
 
         Projector::project(TreeIter::new(&annotated), &key.parent())
+    }
+}
+
+fn outer_fence_len(body: &str) -> usize {
+    let mut max_run = 0usize;
+    for line in body.lines() {
+        let trimmed = line.trim_start_matches(' ');
+        let leading = line.len() - trimmed.len();
+        if leading > 3 {
+            continue;
+        }
+        let run = trimmed.chars().take_while(|&c| c == '`').count();
+        if run > max_run {
+            max_run = run;
+        }
+    }
+    std::cmp::max(4, max_run + 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::outer_fence_len;
+
+    #[test]
+    fn fence_default_is_four() {
+        assert_eq!(outer_fence_len(""), 4);
+        assert_eq!(outer_fence_len("plain text\nno backticks"), 4);
+    }
+
+    #[test]
+    fn fence_three_backticks_does_not_escalate() {
+        assert_eq!(outer_fence_len("```\ncode\n```"), 4);
+    }
+
+    #[test]
+    fn fence_escalates_past_inner_four_backticks() {
+        assert_eq!(outer_fence_len("````\ninner\n````"), 5);
+    }
+
+    #[test]
+    fn fence_escalates_past_inner_six_backticks() {
+        assert_eq!(outer_fence_len("``````\ninner\n``````"), 7);
+    }
+
+    #[test]
+    fn fence_ignores_deeply_indented_runs() {
+        assert_eq!(outer_fence_len("    ````not a fence"), 4);
     }
 }

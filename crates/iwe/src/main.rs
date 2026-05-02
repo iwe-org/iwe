@@ -849,23 +849,7 @@ fn render_find_output(output: &iwe::find::FindOutput) -> String {
     for r in &output.results {
         let key = r.get("key").and_then(|v| v.as_str()).unwrap_or("");
         let title = r.get("title").and_then(|v| v.as_str()).unwrap_or("");
-        let included_by = r
-            .get("includedBy")
-            .and_then(|v| v.as_sequence())
-            .cloned()
-            .unwrap_or_default();
-        let display_title = if included_by.is_empty() {
-            title.to_string()
-        } else {
-            let parents = included_by
-                .iter()
-                .filter_map(|p| p.get("title").and_then(|v| v.as_str()))
-                .map(|t| format!("↖{}", t))
-                .collect::<Vec<_>>()
-                .join(" ");
-            format!("{} {}", title, parents)
-        };
-        result.push_str(&format!("{}   #{}\n", display_title, key));
+        result.push_str(&format!("{}   #{}\n", title, key));
     }
 
     result

@@ -67,17 +67,15 @@ fn test_retrieve_basic_document() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #test-doc
         ---
-        document:
-          key: test-doc
-          title: Test Document
+        title: Test Document
         ---
 
         # Test Document
 
         This is some content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -192,20 +190,20 @@ fn test_retrieve_with_parent_documents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child Document
-          includedBy:
-          - key: parent
-            title: Parent Document
+        title: Child Document
+        includedBy:
+        - key: parent
+          title: Parent Document
+          sectionPath:
+          - Overview
         ---
 
         # Child Document
 
         Child content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -240,20 +238,18 @@ fn test_retrieve_with_backlinks() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #target
         ---
-        document:
-          key: target
-          title: Target Document
-          referencedBy:
-          - key: referrer
-            title: Referrer Document
+        title: Target Document
+        referencedBy:
+        - key: referrer
+          title: Referrer Document
         ---
 
         # Target Document
 
         Target content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -298,23 +294,21 @@ fn test_retrieve_with_both_parent_and_backlinks() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          includedBy:
-          - key: parent
-            title: Parent
-          referencedBy:
-          - key: referrer
-            title: Referrer
+        title: Child
+        includedBy:
+        - key: parent
+          title: Parent
+        referencedBy:
+        - key: referrer
+          title: Referrer
         ---
 
         # Child
 
         Child content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -349,17 +343,15 @@ fn test_retrieve_depth_zero_excludes_referenced_docs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #root
         ---
-        document:
-          key: root
-          title: Root
+        title: Root
         ---
 
         # Root
 
         [Child](child)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -394,31 +386,28 @@ fn test_retrieve_depth_one_includes_referenced_docs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #root
         ---
-        document:
-          key: root
-          title: Root
+        title: Root
         ---
 
         # Root
 
         [Child](child)
+        ````
 
-
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          includedBy:
-          - key: root
-            title: Root
+        title: Child
+        includedBy:
+        - key: root
+          title: Root
         ---
 
         # Child
 
         Child content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -462,31 +451,28 @@ fn test_retrieve_depth_two_includes_nested_refs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected_d1 = indoc! {"
+        ````markdown #level0
         ---
-        document:
-          key: level0
-          title: Level Zero
+        title: Level Zero
         ---
 
         # Level Zero
 
         [Level One](level1)
+        ````
 
-
+        ````markdown #level1
         ---
-        document:
-          key: level1
-          title: Level One
-          includedBy:
-          - key: level0
-            title: Level Zero
+        title: Level One
+        includedBy:
+        - key: level0
+          title: Level Zero
         ---
 
         # Level One
 
         [Level Two](level2)
-
-
+        ````
     "};
 
     assert_eq!(stdout_d1, expected_d1);
@@ -495,45 +481,41 @@ fn test_retrieve_depth_two_includes_nested_refs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected_d2 = indoc! {"
+        ````markdown #level0
         ---
-        document:
-          key: level0
-          title: Level Zero
+        title: Level Zero
         ---
 
         # Level Zero
 
         [Level One](level1)
+        ````
 
-
+        ````markdown #level1
         ---
-        document:
-          key: level1
-          title: Level One
-          includedBy:
-          - key: level0
-            title: Level Zero
+        title: Level One
+        includedBy:
+        - key: level0
+          title: Level Zero
         ---
 
         # Level One
 
         [Level Two](level2)
+        ````
 
-
+        ````markdown #level2
         ---
-        document:
-          key: level2
-          title: Level Two
-          includedBy:
-          - key: level1
-            title: Level One
+        title: Level Two
+        includedBy:
+        - key: level1
+          title: Level One
         ---
 
         # Level Two
 
         Final content.
-
-
+        ````
     "};
 
     assert_eq!(stdout_d2, expected_d2);
@@ -568,31 +550,28 @@ fn test_retrieve_context_one_level() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child Document
-          includedBy:
-          - key: parent
-            title: Parent Document
+        title: Child Document
+        includedBy:
+        - key: parent
+          title: Parent Document
         ---
 
         # Child Document
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent Document
+        title: Parent Document
         ---
 
         # Parent Document
 
         [Child Document](child)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -637,45 +616,41 @@ fn test_retrieve_context_two_levels() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          includedBy:
-          - key: parent
-            title: Parent
+        title: Child
+        includedBy:
+        - key: parent
+          title: Parent
         ---
 
         # Child
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
-          includedBy:
-          - key: grandparent
-            title: Grandparent
+        title: Parent
+        includedBy:
+        - key: grandparent
+          title: Grandparent
         ---
 
         # Parent
 
         [Child](child)
+        ````
 
-
+        ````markdown #grandparent
         ---
-        document:
-          key: grandparent
-          title: Grandparent
+        title: Grandparent
         ---
 
         # Grandparent
 
         [Parent](parent)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -720,45 +695,41 @@ fn test_retrieve_bidirectional() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #middle
         ---
-        document:
-          key: middle
-          title: Middle
-          includedBy:
-          - key: parent
-            title: Parent
+        title: Middle
+        includedBy:
+        - key: parent
+          title: Parent
         ---
 
         # Middle
 
         [Child](child)
+        ````
 
-
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          includedBy:
-          - key: middle
-            title: Middle
+        title: Child
+        includedBy:
+        - key: middle
+          title: Middle
         ---
 
         # Child
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
+        title: Parent
         ---
 
         # Parent
 
         [Middle](middle)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -793,31 +764,28 @@ fn test_retrieve_with_inline_links() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #doc
         ---
-        document:
-          key: doc
-          title: Document
+        title: Document
         ---
 
         # Document
 
         This text mentions [Another Document](another) inline.
+        ````
 
-
+        ````markdown #another
         ---
-        document:
-          key: another
-          title: Another Document
-          referencedBy:
-          - key: doc
-            title: Document
+        title: Another Document
+        referencedBy:
+        - key: doc
+          title: Document
         ---
 
         # Another Document
 
         Some content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -900,17 +868,15 @@ fn test_retrieve_context_no_parents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #orphan
         ---
-        document:
-          key: orphan
-          title: Orphan Document
+        title: Orphan Document
         ---
 
         # Orphan Document
 
         No parents here.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -977,13 +943,12 @@ fn test_retrieve_links_with_depth_and_context() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #middle
         ---
-        document:
-          key: middle
-          title: Middle
-          includedBy:
-          - key: parent
-            title: Parent
+        title: Middle
+        includedBy:
+        - key: parent
+          title: Parent
         ---
 
         # Middle
@@ -991,50 +956,46 @@ fn test_retrieve_links_with_depth_and_context() {
         [Child](child)
 
         See also [Related](related) for more info.
+        ````
 
-
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          includedBy:
-          - key: middle
-            title: Middle
+        title: Child
+        includedBy:
+        - key: middle
+          title: Middle
         ---
 
         # Child
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
-          includedBy:
-          - key: grandparent
-            title: Grandparent
+        title: Parent
+        includedBy:
+        - key: grandparent
+          title: Grandparent
         ---
 
         # Parent
 
         [Middle](middle)
+        ````
 
-
+        ````markdown #related
         ---
-        document:
-          key: related
-          title: Related
-          referencedBy:
-          - key: middle
-            title: Middle
+        title: Related
+        referencedBy:
+        - key: middle
+          title: Middle
         ---
 
         # Related
 
         Related content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -1192,45 +1153,41 @@ fn test_retrieve_multiple_inline_links() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #doc
         ---
-        document:
-          key: doc
-          title: Document
+        title: Document
         ---
 
         # Document
 
         Check [First](first) and [Second](second) for details.
+        ````
 
-
+        ````markdown #first
         ---
-        document:
-          key: first
-          title: First
-          referencedBy:
-          - key: doc
-            title: Document
+        title: First
+        referencedBy:
+        - key: doc
+          title: Document
         ---
 
         # First
 
         First content.
+        ````
 
-
+        ````markdown #second
         ---
-        document:
-          key: second
-          title: Second
-          referencedBy:
-          - key: doc
-            title: Document
+        title: Second
+        referencedBy:
+        - key: doc
+          title: Document
         ---
 
         # Second
 
         Second content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -1265,17 +1222,15 @@ fn test_retrieve_links_without_flag_excludes_inline_refs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #doc
         ---
-        document:
-          key: doc
-          title: Document
+        title: Document
         ---
 
         # Document
 
         See [Another](another) inline.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -2335,14 +2290,11 @@ fn test_retrieve_no_content_multiple_children() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
+        title: Parent
         ---
-
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -2601,10 +2553,9 @@ fn test_retrieve_parent_annotation_excludes_current_document() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #main
         ---
-        document:
-          key: main
-          title: Main
+        title: Main
         ---
 
         # Main
@@ -2612,8 +2563,7 @@ fn test_retrieve_parent_annotation_excludes_current_document() {
         [Shared](shared) <- [Other](other)
 
         [Exclusive](exclusive)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -2658,4 +2608,52 @@ fn test_retrieve_self_referencing_document() {
 
     assert_eq!(stdout, expected);
 }
+
+#[test]
+fn test_retrieve_markdown_children_populates_includes() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+
+            Child content.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "parent", "-d", "0", "--children"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #parent
+        ---
+        title: Parent
+        includes:
+        - key: child
+          title: Child
+        ---
+
+        # Parent
+
+        [Child](child)
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
 
