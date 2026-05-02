@@ -114,18 +114,6 @@ fn resolve_pseudo(ctx: &ProjectionContext<'_>, p: PseudoField) -> Value {
             edges_to_value(crate::query::edges::referenced_by(ctx.graph, ctx.key))
         }
         PseudoField::References => edges_to_value(crate::query::edges::references(ctx.graph, ctx.key)),
-        PseudoField::IncludedByCount => {
-            Value::Number((crate::query::edges::included_by(ctx.graph, ctx.key).len() as i64).into())
-        }
-        PseudoField::IncludesCount => {
-            Value::Number((crate::query::edges::includes(ctx.graph, ctx.key).len() as i64).into())
-        }
-        PseudoField::ReferencedByCount => Value::Number(
-            (crate::query::edges::referenced_by(ctx.graph, ctx.key).len() as i64).into(),
-        ),
-        PseudoField::ReferencesCount => {
-            Value::Number((crate::query::edges::references(ctx.graph, ctx.key).len() as i64).into())
-        }
     }
 }
 

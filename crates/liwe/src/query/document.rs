@@ -351,10 +351,6 @@ pub enum PseudoField {
     Includes,
     ReferencedBy,
     References,
-    IncludedByCount,
-    IncludesCount,
-    ReferencedByCount,
-    ReferencesCount,
 }
 
 impl PseudoField {
@@ -369,10 +365,6 @@ impl PseudoField {
             "$includes" => Some(PseudoField::Includes),
             "$referencedBy" => Some(PseudoField::ReferencedBy),
             "$references" => Some(PseudoField::References),
-            "$includedByCount" => Some(PseudoField::IncludedByCount),
-            "$includesCount" => Some(PseudoField::IncludesCount),
-            "$referencedByCount" => Some(PseudoField::ReferencedByCount),
-            "$referencesCount" => Some(PseudoField::ReferencesCount),
             _ => None,
         }
     }
@@ -388,10 +380,6 @@ impl PseudoField {
             PseudoField::Includes => "includes",
             PseudoField::ReferencedBy => "referencedBy",
             PseudoField::References => "references",
-            PseudoField::IncludedByCount => "includedByCount",
-            PseudoField::IncludesCount => "includesCount",
-            PseudoField::ReferencedByCount => "referencedByCount",
-            PseudoField::ReferencesCount => "referencesCount",
         }
     }
 

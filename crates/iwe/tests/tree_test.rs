@@ -393,45 +393,6 @@ fn test_tree_project_pseudo_content() {
 }
 
 #[test]
-fn test_tree_project_pseudo_counts() {
-    let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    let temp_path = temp_dir.path();
-
-    setup_iwe_config(temp_path);
-
-    write(
-        temp_path.join("root.md"),
-        indoc! {"
-            # Root
-
-            [a](a)
-
-            [b](b)
-        "},
-    )
-    .unwrap();
-    write(temp_path.join("a.md"), "# A").unwrap();
-    write(temp_path.join("b.md"), "# B").unwrap();
-
-    let output = run_tree_command(
-        temp_path,
-        &[
-            "-k",
-            "root",
-            "--project",
-            "n=$includesCount",
-            "-f",
-            "json",
-        ],
-    );
-    assert!(output.status.success(), "Tree command should succeed");
-
-    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed[0]["n"], 2);
-}
-
-#[test]
 fn test_tree_add_fields_extends_default_user_fm() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

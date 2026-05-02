@@ -211,47 +211,6 @@ fn find_projection_content_returns_body() {
 }
 
 #[test]
-fn find_projection_count_pseudo_fields() {
-    let matches = run_find(
-        indoc! {"
-            # Parent
-
-            [child](2)
-            _
-            # Child
-        "},
-        filter::<FindOp>(Filter::all()).project(projection(
-            &[
-                ("k", ProjectionSource::Pseudo(PseudoField::Key)),
-                ("inc", ProjectionSource::Pseudo(PseudoField::IncludesCount)),
-                (
-                    "incBy",
-                    ProjectionSource::Pseudo(PseudoField::IncludedByCount),
-                ),
-            ],
-            ProjectionMode::Replace,
-        )),
-    );
-    assert_eq!(matches.len(), 2);
-    let parent = matches.iter().find(|(k, _)| k == "1").unwrap();
-    let child = matches.iter().find(|(k, _)| k == "2").unwrap();
-    assert_eq!(
-        parent
-            .1
-            .get(Value::String("inc".into()))
-            .and_then(|v| v.as_u64()),
-        Some(1)
-    );
-    assert_eq!(
-        child
-            .1
-            .get(Value::String("incBy".into()))
-            .and_then(|v| v.as_u64()),
-        Some(1)
-    );
-}
-
-#[test]
 fn find_projection_extend_keeps_defaults_and_appends() {
     let matches = run_find(
         indoc! {"

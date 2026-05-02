@@ -666,30 +666,6 @@ fn key_in_with_non_string_rejected() {
 }
 
 #[test]
-fn includes_count_operator_rejected() {
-    assert_parse_error(
-        indoc! {"
-            filter:
-              $includesCount: 0
-        "},
-        OperationKind::Find,
-        "UnknownOperator",
-    );
-}
-
-#[test]
-fn included_by_count_operator_rejected() {
-    assert_parse_error(
-        indoc! {"
-            filter:
-              $includedByCount: 0
-        "},
-        OperationKind::Find,
-        "UnknownOperator",
-    );
-}
-
-#[test]
 fn includes_scalar_shorthand() {
     assert_parse(
         indoc! {"
