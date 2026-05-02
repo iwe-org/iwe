@@ -306,23 +306,44 @@ fn test_find_limit() {
 }
 
 #[test]
-fn test_find_limit_shown_in_markdown() {
+fn test_find_limit_in_markdown() {
     let dir = setup_workspace();
 
-    for i in 1..=10 {
-        write(
-            dir.path().join(format!("doc{}.md", i)),
-            format!("# Document {}\n\nContent.", i),
-        )
-        .unwrap();
-    }
+    write(dir.path().join("a.md"), "# A\n\nA body.").unwrap();
+    write(dir.path().join("b.md"), "# B\n\nB body.").unwrap();
+    write(dir.path().join("c.md"), "# C\n\nC body.").unwrap();
+    write(dir.path().join("d.md"), "# D\n\nD body.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["--limit", "3", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--limit", "2", "-f", "markdown"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
-    assert!(stdout.contains("Found 10 results"));
-    assert!(stdout.contains("(showing 3)"));
+    let expected = indoc! {"
+        ````markdown #a
+        ---
+        title: A
+        ---
+
+        # A
+
+        A body.
+        ````
+
+        ````markdown #b
+        ---
+        title: B
+        ---
+
+        # B
+
+        B body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -354,9 +375,15 @@ fn test_find_markdown_format() {
     assert_eq!(
         stdout,
         indoc! {"
-            Found 1 results:
+            ````markdown #test-doc
+            ---
+            title: Test Document
+            ---
 
-            Test Document   #test-doc
+            # Test Document
+
+            Content.
+            ````
         "}
     );
 }
@@ -608,13 +635,26 @@ fn test_find_no_query_null_in_output() {
 fn test_find_markdown_with_query() {
     let dir = setup_workspace();
 
-    write(dir.path().join("test.md"), "# Test Document\n\nContent.").unwrap();
+    write(dir.path().join("match.md"), "# Match\n\nMatching content.").unwrap();
+    write(dir.path().join("other.md"), "# Other\n\nOther content.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["test", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["match", "-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
-    assert!(stdout.contains("for \"test\""));
+    let expected = indoc! {"
+        ````markdown #match
+        ---
+        title: Match
+        ---
+
+        # Match
+
+        Matching content.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -648,4 +688,92 @@ fn test_find_refs_to_inline_link() {
     "#};
 
     assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_markdown_multi_doc_stream() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("alpha.md"), "# Alpha\n\nAlpha body.").unwrap();
+    write(dir.path().join("beta.md"), "# Beta\n\nBeta body.").unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #alpha
+        ---
+        title: Alpha
+        ---
+
+        # Alpha
+
+        Alpha body.
+        ````
+
+        ````markdown #beta
+        ---
+        title: Beta
+        ---
+
+        # Beta
+
+        Beta body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_markdown_includes_parent_edges() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(dir.path().join("child.md"), "# Child\n\nChild body.").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-f", "markdown", "-k", "child"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #child
+        ---
+        title: Child
+        includedBy:
+        - key: parent
+          title: Parent
+        ---
+
+        # Child
+
+        Child body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_markdown_empty_results() {
+    let dir = setup_workspace();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "");
 }

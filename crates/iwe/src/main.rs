@@ -798,8 +798,17 @@ fn find_command(args: Find) {
             }
         }
         FindFormat::Markdown => {
-            let rendered = render_find_output(&output);
-            print!("{}", rendered);
+            let keys: Vec<Key> = output
+                .results
+                .iter()
+                .filter_map(|r| r.get("key").and_then(|v| v.as_str()))
+                .map(Key::name)
+                .collect();
+            let reader = DocumentReader::new(&graph);
+            let retrieve_output = reader.retrieve_many(&keys, &RetrieveOptions::default());
+            let md_options = graph.markdown_options();
+            let renderer = RetrieveRenderer::new(&retrieve_output, &md_options, &graph);
+            print!("{}", renderer.render());
         }
     }
 }
@@ -832,27 +841,6 @@ fn count_command(args: Count) {
         Outcome::Count(n) => println!("{}", n),
         _ => unreachable!(),
     }
-}
-
-fn render_find_output(output: &iwe::find::FindOutput) -> String {
-    let mut result = String::new();
-
-    result.push_str(&format!("Found {} results", output.total));
-    if let Some(ref query) = output.query {
-        result.push_str(&format!(" for \"{}\"", query));
-    }
-    if let Some(limit) = output.limit {
-        result.push_str(&format!(" (showing {})", limit));
-    }
-    result.push_str(":\n\n");
-
-    for r in &output.results {
-        let key = r.get("key").and_then(|v| v.as_str()).unwrap_or("");
-        let title = r.get("title").and_then(|v| v.as_str()).unwrap_or("");
-        result.push_str(&format!("{}   #{}\n", title, key));
-    }
-
-    result
 }
 
 #[tracing::instrument(level = "debug")]

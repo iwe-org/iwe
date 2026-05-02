@@ -42,19 +42,13 @@ Full structured schemas (`KeyTitleRef`, `EdgeRef`, `Frontmatter`): see `output-f
 
 #### 4.1.1 Markdown
 
-A header line, a blank line, then one line per result.
+`find` markdown is byte-identical to `retrieve` markdown for the matched key set: each result is emitted as a four-backtick fenced block with info string `markdown #<key>`, body and frontmatter as defined in §4.2.1. No header line. No `(showing M)` / `for "Q"` annotation — counts and query metadata live in `-f json|yaml`. Result order matches the find result order (filter / sort / limit applied upstream).
 
-```
-Found N results[ for "Q"][ (showing M)]:
+This makes `iwe find -f markdown` a drop-in for `iwe retrieve -f markdown` over the matched set: a consumer can split the stream on `^````markdown #` and recover one document per block.
 
-<title>   #<key>
-<title>   #<key>
-...
-```
+`includedBy` populates from inclusion edges; `includes` and `referencedBy` are omitted (find does not surface child or backlink edges — use `iwe retrieve --children` / `-b` for those).
 
-`for "Q"` appears iff a positional query was given. `(showing M)` appears iff `--limit` truncated the result set. The separator between title and key is **three spaces**. Trailing newline after the last result line; no trailing blank.
-
-> **Spec note:** the current `render_find_output` in `crates/iwe/src/main.rs:822-833` injects inline `↖<parent-title>` chips into the title field when `includedBy` is non-empty. The spec drops these chips — markdown stays one line per result; structured needs go through `-f json|yaml`.
+When the result set is empty, stdout is empty.
 
 #### 4.1.2 Keys
 
@@ -195,8 +189,8 @@ Flags that change the *shape* (not just the selection) of the markdown/keys outp
 
 | Flag | Effect on shape |
 |---|---|
-| `--project f1,f2,...` | No effect on `markdown` (titles only) or `keys` (keys only). For structured-format effects, see `output-format-json-yaml-spec.md` §5.1. |
-| `--add-fields f1,f2,...` | Same. The flag is additive over the default projection in structured output (`query-projection-spec.md` §3.5); `markdown` and `keys` still render as titles-only / keys-only. The block-vs-line decision in `query-projection-spec.md` §6 applies whether structural sources arrive via `--project` or `--add-fields`. |
+| `--project f1,f2,...` | No effect on `markdown` (fenced blocks: title + body + `includedBy`) or `keys` (keys only). For structured-format effects, see `output-format-json-yaml-spec.md` §5.1. |
+| `--add-fields f1,f2,...` | Same. The flag is additive over the default projection in structured output (`query-projection-spec.md` §3.5); `markdown` and `keys` ignore it. The block-vs-line decision in `query-projection-spec.md` §6 applies whether structural sources arrive via `--project` or `--add-fields`. |
 
 ### 6.2 `iwe retrieve`
 
