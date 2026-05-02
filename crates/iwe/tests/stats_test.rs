@@ -380,25 +380,25 @@ fn test_stats_broken_inline_links_in_table() {
 }
 
 #[test]
-fn test_stats_per_doc_rejects_markdown_format() {
+fn test_stats_per_doc_default_format_outputs_json() {
     let temp_dir = setup_test_workspace();
-    let output = run_stats_command(&temp_dir, &["-k", "test", "-f", "markdown"]);
+    let output = run_stats_command(&temp_dir, &["-k", "test"]);
 
-    assert!(!output.status.success(), "Should reject markdown for per-doc");
-    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 output");
-    assert!(
-        stderr.contains("supports only -f json or -f yaml"),
-        "Should explain limitation; got: {}",
-        stderr
-    );
+    assert!(output.status.success(), "Should succeed with default format");
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Should be valid JSON");
+    assert_eq!(parsed["key"], "test");
 }
 
 #[test]
-fn test_stats_per_doc_rejects_csv_format() {
+fn test_stats_per_doc_csv_format_outputs_json() {
     let temp_dir = setup_test_workspace();
     let output = run_stats_command(&temp_dir, &["-k", "test", "-f", "csv"]);
 
-    assert!(!output.status.success(), "Should reject csv for per-doc");
+    assert!(output.status.success(), "Should succeed with csv format");
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Should be valid JSON");
+    assert_eq!(parsed["key"], "test");
 }
 
 fn run_stats_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Output {

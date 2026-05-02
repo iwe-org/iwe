@@ -156,6 +156,69 @@ async fn find_selector_max_depth() {
 }
 
 #[tokio::test]
+async fn find_with_replacement_projection() {
+    let f = Fixture::with_documents(vec![
+        ("doc", "---\npriority: 5\n---\n# Doc\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool(
+            "iwe_find",
+            json!({"project": "title=$title,priority"}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    let item = &output.as_array().unwrap()[0];
+    assert_eq!(item["title"], "Doc");
+    assert_eq!(item["priority"], 5);
+    assert!(item.get("key").is_none(), "key should not appear under explicit project");
+    assert!(item.get("includedBy").is_none());
+}
+
+#[tokio::test]
+async fn find_with_additive_projection_extends_default() {
+    let f = Fixture::with_documents(vec![
+        ("doc", "# Doc\n\nBody text.\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"add_fields": "body=$content"}))
+        .await;
+    let output = Fixture::result_json(&result);
+    let item = &output.as_array().unwrap()[0];
+    assert_eq!(item["key"], "doc");
+    assert_eq!(item["title"], "Doc");
+    assert!(item["body"].as_str().unwrap().contains("# Doc"));
+}
+
+#[tokio::test]
+async fn find_project_and_add_fields_mutually_exclusive() {
+    let f = Fixture::with_documents(vec![("doc", "# Doc\n")]).await;
+
+    let err = f
+        .try_call_tool(
+            "iwe_find",
+            json!({"project": "title", "add_fields": "body=$content"}),
+        )
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("mutually exclusive"), "got: {err}");
+}
+
+#[tokio::test]
+async fn find_invalid_projection_is_user_error() {
+    let f = Fixture::with_documents(vec![("doc", "# Doc\n")]).await;
+
+    let err = f
+        .try_call_tool("iwe_find", json!({"project": "$bogus"}))
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("$bogus"), "got: {err}");
+}
+
+#[tokio::test]
 async fn find_selector_combines_with_query() {
     let f = Fixture::with_documents(vec![
         ("a", "# A\n\n[Design notes](design)\n\n[Random](random)\n"),

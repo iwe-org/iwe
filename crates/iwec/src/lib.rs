@@ -6,7 +6,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use liwe::find::{DocumentFinder, FindOptions, FindOutput};
-use liwe::query::{self, Filter, InclusionAnchor};
+use liwe::query::cli::parse_projection;
+use liwe::query::{self, Filter, InclusionAnchor, ProjectionMode};
 use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use liwe::stats::{GraphStatistics, KeyStatistics};
 use liwe::fs::{new_for_path, new_from_hashmap};
@@ -135,21 +136,44 @@ pub struct FindParams {
     pub refs_from: Option<String>,
     #[schemars(description = "Maximum number of results to return")]
     pub limit: Option<usize>,
+    #[schemars(description = "Replacement projection (e.g. 'title,priority' or 'body=$content,parents=$includedBy'). Mutually exclusive with add_fields.")]
+    pub project: Option<String>,
+    #[schemars(description = "Additive projection: same grammar as project, extends defaults rather than replacing. Mutually exclusive with project.")]
+    pub add_fields: Option<String>,
     #[serde(flatten)]
     pub selector: SelectorParams,
 }
 
-impl From<FindParams> for FindOptions {
-    fn from(p: FindParams) -> Self {
-        FindOptions {
+impl TryFrom<FindParams> for FindOptions {
+    type Error = McpError;
+
+    fn try_from(p: FindParams) -> Result<Self, Self::Error> {
+        let project = match (p.project.as_deref(), p.add_fields.as_deref()) {
+            (Some(_), Some(_)) => {
+                return Err(McpError::invalid_params(
+                    "project and add_fields are mutually exclusive".to_string(),
+                    None,
+                ))
+            }
+            (Some(s), None) => Some(
+                parse_projection(s, ProjectionMode::Replace)
+                    .map_err(|e| McpError::invalid_params(e, None))?,
+            ),
+            (None, Some(s)) => Some(
+                parse_projection(s, ProjectionMode::Extend)
+                    .map_err(|e| McpError::invalid_params(e, None))?,
+            ),
+            (None, None) => None,
+        };
+        Ok(FindOptions {
             query: p.query,
             refs_to: p.refs_to.map(|k| Key::name(&k)),
             refs_from: p.refs_from.map(|k| Key::name(&k)),
             filter: p.selector.to_filter(),
             limit: p.limit,
             sort: None,
-            project: None,
-        }
+            project,
+        })
     }
 }
 
@@ -450,9 +474,10 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<FindParams>,
     ) -> Result<CallToolResult, McpError> {
+        let options: FindOptions = params.try_into()?;
         let graph = self.graph.lock().await;
         let finder = DocumentFinder::new(&graph);
-        let output: FindOutput = finder.find(&params.into());
+        let output: FindOutput = finder.find(&options);
         to_json_result(&output.results)
     }
 

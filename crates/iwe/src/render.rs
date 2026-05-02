@@ -95,10 +95,10 @@ fn build_retrieve_frontmatter(doc: &DocumentOutput) -> Mapping {
         Value::String("title".to_string()),
         Value::String(doc.title.clone()),
     );
-    if !doc.included_by.is_empty() {
+    if !doc.references.is_empty() {
         fm.insert(
-            Value::String("includedBy".to_string()),
-            edges_to_value(&doc.included_by),
+            Value::String("references".to_string()),
+            edges_to_value(&doc.references),
         );
     }
     if !doc.includes.is_empty() {
@@ -111,6 +111,12 @@ fn build_retrieve_frontmatter(doc: &DocumentOutput) -> Mapping {
         fm.insert(
             Value::String("referencedBy".to_string()),
             edges_to_value(&doc.referenced_by),
+        );
+    }
+    if !doc.included_by.is_empty() {
+        fm.insert(
+            Value::String("includedBy".to_string()),
+            edges_to_value(&doc.included_by),
         );
     }
     fm

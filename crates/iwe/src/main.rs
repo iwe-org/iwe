@@ -1285,15 +1285,6 @@ fn stats_command(args: Stats) {
     let graph = load_graph(&config);
 
     if let Some(key_str) = args.key {
-        match args.format {
-            StatsFormat::Markdown | StatsFormat::Csv => {
-                eprintln!(
-                    "error: stats -k KEY supports only -f json or -f yaml"
-                );
-                std::process::exit(2);
-            }
-            _ => {}
-        }
         let key_stats = liwe::stats::KeyStatistics::from_graph(&graph);
         let entry = key_stats
             .into_iter()

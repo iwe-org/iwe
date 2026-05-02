@@ -158,6 +158,23 @@ The argument is parsed as YAML first; if it is a mapping, it is used as the proj
 
 `--sort` accepts exactly one `field:DIR` pair, matching the spec's "exactly one sort key in v1" rule (§6).
 
+### 4.3 `iwe retrieve` flags (deprecation path)
+
+`retrieve` is on the deprecation path defined in `query-projection-spec.md` §1; new callers should use `find` with `--project` / `--add-fields`. The flags below are documented for completeness but are not lowered into spec operation documents — they configure the legacy `retrieve` walker directly. Per `query-projection-spec.md` §3.4, they also gate which structural sources are populated in the result (`-b` → `$referencedBy`, `-l` → `$references`, `--children` → `$includes`); when a flag is omitted, the corresponding field is still emitted but with its empty value.
+
+| Flag | Effect |
+|---|---|
+| `-k, --key KEY` | Repeatable. The set of root keys to retrieve. |
+| `-d, --depth N` | Levels of inclusion descendants to expand into the result set (default 1; 0 = root only). |
+| `-c, --context N` | Levels of inclusion ancestors to include alongside each root (default 1). |
+| `-l, --links` | Include outbound-referenced docs in the result set, and populate `$references` on each `DocumentOutput`. |
+| `-b, --backlinks` | Populate `$referencedBy` on each `DocumentOutput`. |
+| `--children` | Populate `$includes` on each `DocumentOutput`. |
+| `-e, --exclude KEY` | Repeatable. Skip these keys when assembling the result. |
+| `--no-content` | Emit metadata only — `content` field is the empty string. |
+| `--dry-run` | Print `documents: N\nlines: N` (or the equivalent JSON/YAML) and exit without rendering bodies. |
+| `--filter`, `-k`, `--includes`, `--included-by`, `--references`, `--referenced-by`, `--max-depth`, `--max-distance` | Same selection-side filter flags documented in §3; constrain which keys are pulled. |
+
 ## 5. Update flags (`iwe update` mutation mode)
 
 | Flag | Lowers to |

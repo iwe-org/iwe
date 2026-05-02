@@ -556,6 +556,13 @@ The language MUST express the following queries directly:
 
 ## 5. Projection
 
+> **Superseded by `query-projection-spec.md`.** This section describes the original
+> inclusion-only `project` algebra. The current projection model is the MongoDB-style
+> `<outputName>: <source>` mapping defined in `query-projection-spec.md`, which also
+> introduces `addFields` (additive projection) and `$`-prefixed structural source selectors.
+> See `query-projection-spec.md` §1 line 11 for the formal supersession note. The text below
+> is retained for historical context.
+
 A projection document specifies which fields to return on `find`. Projection is a read-only construct — it does not appear in `count`, `update`, or `delete` operation documents.
 
 Projection appears as the `project` field on a `find` operation document; passing `project` on a non-`find` operation is an error.

@@ -24,9 +24,10 @@ pub struct DocumentOutput {
     pub key: String,
     pub title: String,
     pub content: String,
-    pub included_by: Vec<EdgeRef>,
+    pub references: Vec<EdgeRef>,
     pub includes: Vec<EdgeRef>,
     pub referenced_by: Vec<EdgeRef>,
+    pub included_by: Vec<EdgeRef>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -194,13 +195,20 @@ impl<'a> DocumentReader<'a> {
             Vec::new()
         };
 
+        let references = if options.links {
+            crate::query::edges::references(self.graph, key)
+        } else {
+            Vec::new()
+        };
+
         DocumentOutput {
             key: key.to_string(),
             title,
             content,
-            included_by,
+            references,
             includes,
             referenced_by,
+            included_by,
         }
     }
 

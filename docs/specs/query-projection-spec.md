@@ -190,6 +190,8 @@ The conditional-source rule (§3.4) applies identically. A structural pseudo-fie
 
 The frontmatter-precedence rule from §3.2 also applies: when an `addFields` entry maps a structural source onto an output name (e.g. `title: $title`) and the document's frontmatter already carries that name, the frontmatter value wins.
 
+**Tree carve-out.** On `iwe tree`, the output names `key`, `title`, and `children` are reserved by the recursive renderer and cannot be overwritten via `addFields` (or `project`). An `addFields` entry whose output name collides with one of those three is silently ignored on `tree` — the structural value is emitted instead. Other commands (`find`, `retrieve`) follow the unrestricted overwrite rule above.
+
 Example — `find` with the body added:
 
 ```yaml

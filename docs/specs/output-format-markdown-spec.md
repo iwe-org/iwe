@@ -66,15 +66,18 @@ Each returned document is wrapped in a **four-backtick fenced code block** with 
 
 The fence info string carries the key prefixed with `#` (e.g. `markdown #child`), matching the `#<key>` convention used by `iwe find` markdown output (§4.1.1). If the embedded content contains a four-or-more-backtick fence, use one more backtick for the outer fence so the inner fence cannot terminate it.
 
-Frontmatter fields:
+Frontmatter fields (rendered in this order):
 
 | Location | Field | Required? | Source |
 |---|---|---|---|
 | fence info | `key` | always | `DocumentOutput.key` |
 | frontmatter | `title` | always | `DocumentOutput.title` |
-| frontmatter | `includedBy` | omit when empty | `EdgeRef` list |
+| frontmatter | `references` | omit when empty | `EdgeRef` list |
 | frontmatter | `includes` | omit when empty | `EdgeRef` list |
 | frontmatter | `referencedBy` | omit when empty | `EdgeRef` list |
+| frontmatter | `includedBy` | omit when empty | `EdgeRef` list |
+
+The order matches the unified default projection (`query-projection-spec.md` §3.2). Under that default, `find -f markdown` and `retrieve -f markdown` produce byte-identical frontmatter for the same key.
 
 `EdgeRef` inside frontmatter omits `sectionPath` when empty. There is no `document:` wrapper map; the frontmatter is always flat. Field naming matches JSON (no `parents` / `back-links` aliases).
 

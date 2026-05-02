@@ -1,4 +1,5 @@
 pub mod builder;
+pub mod cli;
 pub mod document;
 pub mod edges;
 mod eval;

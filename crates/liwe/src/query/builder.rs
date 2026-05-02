@@ -54,6 +54,7 @@ pub enum ParseError {
     UnknownTypeName {
         name: String,
     },
+    TypeBareYamlNull,
     InvalidProjectionValue {
         path: Vec<String>,
     },
@@ -530,6 +531,7 @@ fn build_field_op(op: &str, value: Value, path: &[String]) -> Result<FieldOp, Pa
         },
         "$type" => {
             let names: Vec<String> = match value {
+                Value::Null => return Err(ParseError::TypeBareYamlNull),
                 Value::String(s) => vec![s],
                 Value::Sequence(seq) => {
                     if seq.is_empty() {
@@ -537,6 +539,9 @@ fn build_field_op(op: &str, value: Value, path: &[String]) -> Result<FieldOp, Pa
                     }
                     let mut out = Vec::with_capacity(seq.len());
                     for v in seq {
+                        if matches!(v, Value::Null) {
+                            return Err(ParseError::TypeBareYamlNull);
+                        }
                         out.push(
                             v.as_str()
                                 .ok_or(ParseError::OperatorExpectedString { op: "$type" })?
@@ -1497,6 +1502,33 @@ mod tests {
             OperationKind::Update,
         );
         assert!(matches!(err, ParseError::SetUnsetConflict { .. }));
+    }
+
+    #[test]
+    fn type_bare_yaml_null_is_rejected_with_specific_error() {
+        let err = parse_err(
+            "filter:\n  field:\n    $type: null\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::TypeBareYamlNull));
+    }
+
+    #[test]
+    fn type_bare_yaml_null_in_list_is_rejected_with_specific_error() {
+        let err = parse_err(
+            "filter:\n  field:\n    $type: [string, null]\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::TypeBareYamlNull));
+    }
+
+    #[test]
+    fn type_quoted_null_string_is_accepted() {
+        let op = parse(
+            "filter:\n  field:\n    $type: \"null\"\n",
+            OperationKind::Find,
+        );
+        assert!(op.is_ok(), "got: {:?}", op.err());
     }
 
     #[test]
