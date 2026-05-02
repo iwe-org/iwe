@@ -1700,3 +1700,93 @@ fn test_find_default_projection_user_fm_key_wins() {
 
     assert_eq!(stdout, expected);
 }
+
+#[test]
+fn test_find_roots_flag() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("root.md"),
+        indoc! {"
+            # Root
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+
+            Content.
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("standalone.md"),
+        indoc! {"
+            # Standalone
+
+            No links.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, _, success) = run_iwe(dir.path(), &["--roots", "-f", "keys"]);
+    assert!(success);
+    assert_eq!(stdout, "root\nstandalone\n");
+}
+
+#[test]
+fn test_find_roots_combined_with_filter() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("root-a.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Root A
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("root-b.md"),
+        indoc! {"
+            ---
+            status: published
+            ---
+            # Root B
+
+            Content.
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Child
+
+            Content.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, _, success) = run_iwe(
+        dir.path(),
+        &["--roots", "--filter", "status: draft", "-f", "keys"],
+    );
+    assert!(success);
+    assert_eq!(stdout, "root-a\n");
+}

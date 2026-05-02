@@ -105,6 +105,12 @@ pub struct FilterArgs {
     pub refs_from: Option<String>,
 
     #[clap(
+        long,
+        help = "Only match root documents (those with no incoming inclusion edges)."
+    )]
+    pub roots: bool,
+
+    #[clap(
         long = "max-depth",
         help = "Default maxDepth applied to inclusion anchor flags without a colon-suffix. Default 1."
     )]
@@ -120,6 +126,7 @@ pub struct FilterArgs {
 impl FilterArgs {
     pub fn has_non_key_clauses(&self) -> bool {
         self.filter.is_some()
+            || self.roots
             || !self.includes.is_empty()
             || !self.included_by.is_empty()
             || !self.references.is_empty()
@@ -136,6 +143,7 @@ impl FilterArgs {
     pub fn is_empty(&self) -> bool {
         self.filter.is_none()
             && self.key.is_empty()
+            && !self.roots
             && self.includes.is_empty()
             && self.included_by.is_empty()
             && self.references.is_empty()

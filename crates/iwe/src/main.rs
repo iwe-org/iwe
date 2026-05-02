@@ -703,7 +703,7 @@ fn retrieve_command(args: Retrieve) {
         exclude,
         no_content: args.no_content,
         children: args.children,
-        filter: resolve_filter(&args.selector),
+        filter: resolve_filter(&args.selector, &graph),
     };
 
     let output = reader.retrieve_many(&keys, &options);
@@ -779,7 +779,7 @@ fn find_command(args: Find) {
         query: args.query,
         refs_to: None,
         refs_from: None,
-        filter: resolve_filter(&args.selector),
+        filter: resolve_filter(&args.selector, &graph),
         limit: args.limit,
         sort,
         project: project.clone(),
@@ -833,7 +833,7 @@ fn count_command(args: Count) {
     let graph = load_graph(&config);
 
     let mut op = CountOp::new();
-    if let Some(f) = resolve_filter(&args.selector) {
+    if let Some(f) = resolve_filter(&args.selector, &graph) {
         op = op.filter(f);
     }
     if let Some(sort_str) = args.sort.as_deref() {
@@ -941,7 +941,7 @@ fn tree_command(args: TreeArgs) {
     let filter_for_narrowing = if other_selectors {
         let mut s = args.selector.clone();
         s.key.clear();
-        resolve_filter(&s)
+        resolve_filter(&s, &graph)
     } else {
         None
     };
@@ -1245,10 +1245,27 @@ fn parse_sort_arg(s: &str) -> Result<QuerySort, String> {
     })
 }
 
-fn resolve_filter(args: &FilterArgs) -> Option<Filter> {
-    args.to_filter().unwrap_or_else(|e| {
+fn resolve_filter(args: &FilterArgs, graph: &Graph) -> Option<Filter> {
+    let base = args.to_filter().unwrap_or_else(|e| {
         eprintln!("error: {}", e);
         std::process::exit(2);
+    });
+    apply_roots(base, args.roots, graph)
+}
+
+fn apply_roots(base: Option<Filter>, roots: bool, graph: &Graph) -> Option<Filter> {
+    if !roots {
+        return base;
+    }
+    let rk: Vec<Key> = graph
+        .keys()
+        .into_iter()
+        .filter(|k| graph.get_inclusion_edges_to(k).is_empty())
+        .collect();
+    let roots_filter = Filter::Key(liwe::query::KeyOp::In(rk));
+    Some(match base {
+        Some(f) => Filter::And(vec![f, roots_filter]),
+        None => roots_filter,
     })
 }
 
@@ -1339,7 +1356,7 @@ fn export_command(args: Export) {
     let filter_for_narrowing = if args.selector.has_non_key_clauses() {
         let mut s = args.selector.clone();
         s.key.clear();
-        resolve_filter(&s)
+        resolve_filter(&s, &graph)
     } else {
         None
     };
