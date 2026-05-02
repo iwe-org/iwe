@@ -86,7 +86,7 @@ iwe update -k projects/alpha --filter 'status: draft' --set reviewed=true
 
 ### Reserved-prefix protection
 
-Frontmatter field names whose first character is `_`, `$`, `.`, `#`, or `@` are reserved by the engine. Targeting a reserved-prefix segment in a `$set` or `$unset` path — at any depth — is a parse-time error. See `docs/specs/query-language-spec.md` §2.3 / §8.2 for the full rules.
+Frontmatter field names whose first character is `_`, `$`, `.`, `#`, or `@` are reserved by the engine. Targeting a reserved-prefix segment in a `$set` or `$unset` path — at any depth — is a parse-time error. See `docs/spec.md` §2.3 / §9.2 for the full rules.
 
 ### Conflict detection
 

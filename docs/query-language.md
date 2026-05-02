@@ -4,12 +4,7 @@
 
 IWE has a YAML-based, MongoDB-style query language for selecting, shaping, and mutating documents in a workspace by their frontmatter and graph relationships. Today it is reachable only through the CLI subcommands `iwe find`, `iwe count`, `iwe update`, and `iwe delete` (plus the read-only selectors on `iwe retrieve`, `iwe tree`, and `iwe export`). The MCP server still exposes the legacy structural-selector parameters and does not accept query-language filter documents.
 
-This page is a quick reference. The formal source of truth lives under `docs/specs/`:
-
-- `docs/specs/query-language-spec.md` — operations, filter, projection, sort, limit, update operators
-- `docs/specs/query-graph-spec.md` — `$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`
-- `docs/specs/query-cli-spec.md` — flag set, lowering rules, deprecation table
-- `docs/specs/query-language-grammar.md` — BNF grammar
+This page is a quick reference. The formal source of truth is `docs/spec.md` — covering operations, filter, graph operators, projection, CLI surface, output formats, and the BNF grammar.
 
 ## Operations
 
