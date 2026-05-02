@@ -12,11 +12,11 @@ use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::find::{DocumentFinder, FindOptions};
 use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
 use iwe::projection_args::{parse_projection_extend, parse_projection_replace};
-use iwe::render::RetrieveRenderer;
+use iwe::render::{FindBlockRenderer, RetrieveRenderer};
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::filter_args::FilterArgs;
 use liwe::query::{
-    FieldPath, Filter, Projection as QueryProjection, ProjectionMode, ProjectionSource,
+    FieldPath, Filter, Projection as QueryProjection, ProjectionSource, PseudoField,
     Sort as QuerySort, SortDir,
 };
 use iwe::stats::{render_stats, GraphStatistics};
@@ -806,82 +806,22 @@ fn find_command(args: Find) {
             }
         }
         FindFormat::Markdown => {
-            let block_mode = match &project {
-                None => true,
-                Some(p) => match p.mode {
-                    ProjectionMode::Replace => p.has_content_or_edge_source(),
-                    ProjectionMode::Extend => true,
-                },
+            let content_output_names: Vec<String> = match &project {
+                Some(p) => p
+                    .fields
+                    .iter()
+                    .filter(|f| matches!(&f.source, ProjectionSource::Pseudo(PseudoField::Content)))
+                    .map(|f| f.output.clone())
+                    .collect(),
+                None => Vec::new(),
             };
-            if block_mode {
-                let reader = DocumentReader::new(&graph);
-                let retrieve_output = reader.retrieve_many(&output.keys, &RetrieveOptions::default());
-                let md_options = graph.markdown_options();
-                let renderer = RetrieveRenderer::new(&retrieve_output, &md_options, &graph);
-                print!("{}", renderer.render());
-            } else {
-                print!("{}", render_find_chips(&output, project.as_ref()));
-            }
+            let md_options = graph.markdown_options();
+            let renderer = FindBlockRenderer::new(&md_options, &graph);
+            print!(
+                "{}",
+                renderer.render(&output.keys, &output.results, &content_output_names)
+            );
         }
-    }
-}
-
-fn render_find_chips(
-    output: &iwe::find::FindOutput,
-    project: Option<&QueryProjection>,
-) -> String {
-    let chip_names: Vec<String> = match project {
-        Some(p) => p
-            .fields
-            .iter()
-            .filter(|f| !matches!(f.output.as_str(), "key" | "title"))
-            .filter(|f| match &f.source {
-                ProjectionSource::Pseudo(pf) => !pf.is_content_or_edge(),
-                _ => true,
-            })
-            .map(|f| f.output.clone())
-            .collect(),
-        None => Vec::new(),
-    };
-
-    let mut result = String::new();
-    result.push_str(&format!("Found {} results", output.total));
-    if let Some(ref query) = output.query {
-        result.push_str(&format!(" for \"{}\"", query));
-    }
-    if let Some(limit) = output.limit {
-        result.push_str(&format!(" (showing {})", limit));
-    }
-    result.push_str(":\n\n");
-
-    for (i, r) in output.results.iter().enumerate() {
-        let key = output
-            .keys
-            .get(i)
-            .map(|k| k.to_string())
-            .unwrap_or_default();
-        let title = output.titles.get(i).cloned().unwrap_or_default();
-        result.push_str(&format!("{}   #{}", title, key));
-        for name in &chip_names {
-            if let Some(value) = r.get(serde_yaml::Value::from(name.as_str())) {
-                if let Some(s) = render_chip_value(value) {
-                    result.push_str(&format!(" {}={}", name, s));
-                }
-            }
-        }
-        result.push('\n');
-    }
-    result
-}
-
-fn render_chip_value(v: &serde_yaml::Value) -> Option<String> {
-    match v {
-        serde_yaml::Value::String(s) => Some(s.clone()),
-        serde_yaml::Value::Number(n) => Some(n.to_string()),
-        serde_yaml::Value::Bool(b) => Some(b.to_string()),
-        serde_yaml::Value::Null => None,
-        serde_yaml::Value::Sequence(_) | serde_yaml::Value::Mapping(_) => None,
-        _ => None,
     }
 }
 

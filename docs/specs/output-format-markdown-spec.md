@@ -46,7 +46,7 @@ Full structured schemas (`KeyTitleRef`, `EdgeRef`, `Frontmatter`): see `output-f
 
 This makes `iwe find -f markdown` a drop-in for `iwe retrieve -f markdown` over the matched set: a consumer can split the stream on `^````markdown #` and recover one document per block.
 
-`includedBy` populates from inclusion edges; `includes` and `referencedBy` are omitted (find does not surface child or backlink edges — use `iwe retrieve --children` / `-b` for those).
+Under the default projection, frontmatter carries `title` plus the four edge fields (`includedBy`, `includes`, `referencedBy`, `references`) when non-empty. Under explicit projection, frontmatter carries only the projected fields — see `query-projection-spec.md` §6.
 
 When the result set is empty, stdout is empty.
 
@@ -189,8 +189,8 @@ Flags that change the *shape* (not just the selection) of the markdown/keys outp
 
 | Flag | Effect on shape |
 |---|---|
-| `--project f1,f2,...` | No effect on `markdown` (fenced blocks: title + body + `includedBy`) or `keys` (keys only). For structured-format effects, see `output-format-json-yaml-spec.md` §5.1. |
-| `--add-fields f1,f2,...` | Same. The flag is additive over the default projection in structured output (`query-projection-spec.md` §3.5); `markdown` and `keys` ignore it. The block-vs-line decision in `query-projection-spec.md` §6 applies whether structural sources arrive via `--project` or `--add-fields`. |
+| `--project f1,f2,...` | `markdown` always emits one fenced block per result; the frontmatter block contains only the projected fields (under their projection output names), with `key` lifted to the fence info string and any `$content`-shaped field rendered as the body rather than inside frontmatter. The body is always rendered. `keys` (keys only) is unaffected. See `query-projection-spec.md` §6 for the full rule and `output-format-json-yaml-spec.md` §5.1 for structured-format effects. |
+| `--add-fields f1,f2,...` | Same as `--project` — additive over the default projection in structured output (`query-projection-spec.md` §3.5); `keys` ignores it. |
 
 ### 6.2 `iwe retrieve`
 

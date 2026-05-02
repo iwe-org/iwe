@@ -7,17 +7,7 @@ use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use liwe::retrieve::{DocumentOutput, EdgeRef, RetrieveOutput};
 use serde::Serialize;
-
-#[derive(Serialize)]
-struct Frontmatter {
-    title: String,
-    #[serde(rename = "includedBy", skip_serializing_if = "Vec::is_empty")]
-    included_by: Vec<EdgeRefMeta>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    includes: Vec<EdgeRefMeta>,
-    #[serde(rename = "referencedBy", skip_serializing_if = "Vec::is_empty")]
-    referenced_by: Vec<EdgeRefMeta>,
-}
+use serde_yaml::{Mapping, Value};
 
 #[derive(Serialize)]
 struct EdgeRefMeta {
@@ -62,78 +52,194 @@ impl<'a> RetrieveRenderer<'a> {
     }
 
     fn render_document(&self, doc: &DocumentOutput) -> String {
-        let frontmatter = Frontmatter {
-            title: doc.title.clone(),
-            included_by: doc.included_by.iter().map(EdgeRefMeta::from).collect(),
-            includes: doc.includes.iter().map(EdgeRefMeta::from).collect(),
-            referenced_by: doc.referenced_by.iter().map(EdgeRefMeta::from).collect(),
-        };
-        let yaml = serde_yaml::to_string(&frontmatter).expect("frontmatter serializes");
-
+        let frontmatter = build_retrieve_frontmatter(doc);
         let body = if doc.content.is_empty() {
             String::new()
         } else {
-            let key = Key::name(&doc.key);
-            self.render_content_to_string(&key)
+            render_body(self.graph, self.options, &doc.key)
         };
+        render_block(&doc.key, &frontmatter, &[], &body)
+    }
+}
 
-        let fence = "`".repeat(outer_fence_len(&body));
+pub struct FindBlockRenderer<'a> {
+    options: &'a MarkdownOptions,
+    graph: &'a Graph,
+}
 
-        let mut block = String::new();
-        block.push_str(&fence);
-        block.push_str("markdown #");
-        block.push_str(&doc.key);
-        block.push('\n');
+impl<'a> FindBlockRenderer<'a> {
+    pub fn new(options: &'a MarkdownOptions, graph: &'a Graph) -> Self {
+        Self { options, graph }
+    }
+
+    pub fn render(
+        &self,
+        keys: &[Key],
+        results: &[Mapping],
+        content_output_names: &[String],
+    ) -> String {
+        keys.iter()
+            .zip(results.iter())
+            .map(|(key, fm)| {
+                let body = render_body(self.graph, self.options, &key.to_string());
+                render_block(&key.to_string(), fm, content_output_names, &body)
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+}
+
+fn build_retrieve_frontmatter(doc: &DocumentOutput) -> Mapping {
+    let mut fm = Mapping::new();
+    fm.insert(
+        Value::String("title".to_string()),
+        Value::String(doc.title.clone()),
+    );
+    if !doc.included_by.is_empty() {
+        fm.insert(
+            Value::String("includedBy".to_string()),
+            edges_to_value(&doc.included_by),
+        );
+    }
+    if !doc.includes.is_empty() {
+        fm.insert(
+            Value::String("includes".to_string()),
+            edges_to_value(&doc.includes),
+        );
+    }
+    if !doc.referenced_by.is_empty() {
+        fm.insert(
+            Value::String("referencedBy".to_string()),
+            edges_to_value(&doc.referenced_by),
+        );
+    }
+    fm
+}
+
+fn edges_to_value(edges: &[EdgeRef]) -> Value {
+    let metas: Vec<EdgeRefMeta> = edges.iter().map(EdgeRefMeta::from).collect();
+    serde_yaml::to_value(metas).expect("edges serialize")
+}
+
+fn render_block(
+    key: &str,
+    frontmatter: &Mapping,
+    omit_in_frontmatter: &[String],
+    body: &str,
+) -> String {
+    let trimmed = trim_frontmatter(frontmatter, omit_in_frontmatter);
+    let fence = "`".repeat(outer_fence_len(body));
+    let has_frontmatter = !trimmed.is_empty();
+
+    let mut block = String::new();
+    block.push_str(&fence);
+    block.push_str("markdown #");
+    block.push_str(key);
+    block.push('\n');
+
+    if has_frontmatter {
+        let yaml = serde_yaml::to_string(&Value::Mapping(trimmed)).expect("frontmatter serializes");
         block.push_str("---\n");
         block.push_str(&yaml);
         block.push_str("---\n");
-        if !body.is_empty() {
-            block.push('\n');
-            block.push_str(body.trim_end_matches('\n'));
+    }
+
+    if !body.is_empty() {
+        if has_frontmatter {
             block.push('\n');
         }
-        block.push_str(&fence);
+        block.push_str(body.trim_end_matches('\n'));
         block.push('\n');
-        block
     }
+    block.push_str(&fence);
+    block.push('\n');
+    block
+}
 
-    fn render_content_to_string(&self, key: &Key) -> String {
-        let blocks = self.render_content(key);
-        blocks_to_markdown_sparce_skip_frontmatter(&blocks, self.options)
+fn trim_frontmatter(fm: &Mapping, omit: &[String]) -> Mapping {
+    let mut out = Mapping::new();
+    for (k, v) in fm {
+        let name = match k.as_str() {
+            Some(s) => s,
+            None => continue,
+        };
+        if name == "key" {
+            continue;
+        }
+        if omit.iter().any(|o| o == name) {
+            continue;
+        }
+        let trimmed = strip_empty(v.clone());
+        if is_empty_collection(&trimmed) {
+            continue;
+        }
+        out.insert(k.clone(), trimmed);
     }
+    out
+}
 
-    fn render_content(&self, key: &Key) -> Vec<GraphBlock> {
-        let tree = self.graph.collect(key);
+fn strip_empty(v: Value) -> Value {
+    match v {
+        Value::Sequence(items) => Value::Sequence(items.into_iter().map(strip_empty).collect()),
+        Value::Mapping(m) => {
+            let mut out = Mapping::new();
+            for (k, v) in m {
+                let v = strip_empty(v);
+                if is_empty_collection(&v) {
+                    continue;
+                }
+                out.insert(k, v);
+            }
+            Value::Mapping(out)
+        }
+        other => other,
+    }
+}
 
-        let parent_lookup = |ref_key: &Key| -> Vec<(Key, String)> {
-            let refs = self.graph.get_inclusion_edges_to(ref_key);
-            let mut parents = Vec::new();
+fn is_empty_collection(v: &Value) -> bool {
+    match v {
+        Value::Sequence(s) => s.is_empty(),
+        Value::Mapping(m) => m.is_empty(),
+        _ => false,
+    }
+}
 
-            for ref_id in refs {
-                let node = self.graph.node(ref_id);
-                if let Some(doc_node) = node.to_document() {
-                    if let Some(doc_key) = doc_node.document_key() {
-                        if doc_key == *key {
-                            continue;
-                        }
-                        let title = self
-                            .graph
-                            .get_key_title(&doc_key)
-                            .unwrap_or_else(|| doc_key.to_string());
-                        if !parents.iter().any(|(k, _)| k == &doc_key) {
-                            parents.push((doc_key, title));
-                        }
+fn render_body(graph: &Graph, options: &MarkdownOptions, key: &str) -> String {
+    let key = Key::name(key);
+    let blocks = render_content(graph, &key);
+    blocks_to_markdown_sparce_skip_frontmatter(&blocks, options)
+}
+
+fn render_content(graph: &Graph, key: &Key) -> Vec<GraphBlock> {
+    let tree = graph.collect(key);
+
+    let parent_lookup = |ref_key: &Key| -> Vec<(Key, String)> {
+        let refs = graph.get_inclusion_edges_to(ref_key);
+        let mut parents = Vec::new();
+
+        for ref_id in refs {
+            let node = graph.node(ref_id);
+            if let Some(doc_node) = node.to_document() {
+                if let Some(doc_key) = doc_node.document_key() {
+                    if doc_key == *key {
+                        continue;
+                    }
+                    let title = graph
+                        .get_key_title(&doc_key)
+                        .unwrap_or_else(|| doc_key.to_string());
+                    if !parents.iter().any(|(k, _)| k == &doc_key) {
+                        parents.push((doc_key, title));
                     }
                 }
             }
+        }
 
-            parents
-        };
+        parents
+    };
 
-        let annotated = tree.annotate_references(&parent_lookup, &key.parent());
+    let annotated = tree.annotate_references(&parent_lookup, &key.parent());
 
-        Projector::project(TreeIter::new(&annotated), &key.parent())
-    }
+    Projector::project(TreeIter::new(&annotated), &key.parent())
 }
 
 fn outer_fence_len(body: &str) -> usize {

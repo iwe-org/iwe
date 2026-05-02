@@ -324,7 +324,7 @@ iwe find --project '{key: $key, title: $title, body: $content}'
 
 `output-format-markdown-spec.md` §4.1.1 / §4.2.1 define the markdown shapes for default projection. With explicit projection:
 
-- **`find` markdown:** when the projection includes any source whose value is content-shaped (`$content`) or edge-shaped (`$includedBy`, `$includes`, `$referencedBy`, `$references`), the output switches from one-line-per-result to the `retrieve`-style frontmatter+body block per result. Otherwise (frontmatter-only or counts-only projection), the one-line-per-result form is preserved with the projected fields rendered as ` key=value` chips after the title. The chip key is the **output name**, not the source selector.
+- **`find` markdown:** always emits one four-backtick fenced `markdown #<key>` block per result. The frontmatter inside the block contains only the projected fields under their **output names**, with two omissions: `key` is hoisted to the fence info string (never duplicated inside frontmatter), and any field whose source is `$content` is rendered as the body rather than inside frontmatter. The document body is always rendered below the frontmatter, regardless of whether `$content` is projected. If, after the two omissions, no fields remain, the `---` markers are dropped and the block is fence + body + closing fence.
 - **`retrieve` markdown:** the frontmatter block contains only the fields the projection requested, under their **output names**. Omitting a `$content` projection emits the frontmatter block with no body.
 
 The cross-format invariant in `output-format-json-yaml-spec.md` §2.2 still applies — markdown MUST NOT contradict JSON/YAML, but MAY abbreviate or omit fields for readability.

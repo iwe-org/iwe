@@ -1103,7 +1103,7 @@ fn test_find_project_unknown_pseudo_rejected() {
 }
 
 #[test]
-fn test_find_project_chip_mode_markdown() {
+fn test_find_project_frontmatter_fields_trimmed_block() {
     let dir = setup_workspace();
 
     write(
@@ -1126,16 +1126,21 @@ fn test_find_project_chip_mode_markdown() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        Found 1 results:
+        ````markdown #doc1
+        ---
+        status: draft
+        priority: 5
+        ---
 
-        Doc One   #doc1 status=draft priority=5
+        # Doc One
+        ````
     "};
 
     assert_eq!(stdout, expected);
 }
 
 #[test]
-fn test_find_project_block_mode_when_content_projected() {
+fn test_find_project_content_renders_body_only() {
     let dir = setup_workspace();
 
     write(
@@ -1154,11 +1159,156 @@ fn test_find_project_block_mode_when_content_projected() {
     );
 
     assert!(success, "stderr: {}", stderr);
-    assert!(
-        stdout.contains("````markdown #doc1"),
-        "expected block mode, got: {}",
-        stdout
-    );
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_key_only_emits_no_frontmatter() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "key", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_missing_frontmatter_field_emits_null() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "pillar", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        ---
+        pillar: null
+        ---
+
+        # Doc One
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_default_projection_omits_empty_edges() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        ---
+        title: Doc One
+        ---
+
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_default_projection_renders_inclusion_edges() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Doc One](doc1)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--key", "doc1", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        ---
+        title: Doc One
+        includedBy:
+        - key: parent
+          title: Parent
+        ---
+
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
