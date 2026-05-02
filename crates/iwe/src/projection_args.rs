@@ -52,6 +52,17 @@ fn parse_item(item: &str) -> Result<ProjectionField, String> {
         });
     }
 
+    if let Some((name, src)) = item.split_once(':') {
+        let name = name.trim();
+        let src = src.trim();
+        check_output_name(name)?;
+        let source = parse_source(src)?;
+        return Ok(ProjectionField {
+            output: name.to_string(),
+            source,
+        });
+    }
+
     if let Some(stripped) = item.strip_prefix('$') {
         let selector = format!("${}", stripped);
         let pf = PseudoField::from_selector(&selector)
@@ -93,9 +104,17 @@ fn check_output_name(name: &str) -> Result<(), String> {
             name
         ));
     }
-    if name.contains('.') {
+    for bad in ['.', ':', '=', ',', '{', '}'] {
+        if name.contains(bad) {
+            return Err(format!(
+                "projection output name '{}' must not contain '{}'",
+                name, bad
+            ));
+        }
+    }
+    if name.chars().any(|c| c.is_whitespace()) {
         return Err(format!(
-            "projection output name '{}' must not contain '.'",
+            "projection output name '{}' must not contain whitespace",
             name
         ));
     }
@@ -173,6 +192,32 @@ mod tests {
             }
             _ => panic!("expected frontmatter"),
         }
+    }
+
+    #[test]
+    fn unbraced_multi_pair_colon_form() {
+        let p = parse_projection_replace("test: $key, test2: $key").unwrap();
+        assert_eq!(p.fields.len(), 2);
+        assert_eq!(p.fields[0].output, "test");
+        assert!(matches!(
+            p.fields[0].source,
+            ProjectionSource::Pseudo(PseudoField::Key)
+        ));
+        assert_eq!(p.fields[1].output, "test2");
+        assert!(matches!(
+            p.fields[1].source,
+            ProjectionSource::Pseudo(PseudoField::Key)
+        ));
+    }
+
+    #[test]
+    fn output_name_with_whitespace_rejected() {
+        let err = parse_projection_replace("bad name=$key").unwrap_err();
+        assert!(
+            err.contains("whitespace"),
+            "error should mention whitespace: {}",
+            err
+        );
     }
 
     #[test]
