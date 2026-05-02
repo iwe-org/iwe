@@ -2,6 +2,7 @@
 name = "liwe"
 description = "IWE core library"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
+autotests = false
 
 version.workspace = true
 repository.workspace = true
@@ -34,6 +35,10 @@ minijinja.workspace = true
 sanitize-filename.workspace = true
 fuzzy-matcher.workspace = true
 csv.workspace = true
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"
 
 [dev-dependencies]
 env_logger.workspace = true

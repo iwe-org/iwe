@@ -2,7 +2,6 @@ use indoc::indoc;
 use lsp_types::{request::HoverRequest, *};
 use std::collections::HashMap;
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

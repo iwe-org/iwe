@@ -7,7 +7,6 @@ use liwe::{
     state::from_indoc,
 };
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

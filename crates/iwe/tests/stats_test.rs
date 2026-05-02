@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 #[test]
 fn test_stats_markdown_output() {
@@ -403,7 +402,7 @@ fn test_stats_per_doc_rejects_csv_format() {
 }
 
 fn run_stats_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Output {
-    let binary_path = common::get_iwe_binary_path();
+    let binary_path = crate::common::get_iwe_binary_path();
 
     let mut cmd = Command::new(binary_path);
     cmd.current_dir(temp_dir.path()).arg("stats");

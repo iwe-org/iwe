@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 fn setup_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -32,7 +31,7 @@ fn setup_workspace() -> TempDir {
 }
 
 fn run_iwe(dir: &std::path::Path, args: &[&str]) -> (String, String, bool) {
-    let mut command = Command::new(common::get_iwe_binary_path());
+    let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("find").current_dir(dir);
 
     for arg in args {

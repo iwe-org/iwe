@@ -1,0 +1,26 @@
+mod fixture;
+
+mod attach_test;
+mod change_list_type_test;
+mod completion_test;
+mod custom_actions_test;
+mod delete_test;
+mod did_change_test;
+mod did_save_test;
+mod extract_all_test;
+mod extract_test;
+mod folding_range_test;
+mod format_document_test;
+mod go_to_definition_test;
+mod hover_test;
+mod inlay_hints_test;
+mod inline_quote_test;
+mod inline_section_test;
+mod link_test;
+mod list_to_sections_test;
+mod references_test;
+mod rename_test;
+mod sections_to_list_test;
+mod sort_test;
+mod transform_test;
+mod workspace_symbols_test;

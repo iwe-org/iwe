@@ -4,7 +4,6 @@ use chrono::{Local, TimeZone};
 use indoc::indoc;
 use liwe::model::config::{ActionDefinition, Configuration, ExtractAll, LinkType};
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

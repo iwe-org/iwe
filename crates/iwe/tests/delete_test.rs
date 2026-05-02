@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 #[test]
 fn test_delete_basic() {
@@ -250,7 +249,7 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
 }
 
 fn run_delete_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::Output {
-    let mut command = Command::new(common::get_iwe_binary_path());
+    let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("delete").current_dir(work_dir);
 
     for arg in args {

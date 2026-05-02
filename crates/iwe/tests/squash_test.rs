@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 #[test]
 fn test_squash_basic_functionality() {
@@ -149,7 +148,7 @@ fn test_squash_with_verbose_flag() {
     let temp_dir = setup_test_workspace_with_content();
     let temp_path = temp_dir.path();
 
-    let output = Command::new(common::get_iwe_binary_path())
+    let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("squash")
         .arg("test")
         .arg("--verbose")
@@ -501,7 +500,7 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
 }
 
 fn run_squash_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::Output {
-    let mut command = Command::new(common::get_iwe_binary_path());
+    let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("squash").current_dir(work_dir);
 
     for arg in args {

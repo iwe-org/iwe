@@ -5,7 +5,6 @@ use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 fn setup() -> TempDir {
     let dir = TempDir::new().expect("tempdir");
@@ -75,7 +74,7 @@ fn setup() -> TempDir {
 }
 
 fn run(dir: &Path, subcmd: &str, args: &[&str]) -> (String, String, bool) {
-    let mut cmd = Command::new(common::get_iwe_binary_path());
+    let mut cmd = Command::new(crate::common::get_iwe_binary_path());
     cmd.arg(subcmd).current_dir(dir);
     for a in args {
         cmd.arg(a);

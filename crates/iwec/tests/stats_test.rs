@@ -1,6 +1,5 @@
-mod fixture;
 
-use fixture::Fixture;
+use crate::fixture::Fixture;
 use serde_json::json;
 
 #[tokio::test]

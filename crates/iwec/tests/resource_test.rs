@@ -1,6 +1,5 @@
-mod fixture;
 
-use fixture::Fixture;
+use crate::fixture::Fixture;
 use liwe::model::config::{ActionDefinition, Attach, Configuration};
 use rmcp::model::ResourceContents;
 

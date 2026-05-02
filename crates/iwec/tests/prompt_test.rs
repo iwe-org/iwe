@@ -1,6 +1,5 @@
-mod fixture;
 
-use fixture::Fixture;
+use crate::fixture::Fixture;
 use rmcp::model::{PromptMessage, PromptMessageContent};
 use serde_json::json;
 

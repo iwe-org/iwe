@@ -2,6 +2,7 @@
 name = "iwe"
 description = "IWE CLI utility"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md", "templates/**/*", "help/**/*"]
+autotests = false
 
 version.workspace = true
 repository.workspace = true
@@ -33,6 +34,10 @@ chrono.workspace = true
 sys-locale.workspace = true
 serde_yaml.workspace = true
 sanitize-filename.workspace = true
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"
 
 [dev-dependencies]
 pretty_assertions.workspace = true
