@@ -125,9 +125,116 @@ pub enum ParseError {
     },
 }
 
+fn fmt_path(path: &[String]) -> String {
+    path.join(".")
+}
+
+fn fmt_kind(kind: &OperationKind) -> &'static str {
+    match kind {
+        OperationKind::Find => "find",
+        OperationKind::Count => "count",
+        OperationKind::Update => "update",
+        OperationKind::Delete => "delete",
+    }
+}
+
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Self::Wire(e) => write!(f, "{}", e),
+            Self::OperationFieldNotAllowed { kind, field } => {
+                write!(f, "'{}' does not support the '{}' field", fmt_kind(kind), field)
+            }
+            Self::MissingRequiredField { kind, field } => {
+                write!(f, "'{}' requires the '{}' field", fmt_kind(kind), field)
+            }
+            Self::EmptyFilter => write!(f, "filter expression is empty"),
+            Self::MixedDollarAndBare { path } => {
+                write!(f, "cannot mix operator keys ($...) and bare keys at '{}'", fmt_path(path))
+            }
+            Self::UnknownOperator { op, path } => {
+                write!(f, "unknown operator '{}' at '{}'", op, fmt_path(path))
+            }
+            Self::EmptyOperatorList { op } => write!(f, "'{}' requires a non-empty list", op),
+            Self::OperatorExpectedList { op } => write!(f, "'{}' expects a list", op),
+            Self::OperatorExpectedMapping { op } => write!(f, "'{}' expects a mapping", op),
+            Self::OperatorExpectedString { op } => write!(f, "'{}' expects a string", op),
+            Self::OperatorExpectedBool { op } => write!(f, "'{}' expects a boolean", op),
+            Self::OperatorExpectedNonNegativeInt { op } => {
+                write!(f, "'{}' expects a non-negative integer", op)
+            }
+            Self::OperatorExpectedInteger { op } => write!(f, "'{}' expects an integer", op),
+            Self::UnknownTypeName { name } => write!(f, "unknown type name '{}'", name),
+            Self::TypeBareYamlNull => {
+                write!(f, "$type value must be a quoted string (bare null/~ is ambiguous)")
+            }
+            Self::InvalidProjectionValue { path } => {
+                write!(f, "invalid projection value at '{}'", fmt_path(path))
+            }
+            Self::UnknownProjectionSource { selector } => {
+                write!(f, "unknown projection source '{}'", selector)
+            }
+            Self::ReservedOutputName { name } => {
+                write!(f, "projection output name '{}' is reserved", name)
+            }
+            Self::NestedProjectionOutput { name } => {
+                write!(f, "projection output name '{}' must not contain '.'", name)
+            }
+            Self::ProjectAddFieldsConflict => {
+                write!(f, "cannot use both 'project' and 'addFields' in the same operation")
+            }
+            Self::InvalidSortValue { key, value } => {
+                write!(f, "sort value for '{}' must be 1 (asc) or -1 (desc), got {}", key, value)
+            }
+            Self::EmptySort => write!(f, "sort expression is empty"),
+            Self::MultiKeySortNotSupportedV1 => {
+                write!(f, "multi-key sort is not yet supported")
+            }
+            Self::NegativeLimit(n) => write!(f, "limit must be non-negative, got {}", n),
+            Self::EmptyUpdate => write!(f, "update expression is empty"),
+            Self::UnknownUpdateOperator { op } => write!(f, "unknown update operator '{}'", op),
+            Self::EmptyUpdateOperator { op } => {
+                write!(f, "update operator '{}' requires at least one field", op)
+            }
+            Self::UpdateOperatorExpectedMapping { op } => {
+                write!(f, "update operator '{}' expects a mapping", op)
+            }
+            Self::ReservedPrefixField { path } => {
+                write!(f, "field '{}' uses a reserved prefix", fmt_path(path))
+            }
+            Self::SetUnsetConflict { path } => {
+                write!(f, "field '{}' appears in both $set and $unset", fmt_path(path))
+            }
+            Self::EmptyFieldPath => write!(f, "field path is empty"),
+            Self::InvalidPathSegment { path, reason } => {
+                write!(f, "invalid path segment in '{}': {}", fmt_path(path), reason)
+            }
+            Self::NonStringKey => write!(f, "mapping keys must be strings"),
+            Self::GraphOpExpectedScalarOrMapping { op } => {
+                write!(f, "'{}' expects a scalar or mapping value", op)
+            }
+            Self::ArrayFormRemoved { op } => {
+                write!(f, "array form for '{}' is no longer supported; use a mapping", op)
+            }
+            Self::EmptyAnchorMapping { op } => {
+                write!(f, "'{}' mapping must not be empty", op)
+            }
+            Self::MatchMissing { op } => {
+                write!(f, "'{}' requires a 'match' key", op)
+            }
+            Self::WrongBoundFamily { op, modifier } => {
+                write!(f, "'{}' does not accept the '{}' modifier", op, modifier)
+            }
+            Self::DepthRangeInverted { op } => {
+                write!(f, "'{}' has an inverted depth range (min > max)", op)
+            }
+            Self::KeyOpForbidden { op } => {
+                write!(f, "$key predicates are not allowed inside '{}'", op)
+            }
+            Self::InvalidDepthValue { op, modifier } => {
+                write!(f, "'{}' has an invalid '{}' value; expected a non-negative integer", op, modifier)
+            }
+        }
     }
 }
 

@@ -255,7 +255,7 @@ fn parse_key_depth(s: &str) -> Result<KeyDepth, String> {
     if let Some((k, d)) = s.rsplit_once(':') {
         let depth: u8 = d
             .parse()
-            .map_err(|_| format!("invalid depth in '{}': expected non-negative integer", s))?;
+            .map_err(|_| format!("invalid depth in '{}': depth must be 0..=255", s))?;
         Ok(KeyDepth::with_depth(Key::name(k), depth))
     } else {
         Ok(KeyDepth::bare(Key::name(s)))

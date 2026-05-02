@@ -54,7 +54,7 @@ In mutation mode, `update` applies the `$set` and `$unset` operators of the [Que
 
 ### `--set FIELD=VALUE`
 
-`VALUE` is parsed as a YAML scalar. Type inference follows YAML rules: `5` is an integer, `true` is a boolean, `2026-04-26` is a date, `draft` is a string, `[a, b]` is a list. To force a string, quote it as YAML: `--set 'count="5"'`.
+`VALUE` is parsed as a YAML 1.2 scalar. Type inference follows YAML 1.2 rules: `5` is an integer, `true` is a boolean, `2026-04-26` is a date, `draft` is a string, `[a, b]` is a list. To force a string, quote it as YAML: `--set 'count="5"'`. Note that `yes`, `no`, `on`, and `off` are plain strings in YAML 1.2 (not booleans as in YAML 1.1). Frontmatter is re-serialized as YAML 1.2 after mutation, so quote styles may change on untouched fields.
 
 ### `--unset FIELD`
 

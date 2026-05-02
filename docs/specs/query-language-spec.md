@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document specifies the IWE query language: a YAML-based, MongoDB-style language for selecting, shaping, and mutating documents in an IWE workspace. It defines:
+This document specifies the IWE query language: a YAML 1.2-based, MongoDB-style language for selecting, shaping, and mutating documents in an IWE workspace. It defines:
 
 - The **corpus model** — what a document is, what reserved prefixes the engine holds.
 - The four **operations** — find, count, update, delete — and the shape of an operation document.
@@ -12,7 +12,7 @@ This document specifies the IWE query language: a YAML-based, MongoDB-style lang
 
 ### 2.1 Documents
 
-A **document** is the parsed frontmatter of one note. Documents are mappings from string keys to YAML-typed values: strings, numbers, booleans, null, lists, mappings, dates, datetimes.
+A **document** is the parsed frontmatter of one note. Documents are mappings from string keys to YAML 1.2-typed values: strings, numbers, booleans, null, lists, mappings, dates, datetimes. Under YAML 1.2, bare `yes`, `no`, `on`, and `off` are plain strings, not booleans (unlike YAML 1.1).
 
 Notes with no frontmatter participate in the corpus as documents with an empty mapping (`{}`). They never match presence-style filters like `{status: draft}` but do match `{status: {$exists: false}}`.
 

@@ -190,12 +190,6 @@ struct Count {
     #[clap(long, short = 'l', help = "Cap the number of matches counted (0 = unlimited)")]
     limit: Option<usize>,
 
-    #[clap(
-        long,
-        help = "Sort by frontmatter field. Format: field:1 (asc) or field:-1 (desc)."
-    )]
-    sort: Option<String>,
-
     #[clap(flatten)]
     selector: FilterArgs,
 }
@@ -684,7 +678,7 @@ fn retrieve_command(args: Retrieve) {
         let key = Key::name(key_str);
         if (&graph).get_node_id(&key).is_none() {
             eprintln!("Error: Document '{}' not found", key_str);
-            std::process::exit(2);
+            std::process::exit(1);
         }
         keys.push(key);
     }
@@ -835,13 +829,6 @@ fn count_command(args: Count) {
     let mut op = CountOp::new();
     if let Some(f) = resolve_filter(&args.selector, &graph) {
         op = op.filter(f);
-    }
-    if let Some(sort_str) = args.sort.as_deref() {
-        let sort = parse_sort_arg(sort_str).unwrap_or_else(|e| {
-            eprintln!("error: {}", e);
-            std::process::exit(2);
-        });
-        op = op.sort(sort);
     }
     if let Some(n) = args.limit {
         if n > 0 {
@@ -1291,15 +1278,40 @@ fn stats_command(args: Stats) {
             .find(|s| s.key == key_str);
         match entry {
             Some(s) => match args.format {
+                StatsFormat::Markdown => {
+                    println!("# {}\n", s.title);
+                    println!("- **Key:** {}", s.key);
+                    println!("- **Sections:** {}", s.sections);
+                    println!("- **Paragraphs:** {}", s.paragraphs);
+                    println!("- **Lines:** {}", s.lines);
+                    println!("- **Words:** {}", s.words);
+                    println!("- **Included by:** {}", s.included_by_count);
+                    println!("- **Referenced by:** {}", s.referenced_by_count);
+                    println!("- **Incoming edges:** {}", s.incoming_edges_count);
+                    println!("- **Includes:** {}", s.includes_count);
+                    println!("- **References:** {}", s.references_count);
+                    println!("- **Total edges:** {}", s.total_edges_count);
+                    println!("- **Bullet lists:** {}", s.bullet_lists);
+                    println!("- **Ordered lists:** {}", s.ordered_lists);
+                    println!("- **Code blocks:** {}", s.code_blocks);
+                    println!("- **Tables:** {}", s.tables);
+                    println!("- **Quotes:** {}", s.quotes);
+                }
+                StatsFormat::Csv => {
+                    let stdout = std::io::stdout();
+                    let mut csv_writer = csv::Writer::from_writer(stdout.lock());
+                    csv_writer.serialize(&s).expect("Failed to serialize stats");
+                    csv_writer.flush().expect("Failed to flush CSV");
+                }
+                StatsFormat::Json => {
+                    let json = serde_json::to_string_pretty(&s)
+                        .expect("Failed to serialize stats");
+                    println!("{}", json);
+                }
                 StatsFormat::Yaml => {
                     let yaml = serde_yaml::to_string(&s)
                         .expect("Failed to serialize stats");
                     print!("{}", yaml);
-                }
-                _ => {
-                    let json = serde_json::to_string_pretty(&s)
-                        .expect("Failed to serialize stats");
-                    println!("{}", json);
                 }
             },
             None => {
@@ -1870,6 +1882,30 @@ fn update_command(args: Update) {
     }
 }
 
+fn split_raw_frontmatter(content: &str) -> (Option<&str>, &str) {
+    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
+        return (None, content);
+    }
+    let after_open = if content.starts_with("---\r\n") { 5 } else { 4 };
+    let rest = &content[after_open..];
+    if let Some(close_pos) = rest.find("\n---\n") {
+        let end = after_open + close_pos + "\n---\n".len();
+        return (Some(&content[..end]), &content[end..]);
+    }
+    if let Some(close_pos) = rest.find("\r\n---\r\n") {
+        let end = after_open + close_pos + "\r\n---\r\n".len();
+        return (Some(&content[..end]), &content[end..]);
+    }
+    if rest.ends_with("\n---\n") || rest.ends_with("\n---") {
+        if let Some(close_pos) = rest.rfind("\n---") {
+            let end = after_open + close_pos + "\n---".len();
+            let trailing = &content[end..];
+            return (Some(&content[..end + trailing.len()]), "");
+        }
+    }
+    (None, content)
+}
+
 fn update_body(args: Update) {
     let config = get_configuration();
     let graph = load_graph(&config);
@@ -1908,7 +1944,14 @@ fn update_body(args: Update) {
     if let Some(parent) = file_path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    std::fs::write(&file_path, &content).expect("Failed to write document file");
+
+    let existing = std::fs::read_to_string(&file_path).unwrap_or_default();
+    let (frontmatter, _) = split_raw_frontmatter(&existing);
+    let output = match frontmatter {
+        Some(fm) => format!("{}{}", fm, content),
+        None => content,
+    };
+    std::fs::write(&file_path, &output).expect("Failed to write document file");
 
     if !args.quiet {
         println!("Updated '{}'", key_str);
@@ -1916,9 +1959,9 @@ fn update_body(args: Update) {
 }
 
 fn update_frontmatter(args: Update) {
-    use liwe::query::prelude::{update, update_op};
+    use liwe::query::prelude::find;
     use liwe::query::wire::RawUpdate;
-    use liwe::query::{build_update_doc, execute as run_op, Outcome};
+    use liwe::query::{build_update_doc, execute as run_op, FindOp, Outcome};
     use serde_yaml::{Mapping, Value};
 
     let config = get_configuration();
@@ -1977,17 +2020,17 @@ fn update_frontmatter(args: Update) {
         std::process::exit(2);
     });
 
-    let op = update(update_op(filter, update_doc));
-    let outcome = run_op(&op, &graph);
-    let changes = match outcome {
-        Outcome::Update { changes } => changes,
+    let find_op = FindOp::new().filter(filter);
+    let outcome = run_op(&find(find_op), &graph);
+    let keys: Vec<Key> = match outcome {
+        Outcome::Find { matches } => matches.into_iter().map(|m| m.key).collect(),
         _ => unreachable!(),
     };
 
     if args.dry_run {
         if !args.quiet {
-            println!("Would update {} document(s)", changes.len());
-            for (key, _) in &changes {
+            println!("Would update {} document(s)", keys.len());
+            for key in &keys {
                 println!("  {}", key);
             }
         }
@@ -1995,16 +2038,34 @@ fn update_frontmatter(args: Update) {
     }
 
     let library_path = get_library_path(&config);
-    for (key, markdown) in &changes {
+    let mut count = 0;
+    for key in &keys {
         let file_path = library_path.join(format!("{}.md", key));
-        if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent).ok();
-        }
-        std::fs::write(&file_path, markdown).expect("Failed to write document file");
+        let raw_content = match std::fs::read_to_string(&file_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let (_, body) = split_raw_frontmatter(&raw_content);
+
+        let mut mapping = graph.frontmatter(key).cloned().unwrap_or_default();
+        liwe::query::update::apply(&update_doc, &mut mapping);
+        liwe::query::frontmatter::strip_reserved(&mut mapping);
+
+        let yaml = if mapping.is_empty() {
+            String::new()
+        } else {
+            let serialized = serde_yaml::to_string(&mapping).unwrap_or_default();
+            format!("---\n{}---\n", serialized)
+        };
+        let output = format!("{}{}", yaml, body);
+
+        std::fs::write(&file_path, &output).expect("Failed to write document file");
+        count += 1;
     }
 
     if !args.quiet {
-        println!("Updated {} document(s)", changes.len());
+        println!("Updated {} document(s)", count);
     }
 }
 

@@ -380,25 +380,44 @@ fn test_stats_broken_inline_links_in_table() {
 }
 
 #[test]
-fn test_stats_per_doc_default_format_outputs_json() {
+fn test_stats_per_doc_default_format_outputs_markdown() {
     let temp_dir = setup_test_workspace();
     let output = run_stats_command(&temp_dir, &["-k", "test"]);
 
     assert!(output.status.success(), "Should succeed with default format");
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Should be valid JSON");
-    assert_eq!(parsed["key"], "test");
+    let expected = indoc! {"
+        # Test Document
+
+        - **Key:** test
+        - **Sections:** 4
+        - **Paragraphs:** 4
+        - **Lines:** 15
+        - **Words:** 35
+        - **Included by:** 0
+        - **Referenced by:** 1
+        - **Incoming edges:** 1
+        - **Includes:** 0
+        - **References:** 1
+        - **Total edges:** 2
+        - **Bullet lists:** 0
+        - **Ordered lists:** 0
+        - **Code blocks:** 0
+        - **Tables:** 0
+        - **Quotes:** 0
+    "};
+    assert_eq!(stdout, expected);
 }
 
 #[test]
-fn test_stats_per_doc_csv_format_outputs_json() {
+fn test_stats_per_doc_csv_format() {
     let temp_dir = setup_test_workspace();
     let output = run_stats_command(&temp_dir, &["-k", "test", "-f", "csv"]);
 
     assert!(output.status.success(), "Should succeed with csv format");
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Should be valid JSON");
-    assert_eq!(parsed["key"], "test");
+    let expected = "key,title,sections,paragraphs,lines,words,includedByCount,referencedByCount,incomingEdgesCount,includesCount,referencesCount,totalEdgesCount,bulletLists,orderedLists,codeBlocks,tables,quotes\ntest,Test Document,4,4,15,35,0,1,1,0,1,2,0,0,0,0,0\n";
+    assert_eq!(stdout, expected);
 }
 
 fn run_stats_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Output {

@@ -27,5 +27,7 @@ NOTES:
 
   - The --content mode does not touch frontmatter; the --set/--unset mode
     does not touch the document content. Use both in two passes if needed.
+  - Frontmatter is re-serialized as YAML 1.2 after mutation, so quote
+    styles may change on untouched fields.
   - Mutation mode follows the spec rules (reserved-prefix protection, etc.)
     from docs/specs/query-language-spec.md §8.

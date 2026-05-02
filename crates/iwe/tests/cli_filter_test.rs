@@ -87,6 +87,20 @@ fn run(dir: &Path, subcmd: &str, args: &[&str]) -> (String, String, bool) {
     )
 }
 
+fn run_with_code(dir: &Path, subcmd: &str, args: &[&str]) -> (String, String, i32) {
+    let mut cmd = Command::new(crate::common::get_iwe_binary_path());
+    cmd.arg(subcmd).current_dir(dir);
+    for a in args {
+        cmd.arg(a);
+    }
+    let out = cmd.output().expect("run iwe");
+    (
+        String::from_utf8_lossy(&out.stdout).to_string(),
+        String::from_utf8_lossy(&out.stderr).to_string(),
+        out.status.code().unwrap_or(-1),
+    )
+}
+
 #[test]
 fn count_total() {
     let dir = setup();
@@ -285,7 +299,7 @@ fn update_set_reserved_top_level_rejected() {
     );
     assert!(!ok);
     assert!(
-        stderr.contains("ReservedPrefix"),
+        stderr.contains("reserved prefix"),
         "expected reserved-prefix error, got: {}",
         stderr
     );
@@ -303,7 +317,7 @@ fn update_set_reserved_dotted_segment_rejected() {
     );
     assert!(!ok);
     assert!(
-        stderr.contains("ReservedPrefix"),
+        stderr.contains("reserved prefix"),
         "expected reserved-prefix error, got: {}",
         stderr
     );
@@ -322,7 +336,7 @@ fn update_set_reserved_in_nested_value_rejected() {
     );
     assert!(!ok);
     assert!(
-        stderr.contains("ReservedPrefix"),
+        stderr.contains("reserved prefix"),
         "expected reserved-prefix error, got: {}",
         stderr
     );
@@ -340,7 +354,7 @@ fn update_set_whitespace_segment_rejected() {
     );
     assert!(!ok);
     assert!(
-        stderr.contains("InvalidPathSegment"),
+        stderr.contains("invalid path segment"),
         "expected invalid-path-segment error, got: {}",
         stderr
     );
@@ -356,7 +370,7 @@ fn update_set_control_char_segment_rejected() {
     );
     assert!(!ok);
     assert!(
-        stderr.contains("InvalidPathSegment"),
+        stderr.contains("invalid path segment"),
         "expected invalid-path-segment error, got: {}",
         stderr
     );
@@ -372,7 +386,7 @@ fn update_set_prefix_overlap_rejected() {
     );
     assert!(!ok);
     assert!(
-        stderr.contains("SetUnsetConflict"),
+        stderr.contains("appears in both $set and $unset"),
         "expected set/unset conflict error, got: {}",
         stderr
     );
@@ -388,9 +402,116 @@ fn update_set_unset_overlap_rejected() {
     );
     assert!(!ok);
     assert!(
-        stderr.contains("SetUnsetConflict"),
+        stderr.contains("appears in both $set and $unset"),
         "expected set/unset conflict error, got: {}",
         stderr
+    );
+}
+
+#[test]
+fn depth_overflow_error_mentions_range() {
+    let dir = setup();
+    let (_, stderr, code) = run_with_code(dir.path(), "count", &["--included-by", "a:256"]);
+    assert_eq!(code, 2);
+    assert_eq!(
+        stderr,
+        "error: invalid value 'a:256' for '--included-by <INCLUDED_BY>': invalid depth in 'a:256': depth must be 0..=255\n\nFor more information, try '--help'.\n"
+    );
+}
+
+#[test]
+fn count_rejects_sort_flag() {
+    let dir = setup();
+    let (_, _, code) = run_with_code(dir.path(), "count", &["--sort", "priority:1"]);
+    assert_eq!(code, 2);
+}
+
+#[test]
+fn error_messages_are_human_readable() {
+    let dir = setup();
+    let (_, stderr, code) = run_with_code(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "_bad=1"],
+    );
+    assert_eq!(code, 2);
+    assert_eq!(stderr, "error: invalid update: field '_bad' uses a reserved prefix\n");
+}
+
+#[test]
+fn retrieve_missing_key_exits_with_code_1() {
+    let dir = setup();
+    let (_, stderr, code) = run_with_code(dir.path(), "retrieve", &["-k", "nonexistent"]);
+    assert_eq!(code, 1);
+    assert_eq!(stderr, "Error: Document 'nonexistent' not found\n");
+}
+
+#[test]
+fn tree_missing_key_exits_with_code_1() {
+    let dir = setup();
+    let (_, stderr, code) = run_with_code(dir.path(), "tree", &["-k", "nonexistent"]);
+    assert_eq!(code, 1);
+    assert_eq!(stderr, "Error: Document 'nonexistent' not found\n");
+}
+
+#[test]
+fn sort_nonexistent_field_deterministic() {
+    let dir = setup();
+    let (out, _, ok) = run(
+        dir.path(),
+        "find",
+        &["--sort", "totally_bogus:1", "-f", "keys"],
+    );
+    assert!(ok);
+    assert_eq!(out, "a\nb\nc\nd\n");
+}
+
+#[test]
+fn update_body_preserves_frontmatter() {
+    let dir = setup();
+    let (stdout, _, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "-c", "# New Body\n\nNew content.\n"],
+    );
+    assert!(ok);
+    assert_eq!(stdout, "Updated 'a'\n");
+    let content = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            ---
+            status: draft
+            priority: 3
+            ---
+            # New Body
+
+            New content.
+        "}
+    );
+}
+
+#[test]
+fn update_set_preserves_body_exactly() {
+    let dir = setup();
+    let (stdout, _, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "reviewed=true"],
+    );
+    assert!(ok);
+    assert_eq!(stdout, "Updated 1 document(s)\n");
+    let content = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            ---
+            status: draft
+            priority: 3
+            reviewed: true
+            ---
+            # Doc A
+        "}
     );
 }
 
