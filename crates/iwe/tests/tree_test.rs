@@ -340,6 +340,158 @@ fn test_tree_project_user_frontmatter() {
     assert!(child_node["children"].is_array(), "children always present");
 }
 
+#[test]
+fn test_tree_project_pseudo_content() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("root.md"),
+        indoc! {"
+            # Root
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+    write(
+        temp_path.join("child.md"),
+        indoc! {"
+            # Child
+
+            Child body.
+        "},
+    )
+    .unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "root", "--project", "body=$content", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let root = &parsed[0];
+    assert_eq!(root["key"], "root");
+    assert_eq!(root["title"], "Root");
+    assert!(
+        root["body"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("# Root"),
+        "expected body to contain root content, got: {:?}",
+        root["body"]
+    );
+    assert!(root["children"].is_array());
+    let child = &root["children"][0];
+    assert!(child["body"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("# Child"));
+}
+
+#[test]
+fn test_tree_project_pseudo_counts() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("root.md"),
+        indoc! {"
+            # Root
+
+            [a](a)
+
+            [b](b)
+        "},
+    )
+    .unwrap();
+    write(temp_path.join("a.md"), "# A").unwrap();
+    write(temp_path.join("b.md"), "# B").unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &[
+            "-k",
+            "root",
+            "--project",
+            "n=$includesCount",
+            "-f",
+            "json",
+        ],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    assert_eq!(parsed[0]["n"], 2);
+}
+
+#[test]
+fn test_tree_add_fields_extends_default_user_fm() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("doc.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc
+        "},
+    )
+    .unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "doc", "--add-fields", "status", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    assert_eq!(parsed[0]["key"], "doc");
+    assert_eq!(parsed[0]["title"], "Doc");
+    assert_eq!(parsed[0]["status"], "draft");
+}
+
+#[test]
+fn test_tree_project_and_add_fields_conflict() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("doc.md"), "# Doc").unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &[
+            "-k",
+            "doc",
+            "--project",
+            "key",
+            "--add-fields",
+            "status",
+        ],
+    );
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert!(!output.status.success(), "expected conflict error");
+    assert!(
+        stderr.contains("cannot be used with"),
+        "unexpected stderr: {}",
+        stderr
+    );
+}
+
 fn setup_workspace_with_self_reference() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

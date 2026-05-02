@@ -5,11 +5,11 @@ use crate::graph::{Graph, GraphContext};
 use crate::model::node::{Node, NodeIter};
 use crate::model::Key;
 use crate::query::document::{
-    CountOp, DeleteOp, Filter, FindOp, Limit, Operation, Projection, Sort, UpdateOp,
+    CountOp, DeleteOp, Filter, FindOp, Limit, Operation, Sort, UpdateOp,
 };
 use crate::query::eval;
 use crate::query::frontmatter::strip_reserved;
-use crate::query::project::shape;
+use crate::query::project::{apply_projection, ProjectionContext};
 use crate::query::sort::sort_in_place;
 use crate::query::update;
 
@@ -82,7 +82,10 @@ fn execute_find(op: &FindOp, graph: &Graph) -> Outcome {
         .into_iter()
         .map(|(key, mut m)| {
             let document = match &op.project {
-                Some(p) => project_doc(p, &m),
+                Some(p) => {
+                    let ctx = ProjectionContext { graph, key: &key };
+                    apply_projection(&ctx, p)
+                }
                 None => {
                     strip_reserved(&mut m);
                     m
@@ -92,10 +95,6 @@ fn execute_find(op: &FindOp, graph: &Graph) -> Outcome {
         })
         .collect();
     Outcome::Find { matches }
-}
-
-fn project_doc(projection: &Projection, m: &Mapping) -> Mapping {
-    shape(projection, m)
 }
 
 fn execute_count(op: &CountOp, graph: &Graph) -> Outcome {

@@ -1,6 +1,6 @@
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::config::MarkdownOptions;
-use liwe::model::graph::{blocks_to_markdown_sparce, GraphBlock};
+use liwe::model::graph::{blocks_to_markdown_sparce_skip_frontmatter, GraphBlock};
 use liwe::model::node::NodePointer;
 use liwe::model::projector::Projector;
 use liwe::model::tree::TreeIter;
@@ -99,7 +99,7 @@ impl<'a> RetrieveRenderer<'a> {
 
     fn render_content_to_string(&self, key: &Key) -> String {
         let blocks = self.render_content(key);
-        blocks_to_markdown_sparce(&blocks, self.options)
+        blocks_to_markdown_sparce_skip_frontmatter(&blocks, self.options)
     }
 
     fn render_content(&self, key: &Key) -> Vec<GraphBlock> {

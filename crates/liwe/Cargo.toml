@@ -15,19 +15,15 @@ name = "liwe"
 path = "src/lib.rs"
 
 [dependencies]
-sha2.workspace = true
 indoc.workspace = true
 serde.workspace = true
-pretty_assertions.workspace = true
 itertools.workspace = true
 log.workspace = true
-futures.workspace = true
 rayon.workspace = true
 rand.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
 relative-path.workspace = true
-relative-path-utils.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
 chrono.workspace = true
@@ -41,4 +37,5 @@ csv.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true
+pretty_assertions.workspace = true
 tempfile.workspace = true

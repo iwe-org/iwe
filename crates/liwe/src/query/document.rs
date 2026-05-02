@@ -334,16 +334,151 @@ pub enum YamlType {
     Datetime,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProjectionMode {
+    Replace,
+    Extend,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PseudoField {
+    Key,
+    Title,
+    TitleSlug,
+    Content,
+    Frontmatter,
+    IncludedBy,
+    Includes,
+    ReferencedBy,
+    References,
+    IncludedByCount,
+    IncludesCount,
+    ReferencedByCount,
+    ReferencesCount,
+}
+
+impl PseudoField {
+    pub fn from_selector(s: &str) -> Option<Self> {
+        match s {
+            "$key" => Some(PseudoField::Key),
+            "$title" => Some(PseudoField::Title),
+            "$titleSlug" => Some(PseudoField::TitleSlug),
+            "$content" => Some(PseudoField::Content),
+            "$frontmatter" => Some(PseudoField::Frontmatter),
+            "$includedBy" => Some(PseudoField::IncludedBy),
+            "$includes" => Some(PseudoField::Includes),
+            "$referencedBy" => Some(PseudoField::ReferencedBy),
+            "$references" => Some(PseudoField::References),
+            "$includedByCount" => Some(PseudoField::IncludedByCount),
+            "$includesCount" => Some(PseudoField::IncludesCount),
+            "$referencedByCount" => Some(PseudoField::ReferencedByCount),
+            "$referencesCount" => Some(PseudoField::ReferencesCount),
+            _ => None,
+        }
+    }
+
+    pub fn default_output_name(&self) -> &'static str {
+        match self {
+            PseudoField::Key => "key",
+            PseudoField::Title => "title",
+            PseudoField::TitleSlug => "titleSlug",
+            PseudoField::Content => "content",
+            PseudoField::Frontmatter => "frontmatter",
+            PseudoField::IncludedBy => "includedBy",
+            PseudoField::Includes => "includes",
+            PseudoField::ReferencedBy => "referencedBy",
+            PseudoField::References => "references",
+            PseudoField::IncludedByCount => "includedByCount",
+            PseudoField::IncludesCount => "includesCount",
+            PseudoField::ReferencedByCount => "referencedByCount",
+            PseudoField::ReferencesCount => "referencesCount",
+        }
+    }
+
+    pub fn is_content_or_edge(&self) -> bool {
+        matches!(
+            self,
+            PseudoField::Content
+                | PseudoField::IncludedBy
+                | PseudoField::Includes
+                | PseudoField::ReferencedBy
+                | PseudoField::References
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProjectionSource {
+    Frontmatter(FieldPath),
+    Pseudo(PseudoField),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectionField {
+    pub output: String,
+    pub source: ProjectionSource,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Projection {
-    pub fields: Vec<FieldPath>,
+    pub fields: Vec<ProjectionField>,
+    pub mode: ProjectionMode,
 }
 
 impl Projection {
+    pub fn replace(fields: Vec<ProjectionField>) -> Self {
+        Projection {
+            fields,
+            mode: ProjectionMode::Replace,
+        }
+    }
+
+    pub fn extend(fields: Vec<ProjectionField>) -> Self {
+        Projection {
+            fields,
+            mode: ProjectionMode::Extend,
+        }
+    }
+
     pub fn fields(fields: &[&str]) -> Self {
         Projection {
-            fields: fields.iter().map(|p| FieldPath::from_dotted(p)).collect(),
+            fields: fields
+                .iter()
+                .map(|name| ProjectionField {
+                    output: (*name).to_string(),
+                    source: ProjectionSource::Frontmatter(FieldPath::from_dotted(name)),
+                })
+                .collect(),
+            mode: ProjectionMode::Replace,
         }
+    }
+
+    pub fn default_for_find() -> Self {
+        let entries = [
+            ("key", PseudoField::Key),
+            ("title", PseudoField::Title),
+            ("references", PseudoField::References),
+            ("includes", PseudoField::Includes),
+            ("referencedBy", PseudoField::ReferencedBy),
+            ("includedBy", PseudoField::IncludedBy),
+        ];
+        Projection {
+            fields: entries
+                .iter()
+                .map(|(name, p)| ProjectionField {
+                    output: (*name).to_string(),
+                    source: ProjectionSource::Pseudo(*p),
+                })
+                .collect(),
+            mode: ProjectionMode::Replace,
+        }
+    }
+
+    pub fn has_content_or_edge_source(&self) -> bool {
+        self.fields.iter().any(|f| match &f.source {
+            ProjectionSource::Pseudo(p) => p.is_content_or_edge(),
+            _ => false,
+        })
     }
 }
 

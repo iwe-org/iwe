@@ -1,129 +1,174 @@
 use serde_yaml::{Mapping, Value};
 
-use crate::query::document::Projection;
-use crate::query::frontmatter::is_reserved_segment;
+use crate::graph::Graph;
+use crate::model::Key;
+use crate::query::document::{
+    FieldPath, Projection, ProjectionField, ProjectionMode, ProjectionSource, PseudoField,
+};
+use crate::query::frontmatter::{is_reserved_segment, strip_reserved};
+use crate::retrieve::EdgeRef;
 
+pub struct ProjectionContext<'a> {
+    pub graph: &'a Graph,
+    pub key: &'a Key,
+}
 
-pub fn shape(projection: &Projection, doc: &Mapping) -> Mapping {
+pub fn apply_projection(ctx: &ProjectionContext<'_>, projection: &Projection) -> Mapping {
     let mut out = Mapping::new();
-    for path in &projection.fields {
-        copy_path(doc, &path.0, &mut out);
+    let effective: Vec<&ProjectionField> = match projection.mode {
+        ProjectionMode::Replace => projection.fields.iter().collect(),
+        ProjectionMode::Extend => {
+            let default = Projection::default_for_find();
+            let mut by_name: Vec<ProjectionField> = default.fields.clone();
+            for f in &projection.fields {
+                if let Some(existing) = by_name.iter_mut().find(|d| d.output == f.output) {
+                    *existing = f.clone();
+                } else {
+                    by_name.push(f.clone());
+                }
+            }
+            return write_with_user_fm(ctx, &by_name);
+        }
+    };
+    for field in &effective {
+        let v = resolve_field(ctx, field);
+        out.insert(Value::String(field.output.clone()), v);
+    }
+    if projection.mode == ProjectionMode::Replace
+        && projection.fields.iter().any(|f| matches!(
+            &f.source,
+            ProjectionSource::Pseudo(PseudoField::Frontmatter)
+        ))
+    {
+        return out;
+    }
+    if projection.mode == ProjectionMode::Replace {
+        return out;
     }
     out
 }
 
-fn copy_path(src: &Mapping, segments: &[String], dst: &mut Mapping) {
-    if segments.is_empty() {
-        return;
+fn write_with_user_fm(ctx: &ProjectionContext<'_>, fields: &[ProjectionField]) -> Mapping {
+    let mut out = Mapping::new();
+    for field in fields {
+        let v = resolve_field(ctx, field);
+        out.insert(Value::String(field.output.clone()), v);
     }
-    if is_reserved_segment(&segments[0]) {
-        return;
+    if let Some(mut fm) = ctx.graph.frontmatter(ctx.key).cloned() {
+        strip_reserved(&mut fm);
+        for (k, v) in fm {
+            if !out.contains_key(&k) {
+                out.insert(k, v);
+            } else if let Some(s) = k.as_str() {
+                if matches!(s, "key" | "title") {
+                    out.insert(k, v);
+                }
+            }
+        }
     }
-    let head_key = Value::String(segments[0].clone());
-    let value = match src.get(&head_key) {
-        Some(v) => v,
-        None => return,
-    };
-    if segments.len() == 1 {
-        dst.insert(head_key, value.clone());
-        return;
-    }
-    let inner_src = match value {
-        Value::Mapping(m) => m,
-        _ => return,
-    };
-    let entry = dst
-        .entry(head_key)
-        .or_insert_with(|| Value::Mapping(Mapping::new()));
-    let inner_dst = match entry {
-        Value::Mapping(m) => m,
-        _ => return,
-    };
-    copy_path(inner_src, &segments[1..], inner_dst);
+    out
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::query::document::FieldPath;
+pub fn apply_projection_or_default(
+    ctx: &ProjectionContext<'_>,
+    projection: Option<&Projection>,
+) -> Mapping {
+    match projection {
+        None => write_with_user_fm(ctx, &Projection::default_for_find().fields),
+        Some(p) if matches!(p.mode, ProjectionMode::Extend) => apply_projection(ctx, p),
+        Some(p) => apply_projection(ctx, p),
+    }
+}
 
-    fn doc(pairs: Vec<(&str, Value)>) -> Mapping {
-        let mut m = Mapping::new();
-        for (k, v) in pairs {
-            m.insert(Value::String(k.to_string()), v);
+fn resolve_field(ctx: &ProjectionContext<'_>, field: &ProjectionField) -> Value {
+    match &field.source {
+        ProjectionSource::Pseudo(p) => resolve_pseudo(ctx, *p),
+        ProjectionSource::Frontmatter(path) => resolve_frontmatter(ctx, path),
+    }
+}
+
+fn resolve_pseudo(ctx: &ProjectionContext<'_>, p: PseudoField) -> Value {
+    match p {
+        PseudoField::Key => Value::String(ctx.key.to_string()),
+        PseudoField::Title => Value::String(
+            ctx.graph
+                .get_key_title(ctx.key)
+                .unwrap_or_else(|| ctx.key.to_string()),
+        ),
+        PseudoField::TitleSlug => {
+            let title = ctx
+                .graph
+                .get_key_title(ctx.key)
+                .unwrap_or_else(|| ctx.key.to_string());
+            Value::String(slugify(&title))
         }
-        m
-    }
-
-    fn nested(pairs: Vec<(&str, Value)>) -> Value {
-        Value::Mapping(doc(pairs))
-    }
-
-    fn project(paths: &[&[&str]]) -> Projection {
-        Projection {
-            fields: paths
-                .iter()
-                .map(|p| FieldPath(p.iter().map(|s| s.to_string()).collect()))
-                .collect(),
+        PseudoField::Content => Value::String(ctx.graph.to_markdown_skip_frontmatter(ctx.key)),
+        PseudoField::Frontmatter => {
+            let mut fm = ctx.graph.frontmatter(ctx.key).cloned().unwrap_or_default();
+            strip_reserved(&mut fm);
+            Value::Mapping(fm)
+        }
+        PseudoField::IncludedBy => edges_to_value(crate::query::edges::included_by(ctx.graph, ctx.key)),
+        PseudoField::Includes => edges_to_value(crate::query::edges::includes(ctx.graph, ctx.key)),
+        PseudoField::ReferencedBy => {
+            edges_to_value(crate::query::edges::referenced_by(ctx.graph, ctx.key))
+        }
+        PseudoField::References => edges_to_value(crate::query::edges::references(ctx.graph, ctx.key)),
+        PseudoField::IncludedByCount => {
+            Value::Number((crate::query::edges::included_by(ctx.graph, ctx.key).len() as i64).into())
+        }
+        PseudoField::IncludesCount => {
+            Value::Number((crate::query::edges::includes(ctx.graph, ctx.key).len() as i64).into())
+        }
+        PseudoField::ReferencedByCount => Value::Number(
+            (crate::query::edges::referenced_by(ctx.graph, ctx.key).len() as i64).into(),
+        ),
+        PseudoField::ReferencesCount => {
+            Value::Number((crate::query::edges::references(ctx.graph, ctx.key).len() as i64).into())
         }
     }
+}
 
-    fn key(s: &str) -> Value {
-        Value::String(s.into())
+fn resolve_frontmatter(ctx: &ProjectionContext<'_>, path: &FieldPath) -> Value {
+    let Some(mut fm) = ctx.graph.frontmatter(ctx.key).cloned() else {
+        return Value::Null;
+    };
+    strip_reserved(&mut fm);
+    let mut current = Value::Mapping(fm);
+    for segment in &path.0 {
+        if is_reserved_segment(segment) {
+            return Value::Null;
+        }
+        match current {
+            Value::Mapping(m) => match m.get(Value::String(segment.clone())) {
+                Some(v) => current = v.clone(),
+                None => return Value::Null,
+            },
+            _ => return Value::Null,
+        }
     }
+    current
+}
 
-    #[test]
-    fn included_field_kept() {
-        let d = doc(vec![
-            ("title", "Foo".into()),
-            ("author", "dmytro".into()),
-            ("status", "draft".into()),
-        ]);
-        let p = project(&[&["title"]]);
-        let out = shape(&p, &d);
-        assert_eq!(out.get(key("title")), Some(&Value::String("Foo".into())));
-        assert!(!out.contains_key(key("author")));
-        assert!(!out.contains_key(key("status")));
-    }
+fn edges_to_value(edges: Vec<EdgeRef>) -> Value {
+    serde_yaml::to_value(&edges).unwrap_or(Value::Sequence(Vec::new()))
+}
 
-    #[test]
-    fn missing_field_stays_missing() {
-        let d = doc(vec![("title", "Foo".into())]);
-        let p = project(&[&["author"]]);
-        let out = shape(&p, &d);
-        assert!(out.is_empty());
+fn slugify(s: &str) -> String {
+    let mut out = String::new();
+    let mut prev_dash = true;
+    for c in s.chars() {
+        let lc = c.to_ascii_lowercase();
+        if lc.is_ascii_alphanumeric() {
+            out.push(lc);
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
     }
-
-    #[test]
-    fn nested_field_keeps_parent_structure() {
-        let d = doc(vec![(
-            "author",
-            nested(vec![("name", "dmytro".into()), ("email", "a@b.c".into())]),
-        )]);
-        let p = project(&[&["author", "name"]]);
-        let out = shape(&p, &d);
-        let author = out
-            .get(key("author"))
-            .expect("author kept")
-            .as_mapping()
-            .expect("author is a mapping");
-        assert_eq!(author.get(key("name")), Some(&Value::String("dmytro".into())));
-        assert!(!author.contains_key(key("email")));
+    while out.ends_with('-') {
+        out.pop();
     }
-
-    #[test]
-    fn empty_projection_produces_empty_mapping() {
-        let d = doc(vec![("title", "Foo".into())]);
-        let p = project(&[]);
-        let out = shape(&p, &d);
-        assert!(out.is_empty());
-    }
-
-    #[test]
-    fn nested_path_through_non_mapping_is_dropped() {
-        let d = doc(vec![("author", "dmytro".into())]);
-        let p = project(&[&["author", "name"]]);
-        let out = shape(&p, &d);
-        assert!(out.is_empty());
-    }
+    out
 }

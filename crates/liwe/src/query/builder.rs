@@ -3,8 +3,8 @@ use serde_yaml::{Mapping, Value};
 use crate::model::Key;
 use crate::query::document::{
     CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp, Limit,
-    Operation, OperationKind, Projection, ReferenceAnchor, Sort, SortDir, Update, UpdateOp,
-    UpdateOperator, YamlType,
+    Operation, OperationKind, Projection, ProjectionField, ProjectionMode, ProjectionSource,
+    PseudoField, ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
 use crate::query::wire::{
     self, RawFilter, RawKeyOpMap, RawOperation, RawProjection, RawRelationalObj, RawSort,
@@ -57,6 +57,16 @@ pub enum ParseError {
     InvalidProjectionValue {
         path: Vec<String>,
     },
+    UnknownProjectionSource {
+        selector: String,
+    },
+    ReservedOutputName {
+        name: String,
+    },
+    NestedProjectionOutput {
+        name: String,
+    },
+    ProjectAddFieldsConflict,
     InvalidSortValue {
         key: String,
         value: i64,
@@ -161,9 +171,19 @@ fn build_find(raw: RawOperation) -> Result<FindOp, ParseError> {
             field: "update",
         });
     }
+    if raw.project.is_some() && raw.add_fields.is_some() {
+        return Err(ParseError::ProjectAddFieldsConflict);
+    }
+    let project = if let Some(p) = raw.project {
+        Some(build_projection(p, ProjectionMode::Replace)?)
+    } else if let Some(a) = raw.add_fields {
+        Some(build_projection(a, ProjectionMode::Extend)?)
+    } else {
+        None
+    };
     Ok(FindOp {
         filter: raw.filter.map(build_filter).transpose()?,
-        project: raw.project.map(build_projection).transpose()?,
+        project,
         sort: raw.sort.map(build_sort).transpose()?,
         limit: raw.limit.map(build_limit).transpose()?,
     })
@@ -174,6 +194,12 @@ fn build_count(raw: RawOperation) -> Result<CountOp, ParseError> {
         return Err(ParseError::OperationFieldNotAllowed {
             kind: OperationKind::Count,
             field: "project",
+        });
+    }
+    if raw.add_fields.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Count,
+            field: "addFields",
         });
     }
     if raw.update.is_some() {
@@ -194,6 +220,12 @@ fn build_update(raw: RawOperation) -> Result<UpdateOp, ParseError> {
         return Err(ParseError::OperationFieldNotAllowed {
             kind: OperationKind::Update,
             field: "project",
+        });
+    }
+    if raw.add_fields.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Update,
+            field: "addFields",
         });
     }
     let filter = raw
@@ -223,6 +255,12 @@ fn build_delete(raw: RawOperation) -> Result<DeleteOp, ParseError> {
         return Err(ParseError::OperationFieldNotAllowed {
             kind: OperationKind::Delete,
             field: "project",
+        });
+    }
+    if raw.add_fields.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Delete,
+            field: "addFields",
         });
     }
     if raw.update.is_some() {
@@ -579,48 +617,80 @@ fn parse_type_name(name: &str) -> Result<YamlType, ParseError> {
 }
 
 
-fn build_projection(raw: RawProjection) -> Result<Projection, ParseError> {
-    let mut fields: Vec<FieldPath> = Vec::new();
-    walk_projection(&raw.0, &[], &mut fields)?;
-    Ok(Projection { fields })
+pub fn build_projection(raw: RawProjection, mode: ProjectionMode) -> Result<Projection, ParseError> {
+    let mut fields: Vec<ProjectionField> = Vec::new();
+    for (k, v) in &raw.0 {
+        let output = k.as_str().ok_or(ParseError::NonStringKey)?.to_string();
+        check_output_name(&output)?;
+        let source = build_projection_source(&output, v)?;
+        fields.push(ProjectionField { output, source });
+    }
+    Ok(Projection { fields, mode })
 }
 
-fn walk_projection(
-    map: &Mapping,
-    parent: &[String],
-    out: &mut Vec<FieldPath>,
-) -> Result<(), ParseError> {
-    for (k, v) in map {
-        let key_str = k.as_str().ok_or(ParseError::NonStringKey)?;
-        let segments: Vec<String> = if key_str.contains('.') {
-            let mut s = parent.to_vec();
-            s.extend(key_str.split('.').map(|s| s.to_string()));
-            s
-        } else {
-            let mut s = parent.to_vec();
-            s.push(key_str.to_string());
-            s
-        };
-        check_path_segments(&segments)?;
-        match v {
-            Value::Number(n) if n.as_i64() == Some(1) => {
-                out.push(FieldPath(segments));
-            }
-            Value::Bool(true) => {
-                out.push(FieldPath(segments));
-            }
-            Value::Null => {
-                out.push(FieldPath(segments));
-            }
-            Value::Mapping(inner) => {
-                walk_projection(inner, &segments, out)?;
-            }
-            _ => {
-                return Err(ParseError::InvalidProjectionValue { path: segments });
-            }
-        }
+fn check_output_name(name: &str) -> Result<(), ParseError> {
+    if name.is_empty() {
+        return Err(ParseError::EmptyFieldPath);
+    }
+    if name.chars().any(|c| c.is_whitespace()) {
+        return Err(ParseError::InvalidPathSegment {
+            path: vec![name.to_string()],
+            reason: "segment contains whitespace",
+        });
+    }
+    if name.chars().any(|c| c.is_control()) {
+        return Err(ParseError::InvalidPathSegment {
+            path: vec![name.to_string()],
+            reason: "segment contains a control character",
+        });
+    }
+    if name.starts_with('$') {
+        return Err(ParseError::ReservedOutputName {
+            name: name.to_string(),
+        });
+    }
+    if name.contains('.') {
+        return Err(ParseError::NestedProjectionOutput {
+            name: name.to_string(),
+        });
+    }
+    if matches!(name.chars().next(), Some('_' | '#' | '@')) {
+        return Err(ParseError::ReservedOutputName {
+            name: name.to_string(),
+        });
     }
     Ok(())
+}
+
+fn build_projection_source(output: &str, v: &Value) -> Result<ProjectionSource, ParseError> {
+    match v {
+        Value::Number(n) if n.as_i64() == Some(1) => {
+            Ok(ProjectionSource::Frontmatter(FieldPath(vec![output.to_string()])))
+        }
+        Value::Bool(true) => {
+            Ok(ProjectionSource::Frontmatter(FieldPath(vec![output.to_string()])))
+        }
+        Value::Null => {
+            Ok(ProjectionSource::Frontmatter(FieldPath(vec![output.to_string()])))
+        }
+        Value::String(s) => {
+            if let Some(stripped) = s.strip_prefix('$') {
+                let selector = format!("${}", stripped);
+                if let Some(pf) = PseudoField::from_selector(&selector) {
+                    Ok(ProjectionSource::Pseudo(pf))
+                } else {
+                    Err(ParseError::UnknownProjectionSource { selector })
+                }
+            } else {
+                let segments: Vec<String> = s.split('.').map(|p| p.to_string()).collect();
+                check_path_segments(&segments)?;
+                Ok(ProjectionSource::Frontmatter(FieldPath(segments)))
+            }
+        }
+        _ => Err(ParseError::InvalidProjectionValue {
+            path: vec![output.to_string()],
+        }),
+    }
 }
 
 
@@ -1173,6 +1243,7 @@ mod tests {
         if let Operation::Find(find) = op {
             let p = find.project.unwrap();
             assert_eq!(p.fields.len(), 3);
+            assert_eq!(p.fields[0].output, "a");
         } else {
             panic!()
         }
@@ -1191,11 +1262,89 @@ mod tests {
     }
 
     #[test]
-    fn project_dotted_resolves() {
-        let op = parse("project:\n  author.name: 1\n", OperationKind::Find).unwrap();
+    fn project_string_source_resolves_to_path() {
+        let op = parse(
+            "project:\n  name: author.name\n",
+            OperationKind::Find,
+        )
+        .unwrap();
         if let Operation::Find(find) = op {
             let p = find.project.unwrap();
-            assert_eq!(p.fields[0].0, vec!["author".to_string(), "name".to_string()]);
+            assert_eq!(p.fields[0].output, "name");
+            match &p.fields[0].source {
+                ProjectionSource::Frontmatter(fp) => {
+                    assert_eq!(fp.0, vec!["author".to_string(), "name".to_string()]);
+                }
+                _ => panic!("expected frontmatter source"),
+            }
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn project_pseudo_source_resolves() {
+        let op = parse(
+            "project:\n  body: $content\n  parents: $includedBy\n",
+            OperationKind::Find,
+        )
+        .unwrap();
+        if let Operation::Find(find) = op {
+            let p = find.project.unwrap();
+            assert_eq!(p.fields.len(), 2);
+            assert_eq!(p.fields[0].output, "body");
+            assert!(matches!(
+                p.fields[0].source,
+                ProjectionSource::Pseudo(PseudoField::Content)
+            ));
+            assert!(matches!(
+                p.fields[1].source,
+                ProjectionSource::Pseudo(PseudoField::IncludedBy)
+            ));
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn project_unknown_pseudo_rejected() {
+        let err = parse_err("project:\n  x: $bogus\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::UnknownProjectionSource { .. }));
+    }
+
+    #[test]
+    fn project_reserved_output_rejected() {
+        let err = parse_err("project:\n  $x: 1\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::ReservedOutputName { .. }));
+    }
+
+    #[test]
+    fn project_dotted_output_rejected() {
+        let err = parse_err("project:\n  author.name: 1\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::NestedProjectionOutput { .. }));
+    }
+
+    #[test]
+    fn project_and_add_fields_conflict() {
+        let err = parse_err(
+            "project:\n  title: 1\naddFields:\n  status: 1\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::ProjectAddFieldsConflict));
+    }
+
+    #[test]
+    fn add_fields_extend_mode() {
+        let op = parse(
+            "addFields:\n  body: $content\n",
+            OperationKind::Find,
+        )
+        .unwrap();
+        if let Operation::Find(find) = op {
+            let p = find.project.unwrap();
+            assert_eq!(p.mode, ProjectionMode::Extend);
+            assert_eq!(p.fields.len(), 1);
+            assert_eq!(p.fields[0].output, "body");
         } else {
             panic!()
         }

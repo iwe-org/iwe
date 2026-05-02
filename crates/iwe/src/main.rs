@@ -11,11 +11,13 @@ use itertools::Itertools;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::find::{DocumentFinder, FindOptions};
 use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
+use iwe::projection_args::{parse_projection_extend, parse_projection_replace};
 use iwe::render::RetrieveRenderer;
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::filter_args::FilterArgs;
 use liwe::query::{
-    FieldPath, Filter, Projection as QueryProjection, Sort as QuerySort, SortDir,
+    FieldPath, Filter, Projection as QueryProjection, ProjectionMode, ProjectionSource,
+    Sort as QuerySort, SortDir,
 };
 use iwe::stats::{render_stats, GraphStatistics};
 use liwe::fs::new_for_path;
@@ -144,10 +146,18 @@ struct Find {
 
     #[clap(
         long,
-        value_delimiter = ',',
-        help = "Frontmatter fields to include in JSON output (CSV)."
+        value_parser = parse_projection_replace,
+        help = "Projection: comma-list (name, name=path, name=$selector, $selector) or inline YAML mapping. Replaces the default."
     )]
-    project: Vec<String>,
+    project: Option<QueryProjection>,
+
+    #[clap(
+        long = "add-fields",
+        value_parser = parse_projection_extend,
+        conflicts_with = "project",
+        help = "Additive projection: same grammar as --project, extends defaults rather than replacing."
+    )]
+    add_fields: Option<QueryProjection>,
 
     #[clap(
         long,
@@ -261,10 +271,18 @@ struct TreeArgs {
 
     #[clap(
         long,
-        value_delimiter = ',',
-        help = "Frontmatter fields to include per node (CSV). System fields key/title/children and user frontmatter fields are projectable."
+        value_parser = parse_projection_replace,
+        help = "Projection: comma-list (name, name=path, name=$selector, $selector) or inline YAML mapping. Replaces user-frontmatter additions."
     )]
-    project: Vec<String>,
+    project: Option<QueryProjection>,
+
+    #[clap(
+        long = "add-fields",
+        value_parser = parse_projection_extend,
+        conflicts_with = "project",
+        help = "Additive projection: extends each tree node's default fields. Same grammar as --project."
+    )]
+    add_fields: Option<QueryProjection>,
 
     #[clap(flatten)]
     selector: FilterArgs,
@@ -754,17 +772,7 @@ fn find_command(args: Find) {
         eprintln!("error: {}", e);
         std::process::exit(2);
     });
-    let project = if args.project.is_empty() {
-        None
-    } else {
-        Some(QueryProjection {
-            fields: args
-                .project
-                .iter()
-                .map(|s| FieldPath::from_dotted(s))
-                .collect(),
-        })
-    };
+    let project = args.project.clone().or_else(|| args.add_fields.clone());
 
     let finder = DocumentFinder::new(&graph);
     let options = FindOptions {
@@ -774,7 +782,7 @@ fn find_command(args: Find) {
         filter: resolve_filter(&args.selector),
         limit: args.limit,
         sort,
-        project,
+        project: project.clone(),
     };
 
     let output = finder.find(&options);
@@ -798,18 +806,82 @@ fn find_command(args: Find) {
             }
         }
         FindFormat::Markdown => {
-            let keys: Vec<Key> = output
-                .results
-                .iter()
-                .filter_map(|r| r.get("key").and_then(|v| v.as_str()))
-                .map(Key::name)
-                .collect();
-            let reader = DocumentReader::new(&graph);
-            let retrieve_output = reader.retrieve_many(&keys, &RetrieveOptions::default());
-            let md_options = graph.markdown_options();
-            let renderer = RetrieveRenderer::new(&retrieve_output, &md_options, &graph);
-            print!("{}", renderer.render());
+            let block_mode = match &project {
+                None => true,
+                Some(p) => match p.mode {
+                    ProjectionMode::Replace => p.has_content_or_edge_source(),
+                    ProjectionMode::Extend => true,
+                },
+            };
+            if block_mode {
+                let reader = DocumentReader::new(&graph);
+                let retrieve_output = reader.retrieve_many(&output.keys, &RetrieveOptions::default());
+                let md_options = graph.markdown_options();
+                let renderer = RetrieveRenderer::new(&retrieve_output, &md_options, &graph);
+                print!("{}", renderer.render());
+            } else {
+                print!("{}", render_find_chips(&output, project.as_ref()));
+            }
         }
+    }
+}
+
+fn render_find_chips(
+    output: &iwe::find::FindOutput,
+    project: Option<&QueryProjection>,
+) -> String {
+    let chip_names: Vec<String> = match project {
+        Some(p) => p
+            .fields
+            .iter()
+            .filter(|f| !matches!(f.output.as_str(), "key" | "title"))
+            .filter(|f| match &f.source {
+                ProjectionSource::Pseudo(pf) => !pf.is_content_or_edge(),
+                _ => true,
+            })
+            .map(|f| f.output.clone())
+            .collect(),
+        None => Vec::new(),
+    };
+
+    let mut result = String::new();
+    result.push_str(&format!("Found {} results", output.total));
+    if let Some(ref query) = output.query {
+        result.push_str(&format!(" for \"{}\"", query));
+    }
+    if let Some(limit) = output.limit {
+        result.push_str(&format!(" (showing {})", limit));
+    }
+    result.push_str(":\n\n");
+
+    for (i, r) in output.results.iter().enumerate() {
+        let key = output
+            .keys
+            .get(i)
+            .map(|k| k.to_string())
+            .unwrap_or_default();
+        let title = output.titles.get(i).cloned().unwrap_or_default();
+        result.push_str(&format!("{}   #{}", title, key));
+        for name in &chip_names {
+            if let Some(value) = r.get(serde_yaml::Value::from(name.as_str())) {
+                if let Some(s) = render_chip_value(value) {
+                    result.push_str(&format!(" {}={}", name, s));
+                }
+            }
+        }
+        result.push('\n');
+    }
+    result
+}
+
+fn render_chip_value(v: &serde_yaml::Value) -> Option<String> {
+    match v {
+        serde_yaml::Value::String(s) => Some(s.clone()),
+        serde_yaml::Value::Number(n) => Some(n.to_string()),
+        serde_yaml::Value::Bool(b) => Some(b.to_string()),
+        serde_yaml::Value::Null => None,
+        serde_yaml::Value::Sequence(_) | serde_yaml::Value::Mapping(_) => None,
+        _ => None,
     }
 }
 
@@ -971,11 +1043,7 @@ fn tree_command(args: TreeArgs) {
 
     match args.format {
         TreeFormat::Json | TreeFormat::Yaml => {
-            let project: Option<Vec<String>> = if args.project.is_empty() {
-                None
-            } else {
-                Some(args.project.clone())
-            };
+            let project = args.project.clone().or_else(|| args.add_fields.clone());
             let mut trees: Vec<serde_yaml::Mapping> = Vec::new();
             for root_key in &root_keys {
                 let mut visited: std::collections::HashSet<Key> = std::collections::HashSet::new();
@@ -983,7 +1051,7 @@ fn tree_command(args: TreeArgs) {
                     &graph,
                     root_key,
                     args.depth,
-                    project.as_deref(),
+                    project.as_ref(),
                     &mut visited,
                 ) {
                     trees.push(node);
@@ -1041,9 +1109,11 @@ fn build_tree_node(
     graph: &Graph,
     key: &Key,
     max_depth: u8,
-    project: Option<&[String]>,
+    project: Option<&QueryProjection>,
     visited: &mut std::collections::HashSet<Key>,
 ) -> Option<serde_yaml::Mapping> {
+    use liwe::query::project::{apply_projection, ProjectionContext};
+
     graph.get_node_id(key)?;
 
     let title = graph.get_ref_text(key).unwrap_or_default();
@@ -1071,17 +1141,16 @@ fn build_tree_node(
     node.insert(serde_yaml::Value::from("key"), serde_yaml::Value::from(key_str));
     node.insert(serde_yaml::Value::from("title"), serde_yaml::Value::from(title));
 
-    if let Some(fields) = project {
-        let mut user_fm = graph.frontmatter(key).cloned().unwrap_or_default();
-        liwe::query::frontmatter::strip_reserved(&mut user_fm);
-        for field in fields {
-            if field == "key" || field == "title" || field == "children" {
-                continue;
+    if let Some(p) = project {
+        let ctx = ProjectionContext { graph, key };
+        let projected = apply_projection(&ctx, p);
+        for (k, v) in projected {
+            if let Some(s) = k.as_str() {
+                if matches!(s, "key" | "title" | "children") {
+                    continue;
+                }
             }
-            let key_val = serde_yaml::Value::from(field.as_str());
-            if let Some(value) = user_fm.get(&key_val) {
-                node.insert(key_val, value.clone());
-            }
+            node.insert(k, v);
         }
     }
 

@@ -2610,6 +2610,52 @@ fn test_retrieve_self_referencing_document() {
 }
 
 #[test]
+fn test_retrieve_frontmatter_not_duplicated_in_body() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc.md"),
+        indoc! {"
+            ---
+            status: draft
+            tags:
+              - rust
+            ---
+            # My Document
+
+            Body text here.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "doc", "-d", "0"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc
+        ---
+        title: My Document
+        ---
+
+        # My Document
+
+        Body text here.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+
+    let body_start = stdout.find("---\n\n").expect("end of frontmatter");
+    let body = &stdout[body_start + 5..];
+    assert!(
+        !body.contains("---"),
+        "source frontmatter leaked into body: {}",
+        stdout
+    );
+}
+
+#[test]
 fn test_retrieve_markdown_children_populates_includes() {
     let dir = setup_workspace();
 

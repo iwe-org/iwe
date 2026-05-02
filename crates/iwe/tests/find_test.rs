@@ -81,11 +81,17 @@ fn test_find_lists_all_documents() {
           {
             "key": "doc1",
             "title": "Document One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           },
           {
             "key": "doc2",
             "title": "Document Two",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -125,9 +131,15 @@ fn test_find_yaml_format() {
     let expected = indoc! {"
         - key: doc1
           title: Document One
+          references: []
+          includes: []
+          referencedBy: []
           includedBy: []
         - key: doc2
           title: Document Two
+          references: []
+          includes: []
+          referencedBy: []
           includedBy: []
     "};
 
@@ -151,6 +163,9 @@ fn test_find_fuzzy_search() {
           {
             "key": "authentication",
             "title": "User Authentication",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -195,11 +210,29 @@ fn test_find_refs_to() {
           {
             "key": "doc1",
             "title": "Doc One",
+            "references": [],
+            "includes": [
+              {
+                "key": "target",
+                "title": "Target",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
             "includedBy": []
           },
           {
             "key": "doc2",
             "title": "Doc Two",
+            "references": [],
+            "includes": [
+              {
+                "key": "target",
+                "title": "Target",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -237,26 +270,28 @@ fn test_find_refs_from() {
           {
             "key": "child1",
             "title": "Child One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": [
               {
                 "key": "source",
                 "title": "Source",
-                "sectionPath": [
-                  "Source"
-                ]
+                "sectionPath": []
               }
             ]
           },
           {
             "key": "child2",
             "title": "Child Two",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": [
               {
                 "key": "source",
                 "title": "Source",
-                "sectionPath": [
-                  "Source"
-                ]
+                "sectionPath": []
               }
             ]
           }
@@ -287,16 +322,25 @@ fn test_find_limit() {
           {
             "key": "doc1",
             "title": "Document 1",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           },
           {
             "key": "doc10",
             "title": "Document 10",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           },
           {
             "key": "doc2",
             "title": "Document 2",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -415,12 +459,15 @@ fn test_find_with_parent_documents() {
           {
             "key": "child",
             "title": "Child",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": [
               {
                 "key": "parent",
                 "title": "Parent",
                 "sectionPath": [
-                  "Parent"
+                  "Section One"
                 ]
               }
             ]
@@ -428,6 +475,17 @@ fn test_find_with_parent_documents() {
           {
             "key": "parent",
             "title": "Parent",
+            "references": [],
+            "includes": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": [
+                  "Section One"
+                ]
+              }
+            ],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -461,19 +519,29 @@ fn test_find_is_root_flag() {
           {
             "key": "child",
             "title": "Child",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": [
               {
                 "key": "parent",
                 "title": "Parent",
-                "sectionPath": [
-                  "Parent"
-                ]
+                "sectionPath": []
               }
             ]
           },
           {
             "key": "parent",
             "title": "Parent",
+            "references": [],
+            "includes": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -520,37 +588,68 @@ fn test_find_incoming_outgoing_refs() {
           {
             "key": "child1",
             "title": "Child One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": [
               {
                 "key": "hub",
                 "title": "Hub",
-                "sectionPath": [
-                  "Hub"
-                ]
+                "sectionPath": []
               }
             ]
           },
           {
             "key": "child2",
             "title": "Child Two",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": [
               {
                 "key": "hub",
                 "title": "Hub",
-                "sectionPath": [
-                  "Hub"
-                ]
+                "sectionPath": []
               }
             ]
           },
           {
             "key": "hub",
             "title": "Hub",
+            "references": [],
+            "includes": [
+              {
+                "key": "child1",
+                "title": "Child One",
+                "sectionPath": []
+              },
+              {
+                "key": "child2",
+                "title": "Child Two",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [
+              {
+                "key": "referrer",
+                "title": "Referrer",
+                "sectionPath": []
+              }
+            ],
             "includedBy": []
           },
           {
             "key": "referrer",
             "title": "Referrer",
+            "references": [
+              {
+                "key": "hub",
+                "title": "Hub",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -623,6 +722,9 @@ fn test_find_no_query_null_in_output() {
           {
             "key": "test",
             "title": "Test",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -682,6 +784,15 @@ fn test_find_refs_to_inline_link() {
           {
             "key": "doc1",
             "title": "Doc One",
+            "references": [
+              {
+                "key": "target",
+                "title": "Target",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": [],
             "includedBy": []
           }
         ]
@@ -776,4 +887,307 @@ fn test_find_markdown_empty_results() {
 
     assert!(success, "stderr: {}", stderr);
     assert_eq!(stdout, "");
+}
+
+#[test]
+fn test_find_project_replace_drops_defaults() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            priority: 5
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "key=$key,status,priority", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "status": "draft",
+            "priority": 5
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_pseudo_content() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Hello.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "k=$key,body=$content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "k": "doc1",
+            "body": "# Doc One\n\nHello.\n"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_bare_pseudo_uses_default_name() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "$content", "-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "content": "# Doc One\n\nBody.\n"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_yaml_mapping_form() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "--project",
+            "{key: $key, status: 1}",
+            "-f",
+            "json",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "status": "draft"
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_add_fields_extends_default() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--add-fields", "body=$content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "body": "# Doc One\n\nBody.\n",
+            "status": "draft"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_and_add_fields_conflict() {
+    let dir = setup_workspace();
+    write(dir.path().join("a.md"), "# A").unwrap();
+
+    let (_stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "key", "--add-fields", "status"],
+    );
+
+    assert!(!success, "stderr: {}", stderr);
+    assert!(
+        stderr.contains("cannot be used with"),
+        "expected conflict error, got: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_find_project_unknown_pseudo_rejected() {
+    let dir = setup_workspace();
+    write(dir.path().join("a.md"), "# A").unwrap();
+
+    let (_stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "$bogus"]);
+
+    assert!(!success, "stderr: {}", stderr);
+    assert!(
+        stderr.contains("unknown projection source") || stderr.contains("$bogus"),
+        "stderr: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_find_project_chip_mode_markdown() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            priority: 5
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "status,priority", "-f", "markdown"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        Found 1 results:
+
+        Doc One   #doc1 status=draft priority=5
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_block_mode_when_content_projected() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "body=$content", "-f", "markdown"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert!(
+        stdout.contains("````markdown #doc1"),
+        "expected block mode, got: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_find_project_yaml_form() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "k=$key,status", "-f", "yaml"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - k: doc1
+          status: draft
+    "};
+
+    assert_eq!(stdout, expected);
 }

@@ -3,7 +3,10 @@ use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::execute;
 use liwe::query::prelude::{and, eq, exists, filter, find, gte, or};
-use liwe::query::{Filter, FindOp, Outcome, Projection, Sort};
+use liwe::query::{
+    Filter, FindOp, Outcome, Projection, ProjectionField, ProjectionMode, ProjectionSource,
+    PseudoField, Sort,
+};
 use liwe::state::from_indoc;
 use serde_yaml::{Mapping, Value};
 
@@ -118,6 +121,179 @@ fn find_projection_drops_unprojected_fields() {
     assert!(doc.contains_key(Value::String("title".into())));
     assert!(doc.contains_key(Value::String("status".into())));
     assert!(!doc.contains_key(Value::String("author".into())));
+}
+
+fn projection(fields: &[(&str, ProjectionSource)], mode: ProjectionMode) -> Projection {
+    Projection {
+        fields: fields
+            .iter()
+            .map(|(name, src)| ProjectionField {
+                output: (*name).to_string(),
+                source: src.clone(),
+            })
+            .collect(),
+        mode,
+    }
+}
+
+#[test]
+fn find_projection_pseudo_key_and_title() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc One
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[
+                ("k", ProjectionSource::Pseudo(PseudoField::Key)),
+                ("t", ProjectionSource::Pseudo(PseudoField::Title)),
+            ],
+            ProjectionMode::Replace,
+        )),
+    );
+    assert_eq!(matches.len(), 1);
+    let doc = &matches[0].1;
+    assert_eq!(
+        doc.get(Value::String("k".into())).and_then(|v| v.as_str()),
+        Some("1")
+    );
+    assert_eq!(
+        doc.get(Value::String("t".into())).and_then(|v| v.as_str()),
+        Some("Doc One")
+    );
+    assert!(!doc.contains_key(Value::String("status".into())));
+}
+
+#[test]
+fn find_projection_title_slug() {
+    let matches = run_find(
+        indoc! {"
+            # My Cool Doc!
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[("slug", ProjectionSource::Pseudo(PseudoField::TitleSlug))],
+            ProjectionMode::Replace,
+        )),
+    );
+    let doc = &matches[0].1;
+    assert_eq!(
+        doc.get(Value::String("slug".into())).and_then(|v| v.as_str()),
+        Some("my-cool-doc")
+    );
+}
+
+#[test]
+fn find_projection_content_returns_body() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Title
+
+            Hello.
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[("body", ProjectionSource::Pseudo(PseudoField::Content))],
+            ProjectionMode::Replace,
+        )),
+    );
+    let doc = &matches[0].1;
+    let body = doc
+        .get(Value::String("body".into()))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert!(body.contains("# Title"));
+    assert!(body.contains("Hello."));
+    assert!(!body.contains("status"));
+}
+
+#[test]
+fn find_projection_count_pseudo_fields() {
+    let matches = run_find(
+        indoc! {"
+            # Parent
+
+            [child](2)
+            _
+            # Child
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[
+                ("k", ProjectionSource::Pseudo(PseudoField::Key)),
+                ("inc", ProjectionSource::Pseudo(PseudoField::IncludesCount)),
+                (
+                    "incBy",
+                    ProjectionSource::Pseudo(PseudoField::IncludedByCount),
+                ),
+            ],
+            ProjectionMode::Replace,
+        )),
+    );
+    assert_eq!(matches.len(), 2);
+    let parent = matches.iter().find(|(k, _)| k == "1").unwrap();
+    let child = matches.iter().find(|(k, _)| k == "2").unwrap();
+    assert_eq!(
+        parent
+            .1
+            .get(Value::String("inc".into()))
+            .and_then(|v| v.as_u64()),
+        Some(1)
+    );
+    assert_eq!(
+        child
+            .1
+            .get(Value::String("incBy".into()))
+            .and_then(|v| v.as_u64()),
+        Some(1)
+    );
+}
+
+#[test]
+fn find_projection_extend_keeps_defaults_and_appends() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # A
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[("body", ProjectionSource::Pseudo(PseudoField::Content))],
+            ProjectionMode::Extend,
+        )),
+    );
+    let doc = &matches[0].1;
+    assert!(doc.contains_key(Value::String("key".into())));
+    assert!(doc.contains_key(Value::String("title".into())));
+    assert!(doc.contains_key(Value::String("includedBy".into())));
+    assert!(doc.contains_key(Value::String("body".into())));
+    assert!(doc.contains_key(Value::String("status".into())));
+}
+
+#[test]
+fn find_projection_alias_with_user_chosen_name() {
+    let matches = run_find(
+        indoc! {"
+            # Alpha
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[
+                ("heading", ProjectionSource::Pseudo(PseudoField::Title)),
+                ("ident", ProjectionSource::Pseudo(PseudoField::Key)),
+            ],
+            ProjectionMode::Replace,
+        )),
+    );
+    let doc = &matches[0].1;
+    assert_eq!(
+        doc.get(Value::String("heading".into())).and_then(|v| v.as_str()),
+        Some("Alpha")
+    );
+    assert!(!doc.contains_key(Value::String("title".into())));
+    assert!(!doc.contains_key(Value::String("key".into())));
 }
 
 #[test]

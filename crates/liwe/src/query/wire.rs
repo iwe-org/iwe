@@ -9,6 +9,8 @@ pub struct RawOperation {
     pub filter: Option<RawFilter>,
     #[serde(default)]
     pub project: Option<RawProjection>,
+    #[serde(default, rename = "addFields")]
+    pub add_fields: Option<RawProjection>,
     #[serde(default)]
     pub sort: Option<RawSort>,
     #[serde(default)]

@@ -1,15 +1,11 @@
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-use itertools::Itertools;
 use serde::Serialize;
-use serde_yaml::{Mapping, Value};
-use crate::graph::{Graph, GraphContext};
-use crate::model::node::{NodeIter, NodePointer};
-use crate::model::{Key, NodeId};
+use serde_yaml::Mapping;
+use crate::graph::Graph;
+use crate::model::Key;
 use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
-use crate::query::frontmatter::strip_reserved;
-use crate::query::project::shape;
+use crate::query::project::{apply_projection_or_default, ProjectionContext};
 use crate::query::sort::sort_in_place;
-use crate::retrieve::EdgeRef;
 
 pub type FindResult = Mapping;
 
@@ -20,6 +16,10 @@ pub struct FindOutput {
     pub limit: Option<usize>,
     pub total: usize,
     pub results: Vec<FindResult>,
+    #[serde(skip)]
+    pub keys: Vec<Key>,
+    #[serde(skip)]
+    pub titles: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -72,10 +72,14 @@ impl<'a> DocumentFinder<'a> {
 
         let total = ordered.len();
         let take = options.limit.filter(|&l| l > 0).unwrap_or(total);
-        let results: Vec<FindResult> = ordered
-            .into_iter()
-            .take(take)
-            .map(|key| self.build_result(&key, options.project.as_ref()))
+        let kept: Vec<Key> = ordered.into_iter().take(take).collect();
+        let titles: Vec<String> = kept
+            .iter()
+            .map(|k| self.graph.get_key_title(k).unwrap_or_else(|| k.to_string()))
+            .collect();
+        let results: Vec<FindResult> = kept
+            .iter()
+            .map(|key| self.build_result(key, options.project.as_ref()))
             .collect();
         let limit = options.limit.filter(|&l| l > 0 && l < total);
 
@@ -84,6 +88,8 @@ impl<'a> DocumentFinder<'a> {
             limit,
             total,
             results,
+            keys: kept,
+            titles,
         }
     }
 
@@ -148,85 +154,16 @@ impl<'a> DocumentFinder<'a> {
     }
 
     fn build_result(&self, key: &Key, project: Option<&Projection>) -> FindResult {
-        let title = self.graph.get_key_title(key).unwrap_or_default();
-        let included_by = self.get_parent_documents(key);
-
-        let mut merged = Mapping::new();
-        merged.insert(Value::from("key"), Value::from(key.to_string()));
-        merged.insert(Value::from("title"), Value::from(title));
-        let included_by_value = serde_yaml::to_value(&included_by)
-            .unwrap_or(Value::Sequence(Vec::new()));
-        merged.insert(Value::from("includedBy"), included_by_value);
-
-        if let Some(mut user_fm) = self.graph.frontmatter(key).cloned() {
-            strip_reserved(&mut user_fm);
-            for (k, v) in user_fm {
-                merged.insert(k, v);
-            }
-        }
-
-        match project {
-            Some(p) => shape(p, &merged),
-            None => merged,
-        }
+        let ctx = ProjectionContext {
+            graph: self.graph,
+            key,
+        };
+        apply_projection_or_default(&ctx, project)
     }
 
     fn node_rank(&self, key: &Key) -> usize {
         self.graph.get_reference_edges_to(key).len()
             + self.graph.get_inclusion_edges_to(key).len()
-    }
-
-    fn get_parent_documents(&self, key: &Key) -> Vec<EdgeRef> {
-        let refs = self.graph.get_inclusion_edges_to(key);
-        let mut parents = Vec::new();
-
-        for ref_id in refs {
-            let node = self.graph.node(ref_id);
-
-            if let Some(doc_node) = node.to_document() {
-                if let Some(doc_key) = doc_node.document_key() {
-                    let title = self
-                        .graph
-                        .get_key_title(&doc_key)
-                        .unwrap_or_else(|| doc_key.to_string());
-
-                    let section_path = self.get_section_path(ref_id);
-
-                    parents.push(EdgeRef {
-                        key: doc_key.to_string(),
-                        title,
-                        section_path,
-                    });
-                }
-            }
-        }
-
-        let mut parents: Vec<EdgeRef> =
-            parents.into_iter().unique_by(|p| p.key.clone()).collect();
-        parents.sort_by(|a, b| a.key.cmp(&b.key));
-        parents
-    }
-
-    fn get_section_path(&self, node_id: NodeId) -> Vec<String> {
-        let mut path = Vec::new();
-        let mut current = self.graph.node(node_id);
-
-        while let Some(parent) = current.to_parent() {
-            if parent.is_section()
-                && parent
-                    .to_parent()
-                    .map(|p| p.is_document())
-                    .unwrap_or(true)
-            {
-                let text = parent.plain_text().trim().to_string();
-                path.push(text);
-            }
-            if parent.is_document() {
-                break;
-            }
-            current = parent;
-        }
-        path
     }
 }
 
