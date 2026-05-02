@@ -1,20 +1,16 @@
 EXAMPLES:
 
-  # Single document, with confirmation
+  # Single document
   iwe delete document-key
 
-  # Single document, no confirmation
-  iwe delete document-key --force
-
-  # Filter-based delete (spec-aligned)
+  # Filter-based delete
   iwe delete --filter 'status: archived'
-  iwe delete --filter '$includedByCount: 0' --force
 
   # Preview matches without deleting
   iwe delete --filter 'status: archived' --dry-run
 
   # Output affected keys for scripting
-  iwe delete --filter 'status: archived' -f keys --force
+  iwe delete --filter 'status: archived' -f keys
 
 REFERENCE HANDLING:
 
@@ -23,9 +19,8 @@ REFERENCE HANDLING:
 
 OUTPUT:
 
-  -f markdown (default): confirmation prompt, progress messages, updated count.
+  -f markdown (default): progress messages and updated count.
   -f keys: one affected document key per line (target plus every doc whose
-    references were rewritten), suitable for piping. Matches `iwe find -f keys`
-    in shape.
+    references were rewritten), suitable for piping.
 
   --dry-run: shows what would happen without making changes.

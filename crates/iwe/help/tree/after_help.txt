@@ -9,6 +9,7 @@ EXAMPLES:
   iwe tree --depth 2                      # 2 levels deep
   iwe tree --included-by projects/alpha   # roots are descendants of alpha
   iwe tree --filter 'status: published'   # roots are docs with status==published
+  iwe tree --project status -f json       # add status to each tree node
 
 FILTER FLAGS (intersection with -k):
 
@@ -17,8 +18,16 @@ FILTER FLAGS (intersection with -k):
   --includes KEY[:DEPTH]      $includes anchor.
   --references KEY[:DIST]     $references anchor.
   --referenced-by KEY[:DIST]  $referencedBy anchor.
-  --included-by-count N       $includedByCount: N
-  --includes-count N          $includesCount: N
+  --max-depth N               Default maxDepth for inclusion anchors. Default 1.
+  --max-distance N            Default maxDistance for reference anchors. Default 1.
+
+SHAPE FLAGS:
+
+  --project SPEC              Projection: comma-list (name, name=path, name=$selector,
+                              $selector) or YAML mapping. Adds fields to each tree node.
+  --add-fields SPEC           Additive projection (extends defaults). Same grammar as
+                              --project. Mutually exclusive with --project.
+  -d, --depth N               Maximum depth to traverse (default 4).
 
 CIRCULAR REFERENCES:
 

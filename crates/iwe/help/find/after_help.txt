@@ -3,32 +3,37 @@ FILTER FLAGS (compose via AND with positional QUERY):
   --filter "EXPR"             Inline filter expression (YAML).
                               Example: --filter 'status: draft'
   -k, --key KEY               $key match. Repeatable: 1 key uses $eq, 2+ uses $in.
-  --includes KEY[:DEPTH]      $includes anchor. DEPTH defaults to 1.
-  --included-by KEY[:DEPTH]   $includedBy anchor.
-  --references KEY[:DIST]     $references anchor.
-  --referenced-by KEY[:DIST]  $referencedBy anchor.
-  --includes-count N          $includesCount: N
-  --included-by-count N       $includedByCount: N (e.g. 0 = roots)
+  --includes KEY[:DEPTH]      $includes anchor. DEPTH defaults to --max-depth.
+  --included-by KEY[:DEPTH]   $includedBy anchor. DEPTH defaults to --max-depth.
+  --references KEY[:DIST]     $references anchor. DIST defaults to --max-distance.
+  --referenced-by KEY[:DIST]  $referencedBy anchor. DIST defaults to --max-distance.
+  --max-depth N               Default maxDepth for inclusion anchors without :DEPTH. Default 1.
+  --max-distance N            Default maxDistance for reference anchors without :DIST. Default 1.
 
 SHAPE FLAGS:
 
-  --project f1,f2             Frontmatter fields to include in JSON/YAML output.
+  --project SPEC              Projection (replaces defaults). Accepts: comma-list
+                              (name, name=path, name=$selector, $selector) or YAML mapping.
+  --add-fields SPEC           Additive projection (extends defaults). Same grammar as
+                              --project. Mutually exclusive with --project.
   --sort field:1|-1           Sort by frontmatter field (1=asc, -1=desc).
   -l, --limit N               Cap results (0 = unlimited).
 
 OUTPUT FORMATS:
 
-  -f markdown (default)       Found N results: - [Title](key)
+  -f markdown (default)       Four-backtick fenced blocks (same format as retrieve).
   -f keys                     One key per line.
-  -f json                     Structured output with metadata.
-  -f yaml                     Structured output with metadata as YAML.
+  -f json                     Structured array of result objects.
+  -f yaml                     Same shape as JSON, rendered as YAML.
 
 EXAMPLES:
 
-  iwe find rust                                # fuzzy on "rust"
-  iwe find --filter 'status: draft'            # all drafts
-  iwe find rust --filter 'status: draft'       # fuzzy AND status==draft
-  iwe find --included-by-count 0               # roots
-  iwe find --included-by projects/alpha:5      # descendants within 5 levels
-  iwe find --references people/dmytro          # docs that reference dmytro
+  iwe find rust                                        # fuzzy on "rust"
+  iwe find --filter 'status: draft'                    # all drafts
+  iwe find rust --filter 'status: draft'               # fuzzy AND status==draft
+  iwe find --included-by projects/alpha:5              # descendants within 5 levels
+  iwe find --included-by projects/alpha:0              # all descendants (unbounded)
+  iwe find --references people/dmytro                  # docs that reference dmytro
   iwe find --filter 'priority: { $gt: 3 }' --sort modified_at:-1
+  iwe find --project title,status -f json              # only two fields
+  iwe find --add-fields 'body=$content' -f json        # default projection + body

@@ -5,5 +5,5 @@ spec-aligned filter operators. Without a query, documents are sorted by
 popularity (incoming references count); with --sort, frontmatter sort wins.
 
 Filter shorthand flags are spec-named (--key, --included-by, --references,
---included-by-count, etc.). Use --filter for inline YAML predicates such as
+--referenced-by, etc.). Use --filter for inline YAML predicates such as
 --filter 'status: draft'.

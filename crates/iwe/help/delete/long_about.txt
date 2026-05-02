@@ -2,8 +2,8 @@ Delete documents and clean up all references to them.
 
 Targets are selected by either a positional KEY (sugar for '$key: K') or
 --filter EXPR (inline YAML filter document, per the spec). Both may be
-given; the union is deleted. The confirmation prompt and reference cleanup
-apply once over the whole matched set.
+given; the union is deleted. Reference cleanup applies once over the
+whole matched set. Use --dry-run to preview before applying.
 
 Inclusion links to deleted documents are removed entirely; inline links
-are converted to plain text. Use --force to skip the confirmation prompt.
+are converted to plain text.

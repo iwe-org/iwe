@@ -1,1 +1,1 @@
-Overwrite a document's full markdown content
+Update document content or frontmatter

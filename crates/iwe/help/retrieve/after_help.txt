@@ -1,35 +1,26 @@
 OUTPUT FORMATS:
 
 MARKDOWN (default, -f markdown):
-  Each document has YAML frontmatter followed by content:
+  Each document is wrapped in a four-backtick fenced block with the info
+  string "markdown #<key>". Inside the fence: YAML frontmatter, a blank
+  line, then the rendered markdown body.
 
+    ````markdown #doc-a
     ---
-    document:
-      key: doc-a
-      title: Document A
-      parents:           # omitted if empty
+    title: Document A
+    includedBy:
       - key: parent-doc
         title: Parent Doc
-      back-links:        # omitted if empty
-      - key: other-doc
-        title: Other Doc
     ---
 
     # Document A
 
     Content here...
+    ````
 
-  Multiple documents are separated by frontmatter delimiters (---).
-  Two empty lines follow each document.
-
-  Sub-documents show other parents with <- notation:
-
-    # Child Doc
-
-    [Child Doc](child-doc) <- [Other Parent](other-parent)
-
-  This indicates child-doc is also embedded in other-parent, helping
-  you understand where else a sub-document is used.
+  Multiple documents are separated by one blank line between blocks.
+  Empty edge lists (includedBy, includes, referencedBy) are omitted
+  from frontmatter.
 
 KEYS (-f keys):
   One document key per line, suitable for piping:
@@ -39,30 +30,41 @@ KEYS (-f keys):
     parent-doc
 
 JSON (-f json):
-  Structured output:
+  Flat array of document objects:
 
-    {"documents": [{"key": "...", "title": "...",
-      "content": "...", "parent_documents": [...],
-      "child_documents": [...], "backlinks": [...]}]}
+    [{"key": "...", "title": "...", "content": "...",
+      "includedBy": [...], "includes": [...],
+      "referencedBy": [...]}]
 
 YAML (-f yaml):
   Same shape as JSON, rendered as YAML.
 
-STRUCTURAL SET SELECTOR (--in family):
+FILTER FLAGS (narrow the result set):
 
-  --in KEY[:DEPTH]      Restrict to sub-documents of EVERY listed key (AND).
-                        Repeatable. KEY:DEPTH overrides --max-depth per entry.
-  --in-any KEY[:DEPTH]  Restrict to sub-documents of AT LEAST ONE listed key (OR).
-  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
-  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
+  --filter "EXPR"             Inline filter expression (YAML).
+  -k, --key KEY               $key match. Repeatable: 1 key uses $eq, 2+ uses $in.
+  --includes KEY[:DEPTH]      $includes anchor.
+  --included-by KEY[:DEPTH]   $includedBy anchor.
+  --references KEY[:DIST]     $references anchor.
+  --referenced-by KEY[:DIST]  $referencedBy anchor.
+  --max-depth N               Default maxDepth for inclusion anchors. Default 1.
+  --max-distance N            Default maxDistance for reference anchors. Default 1.
+
+SHAPE FLAGS:
+
+  --children                  Populate the includes array with child document edges.
+  --no-content                Exclude document content (metadata only).
+  -b, --backlinks             Include incoming references (referencedBy).
+  -d N                        Follow block refs down N levels (default 1).
+  -c N                        Include N levels of parent context (default 1).
+  -l, --links                 Include inline references.
 
 EXAMPLES:
 
-  # Retrieve all sub-documents of A AND B (intersection)
-  iwe retrieve --in projects/alpha --in people/dmytro --depth 0
-
-  # Read explicit keys but only those inside projects/alpha's subtree
-  iwe retrieve -k x -k y -k z --in projects/alpha
-
-  # Sub-documents of A within 2 hops, excluding archive
-  iwe retrieve --in projects/alpha:2 --not-in archive
+  iwe retrieve -k doc-a                               # single document
+  iwe retrieve -k doc-a -d 2                           # two levels of children
+  iwe retrieve -k doc-a --children -f json             # includes array populated
+  iwe retrieve -k doc-a --no-content -f json           # metadata only
+  iwe retrieve -k x -k y -k z                          # multiple specific keys
+  iwe retrieve --included-by projects/alpha -f keys    # keys inside alpha
+  iwe retrieve -k doc-a --dry-run                      # preview: doc count and lines
