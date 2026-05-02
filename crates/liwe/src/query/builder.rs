@@ -1000,6 +1000,19 @@ fn parse_key_op(value: &Value, op: &'static str) -> Result<KeyOp, ParseError> {
     if !value.is_mapping() {
         return Err(ParseError::GraphOpExpectedScalarOrMapping { op });
     }
+    if let Some(mapping) = value.as_mapping() {
+        let known = ["$eq", "$ne", "$in", "$nin"];
+        for (k, _) in mapping {
+            if let Some(key_str) = k.as_str() {
+                if key_str.starts_with('$') && !known.contains(&key_str) {
+                    return Err(ParseError::UnknownOperator {
+                        op: key_str.to_string(),
+                        path: vec![op.to_string()],
+                    });
+                }
+            }
+        }
+    }
     let m: RawKeyOpMap = serde_yaml::from_value(value.clone())
         .map_err(|_| ParseError::KeyOpForbidden { op })?;
     key_op_from_map(m, op)

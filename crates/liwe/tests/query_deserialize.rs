@@ -720,7 +720,19 @@ fn key_gt_rejected() {
               $key: { $gt: foo }
         "},
         OperationKind::Find,
-        "KeyOpForbidden",
+        "UnknownOperator",
+    );
+}
+
+#[test]
+fn key_regex_reports_unknown_operator() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $key: { $regex: \"delete\" }
+        "},
+        OperationKind::Find,
+        "UnknownOperator",
     );
 }
 

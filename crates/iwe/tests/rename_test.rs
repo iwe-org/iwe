@@ -233,6 +233,39 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
     write(temp_path.join(".iwe").join("config.toml"), config_content).expect("Should write config");
 }
 
+#[test]
+fn test_rename_empty_key_rejected() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        ("a", "# Doc A"),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_rename_command(temp_path, &["a", ""]);
+    assert!(!output.status.success(), "Should fail for empty key");
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(stderr, "Error: Invalid target: Key cannot be empty\n");
+
+    assert!(temp_path.join("a.md").exists(), "Original file should still exist");
+    assert!(!temp_path.join(".md").exists(), "Phantom .md should not be created");
+}
+
+#[test]
+fn test_rename_cleans_empty_directory() {
+    let temp_dir = setup_workspace_with_docs(vec![]);
+    let temp_path = temp_dir.path();
+
+    std::fs::create_dir_all(temp_path.join("sub")).unwrap();
+    write(temp_path.join("sub").join("child.md"), "# Child").unwrap();
+
+    let output = run_rename_command(temp_path, &["sub/child", "child"]);
+    assert!(output.status.success());
+
+    assert!(!temp_path.join("sub").join("child.md").exists(), "Old file removed");
+    assert!(temp_path.join("child.md").exists(), "New file created");
+    assert!(!temp_path.join("sub").exists(), "Empty directory should be cleaned up");
+}
+
 fn run_rename_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::Output {
     let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("rename").current_dir(work_dir);

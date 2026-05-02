@@ -75,15 +75,19 @@ impl MarkdownEventsReader {
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
-        self.content = Some(content.to_string());
+        let (content, has_empty_frontmatter) = strip_empty_frontmatter(content);
+        if has_empty_frontmatter {
+            self.frontmatter = Some(Mapping::new());
+        }
+        self.content = Some(content.clone());
         let iter = Parser::new_ext(
-            content,
+            &content,
             Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
                 | Options::ENABLE_WIKILINKS
                 | Options::ENABLE_TABLES,
         )
         .into_offset_iter();
-        self.line_starts = line_starts(content);
+        self.line_starts = line_starts(&content);
 
         for (event, range) in iter {
             match event {
@@ -449,7 +453,24 @@ fn parse_frontmatter(text: &str) -> Mapping {
     }
     match serde_yaml::from_str::<Value>(text) {
         Ok(Value::Mapping(m)) => m,
-        _ => Mapping::new(),
+        Ok(_) => {
+            log::warn!("Frontmatter is not a YAML mapping, treating as empty");
+            Mapping::new()
+        }
+        Err(e) => {
+            log::warn!("Failed to parse frontmatter YAML: {}", e);
+            Mapping::new()
+        }
+    }
+}
+
+fn strip_empty_frontmatter(content: &str) -> (String, bool) {
+    if content.starts_with("---\n---\n") {
+        (content["---\n---\n".len()..].to_string(), true)
+    } else if content == "---\n---" {
+        (String::new(), true)
+    } else {
+        (content.to_string(), false)
     }
 }
 

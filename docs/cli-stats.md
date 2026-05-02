@@ -134,15 +134,15 @@ The CSV format provides per-document statistics with the following columns:
 - `paragraphs`: Number of paragraph blocks
 - `lines`: Total line count
 - `words`: Total word count
-- `parents`: Documents that include this one
-- `incoming_inline_refs`: Inline wiki-links pointing to this document
-- `total_incoming_refs`: Total incoming references
-- `children`: Documents included by this one
-- `outgoing_inline_refs`: Inline wiki-links from this document
-- `total_connections`: Total references (incoming + outgoing)
-- `bullet_lists`: Number of unordered lists
-- `ordered_lists`: Number of numbered lists
-- `code_blocks`: Number of code/raw blocks
+- `includedByCount`: Documents that include this one
+- `referencedByCount`: Inline references pointing to this document
+- `incomingEdgesCount`: Total incoming references
+- `includesCount`: Documents included by this one
+- `referencesCount`: Inline references from this document
+- `totalEdgesCount`: Total references (incoming + outgoing)
+- `bulletLists`: Number of unordered lists
+- `orderedLists`: Number of numbered lists
+- `codeBlocks`: Number of code/raw blocks
 - `tables`: Number of tables
 - `quotes`: Number of quote blocks
 
@@ -167,5 +167,5 @@ iwe stats -f csv | awk -F, '$9 > 5 {print $1, $2, $9}' OFS=,
 import pandas as pd
 df = pd.read_csv('stats.csv')
 print(df.describe())
-print(df.nlargest(10, 'total_connections'))
+print(df.nlargest(10, 'totalEdgesCount'))
 ```

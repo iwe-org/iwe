@@ -9,6 +9,11 @@ use crate::model::Key;
 use super::changes::{Changes, OperationError};
 
 pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, OperationError> {
+    if new_key.relative_path.is_empty() {
+        return Err(OperationError::InvalidTarget(
+            "Key cannot be empty".to_string(),
+        ));
+    }
     if graph.get_node_id(old_key).is_none() {
         return Err(OperationError::NotFound(old_key.clone()));
     }

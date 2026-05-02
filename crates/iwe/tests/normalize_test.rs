@@ -185,6 +185,34 @@ fn test_normalize_preserves_file_structure() {
     );
 }
 
+#[test]
+fn test_invalid_config_error_message() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    create_dir_all(temp_path.join(".iwe")).unwrap();
+    write(
+        temp_path.join(".iwe").join("config.toml"),
+        "[markdown]\n[markdown]\n",
+    )
+    .unwrap();
+
+    let output = run_normalize_command(temp_path);
+    assert!(!output.status.success(), "Should fail with invalid config");
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("Error:"),
+        "Should report error: {}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("panicked"),
+        "Should not panic: {}",
+        stderr
+    );
+}
+
 fn setup_test_workspace_with_content() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
@@ -407,4 +435,121 @@ fn run_normalize_command(work_dir: &std::path::Path) -> std::process::Output {
         .current_dir(work_dir)
         .output()
         .expect("Failed to execute iwe normalize")
+}
+
+#[test]
+fn test_normalize_preserves_crlf_frontmatter() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("crlf.md"),
+        "---\r\ntitle: Windows\r\nstatus: draft\r\n---\r\n\r\n# Body\r\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success());
+
+    let content = read_to_string(temp_path.join("crlf.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            ---
+            title: Windows
+            status: draft
+            ---
+
+            # Body
+        "}
+    );
+}
+
+#[test]
+fn test_normalize_preserves_bom_frontmatter() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("bom.md"),
+        "\u{FEFF}---\ntitle: BOM\n---\n\n# Body\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success());
+
+    let content = read_to_string(temp_path.join("bom.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            ---
+            title: BOM
+            ---
+
+            # Body
+        "}
+    );
+}
+
+#[test]
+fn test_normalize_preserves_bom_crlf_frontmatter() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("both.md"),
+        "\u{FEFF}---\r\ntitle: Both\r\n---\r\n\r\n# Body\r\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success());
+
+    let content = read_to_string(temp_path.join("both.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            ---
+            title: Both
+            ---
+
+            # Body
+        "}
+    );
+}
+
+#[test]
+fn test_normalize_empty_frontmatter() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("empty-fm.md"),
+        "---\n---\n\n# Heading\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success());
+
+    let content = read_to_string(temp_path.join("empty-fm.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            ---
+            {}
+            ---
+
+            # Heading
+        "}
+    );
 }

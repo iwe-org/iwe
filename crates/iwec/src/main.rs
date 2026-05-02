@@ -29,7 +29,10 @@ async fn main() -> Result<()> {
 
     tracing::info!("starting IWE MCP server");
 
-    let configuration = load_config();
+    let configuration = load_config().unwrap_or_else(|e| {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    });
 
     let current_dir = env::current_dir().expect("current dir");
     let mut library_path = current_dir.clone();

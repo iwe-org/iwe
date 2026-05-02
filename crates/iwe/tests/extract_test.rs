@@ -352,6 +352,30 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
     write(temp_path.join(".iwe").join("config.toml"), config_content).expect("Should write config");
 }
 
+#[test]
+fn test_extract_section_and_block_conflict() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        ("main", indoc! {"
+            # Main
+
+            ## Section A
+
+            Content A
+        "}),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_extract_command(temp_path, &["main", "--section", "Section A", "--block", "2"]);
+    assert!(!output.status.success(), "Should fail with conflicting flags");
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("cannot be used with"),
+        "Should report conflict: {}",
+        stderr
+    );
+}
+
 fn run_extract_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::Output {
     let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("extract").current_dir(work_dir);

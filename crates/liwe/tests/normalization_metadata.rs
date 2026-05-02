@@ -43,6 +43,21 @@ fn compare(expected: &str, denormalized: &str) {
     assert_str_eq!(expected, normalized);
 }
 
+#[test]
+fn normalization_meta_empty_frontmatter() {
+    setup();
+    compare(
+        indoc! {"
+        ---
+        {}
+        ---
+
+        # Heading
+        "},
+        "---\n---\n\n# Heading\n",
+    );
+}
+
 static INIT: Once = Once::new();
 
 fn setup() {

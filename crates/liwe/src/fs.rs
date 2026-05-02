@@ -40,7 +40,7 @@ pub fn new_for_path(base_path: &PathBuf) -> State {
                 to_file_name(path)
             };
 
-            fs::read_to_string(path).ok().map(|content| (key, content))
+            fs::read_to_string(path).ok().map(|content| (key, sanitize_content(content)))
         })
         .collect()
 }
@@ -54,6 +54,14 @@ pub fn write_store_at_path(store: &State, to: &Path) -> std::io::Result<()> {
         write_file(key, content, to)?;
     }
     Ok(())
+}
+
+fn sanitize_content(content: String) -> String {
+    let content = content
+        .strip_prefix('\u{FEFF}')
+        .map(|s| s.to_string())
+        .unwrap_or(content);
+    content.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 fn to_file_name(path: &Path) -> String {

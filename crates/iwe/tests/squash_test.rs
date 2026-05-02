@@ -86,10 +86,7 @@ fn test_squash_nonexistent_key() {
     );
 
     let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 stderr");
-    assert!(
-        !stderr.is_empty(),
-        "Should have error output for nonexistent key"
-    );
+    assert_eq!(stderr, "Error: Document 'nonexistent' not found\n");
 }
 
 #[test]

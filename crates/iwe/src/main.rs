@@ -463,10 +463,10 @@ struct Extract {
     #[clap(help = "Document key containing the section to extract")]
     key: String,
 
-    #[clap(long, help = "Section title to extract (case-insensitive)")]
+    #[clap(long, help = "Section title to extract (case-insensitive)", conflicts_with = "block")]
     section: Option<String>,
 
-    #[clap(long, help = "Block number to extract (1-indexed)")]
+    #[clap(long, help = "Block number to extract (1-indexed)", conflicts_with = "section")]
     block: Option<usize>,
 
     #[clap(long, help = "List all sections with block numbers")]
@@ -895,7 +895,7 @@ fn new_command(args: New) {
         }
         Ok(None) => {}
         Err(e) => {
-            error!("{}", e);
+            eprintln!("Error: {}", e);
             std::process::exit(1);
         }
     }
@@ -1157,8 +1157,13 @@ fn normalize_command(args: Normalize) {
 fn squash_command(args: Squash) {
     let config = get_configuration();
     let graph = &load_graph(&config);
+    let key = Key::name(&args.key);
+    if graph.get_node_id(&key).is_none() {
+        eprintln!("Error: Document '{}' not found", args.key);
+        std::process::exit(1);
+    }
     let mut patch = Graph::new();
-    let squashed = graph.squash(&Key::name(&args.key), args.depth);
+    let squashed = graph.squash(&key, args.depth);
 
     patch.build_key_from_iter(&args.key.clone().into(), TreeIter::new(&squashed));
 
@@ -1177,6 +1182,18 @@ fn apply_changes(changes: &Changes, configuration: &Configuration) {
         let file_path = library_path.join(format!("{}.md", key));
         if file_path.exists() {
             std::fs::remove_file(&file_path).expect("Failed to delete document file");
+        }
+        let mut dir = file_path.parent().map(|p| p.to_path_buf());
+        while let Some(parent) = dir {
+            if parent == library_path || !parent.starts_with(&library_path) {
+                break;
+            }
+            if parent.read_dir().map_or(false, |mut d| d.next().is_none()) {
+                let _ = std::fs::remove_dir(&parent);
+                dir = parent.parent().map(|p| p.to_path_buf());
+            } else {
+                break;
+            }
         }
     }
 
@@ -1257,7 +1274,10 @@ fn apply_roots(base: Option<Filter>, roots: bool, graph: &Graph) -> Option<Filte
 }
 
 fn get_configuration() -> Configuration {
-    let config = load_config();
+    let config = load_config().unwrap_or_else(|e| {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    });
     if log::log_enabled!(log::Level::Debug) {
         let formatted_config =
             toml::to_string_pretty(&config).unwrap_or_else(|_| format!("{:#?}", config));

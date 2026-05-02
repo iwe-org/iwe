@@ -480,3 +480,49 @@ fn test_new_with_german_locale_formats_date() {
         content
     );
 }
+
+#[test]
+fn test_new_long_title_error() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let long_title = "a".repeat(255);
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg(&long_title)
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(!output.status.success(), "Should fail for excessively long title");
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("too long"),
+        "Should report filename too long: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_new_empty_title_error() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(!output.status.success(), "Should fail for empty title");
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("empty"),
+        "Should report empty key: {}",
+        stderr
+    );
+}
