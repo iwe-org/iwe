@@ -406,7 +406,7 @@ Implementation requirements:
 
 ## 9. Out of scope (v1)
 
-- **Count operators** — `$includesCount` / `$includedByCount` (predicates over the count of inclusion-reachable documents) are deferred to a future revision. The shape, defaults, and shorthand semantics need rework before re-introduction.
+- **Count-style predicates over graph operators** — predicates over the count of inclusion- or reference-reachable documents are deferred to a future revision. Operator names, shapes, defaults, and shorthand semantics will be defined when they are re-introduced.
 - **Operator expressions inside walk parameters** — `maxDepth: { $lte: 5 }` is reserved for a future revision. v1 accepts positive integer literals only.
 - **Pattern matching on `$key`** — glob, regex, and prefix matching are deferred to v2.
 - **Combined-edge walks** — no operator that walks both inclusion and reference edges in a single predicate. Use separate predicates.

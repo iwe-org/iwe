@@ -64,6 +64,7 @@ fn apply_sort_and_limit(
     sort: Option<&Sort>,
     limit: Option<&Limit>,
 ) -> Vec<(Key, Mapping)> {
+    rows.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
     if let Some(s) = sort {
         sort_in_place(&mut rows, s);
     }

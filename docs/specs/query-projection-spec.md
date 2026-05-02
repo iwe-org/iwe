@@ -31,10 +31,6 @@ The `$`-prefix is a **source-side marker**, not an output-side marker. It says "
 | `$includes` | `[EdgeRef]` | Outbound inclusion edges (= child documents). |
 | `$referencedBy` | `[EdgeRef]` | Inbound reference edges (= backlinks). |
 | `$references` | `[EdgeRef]` | Outbound reference edges. |
-| `$includedByCount` | int | `len($includedBy)`. |
-| `$includesCount` | int | `len($includes)`. |
-| `$referencedByCount` | int | `len($referencedBy)`. |
-| `$referencesCount` | int | `len($references)`. |
 
 `EdgeRef` is the shape `{ key, title, sectionPath: [string] }`. `EdgeRef` sub-fields are unprefixed — they are produced by projection (engine output), not addressed as sources. Sub-field projection within `EdgeRef` is reserved for v2 (§8).
 
@@ -354,4 +350,4 @@ The two breaking changes (default-replacement semantics for `find` and `retrieve
 - **Computed/derived sources** (e.g. `$wordCount`, `$age`, MongoDB-style `{ $concat: [...] }`). Out of scope; the source set in §2 is closed for v1.
 - **Folding `find` and `retrieve` into a single command.** `retrieve` is on a deprecation path (§1); the v2 surface will be `find` only.
 - **`$content` rendering modes** (`outline`, `first-paragraph`, `summary`, `headers`, length-capped or windowed forms, structured-outline variants like `[{depth, text}]`) and the `:MODE` shorthand grammar. The object form `{ $content: { ... } }` (§3.1) leaves room for the option set; the option fields are v2.
-- **Nested output paths** (e.g. `meta.priority: $referencesCount` to nest into a sub-object). v1 keeps the projected output flat; nesting is determined by the source's natural shape.
+- **Nested output paths** (e.g. `meta.title: $title` to nest into a sub-object). v1 keeps the projected output flat; nesting is determined by the source's natural shape.

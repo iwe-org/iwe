@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `find` JSON/YAML output is now a bare array of result objects (the `{query, limit, total, results}` envelope is removed)
 - `retrieve` JSON/YAML output is now a bare array of document objects (the `{documents}` envelope is removed)
-- `find` result objects flatten user frontmatter at the top level alongside `key`, `title`, `includedBy`; the nested `frontmatter` object and the `includesCount` / `includedByCount` / `referencesCount` / `referencedByCount` system fields are removed
+- `find` result objects flatten user frontmatter at the top level alongside `key`, `title`, `includedBy`; the nested `frontmatter` object is removed
 - `retrieve` `includes` entries now carry `sectionPath` (unified `EdgeRef` shape with `includedBy` and `referencedBy`)
 - `retrieve --no-content` no longer populates `includes` — use `--children` for that, and combine with `--no-content` for metadata-only output with edges
 - `tree` JSON/YAML always emits `children: []` for leaf nodes (previously omitted)
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- `--roots` flag — equivalent now expressed via the query language as `--filter '$includedByCount: 0'`
+- `--roots` flag — removed
 
 ### Deprecated
 

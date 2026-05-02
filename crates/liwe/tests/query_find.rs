@@ -282,6 +282,54 @@ fn find_sort_and_limit() {
 }
 
 #[test]
+fn find_ties_broken_by_key_ascending() {
+    assert_keys(
+        indoc! {"
+            ---
+            priority: 1
+            ---
+            # First
+            _
+            ---
+            priority: 1
+            ---
+            # Second
+            _
+            ---
+            priority: 1
+            ---
+            # Third
+        "},
+        filter::<FindOp>(eq("priority", 1i64)).sort(Sort::asc("priority")),
+        &["1", "2", "3"],
+    );
+}
+
+#[test]
+fn find_no_sort_with_filter_returns_keys_in_ascending_order() {
+    assert_keys(
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # First
+            _
+            ---
+            status: draft
+            ---
+            # Second
+            _
+            ---
+            status: draft
+            ---
+            # Third
+        "},
+        filter(eq("status", "draft")),
+        &["1", "2", "3"],
+    );
+}
+
+#[test]
 fn find_empty_corpus_returns_empty() {
     let graph = Graph::import(
         &std::collections::HashMap::new(),
