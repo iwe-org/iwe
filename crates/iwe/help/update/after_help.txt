@@ -1,16 +1,33 @@
 EXAMPLES:
 
-  # Replace a document with a fixed string
+  # Content overwrite
   iwe update -k notes/draft -c "# Draft\n\nNew content."
-
-  # Pipe content from another command
   cat new-content.md | iwe update -k notes/draft -c -
 
+  # Frontmatter mutation on a single document
+  iwe update -k notes/draft --set status=published --set priority=10
+
+  # Frontmatter mutation across many documents
+  iwe update --filter 'status: draft' --set 'reviewed=true'
+  iwe update --filter 'status: archived' --unset draft_notes
+
   # Preview without writing
-  iwe update -k notes/draft -c "..." --dry-run
+  iwe update --filter 'status: draft' --set status=published --dry-run
+
+VALUE PARSING:
+
+  --set FIELD=VALUE parses VALUE as a YAML scalar:
+    --set 'priority=5'       -> integer 5
+    --set 'reviewed=true'    -> boolean true
+    --set 'status=draft'     -> string "draft"
+    --set 'tags=[a, b]'      -> list ["a", "b"]
+    --set 'count="5"'        -> string "5"
 
 NOTES:
 
-  - The target document must already exist; update does not create new docs.
-  - Use `iwe new` to create documents from a template.
-  - Use `iwe attach` to append a block reference instead of overwriting.
+  - The --content mode does not touch frontmatter; the --set/--unset mode
+    does not touch the document content. Use both in two passes if needed.
+  - Frontmatter is re-serialized as YAML 1.2 after mutation, so quote
+    styles may change on untouched fields.
+  - Mutation mode follows the spec rules (reserved-prefix protection, etc.)
+    from docs/specs/query-language-spec.md §8.

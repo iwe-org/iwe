@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `EdgeRef { key, title, sectionPath }` — single canonical shape for inclusion / reference edges in `retrieve` and `find` output
+- `RetrieveOptions.children: bool` — controls whether `DocumentOutput.includes` is populated, independently of `no_content`
+
+### Changed
+
+- `FindResult` is now a `serde_yaml::Mapping` with system fields (`key`, `title`, `includedBy`) merged with user frontmatter at the top level; the nested `frontmatter` field and the four count fields are removed
+- `ChildDocumentInfo`, `ParentDocumentInfo`, `BacklinkInfo` retired in favor of `EdgeRef`; `get_child_documents` now computes `section_path`
+- `RetrieveOptions.no_content` only controls content blanking; child edges require `children: true`
+
+## [0.1.0](https://github.com/iwe-org/iwe/compare/liwe-v0.0.70...liwe-v0.1.0) - 2026-05-01
+
+### Added
+
+- Query language engine over frontmatter — filter, project, sort, limit, update with `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$exists`, `$and`, `$or`, `$not`, `$regex`, plus update operators `$set` and `$unset`
+- Graph filter operators for cross-document selection — `$includes`, `$includedBy`, `$references`, `$referencedBy`, each supporting bounded depth/distance
+- Graph `walk` traversal module for bounded ancestor/descendant iteration
+- Reserved frontmatter prefixes (`_`, `$`, `.`, `#`, `@`) — engine-only namespaces, invisible to user-facing queries and stripped from `update` writeback
+
+### Changed
+
+- `find`, `retrieve`, and `stats` rewritten on top of the query engine
+
+### Removed
+
+- Legacy `selector` module — superseded by `query`
+
 ## [0.0.70](https://github.com/iwe-org/iwe/compare/liwe-v0.0.69...liwe-v0.0.70) - 2026-04-25
 
 ### Added

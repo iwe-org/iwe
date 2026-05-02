@@ -1,0 +1,3 @@
+Count documents matching the given filter. Mirrors the spec `count` operation.
+
+Accepts the same filter flags as `iwe find` (--filter, --key, --included-by, --references, etc.). Prints a single integer to stdout.

@@ -1,6 +1,5 @@
 use indoc::indoc;
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

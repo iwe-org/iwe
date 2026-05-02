@@ -1,3 +1,5 @@
+use serde_yaml::Mapping;
+
 use crate::model::graph::{blocks_to_markdown_sparce_skip_frontmatter, GraphInlines};
 use crate::model::{Key, NodeId};
 
@@ -10,7 +12,7 @@ pub use crate::model::reference::{Reference, ReferenceType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
-    Document(Key, Option<String>),
+    Document(Key, Option<Mapping>),
     Section(GraphInlines),
     Quote(),
     BulletList(),

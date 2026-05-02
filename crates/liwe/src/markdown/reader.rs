@@ -5,6 +5,7 @@ use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
 use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
+use serde_yaml::{Mapping, Value};
 
 use crate::model::document::*;
 use crate::model::*;
@@ -17,7 +18,7 @@ pub struct MarkdownEventsReader {
     blocks: DocumentBlocks,
     line_starts: Vec<usize>,
     metadata_block: bool,
-    metadata: Option<String>,
+    frontmatter: Option<Mapping>,
     content: Option<String>,
 }
 
@@ -37,7 +38,7 @@ impl MarkdownEventsReader {
             blocks: Vec::new(),
             line_starts: Vec::new(),
             metadata_block: false,
-            metadata: None,
+            frontmatter: None,
             content: None,
         }
     }
@@ -51,7 +52,7 @@ impl MarkdownEventsReader {
             blocks: Vec::new(),
             line_starts: Vec::new(),
             metadata_block: false,
-            metadata: None,
+            frontmatter: None,
             content: None,
         }
     }
@@ -60,8 +61,8 @@ impl MarkdownEventsReader {
         self.blocks.clone()
     }
 
-    pub fn metadata(&self) -> Option<String> {
-        self.metadata.clone()
+    pub fn frontmatter(&self) -> Option<Mapping> {
+        self.frontmatter.clone()
     }
 
     pub fn top_block(&mut self) -> &mut DocumentBlock {
@@ -74,15 +75,19 @@ impl MarkdownEventsReader {
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
-        self.content = Some(content.to_string());
+        let (content, has_empty_frontmatter) = strip_empty_frontmatter(content);
+        if has_empty_frontmatter {
+            self.frontmatter = Some(Mapping::new());
+        }
+        self.content = Some(content.clone());
         let iter = Parser::new_ext(
-            content,
+            &content,
             Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
                 | Options::ENABLE_WIKILINKS
                 | Options::ENABLE_TABLES,
         )
         .into_offset_iter();
-        self.line_starts = line_starts(content);
+        self.line_starts = line_starts(&content);
 
         for (event, range) in iter {
             match event {
@@ -108,7 +113,7 @@ impl MarkdownEventsReader {
                             }
                         }
                     } else {
-                        self.metadata = Some(text.to_string());
+                        self.frontmatter = Some(parse_frontmatter(&text));
                     }
                 }
                 Code(text) => {
@@ -439,6 +444,33 @@ impl MarkdownEventsReader {
         }
 
         start..end
+    }
+}
+
+fn parse_frontmatter(text: &str) -> Mapping {
+    if text.trim().is_empty() {
+        return Mapping::new();
+    }
+    match serde_yaml::from_str::<Value>(text) {
+        Ok(Value::Mapping(m)) => m,
+        Ok(_) => {
+            log::warn!("Frontmatter is not a YAML mapping, treating as empty");
+            Mapping::new()
+        }
+        Err(e) => {
+            log::warn!("Failed to parse frontmatter YAML: {}", e);
+            Mapping::new()
+        }
+    }
+}
+
+fn strip_empty_frontmatter(content: &str) -> (String, bool) {
+    if content.starts_with("---\n---\n") {
+        (content["---\n---\n".len()..].to_string(), true)
+    } else if content == "---\n---" {
+        (String::new(), true)
+    } else {
+        (content.to_string(), false)
     }
 }
 

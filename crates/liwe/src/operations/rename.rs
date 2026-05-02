@@ -9,6 +9,11 @@ use crate::model::Key;
 use super::changes::{Changes, OperationError};
 
 pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, OperationError> {
+    if new_key.relative_path.is_empty() {
+        return Err(OperationError::InvalidTarget(
+            "Key cannot be empty".to_string(),
+        ));
+    }
     if graph.get_node_id(old_key).is_none() {
         return Err(OperationError::NotFound(old_key.clone()));
     }
@@ -19,8 +24,8 @@ pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, Op
     let mut result = Changes::default();
     let options = graph.markdown_options();
 
-    let block_refs = graph.get_block_references_to(old_key);
-    let inline_refs = graph.get_inline_references_to(old_key);
+    let block_refs = graph.get_inclusion_edges_to(old_key);
+    let inline_refs = graph.get_reference_edges_to(old_key);
 
     let affected: HashSet<Key> = block_refs
         .into_iter()

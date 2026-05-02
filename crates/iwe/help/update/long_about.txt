@@ -1,7 +1,14 @@
-Overwrite the full markdown content of an existing document.
+Update document content or frontmatter.
 
-The document at -k/--key is rewritten with -c/--content. Use '-' as the value of
---content to read from stdin instead of passing inline.
+Two modes, selected by which flags are present:
 
-The graph is not mutated by update itself; the file change is picked up on the
-next read. Run `iwe normalize` afterward if you want to canonicalize the output.
+  Body-overwrite mode (-k KEY -c CONTENT)
+    Rewrites the full markdown body of one document. Use '-' as --content
+    to read from stdin.
+
+  Frontmatter-mutation mode (--filter EXPR | -k KEY) + --set / --unset
+    Applies $set / $unset operators (per docs/specs/query-language-spec.md
+    §8) to every document matched by the filter. -k KEY is sugar for
+    '$key: K'; combine with --filter to AND further constraints.
+
+Body and mutation flags cannot be combined; pass exactly one mode.

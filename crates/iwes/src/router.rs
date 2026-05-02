@@ -1,4 +1,5 @@
 use std::panic;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
@@ -45,6 +46,7 @@ pub struct ServerConfig {
 pub struct Router {
     server: Arc<Server>,
     sender: Sender<Message>,
+    inlay_hints_used: Arc<AtomicBool>,
 }
 
 impl Router {
@@ -78,6 +80,7 @@ impl Router {
         let router = Self {
             server: Arc::new(Server::new(config)),
             sender,
+            inlay_hints_used: Arc::new(AtomicBool::new(false)),
         };
 
         debug!("initializing LSP database complete");
@@ -192,7 +195,10 @@ impl Router {
 
         let response = match request.method.as_str() {
             "textDocument/inlayHint" => InlayHintParams::deserialize(request.params)
-                .map(|params| self.server.handle_inlay_hints(params))
+                .map(|params| {
+                    self.inlay_hints_used.store(true, Ordering::Relaxed);
+                    self.server.handle_inlay_hints(params)
+                })
                 .map(|response| to_value(response).unwrap()),
             "textDocument/inlineValues" => InlineValueParams::deserialize(request.params)
                 .map(|params| self.server.handle_inline_values(params))
@@ -275,7 +281,9 @@ impl Router {
                     result: Some(value),
                     error: None,
                 });
-                if request.method.as_str() == "codeAction/resolve" {
+                if request.method.as_str() == "codeAction/resolve"
+                    && self.inlay_hints_used.load(Ordering::Relaxed)
+                {
                     self.delay_send(Message::Request(Request {
                         id: Uuid::new_v4().to_string().into(),
                         method: "workspace/inlayHint/refresh".to_string(),

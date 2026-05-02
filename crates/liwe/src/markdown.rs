@@ -28,7 +28,7 @@ impl Reader for MarkdownReader {
 
         Document {
             blocks: reader.blocks(),
-            metadata: reader.metadata(),
+            frontmatter: reader.frontmatter(),
         }
     }
 }

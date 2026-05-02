@@ -86,13 +86,13 @@ impl Tree {
         }
     }
 
-    pub fn get_all_block_reference_keys(&self) -> Vec<Key> {
+    pub fn get_all_inclusion_edge_keys(&self) -> Vec<Key> {
         if self.is_reference() {
             return self.node.reference_key().into_iter().collect();
         }
         self.children
             .iter()
-            .flat_map(|child| child.get_all_block_reference_keys())
+            .flat_map(|child| child.get_all_inclusion_edge_keys())
             .collect()
     }
 
@@ -547,7 +547,7 @@ impl Tree {
         false
     }
 
-    pub fn remove_block_references_to(&self, target_key: &Key) -> Tree {
+    pub fn remove_inclusion_edges_to(&self, target_key: &Key) -> Tree {
         if self.reference_key_direct() == Some(target_key.clone()) {
             return Tree {
                 id: None,
@@ -562,7 +562,7 @@ impl Tree {
             children: self
                 .children
                 .iter()
-                .map(|child| child.remove_block_references_to(target_key))
+                .map(|child| child.remove_inclusion_edges_to(target_key))
                 .filter(|child| !matches!(child.node, Node::Leaf(ref v) if v.is_empty()))
                 .collect(),
         }

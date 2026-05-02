@@ -1,6 +1,5 @@
-mod fixture;
 
-use fixture::Fixture;
+use crate::fixture::Fixture;
 use liwe::model::config::{ActionDefinition, Attach, Configuration};
 use rmcp::model::ResourceContents;
 
@@ -66,7 +65,7 @@ async fn read_stats_resource() {
         _ => panic!("expected text resource"),
     };
     let json: serde_json::Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(json["total_documents"], 1);
+    assert_eq!(json["totalDocuments"], 1);
 }
 
 #[tokio::test]

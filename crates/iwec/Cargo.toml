@@ -2,6 +2,7 @@
 name = "iwec"
 description = "IWE MCP server"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs"]
+autotests = false
 
 version.workspace = true
 repository.workspace = true
@@ -27,6 +28,10 @@ schemars = "1.2"
 notify = "8"
 minijinja.workspace = true
 chrono.workspace = true
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"
 
 [dev-dependencies]
 serde_json.workspace = true

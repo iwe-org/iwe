@@ -78,7 +78,7 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
             GraphNode::Empty => None,
             GraphNode::Document(document) => Some(Node::Document(
                 document.key().clone(),
-                self.graph.metadata.get(document.key()).cloned(),
+                self.graph.frontmatter.get(document.key()).cloned(),
             )),
             GraphNode::Section(section) => Some(Node::Section(
                 self.graph.get_line(section.line_id()).normalize(self.graph),

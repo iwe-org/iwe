@@ -535,8 +535,8 @@ impl TargetType {
     }
 }
 
-pub fn load_config() -> Configuration {
-    let current_dir = env::current_dir().expect("to get current dir");
+pub fn load_config() -> Result<Configuration, String> {
+    let current_dir = env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
     let mut config_path = current_dir.clone();
     config_path.push(IWE_MARKER);
     config_path.push(CONFIG_FILE_NAME);
@@ -544,20 +544,23 @@ pub fn load_config() -> Configuration {
     if config_path.exists() {
         debug!("reading config from path: {:?}", config_path);
 
-        let configuration = migrate(&read_to_string(config_path).expect("to read config file"));
+        let raw = read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read config file '{}': {}", config_path.display(), e))?;
+        let configuration = migrate(&raw)?;
 
-        let mut config =
-            toml::from_str::<Configuration>(&configuration).expect("to parse config file");
+        let mut config = toml::from_str::<Configuration>(&configuration)
+            .map_err(|e| format!("Failed to parse config file '{}': {}", config_path.display(), e))?;
         config.markdown.formatting = config.markdown.formatting.validated();
-        config
+        Ok(config)
     } else {
         debug!("using default configuration");
-        Configuration::template()
+        Ok(Configuration::template())
     }
 }
 
-fn migrate(config: &str) -> String {
-    let doc = config.parse::<DocumentMut>().expect("valid TOML");
+fn migrate(config: &str) -> Result<String, String> {
+    let doc = config.parse::<DocumentMut>()
+        .map_err(|e| format!("Config file is not valid TOML: {}", e))?;
     let current_version = doc
         .get("version")
         .and_then(|v| v.as_value())
@@ -595,16 +598,17 @@ fn migrate(config: &str) -> String {
 
     if needs_update {
         debug!("configuration file migration applied");
-        let current_dir = env::current_dir().expect("to get current dir");
+        let current_dir = env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
         let mut config_path = current_dir.clone();
         config_path.push(IWE_MARKER);
         config_path.push(CONFIG_FILE_NAME);
 
         debug!("updating configuration file");
-        std::fs::write(config_path, &updated).expect("to write updated config file");
+        std::fs::write(&config_path, &updated)
+            .map_err(|e| format!("Failed to write config file '{}': {}", config_path.display(), e))?;
     }
 
-    updated
+    Ok(updated)
 }
 
 fn add_default_type_to_actions(input: &str) -> String {

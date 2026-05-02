@@ -13,7 +13,7 @@ static INIT: Once = Once::new();
 
 fn setup() {
     INIT.call_once(|| {
-        env_logger::builder().init();
+        let _ = env_logger::builder().try_init();
     });
 }
 

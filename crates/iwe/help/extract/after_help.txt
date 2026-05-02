@@ -13,3 +13,12 @@ EXAMPLES:
 
     # Use a specific action from config
     iwe extract notes/project --section "Design" --action "my-extract"
+
+    # Output affected document keys for scripting
+    iwe extract notes/project --section "Notes" -f keys
+
+OUTPUT:
+
+    -f markdown (default): progress messages showing extract action.
+    -f keys: one affected document key per line. Matches `iwe find -f keys`
+        in shape.

@@ -1,7 +1,6 @@
 use indoc::indoc;
 use liwe::model::config::{ActionDefinition, Command, Configuration, Transform};
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

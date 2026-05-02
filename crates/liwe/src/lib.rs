@@ -7,7 +7,7 @@ pub mod markdown;
 pub mod model;
 pub mod operations;
 pub mod parser;
+pub mod query;
 pub mod retrieve;
-pub mod selector;
 pub mod state;
 pub mod stats;

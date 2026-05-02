@@ -5,13 +5,12 @@ use tempfile::TempDir;
 
 use liwe::model::config::{Configuration, NoteTemplate};
 
-mod common;
 
 fn setup_iwe_project() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    Command::new(common::get_iwe_binary_path())
+    Command::new(crate::common::get_iwe_binary_path())
         .arg("init")
         .current_dir(temp_path)
         .output()
@@ -36,7 +35,7 @@ fn test_new_creates_file_with_default_template() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let output = Command::new(common::get_iwe_binary_path())
+    let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("My Test Note")
         .current_dir(temp_path)
@@ -65,7 +64,7 @@ fn test_new_with_slug_in_filename() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let output = Command::new(common::get_iwe_binary_path())
+    let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Hello World Test")
         .current_dir(temp_path)
@@ -86,7 +85,7 @@ fn test_new_with_content_argument() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let output = Command::new(common::get_iwe_binary_path())
+    let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Note With Content")
         .arg("--content")
@@ -116,7 +115,7 @@ fn test_new_with_stdin_content() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let mut child = Command::new(common::get_iwe_binary_path())
+    let mut child = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Stdin Note")
         .stdin(Stdio::piped())
@@ -149,7 +148,7 @@ fn test_new_default_appends_suffix_for_existing_file() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let first_output = Command::new(common::get_iwe_binary_path())
+    let first_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Duplicate Note")
         .current_dir(temp_path)
@@ -163,7 +162,7 @@ fn test_new_default_appends_suffix_for_existing_file() {
         "First file should be duplicate-note.md"
     );
 
-    let second_output = Command::new(common::get_iwe_binary_path())
+    let second_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Duplicate Note")
         .current_dir(temp_path)
@@ -196,7 +195,7 @@ fn test_new_creates_parent_directories() {
         },
     );
 
-    let output = Command::new(common::get_iwe_binary_path())
+    let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Nested Note")
         .arg("--template")
@@ -222,7 +221,7 @@ fn test_new_unknown_template_fails() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let output = Command::new(common::get_iwe_binary_path())
+    let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Test")
         .arg("--template")
@@ -239,7 +238,7 @@ fn test_new_content_argument_takes_precedence_over_stdin() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let mut child = Command::new(common::get_iwe_binary_path())
+    let mut child = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Priority Test")
         .arg("--content")
@@ -278,7 +277,7 @@ fn test_new_if_exists_suffix_appends_numbers() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let first_output = Command::new(common::get_iwe_binary_path())
+    let first_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Suffix Test")
         .arg("--if-exists")
@@ -294,7 +293,7 @@ fn test_new_if_exists_suffix_appends_numbers() {
         "First file should be suffix-test.md"
     );
 
-    let second_output = Command::new(common::get_iwe_binary_path())
+    let second_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Suffix Test")
         .arg("--if-exists")
@@ -314,7 +313,7 @@ fn test_new_if_exists_suffix_appends_numbers() {
         second_path
     );
 
-    let third_output = Command::new(common::get_iwe_binary_path())
+    let third_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Suffix Test")
         .arg("--if-exists")
@@ -340,7 +339,7 @@ fn test_new_if_exists_override_replaces_file() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let first_output = Command::new(common::get_iwe_binary_path())
+    let first_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Override Test")
         .arg("--content")
@@ -358,7 +357,7 @@ fn test_new_if_exists_override_replaces_file() {
         "First file should have first content"
     );
 
-    let second_output = Command::new(common::get_iwe_binary_path())
+    let second_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Override Test")
         .arg("--content")
@@ -392,7 +391,7 @@ fn test_new_if_exists_skip_does_nothing() {
     let temp_dir = setup_iwe_project();
     let temp_path = temp_dir.path();
 
-    let first_output = Command::new(common::get_iwe_binary_path())
+    let first_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Skip Test")
         .arg("--content")
@@ -405,7 +404,7 @@ fn test_new_if_exists_skip_does_nothing() {
     let first_path = String::from_utf8(first_output.stdout).expect("Valid UTF-8");
     let first_path = first_path.trim();
 
-    let second_output = Command::new(common::get_iwe_binary_path())
+    let second_output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Skip Test")
         .arg("--content")
@@ -458,7 +457,7 @@ fn test_new_with_german_locale_formats_date() {
         },
     );
 
-    let output = Command::new(common::get_iwe_binary_path())
+    let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("new")
         .arg("Test")
         .arg("--template")
@@ -479,5 +478,51 @@ fn test_new_with_german_locale_formats_date() {
         has_german_day,
         "Content should contain a German day name. Got: {}",
         content
+    );
+}
+
+#[test]
+fn test_new_long_title_error() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let long_title = "a".repeat(255);
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg(&long_title)
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(!output.status.success(), "Should fail for excessively long title");
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("too long"),
+        "Should report filename too long: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_new_empty_title_error() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(!output.status.success(), "Should fail for empty title");
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("empty"),
+        "Should report empty key: {}",
+        stderr
     );
 }

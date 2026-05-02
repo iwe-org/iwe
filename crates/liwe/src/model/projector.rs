@@ -69,9 +69,9 @@ impl Projector {
         }
 
         match iter.node().unwrap() {
-            Node::Document(_, metadata) => {
-                if let Some(metadata_content) = metadata {
-                    blocks.push(GraphBlock::Frontmatter(metadata_content.clone()));
+            Node::Document(_, frontmatter) => {
+                if let Some(mapping) = frontmatter {
+                    blocks.push(GraphBlock::Frontmatter(mapping.clone()));
                 }
                 if let Some(child) = iter.child() {
                     blocks.extend(self.with(self.header_level).project_node(child));

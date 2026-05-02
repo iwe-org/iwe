@@ -22,6 +22,12 @@ pub mod find {
     pub const AFTER_HELP: &str = include_str!("../help/find/after_help.txt");
 }
 
+pub mod count {
+    pub const ABOUT: &str = include_str!("../help/count/about.txt");
+    pub const LONG_ABOUT: &str = include_str!("../help/count/long_about.txt");
+    pub const AFTER_HELP: &str = include_str!("../help/count/after_help.txt");
+}
+
 pub mod normalize {
     pub const ABOUT: &str = include_str!("../help/normalize/about.txt");
     pub const LONG_ABOUT: &str = include_str!("../help/normalize/long_about.txt");

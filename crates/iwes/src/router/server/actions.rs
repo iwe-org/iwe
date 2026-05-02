@@ -49,8 +49,8 @@ pub trait ActionContext {
     fn get_command(&self, name: &str) -> Option<&Command>;
     fn graph(&self) -> &Graph;
     fn patch(&self) -> Graph;
-    fn get_block_references_to(&self, key: &Key) -> Vec<NodeId>;
-    fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId>;
+    fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId>;
+    fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId>;
     fn get_ref_text(&self, key: &Key) -> Option<String>;
     fn get_node_id_at(&self, key: &Key, line: usize) -> Option<NodeId>;
     fn get_document_markdown(&self, key: &Key) -> Option<String>;

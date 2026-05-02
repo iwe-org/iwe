@@ -1,3 +1,5 @@
+use serde_yaml::Mapping;
+
 use super::document::LinkType;
 use crate::markdown::writer::MarkdownWriter;
 use crate::model;
@@ -12,7 +14,7 @@ pub type GraphInlines = Vec<GraphInline>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GraphBlock {
-    Frontmatter(String),
+    Frontmatter(Mapping),
     Plain(GraphInlines),
     Para(GraphInlines),
     LineBlock(Vec<GraphInlines>),
@@ -91,7 +93,7 @@ impl GraphBlock {
 
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         match self {
-            GraphBlock::Frontmatter(content) => format!("---\n{}---\n", content),
+            GraphBlock::Frontmatter(mapping) => format!("---\n{}---\n", frontmatter_to_yaml(mapping)),
             GraphBlock::Plain(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
             GraphBlock::Para(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
             GraphBlock::LineBlock(lines) => lines
@@ -451,6 +453,13 @@ pub fn to_plain_text(content: &GraphInlines) -> String {
         .map(|i| i.plain_text())
         .collect::<Vec<String>>()
         .join("")
+}
+
+pub fn frontmatter_to_yaml(mapping: &Mapping) -> String {
+    if mapping.is_empty() {
+        return "{}\n".to_string();
+    }
+    serde_yaml::to_string(mapping).unwrap_or_default()
 }
 
 pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) -> String {

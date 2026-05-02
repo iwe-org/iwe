@@ -9,6 +9,7 @@ use index::RefIndex;
 use log::debug;
 use rand::distr::{Alphanumeric, SampleString};
 use sections_builder::SectionsBuilder;
+use serde_yaml::Mapping;
 
 use crate::{
     markdown::MarkdownReader,
@@ -39,6 +40,7 @@ mod index;
 pub mod path;
 pub mod sections_builder;
 mod squash_iter;
+pub mod walk;
 
 type Documents = HashMap<Key, Content>;
 
@@ -52,7 +54,7 @@ pub struct Graph {
     sequential_keys: bool,
     keys_to_ref_text: HashMap<Key, String>,
     markdown_options: MarkdownOptions,
-    metadata: HashMap<Key, String>,
+    frontmatter: HashMap<Key, Mapping>,
     content: Documents,
     frontmatter_document_title: Option<String>,
 }
@@ -95,7 +97,7 @@ impl Graph {
     pub fn new_patch(&self) -> Graph {
         Graph {
             markdown_options: self.markdown_options.clone(),
-            metadata: self.metadata.clone(),
+            frontmatter: self.frontmatter.clone(),
             frontmatter_document_title: self.frontmatter_document_title.clone(),
             ..Default::default()
         }
@@ -134,7 +136,7 @@ impl Graph {
         self.keys.remove(&key);
         self.nodes_map.remove(&key);
         self.keys_to_ref_text.remove(&key);
-        self.metadata.remove(&key);
+        self.frontmatter.remove(&key);
         self.content.remove(&key);
     }
 
@@ -149,12 +151,12 @@ impl Graph {
         self.keys.keys().cloned().collect()
     }
 
-    pub fn block_reference_target_keys(&self) -> Vec<Key> {
-        self.index.block_reference_target_keys().cloned().collect()
+    pub fn inclusion_edge_target_keys(&self) -> Vec<Key> {
+        self.index.inclusion_edge_target_keys().cloned().collect()
     }
 
-    pub fn inline_reference_target_keys(&self) -> Vec<Key> {
-        self.index.inline_reference_target_keys().cloned().collect()
+    pub fn reference_edge_target_keys(&self) -> Vec<Key> {
+        self.index.reference_edge_target_keys().cloned().collect()
     }
 
     pub fn with<F>(f: F) -> Graph
@@ -200,7 +202,7 @@ impl Graph {
         let id = self.arena.new_node_id();
         self.keys.insert(key.clone(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.clone(), id, None));
+            .set_node(id, GraphNode::new_root(key.clone(), id));
         GraphBuilder::new(self, id)
     }
 
@@ -223,7 +225,7 @@ impl Graph {
         let id = self.arena.new_node_id();
         self.keys.insert(key.clone(), id);
         self.arena
-            .set_node(id, GraphNode::new_root(key.clone(), id, None));
+            .set_node(id, GraphNode::new_root(key.clone(), id));
         f(&mut GraphBuilder::new(self, id));
 
         self.extract_ref_text(key)
@@ -251,9 +253,16 @@ impl Graph {
 
     fn extract_frontmatter_title(&self, key: &Key) -> Option<String> {
         let title_key = self.frontmatter_document_title.as_ref()?;
-        let metadata = self.metadata.get(key)?;
-        let yaml_value: serde_yaml::Value = serde_yaml::from_str(metadata).ok()?;
-        yaml_value.get(title_key)?.as_str().map(|s| s.to_string())
+        let mapping = self.frontmatter.get(key)?;
+        mapping
+            .get(serde_yaml::Value::String(title_key.clone()))?
+            .as_str()
+            .map(|s| s.to_string())
+    }
+
+
+    pub fn frontmatter(&self, key: &Key) -> Option<&Mapping> {
+        self.frontmatter.get(key)
     }
 
     pub fn maybe_key(&self, key: &Key) -> Option<impl NodePointer<'_>> {
@@ -272,10 +281,10 @@ impl Graph {
     pub fn from_markdown(&mut self, key: Key, content: &str, reader: impl Reader) {
         let document = reader.document(content, &self.markdown_options);
 
-        if let Some(meta) = document.metadata {
-            self.metadata.insert(key.clone(), meta);
+        if let Some(fm) = document.frontmatter {
+            self.frontmatter.insert(key.clone(), fm);
         } else {
-            self.metadata.remove(&key);
+            self.frontmatter.remove(&key);
         }
 
         let mut build_key = self.build_key(&key);
@@ -368,10 +377,10 @@ impl Graph {
             .collect::<Vec<_>>();
 
         for (key, document) in blocks.into_iter() {
-            if let Some(meta) = document.metadata.clone() {
-                graph.metadata.insert(key.clone(), meta);
+            if let Some(fm) = document.frontmatter.clone() {
+                graph.frontmatter.insert(key.clone(), fm);
             } else {
-                graph.metadata.remove(&key);
+                graph.frontmatter.remove(&key);
             }
 
             let nodes_map =
@@ -441,17 +450,17 @@ impl Graph {
         }
     }
 
-    pub fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
-        // remove empty node ids
+    pub fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
+
         self.index
-            .get_block_references_to(key)
+            .get_inclusion_edges_to(key)
             .iter()
             .filter(|id| !self.graph_node(**id).is_empty())
             .cloned()
             .collect()
     }
 
-    pub fn get_block_references_in(&self, key: &Key) -> Vec<NodeId> {
+    pub fn get_inclusion_edges_in(&self, key: &Key) -> Vec<NodeId> {
         self.maybe_key(key)
             .map(|node| {
                 node.get_all_sub_nodes()
@@ -463,14 +472,43 @@ impl Graph {
             .unwrap_or_default()
     }
 
-    pub fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
-        // remove empty node ids
+    pub fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
+
         self.index
-            .get_inline_references_to(key)
+            .get_reference_edges_to(key)
             .iter()
             .filter(|id| !self.graph_node(**id).is_empty())
             .cloned()
             .collect()
+    }
+
+    pub fn get_reference_edges_in(&self, key: &Key) -> Vec<Key> {
+        let Some(pointer) = self.maybe_key(key) else {
+            return Vec::new();
+        };
+        let mut keys = Vec::new();
+        for node_id in pointer.get_all_sub_nodes() {
+            match self.graph_node(node_id) {
+                GraphNode::Section(section) => {
+                    keys.extend(self.get_line(section.line_id()).ref_keys());
+                }
+                GraphNode::Leaf(leaf) => {
+                    keys.extend(self.get_line(leaf.line_id()).ref_keys());
+                }
+                GraphNode::Table(table) => {
+                    for line_id in table.header() {
+                        keys.extend(self.get_line(*line_id).ref_keys());
+                    }
+                    for row in table.rows() {
+                        for line_id in row {
+                            keys.extend(self.get_line(*line_id).ref_keys());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        keys
     }
 }
 

@@ -149,6 +149,20 @@ impl<'a> DocumentCreator<'a> {
         )?;
 
         let base_key = Key::name(&relative_key);
+        if base_key.relative_path.is_empty() {
+            return Err("Generated key is empty. Use a non-empty title.".to_string());
+        }
+        let path_str = base_key.to_path();
+        let filename_len = std::path::Path::new(&path_str)
+            .file_name()
+            .map(|f| f.len())
+            .unwrap_or(path_str.len());
+        if filename_len > 255 {
+            return Err(format!(
+                "Generated filename is too long ({} bytes, max 255). Use a shorter title.",
+                filename_len
+            ));
+        }
         let file_path = self.library_path.join(base_key.to_path());
         let file_exists = file_path.exists();
 

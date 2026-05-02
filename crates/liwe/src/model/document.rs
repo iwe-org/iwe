@@ -1,3 +1,5 @@
+use serde_yaml::Mapping;
+
 use super::{InlineRange, Position};
 use crate::model;
 use crate::model::graph::{to_plain_text, GraphInline};
@@ -7,7 +9,7 @@ use crate::model::{Key, Lang, LineRange};
 
 pub struct Document {
     pub blocks: DocumentBlocks,
-    pub metadata: Option<String>,
+    pub frontmatter: Option<Mapping>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -140,7 +142,7 @@ impl DocumentBlock {
             DocumentBlock::Table(table) => {
                 let mut result = Vec::new();
 
-                // Add header
+
                 let header_text = table
                     .header
                     .iter()
@@ -153,7 +155,7 @@ impl DocumentBlock {
                     .join(" | ");
                 if !header_text.is_empty() {
                     result.push(format!("| {} |", header_text));
-                    // Add separator row
+
                     let separator = table
                         .header
                         .iter()
@@ -163,7 +165,7 @@ impl DocumentBlock {
                     result.push(format!("| {} |", separator));
                 }
 
-                // Add rows
+
                 for row in &table.rows {
                     let row_text = row
                         .iter()
@@ -698,14 +700,14 @@ impl DocumentInline {
                 Some(InlineRange {
                     start: Position {
                         line: link.inline_range.start.line,
-                        // Exclude title and parentheses from the range
+
                         character: link.inline_range.start.character
                             + self.to_plain_text().len()
                             + 3,
                     },
                     end: Position {
                         line: link.inline_range.end.line,
-                        // Exclude title and parentheses from the range
+
                         character: link.inline_range.end.character - 1,
                     },
                 })

@@ -1,24 +1,41 @@
-Examples:
-  iwe tree                           Show full tree with markdown links
-  iwe tree -f keys                   Show tree with document keys only
-  iwe tree -f json                   Show tree as JSON
-  iwe tree -k my-doc                 Show tree starting from 'my-doc'
-  iwe tree -k doc-a -k doc-b         Show trees from multiple starting points
-  iwe tree --depth 2                 Show only 2 levels deep
-  iwe tree --in projects/alpha       Tree rooted at sub-documents of projects/alpha
-  iwe tree --in-any a --in-any b     Tree rooted at union of two subtrees
-  iwe tree --in a --not-in archive   Sub-documents of a, excluding archive
+EXAMPLES:
 
-Structural set selector (--in family):
-  --in KEY[:DEPTH]      Sub-documents of EVERY listed key (AND). Repeatable.
-  --in-any KEY[:DEPTH]  Sub-documents of AT LEAST ONE listed key (OR).
-  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
-  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
+  iwe tree                                # full tree with markdown links
+  iwe tree -f keys                        # tree with document keys only
+  iwe tree -f json                        # tree as JSON
+  iwe tree -f yaml                        # tree as YAML
+  iwe tree -k my-doc                      # subtree starting from 'my-doc'
+  iwe tree -k doc-a -k doc-b              # subtrees from multiple roots
+  iwe tree --depth 2                      # 2 levels deep
+  iwe tree --included-by projects/alpha   # roots are descendants of alpha
+  iwe tree --filter 'status: published'   # roots are docs with status==published
+  iwe tree --project status -f json       # add status to each tree node
 
-When documents form circular references (A→B→C→A), they have no natural root.
-Use -k to start from any document in the cycle:
-  iwe tree -k doc-a            View cycle starting from 'doc-a'
+FILTER FLAGS (intersection with -k):
 
-Works great with grep to filter the tree:
-  iwe tree | grep -i api       Find documents mentioning 'api'
-  iwe tree -f keys | grep cli  Find documents with 'cli' in the key
+  --filter "EXPR"             Inline filter expression (YAML).
+  --included-by KEY[:DEPTH]   $includedBy anchor.
+  --includes KEY[:DEPTH]      $includes anchor.
+  --references KEY[:DIST]     $references anchor.
+  --referenced-by KEY[:DIST]  $referencedBy anchor.
+  --max-depth N               Default maxDepth for inclusion anchors. Default 1.
+  --max-distance N            Default maxDistance for reference anchors. Default 1.
+
+SHAPE FLAGS:
+
+  --project SPEC              Projection: comma-list (name, name=path, name=$selector,
+                              $selector) or YAML mapping. Adds fields to each tree node.
+  --add-fields SPEC           Additive projection (extends defaults). Same grammar as
+                              --project. Mutually exclusive with --project.
+  -d, --depth N               Maximum depth to traverse (default 4).
+
+CIRCULAR REFERENCES:
+
+  When documents form circular references (A->B->C->A), they have no natural
+  root. Use -k to start from any document in the cycle:
+    iwe tree -k doc-a
+
+PIPING:
+
+  iwe tree | grep -i api          Find documents mentioning 'api'
+  iwe tree -f keys | grep cli     Find documents with 'cli' in the key

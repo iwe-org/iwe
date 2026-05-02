@@ -29,6 +29,7 @@ use self::search::SearchIndex;
 pub mod actions;
 pub mod base_path;
 mod extensions;
+pub mod query;
 pub mod search;
 
 pub struct Server {
@@ -144,11 +145,10 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        self.graph
-            .keys()
+        query::all_keys(&self.graph)
             .iter()
-            .map(|key| {
-                key.to_completion(
+            .map(|m| {
+                m.key.to_completion(
                     &current_key.parent(),
                     &self.graph,
                     &self.configuration.completion,
@@ -260,13 +260,13 @@ impl Server {
         self.container_hint(&key)
             .into_iter()
             .chain(self.refs_counter_hints(&key))
-            .chain(self.block_reference_hints(&key))
+            .chain(self.inclusion_edge_hints(&key))
             .collect_vec()
     }
 
-    pub fn block_reference_hints(&self, key: &Key) -> Vec<InlayHint> {
+    pub fn inclusion_edge_hints(&self, key: &Key) -> Vec<InlayHint> {
         self.graph
-            .get_block_references_in(key)
+            .get_inclusion_edges_in(key)
             .into_iter()
             .filter_map(|id| {
                 self.graph
@@ -277,7 +277,7 @@ impl Server {
                 (&self.graph)
                     .node(id)
                     .ref_key()
-                    .map(|key| self.graph.get_block_references_to(&key))
+                    .map(|key| self.graph.get_inclusion_edges_to(&key))
                     .map(|refs| {
                         refs.into_iter()
                             .filter_map(|ref_id| {
@@ -303,7 +303,7 @@ impl Server {
 
     pub fn container_hint(&self, key: &Key) -> Vec<InlayHint> {
         self.graph
-            .get_block_references_to(key)
+            .get_inclusion_edges_to(key)
             .iter()
             .flat_map(|id| (&self.graph).get_container_document_ref_text(*id))
             .sorted()
@@ -313,7 +313,7 @@ impl Server {
     }
 
     pub fn refs_counter_hints(&self, key: &Key) -> Vec<InlayHint> {
-        let inline_refs = self.graph.get_inline_references_to(key).len();
+        let inline_refs = query::reference_count(&self.graph, key);
 
         if inline_refs > 0 {
             vec![format!("‹{}›", inline_refs).to_hint_at(0)]
@@ -385,11 +385,7 @@ impl Server {
         &self,
         params: RenameParams,
     ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-        if self
-            .graph
-            .maybe_key(&params.new_name.clone().into())
-            .is_some()
-        {
+        if query::key_exists(&self.graph, &params.new_name.clone().into()) {
             return Result::Err(ResponseError {
                 code: 1,
                 message: format!("The file name {} is already taken", params.new_name),
@@ -417,14 +413,9 @@ impl Server {
                 .map(|url| {
                     let key = Key::from_rel_link_url(&url, relative_to);
 
-                    let affected_keys = self
-                        .graph
-                        .get_block_references_to(&key.clone())
+                    let affected_keys = query::all_backlinks(&self.graph, &key)
                         .into_iter()
-                        .chain(self.graph.get_inline_references_to(&key.clone()))
-                        .map(|node_id| (&self.graph).node(node_id).node_key())
                         .filter(|k| k != &key)
-                        .unique()
                         .sorted()
                         .collect_vec();
 
@@ -513,11 +504,11 @@ impl Server {
             .unwrap_or(key.clone());
 
         self.graph
-            .get_block_references_to(&key_under_cursor.clone())
+            .get_inclusion_edges_to(&key_under_cursor.clone())
             .iter()
             .chain(
                 self.graph
-                    .get_inline_references_to(&key.clone())
+                    .get_reference_edges_to(&key.clone())
                     .iter()
                     .filter(|_| params.context.include_declaration),
             )
@@ -795,12 +786,12 @@ impl ActionContext for &Server {
         self.graph.keys().contains(key)
     }
 
-    fn get_block_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.graph.get_block_references_to(key)
+    fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
+        self.graph.get_inclusion_edges_to(key)
     }
 
-    fn get_inline_references_to(&self, key: &Key) -> Vec<NodeId> {
-        self.graph.get_inline_references_to(key)
+    fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
+        self.graph.get_reference_edges_to(key)
     }
 
     fn get_ref_text(&self, key: &Key) -> Option<String> {

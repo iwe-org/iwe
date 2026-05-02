@@ -1,6 +1,5 @@
-mod fixture;
 
-use fixture::Fixture;
+use crate::fixture::Fixture;
 use serde_json::json;
 
 #[tokio::test]
@@ -10,10 +9,10 @@ async fn retrieve_single_document() {
     let result = f.call_tool("iwe_retrieve", json!({"keys": ["1"]})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["documents"].as_array().unwrap().len(), 1);
-    assert_eq!(output["documents"][0]["key"], "1");
-    assert_eq!(output["documents"][0]["title"], "Hello world");
-    assert!(output["documents"][0]["content"]
+    assert_eq!(output.as_array().unwrap().len(), 1);
+    assert_eq!(output[0]["key"], "1");
+    assert_eq!(output[0]["title"], "Hello world");
+    assert!(output[0]["content"]
         .as_str()
         .unwrap()
         .contains("Some content"));
@@ -32,7 +31,7 @@ async fn retrieve_with_depth_expansion() {
         .await;
     let output = Fixture::result_json(&result);
 
-    let docs = output["documents"].as_array().unwrap();
+    let docs = output.as_array().unwrap();
     assert_eq!(docs.len(), 2);
 
     let keys: Vec<&str> = docs.iter().map(|d| d["key"].as_str().unwrap()).collect();
@@ -52,9 +51,9 @@ async fn retrieve_no_content() {
         .await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["documents"][0]["key"], "1");
-    assert_eq!(output["documents"][0]["title"], "Title");
-    assert_eq!(output["documents"][0]["content"], "");
+    assert_eq!(output[0]["key"], "1");
+    assert_eq!(output[0]["title"], "Title");
+    assert_eq!(output[0]["content"], "");
 }
 
 #[tokio::test]
@@ -74,7 +73,7 @@ async fn retrieve_multiple_keys() {
         .await;
     let output = Fixture::result_json(&result);
 
-    let docs = output["documents"].as_array().unwrap();
+    let docs = output.as_array().unwrap();
     assert_eq!(docs.len(), 2);
 }
 
@@ -94,13 +93,13 @@ async fn retrieve_with_backlinks() {
         .await;
     let output = Fixture::result_json(&result);
 
-    let backlinks = output["documents"][0]["backlinks"].as_array().unwrap();
+    let backlinks = output[0]["referencedBy"].as_array().unwrap();
     assert_eq!(backlinks.len(), 1);
     assert_eq!(backlinks[0]["key"], "1");
 }
 
 fn doc_keys(output: &serde_json::Value) -> Vec<String> {
-    let mut v: Vec<String> = output["documents"]
+    let mut v: Vec<String> = output
         .as_array()
         .unwrap()
         .iter()
@@ -170,5 +169,5 @@ async fn retrieve_empty_intersection_yields_empty() {
         )
         .await;
     let output = Fixture::result_json(&result);
-    assert!(output["documents"].as_array().unwrap().is_empty());
+    assert!(output.as_array().unwrap().is_empty());
 }

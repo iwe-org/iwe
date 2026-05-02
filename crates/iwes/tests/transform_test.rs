@@ -4,7 +4,6 @@ use indoc::indoc;
 use liwe::model::config::{ActionDefinition, Command, Configuration, Transform};
 use tempfile::TempDir;
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

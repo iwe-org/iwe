@@ -197,7 +197,7 @@ fn filter_key(graph: &Graph, key: Key, depth_limit: u8) -> HashMap<Key, u8> {
     get_keys_for_depth(graph, &key, depth_limit, &mut keys);
 
     for key in keys.keys().cloned().collect::<Vec<_>>() {
-        let references = graph.get_block_references_to(&key);
+        let references = graph.get_inclusion_edges_to(&key);
         for node_id in &references {
             let ref_key = graph.node(*node_id).node_key();
             keys.entry(ref_key).or_insert(0);
@@ -212,7 +212,7 @@ fn get_keys_for_depth(graph: &Graph, key: &Key, depth: u8, collected_keys: &mut 
     if depth == 0 {
         return;
     }
-    let keys = graph.collect(key).get_all_block_reference_keys();
+    let keys = graph.collect(key).get_all_inclusion_edge_keys();
     for k in keys {
         if !collected_keys.contains_key(&k) && graph.maybe_key(&k).is_some() {
             get_keys_for_depth(graph, &k, depth - 1, collected_keys);

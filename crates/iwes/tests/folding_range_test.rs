@@ -1,7 +1,6 @@
 use indoc::indoc;
 use lsp_types::{request::FoldingRangeRequest, FoldingRange, FoldingRangeKind, FoldingRangeParams};
 
-mod fixture;
 use crate::fixture::*;
 
 fn folding_range_params(key: u32) -> FoldingRangeParams {

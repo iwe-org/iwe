@@ -3,7 +3,6 @@ use liwe::model::config::{
     CompletionOptions, Configuration, LibraryOptions, LinkType, MarkdownOptions,
 };
 
-mod fixture;
 use crate::fixture::*;
 
 fn no_min_prefix() -> Configuration {

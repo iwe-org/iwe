@@ -54,7 +54,7 @@ impl SearchIndex {
                 }
 
                 let parent_titles: Vec<String> = graph_ctx
-                    .get_block_references_to(&key)
+                    .get_inclusion_edges_to(&key)
                     .iter()
                     .filter_map(|ref_id| {
                         let parent_key = graph_ctx.node(*ref_id).to_document()?.document_key()?;
@@ -151,14 +151,14 @@ fn node_rank(graph: &Graph, id: NodeId) -> usize {
         .node(id)
         .to_document()
         .and_then(|doc| doc.document_key())
-        .map(|key| graph.get_inline_references_to(&key).len())
+        .map(|key| graph.get_reference_edges_to(&key).len())
         .unwrap_or(0);
 
     let block_refs_count = graph
         .node(id)
         .to_document()
         .and_then(|doc| doc.document_key())
-        .map(|key| graph.get_block_references_to(&key).len())
+        .map(|key| graph.get_inclusion_edges_to(&key).len())
         .unwrap_or(0);
 
     inline_refs_count + block_refs_count

@@ -3,7 +3,7 @@ Export graph structure in various formats for visualization and analysis.
 Available formats:
 - dot: Graphviz DOT format for graph visualization
 
-Filter scope with -k/--key (repeatable) or with the structural set selector
-(--in / --in-any / --not-in / --max-depth). Use --include-headers for detailed
-visualization with section subgraphs. Combining -k with the selector intersects
-the two — only explicit keys that match the selector are exported.
+Filter scope with -k/--key (repeatable) or filter flags (--filter,
+--included-by, --references, etc.). Use --include-headers for detailed
+visualization with section subgraphs. Combining -k with filter flags
+intersects the two — only explicit keys that match the filter are exported.

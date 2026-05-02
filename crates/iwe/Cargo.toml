@@ -2,6 +2,7 @@
 name = "iwe"
 description = "IWE CLI utility"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md", "templates/**/*", "help/**/*"]
+autotests = false
 
 version.workspace = true
 repository.workspace = true
@@ -18,19 +19,14 @@ path = "src/main.rs"
 liwe.workspace = true
 indoc.workspace = true
 clap.workspace = true
-pretty_assertions.workspace = true
-env_logger.workspace = true
 itertools.workspace = true
 log.workspace = true
-futures.workspace = true
-rayon.workspace = true
 rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tracing-tree.workspace = true
 graphviz-rust.workspace = true
 minijinja.workspace = true
 csv.workspace = true
@@ -39,5 +35,10 @@ sys-locale.workspace = true
 serde_yaml.workspace = true
 sanitize-filename.workspace = true
 
+[[test]]
+name = "integration"
+path = "tests/main.rs"
+
 [dev-dependencies]
+pretty_assertions.workspace = true
 tempfile.workspace = true

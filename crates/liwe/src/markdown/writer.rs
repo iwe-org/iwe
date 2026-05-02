@@ -5,7 +5,7 @@ use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
 use crate::model::{
     document,
-    graph::{inlines_to_markdown, GraphBlock, GraphInline, GraphInlines},
+    graph::{frontmatter_to_yaml, inlines_to_markdown, GraphBlock, GraphInline, GraphInlines},
     is_ref_url,
 };
 
@@ -38,11 +38,11 @@ impl MarkdownWriter {
     fn block_events(&self, block: GraphBlock) -> Vec<Event<'_>> {
         let mut events = Vec::new();
         match block {
-            GraphBlock::Frontmatter(content) => {
+            GraphBlock::Frontmatter(mapping) => {
                 events.push(Event::Start(Tag::MetadataBlock(
                     MetadataBlockKind::YamlStyle,
                 )));
-                events.push(Event::Text(content.into()));
+                events.push(Event::Text(frontmatter_to_yaml(&mapping).into()));
                 events.push(Event::End(TagEnd::MetadataBlock(
                     MetadataBlockKind::YamlStyle,
                 )));

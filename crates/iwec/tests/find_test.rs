@@ -1,6 +1,5 @@
-mod fixture;
 
-use fixture::Fixture;
+use crate::fixture::Fixture;
 use serde_json::json;
 
 #[tokio::test]
@@ -14,8 +13,7 @@ async fn find_all_documents() {
     let result = f.call_tool("iwe_find", json!({})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["total"], 2);
-    assert_eq!(output["results"].as_array().unwrap().len(), 2);
+    assert_eq!(output.as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -30,29 +28,14 @@ async fn find_by_query() {
     let result = f.call_tool("iwe_find", json!({"query": "rust"})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["total"], 2);
-    let titles: Vec<&str> = output["results"]
+    assert_eq!(output.as_array().unwrap().len(), 2);
+    let titles: Vec<&str> = output
         .as_array()
         .unwrap()
         .iter()
         .map(|r| r["title"].as_str().unwrap())
         .collect();
     assert!(titles.iter().all(|t| t.to_lowercase().contains("rust")));
-}
-
-#[tokio::test]
-async fn find_root_documents() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root doc\n\n[child](2)\n"),
-        ("2", "# Child doc\n"),
-    ])
-    .await;
-
-    let result = f.call_tool("iwe_find", json!({"roots": true})).await;
-    let output = Fixture::result_json(&result);
-
-    assert_eq!(output["total"], 1);
-    assert_eq!(output["results"][0]["key"], "1");
 }
 
 #[tokio::test]
@@ -67,12 +50,11 @@ async fn find_with_limit() {
     let result = f.call_tool("iwe_find", json!({"limit": 2})).await;
     let output = Fixture::result_json(&result);
 
-    assert_eq!(output["results"].as_array().unwrap().len(), 2);
-    assert_eq!(output["total"], 3);
+    assert_eq!(output.as_array().unwrap().len(), 2);
 }
 
 fn keys(output: &serde_json::Value) -> Vec<String> {
-    let mut v: Vec<String> = output["results"]
+    let mut v: Vec<String> = output
         .as_array()
         .unwrap()
         .iter()
@@ -171,6 +153,69 @@ async fn find_selector_max_depth() {
         .await;
     let output = Fixture::result_json(&result);
     assert_eq!(keys(&output), vec!["b"]);
+}
+
+#[tokio::test]
+async fn find_with_replacement_projection() {
+    let f = Fixture::with_documents(vec![
+        ("doc", "---\npriority: 5\n---\n# Doc\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool(
+            "iwe_find",
+            json!({"project": "title=$title,priority"}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    let item = &output.as_array().unwrap()[0];
+    assert_eq!(item["title"], "Doc");
+    assert_eq!(item["priority"], 5);
+    assert!(item.get("key").is_none(), "key should not appear under explicit project");
+    assert!(item.get("includedBy").is_none());
+}
+
+#[tokio::test]
+async fn find_with_additive_projection_extends_default() {
+    let f = Fixture::with_documents(vec![
+        ("doc", "# Doc\n\nBody text.\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"add_fields": "body=$content"}))
+        .await;
+    let output = Fixture::result_json(&result);
+    let item = &output.as_array().unwrap()[0];
+    assert_eq!(item["key"], "doc");
+    assert_eq!(item["title"], "Doc");
+    assert!(item["body"].as_str().unwrap().contains("# Doc"));
+}
+
+#[tokio::test]
+async fn find_project_and_add_fields_mutually_exclusive() {
+    let f = Fixture::with_documents(vec![("doc", "# Doc\n")]).await;
+
+    let err = f
+        .try_call_tool(
+            "iwe_find",
+            json!({"project": "title", "add_fields": "body=$content"}),
+        )
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("mutually exclusive"), "got: {err}");
+}
+
+#[tokio::test]
+async fn find_invalid_projection_is_user_error() {
+    let f = Fixture::with_documents(vec![("doc", "# Doc\n")]).await;
+
+    let err = f
+        .try_call_tool("iwe_find", json!({"project": "$bogus"}))
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("$bogus"), "got: {err}");
 }
 
 #[tokio::test]

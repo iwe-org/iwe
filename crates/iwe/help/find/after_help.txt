@@ -1,50 +1,39 @@
+FILTER FLAGS (compose via AND with positional QUERY):
+
+  --filter "EXPR"             Inline filter expression (YAML).
+                              Example: --filter 'status: draft'
+  -k, --key KEY               $key match. Repeatable: 1 key uses $eq, 2+ uses $in.
+  --includes KEY[:DEPTH]      $includes anchor. DEPTH defaults to --max-depth.
+  --included-by KEY[:DEPTH]   $includedBy anchor. DEPTH defaults to --max-depth.
+  --references KEY[:DIST]     $references anchor. DIST defaults to --max-distance.
+  --referenced-by KEY[:DIST]  $referencedBy anchor. DIST defaults to --max-distance.
+  --max-depth N               Default maxDepth for inclusion anchors without :DEPTH. Default 1.
+  --max-distance N            Default maxDistance for reference anchors without :DIST. Default 1.
+
+SHAPE FLAGS:
+
+  --project SPEC              Projection (replaces defaults). Accepts: comma-list
+                              (name, name=path, name=$selector, $selector) or YAML mapping.
+  --add-fields SPEC           Additive projection (extends defaults). Same grammar as
+                              --project. Mutually exclusive with --project.
+  --sort field:1|-1           Sort by frontmatter field (1=asc, -1=desc).
+  -l, --limit N               Cap results (0 = unlimited).
+
 OUTPUT FORMATS:
 
-MARKDOWN (default, -f markdown):
-  ## Documents
-
-  Found 3 results:
-
-  - [Document A](doc-a) (root)
-  - [Document B](doc-b) <- [Document A](doc-a)
-
-  Each result shows:
-  - Document link
-  - (root) indicator if no parents
-  - Parent documents with <- notation (where this doc is embedded)
-
-KEYS (-f keys):
-  One key per line, suitable for piping:
-
-    doc-a
-    doc-b
-    doc-c
-
-JSON (-f json):
-  Structured output with metadata:
-
-    {"query": "...", "total": 3, "results": [
-      {"key": "...", "title": "...", "is_root": true,
-       "incoming_refs": 5, "outgoing_refs": 2, "parent_documents": [...]}]}
-
-STRUCTURAL SET SELECTOR (--in family):
-
-  --in KEY[:DEPTH]      Sub-documents of EVERY listed key (AND). Repeatable.
-                        KEY:DEPTH overrides --max-depth per entry.
-  --in-any KEY[:DEPTH]  Sub-documents of AT LEAST ONE listed key (OR).
-  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
-  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
+  -f markdown (default)       Four-backtick fenced blocks (same format as retrieve).
+  -f keys                     One key per line.
+  -f json                     Structured array of result objects.
+  -f yaml                     Same shape as JSON, rendered as YAML.
 
 EXAMPLES:
 
-  # Sub-documents of A AND B (intersection, unbounded)
-  iwe find --in projects/alpha --in people/dmytro
-
-  # Per-parent depth: A within 3 hops, Dmytro within 1
-  iwe find --in projects/alpha:3 --in people/dmytro:1
-
-  # Sub-documents of A OR B (union)
-  iwe find --in-any projects/alpha --in-any projects/beta
-
-  # Sub-documents of A but NOT in archive
-  iwe find --in projects/alpha --not-in archive
+  iwe find rust                                        # fuzzy on "rust"
+  iwe find --filter 'status: draft'                    # all drafts
+  iwe find rust --filter 'status: draft'               # fuzzy AND status==draft
+  iwe find --included-by projects/alpha:5              # descendants within 5 levels
+  iwe find --included-by projects/alpha:0              # all descendants (unbounded)
+  iwe find --references people/dmytro                  # docs that reference dmytro
+  iwe find --filter 'priority: { $gt: 3 }' --sort modified_at:-1
+  iwe find --project title,status -f json              # only two fields
+  iwe find --add-fields 'body=$content' -f json        # default projection + body

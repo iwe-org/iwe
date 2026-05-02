@@ -40,6 +40,10 @@ The MCP server exposes 13 tools for reading, writing, and refactoring documents.
 
 All write and refactoring tools support a `dry_run` parameter to preview changes before applying them.
 
+### Selector parameters
+
+`iwe_find`, `iwe_retrieve`, and `iwe_tree` accept a structural selector embedded in their tool input: `in`, `in_any`, `not_in`, and `max_depth`. Each entry is either a bare key or `{ key, depth }`. The CLI exposes a richer surface — `--filter`, `$`-prefixed graph operators, frontmatter mutation — documented in the [Query Language](query-language.md) reference. The MCP tool input may grow to match in a future revision; for now, treat the CLI as the canonical query surface and the MCP tools as a convenience for the most common selection patterns.
+
 ## Prompts
 
 The server provides three built-in prompts that guide AI agents through common workflows:

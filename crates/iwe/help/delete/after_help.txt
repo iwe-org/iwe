@@ -1,34 +1,26 @@
 EXAMPLES:
 
-  # Delete with confirmation prompt
+  # Single document
   iwe delete document-key
 
-  # Delete without confirmation
-  iwe delete document-key --force
+  # Filter-based delete
+  iwe delete --filter 'status: archived'
 
-  # Preview changes without deleting
-  iwe delete document-key --dry-run
+  # Preview matches without deleting
+  iwe delete --filter 'status: archived' --dry-run
 
-  # Output affected document keys for scripting
-  iwe delete document-key --keys
-
-  # Combine flags for automation
-  iwe delete document-key --force --quiet --keys
+  # Output affected keys for scripting
+  iwe delete --filter 'status: archived' -f keys
 
 REFERENCE HANDLING:
 
-  When a document is deleted, references to it are cleaned up:
-  - Inclusion links are removed entirely
-  - Inline links are converted to plain text
+  - Inclusion links to deleted docs are removed entirely.
+  - Inline links to deleted docs are converted to plain text.
 
 OUTPUT:
 
-  Default: Confirmation prompt, progress messages, updated document count.
+  -f markdown (default): progress messages and updated count.
+  -f keys: one affected document key per line (target plus every doc whose
+    references were rewritten), suitable for piping.
 
-  --dry-run: Shows what would happen without making changes.
-
-  --keys: One affected document key per line (suitable for piping):
-
-    deleted-key
-    updated-doc-1
-    updated-doc-2
+  --dry-run: shows what would happen without making changes.

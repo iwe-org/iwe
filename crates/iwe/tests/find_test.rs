@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 fn setup_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -32,7 +31,7 @@ fn setup_workspace() -> TempDir {
 }
 
 fn run_iwe(dir: &std::path::Path, args: &[&str]) -> (String, String, bool) {
-    let mut command = Command::new(common::get_iwe_binary_path());
+    let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("find").current_dir(dir);
 
     for arg in args {
@@ -76,13 +75,74 @@ fn test_find_lists_all_documents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 2);
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "Document One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Document Two",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    let results = parsed["results"].as_array().unwrap();
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-    assert!(keys.contains(&"doc1"));
-    assert!(keys.contains(&"doc2"));
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_yaml_format() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Document One
+
+            Content one.
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("doc2.md"),
+        indoc! {"
+            # Document Two
+
+            Content two.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "yaml"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - key: doc1
+          title: Document One
+          references: []
+          includes: []
+          referencedBy: []
+          includedBy: []
+        - key: doc2
+          title: Document Two
+          references: []
+          includes: []
+          referencedBy: []
+          includedBy: []
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -97,42 +157,20 @@ fn test_find_fuzzy_search() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "authentication",
+            "title": "User Authentication",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    assert!(!results.is_empty(), "Should find at least one result");
-    assert_eq!(results[0]["key"], "authentication");
-}
-
-#[test]
-fn test_find_roots_only() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("parent.md"),
-        indoc! {"
-            # Parent
-
-            [child](child)
-        "},
-    )
-    .unwrap();
-
-    write(dir.path().join("child.md"), "# Child\n\nChild content.").unwrap();
-    write(dir.path().join("orphan.md"), "# Orphan\n\nNo references.").unwrap();
-
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["--roots", "-f", "json"]);
-
-    assert!(success, "stderr: {}", stderr);
-
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
-
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-
-    assert!(keys.contains(&"parent"), "parent should be a root");
-    assert!(keys.contains(&"orphan"), "orphan should be a root");
-    assert!(!keys.contains(&"child"), "child should NOT be a root");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -166,15 +204,40 @@ fn test_find_refs_to() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "references": [],
+            "includes": [
+              {
+                "key": "target",
+                "title": "Target",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Doc Two",
+            "references": [],
+            "includes": [
+              {
+                "key": "target",
+                "title": "Target",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-
-    assert!(keys.contains(&"doc1"), "doc1 references target");
-    assert!(keys.contains(&"doc2"), "doc2 references target");
-    assert!(!keys.contains(&"doc3"), "doc3 does not reference target");
-    assert!(!keys.contains(&"target"), "target does not reference itself");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -201,15 +264,40 @@ fn test_find_refs_from() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "child1",
+            "title": "Child One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "source",
+                "title": "Source",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "child2",
+            "title": "Child Two",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "source",
+                "title": "Source",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "#};
 
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
-
-    assert!(keys.contains(&"child1"), "child1 is referenced by source");
-    assert!(keys.contains(&"child2"), "child2 is referenced by source");
-    assert!(!keys.contains(&"other"), "other is not referenced by source");
-    assert!(!keys.contains(&"source"), "source does not reference itself");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -228,29 +316,77 @@ fn test_find_limit() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 10, "total should be 10");
-    assert_eq!(parsed["results"].as_array().unwrap().len(), 3, "should return only 3 results");
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "Document 1",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "doc10",
+            "title": "Document 10",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Document 2",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
-fn test_find_limit_shown_in_markdown() {
+fn test_find_limit_in_markdown() {
     let dir = setup_workspace();
 
-    for i in 1..=10 {
-        write(
-            dir.path().join(format!("doc{}.md", i)),
-            format!("# Document {}\n\nContent.", i),
-        )
-        .unwrap();
-    }
+    write(dir.path().join("a.md"), "# A\n\nA body.").unwrap();
+    write(dir.path().join("b.md"), "# B\n\nB body.").unwrap();
+    write(dir.path().join("c.md"), "# C\n\nC body.").unwrap();
+    write(dir.path().join("d.md"), "# D\n\nD body.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["--limit", "3", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--limit", "2", "-f", "markdown"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
-    assert!(stdout.contains("Found 10 results"));
-    assert!(stdout.contains("(showing 3)"));
+    let expected = indoc! {"
+        ````markdown #a
+        ---
+        title: A
+        ---
+
+        # A
+
+        A body.
+        ````
+
+        ````markdown #b
+        ---
+        title: B
+        ---
+
+        # B
+
+        B body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -282,9 +418,15 @@ fn test_find_markdown_format() {
     assert_eq!(
         stdout,
         indoc! {"
-            Found 1 results:
+            ````markdown #test-doc
+            ---
+            title: Test Document
+            ---
 
-            Test Document   #test-doc
+            # Test Document
+
+            Content.
+            ````
         "}
     );
 }
@@ -311,18 +453,44 @@ fn test_find_with_parent_documents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": [
+                  "Section One"
+                ]
+              }
+            ]
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "references": [],
+            "includes": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": [
+                  "Section One"
+                ]
+              }
+            ],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    let child = results.iter().find(|r| r["key"] == "child").unwrap();
-
-    assert_eq!(child["is_root"], false);
-    assert_eq!(child["display_title"], "Child ↖Parent");
-
-    let parents = child["parent_documents"].as_array().unwrap();
-    assert_eq!(parents.len(), 1);
-    assert_eq!(parents[0]["key"], "parent");
-    assert_eq!(parents[0]["title"], "Parent");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -345,14 +513,40 @@ fn test_find_is_root_flag() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "references": [],
+            "includes": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    let parent = results.iter().find(|r| r["key"] == "parent").unwrap();
-    let child = results.iter().find(|r| r["key"] == "child").unwrap();
-
-    assert_eq!(parent["is_root"], true, "parent should be root");
-    assert_eq!(child["is_root"], false, "child should not be root");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -388,13 +582,79 @@ fn test_find_incoming_outgoing_refs() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "child1",
+            "title": "Child One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "hub",
+                "title": "Hub",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "child2",
+            "title": "Child Two",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "hub",
+                "title": "Hub",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "hub",
+            "title": "Hub",
+            "references": [],
+            "includes": [
+              {
+                "key": "child1",
+                "title": "Child One",
+                "sectionPath": []
+              },
+              {
+                "key": "child2",
+                "title": "Child Two",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [
+              {
+                "key": "referrer",
+                "title": "Referrer",
+                "sectionPath": []
+              }
+            ],
+            "includedBy": []
+          },
+          {
+            "key": "referrer",
+            "title": "Referrer",
+            "references": [
+              {
+                "key": "hub",
+                "title": "Hub",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    let hub = results.iter().find(|r| r["key"] == "hub").unwrap();
-
-    assert_eq!(hub["outgoing_refs"], 2);
-    assert_eq!(hub["incoming_refs"], 1);
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -405,9 +665,11 @@ fn test_find_empty_workspace() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 0);
-    assert_eq!(parsed["results"].as_array().unwrap().len(), 0);
+    let expected = indoc! {r#"
+        []
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -420,9 +682,11 @@ fn test_find_query_with_no_match() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["total"], 0);
-    assert_eq!(parsed["results"].as_array().unwrap().len(), 0);
+    let expected = indoc! {r#"
+        []
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -435,8 +699,11 @@ fn test_find_search_query_in_output() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["query"], "myquery");
+    let expected = indoc! {r#"
+        []
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -449,21 +716,46 @@ fn test_find_no_query_null_in_output() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert!(parsed["query"].is_null());
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "test",
+            "title": "Test",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
 fn test_find_markdown_with_query() {
     let dir = setup_workspace();
 
-    write(dir.path().join("test.md"), "# Test Document\n\nContent.").unwrap();
+    write(dir.path().join("match.md"), "# Match\n\nMatching content.").unwrap();
+    write(dir.path().join("other.md"), "# Other\n\nOther content.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["test", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["match", "-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
-    assert!(stdout.contains("for \"test\""));
+    let expected = indoc! {"
+        ````markdown #match
+        ---
+        title: Match
+        ---
+
+        # Match
+
+        Matching content.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -486,10 +778,1015 @@ fn test_find_refs_to_inline_link() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let results = parsed["results"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "references": [
+              {
+                "key": "target",
+                "title": "Target",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    let keys: Vec<&str> = results.iter().map(|r| r["key"].as_str().unwrap()).collect();
+    assert_eq!(stdout, expected);
+}
 
-    assert!(keys.contains(&"doc1"), "doc1 references target via inline link");
+#[test]
+fn test_find_markdown_multi_doc_stream() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("alpha.md"), "# Alpha\n\nAlpha body.").unwrap();
+    write(dir.path().join("beta.md"), "# Beta\n\nBeta body.").unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #alpha
+        ---
+        title: Alpha
+        ---
+
+        # Alpha
+
+        Alpha body.
+        ````
+
+        ````markdown #beta
+        ---
+        title: Beta
+        ---
+
+        # Beta
+
+        Beta body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_markdown_includes_parent_edges() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(dir.path().join("child.md"), "# Child\n\nChild body.").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-f", "markdown", "-k", "child"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #child
+        ---
+        title: Child
+        includedBy:
+        - key: parent
+          title: Parent
+        ---
+
+        # Child
+
+        Child body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_markdown_empty_results() {
+    let dir = setup_workspace();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "");
+}
+
+#[test]
+fn test_find_project_replace_drops_defaults() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            priority: 5
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "key=$key,status,priority", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "status": "draft",
+            "priority": 5
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_pseudo_content() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Hello.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "k=$key,body=$content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "k": "doc1",
+            "body": "# Doc One\n\nHello.\n"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_bare_pseudo_uses_default_name() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "$content", "-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "content": "# Doc One\n\nBody.\n"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_yaml_mapping_form() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "--project",
+            "{key: $key, status: 1}",
+            "-f",
+            "json",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "status": "draft"
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_add_fields_extends_default() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--add-fields", "body=$content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "body": "# Doc One\n\nBody.\n",
+            "status": "draft"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_and_add_fields_conflict() {
+    let dir = setup_workspace();
+    write(dir.path().join("a.md"), "# A").unwrap();
+
+    let (_stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "key", "--add-fields", "status"],
+    );
+
+    assert!(!success, "stderr: {}", stderr);
+    assert!(
+        stderr.contains("cannot be used with"),
+        "expected conflict error, got: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_find_project_unknown_pseudo_rejected() {
+    let dir = setup_workspace();
+    write(dir.path().join("a.md"), "# A").unwrap();
+
+    let (_stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "$bogus"]);
+
+    assert!(!success, "stderr: {}", stderr);
+    assert!(
+        stderr.contains("unknown projection source") || stderr.contains("$bogus"),
+        "stderr: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_find_project_frontmatter_fields_trimmed_block() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            priority: 5
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "status,priority", "-f", "markdown"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        ---
+        status: draft
+        priority: 5
+        ---
+
+        # Doc One
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_content_renders_body_only() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "body=$content", "-f", "markdown"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_key_only_emits_no_frontmatter() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "key", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_missing_frontmatter_field_emits_null() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "pillar", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        ---
+        pillar: null
+        ---
+
+        # Doc One
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_default_projection_omits_empty_edges() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        ---
+        title: Doc One
+        ---
+
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_default_projection_renders_inclusion_edges() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Doc One](doc1)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--key", "doc1", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc1
+        ---
+        title: Doc One
+        includedBy:
+        - key: parent
+          title: Parent
+        ---
+
+        # Doc One
+
+        Body.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_yaml_form() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "k=$key,status", "-f", "yaml"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - k: doc1
+          status: draft
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_default_projection_user_fm_title_wins() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            title: FM Title
+            ---
+            # Heading Title
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "FM Title",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_add_fields_user_fm_title_wins() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            title: FM Title
+            ---
+            # Heading Title
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--add-fields", "note=$key", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "FM Title",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "note": "doc1"
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_empty_result_json_is_open_close_bracket_with_newline() {
+    let dir = setup_workspace();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "[]\n");
+}
+
+#[test]
+fn test_find_empty_result_yaml_is_empty_sequence() {
+    let dir = setup_workspace();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "yaml"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "[]\n");
+}
+
+#[test]
+fn test_find_json_output_ends_with_single_newline() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("a.md"), "# A\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert!(stdout.ends_with("]\n"), "stdout: {:?}", stdout);
+    assert!(!stdout.ends_with("]\n\n"), "stdout: {:?}", stdout);
+}
+
+#[test]
+fn test_find_yaml_output_no_trailing_double_newline() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("a.md"), "# A\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "yaml"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert!(!stdout.ends_with("\n\n"), "stdout: {:?}", stdout);
+}
+
+#[test]
+fn test_find_project_edges_only_renders_as_markdown_block() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "--key",
+            "child",
+            "--project",
+            "parents=$includedBy",
+            "-f",
+            "markdown",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #child
+        ---
+        parents:
+        - key: parent
+          title: Parent
+        ---
+
+        # Child
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_field_order_preserved_json() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Heading
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "z=$key,a=$title,m=$content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "z": "doc1",
+            "a": "Heading",
+            "m": "# Heading\n\nBody.\n"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_field_order_preserved_yaml() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Heading
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "z=$key,a=$title,m=$content", "-f", "yaml"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - z: doc1
+          a: Heading
+          m: |
+            # Heading
+
+            Body.
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_includes_edges_json_shape() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--key", "parent", "--project", "k=$key,inc=$includes", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "k": "parent",
+            "inc": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_add_fields_collision_overwrites_default_title() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Heading Title
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--add-fields", "title=$key", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "doc1",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_default_projection_user_fm_key_wins() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            key: user-supplied
+            ---
+            # Heading
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "user-supplied",
+            "title": "Heading",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_roots_flag() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("root.md"),
+        indoc! {"
+            # Root
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+
+            Content.
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("standalone.md"),
+        indoc! {"
+            # Standalone
+
+            No links.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, _, success) = run_iwe(dir.path(), &["--roots", "-f", "keys"]);
+    assert!(success);
+    assert_eq!(stdout, "root\nstandalone\n");
+}
+
+#[test]
+fn test_find_roots_combined_with_filter() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("root-a.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Root A
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("root-b.md"),
+        indoc! {"
+            ---
+            status: published
+            ---
+            # Root B
+
+            Content.
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Child
+
+            Content.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, _, success) = run_iwe(
+        dir.path(),
+        &["--roots", "--filter", "status: draft", "-f", "keys"],
+    );
+    assert!(success);
+    assert_eq!(stdout, "root-a\n");
 }

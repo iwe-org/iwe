@@ -1,49 +1,54 @@
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-use itertools::Itertools;
 use serde::Serialize;
-use crate::graph::{Graph, GraphContext};
-use crate::model::node::{NodeIter, NodePointer};
-use crate::model::{Key, NodeId};
-use crate::selector::Selector;
+use serde_yaml::Mapping;
+use crate::graph::Graph;
+use crate::model::Key;
+use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
+use crate::query::project::{apply_projection_or_default, ProjectionContext};
+use crate::query::sort::sort_in_place;
+
+pub type FindResult = Mapping;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ParentDocumentInfo {
-    pub key: String,
-    pub title: String,
-    pub section_path: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct FindResult {
-    pub key: String,
-    pub title: String,
-    pub display_title: String,
-    pub is_root: bool,
-    pub incoming_refs: usize,
-    pub outgoing_refs: usize,
-    pub parent_documents: Vec<ParentDocumentInfo>,
-}
-
-#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FindOutput {
     pub query: Option<String>,
     pub limit: Option<usize>,
     pub total: usize,
     pub results: Vec<FindResult>,
+    #[serde(skip)]
+    pub keys: Vec<Key>,
+    #[serde(skip)]
+    pub titles: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct FindOptions {
     pub query: Option<String>,
-    pub roots: bool,
     pub refs_to: Option<Key>,
     pub refs_from: Option<Key>,
-    pub selector: Selector,
+    pub filter: Option<Filter>,
     pub limit: Option<usize>,
+    pub sort: Option<Sort>,
+    pub project: Option<Projection>,
 }
 
 pub struct DocumentFinder<'a> {
     graph: &'a Graph,
+}
+
+enum Order<'a> {
+    Fuzzy(&'a str),
+    Rank,
+}
+
+impl<'a> Order<'a> {
+    fn from_options(options: &'a FindOptions) -> Order<'a> {
+        match &options.query {
+            Some(q) => Order::Fuzzy(q),
+            None => Order::Rank,
+        }
+    }
 }
 
 impl<'a> DocumentFinder<'a> {
@@ -52,194 +57,133 @@ impl<'a> DocumentFinder<'a> {
     }
 
     pub fn find(&self, options: &FindOptions) -> FindOutput {
-        let matcher = SkimMatcherV2::default();
+        let candidates = self.candidates(options);
 
-        let candidate_set = if options.selector.is_empty() {
-            None
-        } else {
-            Some(options.selector.resolve(self.graph))
+        let candidates = match (&options.sort, &options.query) {
+            (Some(_), _) => self.fuzzy_filter_only(candidates, options.query.as_deref()),
+            (None, _) => candidates,
         };
 
-        let mut results: Vec<(Key, i64)> = self
-            .graph
-            .keys()
-            .into_iter()
-            .filter_map(|key| {
-                if let Some(set) = &candidate_set {
-                    if !set.contains(&key) {
-                        return None;
-                    }
-                }
-                if options.roots && !self.is_root(&key) {
-                    return None;
-                }
-                if let Some(ref target) = options.refs_to {
-                    if !self.references(&key, target) {
-                        return None;
-                    }
-                }
-                if let Some(ref source) = options.refs_from {
-                    if !self.references(source, &key) {
-                        return None;
-                    }
-                }
+        let ordered = if let Some(s) = &options.sort {
+            self.sort_by_frontmatter(candidates, s)
+        } else {
+            self.order(candidates, Order::from_options(options))
+        };
 
-                let title = self.graph.get_key_title(&key).unwrap_or_default();
-                let search_text = format!("{} {}", key, title);
-
-                let score = options
-                    .query
-                    .as_ref()
-                    .map(|q| matcher.fuzzy_match(&search_text, q).unwrap_or(0))
-                    .unwrap_or(self.node_rank(&key) as i64);
-
-                if options.query.is_some() && score == 0 {
-                    return None;
-                }
-
-                Some((key, score))
-            })
+        let total = ordered.len();
+        let take = options.limit.filter(|&l| l > 0).unwrap_or(total);
+        let kept: Vec<Key> = ordered.into_iter().take(take).collect();
+        let titles: Vec<String> = kept
+            .iter()
+            .map(|k| self.graph.get_key_title(k).unwrap_or_else(|| k.to_string()))
             .collect();
-
-        results.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-
-        let total = results.len();
-        let results: Vec<FindResult> = if let Some(limit) = options.limit {
-            results
-                .into_iter()
-                .take(limit)
-                .map(|(key, _)| self.build_result(&key))
-                .collect()
-        } else {
-            results
-                .into_iter()
-                .map(|(key, _)| self.build_result(&key))
-                .collect()
-        };
-
-        let limit = options.limit.filter(|&l| l < total);
+        let results: Vec<FindResult> = kept
+            .iter()
+            .map(|key| self.build_result(key, options.project.as_ref()))
+            .collect();
+        let limit = options.limit.filter(|&l| l > 0 && l < total);
 
         FindOutput {
             query: options.query.clone(),
             limit,
             total,
             results,
+            keys: kept,
+            titles,
         }
     }
 
-    fn build_result(&self, key: &Key) -> FindResult {
-        let title = self.graph.get_key_title(key).unwrap_or_default();
-        let parent_documents = self.get_parent_documents(key);
-        let display_title = Self::render_display_title(&title, &parent_documents);
+    fn fuzzy_filter_only(&self, candidates: Vec<Key>, query: Option<&str>) -> Vec<Key> {
+        let Some(q) = query else {
+            return candidates;
+        };
+        let matcher = SkimMatcherV2::default();
+        candidates
+            .into_iter()
+            .filter(|key| {
+                let title = self.graph.get_key_title(key).unwrap_or_default();
+                let text = format!("{} {}", key, title);
+                matcher.fuzzy_match(&text, q).unwrap_or(0) > 0
+            })
+            .collect()
+    }
 
-        FindResult {
-            key: key.to_string(),
-            title,
-            display_title,
-            is_root: self.is_root(key),
-            incoming_refs: self.graph.get_block_references_to(key).len()
-                + self.graph.get_inline_references_to(key).len(),
-            outgoing_refs: self.graph.get_block_references_in(key).len(),
-            parent_documents,
+    fn sort_by_frontmatter(&self, candidates: Vec<Key>, sort: &Sort) -> Vec<Key> {
+        let mut rows: Vec<(Key, Mapping)> = candidates
+            .into_iter()
+            .map(|k| {
+                let m = self.graph.frontmatter(&k).cloned().unwrap_or_default();
+                (k, m)
+            })
+            .collect();
+        sort_in_place(&mut rows, sort);
+        rows.into_iter().map(|(k, _)| k).collect()
+    }
+
+    fn candidates(&self, options: &FindOptions) -> Vec<Key> {
+        match build_filter(options) {
+            None => self.graph.keys(),
+            Some(f) => query::evaluate(&f, self.graph),
         }
     }
 
-    fn render_display_title(title: &str, parent_documents: &[ParentDocumentInfo]) -> String {
-        if parent_documents.is_empty() {
-            title.to_string()
-        } else {
-            let parents = parent_documents
-                .iter()
-                .map(|p| format!("↖{}", p.title))
-                .collect::<Vec<_>>()
-                .join(" ");
-            format!("{} {}", title, parents)
-        }
+    fn order(&self, candidates: Vec<Key>, order: Order<'_>) -> Vec<Key> {
+        let mut scored: Vec<(Key, i64)> = match order {
+            Order::Fuzzy(q) => {
+                let matcher = SkimMatcherV2::default();
+                candidates
+                    .into_iter()
+                    .filter_map(|key| {
+                        let title = self.graph.get_key_title(&key).unwrap_or_default();
+                        let text = format!("{} {}", key, title);
+                        let score = matcher.fuzzy_match(&text, q).unwrap_or(0);
+                        (score > 0).then_some((key, score))
+                    })
+                    .collect()
+            }
+            Order::Rank => candidates
+                .into_iter()
+                .map(|key| {
+                    let rank = self.node_rank(&key) as i64;
+                    (key, rank)
+                })
+                .collect(),
+        };
+        scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        scored.into_iter().map(|(k, _)| k).collect()
     }
 
-    fn is_root(&self, key: &Key) -> bool {
-        self.graph.get_block_references_to(key).is_empty()
+    fn build_result(&self, key: &Key, project: Option<&Projection>) -> FindResult {
+        let ctx = ProjectionContext {
+            graph: self.graph,
+            key,
+        };
+        apply_projection_or_default(&ctx, project)
     }
 
     fn node_rank(&self, key: &Key) -> usize {
-        self.graph.get_inline_references_to(key).len()
-            + self.graph.get_block_references_to(key).len()
+        self.graph.get_reference_edges_to(key).len()
+            + self.graph.get_inclusion_edges_to(key).len()
     }
+}
 
-    fn references(&self, source: &Key, target: &Key) -> bool {
-        let block_refs = self.graph.get_block_references_in(source);
-        for ref_id in block_refs {
-            if let Some(ref_key) = self.graph.graph_node(ref_id).ref_key() {
-                if &ref_key == target {
-                    return true;
-                }
-            }
-        }
-
-        if let Some(node_id) = self.graph.get_node_id(source) {
-            let sub_nodes = self.graph.node(node_id).get_all_sub_nodes();
-            for sub_node_id in sub_nodes {
-                if let Some(line_id) = self.graph.graph_node(sub_node_id).line_id() {
-                    let line = self.graph.get_line(line_id);
-                    for ref_key in line.ref_keys() {
-                        if &ref_key == target {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        false
+fn build_filter(options: &FindOptions) -> Option<Filter> {
+    let mut conjuncts: Vec<Filter> = options.filter.clone().into_iter().collect();
+    if let Some(target) = &options.refs_to {
+        conjuncts.push(Filter::Or(vec![
+            Filter::Includes(Box::new(InclusionAnchor::with_max(target.to_string(), 1))),
+            Filter::References(Box::new(ReferenceAnchor::with_max(target.to_string(), 1))),
+        ]));
     }
-
-    fn get_parent_documents(&self, key: &Key) -> Vec<ParentDocumentInfo> {
-        let refs = self.graph.get_block_references_to(key);
-        let mut parents = Vec::new();
-
-        for ref_id in refs {
-            let node = self.graph.node(ref_id);
-
-            if let Some(doc_node) = node.to_document() {
-                if let Some(doc_key) = doc_node.document_key() {
-                    let title = self
-                        .graph
-                        .get_key_title(&doc_key)
-                        .unwrap_or_else(|| doc_key.to_string());
-
-                    let section_path = self.get_section_path(ref_id);
-
-                    parents.push(ParentDocumentInfo {
-                        key: doc_key.to_string(),
-                        title,
-                        section_path,
-                    });
-                }
-            }
-        }
-
-        parents.into_iter().unique_by(|p| p.key.clone()).collect()
+    if let Some(source) = &options.refs_from {
+        conjuncts.push(Filter::Or(vec![
+            Filter::IncludedBy(Box::new(InclusionAnchor::with_max(source.to_string(), 1))),
+            Filter::ReferencedBy(Box::new(ReferenceAnchor::with_max(source.to_string(), 1))),
+        ]));
     }
-
-    fn get_section_path(&self, node_id: NodeId) -> Vec<String> {
-        let mut path = Vec::new();
-        let mut current = self.graph.node(node_id);
-
-        while let Some(parent) = current.to_parent() {
-            if parent.is_section()
-                && parent
-                    .to_parent()
-                    .map(|p| p.is_document())
-                    .unwrap_or(true)
-            {
-                let text = parent.plain_text().trim().to_string();
-                path.push(text);
-            }
-            if parent.is_document() {
-                break;
-            }
-            current = parent;
-        }
-        path
+    if conjuncts.is_empty() {
+        None
+    } else {
+        Some(Filter::And(conjuncts))
     }
 }

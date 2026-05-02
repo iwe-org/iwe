@@ -110,7 +110,7 @@ impl ActionProvider for AttachAction {
         if context.key_exists(&attach_to_key)
             && context
                 .collect(&attach_to_key)
-                .get_all_block_reference_keys()
+                .get_all_inclusion_edge_keys()
                 .contains(&reference_key)
         {
             return None;

@@ -20,12 +20,16 @@ DOT OUTPUT FORMAT:
       }
     }
 
-STRUCTURAL SET SELECTOR (--in family):
+FILTER FLAGS (narrow the exported set):
 
-  --in KEY[:DEPTH]      Restrict to sub-documents of EVERY listed key (AND). Repeatable.
-  --in-any KEY[:DEPTH]  Restrict to sub-documents of AT LEAST ONE listed key (OR).
-  --not-in KEY[:DEPTH]  Exclude sub-documents of any listed key (NOT).
-  --max-depth N         Default depth for entries without :DEPTH. Unbounded if omitted.
+  --filter "EXPR"             Inline filter expression (YAML).
+  -k, --key KEY               Match by key. Repeatable.
+  --includes KEY[:DEPTH]      $includes anchor.
+  --included-by KEY[:DEPTH]   $includedBy anchor.
+  --references KEY[:DIST]     $references anchor.
+  --referenced-by KEY[:DIST]  $referencedBy anchor.
+  --max-depth N               Default maxDepth for inclusion anchors. Default 1.
+  --max-distance N            Default maxDistance for reference anchors. Default 1.
 
 EXAMPLES:
 
@@ -42,9 +46,9 @@ EXAMPLES:
   # Control connection depth
   iwe export --key index --depth 2
 
-  # Restrict to a subtree via the selector
-  iwe export --in projects/alpha
-  iwe export --in projects/alpha --not-in archive
+  # Restrict to a subtree via filter
+  iwe export --included-by projects/alpha
+  iwe export --included-by projects/alpha --filter '$not: { $includedBy: archive }'
 
 USING DOT OUTPUT:
 

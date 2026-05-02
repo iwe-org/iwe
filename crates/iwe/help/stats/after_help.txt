@@ -12,11 +12,14 @@ CSV (-f csv):
   code_blocks, tables, quotes
 
 JSON (-f json):
-  Aggregate graph statistics serialized as JSON. Ignored when -k is given —
-  per-document stats are always emitted as JSON regardless of -f.
+  Aggregate graph statistics serialized as JSON.
+
+YAML (-f yaml):
+  Same shape as JSON, rendered as YAML.
 
 PER-DOCUMENT STATS (-k <KEY>):
-  Returns the JSON record for a single document. Useful for scripting.
+  Returns the record for a single document (JSON by default, YAML with
+  -f yaml). Useful for scripting.
 
 EXAMPLES:
 
@@ -29,8 +32,14 @@ EXAMPLES:
   # Aggregate stats as JSON
   iwe stats -f json
 
-  # Per-document stats (always JSON)
+  # Aggregate stats as YAML
+  iwe stats -f yaml
+
+  # Per-document stats (JSON by default)
   iwe stats -k my-document
+
+  # Per-document stats as YAML
+  iwe stats -k my-document -f yaml
 
   # Find most connected documents
   iwe stats -f csv | tail -n +2 | sort -t, -k12 -nr | head -5

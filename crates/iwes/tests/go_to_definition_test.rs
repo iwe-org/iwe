@@ -2,7 +2,6 @@ use indoc::indoc;
 use liwe::model::config::MarkdownOptions;
 use std::str::FromStr;
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

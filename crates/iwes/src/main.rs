@@ -46,7 +46,10 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
 
     info!("starting IWE LSP server");
 
-    let configuration = load_config();
+    let configuration = load_config().unwrap_or_else(|e| {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    });
 
     let (connection, io_threads) = Connection::stdio();
 

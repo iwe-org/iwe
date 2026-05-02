@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 #[test]
 fn test_tree_default_format_is_markdown() {
@@ -57,12 +56,34 @@ fn test_tree_json_format() {
             "children": [
               {
                 "key": "child",
-                "title": "Child Document"
+                "title": "Child Document",
+                "children": []
               }
             ]
           }
         ]
     "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_tree_yaml_format() {
+    let temp_dir = setup_workspace_with_linked_documents();
+    let temp_path = temp_dir.path();
+
+    let output = run_tree_command(temp_path, &["-f", "yaml"]);
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {"
+        - key: main
+          title: Main Document
+          children:
+          - key: child
+            title: Child Document
+            children: []
+    "};
 
     assert_eq!(stdout, expected);
 }
@@ -266,6 +287,243 @@ fn test_tree_self_referencing_document() {
     assert_eq!(stdout, expected);
 }
 
+#[test]
+fn test_tree_project_user_frontmatter() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    let parent = indoc! {"
+        ---
+        pillar: ai-memory
+        status: published
+        ---
+
+        # Parent
+
+        [child](child)
+    "};
+    let child = indoc! {"
+        ---
+        pillar: ai-memory
+        status: draft
+        ---
+
+        # Child
+
+        Child content.
+    "};
+
+    write(temp_path.join("parent.md"), parent).expect("Should write parent");
+    write(temp_path.join("child.md"), child).expect("Should write child");
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "parent", "--project", "pillar,status", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let parent_node = &parsed[0];
+    assert_eq!(parent_node["key"], "parent");
+    assert_eq!(parent_node["title"], "Parent");
+    assert_eq!(parent_node["pillar"], "ai-memory");
+    assert_eq!(parent_node["status"], "published");
+    let children = parent_node["children"].as_array().expect("children is array");
+    assert_eq!(children.len(), 1);
+    let child_node = &children[0];
+    assert_eq!(child_node["pillar"], "ai-memory");
+    assert_eq!(child_node["status"], "draft");
+    assert!(child_node["children"].is_array(), "children always present");
+}
+
+#[test]
+fn test_tree_project_pseudo_content() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("root.md"),
+        indoc! {"
+            # Root
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+    write(
+        temp_path.join("child.md"),
+        indoc! {"
+            # Child
+
+            Child body.
+        "},
+    )
+    .unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "root", "--project", "body=$content", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let root = &parsed[0];
+    assert_eq!(root["key"], "root");
+    assert_eq!(root["title"], "Root");
+    assert!(
+        root["body"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("# Root"),
+        "expected body to contain root content, got: {:?}",
+        root["body"]
+    );
+    assert!(root["children"].is_array());
+    let child = &root["children"][0];
+    assert!(child["body"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("# Child"));
+}
+
+#[test]
+fn test_tree_add_fields_extends_default_user_fm() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("doc.md"),
+        indoc! {"
+            ---
+            status: draft
+            ---
+            # Doc
+        "},
+    )
+    .unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "doc", "--add-fields", "status", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    assert_eq!(parsed[0]["key"], "doc");
+    assert_eq!(parsed[0]["title"], "Doc");
+    assert_eq!(parsed[0]["status"], "draft");
+}
+
+#[test]
+fn test_tree_add_fields_edges_yaml() {
+    let temp_dir = setup_workspace_with_linked_documents();
+    let temp_path = temp_dir.path();
+
+    let output = run_tree_command(
+        temp_path,
+        &[
+            "-k",
+            "child",
+            "--add-fields",
+            "parents=$includedBy",
+            "-f",
+            "yaml",
+        ],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {"
+        - key: child
+          title: Child Document
+          references: []
+          includes: []
+          referencedBy: []
+          includedBy:
+          - key: main
+            title: Main Document
+            sectionPath: []
+          parents:
+          - key: main
+            title: Main Document
+            sectionPath: []
+          children: []
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_tree_add_fields_cannot_overwrite_system_title() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("doc.md"), "# Heading Title\n").unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "doc", "--add-fields", "title=$key", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc",
+            "title": "Heading Title",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "children": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_tree_project_and_add_fields_conflict() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("doc.md"), "# Doc").unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &[
+            "-k",
+            "doc",
+            "--project",
+            "key",
+            "--add-fields",
+            "status",
+        ],
+    );
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert!(!output.status.success(), "expected conflict error");
+    assert!(
+        stderr.contains("cannot be used with"),
+        "unexpected stderr: {}",
+        stderr
+    );
+}
+
 fn setup_workspace_with_self_reference() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
@@ -464,7 +722,7 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
 }
 
 fn run_tree_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::Output {
-    let mut command = Command::new(common::get_iwe_binary_path());
+    let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("tree").current_dir(work_dir);
 
     for arg in args {

@@ -6,8 +6,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use liwe::find::{DocumentFinder, FindOptions, FindOutput};
+use liwe::query::cli::parse_projection;
+use liwe::query::{self, Filter, InclusionAnchor, ProjectionMode};
 use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
-use liwe::selector::{KeyDepth, Selector};
 use liwe::stats::{GraphStatistics, KeyStatistics};
 use liwe::fs::{new_for_path, new_from_hashmap};
 use liwe::graph::{Graph, GraphContext};
@@ -52,15 +53,19 @@ pub enum KeyDepthParam {
     },
 }
 
-impl From<KeyDepthParam> for KeyDepth {
-    fn from(p: KeyDepthParam) -> Self {
-        match p {
-            KeyDepthParam::Bare(s) => KeyDepth::bare(Key::name(&s)),
-            KeyDepthParam::Qualified { key, depth } => match depth {
-                Some(d) => KeyDepth::with_depth(Key::name(&key), d),
-                None => KeyDepth::bare(Key::name(&key)),
-            },
-        }
+impl KeyDepthParam {
+    fn anchor(&self, default_depth: Option<u8>) -> InclusionAnchor {
+        let (key, depth) = match self {
+            KeyDepthParam::Bare(s) => (s.clone(), None),
+            KeyDepthParam::Qualified { key, depth } => (key.clone(), *depth),
+        };
+        let raw = depth.or(default_depth);
+        let max = match raw {
+            None => u32::MAX,
+            Some(0) => u32::MAX,
+            Some(n) => u32::from(n),
+        };
+        InclusionAnchor::with_max(key, max)
     }
 }
 
@@ -88,14 +93,36 @@ pub struct SelectorParams {
     pub max_depth: Option<u8>,
 }
 
-impl From<SelectorParams> for Selector {
-    fn from(p: SelectorParams) -> Self {
-        Selector {
-            in_: p.in_.into_iter().map(Into::into).collect(),
-            in_any: p.in_any.into_iter().map(Into::into).collect(),
-            not_in: p.not_in.into_iter().map(Into::into).collect(),
-            max_depth: p.max_depth,
+impl SelectorParams {
+    pub fn is_empty(&self) -> bool {
+        self.in_.is_empty()
+            && self.in_any.is_empty()
+            && self.not_in.is_empty()
+            && self.max_depth.is_none()
+    }
+
+    pub fn to_filter(&self) -> Option<Filter> {
+        if self.is_empty() {
+            return None;
         }
+        let mut conjuncts: Vec<Filter> = Vec::new();
+        for kd in &self.in_ {
+            conjuncts.push(Filter::IncludedBy(Box::new(kd.anchor(self.max_depth))));
+        }
+        if !self.in_any.is_empty() {
+            conjuncts.push(Filter::Or(
+                self.in_any
+                    .iter()
+                    .map(|kd| Filter::IncludedBy(Box::new(kd.anchor(self.max_depth))))
+                    .collect(),
+            ));
+        }
+        for kd in &self.not_in {
+            conjuncts.push(Filter::Not(Box::new(Filter::IncludedBy(Box::new(
+                kd.anchor(self.max_depth),
+            )))));
+        }
+        Some(Filter::And(conjuncts))
     }
 }
 
@@ -103,28 +130,50 @@ impl From<SelectorParams> for Selector {
 pub struct FindParams {
     #[schemars(description = "Fuzzy search query matching against document title and key")]
     pub query: Option<String>,
-    #[schemars(description = "Only return root documents (no incoming block references)")]
-    pub roots: Option<bool>,
     #[schemars(description = "Only return documents that reference this key")]
     pub refs_to: Option<String>,
     #[schemars(description = "Only return documents referenced by this key")]
     pub refs_from: Option<String>,
     #[schemars(description = "Maximum number of results to return")]
     pub limit: Option<usize>,
+    #[schemars(description = "Replacement projection (e.g. 'title,priority' or 'body=$content,parents=$includedBy'). Mutually exclusive with add_fields.")]
+    pub project: Option<String>,
+    #[schemars(description = "Additive projection: same grammar as project, extends defaults rather than replacing. Mutually exclusive with project.")]
+    pub add_fields: Option<String>,
     #[serde(flatten)]
     pub selector: SelectorParams,
 }
 
-impl From<FindParams> for FindOptions {
-    fn from(p: FindParams) -> Self {
-        FindOptions {
+impl TryFrom<FindParams> for FindOptions {
+    type Error = McpError;
+
+    fn try_from(p: FindParams) -> Result<Self, Self::Error> {
+        let project = match (p.project.as_deref(), p.add_fields.as_deref()) {
+            (Some(_), Some(_)) => {
+                return Err(McpError::invalid_params(
+                    "project and add_fields are mutually exclusive".to_string(),
+                    None,
+                ))
+            }
+            (Some(s), None) => Some(
+                parse_projection(s, ProjectionMode::Replace)
+                    .map_err(|e| McpError::invalid_params(e, None))?,
+            ),
+            (None, Some(s)) => Some(
+                parse_projection(s, ProjectionMode::Extend)
+                    .map_err(|e| McpError::invalid_params(e, None))?,
+            ),
+            (None, None) => None,
+        };
+        Ok(FindOptions {
             query: p.query,
-            roots: p.roots.unwrap_or(false),
             refs_to: p.refs_to.map(|k| Key::name(&k)),
             refs_from: p.refs_from.map(|k| Key::name(&k)),
-            selector: p.selector.into(),
+            filter: p.selector.to_filter(),
             limit: p.limit,
-        }
+            sort: None,
+            project,
+        })
     }
 }
 
@@ -145,6 +194,8 @@ pub struct RetrieveParams {
     pub exclude: Option<Vec<String>>,
     #[schemars(description = "Return metadata only without document content. Default: false")]
     pub no_content: Option<bool>,
+    #[schemars(description = "Populate the `includes` array with child document edges. Default: false")]
+    pub children: Option<bool>,
     #[serde(flatten)]
     pub selector: SelectorParams,
 }
@@ -163,7 +214,8 @@ impl From<RetrieveParams> for RetrieveOptions {
                 .map(|k| Key::name(&k))
                 .collect::<HashSet<_>>(),
             no_content: p.no_content.unwrap_or(false),
-            selector: p.selector.into(),
+            children: p.children.unwrap_or(false),
+            filter: p.selector.to_filter(),
         }
     }
 }
@@ -182,7 +234,6 @@ pub struct TreeParams {
 struct TreeNode {
     key: String,
     title: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     children: Vec<TreeNode>,
 }
 
@@ -423,10 +474,11 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<FindParams>,
     ) -> Result<CallToolResult, McpError> {
+        let options: FindOptions = params.try_into()?;
         let graph = self.graph.lock().await;
         let finder = DocumentFinder::new(&graph);
-        let output: FindOutput = finder.find(&params.into());
-        to_json_result(&output)
+        let output: FindOutput = finder.find(&options);
+        to_json_result(&output.results)
     }
 
     #[tool(description = "Retrieve documents from the knowledge graph with configurable depth expansion, parent context, backlinks, and linked documents")]
@@ -439,7 +491,7 @@ impl IweServer {
         let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
         let options: RetrieveOptions = params.into();
         let output: RetrieveOutput = reader.retrieve_many(&keys, &options);
-        to_json_result(&output)
+        to_json_result(&output.documents)
     }
 
     #[tool(description = "View the hierarchical tree structure of the knowledge graph showing how documents are connected via block references. Supports the structural set selector (in / in_any / not_in / max_depth) — when provided, the tree roots are restricted to (or selected from) that set.")]
@@ -449,15 +501,16 @@ impl IweServer {
     ) -> Result<CallToolResult, McpError> {
         let graph = self.graph.lock().await;
 
-        let selector: Selector = params.selector.into();
+        let filter = params.selector.to_filter();
         let explicit_keys: Vec<Key> = params
             .keys
             .filter(|k| !k.is_empty())
             .map(|ks| ks.iter().map(|k| Key::name(k)).collect())
             .unwrap_or_default();
 
-        let root_keys: Vec<Key> = if !selector.is_empty() {
-            let selector_set = selector.resolve(&graph);
+        let root_keys: Vec<Key> = if let Some(f) = filter {
+            let selector_set: HashSet<Key> =
+                query::evaluate(&f, &graph).into_iter().collect();
             if explicit_keys.is_empty() {
                 let mut v: Vec<Key> = selector_set.into_iter().collect();
                 v.sort();
@@ -924,7 +977,7 @@ impl IweServer {
             if (&*graph).get_node_id(&target_key).is_some() {
                 let tree = (&*graph).collect(&target_key);
                 if tree
-                    .get_all_block_reference_keys()
+                    .get_all_inclusion_edge_keys()
                     .contains(&source_key)
                 {
                     continue;
@@ -992,7 +1045,7 @@ fn build_tree_node(
     visited.insert(key.clone());
 
     let children = if max_depth > 1 {
-        let ref_node_ids = graph.get_block_references_in(key);
+        let ref_node_ids = graph.get_inclusion_edges_in(key);
         let mut refs: Vec<Key> = ref_node_ids
             .iter()
             .filter_map(|id| graph.graph_node(*id).ref_key())
@@ -1091,20 +1144,11 @@ impl IweServer {
         let stats_json =
             serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "{}".to_string());
 
-        let finder = DocumentFinder::new(&graph);
-        let roots = finder.find(&FindOptions {
-            roots: true,
-            limit: Some(20),
-            ..Default::default()
-        });
-        let roots_json =
-            serde_json::to_string_pretty(&roots).unwrap_or_else(|_| "[]".to_string());
-
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,
             format!(
-                "Here is an overview of the IWE knowledge graph.\n\n## Statistics\n\n```json\n{}\n```\n\n## Root documents\n\n```json\n{}\n```\n\nExplore the graph using iwe_retrieve to read documents, iwe_find to search, and iwe_tree to navigate the structure.",
-                stats_json, roots_json
+                "Here is an overview of the IWE knowledge graph.\n\n## Statistics\n\n```json\n{}\n```\n\nExplore the graph using iwe_retrieve to read documents, iwe_find to search, and iwe_tree to navigate the structure.",
+                stats_json
             ),
         )];
 
@@ -1132,7 +1176,8 @@ impl IweServer {
                 ..Default::default()
             },
         );
-        let json = serde_json::to_string_pretty(&output).unwrap_or_else(|_| "{}".to_string());
+        let json = serde_json::to_string_pretty(&output.documents)
+            .unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -1166,7 +1211,8 @@ impl IweServer {
                 ..Default::default()
             },
         );
-        let json = serde_json::to_string_pretty(&output).unwrap_or_else(|_| "{}".to_string());
+        let json = serde_json::to_string_pretty(&output.documents)
+            .unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,

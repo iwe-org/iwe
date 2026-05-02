@@ -49,17 +49,17 @@ The referenced file `Important Topic` is completely deleted, the inclusion link 
 You can also delete documents using the CLI:
 
 ``` bash
-# Delete with confirmation prompt
+# Delete a single document
 iwe delete my-document
 
 # Preview changes first
 iwe delete my-document --dry-run
 
-# Skip confirmation
-iwe delete my-document --force
-
 # Get affected document keys
-iwe delete my-document --keys
+iwe delete my-document -f keys
+
+# Bulk delete by filter
+iwe delete --filter 'status: archived'
 ```
 
-See [IWE Delete](cli-delete.md) for full documentation.
+`iwe delete` does not prompt before writing — pass `--dry-run` first if you want to inspect the matched set. See [IWE Delete](cli-delete.md) and the [Query Language](query-language.md) reference for filter syntax.

@@ -1,6 +1,5 @@
 use indoc::indoc;
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]
@@ -26,7 +25,7 @@ fn delete_block_reference_no_other_references() {
 }
 
 #[test]
-fn delete_multiple_block_references() {
+fn delete_multiple_inclusion_edges() {
     assert_deleted(
         indoc! {"
             # title a
@@ -84,7 +83,7 @@ fn delete_updates_other_files() {
 }
 
 #[test]
-fn delete_updates_inline_references() {
+fn delete_updates_reference_edges() {
     assert_deleted(
         indoc! {"
             # title a

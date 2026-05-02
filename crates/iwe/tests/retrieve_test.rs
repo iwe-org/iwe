@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-mod common;
 
 fn setup_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -32,7 +31,7 @@ fn setup_workspace() -> TempDir {
 }
 
 fn run_iwe(dir: &std::path::Path, args: &[&str]) -> (String, String, bool) {
-    let mut command = Command::new(common::get_iwe_binary_path());
+    let mut command = Command::new(crate::common::get_iwe_binary_path());
     command.arg("retrieve").current_dir(dir);
 
     for arg in args {
@@ -67,17 +66,15 @@ fn test_retrieve_basic_document() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #test-doc
         ---
-        document:
-          key: test-doc
-          title: Test Document
+        title: Test Document
         ---
 
         # Test Document
 
         This is some content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -112,12 +109,55 @@ fn test_retrieve_json_format() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["documents"][0]["key"], "test-doc");
-    assert_eq!(parsed["documents"][0]["title"], "Test Document");
-    assert_eq!(parsed["documents"][0]["content"], "# Test Document\n\nContent here.\n");
-    assert_eq!(parsed["documents"][0]["parent_documents"], serde_json::json!([]));
-    assert_eq!(parsed["documents"][0]["backlinks"], serde_json::json!([]));
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "test-doc",
+            "title": "Test Document",
+            "content": "# Test Document\n\nContent here.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_retrieve_yaml_format() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("test-doc.md"),
+        indoc! {"
+            # Test Document
+
+            Content here.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "test-doc", "-d", "0", "-f", "yaml"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - key: test-doc
+          title: Test Document
+          content: |
+            # Test Document
+
+            Content here.
+          references: []
+          includes: []
+          referencedBy: []
+          includedBy: []
+    "};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -151,20 +191,20 @@ fn test_retrieve_with_parent_documents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child Document
-          parents:
-          - key: parent
-            title: Parent Document
+        title: Child Document
+        includedBy:
+        - key: parent
+          title: Parent Document
+          sectionPath:
+          - Overview
         ---
 
         # Child Document
 
         Child content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -199,20 +239,18 @@ fn test_retrieve_with_backlinks() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #target
         ---
-        document:
-          key: target
-          title: Target Document
-          back-links:
-          - key: referrer
-            title: Referrer Document
+        title: Target Document
+        referencedBy:
+        - key: referrer
+          title: Referrer Document
         ---
 
         # Target Document
 
         Target content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -257,23 +295,21 @@ fn test_retrieve_with_both_parent_and_backlinks() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          parents:
-          - key: parent
-            title: Parent
-          back-links:
-          - key: referrer
-            title: Referrer
+        title: Child
+        referencedBy:
+        - key: referrer
+          title: Referrer
+        includedBy:
+        - key: parent
+          title: Parent
         ---
 
         # Child
 
         Child content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -308,17 +344,15 @@ fn test_retrieve_depth_zero_excludes_referenced_docs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #root
         ---
-        document:
-          key: root
-          title: Root
+        title: Root
         ---
 
         # Root
 
         [Child](child)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -353,31 +387,28 @@ fn test_retrieve_depth_one_includes_referenced_docs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #root
         ---
-        document:
-          key: root
-          title: Root
+        title: Root
         ---
 
         # Root
 
         [Child](child)
+        ````
 
-
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          parents:
-          - key: root
-            title: Root
+        title: Child
+        includedBy:
+        - key: root
+          title: Root
         ---
 
         # Child
 
         Child content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -421,31 +452,28 @@ fn test_retrieve_depth_two_includes_nested_refs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected_d1 = indoc! {"
+        ````markdown #level0
         ---
-        document:
-          key: level0
-          title: Level Zero
+        title: Level Zero
         ---
 
         # Level Zero
 
         [Level One](level1)
+        ````
 
-
+        ````markdown #level1
         ---
-        document:
-          key: level1
-          title: Level One
-          parents:
-          - key: level0
-            title: Level Zero
+        title: Level One
+        includedBy:
+        - key: level0
+          title: Level Zero
         ---
 
         # Level One
 
         [Level Two](level2)
-
-
+        ````
     "};
 
     assert_eq!(stdout_d1, expected_d1);
@@ -454,45 +482,41 @@ fn test_retrieve_depth_two_includes_nested_refs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected_d2 = indoc! {"
+        ````markdown #level0
         ---
-        document:
-          key: level0
-          title: Level Zero
+        title: Level Zero
         ---
 
         # Level Zero
 
         [Level One](level1)
+        ````
 
-
+        ````markdown #level1
         ---
-        document:
-          key: level1
-          title: Level One
-          parents:
-          - key: level0
-            title: Level Zero
+        title: Level One
+        includedBy:
+        - key: level0
+          title: Level Zero
         ---
 
         # Level One
 
         [Level Two](level2)
+        ````
 
-
+        ````markdown #level2
         ---
-        document:
-          key: level2
-          title: Level Two
-          parents:
-          - key: level1
-            title: Level One
+        title: Level Two
+        includedBy:
+        - key: level1
+          title: Level One
         ---
 
         # Level Two
 
         Final content.
-
-
+        ````
     "};
 
     assert_eq!(stdout_d2, expected_d2);
@@ -527,31 +551,28 @@ fn test_retrieve_context_one_level() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child Document
-          parents:
-          - key: parent
-            title: Parent Document
+        title: Child Document
+        includedBy:
+        - key: parent
+          title: Parent Document
         ---
 
         # Child Document
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent Document
+        title: Parent Document
         ---
 
         # Parent Document
 
         [Child Document](child)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -596,45 +617,41 @@ fn test_retrieve_context_two_levels() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          parents:
-          - key: parent
-            title: Parent
+        title: Child
+        includedBy:
+        - key: parent
+          title: Parent
         ---
 
         # Child
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
-          parents:
-          - key: grandparent
-            title: Grandparent
+        title: Parent
+        includedBy:
+        - key: grandparent
+          title: Grandparent
         ---
 
         # Parent
 
         [Child](child)
+        ````
 
-
+        ````markdown #grandparent
         ---
-        document:
-          key: grandparent
-          title: Grandparent
+        title: Grandparent
         ---
 
         # Grandparent
 
         [Parent](parent)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -679,45 +696,41 @@ fn test_retrieve_bidirectional() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #middle
         ---
-        document:
-          key: middle
-          title: Middle
-          parents:
-          - key: parent
-            title: Parent
+        title: Middle
+        includedBy:
+        - key: parent
+          title: Parent
         ---
 
         # Middle
 
         [Child](child)
+        ````
 
-
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          parents:
-          - key: middle
-            title: Middle
+        title: Child
+        includedBy:
+        - key: middle
+          title: Middle
         ---
 
         # Child
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
+        title: Parent
         ---
 
         # Parent
 
         [Middle](middle)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -752,31 +765,31 @@ fn test_retrieve_with_inline_links() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #doc
         ---
-        document:
-          key: doc
-          title: Document
+        title: Document
+        references:
+        - key: another
+          title: Another Document
         ---
 
         # Document
 
         This text mentions [Another Document](another) inline.
+        ````
 
-
+        ````markdown #another
         ---
-        document:
-          key: another
-          title: Another Document
-          back-links:
-          - key: doc
-            title: Document
+        title: Another Document
+        referencedBy:
+        - key: doc
+          title: Document
         ---
 
         # Another Document
 
         Some content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -810,10 +823,36 @@ fn test_retrieve_context_json_format() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["documents"].as_array().unwrap().len(), 2);
-    assert!(parsed["documents"][0]["content"].as_str().is_some());
-    assert!(parsed["documents"][1]["content"].as_str().is_some());
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nContent.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "# Parent\n\n[Child](child)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -835,17 +874,15 @@ fn test_retrieve_context_no_parents() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #orphan
         ---
-        document:
-          key: orphan
-          title: Orphan Document
+        title: Orphan Document
         ---
 
         # Orphan Document
 
         No parents here.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -912,13 +949,15 @@ fn test_retrieve_links_with_depth_and_context() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #middle
         ---
-        document:
-          key: middle
-          title: Middle
-          parents:
-          - key: parent
-            title: Parent
+        title: Middle
+        references:
+        - key: related
+          title: Related
+        includedBy:
+        - key: parent
+          title: Parent
         ---
 
         # Middle
@@ -926,50 +965,46 @@ fn test_retrieve_links_with_depth_and_context() {
         [Child](child)
 
         See also [Related](related) for more info.
+        ````
 
-
+        ````markdown #child
         ---
-        document:
-          key: child
-          title: Child
-          parents:
-          - key: middle
-            title: Middle
+        title: Child
+        includedBy:
+        - key: middle
+          title: Middle
         ---
 
         # Child
 
         Child content.
+        ````
 
-
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
-          parents:
-          - key: grandparent
-            title: Grandparent
+        title: Parent
+        includedBy:
+        - key: grandparent
+          title: Grandparent
         ---
 
         # Parent
 
         [Middle](middle)
+        ````
 
-
+        ````markdown #related
         ---
-        document:
-          key: related
-          title: Related
-          back-links:
-          - key: middle
-            title: Middle
+        title: Related
+        referencedBy:
+        - key: middle
+          title: Middle
         ---
 
         # Related
 
         Related content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -1025,11 +1060,71 @@ fn test_retrieve_deduplication_same_doc_multiple_paths() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "root",
+            "title": "Root",
+            "content": "# Root\n\n[A](a)\n\n[B](b)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "a",
+            "title": "A",
+            "content": "# A\n\n[Common](common)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "b",
+            "title": "B",
+            "content": "# B\n\n[Common](common)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "common",
+            "title": "Common",
+            "content": "# Common\n\nShared content.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "a",
+                "title": "A",
+                "sectionPath": []
+              },
+              {
+                "key": "b",
+                "title": "B",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "##};
 
-    let common_count = docs.iter().filter(|d| d["key"] == "common").count();
-    assert_eq!(common_count, 1, "common should appear exactly once due to deduplication");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1071,45 +1166,46 @@ fn test_retrieve_multiple_inline_links() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #doc
         ---
-        document:
-          key: doc
-          title: Document
+        title: Document
+        references:
+        - key: first
+          title: First
+        - key: second
+          title: Second
         ---
 
         # Document
 
         Check [First](first) and [Second](second) for details.
+        ````
 
-
+        ````markdown #first
         ---
-        document:
-          key: first
-          title: First
-          back-links:
-          - key: doc
-            title: Document
+        title: First
+        referencedBy:
+        - key: doc
+          title: Document
         ---
 
         # First
 
         First content.
+        ````
 
-
+        ````markdown #second
         ---
-        document:
-          key: second
-          title: Second
-          back-links:
-          - key: doc
-            title: Document
+        title: Second
+        referencedBy:
+        - key: doc
+          title: Document
         ---
 
         # Second
 
         Second content.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -1144,17 +1240,15 @@ fn test_retrieve_links_without_flag_excludes_inline_refs() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #doc
         ---
-        document:
-          key: doc
-          title: Document
+        title: Document
         ---
 
         # Document
 
         See [Another](another) inline.
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -1210,18 +1304,72 @@ fn test_retrieve_all_document_types_json() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "main",
+            "title": "Main",
+            "content": "# Main\n\n[Child](child)\n\nAlso see [Linked](linked).\n",
+            "references": [
+              {
+                "key": "linked",
+                "title": "Linked",
+                "sectionPath": []
+              }
+            ],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nChild content.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "main",
+                "title": "Main",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "# Parent\n\n[Main](main)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "linked",
+            "title": "Linked",
+            "content": "# Linked\n\nLinked content.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [
+              {
+                "key": "main",
+                "title": "Main",
+                "sectionPath": []
+              }
+            ],
+            "includedBy": []
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 4);
-    assert_eq!(docs[0]["key"], "main");
-    assert_eq!(docs[1]["key"], "child");
-    assert_eq!(docs[2]["key"], "parent");
-    assert_eq!(docs[3]["key"], "linked");
-
-    for doc in docs {
-        assert!(doc["content"].as_str().is_some(), "Document {} should have content", doc["key"]);
-    }
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1262,22 +1410,50 @@ fn test_retrieve_context_multiple_parents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nShared child.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "parent1",
+                "title": "Parent One",
+                "sectionPath": []
+              },
+              {
+                "key": "parent2",
+                "title": "Parent Two",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "parent1",
+            "title": "Parent One",
+            "content": "# Parent One\n\n[Child](child)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "parent2",
+            "title": "Parent Two",
+            "content": "# Parent Two\n\n[Child](child)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 3);
-    assert_eq!(docs[0]["key"], "child");
-
-    let mut context_keys: Vec<&str> = docs[1..].iter()
-        .map(|d| d["key"].as_str().unwrap())
-        .collect();
-    context_keys.sort();
-
-    assert_eq!(context_keys, vec!["parent1", "parent2"]);
-
-    for doc in docs {
-        assert!(doc["content"].as_str().is_some(), "Document {} should have content", doc["key"]);
-    }
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1318,14 +1494,50 @@ fn test_retrieve_context_includes_parents_of_sub_documents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "main",
+            "title": "Main Document",
+            "content": "# Main Document\n\n[Document A](a)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "a",
+            "title": "Document A",
+            "content": "# Document A\n\nContent of A.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "main",
+                "title": "Main Document",
+                "sectionPath": []
+              },
+              {
+                "key": "parent2",
+                "title": "Parent Two",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "parent2",
+            "title": "Parent Two",
+            "content": "# Parent Two\n\n[Document A](a)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 3, "Expected 3 documents: main, a, parent2");
-
-    assert_eq!(docs[0]["key"], "main");
-    assert_eq!(docs[1]["key"], "a");
-    assert_eq!(docs[2]["key"], "parent2");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1366,11 +1578,21 @@ fn test_retrieve_context_sub_document_parents_without_depth() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "main",
+            "title": "Main Document",
+            "content": "# Main Document\n\n[Document A](a)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 1, "Expected only main document");
-    assert_eq!(docs[0]["key"], "main");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1421,13 +1643,56 @@ fn test_retrieve_context_only_direct_sub_document_parents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "main",
+            "title": "Main",
+            "content": "# Main\n\n[Level 1](level1)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "level1",
+            "title": "Level 1",
+            "content": "# Level 1\n\n[Level 2](level2)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "main",
+                "title": "Main",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "level2",
+            "title": "Level 2",
+            "content": "# Level 2\n\nFinal content.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "level1",
+                "title": "Level 1",
+                "sectionPath": []
+              },
+              {
+                "key": "other-parent",
+                "title": "Other Parent",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 3);
-    assert_eq!(docs[0]["key"], "main");
-    assert_eq!(docs[1]["key"], "level1");
-    assert_eq!(docs[2]["key"], "level2");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1495,6 +1760,124 @@ fn test_retrieve_dry_run_multiple_documents() {
 }
 
 #[test]
+fn test_retrieve_dry_run_json_format() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc.md"),
+        indoc! {"
+            # Test Document
+
+            Line one.
+            Line two.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "doc", "-d", "0", "--dry-run", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    assert_eq!(parsed["documents"], 1);
+    assert!(parsed["lines"].as_u64().unwrap() > 0);
+}
+
+#[test]
+fn test_retrieve_dry_run_yaml_format() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc.md"),
+        indoc! {"
+            # Test Document
+
+            Line one.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "doc", "-d", "0", "--dry-run", "-f", "yaml"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    assert!(stdout.contains("documents: 1"), "got: {}", stdout);
+    assert!(stdout.contains("lines: "), "got: {}", stdout);
+}
+
+#[test]
+fn test_retrieve_children_flag_populates_includes() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(dir.path().join("child.md"), "# Child\n\nChild content.").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "parent", "-d", "0", "--children", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("valid JSON output");
+    let parent = &parsed[0];
+    assert_eq!(parent["key"], "parent");
+    let includes = parent["includes"].as_array().expect("includes is array");
+    assert_eq!(includes.len(), 1);
+    assert_eq!(includes[0]["key"], "child");
+    assert_eq!(includes[0]["title"], "Child");
+    // content is NOT blanked because --no-content was not passed
+    assert!(parent["content"].as_str().unwrap().contains("# Parent"));
+}
+
+#[test]
+fn test_retrieve_no_content_does_not_populate_includes() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(dir.path().join("child.md"), "# Child\n\nChild content.").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "parent", "-d", "0", "--no-content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("valid JSON output");
+    let parent = &parsed[0];
+    assert_eq!(parent["content"], "");
+    let includes = parent["includes"].as_array().expect("includes is array");
+    assert!(includes.is_empty());
+}
+
+#[test]
 fn test_retrieve_multiple_keys() {
     let dir = setup_workspace();
 
@@ -1532,13 +1915,39 @@ fn test_retrieve_multiple_keys() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "doc1",
+            "title": "Document One",
+            "content": "# Document One\n\nContent one.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "doc2",
+            "title": "Document Two",
+            "content": "# Document Two\n\nContent two.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "doc3",
+            "title": "Document Three",
+            "content": "# Document Three\n\nContent three.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 3);
-    assert_eq!(docs[0]["key"], "doc1");
-    assert_eq!(docs[1]["key"], "doc2");
-    assert_eq!(docs[2]["key"], "doc3");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1579,13 +1988,50 @@ fn test_retrieve_multiple_keys_with_deduplication() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "doc1",
+            "title": "Document One",
+            "content": "# Document One\n\n[Shared](shared)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "shared",
+            "title": "Shared",
+            "content": "# Shared\n\nShared content.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "doc1",
+                "title": "Document One",
+                "sectionPath": []
+              },
+              {
+                "key": "doc2",
+                "title": "Document Two",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "doc2",
+            "title": "Document Two",
+            "content": "# Document Two\n\n[Shared](shared)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 3);
-    assert_eq!(docs[0]["key"], "doc1");
-    assert_eq!(docs[1]["key"], "shared");
-    assert_eq!(docs[2]["key"], "doc2");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1616,11 +2062,21 @@ fn test_retrieve_exclude_single_key() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "# Parent\n\n[Child](child)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 1);
-    assert_eq!(docs[0]["key"], "parent");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1649,12 +2105,36 @@ fn test_retrieve_exclude_multiple_keys() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "root",
+            "title": "Root",
+            "content": "# Root\n\n[A](a)\n\n[B](b)\n\n[C](c)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "b",
+            "title": "B",
+            "content": "# B\n\nContent B.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 2);
-    assert_eq!(docs[0]["key"], "root");
-    assert_eq!(docs[1]["key"], "b");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1675,10 +2155,11 @@ fn test_retrieve_exclude_main_document() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r#"
+        []
+    "#};
 
-    assert_eq!(docs.len(), 0);
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1699,13 +2180,21 @@ fn test_retrieve_no_content_flag() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc",
+            "title": "Document",
+            "content": "",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
 
-    assert_eq!(docs.len(), 1);
-    assert_eq!(docs[0]["key"], "doc");
-    assert_eq!(docs[0]["title"], "Document");
-    assert_eq!(docs[0]["content"], "");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1732,24 +2221,46 @@ fn test_retrieve_no_content_with_multiple_documents() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "-c", "0", "--no-content", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "-c", "0", "--no-content", "--children", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "",
+            "references": [],
+            "includes": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "#};
 
-    assert_eq!(docs.len(), 2);
-    for doc in docs {
-        assert_eq!(doc["content"], "", "Document {} should have empty content", doc["key"]);
-    }
-    assert_eq!(docs[0]["key"], "parent");
-    assert_eq!(docs[1]["key"], "child");
-
-    let child_docs = docs[0]["child_documents"].as_array().unwrap();
-    assert_eq!(child_docs.len(), 1);
-    assert_eq!(child_docs[0]["key"], "child");
-    assert_eq!(child_docs[0]["title"], "Child");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1780,14 +2291,27 @@ fn test_retrieve_no_content_preserves_parent_documents() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "parent",
+                "title": "Parent",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "#};
 
-    assert_eq!(docs.len(), 1);
-    assert_eq!(docs[0]["content"], "");
-    let parent_docs = docs[0]["parent_documents"].as_array().unwrap();
-    assert_eq!(parent_docs.len(), 1);
-    assert_eq!(parent_docs[0]["key"], "parent");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1817,14 +2341,11 @@ fn test_retrieve_no_content_multiple_children() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #parent
         ---
-        document:
-          key: parent
-          title: Parent
+        title: Parent
         ---
-
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -1938,10 +2459,36 @@ fn test_retrieve_default_depth() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "root",
+            "title": "Root",
+            "content": "# Root\n\n[Child](child)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          },
+          {
+            "key": "child",
+            "title": "Child",
+            "content": "# Child\n\nChild content.\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "root",
+                "title": "Root",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "##};
 
-    assert!(docs.len() >= 1, "Should include at least root document");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -1972,12 +2519,42 @@ fn test_retrieve_cyclic_references() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "a",
+            "title": "Document A",
+            "content": "# Document A\n\n[Document B](b)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "b",
+                "title": "Document B",
+                "sectionPath": []
+              }
+            ]
+          },
+          {
+            "key": "b",
+            "title": "Document B",
+            "content": "# Document B\n\n[Document A](a)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "a",
+                "title": "Document A",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 2);
-    assert_eq!(docs[0]["key"], "a");
-    assert_eq!(docs[1]["key"], "b");
+    assert_eq!(stdout, expected);
 }
 
 #[test]
@@ -2031,10 +2608,9 @@ fn test_retrieve_parent_annotation_excludes_current_document() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
+        ````markdown #main
         ---
-        document:
-          key: main
-          title: Main
+        title: Main
         ---
 
         # Main
@@ -2042,8 +2618,7 @@ fn test_retrieve_parent_annotation_excludes_current_document() {
         [Shared](shared) <- [Other](other)
 
         [Exclusive](exclusive)
-
-
+        ````
     "};
 
     assert_eq!(stdout, expected);
@@ -2067,10 +2642,120 @@ fn test_retrieve_self_referencing_document() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    let docs = parsed["documents"].as_array().unwrap();
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "self",
+            "title": "Self Reference",
+            "content": "# Self Reference\n\n[Self Reference](self)\n",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [
+              {
+                "key": "self",
+                "title": "Self Reference",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "##};
 
-    assert_eq!(docs.len(), 1, "Self-referencing doc should appear only once");
-    assert_eq!(docs[0]["key"], "self");
+    assert_eq!(stdout, expected);
 }
+
+#[test]
+fn test_retrieve_frontmatter_not_duplicated_in_body() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc.md"),
+        indoc! {"
+            ---
+            status: draft
+            tags:
+              - rust
+            ---
+            # My Document
+
+            Body text here.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "doc", "-d", "0"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #doc
+        ---
+        title: My Document
+        ---
+
+        # My Document
+
+        Body text here.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+
+    let body_start = stdout.find("---\n\n").expect("end of frontmatter");
+    let body = &stdout[body_start + 5..];
+    assert!(
+        !body.contains("---"),
+        "source frontmatter leaked into body: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_retrieve_markdown_children_populates_includes() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+
+            Child content.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "parent", "-d", "0", "--children"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #parent
+        ---
+        title: Parent
+        includes:
+        - key: child
+          title: Child
+        ---
+
+        # Parent
+
+        [Child](child)
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
 

@@ -2,6 +2,7 @@
 name = "liwe"
 description = "IWE core library"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
+autotests = false
 
 version.workspace = true
 repository.workspace = true
@@ -15,19 +16,15 @@ name = "liwe"
 path = "src/lib.rs"
 
 [dependencies]
-sha2.workspace = true
 indoc.workspace = true
 serde.workspace = true
-pretty_assertions.workspace = true
 itertools.workspace = true
 log.workspace = true
-futures.workspace = true
 rayon.workspace = true
 rand.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
 relative-path.workspace = true
-relative-path-utils.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
 chrono.workspace = true
@@ -39,6 +36,11 @@ sanitize-filename.workspace = true
 fuzzy-matcher.workspace = true
 csv.workspace = true
 
+[[test]]
+name = "integration"
+path = "tests/main.rs"
+
 [dev-dependencies]
 env_logger.workspace = true
+pretty_assertions.workspace = true
 tempfile.workspace = true

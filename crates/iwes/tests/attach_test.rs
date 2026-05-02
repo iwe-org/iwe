@@ -11,7 +11,6 @@ fn fixed_now() -> SystemTime {
         .into()
 }
 
-mod fixture;
 use crate::fixture::*;
 
 #[test]

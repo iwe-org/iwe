@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/iwe-org/iwe/compare/iwes-v0.0.70...iwes-v0.1.0) - 2026-05-01
+
+### Added
+
+- Query routing on the LSP server — clients can run filter, find, count, update, and delete operations over the workspace using the new query language
+
 ## [0.0.70](https://github.com/iwe-org/iwe/compare/iwes-v0.0.69...iwes-v0.0.70) - 2026-04-25
 
 ### Added
