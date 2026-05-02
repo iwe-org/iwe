@@ -424,6 +424,78 @@ fn test_tree_add_fields_extends_default_user_fm() {
 }
 
 #[test]
+fn test_tree_add_fields_edges_yaml() {
+    let temp_dir = setup_workspace_with_linked_documents();
+    let temp_path = temp_dir.path();
+
+    let output = run_tree_command(
+        temp_path,
+        &[
+            "-k",
+            "child",
+            "--add-fields",
+            "parents=$includedBy",
+            "-f",
+            "yaml",
+        ],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {"
+        - key: child
+          title: Child Document
+          references: []
+          includes: []
+          referencedBy: []
+          includedBy:
+          - key: main
+            title: Main Document
+            sectionPath: []
+          parents:
+          - key: main
+            title: Main Document
+            sectionPath: []
+          children: []
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_tree_add_fields_cannot_overwrite_system_title() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("doc.md"), "# Heading Title\n").unwrap();
+
+    let output = run_tree_command(
+        temp_path,
+        &["-k", "doc", "--add-fields", "title=$key", "-f", "json"],
+    );
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc",
+            "title": "Heading Title",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "children": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
 fn test_tree_project_and_add_fields_conflict() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

@@ -516,6 +516,77 @@ fn delete_rejects_project_field() {
 }
 
 #[test]
+fn count_rejects_add_fields() {
+    assert_parse_error(
+        indoc! {"
+            addFields:
+              note: $key
+        "},
+        OperationKind::Count,
+        "OperationFieldNotAllowed",
+    );
+}
+
+#[test]
+fn delete_rejects_add_fields() {
+    assert_parse_error(
+        indoc! {"
+            filter: {}
+            addFields:
+              note: $key
+        "},
+        OperationKind::Delete,
+        "OperationFieldNotAllowed",
+    );
+}
+
+#[test]
+fn update_rejects_project() {
+    assert_parse_error(
+        indoc! {"
+            filter: {}
+            project:
+              title: 1
+            update:
+              $set:
+                x: 1
+        "},
+        OperationKind::Update,
+        "OperationFieldNotAllowed",
+    );
+}
+
+#[test]
+fn update_rejects_add_fields() {
+    assert_parse_error(
+        indoc! {"
+            filter: {}
+            addFields:
+              note: $key
+            update:
+              $set:
+                x: 1
+        "},
+        OperationKind::Update,
+        "OperationFieldNotAllowed",
+    );
+}
+
+#[test]
+fn find_rejects_project_and_add_fields_together() {
+    assert_parse_error(
+        indoc! {"
+            project:
+              title: 1
+            addFields:
+              note: $key
+        "},
+        OperationKind::Find,
+        "ProjectAddFieldsConflict",
+    );
+}
+
+#[test]
 fn update_set_unset_conflict_rejected() {
     assert_parse_error(
         indoc! {r#"

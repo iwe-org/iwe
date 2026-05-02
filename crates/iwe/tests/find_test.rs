@@ -1340,3 +1340,363 @@ fn test_find_project_yaml_form() {
 
     assert_eq!(stdout, expected);
 }
+
+#[test]
+fn test_find_default_projection_user_fm_title_wins() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            title: FM Title
+            ---
+            # Heading Title
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "FM Title",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_add_fields_user_fm_title_wins() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            title: FM Title
+            ---
+            # Heading Title
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--add-fields", "note=$key", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "FM Title",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "note": "doc1"
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_empty_result_json_is_open_close_bracket_with_newline() {
+    let dir = setup_workspace();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "[]\n");
+}
+
+#[test]
+fn test_find_empty_result_yaml_is_empty_sequence() {
+    let dir = setup_workspace();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "yaml"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "[]\n");
+}
+
+#[test]
+fn test_find_json_output_ends_with_single_newline() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("a.md"), "# A\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert!(stdout.ends_with("]\n"), "stdout: {:?}", stdout);
+    assert!(!stdout.ends_with("]\n\n"), "stdout: {:?}", stdout);
+}
+
+#[test]
+fn test_find_yaml_output_no_trailing_double_newline() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("a.md"), "# A\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "yaml"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert!(!stdout.ends_with("\n\n"), "stdout: {:?}", stdout);
+}
+
+#[test]
+fn test_find_project_edges_only_renders_as_markdown_block() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "--key",
+            "child",
+            "--project",
+            "parents=$includedBy",
+            "-f",
+            "markdown",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #child
+        ---
+        parents:
+        - key: parent
+          title: Parent
+        ---
+
+        # Child
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_field_order_preserved_json() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Heading
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "z=$key,a=$title,m=$content", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "z": "doc1",
+            "a": "Heading",
+            "m": "# Heading\n\nBody.\n"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_field_order_preserved_yaml() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Heading
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--project", "z=$key,a=$title,m=$content", "-f", "yaml"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - z: doc1
+          a: Heading
+          m: |
+            # Heading
+
+            Body.
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_project_includes_edges_json_shape() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--key", "parent", "--project", "k=$key,inc=$includes", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "k": "parent",
+            "inc": [
+              {
+                "key": "child",
+                "title": "Child",
+                "sectionPath": []
+              }
+            ]
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_add_fields_collision_overwrites_default_title() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Heading Title
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--add-fields", "title=$key", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "doc1",
+            "title": "doc1",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_default_projection_user_fm_key_wins() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            key: user-supplied
+            ---
+            # Heading
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r#"
+        [
+          {
+            "key": "user-supplied",
+            "title": "Heading",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "#};
+
+    assert_eq!(stdout, expected);
+}

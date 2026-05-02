@@ -309,3 +309,231 @@ fn find_doc_without_frontmatter_appears_as_empty_mapping() {
         &["1"],
     );
 }
+
+#[test]
+fn find_projection_dotted_path_resolves_nested_fm() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            metadata:
+              priority: 5
+            ---
+            # Doc One
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[(
+                "p",
+                ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted("metadata.priority")),
+            )],
+            ProjectionMode::Replace,
+        )),
+    );
+    let doc = &matches[0].1;
+    assert_eq!(
+        doc.get(Value::String("p".into())).and_then(|v| v.as_i64()),
+        Some(5),
+    );
+}
+
+#[test]
+fn find_projection_dotted_path_missing_intermediate_emits_null() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            other: 1
+            ---
+            # Doc One
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[(
+                "p",
+                ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted("metadata.priority")),
+            )],
+            ProjectionMode::Replace,
+        )),
+    );
+    let doc = &matches[0].1;
+    assert_eq!(
+        doc.get(Value::String("p".into())),
+        Some(&Value::Null),
+    );
+}
+
+#[test]
+fn find_projection_pseudo_includes_emits_edge_refs() {
+    let matches = run_find(
+        indoc! {"
+            [B](2)
+            _
+            # B
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[
+                ("k", ProjectionSource::Pseudo(PseudoField::Key)),
+                ("inc", ProjectionSource::Pseudo(PseudoField::Includes)),
+            ],
+            ProjectionMode::Replace,
+        )),
+    );
+    let parent = matches
+        .iter()
+        .find(|(k, _)| k == "1")
+        .expect("expected parent doc");
+    let inc = parent
+        .1
+        .get(Value::String("inc".into()))
+        .and_then(|v| v.as_sequence())
+        .expect("inc should be a sequence");
+    assert_eq!(inc.len(), 1);
+    let edge = inc[0].as_mapping().expect("edge should be a mapping");
+    assert_eq!(
+        edge.get(Value::String("key".into())).and_then(|v| v.as_str()),
+        Some("2"),
+    );
+    assert_eq!(
+        edge.get(Value::String("title".into())).and_then(|v| v.as_str()),
+        Some("B"),
+    );
+    assert!(
+        edge.get(Value::String("sectionPath".into())).is_some(),
+        "edge should have sectionPath key",
+    );
+}
+
+#[test]
+fn find_projection_pseudo_referenced_by_emits_edge_refs() {
+    let matches = run_find(
+        indoc! {"
+            See [B](2).
+            _
+            # B
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[
+                ("k", ProjectionSource::Pseudo(PseudoField::Key)),
+                ("rb", ProjectionSource::Pseudo(PseudoField::ReferencedBy)),
+            ],
+            ProjectionMode::Replace,
+        )),
+    );
+    let target = matches
+        .iter()
+        .find(|(k, _)| k == "2")
+        .expect("expected target doc");
+    let rb = target
+        .1
+        .get(Value::String("rb".into()))
+        .and_then(|v| v.as_sequence())
+        .expect("rb should be a sequence");
+    assert_eq!(rb.len(), 1);
+    let edge = rb[0].as_mapping().expect("edge should be a mapping");
+    assert_eq!(
+        edge.get(Value::String("key".into())).and_then(|v| v.as_str()),
+        Some("1"),
+    );
+    assert!(
+        edge.get(Value::String("sectionPath".into())).is_some(),
+        "edge should have sectionPath key",
+    );
+}
+
+#[test]
+fn find_projection_pseudo_frontmatter_emits_full_object() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            status: draft
+            priority: 5
+            ---
+            # Doc One
+        "},
+        filter::<FindOp>(Filter::all()).project(projection(
+            &[("fm", ProjectionSource::Pseudo(PseudoField::Frontmatter))],
+            ProjectionMode::Replace,
+        )),
+    );
+    let doc = &matches[0].1;
+    let fm = doc
+        .get(Value::String("fm".into()))
+        .and_then(|v| v.as_mapping())
+        .expect("fm should be a mapping");
+    assert_eq!(
+        fm.get(Value::String("status".into())).and_then(|v| v.as_str()),
+        Some("draft"),
+    );
+    assert_eq!(
+        fm.get(Value::String("priority".into())).and_then(|v| v.as_i64()),
+        Some(5),
+    );
+}
+
+#[test]
+fn find_extend_user_fm_references_does_not_override_system() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            references:
+              - bogus-from-user
+            ---
+            # Doc One
+        "},
+        filter::<FindOp>(Filter::all()).project(Projection::extend(vec![ProjectionField {
+            output: "note".to_string(),
+            source: ProjectionSource::Pseudo(PseudoField::Key),
+        }])),
+    );
+    let doc = &matches[0].1;
+    let refs = doc
+        .get(Value::String("references".into()))
+        .and_then(|v| v.as_sequence())
+        .expect("references should be present as a sequence");
+    assert!(
+        refs.is_empty(),
+        "system-synthesized references should win over user FM; got: {:?}",
+        refs,
+    );
+}
+
+#[test]
+fn find_user_frontmatter_title_overrides_pseudo_title() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            title: FM Title
+            ---
+            # H1 Heading
+        "},
+        filter::<FindOp>(Filter::all()).project(Projection::extend(vec![ProjectionField {
+            output: "note".to_string(),
+            source: ProjectionSource::Pseudo(PseudoField::Key),
+        }])),
+    );
+    assert_eq!(matches.len(), 1);
+    let doc = &matches[0].1;
+    assert_eq!(
+        doc.get(Value::String("title".into())).and_then(|v| v.as_str()),
+        Some("FM Title"),
+    );
+}
+
+#[test]
+fn find_user_frontmatter_key_overrides_pseudo_key() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            key: user-supplied
+            ---
+            # Heading
+        "},
+        filter::<FindOp>(Filter::all()).project(Projection::extend(vec![ProjectionField {
+            output: "note".to_string(),
+            source: ProjectionSource::Pseudo(PseudoField::Title),
+        }])),
+    );
+    assert_eq!(matches.len(), 1);
+    let doc = &matches[0].1;
+    assert_eq!(
+        doc.get(Value::String("key".into())).and_then(|v| v.as_str()),
+        Some("user-supplied"),
+    );
+}
