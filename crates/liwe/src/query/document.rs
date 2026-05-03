@@ -322,7 +322,7 @@ pub enum FieldOp {
     And(Vec<FieldOp>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum YamlType {
     String,
     Number,
@@ -332,6 +332,21 @@ pub enum YamlType {
     Object,
     Date,
     Datetime,
+}
+
+impl std::fmt::Display for YamlType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            YamlType::String => write!(f, "string"),
+            YamlType::Number => write!(f, "number"),
+            YamlType::Boolean => write!(f, "boolean"),
+            YamlType::Null => write!(f, "null"),
+            YamlType::Array => write!(f, "array"),
+            YamlType::Object => write!(f, "object"),
+            YamlType::Date => write!(f, "date"),
+            YamlType::Datetime => write!(f, "datetime"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

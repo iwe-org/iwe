@@ -1,0 +1,19 @@
+Scan documents and infer the frontmatter schema.
+
+For each field found across the workspace, displays:
+- Field name (dot-notation for nested fields)
+- Type distribution with percentages
+- Coverage: how many documents contain this field
+- Distinct: count of distinct enumerable values
+- Value distribution for low-cardinality fields (omitted when more
+  than 100 distinct enumerable values)
+
+Only enumerable values are listed: null, booleans, numbers, and
+strings made up of [A-Za-z0-9_.-/]. Free-text strings (titles,
+URLs with `:`, prose) are counted in coverage and types but do not
+appear in the values listing or distinct count.
+
+Use --filter to restrict analysis to a subset of documents (e.g.,
+only posts, only externals). Use --field to drill into a specific
+field. The --project / --add-fields flags from `find` and `tree` do
+not apply here -- schema operates on raw frontmatter.

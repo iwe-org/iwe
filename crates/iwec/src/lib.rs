@@ -1384,7 +1384,7 @@ impl IweServer {
         let path = PathBuf::from_str(base_path).expect("valid path");
         let state = new_for_path(&path);
         let graph = Graph::from_state(
-            state,
+            &state,
             false,
             configuration.markdown.clone().into(),
             configuration.library.frontmatter_document_title.clone(),
@@ -1409,7 +1409,7 @@ impl IweServer {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<HashMap<String, String>>(),
         );
-        let graph = Graph::from_state(state, true, MarkdownOptions::default(), None);
+        let graph = Graph::from_state(&state, true, MarkdownOptions::default(), None);
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,

@@ -166,6 +166,26 @@ pub fn cmp_ordered(a: &Value, b: &Value) -> Option<Ordering> {
     }
 }
 
+pub(crate) fn detect_type(v: &Value) -> YamlType {
+    match v {
+        Value::Null => YamlType::Null,
+        Value::Bool(_) => YamlType::Boolean,
+        Value::Number(_) => YamlType::Number,
+        Value::String(s) => {
+            if is_iso_date(s) {
+                YamlType::Date
+            } else if is_iso_datetime(s) {
+                YamlType::Datetime
+            } else {
+                YamlType::String
+            }
+        }
+        Value::Sequence(_) => YamlType::Array,
+        Value::Mapping(_) => YamlType::Object,
+        Value::Tagged(t) => detect_type(&t.value),
+    }
+}
+
 fn value_type_matches(v: &Value, t: YamlType) -> bool {
     match (v, t) {
         (Value::Null, YamlType::Null) => true,
@@ -181,7 +201,7 @@ fn value_type_matches(v: &Value, t: YamlType) -> bool {
     }
 }
 
-fn is_iso_date(s: &str) -> bool {
+pub(crate) fn is_iso_date(s: &str) -> bool {
     let bytes = s.as_bytes();
     bytes.len() == 10
         && bytes[4] == b'-'
@@ -191,7 +211,7 @@ fn is_iso_date(s: &str) -> bool {
         && bytes[8..10].iter().all(|b| b.is_ascii_digit())
 }
 
-fn is_iso_datetime(s: &str) -> bool {
+pub(crate) fn is_iso_datetime(s: &str) -> bool {
     let bytes = s.as_bytes();
     if bytes.len() < 19 {
         return false;

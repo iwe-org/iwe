@@ -52,6 +52,12 @@ pub mod export {
     pub const AFTER_HELP: &str = include_str!("../help/export/after_help.txt");
 }
 
+pub mod schema {
+    pub const ABOUT: &str = include_str!("../help/schema/about.txt");
+    pub const LONG_ABOUT: &str = include_str!("../help/schema/long_about.txt");
+    pub const AFTER_HELP: &str = include_str!("../help/schema/after_help.txt");
+}
+
 pub mod stats {
     pub const ABOUT: &str = include_str!("../help/stats/about.txt");
     pub const LONG_ABOUT: &str = include_str!("../help/stats/long_about.txt");

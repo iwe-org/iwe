@@ -107,9 +107,10 @@ See the [Query Language](query-language.md) reference for the YAML syntax, opera
 
 | Command  | Description                       | Documentation               |
 | -------- | --------------------------------- | --------------------------- |
-| `stats`  | Analyze knowledge base statistics | [IWE Stats](cli-stats.md)   |
-| `export` | Export graph visualization        | [IWE Export](cli-export.md) |
-| `squash` | Squash documents                  | [IWE Squash](cli-squash.md) |
+| `schema` | Infer and display frontmatter schema | [IWE Schema](cli-schema.md) |
+| `stats`  | Analyze knowledge base statistics    | [IWE Stats](cli-stats.md)   |
+| `export` | Export graph visualization           | [IWE Export](cli-export.md) |
+| `squash` | Squash documents                     | [IWE Squash](cli-squash.md) |
 
 
 ## Exit Codes

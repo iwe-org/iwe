@@ -44,7 +44,7 @@ pub struct Server {
 impl Server {
     pub fn new(config: ServerConfig) -> Server {
         let graph = Graph::from_state(
-            config.state,
+            &config.state,
             config.sequential_ids.unwrap_or(false),
             config.configuration.markdown.clone(),
             config.configuration.library.frontmatter_document_title.clone(),
