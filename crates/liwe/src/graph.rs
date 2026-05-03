@@ -351,13 +351,20 @@ impl Graph {
         graph.frontmatter_document_title = frontmatter_document_title;
 
         let ids = BuildIds::new();
-        let outputs: Vec<DocBuildOutput> = state
-            .par_iter()
-            .map(|(k, v)| {
-                debug!("building doc, key={}", k);
-                build_doc(&ids, Key::name(k), v.clone(), &markdown_options)
-            })
-            .collect();
+        let outputs: Vec<DocBuildOutput> = if state.len() < PARALLEL_BUILD_THRESHOLD {
+            state
+                .iter()
+                .map(|(k, v)| build_doc(&ids, Key::name(k), v.clone(), &markdown_options))
+                .collect()
+        } else {
+            state
+                .par_iter()
+                .map(|(k, v)| {
+                    debug!("building doc, key={}", k);
+                    build_doc(&ids, Key::name(k), v.clone(), &markdown_options)
+                })
+                .collect()
+        };
 
         merge_outputs(&mut graph, outputs, &ids);
         build_index_and_titles(&mut graph);
@@ -377,14 +384,25 @@ impl Graph {
         let entries = crate::fs::walk_md_paths(base_path);
 
         let ids = BuildIds::new();
-        let outputs: Vec<DocBuildOutput> = entries
-            .into_par_iter()
-            .filter_map(|(key, path)| {
-                debug!("building doc, key={}", key);
-                crate::fs::read_md_file(&path)
-                    .map(|content| build_doc(&ids, Key::name(&key), content, &markdown_options))
-            })
-            .collect();
+        let outputs: Vec<DocBuildOutput> = if entries.len() < PARALLEL_BUILD_THRESHOLD {
+            entries
+                .into_iter()
+                .filter_map(|(key, path)| {
+                    crate::fs::read_md_file(&path).map(|content| {
+                        build_doc(&ids, Key::name(&key), content, &markdown_options)
+                    })
+                })
+                .collect()
+        } else {
+            entries
+                .into_par_iter()
+                .filter_map(|(key, path)| {
+                    debug!("building doc, key={}", key);
+                    crate::fs::read_md_file(&path)
+                        .map(|content| build_doc(&ids, Key::name(&key), content, &markdown_options))
+                })
+                .collect()
+        };
 
         merge_outputs(&mut graph, outputs, &ids);
         build_index_and_titles(&mut graph);
@@ -600,29 +618,46 @@ fn merge_outputs(graph: &mut Graph, outputs: Vec<DocBuildOutput>, ids: &BuildIds
 }
 
 fn build_index_and_titles(graph: &mut Graph) {
-    graph.index = graph
-        .arena
-        .nodes()
-        .par_chunks(4096)
-        .map(|chunk| {
-            let mut local = RefIndex::new();
-            for node in chunk {
-                local.index_node(graph, node.id());
-            }
-            local
-        })
-        .reduce(RefIndex::new, |mut acc, other| {
-            acc.merge(other);
-            acc
-        });
+    let nodes = graph.arena.nodes();
+    graph.index = if nodes.len() < PARALLEL_BUILD_THRESHOLD {
+        let mut idx = RefIndex::new();
+        for node in nodes {
+            idx.index_node(graph, node.id());
+        }
+        idx
+    } else {
+        nodes
+            .par_chunks(4096)
+            .map(|chunk| {
+                let mut local = RefIndex::new();
+                for node in chunk {
+                    local.index_node(graph, node.id());
+                }
+                local
+            })
+            .reduce(RefIndex::new, |mut acc, other| {
+                acc.merge(other);
+                acc
+            })
+    };
 
-    let extractions: Vec<(Key, String)> = graph
-        .keys
-        .par_iter()
-        .filter_map(|(key, _)| graph.extract_ref_text(key).map(|text| (key.clone(), text)))
-        .collect();
+    let extractions: Vec<(Key, String)> = if graph.keys.len() < PARALLEL_BUILD_THRESHOLD {
+        graph
+            .keys
+            .iter()
+            .filter_map(|(key, _)| graph.extract_ref_text(key).map(|text| (key.clone(), text)))
+            .collect()
+    } else {
+        graph
+            .keys
+            .par_iter()
+            .filter_map(|(key, _)| graph.extract_ref_text(key).map(|text| (key.clone(), text)))
+            .collect()
+    };
     graph.keys_to_ref_text.extend(extractions);
 }
+
+const PARALLEL_BUILD_THRESHOLD: usize = 128;
 
 pub trait GraphContext: Copy {
     fn unique_ids(&self, relative_to: &str, number: usize) -> Vec<String>;
