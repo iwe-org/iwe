@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/iwe-org/iwe/compare/liwe-v0.1.0...liwe-v0.1.1) - 2026-05-03
+
 ### Added
 
 - `liwe::schema` module — `FieldSchema`, `TypeCount`, `ValueCount`, `Coverage` types plus `infer_schema` for frontmatter type/coverage analysis ([#274](https://github.com/iwe-org/iwe/pull/274))

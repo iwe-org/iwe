@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/iwe-org/iwe/compare/iwe-v0.1.0...iwe-v0.1.1) - 2026-05-03
+
 ### Added
 
 - `iwe schema` command for frontmatter structure analysis — emits per-field type distribution, coverage, and distinct values; supports `-f markdown|json|yaml`, `--field NAME` to scope output, and the universal filter flags ([#274](https://github.com/iwe-org/iwe/pull/274))
