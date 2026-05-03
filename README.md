@@ -21,32 +21,32 @@ We've all been there: you capture an insight, file it away, and two weeks later 
 
 IWE is a knowledge graph that organizes your notes hierarchically and makes them accessible to AI agents. Write in **Markdown**, structure with links, give AI agents the **tools** to navigate your knowledge.
 
-IWE has **no** built-in AI — it's designed to work with external AI tools (like Claude, Codex, Gemini, and others). The CLI provides structured access to your knowledge graph, whether you're scripting your own workflows or giving AI agents the tools and context they need.
+IWE itself has no built-in AI. It's designed to work alongside AI tools like Claude, Codex, and Gemini, giving them structured access to your notes so they can read, search, and update your knowledge base.
 
-## Why IWE?
+## What You Get
 
-- **Local-first** — your data stays on your machine as directory with Markdown files
-- **Hierarchical knowledge graph** — same note in multiple contexts without duplication using [inclusion links](https://iwe.md/docs/concepts/inclusion-links/)
-- **External memory for AI** — [CLI](https://iwe.md/docs/cli/) and [MCP server](https://iwe.md/docs/agentic/mcp/) let AI agents retrieve and update your knowledge with full context
-- **Editor integration** — search, navigate, refactor notes via LSP ([VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/))
-- **Blazing fast** — Rust-powered, processes thousands of notes instantly
+- **Your notes, your machine** — everything is plain Markdown files in a local directory. No cloud, no database, no lock-in.
+- **Structure without folders** — link notes together and IWE understands parent-child relationships. The same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
+- **IDE features for notes** — search, autocomplete, go-to-definition, rename, and refactoring in [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/)
+- **AI agents can use your notes** — [CLI tools](https://iwe.md/docs/cli/) and an [integration server](https://iwe.md/docs/agentic/mcp/) let AI agents search, read, and update your notes with full context
+- **Fast** — built in Rust, [processes 20,000 files in under a second](docs/benchmark.md)
 
-## The Hierarchical Knowledge Graph
+## How It Works
 
-IWE organizes your notes as a hierarchical knowledge graph — notes with links and nesting:
+IWE treats your notes as a connected structure. You organize them with two types of links:
 
-- **Hierarchy** — [inclusion links](https://iwe.md/docs/concepts/inclusion-links/) create parent-child relationships, organizing notes into a tree
-- **Cross-links** — reference links connect notes across the hierarchy
-- **Polyhierarchy** — the same note can appear under multiple parents without duplication
-- **Context inheritance** — enrich any note with details from all its parents
+- **Nesting** — a link on its own line means "this topic includes that subtopic." Your notes form a tree you can browse and refactor. IWE calls these [inclusion links](https://iwe.md/docs/concepts/inclusion-links/).
+- **Cross-references** — regular inline links connect notes across topics, creating a web of relationships
+- **Multiple parents** — the same note can live under several places at once. A "Meditation" note can belong to both "Health" and "Productivity" without duplicating the file.
+- **Context from parents** — when you retrieve a note, IWE can include context from the notes above it in the hierarchy
 
 This structure makes retrieval powerful: ask for a topic and get its full context—children, parents, and related notes—in a single query.
 
-## Editor Integration (LSP)
+## Editor Integration
 
-IWE integrates with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/), and other editors via the Language Server Protocol (LSP). Get IDE-like features for your markdown: search, auto-complete, go to definition, find references, rename refactoring, and more.
+IWE gives your editor IDE-like features for markdown notes. It works with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/), and any editor that supports the Language Server Protocol (LSP).
 
-IWE understands document structure—headers, lists, and links—and provides advanced refactorings like extract/inline notes via code actions. It supports standard Markdown, wiki-style links, tables, and other extensions.
+IWE understands document structure—headers, lists, and links—and provides refactorings like extracting sections into new notes and inlining them back. It supports standard Markdown, wiki-style links, tables, and other extensions.
 
 - **Search** — find notes by title or content
 - **Navigate** — go to definition, find references (backlinks)
@@ -61,50 +61,57 @@ IWE understands document structure—headers, lists, and links—and provides ad
 - **Templates** — create notes from templates (daily notes, etc.)
 - **Outline conversion** — switch between headers and lists
 
-More information: [LSP Features](https://iwe.md/docs/getting-started/usage/)
+More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
 
 ## Working with AI
 
-IWE gives AI agents structured access to your knowledge graph through two interfaces: a CLI for scripting and shell-based workflows, and an MCP server for native integration with AI tools. Both expose the same operations — search, retrieve, create, refactor — so you can choose whichever fits your workflow.
+IWE gives AI agents structured access to your notes through two interfaces: a CLI for scripting and shell-based workflows, and an integration server for native connection with AI tools. Both expose the same operations—search, retrieve, create, refactor—so you can choose whichever fits your setup.
 
-### CLI
+### Command-Line Tools
 
-**Read**
-- **find** — search documents with fuzzy matching and relationship filters
-- **retrieve** — fetch documents with depth and context expansion
-- **tree** — display hierarchical structure from any starting point
-- **squash** — consolidate multiple documents into a single context
+The CLI lets you (and AI agents) work with your notes from the terminal or in scripts.
 
-**Write**
-- **new** — create documents from templates, accepts content via stdin
-- **extract** — extract sections into new documents
-- **inline** — embed referenced content back into parent document
-- **rename** — rename documents with automatic link updates
-- **delete** — remove documents and clean up references
-
-Example: retrieve a topic with 2 levels of children and 1 level of parent context:
+**Example: preparing context for an AI conversation**
 ```bash
-iwe retrieve -k topic -d 2 -c 1
+iwe find auth
+
+iwe retrieve --key authentication --depth 2
+
+iwe tree --key oauth
 ```
 
-### MCP Server
+**Available commands:**
 
-The MCP server (`iwec`) speaks the [Model Context Protocol](https://modelcontextprotocol.io), giving AI tools access to your knowledge graph.
+| Command | What it does |
+|---|---|
+| `find` | Search notes with fuzzy matching |
+| `retrieve` | Get a note with its children and parent context |
+| `tree` | Show the hierarchy from any starting point |
+| `squash` | Flatten a subtree into one document |
+| `new` | Create a note (accepts content from stdin) |
+| `extract` | Pull a section into its own note |
+| `inline` | Merge a linked note back into its parent |
+| `rename` | Rename a note; all links update automatically |
+| `delete` | Remove a note and clean up references |
 
-The server exposes 13 tools (find, retrieve, tree, stats, squash, create, update, delete, rename, extract, inline, normalize, attach), 3 prompts (explore, review, refactor), and resources for reading documents and graph structure. It watches the filesystem for changes, so edits in your editor are reflected immediately.
+### Integration Server for AI Tools
 
-More information: [MCP Server Documentation](https://iwe.md/docs/agentic/mcp/)
+IWE includes a server (`iwec`) that lets AI tools like Claude Desktop, Cursor, and Windsurf work directly with your notes. It uses the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), an open standard for connecting AI tools to data sources.
+
+The server provides the same operations as the CLI—search, retrieve, create, refactor—and watches your files for changes, so edits you make in your editor are reflected immediately.
+
+More information: [Integration Server Documentation](https://iwe.md/docs/agentic/mcp/)
 
 ---
 
-Unlike vector databases where agent memory becomes opaque—embeddings you can't read or edit—IWE keeps everything in plain Markdown. No similarity thresholds, no "maybe relevant" results. The agent gets exactly the documents that connect to the topic.
+Other AI memory tools store your notes in formats you can't read or edit. IWE keeps everything in plain Markdown files on your disk. When an AI agent asks for information, it gets the exact notes that are connected to the topic—not "maybe relevant" guesses based on text similarity.
 
-You remain in control. The files are yours, readable and editable. Agents become collaborators that can navigate your knowledge, not black boxes that store it.
+You stay in control. Your notes are plain text files you can read, edit, and version with git. AI agents become collaborators that navigate your knowledge alongside you, not black boxes that absorb it.
 
 More information:
-- [Working with AI Documentation](https://iwe.md/docs/agentic/)
+- [Working with AI](https://iwe.md/docs/agentic/)
 - [CLI Reference](https://iwe.md/docs/cli/)
-- [MCP Server](https://iwe.md/docs/agentic/mcp/)
+- [Integration Server](https://iwe.md/docs/agentic/mcp/)
 
 ## Quick Start
 

@@ -16,6 +16,22 @@ pub fn new_for_path(base_path: &PathBuf) -> State {
         return State::new();
     }
 
+    walk_md_paths(base_path)
+        .into_iter()
+        .filter_map(|(key, path)| {
+            fs::read_to_string(&path)
+                .ok()
+                .map(|content| (key, sanitize_content(content)))
+        })
+        .collect()
+}
+
+pub fn walk_md_paths(base_path: &Path) -> Vec<(String, PathBuf)> {
+    if !base_path.exists() {
+        error!("path doesn't exist");
+        return Vec::new();
+    }
+
     WalkBuilder::new(base_path)
         .follow_links(false)
         .hidden(true)
@@ -40,9 +56,13 @@ pub fn new_for_path(base_path: &PathBuf) -> State {
                 to_file_name(path)
             };
 
-            fs::read_to_string(path).ok().map(|content| (key, sanitize_content(content)))
+            Some((key, path.to_path_buf()))
         })
         .collect()
+}
+
+pub fn read_md_file(path: &Path) -> Option<String> {
+    fs::read_to_string(path).ok().map(sanitize_content)
 }
 
 pub fn new_from_hashmap(map: HashMap<String, String>) -> State {

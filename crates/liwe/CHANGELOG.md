@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `EdgeRef { key, title, sectionPath }` — single canonical shape for inclusion / reference edges in `retrieve` and `find` output
-- `RetrieveOptions.children: bool` — controls whether `DocumentOutput.includes` is populated, independently of `no_content`
+- `liwe::schema` module — `FieldSchema`, `TypeCount`, `ValueCount`, `Coverage` types plus `infer_schema` for frontmatter type/coverage analysis ([#274](https://github.com/iwe-org/iwe/pull/274))
+- `YamlType` derives `Hash` and implements `Display`
 
 ### Changed
 
-- `FindResult` is now a `serde_yaml::Mapping` with system fields (`key`, `title`, `includedBy`) merged with user frontmatter at the top level; the nested `frontmatter` field and the four count fields are removed
-- `ChildDocumentInfo`, `ParentDocumentInfo`, `BacklinkInfo` retired in favor of `EdgeRef`; `get_child_documents` now computes `section_path`
-- `RetrieveOptions.no_content` only controls content blanking; child edges require `children: true`
+- `Graph::from_state` now takes `&State` instead of `State` (caller no longer transfers ownership of the parsed state)
 
 ## [0.1.0](https://github.com/iwe-org/iwe/compare/liwe-v0.0.70...liwe-v0.1.0) - 2026-05-01
 
@@ -26,10 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graph filter operators for cross-document selection — `$includes`, `$includedBy`, `$references`, `$referencedBy`, each supporting bounded depth/distance
 - Graph `walk` traversal module for bounded ancestor/descendant iteration
 - Reserved frontmatter prefixes (`_`, `$`, `.`, `#`, `@`) — engine-only namespaces, invisible to user-facing queries and stripped from `update` writeback
+- `EdgeRef { key, title, sectionPath }` — single canonical shape for inclusion / reference edges in `retrieve` and `find` output
+- `RetrieveOptions.children: bool` — controls whether `DocumentOutput.includes` is populated, independently of `no_content`
 
 ### Changed
 
 - `find`, `retrieve`, and `stats` rewritten on top of the query engine
+- `FindResult` is now a `serde_yaml::Mapping` with system fields (`key`, `title`, `includedBy`) merged with user frontmatter at the top level; the nested `frontmatter` field and the four count fields are removed
+- `ChildDocumentInfo`, `ParentDocumentInfo`, `BacklinkInfo` retired in favor of `EdgeRef`; `get_child_documents` now computes `section_path`
+- `RetrieveOptions.no_content` only controls content blanking; child edges require `children: true`
 
 ### Removed
 

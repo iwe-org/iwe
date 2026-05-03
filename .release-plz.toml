@@ -1,5 +1,5 @@
 [workspace]
-changelog_update = true
+changelog_update = false
 dependencies_update = false
 git_release_enable = false
 
@@ -8,22 +8,22 @@ name = "iwe"
 git_release_enable = true
 git_release_name = "v{{ version }}"
 git_release_draft = false
-changelog_update = true
+changelog_update = false
 
 [[package]]
 name = "iwes"
 git_release_enable = false
 git_release_draft = false
-changelog_update = true
+changelog_update = false
 
 [[package]]
 name = "iwec"
 git_release_enable = false
 git_release_draft = false
-changelog_update = true
+changelog_update = false
 
 [[package]]
 name = "liwe"
 git_release_enable = false
 git_release_draft = false
-changelog_update = true
+changelog_update = false

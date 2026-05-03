@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
+    path::Path,
 };
 
 use basic_iter::GraphNodePointer;
@@ -15,7 +16,7 @@ use crate::{
     markdown::MarkdownReader,
     model::{document::Document, tree::Tree},
 };
-use arena::Arena;
+use arena::{finalize_build, Arena, BuildArena, BuildIds, NodeStore};
 use builder::GraphBuilder;
 use itertools::Itertools;
 use path::{graph_to_paths, NodePath};
@@ -176,26 +177,12 @@ impl Graph {
         self.arena.nodes()
     }
 
-    fn node_mut(&mut self, id: NodeId) -> &mut GraphNode {
-        self.arena.node_mut(id)
-    }
-
     pub fn new_node_id(&mut self) -> NodeId {
         self.arena.new_node_id()
     }
 
-    fn add_graph_node(&mut self, node: GraphNode) -> NodeId {
-        let id = self.arena.new_node_id();
-        self.arena.set_node(id, node);
-        id
-    }
-
     pub fn get_line(&self, id: LineId) -> Line {
         self.arena.get_line(id)
-    }
-
-    fn add_line(&mut self, inlines: GraphInlines) -> LineId {
-        self.arena.add_line(inlines)
     }
 
     pub fn build_key(&mut self, key: &Key) -> GraphBuilder<'_> {
@@ -363,53 +350,44 @@ impl Graph {
         graph.set_sequential_keys(sequential_ids);
         graph.frontmatter_document_title = frontmatter_document_title;
 
-        let reader = MarkdownReader::new();
-
-        let blocks = state
-            .iter()
-            .sorted_by(|a, b| a.0.cmp(b.0))
-            .collect_vec()
+        let ids = BuildIds::new();
+        let outputs: Vec<DocBuildOutput> = state
             .par_iter()
             .map(|(k, v)| {
-                debug!("parsing content, key={}", k);
-                (Key::name(k), reader.document(v, &markdown_options))
-            })
-            .collect::<Vec<_>>();
-
-        for (key, document) in blocks.into_iter() {
-            if let Some(fm) = document.frontmatter.clone() {
-                graph.frontmatter.insert(key.clone(), fm);
-            } else {
-                graph.frontmatter.remove(&key);
-            }
-
-            let nodes_map =
-                SectionsBuilder::new(&mut graph.build_key(&key), &document.blocks, &key)
-                    .nodes_map();
-            graph.nodes_map.insert(key.clone(), nodes_map.clone());
-            graph.global_nodes_map.extend(nodes_map);
-        }
-
-        let mut index = RefIndex::new();
-        for node in graph.arena.nodes() {
-            index.index_node(&graph, node.id());
-        }
-        graph.index = index;
-
-        let extractions: Vec<(Key, String)> = graph
-            .keys
-            .par_iter()
-            .filter_map(|(key, _)| {
-                graph.extract_ref_text(key).map(|text| (key.clone(), text))
+                debug!("building doc, key={}", k);
+                build_doc(&ids, Key::name(k), v.clone(), &markdown_options)
             })
             .collect();
-        graph.keys_to_ref_text.extend(extractions);
 
-        graph.content = state
-            .iter()
-            .map(|(k, v)| (Key::name(k), v.clone()))
+        merge_outputs(&mut graph, outputs, &ids);
+        build_index_and_titles(&mut graph);
+        graph
+    }
+
+    pub fn from_path(
+        base_path: &Path,
+        sequential_ids: bool,
+        markdown_options: MarkdownOptions,
+        frontmatter_document_title: Option<String>,
+    ) -> Self {
+        let mut graph = Graph::new_with_options(markdown_options.clone());
+        graph.set_sequential_keys(sequential_ids);
+        graph.frontmatter_document_title = frontmatter_document_title;
+
+        let entries = crate::fs::walk_md_paths(base_path);
+
+        let ids = BuildIds::new();
+        let outputs: Vec<DocBuildOutput> = entries
+            .into_par_iter()
+            .filter_map(|(key, path)| {
+                debug!("building doc, key={}", key);
+                crate::fs::read_md_file(&path)
+                    .map(|content| build_doc(&ids, Key::name(&key), content, &markdown_options))
+            })
             .collect();
 
+        merge_outputs(&mut graph, outputs, &ids);
+        build_index_and_titles(&mut graph);
         graph
     }
 
@@ -530,10 +508,120 @@ impl PartialEq for Graph {
     }
 }
 
+impl NodeStore for Graph {
+    fn new_node_id(&mut self) -> NodeId {
+        self.arena.new_node_id()
+    }
+
+    fn add_line(&mut self, inlines: GraphInlines) -> LineId {
+        self.arena.add_line(inlines)
+    }
+
+    fn add_graph_node(&mut self, node: GraphNode) -> NodeId {
+        let id = node.id();
+        self.arena.set_node(id, node);
+        id
+    }
+
+    fn update_node(&mut self, id: NodeId, f: &mut dyn FnMut(&mut GraphNode)) {
+        self.arena.update_node(id, f);
+    }
+
+    fn graph_node(&self, id: NodeId) -> GraphNode {
+        self.arena.node(id)
+    }
+}
+
 impl InlinesContext for &Graph {
     fn get_ref_title(&self, key: &Key) -> Option<String> {
         self.get_key_title(key)
     }
+}
+
+struct DocBuildOutput {
+    key: Key,
+    root_id: NodeId,
+    frontmatter: Option<Mapping>,
+    nodes_map: crate::model::NodesMap,
+    nodes: HashMap<NodeId, GraphNode>,
+    lines: HashMap<crate::graph::LineId, graph_line::Line>,
+    content: String,
+}
+
+fn build_doc(
+    ids: &BuildIds,
+    key: Key,
+    content: String,
+    markdown_options: &MarkdownOptions,
+) -> DocBuildOutput {
+    let document = MarkdownReader::new().document(&content, markdown_options);
+
+    let mut arena = BuildArena::new(ids);
+    let root_id = arena.new_node_id();
+    arena.set_node(root_id, GraphNode::new_root(key.clone(), root_id));
+
+    let nodes_map = SectionsBuilder::new(
+        &mut GraphBuilder::new(&mut arena, root_id),
+        &document.blocks,
+        &key,
+    )
+    .nodes_map();
+
+    let (nodes, lines) = arena.into_parts();
+
+    DocBuildOutput {
+        key,
+        root_id,
+        frontmatter: document.frontmatter,
+        nodes_map,
+        nodes,
+        lines,
+        content,
+    }
+}
+
+fn merge_outputs(graph: &mut Graph, outputs: Vec<DocBuildOutput>, ids: &BuildIds) {
+    let mut all_parts = Vec::with_capacity(outputs.len());
+    for output in outputs {
+        if let Some(fm) = output.frontmatter {
+            graph.frontmatter.insert(output.key.clone(), fm);
+        } else {
+            graph.frontmatter.remove(&output.key);
+        }
+        graph.keys.insert(output.key.clone(), output.root_id);
+        graph
+            .nodes_map
+            .insert(output.key.clone(), output.nodes_map.clone());
+        graph.global_nodes_map.extend(output.nodes_map);
+        graph.content.insert(output.key.clone(), output.content);
+        all_parts.push((output.nodes, output.lines));
+    }
+    graph.arena = finalize_build(ids, all_parts);
+}
+
+fn build_index_and_titles(graph: &mut Graph) {
+    graph.index = graph
+        .arena
+        .nodes()
+        .par_chunks(4096)
+        .map(|chunk| {
+            let mut local = RefIndex::new();
+            for node in chunk {
+                local.index_node(graph, node.id());
+            }
+            local
+        })
+        .reduce(RefIndex::new, |mut acc, other| {
+            acc.merge(other);
+            acc
+        });
+
+    let extractions: Vec<(Key, String)> = graph
+        .keys
+        .par_iter()
+        .filter_map(|(key, _)| graph.extract_ref_text(key).map(|text| (key.clone(), text)))
+        .collect();
+    graph.keys_to_ref_text.extend(extractions);
 }
 
 pub trait GraphContext: Copy {

@@ -9,20 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `retrieve --children` flag to populate the `includes` array independently of `--no-content`
-- `retrieve --dry-run` honors `-f json|yaml` and emits a structured `{documents, lines}` object in those formats
-- `tree --project f1,f2` to add user frontmatter fields to each tree node alongside `key`, `title`, `children`
-
-### Changed
-
-- `find` JSON/YAML output is now a bare array of result objects (the `{query, limit, total, results}` envelope is removed)
-- `retrieve` JSON/YAML output is now a bare array of document objects (the `{documents}` envelope is removed)
-- `find` result objects flatten user frontmatter at the top level alongside `key`, `title`, `includedBy`; the nested `frontmatter` object is removed
-- `retrieve` `includes` entries now carry `sectionPath` (unified `EdgeRef` shape with `includedBy` and `referencedBy`)
-- `retrieve --no-content` no longer populates `includes` — use `--children` for that, and combine with `--no-content` for metadata-only output with edges
-- `tree` JSON/YAML always emits `children: []` for leaf nodes (previously omitted)
-- Markdown frontmatter rendered by `retrieve` uses `includedBy` / `referencedBy` instead of `parents` / `back-links`
-- `stats -k KEY` rejects `-f markdown` and `-f csv` at parse time (was silently falling through to JSON)
+- `iwe schema` command for frontmatter structure analysis — emits per-field type distribution, coverage, and distinct values; supports `-f markdown|json|yaml`, `--field NAME` to scope output, and the universal filter flags ([#274](https://github.com/iwe-org/iwe/pull/274))
 
 ## [0.1.0](https://github.com/iwe-org/iwe/compare/iwe-v0.0.70...iwe-v0.1.0) - 2026-05-01
 
@@ -34,10 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--max-depth` and `--max-distance` defaults applied to anchor flags lacking an explicit colon-suffix
 - `--project f1,f2` and `-f json` on `find`, `tree`, and `retrieve` for projecting frontmatter fields into structured output
 - `iwe update` command with body-overwrite (`-k -c`) and frontmatter mutation (`--filter` + `--set`/`--unset`) modes, plus `--dry-run`
+- `retrieve --children` flag to populate the `includes` array independently of `--no-content`
+- `retrieve --dry-run` honors `-f json|yaml` and emits a structured `{documents, lines}` object in those formats
+- `tree --project f1,f2` to add user frontmatter fields to each tree node alongside `key`, `title`, `children`
 
 ### Changed
 
 - Help text refreshed across `count`, `delete`, `extract`, `find`, `inline`, `rename`, `retrieve`, `stats`, `tree`, and `update`
+- `find` JSON/YAML output is now a bare array of result objects (the `{query, limit, total, results}` envelope is removed)
+- `retrieve` JSON/YAML output is now a bare array of document objects (the `{documents}` envelope is removed)
+- `find` result objects flatten user frontmatter at the top level alongside `key`, `title`, `includedBy`; the nested `frontmatter` object is removed
+- `retrieve` `includes` entries now carry `sectionPath` (unified `EdgeRef` shape with `includedBy` and `referencedBy`)
+- `retrieve --no-content` no longer populates `includes` — use `--children` for that, and combine with `--no-content` for metadata-only output with edges
+- `tree` JSON/YAML always emits `children: []` for leaf nodes (previously omitted)
+- Markdown frontmatter rendered by `retrieve` uses `includedBy` / `referencedBy` instead of `parents` / `back-links`
+- `stats -k KEY` rejects `-f markdown` and `-f csv` at parse time (was silently falling through to JSON)
 
 ### Removed
 

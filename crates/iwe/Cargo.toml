@@ -3,6 +3,7 @@ name = "iwe"
 description = "IWE CLI utility"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md", "templates/**/*", "help/**/*"]
 autotests = false
+autobenches = false
 
 version.workspace = true
 repository.workspace = true

@@ -14,7 +14,7 @@ use liwe::stats::KeyStatistics;
 
 use common::{doc_key, generate_corpus, hub_key, load_graph, sample_keys};
 
-const SIZES: &[usize] = &[5_000, 10_000, 50_000];
+const SIZES: &[usize] = &[5_000, 10_000, 20_000];
 const SEED: u64 = 42;
 
 fn bench_query(c: &mut Criterion) {
