@@ -350,11 +350,11 @@ impl Graph {
         markdown_options: MarkdownOptions,
         frontmatter_document_title: Option<String>,
     ) -> Graph {
-        Self::from_state(content.clone(), false, markdown_options, frontmatter_document_title)
+        Self::from_state(content, false, markdown_options, frontmatter_document_title)
     }
 
     pub fn from_state(
-        state: State,
+        state: &State,
         sequential_ids: bool,
         markdown_options: MarkdownOptions,
         frontmatter_document_title: Option<String>,
@@ -396,11 +396,14 @@ impl Graph {
         }
         graph.index = index;
 
-        for (key, _) in graph.keys.clone() {
-            graph
-                .extract_ref_text(&key)
-                .map(|text| graph.keys_to_ref_text.insert(key.clone(), text));
-        }
+        let extractions: Vec<(Key, String)> = graph
+            .keys
+            .par_iter()
+            .filter_map(|(key, _)| {
+                graph.extract_ref_text(key).map(|text| (key.clone(), text))
+            })
+            .collect();
+        graph.keys_to_ref_text.extend(extractions);
 
         graph.content = state
             .iter()

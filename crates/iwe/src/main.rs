@@ -60,6 +60,7 @@ enum Command {
     Tree(TreeArgs),
     Squash(Squash),
     Export(Export),
+    Schema(Schema),
     Stats(Stats),
     Rename(Rename),
     Delete(Delete),
@@ -286,6 +287,39 @@ struct TreeArgs {
 enum TreeFormat {
     Markdown,
     Keys,
+    Json,
+    Yaml,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::schema::ABOUT,
+    long_about = help::schema::LONG_ABOUT,
+    after_help = help::schema::AFTER_HELP
+)]
+struct Schema {
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "markdown",
+        help = "Output format for schema"
+    )]
+    format: SchemaFormat,
+
+    #[clap(
+        long,
+        help = "Restrict output to a specific field (and its children)"
+    )]
+    field: Option<String>,
+
+    #[clap(flatten)]
+    selector: FilterArgs,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum SchemaFormat {
+    Markdown,
     Json,
     Yaml,
 }
@@ -639,6 +673,7 @@ fn main() {
         Command::Find(find) => find_command(find),
         Command::Count(count) => count_command(count),
         Command::Export(export) => export_command(export),
+        Command::Schema(schema) => schema_command(schema),
         Command::Stats(stats) => stats_command(stats),
         Command::Rename(rename) => rename_command(rename),
         Command::Delete(delete) => delete_command(delete),
@@ -1284,6 +1319,45 @@ fn get_configuration() -> Configuration {
         debug!("using config:\n{}", formatted_config);
     }
     config
+}
+
+fn schema_command(args: Schema) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let keys: Vec<Key> = match resolve_filter(&args.selector, &graph) {
+        Some(filter) => liwe::query::evaluate(&filter, &graph),
+        None => {
+            let mut k = graph.keys();
+            k.sort();
+            k
+        }
+    };
+
+    let mut fields = liwe::schema::infer_schema(&graph, &keys);
+
+    if let Some(ref field_name) = args.field {
+        fields.retain(|f| {
+            f.name == *field_name || f.name.starts_with(&format!("{}.", field_name))
+        });
+    }
+
+    match args.format {
+        SchemaFormat::Json => {
+            let json = serde_json::to_string_pretty(&fields)
+                .expect("Failed to serialize schema");
+            println!("{}", json);
+        }
+        SchemaFormat::Yaml => {
+            let yaml = serde_yaml::to_string(&fields)
+                .expect("Failed to serialize schema");
+            print!("{}", yaml);
+        }
+        SchemaFormat::Markdown => {
+            let output = iwe::schema::render_schema(&fields);
+            print!("{}", output);
+        }
+    }
 }
 
 #[tracing::instrument(level = "debug")]

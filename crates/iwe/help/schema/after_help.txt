@@ -1,0 +1,31 @@
+OUTPUT FORMATS:
+
+MARKDOWN (default, -f markdown):
+  Aligned table with columns: Field, Types, Coverage, Distinct, Values.
+
+JSON (-f json):
+  Top-level array of field objects. Each object has: field, types,
+  coverage { count, percentage }, distinct, values [{ value, count }].
+
+YAML (-f yaml):
+  Same shape as JSON, rendered as YAML.
+
+EXAMPLES:
+
+  # Full workspace schema
+  iwe schema
+
+  # Schema for posts only
+  iwe schema --filter 'type: post'
+
+  # Drill into a specific field
+  iwe schema --field status
+
+  # JSON output for scripting
+  iwe schema -f json
+
+  # Schema for documents with a specific pillar
+  iwe schema --filter 'pillar: ai-memory'
+
+  # Nested field inspection
+  iwe schema --field engagement -f json

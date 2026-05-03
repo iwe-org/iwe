@@ -88,7 +88,7 @@ iwe find --referenced-by archive/index:3
 iwe find --filter '$or: [{ $includedBy: projects/alpha }, { $includedBy: projects/beta }]'
 ```
 
-The same selector flags are accepted by [`iwe count`](cli-count.md), [`iwe retrieve`](cli-retrieve.md), [`iwe tree`](cli-tree.md), [`iwe export`](cli-export.md), [`iwe update`](cli-update.md), and [`iwe delete`](cli-delete.md).
+The same selector flags are accepted by [`iwe count`](cli-count.md), [`iwe retrieve`](cli-retrieve.md), [`iwe tree`](cli-tree.md), [`iwe export`](cli-export.md), [`iwe schema`](cli-schema.md), [`iwe update`](cli-update.md), and [`iwe delete`](cli-delete.md).
 
 ## How it works
 

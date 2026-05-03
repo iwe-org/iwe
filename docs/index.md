@@ -26,6 +26,8 @@
 
 [IWE Squash](cli-squash.md)
 
+[IWE Schema](cli-schema.md)
+
 [IWE Stats](cli-stats.md)
 
 [IWE Export](cli-export.md)

@@ -65,7 +65,7 @@ async fn watcher_picks_up_modification() {
 
     let state = liwe::fs::new_for_path(&base_path);
     let graph = Arc::new(Mutex::new(Graph::from_state(
-        state,
+        &state,
         false,
         MarkdownOptions::default(),
         None,
@@ -99,7 +99,7 @@ async fn watcher_picks_up_deletion() {
 
     let state = liwe::fs::new_for_path(&base_path);
     let graph = Arc::new(Mutex::new(Graph::from_state(
-        state,
+        &state,
         false,
         MarkdownOptions::default(),
         None,

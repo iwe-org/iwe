@@ -39,6 +39,15 @@ sanitize-filename.workspace = true
 name = "integration"
 path = "tests/main.rs"
 
+[[bench]]
+name = "load"
+harness = false
+
+[[bench]]
+name = "query"
+harness = false
+
 [dev-dependencies]
 pretty_assertions.workspace = true
 tempfile.workspace = true
+criterion = { version = "0.5", features = ["html_reports"] }
