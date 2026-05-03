@@ -177,12 +177,9 @@ mod test {
     pub fn no_parents() {
         assert_eq!(
             vec![NodePath::from_id(1)],
-            graph_to_paths(
-                Graph::new()
-                    .build_key(&"key".into())
-                    .section_text("test")
-                    .graph()
-            )
+            graph_to_paths(&Graph::with(|graph| {
+                graph.build_key(&"key".into()).section_text("test");
+            }))
         );
     }
 
@@ -190,13 +187,12 @@ mod test {
     pub fn two_sections() {
         assert_eq!(
             vec![NodePath::from_id(1), NodePath::from_id(2)],
-            graph_to_paths(
-                Graph::new()
+            graph_to_paths(&Graph::with(|graph| {
+                graph
                     .build_key(&"key".into())
                     .section_text("test")
-                    .section_text("test2")
-                    .graph()
-            )
+                    .section_text("test2");
+            }))
         );
     }
 
@@ -220,14 +216,11 @@ mod test {
     pub fn one_parent_two_sections() {
         assert_eq!(
             vec![NodePath::new(vec![1]), NodePath::new(vec![1, 2])],
-            graph_to_paths(
-                Graph::new()
-                    .build_key(&"a".into())
-                    .section_text_and("1", |s| {
-                        s.section_text("2");
-                    })
-                    .graph()
-            )
+            graph_to_paths(&Graph::with(|graph| {
+                graph.build_key(&"a".into()).section_text_and("1", |s| {
+                    s.section_text("2");
+                });
+            }))
         );
     }
 

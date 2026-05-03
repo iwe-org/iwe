@@ -121,12 +121,7 @@ impl Router {
 
     fn handle_message(&mut self, message: Message) -> bool {
         match message {
-            Message::Request(req) => {
-                let request = req;
-                let self_clone = self.clone();
-                let _ = std::thread::spawn(move || self_clone.on_request(request));
-                false
-            }
+            Message::Request(req) => self.on_request(req),
             Message::Notification(notification) => self.on_notification(notification),
             Message::Response(_) => false,
         }

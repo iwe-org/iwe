@@ -1,26 +1,27 @@
 use super::*;
+use crate::graph::arena::NodeStore;
 use crate::model::graph::GraphInline;
 use crate::model::node::{ColumnAlignment, Node, Reference, ReferenceType};
 
 pub struct GraphBuilder<'a> {
     id: NodeId,
-    graph: &'a mut Graph,
+    store: &'a mut dyn NodeStore,
     insert: bool,
 }
 
 impl<'a> GraphBuilder<'a> {
     pub fn node(&self) -> GraphNode {
-        self.graph.graph_node(self.id)
+        self.store.graph_node(self.id)
     }
 
     pub fn insert(&self) -> bool {
         self.insert
     }
 
-    pub fn new(graph: &'a mut Graph, id: NodeId) -> GraphBuilder<'a> {
+    pub fn new(store: &'a mut dyn NodeStore, id: NodeId) -> GraphBuilder<'a> {
         GraphBuilder {
             id,
-            graph,
+            store,
             insert: true,
         }
     }
@@ -39,7 +40,7 @@ impl<'a> GraphBuilder<'a> {
     pub fn prev_is_root(&self) -> bool {
         self.node()
             .prev_id()
-            .is_some_and(|id| self.graph.graph_node(id).is_root())
+            .is_some_and(|id| self.store.graph_node(id).is_root())
     }
 
     pub fn set_insert(&mut self, insert: bool) -> &mut Self {
@@ -47,8 +48,12 @@ impl<'a> GraphBuilder<'a> {
         self
     }
 
-    pub fn graph(&mut self) -> &mut Graph {
-        self.graph
+    pub fn add_line(&mut self, inlines: GraphInlines) -> LineId {
+        self.store.add_line(inlines)
+    }
+
+    pub fn child_builder(&mut self, id: NodeId) -> GraphBuilder<'_> {
+        GraphBuilder::new(&mut *self.store, id)
     }
 
     pub fn quote(&mut self) {
@@ -68,7 +73,7 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder),
     {
-        let new_id = self.graph.new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_quote(self.id, new_id), f);
     }
 
@@ -81,7 +86,7 @@ impl<'a> GraphBuilder<'a> {
     ) where
         F: FnOnce(&mut GraphBuilder),
     {
-        let new_id = self.graph.new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node_and(
             GraphNode::new_table(self.id, new_id, header, alignment, rows),
             f,
@@ -89,7 +94,7 @@ impl<'a> GraphBuilder<'a> {
     }
 
     pub fn horizontal_rule(&mut self) {
-        let new_id = self.graph.new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_rule(self.id, new_id));
     }
 
@@ -105,7 +110,7 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder),
     {
-        let new_id = self.graph.new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_bullet_list(self.id, new_id), f);
     }
 
@@ -113,13 +118,13 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder),
     {
-        let new_id = self.graph.new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_ordered_list(self.id, new_id), f);
     }
 
     pub fn section_text(&mut self, text: &str) -> &mut Self {
-        let line_id = self.graph.add_line(GraphInline::from_string(text));
-        let new_id = self.graph.new_node_id();
+        let line_id = self.store.add_line(GraphInline::from_string(text));
+        let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_section(self.id, new_id, line_id), |_| {});
         self
     }
@@ -128,8 +133,8 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder),
     {
-        let line_id = self.graph.add_line(GraphInline::from_string(text));
-        let new_id = self.graph.new_node_id();
+        let line_id = self.store.add_line(GraphInline::from_string(text));
+        let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_section(self.id, new_id, line_id), f);
         self
     }
@@ -142,26 +147,26 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder),
     {
-        let line_id = self.graph.add_line(inlines);
-        let new_id = self.graph.new_node_id();
+        let line_id = self.store.add_line(inlines);
+        let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_section(self.id, new_id, line_id), f);
     }
 
     pub fn leaf_text(&mut self, text: &str) -> &mut Self {
-        let line_id = self.graph.add_line(GraphInline::from_string(text));
-        let new_id = self.graph.new_node_id();
+        let line_id = self.store.add_line(GraphInline::from_string(text));
+        let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_leaf(self.id, new_id, line_id));
         self
     }
 
     pub fn leaf(&mut self, block: GraphInlines) {
-        let line_id = self.graph.add_line(block);
-        let new_id = self.graph.new_node_id();
+        let line_id = self.store.add_line(block);
+        let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_leaf(self.id, new_id, line_id));
     }
 
     pub fn raw(&mut self, block: &str, lang: Option<String>) {
-        let new_id = self.graph.new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_raw_leaf(
             self.id,
             new_id,
@@ -171,7 +176,7 @@ impl<'a> GraphBuilder<'a> {
     }
 
     pub fn reference(&mut self, key: &Key) {
-        let new_id = self.graph().new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_ref(
             self.id,
             new_id,
@@ -182,7 +187,7 @@ impl<'a> GraphBuilder<'a> {
     }
 
     pub fn reference_with_text(&mut self, key: &Key, text: &str, reference_type: ReferenceType) {
-        let new_id = self.graph().new_node_id();
+        let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_ref(
             self.id,
             new_id,
@@ -200,19 +205,20 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder<'_>),
     {
+        let child_id = node.id();
         if self.insert {
-            self.graph.node_mut(self.id).set_child_id(node.id());
+            self.store.update_node(self.id, &mut |n| n.set_child_id(child_id));
             self.insert = false;
         } else {
-            self.graph.node_mut(self.id).set_next_id(node.id());
+            self.store.update_node(self.id, &mut |n| n.set_next_id(child_id));
         }
 
         self.id = node.id();
-        self.graph.add_graph_node(node.clone());
+        self.store.add_graph_node(node.clone());
 
         f(&mut GraphBuilder {
             id: self.id,
-            graph: self.graph,
+            store: &mut *self.store,
             insert: node.insertable(),
         });
     }
@@ -221,18 +227,19 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder<'_>),
     {
+        let child_id = node.id();
         if self.insert {
-            self.graph.node_mut(self.id).set_child_id(node.id());
+            self.store.update_node(self.id, &mut |n| n.set_child_id(child_id));
             self.insert = false;
         } else {
-            self.graph.node_mut(self.id).set_next_id(node.id());
+            self.store.update_node(self.id, &mut |n| n.set_next_id(child_id));
         }
 
-        self.graph.add_graph_node(node.clone());
+        self.store.add_graph_node(node.clone());
 
         f(&mut GraphBuilder {
             id: node.id(),
-            graph: self.graph,
+            store: &mut *self.store,
             insert: node.insertable(),
         });
     }
@@ -244,36 +251,36 @@ impl<'a> GraphBuilder<'a> {
         match node {
             Node::Document(_, _) => panic!("Document node is not allowed"),
             Node::Section(inlines) => {
-                let line_id = self.graph.add_line(inlines);
-                let new_id = self.graph.new_node_id();
+                let line_id = self.store.add_line(inlines);
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(GraphNode::new_section(self.id, new_id, line_id), f);
             }
             Node::Quote() => {
-                let new_id = self.graph.new_node_id();
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(GraphNode::new_quote(self.id, new_id), f);
             }
             Node::BulletList() => {
-                let new_id = self.graph.new_node_id();
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(GraphNode::new_bullet_list(self.id, new_id), f);
             }
             Node::OrderedList() => {
-                let new_id = self.graph.new_node_id();
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(GraphNode::new_ordered_list(self.id, new_id), f);
             }
             Node::Leaf(inlines) => {
-                let line_id = self.graph.add_line(inlines);
-                let new_id = self.graph.new_node_id();
+                let line_id = self.store.add_line(inlines);
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(GraphNode::new_leaf(self.id, new_id, line_id), f);
             }
             Node::Raw(lang, content) => {
-                let new_id = self.graph.new_node_id();
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(
                     GraphNode::new_raw_leaf(self.id, new_id, content.to_string(), lang),
                     f,
                 );
             }
             Node::HorizontalRule() => {
-                let new_id = self.graph.new_node_id();
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(GraphNode::new_rule(self.id, new_id), f);
             }
             Node::Reference(Reference {
@@ -281,7 +288,7 @@ impl<'a> GraphBuilder<'a> {
                 text: title,
                 reference_type,
             }) => {
-                let new_id = self.graph().new_node_id();
+                let new_id = self.store.new_node_id();
                 self.add_node_and2(
                     GraphNode::new_ref(
                         self.id,
@@ -294,12 +301,12 @@ impl<'a> GraphBuilder<'a> {
                 );
             }
             Node::Table(table) => {
-                let new_id = self.graph().new_node_id();
+                let new_id = self.store.new_node_id();
 
                 let header_line_ids = table
                     .header
                     .iter()
-                    .map(|inlines| self.graph.add_line(inlines.clone()))
+                    .map(|inlines| self.store.add_line(inlines.clone()))
                     .collect();
 
                 let rows = table
@@ -307,7 +314,7 @@ impl<'a> GraphBuilder<'a> {
                     .iter()
                     .map(|row| {
                         row.iter()
-                            .map(|inlines| self.graph.add_line(inlines.clone()))
+                            .map(|inlines| self.store.add_line(inlines.clone()))
                             .collect()
                     })
                     .collect();
@@ -368,10 +375,10 @@ impl<'a> GraphBuilder<'a> {
 
     pub fn link_node_id(&mut self, node_id: NodeId) {
         if self.insert {
-            self.graph.node_mut(self.id).set_child_id(node_id);
+            self.store.update_node(self.id, &mut |n| n.set_child_id(node_id));
             self.insert = false;
         } else {
-            self.graph.node_mut(self.id).set_next_id(node_id);
+            self.store.update_node(self.id, &mut |n| n.set_next_id(node_id));
         }
 
         self.id = node_id;

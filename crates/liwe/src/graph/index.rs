@@ -46,96 +46,88 @@ impl RefIndex {
         self.reference_edges.keys()
     }
 
-    pub fn index_node(&mut self, graph: &Graph, node_id: NodeId) {
-        match graph.graph_node(node_id) {
-            GraphNode::Reference(reference) => {
-                self.inclusion_edges
-                    .entry(reference.key().clone())
-                    .or_default()
-                    .insert(reference.id());
-
-                if let Some(child_id) = reference.next_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::Section(section) => {
-                for key in graph.get_line(section.line_id()).ref_keys() {
-                    self.reference_edges
-                        .entry(key.clone())
+    pub fn index_node(&mut self, graph: &Graph, root_id: NodeId) {
+        let mut stack: Vec<NodeId> = vec![root_id];
+        while let Some(node_id) = stack.pop() {
+            match graph.graph_node(node_id) {
+                GraphNode::Reference(reference) => {
+                    self.inclusion_edges
+                        .entry(reference.key().clone())
                         .or_default()
-                        .insert(section.id());
-                }
-                if let Some(child_id) = section.child_id() {
-                    self.index_node(graph, child_id);
-                }
+                        .insert(reference.id());
 
-                if let Some(child_id) = section.next_id() {
-                    self.index_node(graph, child_id);
+                    if let Some(child_id) = reference.next_id() {
+                        stack.push(child_id);
+                    }
                 }
-            }
-            GraphNode::Leaf(leaf) => {
-                for key in graph.get_line(leaf.line_id()).ref_keys() {
-                    self.reference_edges
-                        .entry(key.clone())
-                        .or_default()
-                        .insert(leaf.id());
-                }
-
-                if let Some(child_id) = leaf.next_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::Document(document) => {
-                if let Some(child_id) = document.child_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::Quote(quote) => {
-                if let Some(child_id) = quote.child_id() {
-                    self.index_node(graph, child_id);
-                }
-                if let Some(child_id) = quote.next_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::BulletList(bullet_list) => {
-                if let Some(child_id) = bullet_list.child_id() {
-                    self.index_node(graph, child_id);
-                }
-                if let Some(child_id) = bullet_list.next_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::OrderedList(ordered_list) => {
-                if let Some(child_id) = ordered_list.child_id() {
-                    self.index_node(graph, child_id);
-                }
-                if let Some(child_id) = ordered_list.next_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::Empty => {}
-            GraphNode::Raw(raw_leaf) => {
-                if let Some(child_id) = raw_leaf.next_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::HorizontalRule(horizontal_rule) => {
-                if let Some(child_id) = horizontal_rule.next_id() {
-                    self.index_node(graph, child_id);
-                }
-            }
-            GraphNode::Table(table) => {
-                for line_id in table.header() {
-                    for key in graph.get_line(*line_id).ref_keys() {
+                GraphNode::Section(section) => {
+                    for key in graph.get_line(section.line_id()).ref_keys() {
                         self.reference_edges
                             .entry(key.clone())
                             .or_default()
-                            .insert(table.id());
+                            .insert(section.id());
+                    }
+                    if let Some(child_id) = section.child_id() {
+                        stack.push(child_id);
+                    }
+                    if let Some(child_id) = section.next_id() {
+                        stack.push(child_id);
                     }
                 }
-                for row in table.rows() {
-                    for line_id in row {
+                GraphNode::Leaf(leaf) => {
+                    for key in graph.get_line(leaf.line_id()).ref_keys() {
+                        self.reference_edges
+                            .entry(key.clone())
+                            .or_default()
+                            .insert(leaf.id());
+                    }
+
+                    if let Some(child_id) = leaf.next_id() {
+                        stack.push(child_id);
+                    }
+                }
+                GraphNode::Document(document) => {
+                    if let Some(child_id) = document.child_id() {
+                        stack.push(child_id);
+                    }
+                }
+                GraphNode::Quote(quote) => {
+                    if let Some(child_id) = quote.child_id() {
+                        stack.push(child_id);
+                    }
+                    if let Some(child_id) = quote.next_id() {
+                        stack.push(child_id);
+                    }
+                }
+                GraphNode::BulletList(bullet_list) => {
+                    if let Some(child_id) = bullet_list.child_id() {
+                        stack.push(child_id);
+                    }
+                    if let Some(child_id) = bullet_list.next_id() {
+                        stack.push(child_id);
+                    }
+                }
+                GraphNode::OrderedList(ordered_list) => {
+                    if let Some(child_id) = ordered_list.child_id() {
+                        stack.push(child_id);
+                    }
+                    if let Some(child_id) = ordered_list.next_id() {
+                        stack.push(child_id);
+                    }
+                }
+                GraphNode::Empty => {}
+                GraphNode::Raw(raw_leaf) => {
+                    if let Some(child_id) = raw_leaf.next_id() {
+                        stack.push(child_id);
+                    }
+                }
+                GraphNode::HorizontalRule(horizontal_rule) => {
+                    if let Some(child_id) = horizontal_rule.next_id() {
+                        stack.push(child_id);
+                    }
+                }
+                GraphNode::Table(table) => {
+                    for line_id in table.header() {
                         for key in graph.get_line(*line_id).ref_keys() {
                             self.reference_edges
                                 .entry(key.clone())
@@ -143,9 +135,19 @@ impl RefIndex {
                                 .insert(table.id());
                         }
                     }
-                }
-                if let Some(next_id) = table.next_id() {
-                    self.index_node(graph, next_id);
+                    for row in table.rows() {
+                        for line_id in row {
+                            for key in graph.get_line(*line_id).ref_keys() {
+                                self.reference_edges
+                                    .entry(key.clone())
+                                    .or_default()
+                                    .insert(table.id());
+                            }
+                        }
+                    }
+                    if let Some(next_id) = table.next_id() {
+                        stack.push(next_id);
+                    }
                 }
             }
         }

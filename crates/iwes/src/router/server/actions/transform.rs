@@ -85,7 +85,7 @@ fn execute_command(cmd: &Command, input: &str) -> Option<String> {
     let mut child = process.spawn().ok()?;
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(input.as_bytes()).ok()?;
+        let _ = stdin.write_all(input.as_bytes());
     }
 
     let output = wait_with_timeout(&mut child, Duration::from_secs(timeout))?;

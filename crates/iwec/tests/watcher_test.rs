@@ -11,9 +11,9 @@ async fn start_watcher(graph: Arc<Mutex<Graph>>, base_path: &std::path::Path) {
     iwec::watcher::start_polling(
         graph,
         base_path.to_path_buf(),
-        Duration::from_millis(200),
+        Duration::from_millis(10),
     );
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    tokio::time::sleep(Duration::from_millis(20)).await;
 }
 
 async fn wait_for<F, Fut>(timeout: Duration, interval: Duration, mut check: F) -> bool
@@ -71,7 +71,6 @@ async fn watcher_picks_up_modification() {
         None,
     )));
     start_watcher(graph.clone(), &base_path).await;
-    tokio::time::sleep(Duration::from_millis(500)).await;
 
     fs::write(base_path.join("doc.md"), "# Updated\n\nNew content\n").unwrap();
 
@@ -136,7 +135,7 @@ async fn watcher_ignores_non_md_files() {
     start_watcher(graph.clone(), &base_path).await;
 
     fs::write(base_path.join("notes.txt"), "not markdown").unwrap();
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
 
     let g = graph.lock().await;
     assert!(g.keys().is_empty());

@@ -189,7 +189,7 @@ impl<'a> SectionsBuilder<'a> {
                 self.set_lines_range(quote.line_range);
                 let id = self.builder.id();
                 SectionsBuilder::new(
-                    &mut self.builder.graph().builder(id),
+                    &mut self.builder.child_builder(id),
                     &quote.blocks,
                     &self.key,
                 );
@@ -209,7 +209,7 @@ impl<'a> SectionsBuilder<'a> {
                     .header
                     .iter()
                     .map(|cell| to_graph_inlines(cell, &self.key.parent()))
-                    .map(|inlines| self.builder.graph().add_line(inlines))
+                    .map(|inlines| self.builder.add_line(inlines))
                     .collect_vec();
 
                 let rows = table
@@ -218,7 +218,7 @@ impl<'a> SectionsBuilder<'a> {
                     .map(|row| {
                         row.iter()
                             .map(|cell| to_graph_inlines(cell, &self.key.parent()))
-                            .map(|inlines| self.builder.graph().add_line(inlines))
+                            .map(|inlines| self.builder.add_line(inlines))
                             .collect_vec()
                     })
                     .collect_vec();

@@ -20,7 +20,6 @@ use liwe::query::{
     Sort as QuerySort, SortDir,
 };
 use iwe::stats::{render_stats, GraphStatistics};
-use liwe::fs::new_for_path;
 use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
 use liwe::model::config::{
@@ -1247,8 +1246,9 @@ fn apply_changes(changes: &Changes, configuration: &Configuration) {
 }
 
 fn load_graph(configuration: &Configuration) -> Graph {
-    Graph::import(
-        &new_for_path(&get_library_path(configuration)),
+    Graph::from_path(
+        &get_library_path(configuration),
+        false,
         configuration.markdown.clone(),
         configuration.library.frontmatter_document_title.clone(),
     )
