@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Filter parser allows mixing bare field keys with document-level operators (`$and`, `$or`, `$nor`, `$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`) at document-matching positions (filter root, branches of `$and`/`$or`/`$nor`, graph-anchor `match` clauses); they combine via implicit AND (was rejected with `cannot mix operator keys ($...) and bare keys`). Mixing inside a field-value mapping (e.g. `author: { $eq: alice, name: alice }`) and inside a field-level `$not` body remains rejected.
+- `MixedDollarAndBare` error message names the offending position ("inside a field-value mapping at '<path>'") and suggests the fix.
+
+### Removed
+
+- Top-level `$not` operator. `$not` is now field-level only (matching MongoDB), e.g. `priority: { $not: { $gt: 5 } }`. For document-level negation use `$nor: [filter]`. The `Filter::Not` AST variant is removed; internal callers that previously constructed `Filter::Not(Box::new(inner))` now use `Filter::Nor(vec![inner])` (semantically identical). The `not()` constructor in `query::prelude` is removed; use `nor(vec![filter])` instead.
+
 ## [0.1.1](https://github.com/iwe-org/iwe/compare/liwe-v0.1.0...liwe-v0.1.1) - 2026-05-03
 
 ### Added

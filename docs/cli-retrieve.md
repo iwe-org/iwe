@@ -354,7 +354,7 @@ The following flags pre-date the query language and remain accepted for backward
 | ------------------ | --------------------------------------------------------------------------- |
 | `--in KEY[:N]`     | `--included-by KEY[:N]`                                                     |
 | `--in-any K1 K2`   | `--filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'`                |
-| `--not-in KEY`     | `--filter '$not: { $includedBy: KEY }'`                                     |
+| `--not-in KEY`     | `--filter '$nor: [{ $includedBy: KEY }]'`                                   |
 | `--refs-to KEY`    | `--references KEY` (legacy semantics: ORs `$includes` and `$references`)    |
 | `--refs-from KEY`  | `--referenced-by KEY` (legacy semantics: ORs `$includedBy` and `$referencedBy`) |
 

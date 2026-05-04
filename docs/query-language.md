@@ -56,9 +56,6 @@ $or:
   - status: draft
   - status: review
 
-$not:
-  status: archived
-
 $nor:
   - status: archived
   - status: deleted
@@ -193,11 +190,11 @@ On the CLI, structural anchor flags lower to graph operators. A `KEY[:DEPTH]` su
 | `--set FIELD=VALUE` | `$set: { FIELD: VALUE }` (update only; repeatable) |
 | `--unset FIELD` | `$unset: { FIELD: "" }` (update only; repeatable) |
 
-All filter flags AND together. For OR or NOT, write the composition inside `--filter`:
+All filter flags AND together. For OR or NOR, write the composition inside `--filter`:
 
 ```bash
 iwe find --filter '$or: [{ status: draft }, { status: review }]'
-iwe find --filter '$not: { status: archived }'
+iwe find --filter '$nor: [{ status: archived }]'
 ```
 
 Combining `-k KEY` with a `--filter` whose top level also contains `$key` is a parse-time error — pick one source, or use `-k a -k b` for multi-key match.

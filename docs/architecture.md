@@ -17,3 +17,5 @@ IWE's data model is built around a **graph-based representation** of markdown do
 [Indexing and Reference Systems](indexing.md)
 
 [Advanced Features](graph-operations.md)
+
+[Benchmark](benchmark.md)

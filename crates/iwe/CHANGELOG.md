@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `--filter` accepts the natural form `{type: tracker, $or: [...]}` directly — bare field keys may be mixed with `$and`/`$or`/`$nor`/`$key`/graph operators at the filter root and inside logical-operator branches, combining via implicit AND (previously rejected; required the explicit `{$and: [{type: tracker}, {$or: [...]}]}` rewrite).
+- `--not-in KEY` deprecation warning now points to `--filter '$nor: [{ $includedBy: ... }]'` (was: `--filter '$not: { $includedBy: ... }'`).
+
+### Removed
+
+- Top-level `$not` in `--filter` expressions. `$not` is now field-level only (matching MongoDB): `--filter 'priority: { $not: { $gt: 5 } }'` still works; `--filter '$not: { status: archived }'` is now a parse-time error and should be rewritten as `--filter '$nor: [{ status: archived }]'`. The error message points to `$nor`.
+
 ## [0.1.1](https://github.com/iwe-org/iwe/compare/iwe-v0.1.0...iwe-v0.1.1) - 2026-05-03
 
 ### Added

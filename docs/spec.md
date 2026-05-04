@@ -150,7 +150,7 @@ limit: 500
 
 A filter document is a predicate evaluated against each document in the corpus. A document matches when every top-level key matches.
 
-Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the logical operators (`$and`, `$or`, `$not`, `$nor`; §4.6) and the **graph operators** (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`) defined in §5. Both kinds compose freely with frontmatter predicates under the same algebra.
+Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the document-level logical operators (`$and`, `$or`, `$nor`; §4.6) and the **graph operators** (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`) defined in §5. Both kinds compose freely with frontmatter predicates under the same algebra. `$not` exists only as a **field-level** operator (§4.6); document-level negation is expressed via `$nor`.
 
 ### 4.1 Implicit equality (bare values)
 
@@ -188,21 +188,45 @@ Multiple operators in one expression are ANDed:
 priority: { $gte: 3, $lte: 7 }      # 3 ≤ priority ≤ 7
 ```
 
-A mapping with **mixed** `$`-prefixed and bare keys at the same level is an error — it's ambiguous whether the bare keys are nested fields or part of the operator expression. Use one form per level:
+A mapping with `$`-prefixed and bare keys at the same level behaves differently depending on **where** the mapping appears:
 
-```yaml
-# OK — operator expression
-author: { $eq: alice }
+- **At a document-matching position** — the filter root, every element of `$and` / `$or` / `$nor`, or the `match:` clause of a graph anchor — bare keys and operator keys may freely coexist. They are combined with **implicit AND** (consistent with §4.3 and §4.6).
 
-# OK — nested field
-author:
-  name: alice
+  ```yaml
+  type: tracker
+  $or:
+    - status: open
+    - status: pending
+  ```
 
-# ERROR — mixed
-author:
-  $eq: alice
-  name: alice
-```
+  is equivalent to
+
+  ```yaml
+  $and:
+    - type: tracker
+    - $or:
+        - status: open
+        - status: pending
+  ```
+
+- **At a field-value position** — inside `{ field: { ... } }` — the mapping's keys must be either *all* `$`-prefixed operators or *all* bare nested-field references. Mixing is an error because a bare key inside a field-value mapping is ambiguous: it could be a nested-field path or an argument to a sibling operator.
+
+  ```yaml
+  # OK — operator expression
+  author: { $eq: alice }
+
+  # OK — nested fields
+  author:
+    name: alice
+    role: admin
+
+  # ERROR — mixed (is `name` a nested field of `author`, or an argument to `$eq`?)
+  author:
+    $eq: alice
+    name: alice
+  ```
+
+  The same rule applies inside the body of a field-level `$not`: `{ field: { $not: { $gt: 5, x: 1 } } }` is rejected for the same reason.
 
 ### 4.3 Multiple keys are ANDed
 
@@ -331,7 +355,7 @@ When in doubt, quote the value to force the string type, or leave it bare to acc
 
 ### 4.6 Logical operators
 
-Four operators compose filters: `$and`, `$or`, `$not`, `$nor`.
+Three document-level operators compose filters: `$and`, `$or`, `$nor`. They mirror MongoDB's logical operators and may appear at the filter root or as siblings of bare field keys (§4.2). A fourth operator, `$not`, exists only at the **field level** for negating a single field-value operator expression.
 
 #### `$and: [filter1, filter2, ...]`
 
@@ -346,7 +370,7 @@ $and:
 - Every list element is a filter document.
 - A document matches if every sub-filter matches.
 - **Empty list** `$and: []` is a parse-time error.
-- `$and` is **implicit at the top level** — multiple top-level keys in a filter are already ANDed (§4.3). Use explicit `$and` when you need to wrap a sub-expression for use inside `$or` / `$not`, or when you need to repeat a field name across multiple sub-filters (a YAML mapping cannot have duplicate keys).
+- `$and` is **implicit at the top level** — multiple top-level keys in a filter are already ANDed (§4.3). Use explicit `$and` when you need to wrap a sub-expression for use inside `$or` / `$nor`, or when you need to repeat a field name across multiple sub-filters (a YAML mapping cannot have duplicate keys).
 
 ```yaml
 # Two ranges on `priority` — needs $and to repeat the key
@@ -370,32 +394,9 @@ $or:
 - **Empty list** `$or: []` is a parse-time error.
 - Sub-filters are independent — each is evaluated against the whole document.
 
-#### `$not: filter`
-
-The contained filter must not match.
-
-Top-level form:
-
-```yaml
-$not:
-  status: archived
-```
-
-Per-field form (wraps a sub-expression for one field):
-
-```yaml
-priority: { $not: { $gt: 5 } }
-```
-
-- Takes a single filter document (not a list).
-- Negates the result.
-- **Missing-field interaction:** `$not: { reviewed: true }` matches docs without a `reviewed` field, because the inner predicate doesn't match (missing field), and `$not` flips that to true. To require presence and inequality, combine: `reviewed: { $exists: true, $ne: true }`.
-- `$not` may wrap any filter, including another `$not`. Double negation is redundant but legal — `$not: { $not: X }` parses and is equivalent to `X`.
-- For "none of these match" over multiple sibling filters, use `$nor` (below) rather than `$not: { $or: [...] }`. Both forms are semantically equivalent; `$nor` is the idiomatic spelling.
-
 #### `$nor: [filter1, filter2, ...]`
 
-None of the listed filters may match. Equivalent to `$not: { $or: [filter1, filter2, ...] }` by De Morgan's law, and provided as a direct top-level operator because it's the conventional spelling for negative composition.
+None of the listed filters may match. Use `$nor` for document-level negation: `$nor: [filter]` reads "documents where `filter` does not match".
 
 ```yaml
 $nor:
@@ -408,7 +409,20 @@ $nor:
 - A document matches if **every** sub-filter fails to match.
 - **Empty list** `$nor: []` is a parse-time error.
 - Sub-filters are independent — each is evaluated against the whole document.
-- **Missing-field interaction** follows the same rule as `$not`: a sub-filter that fails because the field is missing counts as a non-match, contributing to a `$nor` match. Use `$exists: true` inside the sub-filter when presence matters.
+- **Missing-field interaction:** a sub-filter that fails because the field is missing counts as a non-match, contributing to a `$nor` match. To require presence and inequality, combine `$exists: true` with the negative predicate: `$nor: [{ reviewed: true }]` matches both "reviewed is false" and "reviewed is missing"; use `reviewed: { $exists: true, $ne: true }` to require the field be present.
+
+#### `$not: { $op: ... }` — field-level only
+
+`$not` is **field-level only** and wraps a single operator expression on the field:
+
+```yaml
+priority: { $not: { $gt: 5 } }                   # priority is not > 5 (and is present)
+priority: { $not: { $gt: 5, $lt: 10 } }          # NOT (5 < priority < 10)
+```
+
+- Body must be an operator expression — a mapping of `$`-prefixed comparison/element operators on the field. Bare nested-field references inside the body are rejected (§4.2).
+- Negates the inner field operator(s).
+- For document-level negation (negating a whole-document predicate, including a graph anchor or compound `$or`), use `$nor: [filter]` — there is no document-level `$not`. Writing `$not:` at the filter root is a parse-time error with a hint pointing to `$nor`.
 
 ### 4.7 Comparison operators
 
@@ -571,7 +585,7 @@ The language MUST express the following queries directly:
 
 ## 5. Graph operators
 
-Graph operators live inside filter documents alongside frontmatter predicates. They share the predicate algebra of filter: AND-composed at top level, composable under `$and` / `$or` / `$not`, with the same operator-expression vocabulary as numeric frontmatter fields. Selection by graph relationship and selection by frontmatter content are written in the same filter document, distinguished only by whether the predicate key is a `$`-prefixed graph operator or a user frontmatter field name. The reserved-prefix rule (§2.3) makes this safe: user frontmatter fields cannot begin with `$`.
+Graph operators live inside filter documents alongside frontmatter predicates. They share the predicate algebra of filter: AND-composed at top level, composable under `$and` / `$or` / `$nor`, with the same operator-expression vocabulary as numeric frontmatter fields. Selection by graph relationship and selection by frontmatter content are written in the same filter document, distinguished only by whether the predicate key is a `$`-prefixed graph operator or a user frontmatter field name. The reserved-prefix rule (§2.3) makes this safe: user frontmatter fields cannot begin with `$`.
 
 | Category | Operator | Predicate over... |
 |---|---|---|
@@ -702,7 +716,7 @@ $referencedBy: { match: { $key: archive/index },  minDistance: 1, maxDistance: 3
 
 #### 5.2.2 The `match` field
 
-`match` is a filter document. It accepts the full filter language: bare frontmatter fields, `$`-prefixed filter operators (`$key`, `$or`, `$and`, `$not`, comparison operators, element operators, array operators), and **nested relational operators**. Nesting allows walks anchored at the result of another walk:
+`match` is a filter document. It accepts the full filter language: bare frontmatter fields, `$`-prefixed filter operators (`$key`, `$or`, `$and`, `$nor`, comparison operators, element operators, array operators), and **nested relational operators**. Nesting allows walks anchored at the result of another walk:
 
 ```yaml
 $includedBy:
@@ -809,7 +823,7 @@ filter:
   status: draft
 ```
 
-`$and` / `$or` / `$not` — the logical operators wrap any filter document, including ones containing these operators:
+`$and` / `$or` / `$nor` — the logical operators wrap any filter document, including ones containing these operators:
 
 ```yaml
 filter:
@@ -940,7 +954,7 @@ Implementation requirements:
 - **Disconnected graph** — walks operate per connected component; a walk anchored at K matches only documents reachable from K within bounds.
 - **Anchor exclusion** — a walk never matches a document in its anchor set. Use filter-level `$or` with `$key` (or with another predicate) to include the anchor set in the result.
 - **Default walk depth** — scalar-key shorthand fixes `maxDepth: 1` / `maxDistance: 1` (direct edges only). The full mapping form treats omitted `maxDepth` / `maxDistance` as unbounded; omitted `minDepth` / `minDistance` always default to 1.
-- **Operators inside `$not`** — `$not: { $includedBy: { match: { $key: K }, maxDepth: 5 } }` matches documents that are *not* descendants of K within 5 levels.
+- **Operators inside `$nor`** — `$nor: [{ $includedBy: { match: { $key: K }, maxDepth: 5 } }]` matches documents that are *not* descendants of K within 5 levels.
 
 ## 6. Projection
 
@@ -1369,7 +1383,7 @@ The argument to `--filter` is parsed as a YAML value. If the parsed value is a m
 --filter '$key: notes/foo'              # graph operator at top level
 ```
 
-The resulting filter document is parsed by the same builder that handles full operation documents, so all errors defined in §4 (mixed `$`/bare keys, double-`$not`, etc.) are surfaced verbatim.
+The resulting filter document is parsed by the same builder that handles full operation documents, so all errors defined in §4 (mixed `$`/bare keys in field-value mappings, top-level `$not`, etc.) are surfaced verbatim.
 
 #### 12.2.2 Anchor depth syntax
 
@@ -1540,7 +1554,7 @@ These flags predate the language and remain accepted on the commands they origin
 |---|---|
 | `--in KEY[:N]` | `--included-by KEY[:N]` |
 | `--in-any K1 --in-any K2` | `$or: [{ $includedBy: K1 }, { $includedBy: K2 }]` (scalar shorthand for each) |
-| `--not-in KEY` | `$not: { $includedBy: KEY }` (scalar shorthand) |
+| `--not-in KEY` | `$nor: [{ $includedBy: KEY }]` (scalar shorthand) |
 | `--refs-to KEY` | `$or: [{ $includes: KEY }, { $references: KEY }]` (scalar shorthand; legacy mixed-edge) |
 | `--refs-from KEY` | `$or: [{ $includedBy: KEY }, { $referencedBy: KEY }]` (scalar shorthand; legacy mixed-edge) |
 | `--keys` (on `delete`, `rename`, `extract`, `inline`) | `-f keys` |
@@ -1560,11 +1574,11 @@ Within a single command:
 
 **`-k` / `$key` collision.** Combining `-k KEY` with a `--filter` whose top level contains a `$key` predicate is a CLI parse-time error: both clauses contribute to the document's key predicate, and silently AND-composing them would either produce a YAML mapping with two `$key` keys or quietly match the empty set. The error message points users at OR-composition (`--filter '$or: [{$key: a}, {$key: b}]'`) when they wanted a multi-key match, or at picking one source when they didn't. Multi-key match via `-k a -k b` (which lowers to `$key: { $in: [a, b] }`) remains valid.
 
-For OR or NOT compositions, write the filter inside `--filter`:
+For OR or NOR compositions, write the filter inside `--filter`:
 
 ```
 --filter '$or: [{ status: draft }, { status: review }]'
---filter '$not: { status: archived }'
+--filter '$nor: [{ status: archived }]'
 ```
 
 ### 12.8 CLI examples
@@ -2168,8 +2182,9 @@ logical_op ::=
     $and : [filter, ...]                           # non-empty
   | $or  : [filter, ...]                           # non-empty
   | $nor : [filter, ...]                           # non-empty
-  | $not : filter                                  # single filter, not list
 ```
+
+`$not` is field-level only; see `$_field_op` below.
 
 #### A.2.2 Field operators
 

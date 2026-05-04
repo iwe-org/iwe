@@ -317,7 +317,7 @@ mod tests {
     }
     fn and(filters: Vec<Filter>) -> Filter { Filter::And(filters) }
     fn or(filters: Vec<Filter>) -> Filter { Filter::Or(filters) }
-    fn not(f: Filter) -> Filter { Filter::Not(Box::new(f)) }
+    fn nor(filters: Vec<Filter>) -> Filter { Filter::Nor(filters) }
 
 
     fn doc(pairs: Vec<(&str, Value)>) -> Mapping {
@@ -335,7 +335,7 @@ mod tests {
         match filter {
             Filter::And(children) => children.iter().all(|c| matches_doc(c, doc)),
             Filter::Or(children) => children.iter().any(|c| matches_doc(c, doc)),
-            Filter::Not(child) => !matches_doc(child, doc),
+            Filter::Nor(children) => !children.iter().any(|c| matches_doc(c, doc)),
             Filter::Field { path, op } => match resolve_path(doc, path) {
                 Resolution::Present(v) => match_field_op(op, Some(v)),
                 Resolution::Missing => match_field_op(op, None),
@@ -597,8 +597,8 @@ mod tests {
     }
 
     #[test]
-    fn not_matches_missing_field() {
-        let f = not(eq("reviewed", true));
+    fn nor_matches_missing_field() {
+        let f = nor(vec![eq("reviewed", true)]);
         check(&f, &Mapping::new(), true);
         check(&f, &doc(vec![("reviewed", false.into())]), true);
         check(&f, &doc(vec![("reviewed", true.into())]), false);

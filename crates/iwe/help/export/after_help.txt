@@ -48,7 +48,7 @@ EXAMPLES:
 
   # Restrict to a subtree via filter
   iwe export --included-by projects/alpha
-  iwe export --included-by projects/alpha --filter '$not: { $includedBy: archive }'
+  iwe export --included-by projects/alpha --filter '$nor: [{ $includedBy: archive }]'
 
 USING DOT OUTPUT:
 

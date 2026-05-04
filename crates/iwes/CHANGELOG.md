@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Filter expressions in routed query operations accept the natural form `{type: tracker, $or: [...]}` — bare field keys may be mixed with `$and`/`$or`/`$nor`/`$key`/graph operators at document-matching positions, combining via implicit AND (previously rejected).
+
+### Removed
+
+- Top-level `$not` in routed query filters. `$not` is now field-level only (matching MongoDB); use `$nor: [filter]` for document-level negation. Top-level `$not` returns a parse-time error pointing to `$nor`.
+
 ## [0.1.1](https://github.com/iwe-org/iwe/compare/iwes-v0.1.0...iwes-v0.1.1) - 2026-05-03
 
 Workspace version bump — no user-visible changes in this crate.

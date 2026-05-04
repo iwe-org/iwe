@@ -213,10 +213,10 @@ impl FilterArgs {
             ));
         }
         for k in &self.not_in {
-            eprintln!("warning: --not-in is deprecated; use --filter '$not: {{ $includedBy: ... }}'");
-            conjuncts.push(Filter::Not(Box::new(Filter::IncludedBy(Box::new(
+            eprintln!("warning: --not-in is deprecated; use --filter '$nor: [{{ $includedBy: ... }}]'");
+            conjuncts.push(Filter::Nor(vec![Filter::IncludedBy(Box::new(
                 InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH),
-            )))));
+            ))]));
         }
         if let Some(k) = &self.refs_to {
             eprintln!("warning: --refs-to is deprecated; use --references");

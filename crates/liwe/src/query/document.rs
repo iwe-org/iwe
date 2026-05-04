@@ -141,7 +141,6 @@ pub enum Filter {
     And(Vec<Filter>),
     Or(Vec<Filter>),
     Nor(Vec<Filter>),
-    Not(Box<Filter>),
     Field { path: FieldPath, op: FieldOp },
     Key(KeyOp),
     Includes(Box<InclusionAnchor>),
