@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/iwe-org/iwe/compare/liwe-v0.1.1...liwe-v0.1.2) - 2026-05-04
+
 ### Changed
 
 - Filter parser allows mixing bare field keys with document-level operators (`$and`, `$or`, `$nor`, `$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`) at document-matching positions (filter root, branches of `$and`/`$or`/`$nor`, graph-anchor `match` clauses); they combine via implicit AND (was rejected with `cannot mix operator keys ($...) and bare keys`). Mixing inside a field-value mapping (e.g. `author: { $eq: alice, name: alice }`) and inside a field-level `$not` body remains rejected.

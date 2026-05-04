@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/iwe-org/iwe/compare/iwec-v0.1.1...iwec-v0.1.2) - 2026-05-04
+
 ### Changed
 
 - Filter expressions in `iwe_find` / `iwe_update` / `iwe_delete` accept the natural form `{type: tracker, $or: [...]}` — bare field keys may be mixed with `$and`/`$or`/`$nor`/`$key`/graph operators at document-matching positions, combining via implicit AND (previously rejected).
