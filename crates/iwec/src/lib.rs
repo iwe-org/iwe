@@ -118,9 +118,9 @@ impl SelectorParams {
             ));
         }
         for kd in &self.not_in {
-            conjuncts.push(Filter::Not(Box::new(Filter::IncludedBy(Box::new(
+            conjuncts.push(Filter::Nor(vec![Filter::IncludedBy(Box::new(
                 kd.anchor(self.max_depth),
-            )))));
+            ))]));
         }
         Some(Filter::And(conjuncts))
     }

@@ -227,13 +227,13 @@ impl MarkdownWriter {
     ) -> String {
         let header_strs: Vec<String> = header
             .iter()
-            .map(|c| inlines_to_markdown(c, &self.options))
+            .map(|c| inlines_to_markdown(c, &self.options).replace('|', "\\|"))
             .collect();
         let row_strs: Vec<Vec<String>> = rows
             .iter()
             .map(|row| {
                 row.iter()
-                    .map(|c| inlines_to_markdown(c, &self.options))
+                    .map(|c| inlines_to_markdown(c, &self.options).replace('|', "\\|"))
                     .collect()
             })
             .collect();

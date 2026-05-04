@@ -63,10 +63,6 @@ pub fn nor(filters: Vec<Filter>) -> Filter {
     Filter::Nor(filters)
 }
 
-pub fn not(filter: Filter) -> Filter {
-    Filter::Not(Box::new(filter))
-}
-
 pub fn eq(path: &str, v: impl Into<Value>) -> Filter {
     Filter::eq(path, v)
 }

@@ -31,7 +31,6 @@ fn eval(filter: &Filter, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet
         Filter::And(children) => eval_and(children, graph, scope),
         Filter::Or(children) => eval_or(children, graph, scope),
         Filter::Nor(children) => eval_nor(children, graph, scope),
-        Filter::Not(inner) => eval_not(inner, graph, scope),
         Filter::Field { path, op } => eval_field(path, op, graph, scope),
         Filter::Key(op) => eval_key(op, graph, scope),
         Filter::Includes(anchor) => eval_inclusion(anchor, graph, scope, true),
@@ -87,12 +86,6 @@ fn eval_or(children: &[Filter], graph: &Graph, scope: Option<&HashSet<Key>>) -> 
                 a
             }
         })
-}
-
-fn eval_not(inner: &Filter, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<Key> {
-    let universe = scope.cloned().unwrap_or_else(|| all_keys(graph));
-    let inner_set = eval(inner, graph, Some(&universe));
-    universe.into_iter().filter(|k| !inner_set.contains(k)).collect()
 }
 
 fn eval_nor(children: &[Filter], graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<Key> {

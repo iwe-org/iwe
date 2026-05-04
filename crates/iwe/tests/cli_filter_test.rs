@@ -515,3 +515,40 @@ fn update_set_preserves_body_exactly() {
     );
 }
 
+#[test]
+fn find_filter_top_level_bare_and_or_implicit_and() {
+    let dir = setup();
+    let (stdout, _, ok) = run(
+        dir.path(),
+        "find",
+        &[
+            "--filter",
+            "{status: draft, $or: [{priority: 3}, {priority: 5}]}",
+            "-f",
+            "keys",
+        ],
+    );
+    assert!(ok);
+    assert_eq!(stdout, "a\n");
+}
+
+#[test]
+fn find_filter_field_value_mix_rejected_with_clear_message() {
+    let dir = setup();
+    let (_, stderr, code) = run_with_code(
+        dir.path(),
+        "find",
+        &[
+            "--filter",
+            "{author: {$eq: alice, name: alice}}",
+            "-f",
+            "keys",
+        ],
+    );
+    assert_eq!(code, 2);
+    assert_eq!(
+        stderr,
+        "error: invalid --filter expression: cannot mix operator keys ($...) and bare keys inside a field-value mapping at 'author' (use one form: either all operators on the field, or only nested-field references)\n"
+    );
+}
+

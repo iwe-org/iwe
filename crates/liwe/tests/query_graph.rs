@@ -2,7 +2,7 @@ use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::prelude::{
-    and, eq, filter, find, included_by, includes, key_eq, key_in, key_ne, key_nin, nor, not, or,
+    and, eq, filter, find, included_by, includes, key_eq, key_in, key_ne, key_nin, nor, or,
     referenced_by, references,
 };
 use liwe::query::{execute, FindOp, InclusionAnchor, Outcome, ReferenceAnchor};
@@ -396,7 +396,7 @@ fn or_of_two_graph_ops() {
 }
 
 #[test]
-fn not_wraps_walk() {
+fn nor_wraps_walk() {
     assert_keys(
         indoc! {"
             [b](2)
@@ -405,7 +405,7 @@ fn not_wraps_walk() {
             _
             # C
         "},
-        filter(not(included_by(InclusionAnchor::with_max("1", 5)))),
+        filter(nor(vec![included_by(InclusionAnchor::with_max("1", 5))])),
         &["1", "3"],
     );
 }
@@ -423,24 +423,6 @@ fn nor_excludes_union_of_children() {
         filter(nor(vec![key_eq("1"), key_eq("3")])),
         &["2"],
     );
-}
-
-#[test]
-fn nor_equivalent_to_not_or() {
-    let docs = indoc! {"
-        # A
-        _
-        # B
-        _
-        # C
-    "};
-    let nor_op = filter(nor(vec![key_eq("1"), key_eq("2")]));
-    let not_or = filter(not(or(vec![key_eq("1"), key_eq("2")])));
-    let mut a = run_find_keys(docs, nor_op);
-    let mut b = run_find_keys(docs, not_or);
-    a.sort();
-    b.sort();
-    assert_eq!(a, b);
 }
 
 #[test]

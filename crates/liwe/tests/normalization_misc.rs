@@ -318,6 +318,24 @@ fn table_with_alignment() {
     );
 }
 
+#[test]
+fn table_with_pipe_in_code() {
+    setup();
+    compare(
+        indoc! {"
+        | header   |
+        | -------- |
+        | `a \\| b` |
+
+    "},
+        indoc! {"
+        | header |
+        | --- |
+        | `a \\| b` |
+    "},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 

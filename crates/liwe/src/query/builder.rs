@@ -26,6 +26,9 @@ pub enum ParseError {
     MixedDollarAndBare {
         path: Vec<String>,
     },
+    TopLevelNotNotSupported {
+        path: Vec<String>,
+    },
     UnknownOperator {
         op: String,
         path: Vec<String>,
@@ -149,9 +152,19 @@ impl std::fmt::Display for ParseError {
                 write!(f, "'{}' requires the '{}' field", fmt_kind(kind), field)
             }
             Self::EmptyFilter => write!(f, "filter expression is empty"),
-            Self::MixedDollarAndBare { path } => {
-                write!(f, "cannot mix operator keys ($...) and bare keys at '{}'", fmt_path(path))
-            }
+            Self::MixedDollarAndBare { path } => write!(
+                f,
+                "cannot mix operator keys ($...) and bare keys inside a field-value mapping at '{}' \
+                 (use one form: either all operators on the field, or only nested-field references)",
+                fmt_path(path)
+            ),
+            Self::TopLevelNotNotSupported { path } => write!(
+                f,
+                "'$not' is not a document-level operator at '{}' \
+                 (use '$nor: [filter]' for document-level negation; \
+                 '$not' is only valid as a field-level operator: 'field: {{ $not: {{ $op: ... }} }}')",
+                fmt_path(path)
+            ),
             Self::UnknownOperator { op, path } => {
                 write!(f, "unknown operator '{}' at '{}'", op, fmt_path(path))
             }
@@ -398,49 +411,35 @@ fn build_filter(raw: RawFilter) -> Result<Filter, ParseError> {
 
 fn build_filter_at(map: Mapping, path: &[String]) -> Result<Filter, ParseError> {
     if map.is_empty() {
-
-
         return Ok(Filter::And(Vec::new()));
     }
 
     let (dollar_keys, bare_keys) = classify_keys(&map)?;
-    if !dollar_keys.is_empty() && !bare_keys.is_empty() {
-        return Err(ParseError::MixedDollarAndBare {
-            path: path.to_vec(),
-        });
+
+    let mut clauses: Vec<Filter> = Vec::with_capacity(dollar_keys.len() + bare_keys.len());
+
+    for op in dollar_keys {
+        let value = &map[Value::String(op.clone())];
+        clauses.push(build_filter_op(&op, value, path)?);
     }
 
-    if !dollar_keys.is_empty() {
+    for key_str in bare_keys {
+        let segments: Vec<String> = if key_str.contains('.') {
+            key_str.split('.').map(|s| s.to_string()).collect()
+        } else {
+            vec![key_str.clone()]
+        };
+        check_path_segments(&segments)?;
+        let mut child_path = path.to_vec();
+        child_path.extend(segments.iter().cloned());
+        let value = map[Value::String(key_str.clone())].clone();
+        clauses.push(build_field_clause(&segments, value, &child_path)?);
+    }
 
-        let mut clauses: Vec<Filter> = Vec::new();
-        for op in dollar_keys {
-            let value = &map[Value::String(op.clone())];
-            clauses.push(build_filter_op(&op, value, path)?);
-        }
-        if clauses.len() == 1 {
-            Ok(clauses.into_iter().next().unwrap())
-        } else {
-            Ok(Filter::And(clauses))
-        }
+    if clauses.len() == 1 {
+        Ok(clauses.into_iter().next().unwrap())
     } else {
-        let mut clauses: Vec<Filter> = Vec::new();
-        for key_str in bare_keys {
-            let segments: Vec<String> = if key_str.contains('.') {
-                key_str.split('.').map(|s| s.to_string()).collect()
-            } else {
-                vec![key_str.clone()]
-            };
-            check_path_segments(&segments)?;
-            let mut child_path = path.to_vec();
-            child_path.extend(segments.iter().cloned());
-            let value = map[Value::String(key_str.clone())].clone();
-            clauses.push(build_field_clause(&segments, value, &child_path)?);
-        }
-        if clauses.len() == 1 {
-            Ok(clauses.into_iter().next().unwrap())
-        } else {
-            Ok(Filter::And(clauses))
-        }
+        Ok(Filter::And(clauses))
     }
 }
 
@@ -466,7 +465,9 @@ fn build_filter_op(op: &str, value: &Value, path: &[String]) -> Result<Filter, P
         "$and" => Ok(Filter::And(parse_filter_list(value, "$and", path)?)),
         "$or" => Ok(Filter::Or(parse_filter_list(value, "$or", path)?)),
         "$nor" => Ok(Filter::Nor(parse_filter_list(value, "$nor", path)?)),
-        "$not" => Ok(Filter::Not(Box::new(parse_not(value, path)?))),
+        "$not" => Err(ParseError::TopLevelNotNotSupported {
+            path: path.to_vec(),
+        }),
         "$key" => Ok(Filter::Key(parse_key_op(value, "$key")?)),
         "$includes" => Ok(Filter::Includes(Box::new(parse_inclusion_arg(value, "$includes")?))),
         "$includedBy" => Ok(Filter::IncludedBy(Box::new(parse_inclusion_arg(value, "$includedBy")?))),
@@ -499,14 +500,6 @@ fn parse_filter_list(
             build_filter_at(m, path)
         })
         .collect()
-}
-
-fn parse_not(value: &Value, path: &[String]) -> Result<Filter, ParseError> {
-    let m = value
-        .as_mapping()
-        .ok_or(ParseError::OperatorExpectedMapping { op: "$not" })?
-        .clone();
-    build_filter_at(m, path)
 }
 
 fn static_op_name(op: &str) -> &'static str {
@@ -1280,24 +1273,37 @@ mod tests {
     }
 
     #[test]
-    fn filter_double_not_top_level_parses() {
+    fn filter_top_level_bare_and_dollar_implicit_and() {
         let op = parse(
-            "filter:\n  $not:\n    $not:\n      status: draft\n",
+            "filter:\n  type: tracker\n  $or:\n    - status: open\n    - status: pending\n",
             OperationKind::Find,
         )
         .unwrap();
-        if let Operation::Find(find) = op {
-            let f = find.filter.unwrap();
-            match f {
-                Filter::Not(inner) => match *inner {
-                    Filter::Not(_) => {}
-                    other => panic!("expected nested Not, got {:?}", other),
-                },
-                other => panic!("expected Not, got {:?}", other),
-            }
-        } else {
-            panic!()
+        let Operation::Find(find) = op else { panic!("expected Find") };
+        let parts = match find.filter.unwrap() {
+            Filter::And(p) => p,
+            other => panic!("expected And, got {:?}", other),
+        };
+        assert_eq!(parts.len(), 2);
+        match &parts[0] {
+            Filter::Or(branches) => assert_eq!(branches.len(), 2),
+            other => panic!("expected Or first (dollar group), got {:?}", other),
         }
+        match &parts[1] {
+            Filter::Field { path, op: _ } => {
+                assert_eq!(path.segments(), &["type".to_string()]);
+            }
+            other => panic!("expected Field second (bare group), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn filter_top_level_not_rejected() {
+        let err = parse_err(
+            "filter:\n  $not:\n    status: draft\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::TopLevelNotNotSupported { .. }));
     }
 
     #[test]

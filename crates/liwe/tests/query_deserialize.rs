@@ -1,7 +1,7 @@
 use indoc::indoc;
 use liwe::query::prelude::{
     all, and, count, delete, eq, exists, filter, find, gt, gte, in_, included_by, includes,
-    key_eq, key_in, lt, lte, ne, nin, nor, not, or, referenced_by, references, size, type_of,
+    key_eq, key_in, lt, lte, ne, nin, nor, or, referenced_by, references, size, type_of,
     update, update_op,
 };
 use liwe::query::{
@@ -314,15 +314,15 @@ fn filter_or() {
 }
 
 #[test]
-fn filter_top_level_not() {
-    assert_parse(
+fn filter_top_level_not_rejected() {
+    assert_parse_error(
         indoc! {"
             filter:
               $not:
                 x: 1
         "},
         OperationKind::Find,
-        find(filter(not(eq("x", 1i64)))),
+        "TopLevelNotNotSupported",
     );
 }
 
@@ -352,20 +352,6 @@ fn filter_nor_empty_rejected() {
         "},
         OperationKind::Find,
         "EmptyOperatorList",
-    );
-}
-
-#[test]
-fn filter_nested_not_top_level_parses() {
-    assert_parse(
-        indoc! {"
-            filter:
-              $not:
-                $not:
-                  x: 1
-        "},
-        OperationKind::Find,
-        find(filter(not(not(eq("x", 1i64))))),
     );
 }
 

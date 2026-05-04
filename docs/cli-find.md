@@ -157,7 +157,7 @@ iwe find authentication
 iwe find auth --filter 'status: draft'
 
 # Roots — documents with no incoming inclusion edges
-iwe find --filter '$not: { $includedBy: { match: {} } }'
+iwe find --filter '$nor: [{ $includedBy: { match: {} } }]'
 
 # Limit
 iwe find --limit 10
@@ -177,14 +177,14 @@ The following flags pre-date the query language and remain accepted for backward
 | ------------------ | --------------------------------------------------------------------------- |
 | `--in KEY[:N]`     | `--included-by KEY[:N]`                                                     |
 | `--in-any K1 K2`   | `--filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'`                |
-| `--not-in KEY`     | `--filter '$not: { $includedBy: KEY }'`                                     |
+| `--not-in KEY`     | `--filter '$nor: [{ $includedBy: KEY }]'`                                   |
 | `--refs-to KEY`    | `--references KEY` (legacy semantics: ORs `$includes` and `$references`)    |
 | `--refs-from KEY`  | `--referenced-by KEY` (legacy semantics: ORs `$includedBy` and `$referencedBy`) |
-| `--roots`          | `--filter '$not: { $includedBy: { match: {} } }'`                           |
+| `--roots`          | `--filter '$nor: [{ $includedBy: { match: {} } }]'`                         |
 
 ## Technical notes
 
-- All filter flags AND together at the top level. To compose with OR or NOT, wrap inside `--filter`.
+- All filter flags AND together at the top level. To compose with OR or NOR, wrap inside `--filter`.
 - The colon-suffix on an anchor flag (`KEY:N`) overrides `--max-depth` / `--max-distance` for that anchor only. `0` is the unbounded sentinel.
 - Combining `-k KEY` with a `--filter` whose top level also contains `$key` is a parse-time error. Use `-k a -k b` for multi-key match (lowers to `$key: { $in: [a, b] }`), or write the OR inside `--filter`.
 - Both [Inclusion Links](inclusion-links.md) and inline references count toward `incoming_refs`.
