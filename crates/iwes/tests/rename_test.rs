@@ -111,6 +111,17 @@ fn rename_with_empty_link_text() {
     );
 }
 
+#[test]
+fn rename_link_to_nonexistent_file_returns_no_edit() {
+    let fixture = Fixture::with_documents(vec![("test", "[Another section](missing)\n")]);
+
+    let actual = fixture.send_request::<lsp_types::request::Rename>(
+        uri_from("test").to_rename_params(0, 18, "renamed".to_string()),
+    );
+
+    assert_eq!(actual, serde_json::Value::Null);
+}
+
 fn assert_prepare_rename(source: &str, _: &str) {
     Fixture::with(source).prepare_rename(
         uri(1).to_text_document_position_params(0, 0),
