@@ -410,9 +410,9 @@ impl Server {
                         .to_key(&self.base_path),
                 )
                 .and_then(|parser| parser.url_at(params.text_document_position.position.to_model()))
-                .map(|url| {
-                    let key = Key::from_rel_link_url(&url, relative_to);
-
+                .map(|url| Key::from_rel_link_url(&url, relative_to))
+                .filter(|key| query::key_exists(&self.graph, key))
+                .map(|key| {
                     let affected_keys = query::all_backlinks(&self.graph, &key)
                         .into_iter()
                         .filter(|k| k != &key)
