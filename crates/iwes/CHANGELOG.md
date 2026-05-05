@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/iwe-org/iwe/compare/iwes-v0.1.2...iwes-v0.1.3) - 2026-05-05
+
 ### Fixed
 
 - `textDocument/rename` no longer panics when invoked on a link whose target key is missing from the graph (broken link); the request now returns no edit.
