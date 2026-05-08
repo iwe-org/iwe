@@ -20,6 +20,7 @@ path = "src/main.rs"
 liwe.workspace = true
 indoc.workspace = true
 clap.workspace = true
+clap_complete.workspace = true
 itertools.workspace = true
 log.workspace = true
 rand.workspace = true

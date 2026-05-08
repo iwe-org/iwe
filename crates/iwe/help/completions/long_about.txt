@@ -1,0 +1,6 @@
+Generate a shell completion script for the given shell and print it to stdout.
+
+Supported shells: bash, elvish, fish, powershell, zsh.
+
+Source or install the printed script according to your shell's conventions to
+enable tab-completion for all iwe commands, subcommands, flags, and arguments.

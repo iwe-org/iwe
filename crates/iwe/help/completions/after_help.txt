@@ -1,0 +1,16 @@
+EXAMPLES:
+
+  # Bash
+  iwe completions bash > ~/.local/share/bash-completion/completions/iwe
+
+  # Zsh
+  iwe completions zsh > /usr/local/share/zsh/site-functions/_iwe
+
+  # Fish
+  iwe completions fish > ~/.config/fish/completions/iwe.fish
+
+  # Elvish
+  iwe completions elvish > ~/.config/elvish/completions/iwe.elv
+
+  # PowerShell
+  iwe completions powershell >> $PROFILE

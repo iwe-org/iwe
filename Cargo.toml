@@ -15,6 +15,7 @@ liwe = { path = "./crates/liwe", version = "0.1.3" }
 iwe = { path = "./crates/iwe", version = "0.1.3" }
 anyhow = "1.0.102"
 clap = { version = "4.5", features = ["derive"] }
+clap_complete = "4.6"
 crossbeam-channel = "0.5.15"
 env_logger = "0.11.10"
 extend = "1.2.0"

@@ -3,7 +3,7 @@ use std::fs::create_dir;
 use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
 
 mod help;
 use itertools::Itertools;
@@ -67,6 +67,7 @@ enum Command {
     Inline(Inline),
     Update(Update),
     Attach(Attach),
+    Completions(Completions),
 }
 
 #[derive(Debug, Args)]
@@ -639,6 +640,18 @@ struct Inline {
     keys_legacy: bool,
 }
 
+#[derive(Debug, Args)]
+#[clap(
+    about = help::completions::ABOUT,
+    long_about = help::completions::LONG_ABOUT,
+    after_help = help::completions::AFTER_HELP
+)]
+struct Completions {
+    /// Shell to generate completions for.
+    #[clap(value_enum)]
+    shell: clap_complete::Shell,
+}
+
 fn main() {
     debug!("parsing arguments");
     let app = App::parse();
@@ -680,6 +693,7 @@ fn main() {
         Command::Inline(inline) => inline_command(inline),
         Command::Update(update) => update_command(update),
         Command::Attach(attach) => attach_command(attach),
+        Command::Completions(completions) => completions_command(completions),
     }
 }
 
@@ -2313,4 +2327,13 @@ fn render_attach_title(template: &str) -> String {
             .unwrap_or_else(|_| template.to_string())
         })
         .unwrap_or_else(|_| template.to_string())
+}
+
+fn completions_command(args: Completions) {
+    clap_complete::generate(
+        args.shell,
+        &mut App::command(),
+        "iwe",
+        &mut std::io::stdout(),
+    );
 }
