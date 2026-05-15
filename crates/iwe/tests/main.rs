@@ -1,6 +1,7 @@
 mod common;
 
 mod cli_filter_test;
+mod completions_test;
 mod delete_test;
 mod export_dot_test;
 mod extract_test;

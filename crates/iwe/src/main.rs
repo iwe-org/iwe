@@ -3,7 +3,9 @@ use std::fs::create_dir;
 use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
+use clap_complete::generate;
+use clap_complete_nushell::Nushell;
 
 mod help;
 use itertools::Itertools;
@@ -67,6 +69,28 @@ enum Command {
     Inline(Inline),
     Update(Update),
     Attach(Attach),
+    Completions(Completions),
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::completions::ABOUT,
+    long_about = help::completions::LONG_ABOUT,
+    after_help = help::completions::AFTER_HELP
+)]
+struct Completions {
+    #[clap(value_enum, help = "Target shell")]
+    shell: CompletionShell,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum CompletionShell {
+    Bash,
+    Elvish,
+    Fish,
+    Nushell,
+    Powershell,
+    Zsh,
 }
 
 #[derive(Debug, Args)]
@@ -680,6 +704,21 @@ fn main() {
         Command::Inline(inline) => inline_command(inline),
         Command::Update(update) => update_command(update),
         Command::Attach(attach) => attach_command(attach),
+        Command::Completions(completions) => completions_command(completions),
+    }
+}
+
+fn completions_command(args: Completions) {
+    let mut cmd = App::command();
+    let bin_name = cmd.get_name().to_string();
+    let mut out = std::io::stdout();
+    match args.shell {
+        CompletionShell::Bash => generate(clap_complete::Shell::Bash, &mut cmd, bin_name, &mut out),
+        CompletionShell::Elvish => generate(clap_complete::Shell::Elvish, &mut cmd, bin_name, &mut out),
+        CompletionShell::Fish => generate(clap_complete::Shell::Fish, &mut cmd, bin_name, &mut out),
+        CompletionShell::Powershell => generate(clap_complete::Shell::PowerShell, &mut cmd, bin_name, &mut out),
+        CompletionShell::Zsh => generate(clap_complete::Shell::Zsh, &mut cmd, bin_name, &mut out),
+        CompletionShell::Nushell => generate(Nushell, &mut cmd, bin_name, &mut out),
     }
 }
 

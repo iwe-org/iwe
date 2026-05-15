@@ -99,3 +99,9 @@ pub mod attach {
     pub const LONG_ABOUT: &str = include_str!("../help/attach/long_about.txt");
     pub const AFTER_HELP: &str = include_str!("../help/attach/after_help.txt");
 }
+
+pub mod completions {
+    pub const ABOUT: &str = include_str!("../help/completions/about.txt");
+    pub const LONG_ABOUT: &str = include_str!("../help/completions/long_about.txt");
+    pub const AFTER_HELP: &str = include_str!("../help/completions/after_help.txt");
+}
