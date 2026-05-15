@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/iwe-org/iwe/compare/iwe-v0.1.3...iwe-v0.1.4) - 2026-05-15
+
 ### Added
 
 - `iwe completions <SHELL>` subcommand — prints a shell completion script to stdout for `bash`, `elvish`, `fish`, `nushell`, `powershell`, or `zsh`
