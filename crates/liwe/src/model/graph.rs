@@ -210,7 +210,11 @@ impl GraphInline {
                     return format!("[[{}]]", url);
                 }
                 if model::is_ref_url(url) {
-                    format!("[{}]({}{})", text, url, options.refs_extension)
+                    format!(
+                        "[{}]({})",
+                        text,
+                        append_refs_extension(url, &options.refs_extension)
+                    )
                 } else if text.eq_ignore_ascii_case(url) {
                     format!("<{}>", url)
                 } else {
@@ -226,8 +230,9 @@ impl GraphInline {
                     ReferenceType::WikiLink => format!("[[{}]]", url),
                     ReferenceType::Regular => {
                         format!(
-                            "[{}]({}{})",
-                            reference.text, url, options.refs_extension
+                            "[{}]({})",
+                            reference.text,
+                            append_refs_extension(&url, &options.refs_extension)
                         )
                     }
                 }
@@ -468,6 +473,13 @@ pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) ->
         .map(|i| i.to_markdown(options))
         .collect::<Vec<String>>()
         .join("")
+}
+
+fn append_refs_extension(url: &str, extension: &str) -> String {
+    match url.split_once('#') {
+        Some((path, fragment)) => format!("{path}{extension}#{fragment}"),
+        None => format!("{url}{extension}"),
+    }
 }
 
 fn ensure_trailing_newline(s: String) -> String {

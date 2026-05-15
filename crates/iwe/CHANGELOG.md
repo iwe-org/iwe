@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `iwe normalize` no longer corrupts links that contain a fragment anchor when `refs_extension` is set — the extension was being appended after the fragment, producing malformed URLs
+
 ## [0.1.3](https://github.com/iwe-org/iwe/compare/iwe-v0.1.2...iwe-v0.1.3) - 2026-05-05
 
 Workspace version bump — no user-visible changes in this crate.

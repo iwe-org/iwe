@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `normalize_url` splits the URL on `#` before stripping `refs_extension`, and link emission re-attaches `refs_extension` to the path portion (before the fragment) instead of to the end of the URL, so links containing a fragment anchor round-trip correctly
+
 ## [0.1.3](https://github.com/iwe-org/iwe/compare/liwe-v0.1.2...liwe-v0.1.3) - 2026-05-05
 
 Workspace version bump — no user-visible changes in this crate.
