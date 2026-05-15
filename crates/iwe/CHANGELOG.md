@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `iwe completions <SHELL>` subcommand — prints a shell completion script to stdout for `bash`, `elvish`, `fish`, `nushell`, `powershell`, or `zsh`
+
 ### Fixed
 
 - `iwe normalize` no longer corrupts links that contain a fragment anchor when `refs_extension` is set — the extension was being appended after the fragment, producing malformed URLs

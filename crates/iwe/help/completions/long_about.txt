@@ -1,0 +1,6 @@
+Generate a shell completion script for the iwe CLI.
+
+The script is written to stdout. Pipe it into the location your shell loads
+completions from, or source it directly.
+
+Supported shells: bash, elvish, fish, nushell, powershell, zsh.

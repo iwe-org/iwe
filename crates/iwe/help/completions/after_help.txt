@@ -1,0 +1,16 @@
+EXAMPLES:
+
+  # bash (user)
+  iwe completions bash > ~/.local/share/bash-completion/completions/iwe
+
+  # zsh (place on $fpath, e.g. ~/.zsh/completions)
+  iwe completions zsh > ~/.zsh/completions/_iwe
+
+  # fish
+  iwe completions fish > ~/.config/fish/completions/iwe.fish
+
+  # nushell (source the file from your config.nu)
+  iwe completions nushell > ~/.config/nushell/completions/iwe.nu
+
+  # one-off, current shell only
+  source <(iwe completions bash)
