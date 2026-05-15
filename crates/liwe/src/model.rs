@@ -160,9 +160,15 @@ pub fn is_ref_url(url: &str) -> bool {
 }
 
 pub fn normalize_url(url: &str, extension: &str) -> String {
-    if is_ref_url(url) {
-        url.strip_suffix(extension).unwrap_or(url).to_string()
-    } else {
-        url.to_string()
+    if !is_ref_url(url) {
+        return url.to_string();
+    }
+    match url.split_once('#') {
+        Some((path, fragment)) => format!(
+            "{}#{}",
+            path.strip_suffix(extension).unwrap_or(path),
+            fragment
+        ),
+        None => url.strip_suffix(extension).unwrap_or(url).to_string(),
     }
 }
