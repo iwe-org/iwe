@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `iwe normalize` preserves links to non-markdown files (e.g. `foo.html`, `foo.pdf`) instead of appending `.md` to them
+- `iwe attach` writes the link with a path relative to the target file's directory and honours `markdown.refs_extension`
+
+### Changed
+
+- `iwe attach` creates new target documents from `document_template` (was a synthesised `# <action title>` heading)
 
 ## [0.1.4](https://github.com/iwe-org/iwe/compare/iwe-v0.1.3...iwe-v0.1.4) - 2026-05-15
 

@@ -27,7 +27,7 @@ use liwe::locale::get_locale;
 use liwe::model::config::{
     load_config, ActionDefinition, Configuration, InlineType, LinkType,
 };
-use liwe::model::node::{Node, NodePointer};
+use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
 use liwe::model::tree::{Tree as ModelTree, TreeIter};
 use liwe::model::Key;
 use liwe::operations::{
@@ -2257,6 +2257,7 @@ fn attach_command(args: Attach) {
         .unwrap_or_else(|| source_key_str.clone());
 
     let library_path = get_library_path(&config);
+    let markdown_options = graph.markdown_options();
 
     for action_name in &args.to {
         let attach = match config.actions.get(action_name) {
@@ -2281,37 +2282,43 @@ fn attach_command(args: Attach) {
             }
         }
 
+        let reference = ModelTree {
+            id: None,
+            node: Node::Reference(Reference {
+                key: source_key.clone(),
+                text: reference_text.clone(),
+                reference_type: ReferenceType::Regular,
+            }),
+            children: vec![],
+        };
+
+        let new_content = if (&graph).get_node_id(&target_key).is_some() {
+            let tree = (&graph).collect(&target_key);
+            tree.attach(reference)
+                .iter()
+                .to_markdown(&target_key.parent(), &markdown_options)
+        } else {
+            let rendered_reference = reference
+                .iter()
+                .to_markdown(&target_key.parent(), &markdown_options);
+            render_document_template(&attach.document_template, &rendered_reference, &config)
+        };
+
         if args.dry_run {
             if !args.quiet {
                 println!(
-                    "Would attach '{}' to '{}' as [{}]({})",
-                    source_key_str, target_key, reference_text, source_key_str
+                    "Would attach '{}' to '{}'",
+                    source_key_str, target_key
                 );
             }
             continue;
         }
 
         let target_path = library_path.join(format!("{}.md", target_key));
-        let line = format!("[{}]({})\n", reference_text, source_key);
-
         if let Some(parent) = target_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }
-
-        if target_path.exists() {
-            let mut existing = std::fs::read_to_string(&target_path)
-                .expect("Failed to read existing target file");
-            if !existing.ends_with('\n') {
-                existing.push('\n');
-            }
-            existing.push('\n');
-            existing.push_str(&line);
-            std::fs::write(&target_path, existing).expect("Failed to write target file");
-        } else {
-            let title = render_attach_title(&attach.title);
-            let initial = format!("# {}\n\n{}", title, line);
-            std::fs::write(&target_path, initial).expect("Failed to write target file");
-        }
+        std::fs::write(&target_path, new_content).expect("Failed to write target file");
 
         if !args.quiet {
             println!(
@@ -2337,19 +2344,23 @@ fn render_key_template(template: &str) -> String {
         .expect("key template to render")
 }
 
-fn render_attach_title(template: &str) -> String {
+fn render_document_template(template: &str, content: &str, config: &Configuration) -> String {
     use chrono::Local;
     use minijinja::{context, Environment};
     let now = Local::now();
-    let formatted = now.format("%Y-%m-%d").to_string();
+    let date_format = config
+        .markdown
+        .date_format
+        .as_deref()
+        .unwrap_or("%b %d, %Y");
+    let formatted = now.format(date_format).to_string();
     Environment::new()
         .template_from_str(template)
-        .map(|t| {
-            t.render(context! {
-                today => &formatted,
-                now => &formatted,
-            })
-            .unwrap_or_else(|_| template.to_string())
+        .expect("valid document template")
+        .render(context! {
+            today => &formatted,
+            now => &formatted,
+            content => content,
         })
-        .unwrap_or_else(|_| template.to_string())
+        .expect("document template to render")
 }
