@@ -85,7 +85,44 @@ fn attach_creates_subdir_target_with_relative_url() {
     );
 }
 
+#[test]
+fn attach_honors_refs_extension() {
+    let temp_dir = setup_workspace_with_extension(
+        ".md",
+        vec![("foo/bar", "today", "# Title\n\n{{content}}\n")],
+        vec![("baz/qux", "# Qux\n")],
+        vec![("foo/bar", "# Bar\n")],
+    );
+    let temp_path = temp_dir.path();
+
+    let output = run_attach(temp_path, &["--to", "today", "-k", "baz/qux"]);
+    assert!(
+        output.status.success(),
+        "attach should succeed: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let target = read_to_string(temp_path.join("foo/bar.md")).unwrap();
+    assert_eq!(
+        target,
+        indoc! {"
+            # Bar
+
+            [Qux](../baz/qux.md)
+        "}
+    );
+}
+
 fn setup_workspace(
+    actions: Vec<(&str, &str, &str)>,
+    sources: Vec<(&str, &str)>,
+    targets: Vec<(&str, &str)>,
+) -> TempDir {
+    setup_workspace_with_extension("", actions, sources, targets)
+}
+
+fn setup_workspace_with_extension(
+    refs_extension: &str,
     actions: Vec<(&str, &str, &str)>,
     sources: Vec<(&str, &str)>,
     targets: Vec<(&str, &str)>,
@@ -99,7 +136,7 @@ fn setup_workspace(
             ..Default::default()
         },
         markdown: MarkdownOptions {
-            refs_extension: "".to_string(),
+            refs_extension: refs_extension.to_string(),
             ..Default::default()
         },
         ..Default::default()
