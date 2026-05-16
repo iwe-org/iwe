@@ -476,10 +476,29 @@ pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) ->
 }
 
 fn append_refs_extension(url: &str, extension: &str) -> String {
-    match url.split_once('#') {
-        Some((path, fragment)) => format!("{path}{extension}#{fragment}"),
-        None => format!("{url}{extension}"),
+    let (path, fragment) = match url.split_once('#') {
+        Some((p, f)) => (p, Some(f)),
+        None => (url, None),
+    };
+
+    let new_path = if has_file_extension(path) {
+        path.to_string()
+    } else {
+        format!("{path}{extension}")
+    };
+
+    match fragment {
+        Some(f) => format!("{new_path}#{f}"),
+        None => new_path,
     }
+}
+
+fn has_file_extension(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|ext| ext.chars().any(|c| c.is_ascii_alphabetic()))
+        .unwrap_or(false)
 }
 
 fn ensure_trailing_newline(s: String) -> String {

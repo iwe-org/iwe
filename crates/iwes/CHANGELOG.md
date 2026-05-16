@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- LSP-driven document writes preserve links to non-markdown files (e.g. `.pdf`, `.html`) instead of appending the configured `refs_extension`
+
 ## [0.1.4](https://github.com/iwe-org/iwe/compare/iwes-v0.1.3...iwes-v0.1.4) - 2026-05-15
 
 Workspace version bump — no user-visible changes in this crate.

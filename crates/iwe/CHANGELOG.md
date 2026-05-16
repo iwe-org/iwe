@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `iwe normalize` preserves links to non-markdown files (e.g. `foo.html`, `foo.pdf`) instead of appending `.md` to them
+
 ## [0.1.4](https://github.com/iwe-org/iwe/compare/iwe-v0.1.3...iwe-v0.1.4) - 2026-05-15
 
 ### Added

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `append_refs_extension` no longer adds the configured `refs_extension` to link URLs that already carry a file extension (`.pdf`, `.html`, `.txt`, …), so serialization preserves links to non-markdown assets instead of mangling `foo.html` into `foo.html.md`
+
 ## [0.1.4](https://github.com/iwe-org/iwe/compare/liwe-v0.1.3...liwe-v0.1.4) - 2026-05-15
 
 ### Fixed
