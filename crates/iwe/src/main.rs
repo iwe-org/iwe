@@ -2281,18 +2281,20 @@ fn attach_command(args: Attach) {
             }
         }
 
+        let link_url = source_key.to_rel_link_url(&target_key.parent());
+
         if args.dry_run {
             if !args.quiet {
                 println!(
                     "Would attach '{}' to '{}' as [{}]({})",
-                    source_key_str, target_key, reference_text, source_key_str
+                    source_key_str, target_key, reference_text, link_url
                 );
             }
             continue;
         }
 
         let target_path = library_path.join(format!("{}.md", target_key));
-        let line = format!("[{}]({})\n", reference_text, source_key);
+        let line = format!("[{}]({})\n", reference_text, link_url);
 
         if let Some(parent) = target_path.parent() {
             std::fs::create_dir_all(parent).ok();

@@ -1,5 +1,6 @@
 mod common;
 
+mod attach_test;
 mod cli_filter_test;
 mod completions_test;
 mod delete_test;
