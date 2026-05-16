@@ -293,7 +293,79 @@ fn normalization_preserves_other_extensions() {
 
     let normalized = graph.to_markdown(&"key".into());
 
-    assert_str_eq!("[link text](file.txt.md)\n", normalized);
+    assert_str_eq!("[link text](file.txt)\n", normalized);
+}
+
+#[test]
+fn normalization_preserves_html_extension() {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+
+    graph.from_markdown("key".into(), "[link text](foo.html)", MarkdownReader::new());
+
+    let normalized = graph.to_markdown(&"key".into());
+
+    assert_str_eq!("[link text](foo.html)\n", normalized);
+}
+
+#[test]
+fn normalization_preserves_pdf_extension() {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+
+    graph.from_markdown("key".into(), "[link text](foo.pdf)", MarkdownReader::new());
+
+    let normalized = graph.to_markdown(&"key".into());
+
+    assert_str_eq!("[link text](foo.pdf)\n", normalized);
+}
+
+#[test]
+fn normalization_preserves_non_md_extension_with_fragment() {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+
+    graph.from_markdown(
+        "key".into(),
+        "[link text](foo.html#bar)",
+        MarkdownReader::new(),
+    );
+
+    let normalized = graph.to_markdown(&"key".into());
+
+    assert_str_eq!("[link text](foo.html#bar)\n", normalized);
+}
+
+#[test]
+fn normalization_preserves_non_md_extension_in_subdir() {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+
+    graph.from_markdown(
+        "key".into(),
+        "[link text](bar/foo.html)",
+        MarkdownReader::new(),
+    );
+
+    let normalized = graph.to_markdown(&"key".into());
+
+    assert_str_eq!("[link text](bar/foo.html)\n", normalized);
 }
 
 fn normalize(expected: &str, denormalized: &str) {
