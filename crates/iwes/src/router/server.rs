@@ -28,7 +28,7 @@ use self::search::SearchIndex;
 
 pub mod actions;
 pub mod base_path;
-mod extensions;
+pub mod extensions;
 pub mod query;
 pub mod search;
 
@@ -175,8 +175,9 @@ impl Server {
                 .get_document(&key)
                 .and_then(|content| {
                     let line = content.lines().nth(position.line as usize)?;
-                    let before_cursor =
-                        &line[..std::cmp::min(position.character as usize, line.len())];
+                    let cursor_byte = utf16_to_byte_offset(line, position.character)
+                        .unwrap_or_else(|| line.len());
+                    let before_cursor = &line[..cursor_byte.min(line.len())];
                     let prefix = before_cursor.split_whitespace().last().unwrap_or("");
                     Some(prefix.len())
                 })

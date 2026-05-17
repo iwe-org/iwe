@@ -120,6 +120,21 @@ pub impl Position {
     }
 }
 
+pub fn utf16_to_byte_offset(line: &str, utf16_offset: u32) -> Option<usize> {
+    let target = utf16_offset as usize;
+    let mut units = 0usize;
+    for (byte_idx, ch) in line.char_indices() {
+        if units == target {
+            return Some(byte_idx);
+        }
+        units += ch.len_utf16();
+        if units > target {
+            return None;
+        }
+    }
+    (units == target).then_some(line.len())
+}
+
 #[ext]
 pub impl InlineRange {
     fn to_lsp(self) -> Range {

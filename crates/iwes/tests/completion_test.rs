@@ -441,6 +441,33 @@ fn completion_returns_results_when_prefix_long_enough() {
 }
 
 #[test]
+fn completion_does_not_panic_on_multibyte_prefix() {
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Test
+                αβγ
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        Configuration::default(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 3),
+        completion_list(vec![completion_item(
+            "🔗 Test",
+            "[Test](doc)",
+            "test",
+            "Test",
+        )]),
+    );
+}
+
+#[test]
 fn completion_respects_custom_min_prefix_length() {
     let config = Configuration {
         completion: CompletionOptions {
