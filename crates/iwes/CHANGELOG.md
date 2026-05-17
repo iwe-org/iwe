@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6](https://github.com/iwe-org/iwe/compare/iwes-v0.1.5...iwes-v0.1.6) - 2026-05-17
+
 ### Fixed
 
 - `custom.link` code action and `textDocument/completion` no longer panic on lines containing multi-byte UTF-8 characters; LSP `Position.character` values are interpreted as UTF-16 code units per the LSP spec and converted to byte offsets before slicing the line
