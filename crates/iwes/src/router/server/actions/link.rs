@@ -6,6 +6,7 @@ use minijinja::{context, Environment};
 use sanitize_filename::sanitize;
 
 use super::{string_to_slug, Action, ActionContext, ActionProvider};
+use crate::router::server::extensions::utf16_to_byte_offset;
 
 pub struct LinkAction {
     pub title: String,
@@ -54,42 +55,40 @@ impl LinkAction {
 
     fn extract_selected_text(
         line_text: &str,
-        start_char: u32,
-        end_char: u32,
-    ) -> Option<(String, u32, u32)> {
-        let start = start_char as usize;
-        let end = end_char as usize;
-
-        if start < end && end <= line_text.len() {
-            let text = line_text[start..end].to_string();
-            (!text.trim().is_empty()).then_some((text, start_char, end_char))
+        start_byte: usize,
+        end_byte: usize,
+    ) -> Option<(String, usize, usize)> {
+        if start_byte < end_byte && end_byte <= line_text.len() {
+            let text = line_text[start_byte..end_byte].to_string();
+            (!text.trim().is_empty()).then_some((text, start_byte, end_byte))
         } else {
             None
         }
     }
 
-    fn extract_word_at_cursor(line_text: &str, character_pos: u32) -> Option<(String, u32, u32)> {
-        let char_pos = character_pos as usize;
-
-        (char_pos <= line_text.len()).then(|| {
+    fn extract_word_at_cursor(
+        line_text: &str,
+        cursor_byte: usize,
+    ) -> Option<(String, usize, usize)> {
+        (cursor_byte <= line_text.len()).then(|| {
             let bytes = line_text.as_bytes();
 
-            let start = (0..char_pos)
+            let start = (0..cursor_byte)
                 .rev()
                 .take_while(|&i| Self::is_word_char(bytes[i]))
                 .last()
-                .unwrap_or(char_pos);
+                .unwrap_or(cursor_byte);
 
-            let end = (char_pos..bytes.len())
+            let end = (cursor_byte..bytes.len())
                 .take_while(|&i| Self::is_word_char(bytes[i]))
                 .last()
                 .map(|i| i + 1)
-                .unwrap_or(char_pos);
+                .unwrap_or(cursor_byte);
 
             (start != end)
                 .then(|| line_text[start..end].to_string())
                 .filter(|word| !word.trim().is_empty())
-                .map(|word| (word, start as u32, end as u32))
+                .map(|word| (word, start, end))
         })?
     }
 
@@ -100,19 +99,22 @@ impl LinkAction {
     fn replace_word_with_link(
         line_text: &str,
         word: &str,
-        start_pos: u32,
-        end_pos: u32,
+        start_byte: usize,
+        end_byte: usize,
         new_key: &Key,
         link_type: Option<&ConfigLinkType>,
     ) -> String {
-        let (start, end) = (start_pos as usize, end_pos as usize);
-
         let link_text = match link_type {
             Some(ConfigLinkType::WikiLink) => format!("[[{}]]", new_key),
             Some(ConfigLinkType::Markdown) | None => format!("[{}]({})", word, new_key),
         };
 
-        format!("{}{}{}", &line_text[..start], link_text, &line_text[end..])
+        format!(
+            "{}{}{}",
+            &line_text[..start_byte],
+            link_text,
+            &line_text[end_byte..]
+        )
     }
 }
 
@@ -134,16 +136,14 @@ impl ActionProvider for LinkAction {
 
             let line_text = lines.get(target_line)?;
 
-            let has_selection = selection.start.character != selection.end.character;
+            let start_byte = utf16_to_byte_offset(line_text, selection.start.character)?;
+            let end_byte = utf16_to_byte_offset(line_text, selection.end.character)?;
+            let has_selection = start_byte != end_byte;
 
             if has_selection {
-                Self::extract_selected_text(
-                    line_text,
-                    selection.start.character,
-                    selection.end.character,
-                )?;
+                Self::extract_selected_text(line_text, start_byte, end_byte)?;
             } else {
-                Self::extract_word_at_cursor(line_text, selection.start.character)?;
+                Self::extract_word_at_cursor(line_text, start_byte)?;
             }
 
             Some(Action {
@@ -168,16 +168,14 @@ impl ActionProvider for LinkAction {
 
             let line_text = lines.get(target_line)?;
 
-            let has_selection = selection.start.character != selection.end.character;
+            let start_byte = utf16_to_byte_offset(line_text, selection.start.character)?;
+            let end_byte = utf16_to_byte_offset(line_text, selection.end.character)?;
+            let has_selection = start_byte != end_byte;
 
             let (word, start, end) = if has_selection {
-                Self::extract_selected_text(
-                    line_text,
-                    selection.start.character,
-                    selection.end.character,
-                )?
+                Self::extract_selected_text(line_text, start_byte, end_byte)?
             } else {
-                Self::extract_word_at_cursor(line_text, selection.start.character)?
+                Self::extract_word_at_cursor(line_text, start_byte)?
             };
 
             let id = context

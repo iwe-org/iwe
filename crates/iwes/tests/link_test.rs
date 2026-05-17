@@ -331,6 +331,49 @@ fn link_unicode_word() {
 }
 
 #[test]
+fn link_word_with_multibyte_chars() {
+    assert_linked(
+        indoc! {"
+            # test
+
+            - λέξη
+            "},
+        2,
+        3,
+        indoc! {"
+            # test
+
+            - [λέξη](2)
+            "},
+        indoc! {"
+            # λέξη
+        "},
+    );
+}
+
+#[test]
+fn link_selected_text_with_multibyte_chars() {
+    assert_linked_with_range(
+        indoc! {"
+            # test
+
+            prefix λέξη suffix
+            "},
+        2,
+        7,
+        11,
+        indoc! {"
+            # test
+
+            prefix [λέξη](2) suffix
+            "},
+        indoc! {"
+            # λέξη
+        "},
+    );
+}
+
+#[test]
 fn link_selected_text_simple() {
     assert_linked_with_range(
         indoc! {"
