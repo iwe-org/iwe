@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Display, ops::Range, path::Path, sync::Arc};
 
+use percent_encoding::percent_decode_str;
 use relative_path::RelativePath;
 
 pub mod config;
@@ -77,7 +78,10 @@ impl Key {
     }
 
     pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
-        let key = url.trim_end_matches(".md").to_string();
+        let decoded = percent_decode_str(url)
+            .decode_utf8_lossy()
+            .into_owned();
+        let key = decoded.trim_end_matches(".md").to_string();
         let path = RelativePath::new(relative_to)
             .join_normalized(key)
             .to_string();
