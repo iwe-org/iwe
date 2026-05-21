@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7](https://github.com/iwe-org/iwe/compare/iwes-v0.1.6...iwes-v0.1.7) - 2026-05-20
+
 ### Added
 
 - `completion.trigger_characters` config option — list of characters advertised to the editor as completion triggers. Defaults to `["["]`.
