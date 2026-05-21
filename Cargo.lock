@@ -1254,6 +1254,7 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "minijinja",
+ "percent-encoding",
  "pretty_assertions",
  "pulldown-cmark",
  "pulldown-cmark-to-cmark",
