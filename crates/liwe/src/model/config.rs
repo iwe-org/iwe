@@ -169,6 +169,7 @@ pub struct LibraryOptions {
 pub struct CompletionOptions {
     pub link_format: Option<LinkType>,
     pub min_prefix_length: Option<usize>,
+    pub trigger_characters: Option<Vec<String>>,
 }
 
 impl Default for LibraryOptions {

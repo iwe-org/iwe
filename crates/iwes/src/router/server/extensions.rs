@@ -135,6 +135,25 @@ pub fn utf16_to_byte_offset(line: &str, utf16_offset: u32) -> Option<usize> {
     (units == target).then_some(line.len())
 }
 
+pub fn byte_to_utf16_offset(line: &str, byte_offset: usize) -> Option<u32> {
+    if byte_offset > line.len() {
+        return None;
+    }
+    let mut units = 0u32;
+    for (idx, ch) in line.char_indices() {
+        if idx == byte_offset {
+            return Some(units);
+        }
+        units += ch.len_utf16() as u32;
+    }
+    (byte_offset == line.len()).then_some(units)
+}
+
+pub struct LinkCompletionContext {
+    pub bracket_prefix: String,
+    pub replace_range: Range,
+}
+
 #[ext]
 pub impl InlineRange {
     fn to_lsp(self) -> Range {
@@ -381,21 +400,29 @@ pub impl Key {
         context: impl GraphContext,
         completion_options: &CompletionOptions,
         _: &BasePath,
+        completion_context: &LinkCompletionContext,
     ) -> CompletionItem {
         let ref_text = context.get_ref_text(self).unwrap_or_default();
         let refs_extension = &context.markdown_options().refs_extension;
 
-        let insert_text = match completion_options.link_format {
-            Some(LinkType::WikiLink) => format!("[[{}]]", self.relative_path),
-            _ => self.to_link(ref_text.clone(), relative_to, refs_extension),
+        let new_text = match completion_context.bracket_prefix.as_str() {
+            "[[" => format!("[[{}]]", self.relative_path),
+            "[" => self.to_link(ref_text.clone(), relative_to, refs_extension),
+            _ => match completion_options.link_format {
+                Some(LinkType::WikiLink) => format!("[[{}]]", self.relative_path),
+                _ => self.to_link(ref_text.clone(), relative_to, refs_extension),
+            },
         };
 
         CompletionItem {
             preselect: Some(true),
             label: format!("🔗 {}", ref_text),
             sort_text: Some(ref_text.clone()),
-            insert_text: Some(insert_text),
             filter_text: Some(ref_text.replace(" ", "").to_lowercase()),
+            text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                range: completion_context.replace_range,
+                new_text,
+            })),
             command: None,
             documentation: None,
             ..Default::default()

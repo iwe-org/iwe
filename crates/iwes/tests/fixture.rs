@@ -351,19 +351,34 @@ pub fn action_kind(name: &'static str) -> Option<CodeActionKind> {
 
 pub fn completion_item(
     label: &str,
-    insert_text: &str,
+    new_text: &str,
     filter_text: &str,
     sort_text: &str,
+    range: Range,
 ) -> CompletionItem {
     CompletionItem {
         documentation: None,
         filter_text: Some(filter_text.to_string()),
         sort_text: Some(sort_text.to_string()),
-        insert_text: Some(insert_text.to_string()),
+        text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+            range,
+            new_text: new_text.to_string(),
+        })),
         label: label.to_string(),
         preselect: Some(true),
         ..Default::default()
     }
+}
+
+pub fn empty_range(line: u32, character: u32) -> Range {
+    Range::new(
+        Position::new(line, character),
+        Position::new(line, character),
+    )
+}
+
+pub fn replace_range(line: u32, start: u32, end: u32) -> Range {
+    Range::new(Position::new(line, start), Position::new(line, end))
 }
 
 pub fn completion_list(items: Vec<CompletionItem>) -> CompletionResponse {

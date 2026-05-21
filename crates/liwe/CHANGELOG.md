@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `CompletionOptions::trigger_characters: Option<Vec<String>>` field on the configuration model.
+
 ## [0.1.6](https://github.com/iwe-org/iwe/compare/liwe-v0.1.5...liwe-v0.1.6) - 2026-05-17
 
 Workspace version bump — no user-visible changes in this crate.

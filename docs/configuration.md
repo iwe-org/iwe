@@ -31,7 +31,8 @@ frontmatter_document_title = "title"
 
 [completion]
 link_format = "markdown"
-min_prefix_length = 3
+min_prefix_length = 0
+trigger_characters = ["["]
 ```
 
 ### Markdown Settings
@@ -72,10 +73,11 @@ list_token = "-"
 
 ### Completion Settings
 
-- `link_format`: Format for auto-completed links (default: `"markdown"`)
+- `link_format`: Format for auto-completed links (default: `"markdown"`). Overridden by a typed `[` or `[[` prefix at the cursor.
   - `"markdown"`: Creates `[title](key)` style links
   - `"wiki"`: Creates `[[key]]` style WikiLinks
-- `min_prefix_length`: Minimum number of characters typed before completions appear (default: `3`). Set to `0` to always show completions.
+- `min_prefix_length`: Minimum number of characters typed before completions appear (default: `0`). Measured against the search query after any leading `[` or `[[` is stripped. Raise to `3` (or higher) to suppress the popup until the user has typed a few characters.
+- `trigger_characters`: Characters that open the completion popup (default: `["["]`). Typing any listed character makes the editor request completions from the LSP server. Word characters trigger completion via editor heuristics regardless of this list.
 
 ### Date Format Patterns
 
