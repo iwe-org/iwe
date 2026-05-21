@@ -60,7 +60,13 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         completion_provider: Some(CompletionOptions {
             resolve_provider: Some(true),
-            trigger_characters: Some(vec!["+".to_string()]),
+            trigger_characters: Some(
+                configuration
+                    .completion
+                    .trigger_characters
+                    .clone()
+                    .unwrap_or_else(|| vec!["[".to_string()]),
+            ),
             all_commit_characters: None,
             work_done_progress_options: Default::default(),
             completion_item: None,

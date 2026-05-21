@@ -30,6 +30,7 @@ fn completion_test() {
             "[test](1)",
             "test",
             "test",
+            empty_range(2, 0),
         )]),
     );
 }
@@ -64,6 +65,7 @@ fn completion_test_with_refs_extension() {
             "[test](1.md)",
             "test",
             "test",
+            empty_range(2, 0),
         )]),
     );
 }
@@ -93,12 +95,14 @@ fn completion_relative_test() {
                 "[sub-document](sub)",
                 "sub-document",
                 "sub-document",
+                empty_range(2, 0),
             ),
             completion_item(
                 "🔗 top-level",
                 "[top-level](../top)",
                 "top-level",
                 "top-level",
+                empty_range(2, 0),
             ),
         ]),
     );
@@ -136,6 +140,7 @@ fn completion_relative_test_with_refs_extension() {
             "[test](1.html)",
             "test",
             "test",
+            empty_range(2, 0),
         )]),
     );
 }
@@ -165,12 +170,14 @@ fn completion_after_file_deleted() {
                 "[first-document](first)",
                 "first-document",
                 "first-document",
+                empty_range(2, 0),
             ),
             completion_item(
                 "🔗 second-document",
                 "[second-document](second)",
                 "second-document",
                 "second-document",
+                empty_range(2, 0),
             ),
         ]),
     )
@@ -182,6 +189,7 @@ fn completion_after_file_deleted() {
             "[first-document](first)",
             "first-document",
             "first-document",
+            empty_range(2, 0),
         )]),
     );
 }
@@ -192,6 +200,7 @@ fn completion_with_wikilink_format() {
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),
             min_prefix_length: Some(0),
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -209,6 +218,7 @@ fn completion_with_wikilink_format() {
             "[[1]]",
             "test",
             "test",
+            empty_range(2, 0),
         )]),
     );
 }
@@ -219,6 +229,7 @@ fn completion_with_wikilink_format_multiple_documents() {
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),
             min_prefix_length: Some(0),
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -246,12 +257,14 @@ fn completion_with_wikilink_format_multiple_documents() {
                 "[[first]]",
                 "firstdocument",
                 "First Document",
+                empty_range(2, 0),
             ),
             completion_item(
                 "🔗 Second Document",
                 "[[second]]",
                 "seconddocument",
                 "Second Document",
+                empty_range(2, 0),
             ),
         ]),
     );
@@ -263,6 +276,7 @@ fn completion_with_markdown_format_explicit() {
         completion: CompletionOptions {
             link_format: Some(LinkType::Markdown),
             min_prefix_length: Some(0),
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -280,6 +294,7 @@ fn completion_with_markdown_format_explicit() {
             "[test](1)",
             "test",
             "test",
+            empty_range(2, 0),
         )]),
     );
 }
@@ -297,6 +312,7 @@ fn completion_with_wikilink_and_refs_extension() {
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),
             min_prefix_length: Some(0),
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -314,6 +330,7 @@ fn completion_with_wikilink_and_refs_extension() {
             "[[1]]",
             "test",
             "test",
+            empty_range(2, 0),
         )]),
     );
 }
@@ -356,6 +373,7 @@ fn completion_uses_frontmatter_title() {
             "[Custom Title](doc)",
             "customtitle",
             "Custom Title",
+            empty_range(5, 0),
         )]),
     );
 }
@@ -394,12 +412,21 @@ fn completion_fallback_to_header_when_frontmatter_missing() {
             "[Header Title](doc)",
             "headertitle",
             "Header Title",
+            empty_range(2, 0),
         )]),
     );
 }
 
 #[test]
 fn completion_returns_empty_when_prefix_too_short() {
+    let config = Configuration {
+        completion: CompletionOptions {
+            min_prefix_length: Some(3),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
     Fixture::with_options_and_client(
         vec![(
             "doc".to_string(),
@@ -410,7 +437,7 @@ fn completion_returns_empty_when_prefix_too_short() {
         )]
         .into_iter()
         .collect(),
-        Configuration::default(),
+        config,
         "",
         None,
     )
@@ -422,12 +449,20 @@ fn completion_returns_empty_when_prefix_too_short() {
 
 #[test]
 fn completion_returns_results_when_prefix_long_enough() {
+    let config = Configuration {
+        completion: CompletionOptions {
+            min_prefix_length: Some(3),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
     Fixture::with_config(
         indoc! {"
             # Test
             abc
         "},
-        Configuration::default(),
+        config,
     )
     .completion(
         uri(1).to_completion_params(1, 3),
@@ -436,6 +471,7 @@ fn completion_returns_results_when_prefix_long_enough() {
             "[Test](1)",
             "test",
             "Test",
+            replace_range(1, 0, 3),
         )]),
     );
 }
@@ -463,6 +499,7 @@ fn completion_does_not_panic_on_multibyte_prefix() {
             "[Test](doc)",
             "test",
             "Test",
+            replace_range(1, 0, 3),
         )]),
     );
 }
@@ -493,6 +530,222 @@ fn completion_respects_custom_min_prefix_length() {
     )
     .completion(
         uri_from("doc").to_completion_params(1, 4),
+        completion_list(vec![]),
+    );
+}
+
+#[test]
+fn completion_with_bracket_prefix_replaces_typed_bracket() {
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                [fo
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        no_min_prefix(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 3),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[Header](doc)",
+            "header",
+            "Header",
+            replace_range(1, 0, 3),
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_double_bracket_prefix_emits_wiki_link() {
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                [[fo
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        no_min_prefix(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 4),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[[doc]]",
+            "header",
+            "Header",
+            replace_range(1, 0, 4),
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_double_bracket_prefix_overrides_markdown_link_format() {
+    let config = Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::Markdown),
+            min_prefix_length: Some(0),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                [[
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 2),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[[doc]]",
+            "header",
+            "Header",
+            replace_range(1, 0, 2),
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_single_bracket_prefix_overrides_wiki_link_format() {
+    let config = Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::WikiLink),
+            min_prefix_length: Some(0),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                [
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 1),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[Header](doc)",
+            "header",
+            "Header",
+            replace_range(1, 0, 1),
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_bracket_auto_pair_consumes_trailing_bracket() {
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                []
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        no_min_prefix(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 1),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[Header](doc)",
+            "header",
+            "Header",
+            replace_range(1, 0, 2),
+        )]),
+    );
+}
+
+#[test]
+fn completion_with_double_bracket_auto_pair_consumes_trailing_brackets() {
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                [[]]
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        no_min_prefix(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 2),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[[doc]]",
+            "header",
+            "Header",
+            replace_range(1, 0, 4),
+        )]),
+    );
+}
+
+#[test]
+fn completion_bracket_prefix_min_length_applies_to_query_only() {
+    let config = Configuration {
+        completion: CompletionOptions {
+            min_prefix_length: Some(2),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                [a
+            "}.to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 2),
         completion_list(vec![]),
     );
 }

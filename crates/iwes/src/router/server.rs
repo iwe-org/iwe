@@ -138,7 +138,11 @@ impl Server {
         }
     }
 
-    pub fn handle_link_completion(&self, params: CompletionParams) -> Vec<CompletionItem> {
+    pub fn handle_link_completion(
+        &self,
+        params: CompletionParams,
+        completion_context: &LinkCompletionContext,
+    ) -> Vec<CompletionItem> {
         let current_key = params
             .text_document_position
             .text_document
@@ -153,6 +157,7 @@ impl Server {
                     &self.graph,
                     &self.configuration.completion,
                     &self.base_path,
+                    completion_context,
                 )
             })
             .sorted_by(|a, b| a.label.cmp(&b.label))
@@ -160,40 +165,63 @@ impl Server {
     }
 
     pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {
-        let min_length = self.configuration.completion.min_prefix_length.unwrap_or(3);
+        let min_length = self.configuration.completion.min_prefix_length.unwrap_or(0);
 
-        if min_length > 0 {
-            let position = params.text_document_position.position;
-            let key = params
-                .text_document_position
-                .text_document
-                .uri
-                .to_key(&self.base_path);
+        let position = params.text_document_position.position;
+        let key = params
+            .text_document_position
+            .text_document
+            .uri
+            .to_key(&self.base_path);
 
-            let prefix_len = self
-                .graph
-                .get_document(&key)
-                .and_then(|content| {
-                    let line = content.lines().nth(position.line as usize)?;
-                    let cursor_byte = utf16_to_byte_offset(line, position.character)
-                        .unwrap_or_else(|| line.len());
-                    let before_cursor = &line[..cursor_byte.min(line.len())];
-                    let prefix = before_cursor.split_whitespace().last().unwrap_or("");
-                    Some(prefix.len())
-                })
-                .unwrap_or(0);
+        let (bracket_prefix, query_len, replace_start_char, trailing_close) = self
+            .graph
+            .get_document(&key)
+            .and_then(|content| {
+                let line = content.lines().nth(position.line as usize)?;
+                let cursor_byte = utf16_to_byte_offset(line, position.character)
+                    .unwrap_or_else(|| line.len())
+                    .min(line.len());
+                let before_cursor = &line[..cursor_byte];
+                let after_cursor = &line[cursor_byte..];
+                let word = before_cursor.split_whitespace().last().unwrap_or("");
+                let (bracket, query) = if let Some(rest) = word.strip_prefix("[[") {
+                    ("[[", rest)
+                } else if let Some(rest) = word.strip_prefix('[') {
+                    ("[", rest)
+                } else {
+                    ("", word)
+                };
+                let trailing = match bracket {
+                    "[[" if after_cursor.starts_with("]]") => 2u32,
+                    "[" if after_cursor.starts_with(']') => 1u32,
+                    _ => 0,
+                };
+                let word_start_byte = cursor_byte - word.len();
+                let word_start_char = byte_to_utf16_offset(line, word_start_byte)
+                    .unwrap_or(position.character);
+                Some((bracket.to_string(), query.len(), word_start_char, trailing))
+            })
+            .unwrap_or((String::new(), 0, position.character, 0));
 
-            if prefix_len < min_length {
-                return CompletionResponse::List(CompletionList {
-                    is_incomplete: false,
-                    items: vec![],
-                });
-            }
+        if min_length > 0 && query_len < min_length {
+            return CompletionResponse::List(CompletionList {
+                is_incomplete: false,
+                items: vec![],
+            });
         }
+
+        let completion_context = LinkCompletionContext {
+            bracket_prefix,
+            replace_range: Range::new(
+                Position::new(position.line, replace_start_char),
+                Position::new(position.line, position.character + trailing_close),
+            ),
+        };
 
         CompletionResponse::List(CompletionList {
             is_incomplete: false,
-            items: self.handle_link_completion(params),
+            items: self.handle_link_completion(params, &completion_context),
         })
     }
 

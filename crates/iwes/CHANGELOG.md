@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `completion.trigger_characters` config option — list of characters advertised to the editor as completion triggers. Defaults to `["["]`.
+
+### Changed
+
+- `textDocument/completion` returns link completions as a `text_edit` whose range covers any leading `[` or `[[` the user typed, so the editor replaces those brackets instead of duplicating them. `[` produces a markdown link, `[[` produces a wiki link regardless of `completion.link_format`; when no bracket precedes the cursor, `completion.link_format` still selects the shape. The range also swallows a trailing `]` (or `]]`) directly after the cursor, so editors with bracket auto-pairing don't leave a stray closing bracket behind.
+- `completion.min_prefix_length` default lowered from `3` to `0`, so completions appear as soon as the editor requests them (matching the new `[` trigger). Users who relied on the old behavior should set `min_prefix_length = 3` explicitly.
+
+### Removed
+
+- The hardcoded `+` completion trigger character. Editors that want it can opt in by setting `completion.trigger_characters = ["+"]` (or include it alongside other triggers).
+
 ## [0.1.6](https://github.com/iwe-org/iwe/compare/iwes-v0.1.5...iwes-v0.1.6) - 2026-05-17
 
 ### Fixed

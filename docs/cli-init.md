@@ -86,9 +86,11 @@ document_template = "# {{title}}\n\n{{content}}"
 
 ### Completion Section
 
-| Option        | Default | Description                                      |
-| ------------- | ------- | ------------------------------------------------ |
-| `link_format` | `null`  | Link style for completions: `markdown` or `wiki` |
+| Option               | Default | Description                                                                       |
+| -------------------- | ------- | --------------------------------------------------------------------------------- |
+| `link_format`        | `null`  | Link style for completions: `markdown` or `wiki` (overridden by a typed `[`/`[[`) |
+| `min_prefix_length`  | `0`     | Characters required in the search query before completions appear                 |
+| `trigger_characters` | `["["]` | Characters that open the completion popup in the editor                           |
 
 
 ## Example
@@ -109,6 +111,7 @@ After initialization, edit `.iwe/config.toml` to:
 
 - Store markdown files in a subdirectory: set `library.path = "docs"`
 - Use wiki-style links: set `completion.link_format = "wiki"`
+- Change completion trigger characters: set `completion.trigger_characters = ["[", "+"]`
 - Define custom templates for document creation
 - Configure AI-powered actions with custom commands
 
