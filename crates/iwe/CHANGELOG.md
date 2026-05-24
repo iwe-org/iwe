@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/iwe-org/iwe/compare/iwe-v0.1.7...iwe-v0.1.8) - 2026-05-23
+
 ### Added
 
 - `iwe normalize` honors three new `[markdown.formatting]` options: `wrap_column` wraps paragraphs at the configured column, `preserve_line_breaks` keeps hard line breaks instead of dropping them, and `line_break_style` (`"backslash"` | `"spaces"`, default `"backslash"`) selects how preserved breaks are emitted.

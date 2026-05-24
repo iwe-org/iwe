@@ -8,11 +8,11 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.82"
 repository = "https://github.com/iwe-org/iwe"
-version = "0.1.7"
+version = "0.1.8"
 
 [workspace.dependencies]
-liwe = { path = "./crates/liwe", version = "0.1.7" }
-iwe = { path = "./crates/iwe", version = "0.1.7" }
+liwe = { path = "./crates/liwe", version = "0.1.8" }
+iwe = { path = "./crates/iwe", version = "0.1.8" }
 anyhow = "1.0.102"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"

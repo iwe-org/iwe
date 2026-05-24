@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/iwe-org/iwe/compare/liwe-v0.1.7...liwe-v0.1.8) - 2026-05-23
+
 ### Added
 
 - `markdown.formatting.wrap_column: Option<usize>` — wraps `Para`/`Plain` blocks emitted by `Graph::to_markdown` at word boundaries; inline code, wiki links, math, and link/image URLs stay atomic while inline-link / image text wraps at spaces. List and blockquote indents are subtracted from the effective width via the new `GraphBlock::to_markdown_indented` API.
