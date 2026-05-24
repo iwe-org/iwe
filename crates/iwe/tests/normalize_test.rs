@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::{Configuration, LibraryOptions, MarkdownOptions};
+use liwe::model::config::{Configuration, FormattingOptions, LibraryOptions, MarkdownOptions};
 use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;
@@ -551,5 +551,52 @@ fn test_normalize_empty_frontmatter() {
 
             # Heading
         "}
+    );
+}
+
+#[test]
+fn test_normalize_wraps_paragraph_and_preserves_breaks() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
+    let config = Configuration {
+        library: LibraryOptions {
+            path: "".to_string(),
+            ..Default::default()
+        },
+        markdown: MarkdownOptions {
+            refs_extension: "".to_string(),
+            formatting: FormattingOptions {
+                wrap_column: Some(40),
+                preserve_line_breaks: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let config_content = toml::to_string(&config).expect("Failed to serialize config to TOML");
+    write(temp_path.join(".iwe").join("config.toml"), config_content)
+        .expect("Should write config file");
+
+    write(
+        temp_path.join("wrapped.md"),
+        "alpha beta gamma delta epsilon zeta eta theta\\\niota kappa lambda mu nu xi omicron pi rho\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize should succeed");
+
+    let content = read_to_string(temp_path.join("wrapped.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            alpha beta gamma delta epsilon zeta eta
+            theta\\
+            iota kappa lambda mu nu xi omicron pi
+            rho
+        "},
     );
 }

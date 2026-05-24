@@ -3,8 +3,8 @@ use serde_yaml::Mapping;
 use super::document::LinkType;
 use crate::markdown::writer::MarkdownWriter;
 use crate::model;
-use crate::model::config::MarkdownOptions;
-use crate::model::document::DocumentInlines;
+use crate::model::config::{FormattingOptions, MarkdownOptions};
+use crate::model::document::{DocumentInline, DocumentInlines};
 use crate::model::node::ColumnAlignment;
 use crate::model::reference::{Reference, ReferenceType};
 use crate::model::{InlinesContext, Key, Lang, Level, LibraryUrl, Title};
@@ -92,10 +92,14 @@ impl GraphBlock {
     }
 
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
+        self.to_markdown_indented(options, 0)
+    }
+
+    pub fn to_markdown_indented(&self, options: &MarkdownOptions, indent: usize) -> String {
         match self {
             GraphBlock::Frontmatter(mapping) => format!("---\n{}---\n", frontmatter_to_yaml(mapping)),
-            GraphBlock::Plain(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
-            GraphBlock::Para(inlines) => format!("{}\n", inlines_to_markdown(inlines, options)),
+            GraphBlock::Plain(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
+            GraphBlock::Para(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
             GraphBlock::LineBlock(lines) => lines
                 .iter()
                 .map(|line| inlines_to_markdown(line, options))
@@ -117,7 +121,7 @@ impl GraphBlock {
             }
             GraphBlock::RawBlock(_, text) => text.clone(),
             GraphBlock::BlockQuote(blocks) => {
-                blocks_to_markdown_sparce(blocks, options)
+                blocks_to_markdown_sparce_indented(blocks, options, indent + 2)
                     .lines()
                     .map(|line| format!("> {}", line))
                     .map(|line| line.trim().to_string())
@@ -125,33 +129,50 @@ impl GraphBlock {
                     .join("\n")
                     + "\n"
             }
-            GraphBlock::OrderedList(items) => items
-                .iter()
-                .enumerate()
-                .map(|(n, item)| {
-                    let num = if options.formatting.increment_ordered_list_bullets() {
-                        n + 1
-                    } else {
-                        1
-                    };
-                    left_pad_and_prefix_num(
-                        &blocks_to_markdown_and(item, self.is_sparce_list(), options),
-                        num,
-                        options.formatting.ordered_list_token_char(),
-                    )
-                })
-                .collect::<Vec<String>>()
-                .join(if self.is_sparce_list() { "\n" } else { "" }),
-            GraphBlock::BulletList(items) => items
-                .iter()
-                .map(|item| {
-                    left_pad_and_prefix(
-                        &blocks_to_markdown_and(item, self.is_sparce_list(), options),
-                        options.formatting.list_token(),
-                    )
-                })
-                .collect::<Vec<String>>()
-                .join(if self.is_sparce_list() { "\n" } else { "" }),
+            GraphBlock::OrderedList(items) => {
+                let child_indent = indent + ordered_prefix_indent(items.len(), &options.formatting);
+                items
+                    .iter()
+                    .enumerate()
+                    .map(|(n, item)| {
+                        let num = if options.formatting.increment_ordered_list_bullets() {
+                            n + 1
+                        } else {
+                            1
+                        };
+                        left_pad_and_prefix_num(
+                            &blocks_to_markdown_and_indented(
+                                item,
+                                self.is_sparce_list(),
+                                options,
+                                child_indent,
+                            ),
+                            num,
+                            options.formatting.ordered_list_token_char(),
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .join(if self.is_sparce_list() { "\n" } else { "" })
+            }
+            GraphBlock::BulletList(items) => {
+                let child_indent =
+                    indent + options.formatting.list_token().chars().count() + 1;
+                items
+                    .iter()
+                    .map(|item| {
+                        left_pad_and_prefix(
+                            &blocks_to_markdown_and_indented(
+                                item,
+                                self.is_sparce_list(),
+                                options,
+                                child_indent,
+                            ),
+                            options.formatting.list_token(),
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .join(if self.is_sparce_list() { "\n" } else { "" })
+            }
             GraphBlock::Header(level, inlines) => {
                 format!(
                     "{} {}\n",
@@ -171,78 +192,29 @@ impl GraphBlock {
     }
 }
 
+fn ordered_prefix_indent(item_count: usize, formatting: &FormattingOptions) -> usize {
+    let last = if formatting.increment_ordered_list_bullets() {
+        item_count.max(1)
+    } else {
+        1
+    };
+    let prefix = format!(
+        "{}{}{}",
+        last,
+        formatting.ordered_list_token_char(),
+        if last > 9 { "" } else { " " }
+    );
+    prefix.len() + 1
+}
+
 impl GraphInline {
     pub fn from_string(str: &str) -> GraphInlines {
         vec![GraphInline::Str(str.to_string())]
     }
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
-        match self {
-            GraphInline::Str(text) => text.clone(),
-            GraphInline::Emph(emph) => {
-                let t = options.formatting.emphasis_token();
-                format!("{t}{}{t}", inlines_to_markdown(emph, options))
-            }
-            GraphInline::Underline(underline) => inlines_to_markdown(underline, options),
-            GraphInline::Strong(strong) => {
-                let t = options.formatting.strong_token();
-                format!("{t}{}{t}", inlines_to_markdown(strong, options))
-            }
-            GraphInline::Strikeout(strikeout) => {
-                format!("~~{}~~", inlines_to_markdown(strikeout, options))
-            }
-            GraphInline::Superscript(superscript) => {
-                format!("^{}^", inlines_to_markdown(superscript, options))
-            }
-            GraphInline::Subscript(subscript) => {
-                format!("~{}~", inlines_to_markdown(subscript, options))
-            }
-            GraphInline::SmallCaps(small_caps) => inlines_to_markdown(small_caps, options),
-            GraphInline::Code(_, text) => format!("`{}`", text),
-            GraphInline::Space => " ".into(),
-            GraphInline::SoftBreak => "\n".into(),
-            GraphInline::LineBreak => "\n".into(),
-            GraphInline::Link(url, _, link_type, inlines) => {
-                let text = inlines_to_markdown(inlines, options);
-                if *link_type == LinkType::WikiLinkPiped {
-                    return format!("[[{}|{}]]", url, text);
-                }
-                if *link_type == LinkType::WikiLink {
-                    return format!("[[{}]]", url);
-                }
-                if model::is_ref_url(url) {
-                    format!(
-                        "[{}]({})",
-                        text,
-                        append_refs_extension(url, &options.refs_extension)
-                    )
-                } else if text.eq_ignore_ascii_case(url) {
-                    format!("<{}>", url)
-                } else {
-                    format!("[{}]({})", text, url)
-                }
-            }
-            GraphInline::Reference(reference) => {
-                let url = reference.key.to_library_url();
-                match reference.reference_type {
-                    ReferenceType::WikiLinkPiped => {
-                        format!("[[{}|{}]]", url, reference.text)
-                    }
-                    ReferenceType::WikiLink => format!("[[{}]]", url),
-                    ReferenceType::Regular => {
-                        format!(
-                            "[{}]({})",
-                            reference.text,
-                            append_refs_extension(&url, &options.refs_extension)
-                        )
-                    }
-                }
-            }
-            GraphInline::Image(url, _, inlines) => {
-                format!("![{}]({})", inlines_to_markdown(inlines, options), url)
-            }
-            GraphInline::RawInline(_, content) => format!("`{}`", content),
-            GraphInline::Math(math) => format!("${}$", math),
-        }
+        let mut out = String::new();
+        render_inline(self, options, &mut out);
+        out
     }
     pub fn plain_text(&self) -> String {
         match self {
@@ -452,6 +424,241 @@ fn left_pad_and_prefix_num(text: &str, num: usize, ordered_list_token: char) -> 
     result
 }
 
+trait MarkdownSink {
+    fn push(&mut self, s: &str);
+    fn space(&mut self);
+    fn soft_break(&mut self);
+    fn line_break(&mut self, marker: &str);
+}
+
+impl MarkdownSink for String {
+    fn push(&mut self, s: &str) {
+        self.push_str(s);
+    }
+    fn space(&mut self) {
+        String::push(self, ' ');
+    }
+    fn soft_break(&mut self) {
+        String::push(self, '\n');
+    }
+    fn line_break(&mut self, marker: &str) {
+        self.push_str(marker);
+    }
+}
+
+enum WrapToken {
+    Word(String),
+    Break,
+}
+
+#[derive(Default)]
+struct TokenStream {
+    tokens: Vec<WrapToken>,
+    current: String,
+}
+
+impl TokenStream {
+    fn flush(&mut self) {
+        if !self.current.is_empty() {
+            self.tokens.push(WrapToken::Word(std::mem::take(&mut self.current)));
+        }
+    }
+
+    fn finish(mut self) -> Vec<WrapToken> {
+        self.flush();
+        self.tokens
+    }
+}
+
+impl MarkdownSink for TokenStream {
+    fn push(&mut self, s: &str) {
+        self.current.push_str(s);
+    }
+    fn space(&mut self) {
+        self.flush();
+    }
+    fn soft_break(&mut self) {
+        self.flush();
+    }
+    fn line_break(&mut self, _marker: &str) {
+        self.flush();
+        self.tokens.push(WrapToken::Break);
+    }
+}
+
+fn render_inlines<S: MarkdownSink>(
+    inlines: &GraphInlines,
+    options: &MarkdownOptions,
+    out: &mut S,
+) {
+    for inline in inlines {
+        render_inline(inline, options, out);
+    }
+}
+
+fn render_inline<S: MarkdownSink>(
+    inline: &GraphInline,
+    options: &MarkdownOptions,
+    out: &mut S,
+) {
+    match inline {
+        GraphInline::Str(text) => out.push(text),
+        GraphInline::Space => out.space(),
+        GraphInline::SoftBreak => out.soft_break(),
+        GraphInline::LineBreak => out.line_break(options.formatting.line_break_marker()),
+        GraphInline::Code(_, body) | GraphInline::RawInline(_, body) => {
+            out.push("`");
+            out.push(body);
+            out.push("`");
+        }
+        GraphInline::Math(body) => {
+            out.push("$");
+            out.push(body);
+            out.push("$");
+        }
+        GraphInline::Emph(inner) => {
+            let t = options.formatting.emphasis_token();
+            out.push(t);
+            render_inlines(inner, options, out);
+            out.push(t);
+        }
+        GraphInline::Strong(inner) => {
+            let t = options.formatting.strong_token();
+            out.push(t);
+            render_inlines(inner, options, out);
+            out.push(t);
+        }
+        GraphInline::Strikeout(inner) => {
+            out.push("~~");
+            render_inlines(inner, options, out);
+            out.push("~~");
+        }
+        GraphInline::Superscript(inner) => {
+            out.push("^");
+            render_inlines(inner, options, out);
+            out.push("^");
+        }
+        GraphInline::Subscript(inner) => {
+            out.push("~");
+            render_inlines(inner, options, out);
+            out.push("~");
+        }
+        GraphInline::SmallCaps(inner) | GraphInline::Underline(inner) => {
+            render_inlines(inner, options, out)
+        }
+        GraphInline::Link(url, _, link_type, inlines) => {
+            if *link_type == LinkType::Markdown && !model::is_ref_url(url) {
+                let inner = inlines_to_markdown(inlines, options);
+                if inner.eq_ignore_ascii_case(url) {
+                    out.push("<");
+                    out.push(url);
+                    out.push(">");
+                    return;
+                }
+            }
+            emit_link(url, *link_type, inlines, options, out);
+        }
+        GraphInline::Reference(reference) => {
+            let url = reference.key.to_library_url();
+            let inlines = text_to_inlines(&reference.text);
+            emit_link(&url, reference.reference_type.to_link_type(), &inlines, options, out);
+        }
+        GraphInline::Image(url, _, alt) => {
+            out.push("![");
+            render_inlines(alt, options, out);
+            out.push("](");
+            out.push(url);
+            out.push(")");
+        }
+    }
+}
+
+fn emit_link<S: MarkdownSink>(
+    url: &str,
+    link_type: LinkType,
+    inlines: &GraphInlines,
+    options: &MarkdownOptions,
+    out: &mut S,
+) {
+    match link_type {
+        LinkType::WikiLinkPiped => {
+            let inner_text = inlines_to_markdown(inlines, options);
+            out.push("[[");
+            out.push(url);
+            out.push("|");
+            out.push(&inner_text);
+            out.push("]]");
+        }
+        LinkType::WikiLink => {
+            out.push("[[");
+            out.push(url);
+            out.push("]]");
+        }
+        LinkType::Markdown => {
+            let final_url = if model::is_ref_url(url) {
+                append_refs_extension(url, &options.refs_extension)
+            } else {
+                url.to_string()
+            };
+            out.push("[");
+            render_inlines(inlines, options, out);
+            out.push("](");
+            out.push(&final_url);
+            out.push(")");
+        }
+    }
+}
+
+fn text_to_inlines(text: &str) -> Vec<GraphInline> {
+    let mut out = Vec::new();
+    split_text_words(text, &mut out);
+    out
+}
+
+fn wrap_inlines(inlines: &GraphInlines, options: &MarkdownOptions, indent: usize) -> String {
+    let Some(width) = options.formatting.wrap_column() else {
+        return inlines_to_markdown(inlines, options);
+    };
+    let effective = width.saturating_sub(indent).max(20);
+    let marker = options.formatting.line_break_marker();
+    let mut stream = TokenStream::default();
+    render_inlines(inlines, options, &mut stream);
+
+    let mut segments: Vec<String> = Vec::new();
+    let mut buf: Vec<String> = Vec::new();
+    for token in stream.finish() {
+        match token {
+            WrapToken::Word(s) => buf.push(s),
+            WrapToken::Break => {
+                segments.push(greedy_wrap(&buf, effective));
+                buf.clear();
+            }
+        }
+    }
+    segments.push(greedy_wrap(&buf, effective));
+    segments.join(marker)
+}
+
+fn greedy_wrap(tokens: &[String], width: usize) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for token in tokens {
+        if current.is_empty() {
+            current.push_str(token);
+        } else if current.chars().count() + 1 + token.chars().count() <= width {
+            current.push(' ');
+            current.push_str(token);
+        } else {
+            lines.push(std::mem::take(&mut current));
+            current.push_str(token);
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines.join("\n")
+}
+
 pub fn to_plain_text(content: &GraphInlines) -> String {
     content
         .iter()
@@ -468,11 +675,9 @@ pub fn frontmatter_to_yaml(mapping: &Mapping) -> String {
 }
 
 pub fn inlines_to_markdown(content: &GraphInlines, options: &MarkdownOptions) -> String {
-    content
-        .iter()
-        .map(|i| i.to_markdown(options))
-        .collect::<Vec<String>>()
-        .join("")
+    let mut out = String::new();
+    render_inlines(content, options, &mut out);
+    out
 }
 
 fn append_refs_extension(url: &str, extension: &str) -> String {
@@ -510,10 +715,19 @@ fn ensure_trailing_newline(s: String) -> String {
 }
 
 pub fn blocks_to_markdown_and(blocks: &Blocks, sparce: bool, options: &MarkdownOptions) -> String {
+    blocks_to_markdown_and_indented(blocks, sparce, options, 0)
+}
+
+pub fn blocks_to_markdown_and_indented(
+    blocks: &Blocks,
+    sparce: bool,
+    options: &MarkdownOptions,
+    indent: usize,
+) -> String {
     ensure_trailing_newline(
         blocks
             .iter()
-            .map(|block| block.to_markdown(options))
+            .map(|block| block.to_markdown_indented(options, indent))
             .collect::<Vec<String>>()
             .join(if sparce { "\n" } else { "" }),
     )
@@ -530,10 +744,18 @@ pub fn blocks_to_markdown(blocks: &Blocks, options: &MarkdownOptions) -> String 
 }
 
 pub fn blocks_to_markdown_sparce(blocks: &Blocks, options: &MarkdownOptions) -> String {
+    blocks_to_markdown_sparce_indented(blocks, options, 0)
+}
+
+pub fn blocks_to_markdown_sparce_indented(
+    blocks: &Blocks,
+    options: &MarkdownOptions,
+    indent: usize,
+) -> String {
     ensure_trailing_newline(
         blocks
             .iter()
-            .map(|block| block.to_markdown(options))
+            .map(|block| block.to_markdown_indented(options, indent))
             .collect::<Vec<String>>()
             .join("\n"),
     )
@@ -553,10 +775,55 @@ pub fn blocks_to_markdown_sparce_skip_frontmatter(
 }
 
 pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<GraphInline> {
-    content
-        .iter()
-        .map(|i| i.to_graph_inline(relative_to))
-        .collect()
+    let mut out = Vec::new();
+    for inline in content {
+        match inline {
+            DocumentInline::Str(text) => split_text_words(text, &mut out),
+            other => out.push(other.to_graph_inline(relative_to)),
+        }
+    }
+    out
+}
+
+fn split_text_words(text: &str, out: &mut Vec<GraphInline>) {
+    let mut word_start: Option<usize> = None;
+    let mut in_ws = false;
+    let mut ws_has_newline = false;
+    for (i, ch) in text.char_indices() {
+        if ch.is_whitespace() {
+            if let Some(start) = word_start.take() {
+                out.push(GraphInline::Str(text[start..i].to_string()));
+            }
+            if !in_ws {
+                in_ws = true;
+                ws_has_newline = false;
+            }
+            if ch == '\n' {
+                ws_has_newline = true;
+            }
+        } else {
+            if in_ws {
+                in_ws = false;
+                out.push(if ws_has_newline {
+                    GraphInline::SoftBreak
+                } else {
+                    GraphInline::Space
+                });
+            }
+            if word_start.is_none() {
+                word_start = Some(i);
+            }
+        }
+    }
+    if let Some(start) = word_start {
+        out.push(GraphInline::Str(text[start..].to_string()));
+    } else if in_ws {
+        out.push(if ws_has_newline {
+            GraphInline::SoftBreak
+        } else {
+            GraphInline::Space
+        });
+    }
 }
 
 #[cfg(test)]
@@ -701,4 +968,5 @@ pub mod tests {
             blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
+
 }

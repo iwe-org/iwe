@@ -517,66 +517,36 @@ impl DocumentInline {
     }
 
     pub fn to_graph_inline(&self, relative_to: &str) -> GraphInline {
+        use crate::model::graph::to_graph_inlines;
         match self {
             DocumentInline::Str(text) => GraphInline::Str(text.clone()),
-            DocumentInline::Emph(emph) => GraphInline::Emph(
-                emph.inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
-            ),
-            DocumentInline::Underline(underline) => GraphInline::Underline(
-                underline
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
-            ),
-            DocumentInline::Strong(strong) => GraphInline::Strong(
-                strong
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
-            ),
-            DocumentInline::Strikeout(strikeout) => GraphInline::Strikeout(
-                strikeout
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
-            ),
-            DocumentInline::Superscript(superscript) => GraphInline::Superscript(
-                superscript
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
-            ),
-            DocumentInline::Subscript(subscript) => GraphInline::Subscript(
-                subscript
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
-            ),
-            DocumentInline::SmallCaps(small_caps) => GraphInline::SmallCaps(
-                small_caps
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
-            ),
+            DocumentInline::Emph(emph) => {
+                GraphInline::Emph(to_graph_inlines(&emph.inlines, relative_to))
+            }
+            DocumentInline::Underline(underline) => {
+                GraphInline::Underline(to_graph_inlines(&underline.inlines, relative_to))
+            }
+            DocumentInline::Strong(strong) => {
+                GraphInline::Strong(to_graph_inlines(&strong.inlines, relative_to))
+            }
+            DocumentInline::Strikeout(strikeout) => {
+                GraphInline::Strikeout(to_graph_inlines(&strikeout.inlines, relative_to))
+            }
+            DocumentInline::Superscript(superscript) => {
+                GraphInline::Superscript(to_graph_inlines(&superscript.inlines, relative_to))
+            }
+            DocumentInline::Subscript(subscript) => {
+                GraphInline::Subscript(to_graph_inlines(&subscript.inlines, relative_to))
+            }
+            DocumentInline::SmallCaps(small_caps) => {
+                GraphInline::SmallCaps(to_graph_inlines(&small_caps.inlines, relative_to))
+            }
             DocumentInline::Code(code) => GraphInline::Code(None, code.text.clone()),
             DocumentInline::Space(_) => GraphInline::Space,
             DocumentInline::SoftBreak(_) => GraphInline::SoftBreak,
             DocumentInline::LineBreak(_) => GraphInline::LineBreak,
             DocumentInline::Link(link) => {
-                let inlines: Vec<GraphInline> = link
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect();
+                let inlines = to_graph_inlines(&link.inlines, relative_to);
                 if model::is_ref_url(&link.target.url) {
                     GraphInline::Reference(Reference {
                         key: Key::from_rel_link_url(&link.target.url, relative_to),
@@ -598,11 +568,7 @@ impl DocumentInline {
             DocumentInline::Image(image) => GraphInline::Image(
                 image.target.url.clone(),
                 image.target.title.clone(),
-                image
-                    .inlines
-                    .iter()
-                    .map(|inline| inline.to_graph_inline(relative_to))
-                    .collect(),
+                to_graph_inlines(&image.inlines, relative_to),
             ),
             DocumentInline::Math(math) => GraphInline::Math(math.content.clone()),
         }

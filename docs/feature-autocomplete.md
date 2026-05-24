@@ -20,18 +20,23 @@ trigger_characters = ["[", "+", "@"]
 
 Most editors also open the popup automatically as you type word characters (letters and digits), independently of this list — the list is only needed for non-word symbols. To restore the pre-0.1.7 behavior, set the list to `["+"]`.
 
-> **Note (Neovim):** to make completions appear *only* after `[` / `[[` and never on word characters, use the built-in `vim.lsp.completion.enable(..., { autotrigger = true })` (Neovim 0.11+) — its autotrigger only fires on the server's trigger characters. With `nvim-cmp`, set the LSP source's `keyword_length = 999`; with `blink.cmp`, set the LSP provider's `min_keyword_length = 999`. Trigger characters still pass through in both cases.
->
-> **Note (VS Code):** turn off word-character auto-suggestions for markdown while leaving trigger characters on:
->
-> ``` json
-> "[markdown]": {
->   "editor.quickSuggestions": { "other": "off", "comments": "off", "strings": "off" },
->   "editor.suggestOnTriggerCharacters": true
-> }
-> ```
->
-> Typing `[` still opens the popup; typing letters no longer does. `Ctrl+Space` always invokes completions manually.
+### Suppressing word-character completions
+
+To make completions appear *only* after `[` / `[[` and never on word characters, configure the editor:
+
+- **Neovim** — with the built-in client, use `vim.lsp.completion.enable(..., { autotrigger = true })` (Neovim 0.11+) — its autotrigger only fires on the server's trigger characters. With `nvim-cmp`, set the LSP source's `keyword_length = 999`. With `blink.cmp`, set the LSP provider's `min_keyword_length = 999`. Trigger characters still pass through in all three cases.
+- **VS Code** — turn off word-character auto-suggestions for markdown while leaving trigger characters on:
+
+``` json
+"[markdown]": {
+  "editor.quickSuggestions": { "other": "off", "comments": "off", "strings": "off" },
+  "editor.suggestOnTriggerCharacters": true
+}
+```
+
+Typing `[` still opens the popup; typing letters no longer does. `Ctrl+Space` always invokes completions manually.
+
+### Bracket prefixes
 
 When the cursor is preceded by `[` or `[[`, the inserted completion replaces those brackets and the link shape is chosen by the typed prefix:
 

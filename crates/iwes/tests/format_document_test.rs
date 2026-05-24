@@ -193,3 +193,28 @@ fn assert_formatted_after_change(source: &str, change: &str, formatted: &str) {
             vec![formatted.to_text_edit_full()],
         );
 }
+
+#[test]
+fn format_wraps_and_preserves_breaks() {
+    Fixture::with_options(
+        "alpha beta gamma delta epsilon zeta eta theta\\\niota kappa lambda mu nu xi omicron pi rho\n",
+        liwe::model::config::MarkdownOptions {
+            formatting: liwe::model::config::FormattingOptions {
+                wrap_column: Some(40),
+                preserve_line_breaks: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .format_document(
+        uri(1).to_document_formatting_params(),
+        vec![indoc! {"
+            alpha beta gamma delta epsilon zeta eta
+            theta\\
+            iota kappa lambda mu nu xi omicron pi
+            rho
+        "}
+        .to_text_edit_full()],
+    );
+}

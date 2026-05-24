@@ -62,6 +62,9 @@ list_token = "-"
 - `increment_ordered_list_bullets`: Whether to increment ordered list numbers (default: `true`). When `true`, items use `1.`, `2.`, `3.`; when `false`, all items use `1.`
 - `rule_token`: Character for horizontal rules (default: `"-"`). Options: `"-"`, `"*"`, or `"_"`
 - `rule_token_count`: Number of characters in horizontal rules (default: `72`)
+- `wrap_column`: Wrap paragraphs at this column (default: unset, no wrapping). Minimum effective value is `20`; lower values are ignored. Wrapping splits at word boundaries; inline code, wiki links, math, and link/image URLs stay atomic; inline-link and image text wraps at spaces with the closing `](url)` glued to the last word. List and blockquote indents are subtracted from the effective width so wrapped lines inside `- ` items respect `wrap_column`. Tokens longer than the limit sit on their own line.
+- `preserve_line_breaks`: Keep hard line breaks instead of dropping them (default: `false`). Recognizes two trailing spaces (`  \n`) and backslash (`\\\n`) in the source and emits them in the configured `line_break_style` on output.
+- `line_break_style`: How preserved hard breaks are emitted (default: `"backslash"`). Options: `"backslash"` (`\\\n`, visible and survives whitespace-trimming editors), `"spaces"` (`  \n`, invisible CommonMark default). Only takes effect when `preserve_line_breaks = true`.
 
 ### Library Settings
 

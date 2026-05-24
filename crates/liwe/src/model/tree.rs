@@ -656,10 +656,13 @@ impl Tree {
                         text: reference.text.clone(),
                         reference_type: reference.reference_type,
                     }));
-                    inlines.push(GraphInline::Str(" <- ".to_string()));
+                    inlines.push(GraphInline::Space);
+                    inlines.push(GraphInline::Str("<-".to_string()));
+                    inlines.push(GraphInline::Space);
                     for (i, (p_key, p_title)) in parents.iter().enumerate() {
                         if i > 0 {
-                            inlines.push(GraphInline::Str(", ".to_string()));
+                            inlines.push(GraphInline::Str(",".to_string()));
+                            inlines.push(GraphInline::Space);
                         }
                         inlines.push(GraphInline::Reference(Reference {
                             key: p_key.clone(),
