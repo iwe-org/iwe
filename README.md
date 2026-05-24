@@ -1,6 +1,6 @@
-# IWE - Memory system for you and your AI Agents
+# IWE — Turn your thinking into queryable context
 
-> Your second brain that AI agents can navigate. A structured knowledge graph for humans and machines.
+> A markdown knowledge graph for you and your AI agent.
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![Downloads](https://img.shields.io/crates/d/iwe.svg)](https://crates.io/crates/iwe)
@@ -13,59 +13,36 @@
 
 ![Knowledge Graph](docs/docs-detailed.svg)
 
-> A messy knowledge base provides messy context to an AI, and messy context yields poor results.
+IWE turns a directory of markdown files into a knowledge graph — a connected structure you browse from your editor and your AI queries from the command line. Same files, same links, two interfaces. No cloud, no database, no lock-in. Version everything with git.
 
-The knowledge you need keeps growing. Codebases expand. Documentation multiplies. Decisions pile up. It's hard to keep it all in your head—or fit it in a context window.
-
-We've all been there: you capture an insight, file it away, and two weeks later it's gone—buried in folders or scattered across apps. When you ask AI for help, you're feeding it fragments hoping something sticks. IWE gives both you and your AI the same map to navigate—one source of truth, shared understanding.
-
-IWE is a knowledge graph that organizes your notes hierarchically and makes them accessible to AI agents. Write in **Markdown**, structure with links, give AI agents the **tools** to navigate your knowledge.
-
-IWE itself has no built-in AI. It's designed to work alongside AI tools like Claude, Codex, and Gemini, giving them structured access to your notes so they can read, search, and update your knowledge base.
+Write in **Markdown**, structure with links, give AI agents the **tools** to navigate your knowledge. IWE itself has no built-in AI — it works alongside Claude, Codex, Gemini, and any tool that speaks the [Model Context Protocol](https://modelcontextprotocol.io).
 
 ## What You Get
 
-- **Your notes, your machine** — everything is plain Markdown files in a local directory. No cloud, no database, no lock-in.
-- **Structure without folders** — link notes together and IWE understands parent-child relationships. The same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
-- **IDE features for notes** — search, autocomplete, go-to-definition, rename, and refactoring in [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/)
-- **AI agents can use your notes** — [CLI tools](https://iwe.md/docs/cli/) and an [integration server](https://iwe.md/docs/agentic/mcp/) let AI agents search, read, and update your notes with full context
-- **Fast** — built in Rust, [processes 20,000 files in under a second](docs/benchmark.md)
+- **Plain markdown, full ownership.** Your notes are `.md` files in a local directory. Read them, edit them, `git push` them. Nothing proprietary.
+- **A graph, not a folder tree.** Link notes together and the same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
+- **IDE features for your editor.** Real LSP integration with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/) — search, refactor, rename, autocomplete.
+- **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) let agents search, retrieve, and refactor the same notes you edit by hand.
+- **Fast.** Built in Rust, [processes 20,000 files in under a second](docs/benchmark.md).
 
 ## How It Works
 
 IWE treats your notes as a connected structure. You organize them with two types of links:
 
 - **Nesting** — a link on its own line means "this topic includes that subtopic." Your notes form a tree you can browse and refactor. IWE calls these [inclusion links](https://iwe.md/docs/concepts/inclusion-links/).
-- **Cross-references** — regular inline links connect notes across topics, creating a web of relationships
+- **Cross-references** — regular inline links connect notes across topics, creating a web of relationships.
 - **Multiple parents** — the same note can live under several places at once. A "Meditation" note can belong to both "Health" and "Productivity" without duplicating the file.
-- **Context from parents** — when you retrieve a note, IWE can include context from the notes above it in the hierarchy
+- **Context from parents** — when you retrieve a note, IWE can include context from the notes above it in the hierarchy.
 
-This structure makes retrieval powerful: ask for a topic and get its full context—children, parents, and related notes—in a single query.
-
-## Editor Integration
-
-IWE gives your editor IDE-like features for markdown notes. It works with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/), and any editor that supports the Language Server Protocol (LSP).
-
-IWE understands document structure—headers, lists, and links—and provides refactorings like extracting sections into new notes and inlining them back. It supports standard Markdown, wiki-style links, tables, and other extensions.
-
-- **Search** — find notes by title or content
-- **Navigate** — go to definition, find references (backlinks)
-- **Preview** — hover over links to see content
-- **Auto-complete** — link suggestions as you type
-- **Inlay hints** — show parent references and link counts
-- **Extract** — pull sections into new notes
-- **Inline** — embed note content back into parent
-- **Rename** — rename files with automatic link updates
-- **Format** — normalize documents, update link titles
-- **Transform** — pipe text through external commands
-- **Templates** — create notes from templates (daily notes, etc.)
-- **Outline conversion** — switch between headers and lists
-
-More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
+This structure makes retrieval powerful — whether you're browsing in your editor or an agent is querying via CLI, ask for a topic and get its full context in a single call.
 
 ## Working with AI
 
-IWE gives AI agents structured access to your notes through two interfaces: a CLI for scripting and shell-based workflows, and an integration server for native connection with AI tools. Both expose the same operations—search, retrieve, create, refactor—so you can choose whichever fits your setup.
+IWE gives AI agents structured access to your notes through two interfaces: a CLI for scripting and shell-based workflows, and an MCP server for native connection with AI tools. Both expose the same operations — search, retrieve, create, refactor — so you can choose whichever fits your setup.
+
+### Integration Server (MCP)
+
+IWE includes a server (`iwec`) that lets AI tools like Claude Desktop, Cursor, and Windsurf work directly with your notes using the [Model Context Protocol](https://modelcontextprotocol.io). The server watches your files for changes, so edits you make in your editor are reflected immediately.
 
 ### Command-Line Tools
 
@@ -94,24 +71,26 @@ iwe tree --key oauth
 | `rename` | Rename a note; all links update automatically |
 | `delete` | Remove a note and clean up references |
 
-### Integration Server for AI Tools
+More information: [Working with AI](https://iwe.md/docs/agentic/) · [CLI Reference](https://iwe.md/docs/cli/) · [MCP Server](https://iwe.md/docs/agentic/mcp/)
 
-IWE includes a server (`iwec`) that lets AI tools like Claude Desktop, Cursor, and Windsurf work directly with your notes. It uses the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), an open standard for connecting AI tools to data sources.
+## Editor Integration
 
-The server provides the same operations as the CLI—search, retrieve, create, refactor—and watches your files for changes, so edits you make in your editor are reflected immediately.
+IWE gives your editor IDE-like features for markdown notes. It works with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/), and any editor that supports the Language Server Protocol (LSP).
 
-More information: [Integration Server Documentation](https://iwe.md/docs/agentic/mcp/)
+- **Search** — find notes by title or content
+- **Navigate** — go to definition, find references (backlinks)
+- **Preview** — hover over links to see content
+- **Auto-complete** — link suggestions as you type
+- **Inlay hints** — show parent references and link counts
+- **Extract** — pull sections into new notes
+- **Inline** — embed note content back into parent
+- **Rename** — rename files with automatic link updates
+- **Format** — normalize documents, update link titles
+- **Transform** — pipe text through external commands
+- **Templates** — create notes from templates (daily notes, etc.)
+- **Outline conversion** — switch between headers and lists
 
----
-
-Other AI memory tools store your notes in formats you can't read or edit. IWE keeps everything in plain Markdown files on your disk. When an AI agent asks for information, it gets the exact notes that are connected to the topic—not "maybe relevant" guesses based on text similarity.
-
-You stay in control. Your notes are plain text files you can read, edit, and version with git. AI agents become collaborators that navigate your knowledge alongside you, not black boxes that absorb it.
-
-More information:
-- [Working with AI](https://iwe.md/docs/agentic/)
-- [CLI Reference](https://iwe.md/docs/cli/)
-- [Integration Server](https://iwe.md/docs/agentic/mcp/)
+More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
 
 ## Quick Start
 
@@ -134,9 +113,21 @@ More information:
    iwe init
    ```
 
-3. **Configure** your editor — [VS Code](https://iwe.md/docs/editors/vscode/) · [Neovim](https://iwe.md/docs/editors/neovim/) · [Helix](https://iwe.md/docs/editors/helix/) · [Zed](https://iwe.md/docs/editors/zed/)
+3. **Pick your path:**
 
-4. **Teach** your AI agent — ask it to learn the `iwe` command using its built-in help
+   **Set up your editor** — [VS Code](https://iwe.md/docs/editors/vscode/) · [Neovim](https://iwe.md/docs/editors/neovim/) · [Helix](https://iwe.md/docs/editors/helix/) · [Zed](https://iwe.md/docs/editors/zed/)
+
+   **Connect your AI agent** — point it at the MCP server:
+   ```json
+   {
+     "mcpServers": {
+       "iwe": {
+         "command": "iwec",
+         "args": ["--project", "~/notes"]
+       }
+     }
+   }
+   ```
 
 ## Documentation
 
