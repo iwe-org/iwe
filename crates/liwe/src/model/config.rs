@@ -38,6 +38,13 @@ impl Default for MarkdownOptions {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LineBreakStyle {
+    Backslash,
+    Spaces,
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
 pub struct FormattingOptions {
     pub emphasis_token: Option<String>,
@@ -49,6 +56,9 @@ pub struct FormattingOptions {
     pub increment_ordered_list_bullets: Option<bool>,
     pub rule_token: Option<String>,
     pub rule_token_count: Option<usize>,
+    pub wrap_column: Option<usize>,
+    pub preserve_line_breaks: Option<bool>,
+    pub line_break_style: Option<LineBreakStyle>,
 }
 
 impl FormattingOptions {
@@ -75,6 +85,9 @@ impl FormattingOptions {
                 .rule_token
                 .filter(|v| matches!(v.as_str(), "-" | "*" | "_")),
             rule_token_count: self.rule_token_count.filter(|&v| v >= 3),
+            wrap_column: self.wrap_column.filter(|&v| v >= 20),
+            preserve_line_breaks: self.preserve_line_breaks,
+            line_break_style: self.line_break_style,
         }
     }
 
@@ -124,6 +137,25 @@ impl FormattingOptions {
 
     pub fn rule_token_count(&self) -> usize {
         self.rule_token_count.unwrap_or(72)
+    }
+
+    pub fn wrap_column(&self) -> Option<usize> {
+        self.wrap_column
+    }
+
+    pub fn preserve_line_breaks(&self) -> bool {
+        self.preserve_line_breaks.unwrap_or(false)
+    }
+
+    pub fn line_break_style(&self) -> LineBreakStyle {
+        self.line_break_style.unwrap_or(LineBreakStyle::Backslash)
+    }
+
+    pub fn line_break_marker(&self) -> &'static str {
+        match self.line_break_style() {
+            LineBreakStyle::Backslash => "\\\n",
+            LineBreakStyle::Spaces => "  \n",
+        }
     }
 
     pub fn to_cmark_options(&self) -> CmarkOptions<'_> {

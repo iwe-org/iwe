@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `markdown.formatting.wrap_column: Option<usize>` — wraps `Para`/`Plain` blocks emitted by `Graph::to_markdown` at word boundaries; inline code, wiki links, math, and link/image URLs stay atomic while inline-link / image text wraps at spaces. List and blockquote indents are subtracted from the effective width via the new `GraphBlock::to_markdown_indented` API.
+- `markdown.formatting.preserve_line_breaks: Option<bool>` — when `true`, `MarkdownEventsReader` preserves hard line breaks (`  \n`, `\\\n`) instead of dropping them, emitting them in the configured `line_break_style` on output.
+- `markdown.formatting.line_break_style: Option<LineBreakStyle>` (default `Backslash`) with variants `Backslash`, `Spaces` — controls how `GraphInline::LineBreak` is rendered. `FormattingOptions::line_break_marker()` exposes the configured marker string.
+- `GraphBlock::to_markdown_indented`, `blocks_to_markdown_and_indented`, and `blocks_to_markdown_sparce_indented` — indent-aware variants used internally to thread list/blockquote prefix width into paragraph wrap calculations.
+
 ## [0.1.7](https://github.com/iwe-org/iwe/compare/liwe-v0.1.6...liwe-v0.1.7) - 2026-05-20
 
 ### Added

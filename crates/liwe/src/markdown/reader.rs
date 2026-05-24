@@ -157,7 +157,17 @@ impl MarkdownEventsReader {
                     );
                     self.pop_inline();
                 }
-                HardBreak => {}
+                HardBreak => {
+                    if self.markdown_options.formatting.preserve_line_breaks() {
+                        self.push_inline(
+                            DocumentInline::LineBreak(LineBreak {
+                                inline_range: InlineRange::default(),
+                            }),
+                            self.to_line_range(range.clone()),
+                        );
+                        self.pop_inline();
+                    }
+                }
                 Rule => {
                     self.push_block(DocumentBlock::HorizontalRule(HorizontalRule {
                         line_range: self.to_line_range(range),

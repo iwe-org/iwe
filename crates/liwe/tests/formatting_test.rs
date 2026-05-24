@@ -3,7 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::markdown::MarkdownReader;
-use liwe::model::config::{FormattingOptions, MarkdownOptions};
+use liwe::model::config::{FormattingOptions, LineBreakStyle, MarkdownOptions};
 use pretty_assertions::assert_str_eq;
 
 #[test]
@@ -370,6 +370,9 @@ fn valid_values_preserved_after_validation() {
         increment_ordered_list_bullets: Some(true),
         rule_token: Some("*".into()),
         rule_token_count: Some(5),
+        wrap_column: Some(80),
+        preserve_line_breaks: Some(true),
+        line_break_style: Some(LineBreakStyle::Spaces),
     }
     .validated();
 
@@ -382,6 +385,201 @@ fn valid_values_preserved_after_validation() {
     assert_eq!(formatting.increment_ordered_list_bullets(), true);
     assert_eq!(formatting.rule_token(), "*");
     assert_eq!(formatting.rule_token_count(), 5);
+    assert_eq!(formatting.wrap_column(), Some(80));
+    assert_eq!(formatting.preserve_line_breaks(), true);
+    assert_eq!(formatting.line_break_marker(), "  \n");
+}
+
+#[test]
+fn preserve_line_breaks_round_trips_backslash() {
+    compare(
+        indoc! {"
+        first line\\
+        second line
+        "},
+        "first line\\\nsecond line",
+        FormattingOptions {
+            preserve_line_breaks: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn preserve_line_breaks_converts_spaces_to_backslash() {
+    compare(
+        indoc! {"
+        first line\\
+        second line
+        "},
+        "first line  \nsecond line",
+        FormattingOptions {
+            preserve_line_breaks: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn preserve_line_breaks_emits_two_spaces_when_configured() {
+    let expected = indoc! {"
+        first line<SP><SP>
+        second line
+    "}
+    .replace("<SP>", " ");
+    compare(
+        &expected,
+        "first line\\\nsecond line",
+        FormattingOptions {
+            preserve_line_breaks: Some(true),
+            line_break_style: Some(LineBreakStyle::Spaces),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn hard_breaks_dropped_when_preserve_disabled() {
+    compare(
+        "first linesecond line\n",
+        "first line\\\nsecond line",
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn wrap_column_wraps_long_paragraph() {
+    compare(
+        indoc! {"
+        alpha beta gamma delta epsilon
+        zeta eta theta iota kappa
+        lambda mu
+        "},
+        "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu",
+        FormattingOptions {
+            wrap_column: Some(30),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_wraps_each_segment_between_preserved_breaks() {
+    compare(
+        indoc! {"
+        alpha beta gamma delta epsilon\\
+        zeta eta theta iota kappa lambda
+        "},
+        "alpha beta gamma delta epsilon\\\nzeta eta theta iota kappa lambda",
+        FormattingOptions {
+            wrap_column: Some(40),
+            preserve_line_breaks: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_disabled_returns_input() {
+    compare(
+        "alpha beta gamma delta epsilon zeta\n",
+        "alpha beta gamma delta epsilon zeta",
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn wrap_column_wraps_link_text_keeps_url_atomic() {
+    compare(
+        indoc! {"
+        see [the quick brown
+        fox](http://example.com)
+        end
+        "},
+        "see [the quick brown fox](http://example.com) end",
+        FormattingOptions {
+            wrap_column: Some(20),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_keeps_inline_code_atomic() {
+    compare(
+        indoc! {"
+        alpha
+        `code with spaces`
+        end
+        "},
+        "alpha `code with spaces` end",
+        FormattingOptions {
+            wrap_column: Some(20),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_keeps_wiki_link_atomic() {
+    compare(
+        indoc! {"
+        alpha [[wiki link]]
+        end
+        "},
+        "alpha [[wiki link]] end",
+        FormattingOptions {
+            wrap_column: Some(20),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_wraps_image_alt_keeps_url_atomic() {
+    compare(
+        indoc! {"
+        see ![alt text
+        here](image.png) end
+        "},
+        "see ![alt text here](image.png) end",
+        FormattingOptions {
+            wrap_column: Some(20),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_long_token_sits_alone() {
+    compare(
+        indoc! {"
+        alpha
+        beta-very-long-token-that-cannot-fit
+        end
+        "},
+        "alpha beta-very-long-token-that-cannot-fit end",
+        FormattingOptions {
+            wrap_column: Some(20),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_wraps_inside_bullet_list() {
+    compare(
+        indoc! {"
+        - alpha beta gamma delta
+          epsilon zeta eta theta iota
+          kappa lambda mu
+        "},
+        "- alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu",
+        FormattingOptions {
+            wrap_column: Some(30),
+            ..Default::default()
+        },
+    );
 }
 
 fn compare(expected: &str, input: &str, formatting: FormattingOptions) {
