@@ -20,7 +20,9 @@ impl BasePath {
     }
 
     pub fn from_path(path: &str) -> Self {
-        let url = Url::from_directory_path(path).expect("valid base path");
+        let url = Url::from_directory_path(path)
+            .or_else(|_| file_url_from_posix_path(path))
+            .expect("valid base path");
         Self {
             url: canonical(url),
         }
@@ -40,18 +42,23 @@ impl BasePath {
 
     pub fn url_to_key(&self, uri: &Uri) -> Key {
         let url = canonical(Url::parse(&uri.to_string()).expect("valid URI"));
-        let base = self.url.to_file_path().expect("base is a file URL");
-        let target = url.to_file_path().expect("URI is a file URL");
-        let relative = target.strip_prefix(&base).unwrap_or(&target);
-
-        let joined = relative
-            .components()
-            .filter_map(|c| match c {
-                std::path::Component::Normal(os) => Some(os.to_string_lossy().to_string()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join("/");
+        let base = normalize_windows_drive_segment(
+            self.url
+                .path_segments()
+                .expect("base is a file URL")
+                .filter(|segment| !segment.is_empty())
+                .map(|segment| percent_decode_str(segment).decode_utf8_lossy().into_owned())
+                .collect::<Vec<_>>(),
+        );
+        let target = normalize_windows_drive_segment(
+            url.path_segments()
+                .expect("URI is a file URL")
+                .filter(|segment| !segment.is_empty())
+                .map(|segment| percent_decode_str(segment).decode_utf8_lossy().into_owned())
+                .collect::<Vec<_>>(),
+        );
+        let relative = target.strip_prefix(base.as_slice()).unwrap_or(&target);
+        let joined = relative.join("/");
 
         Key::name(&joined)
     }
@@ -69,7 +76,10 @@ impl BasePath {
 
         let mut resolved = source.join(link).expect("valid link");
 
-        let last = resolved.path_segments().and_then(|s| s.last()).unwrap_or("");
+        let last = resolved
+            .path_segments()
+            .and_then(|s| s.last())
+            .unwrap_or("");
         if !last.is_empty() && !last.ends_with(".md") {
             let decoded = percent_decode_str(last).decode_utf8_lossy().into_owned();
             resolved
@@ -98,6 +108,22 @@ impl BasePath {
     }
 }
 
+fn file_url_from_posix_path(path: &str) -> Result<Url, ()> {
+    if !path.starts_with('/') {
+        return Err(());
+    }
+
+    let mut url = Url::parse("file:///").map_err(|_| ())?;
+    {
+        let mut segments = url.path_segments_mut().map_err(|_| ())?;
+        for segment in path.split('/').filter(|s| !s.is_empty()) {
+            segments.push(segment);
+        }
+        segments.push("");
+    }
+    Ok(url)
+}
+
 fn canonical(url: Url) -> Url {
     if url.scheme() != "file" {
         return url;
@@ -120,13 +146,25 @@ fn lowercase_drive_letter(path: &Path) -> PathBuf {
     let (prefix, rest) = s.strip_prefix('/').map_or(("", s.as_ref()), |r| ("/", r));
     let mut chars = rest.chars();
     match (chars.next(), chars.next()) {
-        (Some(d), Some(':')) if d.is_ascii_alphabetic() => {
-            PathBuf::from(format!("{}{}{}", prefix, d.to_ascii_lowercase(), &rest[2..]))
-        }
+        (Some(d), Some(':')) if d.is_ascii_alphabetic() => PathBuf::from(format!(
+            "{}{}{}",
+            prefix,
+            d.to_ascii_lowercase(),
+            &rest[2..]
+        )),
         _ => path.to_path_buf(),
     }
 }
 
+fn normalize_windows_drive_segment(mut segments: Vec<String>) -> Vec<String> {
+    if let Some(first) = segments.first_mut() {
+        let bytes = first.as_bytes();
+        if bytes.len() == 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+            first.make_ascii_lowercase();
+        }
+    }
+    segments
+}
 
 #[cfg(test)]
 mod tests {
@@ -162,10 +200,7 @@ mod tests {
         let base_path = BasePath::from_path("/path with spaces/docs");
         let key = liwe::model::Key::name("test.md");
         let url = base_path.key_to_url(&key);
-        assert_eq!(
-            url.to_string(),
-            "file:///path%20with%20spaces/docs/test.md"
-        );
+        assert_eq!(url.to_string(), "file:///path%20with%20spaces/docs/test.md");
     }
 
     #[test]
@@ -177,14 +212,19 @@ mod tests {
     }
 
     #[test]
+    fn test_url_to_key_with_nested_windows_path_uses_forward_slashes() {
+        let base_path = BasePath::new("file:///C:/base/".to_string());
+        let uri = Uri::from_str("file:///c%3A/base/sub/dir/note.md").unwrap();
+        let key = base_path.url_to_key(&uri);
+        assert_eq!(key.to_string(), "sub/dir/note");
+    }
+
+    #[test]
     fn test_key_to_url_with_spaces_in_key() {
         let base_path = BasePath::from_path("/basepath");
         let key = liwe::model::Key::name("my document.md");
         let url = base_path.key_to_url(&key);
-        assert_eq!(
-            url.to_string(),
-            "file:///basepath/my%20document.md"
-        );
+        assert_eq!(url.to_string(), "file:///basepath/my%20document.md");
     }
 
     #[test]
@@ -232,8 +272,7 @@ mod tests {
         let source_key = base_path.url_to_key(&source_uri);
         let target_key = base_path.url_to_key(&target_uri);
 
-        let parsed_target_key =
-            liwe::model::Key::from_rel_link_url("two", &source_key.parent());
+        let parsed_target_key = liwe::model::Key::from_rel_link_url("two", &source_key.parent());
 
         assert_eq!(parsed_target_key.to_string(), target_key.to_string());
     }

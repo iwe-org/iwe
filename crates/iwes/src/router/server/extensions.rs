@@ -149,6 +149,30 @@ pub fn byte_to_utf16_offset(line: &str, byte_offset: usize) -> Option<u32> {
     (byte_offset == line.len()).then_some(units)
 }
 
+#[cfg(test)]
+mod tests {
+    use liwe::{markdown::MarkdownReader, model::config::MarkdownOptions, parser::Parser};
+
+    use super::*;
+
+    #[test]
+    fn utf16_position_after_cjk_text_does_not_match_parser_byte_offsets() {
+        let line = "新西兰旅行，四月最后一个周末。[[travel-2025-beijing]]";
+        let parser = Parser::new(line, &MarkdownOptions::default(), MarkdownReader::new());
+
+        // LSP sends UTF-16 code units. The first `[` is at UTF-16 column 19 on this line.
+        let lsp_column = 19;
+        assert_eq!(utf16_to_byte_offset(line, lsp_column), Some(49));
+
+        // Current hover/definition code uses `position.to_model()` directly,
+        // so it passes 19 as the internal column and misses the wiki link.
+        assert_eq!(
+            parser.url_at(Position::new(0, lsp_column).to_model()),
+            Some("travel-2025-beijing".to_string())
+        );
+    }
+}
+
 pub struct LinkCompletionContext {
     pub bracket_prefix: String,
     pub replace_range: Range,

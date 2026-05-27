@@ -46,15 +46,7 @@ pub fn walk_md_paths(base_path: &Path) -> Vec<(String, PathBuf)> {
             }
 
             let relative_path = path.strip_prefix(base_path).ok()?;
-            let key = if let Some(parent) = relative_path.parent() {
-                if parent == std::path::Path::new("") {
-                    to_file_name(path)
-                } else {
-                    format!("{}/{}", parent.to_string_lossy(), to_file_name(path))
-                }
-            } else {
-                to_file_name(path)
-            };
+            let key = relative_key(relative_path);
 
             Some((key, path.to_path_buf()))
         })
@@ -88,4 +80,43 @@ fn to_file_name(path: &Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().trim_end_matches(".md").to_string())
         .unwrap_or_default()
+}
+
+fn relative_key(path: &Path) -> String {
+    let parent = path.parent().unwrap_or(Path::new(""));
+    let file_name = to_file_name(path);
+
+    if parent.as_os_str().is_empty() {
+        return file_name;
+    }
+
+    let parent_key = parent
+        .iter()
+        .map(|part| part.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/");
+
+    format!("{}/{}", parent_key, file_name)
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn walk_md_paths_normalizes_nested_keys_to_forward_slashes() {
+        let temp_dir = tempfile::TempDir::new().expect("temp dir");
+        let nested = temp_dir.path().join("sub").join("dir");
+
+        fs::create_dir_all(&nested).expect("create nested dir");
+        fs::write(nested.join("note.md"), "# title").expect("write note");
+
+        let mut paths = walk_md_paths(temp_dir.path());
+        paths.sort_by(|a, b| a.0.cmp(&b.0));
+
+        assert_eq!(
+            paths,
+            vec![("sub/dir/note".to_string(), nested.join("note.md"))]
+        );
+    }
 }

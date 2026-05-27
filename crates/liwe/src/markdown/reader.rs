@@ -411,29 +411,7 @@ impl MarkdownEventsReader {
     }
 
     fn to_inline_range(&self, range: Range<usize>) -> InlineRange {
-        let mut start = 0;
-        let mut start_char = 0;
-        let mut end = 0;
-        let mut end_char = 0;
-
-        for (line, &line_start) in self.line_starts.iter().enumerate() {
-            if line_start <= range.start {
-                start = line;
-                start_char = range.start - line_start;
-            }
-            if line_start <= range.end {
-                end = line;
-                end_char = range.end - line_start;
-            }
-        }
-
-        Position {
-            line: start,
-            character: start_char,
-        }..Position {
-            line: end,
-            character: end_char,
-        }
+        self.byte_offset_to_position(range.start)..self.byte_offset_to_position(range.end)
     }
 
     fn to_line_range(&self, range: Range<usize>) -> LineRange {
@@ -454,6 +432,28 @@ impl MarkdownEventsReader {
         }
 
         start..end
+    }
+
+    fn byte_offset_to_position(&self, offset: usize) -> Position {
+        let content = self.content.as_ref().expect("content to be set");
+        let mut line = 0;
+        let mut line_start = 0;
+
+        for (idx, &start) in self.line_starts.iter().enumerate() {
+            if start <= offset {
+                line = idx;
+                line_start = start;
+            } else {
+                break;
+            }
+        }
+
+        let character = content[line_start..offset]
+            .chars()
+            .map(|ch| ch.len_utf16())
+            .sum();
+
+        Position { line, character }
     }
 }
 
@@ -599,6 +599,23 @@ mod tests {
         ];
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_wiki_link_position_inside_cjk_text_uses_utf16_columns() {
+        let content = "新西兰旅行，四月最后一个周末。[[travel-2025-beijing]]";
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+
+        let DocumentBlock::Para(para) = &actual[0] else {
+            panic!("expected paragraph");
+        };
+
+        let DocumentInline::Link(link) = &para.inlines[1] else {
+            panic!("expected link");
+        };
+
+        assert_eq!(link.inline_range.start, Position { line: 0, character: 15 });
     }
 
     #[test]

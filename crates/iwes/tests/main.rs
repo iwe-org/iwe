@@ -24,3 +24,6 @@ mod sections_to_list_test;
 mod sort_test;
 mod transform_test;
 mod workspace_symbols_test;
+
+#[cfg(windows)]
+mod windows_real_workspace_test;

@@ -12,10 +12,7 @@ fn path_to_key(path: &Path, base_path: &Path) -> Option<Key> {
     }
 
     let relative = path.strip_prefix(base_path).ok()?;
-    let key_str = relative
-        .with_extension("")
-        .to_string_lossy()
-        .to_string();
+    let key_str = relative_key(relative);
 
     Some(Key::name(&key_str))
 }
@@ -54,11 +51,7 @@ pub fn start_with_config(
     });
 }
 
-pub fn start_polling(
-    graph: Arc<Mutex<Graph>>,
-    base_path: PathBuf,
-    interval: std::time::Duration,
-) {
+pub fn start_polling(graph: Arc<Mutex<Graph>>, base_path: PathBuf, interval: std::time::Duration) {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
     let config = notify::Config::default()
@@ -109,5 +102,30 @@ async fn handle_event(graph: &Arc<Mutex<Graph>>, base_path: &Path, event: Event)
             }
             _ => {}
         }
+    }
+}
+
+fn relative_key(path: &Path) -> String {
+    let without_extension = path.with_extension("");
+    let parts = without_extension
+        .iter()
+        .map(|part| part.to_string_lossy())
+        .collect::<Vec<_>>();
+
+    parts.join("/")
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_to_key_normalizes_nested_paths_to_forward_slashes() {
+        let base = Path::new(r"D:\base");
+        let path = Path::new(r"D:\base\sub\dir\note.md");
+
+        let key = path_to_key(path, base).expect("key");
+
+        assert_eq!(key.to_string(), "sub/dir/note");
     }
 }

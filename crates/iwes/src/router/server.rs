@@ -1,6 +1,6 @@
 use actions::{all_action_types, ActionContext, ActionProvider};
-use std::time::SystemTime;
 use itertools::Itertools;
+use liwe::model::node::Node;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
     model::{
@@ -13,7 +13,7 @@ use liwe::{
 };
 use lsp_server::ResponseError;
 use lsp_types::*;
-use liwe::model::node::Node;
+use std::time::SystemTime;
 
 use super::{LspClient, ServerConfig};
 
@@ -47,7 +47,11 @@ impl Server {
             &config.state,
             config.sequential_ids.unwrap_or(false),
             config.configuration.markdown.clone(),
-            config.configuration.library.frontmatter_document_title.clone(),
+            config
+                .configuration
+                .library
+                .frontmatter_document_title
+                .clone(),
         );
         let mut search_index = SearchIndex::new();
         search_index.update(&graph);
@@ -86,7 +90,7 @@ impl Server {
             return None;
         }
 
-        let target_key = Key::from_rel_link_url(url, &relative_to);
+        let target_key = self.resolve_reference_key(url, &relative_to);
         let markdown = self.graph.to_markdown_skip_frontmatter(&target_key);
 
         if markdown.trim().is_empty() {
@@ -198,8 +202,8 @@ impl Server {
                     _ => 0,
                 };
                 let word_start_byte = cursor_byte - word.len();
-                let word_start_char = byte_to_utf16_offset(line, word_start_byte)
-                    .unwrap_or(position.character);
+                let word_start_char =
+                    byte_to_utf16_offset(line, word_start_byte).unwrap_or(position.character);
                 Some((bracket.to_string(), query.len(), word_start_char, trailing))
             })
             .unwrap_or((String::new(), 0, position.character, 0));
@@ -263,8 +267,10 @@ impl Server {
             return DefinitionResult::External(url);
         }
 
+        let target_key = self.resolve_reference_key(&url, &relative_to);
+
         DefinitionResult::Internal(GotoDefinitionResponse::Scalar(Location::new(
-            self.base_path.resolve_relative_url(&url, &relative_to),
+            self.base_path.key_to_url(&target_key),
             Range::default(),
         )))
     }
@@ -439,7 +445,7 @@ impl Server {
                         .to_key(&self.base_path),
                 )
                 .and_then(|parser| parser.url_at(params.text_document_position.position.to_model()))
-                .map(|url| Key::from_rel_link_url(&url, relative_to))
+                .map(|url| self.resolve_reference_key(&url, relative_to))
                 .filter(|key| query::key_exists(&self.graph, key))
                 .map(|key| {
                     let affected_keys = query::all_backlinks(&self.graph, &key)
@@ -529,7 +535,7 @@ impl Server {
                     .to_key(&self.base_path),
             )
             .and_then(|parser| parser.url_at(params.text_document_position.position.to_model()))
-            .map(|url| Key::from_rel_link_url(&url, relative_to))
+            .map(|url| self.resolve_reference_key(&url, relative_to))
             .unwrap_or(key.clone());
 
         self.graph
@@ -609,11 +615,7 @@ impl Server {
             return code_action.clone();
         };
 
-        let Some(key) = data
-            .get("key")
-            .and_then(|v| v.as_str())
-            .map(Key::name)
-        else {
+        let Some(key) = data.get("key").and_then(|v| v.as_str()).map(Key::name) else {
             return code_action.clone();
         };
 
@@ -679,11 +681,7 @@ impl Server {
     pub fn handle_folding_range(&self, params: FoldingRangeParams) -> Vec<FoldingRange> {
         let key = params.text_document.uri.to_key(&self.base_path);
 
-        let Some(tree) = self
-            .graph
-            .maybe_key(&key)
-            .map(|p| p.collect_tree())
-        else {
+        let Some(tree) = self.graph.maybe_key(&key).map(|p| p.collect_tree()) else {
             return vec![];
         };
 
@@ -702,7 +700,10 @@ impl Server {
                         let header_prefix = "#".repeat(level as usize);
                         let text: String = inlines.iter().map(|i| i.plain_text()).collect();
                         next_level = level + 1;
-                        (Some((end - 1) as u32), Some(format!("{} {}", header_prefix, text)))
+                        (
+                            Some((end - 1) as u32),
+                            Some(format!("{} {}", header_prefix, text)),
+                        )
                     }
                     Node::Raw(lang, _) if line_range.end > line_range.start + 1 => {
                         (Some((line_range.end - 1) as u32), lang.clone())
@@ -763,7 +764,10 @@ impl Server {
     }
 
     fn max_end_line_recursive(&self, tree: &Tree) -> Option<usize> {
-        let own_end = tree.id.and_then(|id| self.graph.node_line_range(id)).map(|r| r.end);
+        let own_end = tree
+            .id
+            .and_then(|id| self.graph.node_line_range(id))
+            .map(|r| r.end);
         let children_max = tree
             .children
             .iter()
@@ -774,6 +778,27 @@ impl Server {
             (Some(a), None) => Some(a),
             (None, Some(b)) => Some(b),
             (None, None) => None,
+        }
+    }
+
+    fn resolve_reference_key(&self, url: &str, relative_to: &str) -> Key {
+        let direct = Key::from_rel_link_url(url, relative_to);
+        if query::key_exists(&self.graph, &direct) {
+            return direct;
+        }
+
+        // Fallback for wiki links that omit directories: use a unique basename match.
+        let direct_name = direct.source();
+        let candidates = query::all_keys(&self.graph)
+            .into_iter()
+            .map(|m| m.key)
+            .filter(|k| k.source() == direct_name)
+            .collect_vec();
+
+        if candidates.len() == 1 {
+            candidates[0].clone()
+        } else {
+            direct
         }
     }
 }
@@ -845,27 +870,21 @@ impl ActionContext for &Server {
 
     fn get_link_key_at(&self, key: &Key, line: usize, character: usize) -> Option<Key> {
         let parser = self.graph().parser(key)?;
-        let position = liwe::model::Position {
-            line,
-            character,
-        };
+        let position = liwe::model::Position { line, character };
         let url = parser.url_at(position)?;
 
         if !is_ref_url(&url) {
             return None;
         }
 
-        let target_key = Key::from_rel_link_url(&url, &key.parent());
+        let target_key = self.resolve_reference_key(&url, &key.parent());
         self.graph.maybe_key(&target_key)?;
         Some(target_key)
     }
 
     fn get_link_text_at(&self, key: &Key, line: usize, character: usize) -> Option<String> {
         let parser = self.graph().parser(key)?;
-        let position = liwe::model::Position {
-            line,
-            character,
-        };
+        let position = liwe::model::Position { line, character };
         let link = parser.link_at(position)?;
         Some(link.to_plain_text())
     }
