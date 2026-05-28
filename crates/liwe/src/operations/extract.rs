@@ -60,7 +60,14 @@ pub fn extract(
         source_title: graph.get_ref_text(source_key),
     };
 
-    let new_key = format_target_key(&config.key_template, &config.key_date_format, config.locale, &fmt_ctx, graph, now);
+    let new_key = format_target_key(
+        &config.key_template,
+        &config.key_date_format,
+        config.locale,
+        &fmt_ctx,
+        graph,
+        now,
+    );
 
     let options = graph.markdown_options();
 
@@ -72,8 +79,14 @@ pub fn extract(
         Some(LinkType::Markdown) | None => ReferenceType::Regular,
     };
 
-    let updated_tree =
-        extract_section(&tree, target_id, parent_id, &new_key, &section_title, reference_type);
+    let updated_tree = extract_section(
+        &tree,
+        target_id,
+        parent_id,
+        &new_key,
+        &section_title,
+        reference_type,
+    );
 
     let source_markdown = updated_tree
         .iter()
@@ -168,9 +181,11 @@ pub fn extract_all(
         ));
     }
 
-    let parent_tree = tree.find_id(parent_id).ok_or(OperationError::InvalidTarget(
-        "Parent section not found".to_string(),
-    ))?;
+    let parent_tree = tree
+        .find_id(parent_id)
+        .ok_or(OperationError::InvalidTarget(
+            "Parent section not found".to_string(),
+        ))?;
 
     let subsection_ids: Vec<NodeId> = parent_tree
         .children
@@ -199,9 +214,7 @@ pub fn extract_all(
             .map(|t| t.node.plain_text())
             .unwrap_or_default();
 
-        let parent_title = current_tree
-            .find_id(parent_id)
-            .map(|t| t.node.plain_text());
+        let parent_title = current_tree.find_id(parent_id).map(|t| t.node.plain_text());
 
         let fmt_ctx = KeyFormatContext {
             id: &ids[idx],
@@ -212,8 +225,14 @@ pub fn extract_all(
             source_title: graph.get_ref_text(source_key),
         };
 
-        let base_key =
-            format_target_key(&config.key_template, &config.key_date_format, config.locale, &fmt_ctx, graph, now);
+        let base_key = format_target_key(
+            &config.key_template,
+            &config.key_date_format,
+            config.locale,
+            &fmt_ctx,
+            graph,
+            now,
+        );
 
         let new_key = ensure_unique_key_in_batch(&base_key, graph, &generated_keys);
         generated_keys.push(new_key.clone());

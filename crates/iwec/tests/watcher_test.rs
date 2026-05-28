@@ -3,16 +3,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use liwe::graph::Graph;
-use liwe::model::Key;
 use liwe::model::config::MarkdownOptions;
+use liwe::model::Key;
 use tokio::sync::Mutex;
 
 async fn start_watcher(graph: Arc<Mutex<Graph>>, base_path: &std::path::Path) {
-    iwec::watcher::start_polling(
-        graph,
-        base_path.to_path_buf(),
-        Duration::from_millis(10),
-    );
+    iwec::watcher::start_polling(graph, base_path.to_path_buf(), Duration::from_millis(10));
     tokio::time::sleep(Duration::from_millis(20)).await;
 }
 

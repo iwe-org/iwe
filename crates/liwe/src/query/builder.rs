@@ -7,8 +7,7 @@ use crate::query::document::{
     PseudoField, ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
 use crate::query::wire::{
-    self, RawFilter, RawKeyOpMap, RawOperation, RawProjection, RawRelationalObj, RawSort,
-    RawUpdate,
+    self, RawFilter, RawKeyOpMap, RawOperation, RawProjection, RawRelationalObj, RawSort, RawUpdate,
 };
 
 #[derive(Debug)]
@@ -253,7 +252,6 @@ impl std::fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-
 pub fn parse_operation(yaml: &str, kind: OperationKind) -> Result<Operation, ParseError> {
     let raw = wire::parse(yaml).map_err(ParseError::Wire)?;
     match kind {
@@ -283,7 +281,6 @@ fn parse_to_mapping(yaml: &str) -> Result<Mapping, serde_yaml::Error> {
         _ => serde_yaml::from_str::<Mapping>(yaml),
     }
 }
-
 
 fn build_find(raw: RawOperation) -> Result<FindOp, ParseError> {
     if raw.update.is_some() {
@@ -404,7 +401,6 @@ fn build_delete(raw: RawOperation) -> Result<DeleteOp, ParseError> {
     })
 }
 
-
 fn build_filter(raw: RawFilter) -> Result<Filter, ParseError> {
     build_filter_at(raw.0, &[])
 }
@@ -447,10 +443,7 @@ fn classify_keys(map: &Mapping) -> Result<(Vec<String>, Vec<String>), ParseError
     let mut dollar = Vec::new();
     let mut bare = Vec::new();
     for (k, _) in map {
-        let s = k
-            .as_str()
-            .ok_or(ParseError::NonStringKey)?
-            .to_string();
+        let s = k.as_str().ok_or(ParseError::NonStringKey)?.to_string();
         if s.starts_with('$') {
             dollar.push(s);
         } else {
@@ -469,10 +462,22 @@ fn build_filter_op(op: &str, value: &Value, path: &[String]) -> Result<Filter, P
             path: path.to_vec(),
         }),
         "$key" => Ok(Filter::Key(parse_key_op(value, "$key")?)),
-        "$includes" => Ok(Filter::Includes(Box::new(parse_inclusion_arg(value, "$includes")?))),
-        "$includedBy" => Ok(Filter::IncludedBy(Box::new(parse_inclusion_arg(value, "$includedBy")?))),
-        "$references" => Ok(Filter::References(Box::new(parse_reference_arg(value, "$references")?))),
-        "$referencedBy" => Ok(Filter::ReferencedBy(Box::new(parse_reference_arg(value, "$referencedBy")?))),
+        "$includes" => Ok(Filter::Includes(Box::new(parse_inclusion_arg(
+            value,
+            "$includes",
+        )?))),
+        "$includedBy" => Ok(Filter::IncludedBy(Box::new(parse_inclusion_arg(
+            value,
+            "$includedBy",
+        )?))),
+        "$references" => Ok(Filter::References(Box::new(parse_reference_arg(
+            value,
+            "$references",
+        )?))),
+        "$referencedBy" => Ok(Filter::ReferencedBy(Box::new(parse_reference_arg(
+            value,
+            "$referencedBy",
+        )?))),
         other => Err(ParseError::UnknownOperator {
             op: other.to_string(),
             path: path.to_vec(),
@@ -540,7 +545,6 @@ fn build_field_clause(
             }
 
             if !dollar_keys.is_empty() {
-
                 let mut ops = Vec::with_capacity(dollar_keys.len());
                 for op in dollar_keys {
                     let v = map[Value::String(op.clone())].clone();
@@ -556,7 +560,6 @@ fn build_field_clause(
                     Ok(Filter::And(ops))
                 }
             } else {
-
                 build_nested_field(segments, &map, path)
             }
         }
@@ -721,8 +724,10 @@ fn parse_type_name(name: &str) -> Result<YamlType, ParseError> {
     }
 }
 
-
-pub fn build_projection(raw: RawProjection, mode: ProjectionMode) -> Result<Projection, ParseError> {
+pub fn build_projection(
+    raw: RawProjection,
+    mode: ProjectionMode,
+) -> Result<Projection, ParseError> {
     let mut fields: Vec<ProjectionField> = Vec::new();
     for (k, v) in &raw.0 {
         let output = k.as_str().ok_or(ParseError::NonStringKey)?.to_string();
@@ -770,14 +775,16 @@ fn check_output_name(name: &str) -> Result<(), ParseError> {
 fn build_projection_source(output: &str, v: &Value) -> Result<ProjectionSource, ParseError> {
     match v {
         Value::Number(n) if n.as_i64() == Some(1) => {
-            Ok(ProjectionSource::Frontmatter(FieldPath(vec![output.to_string()])))
+            Ok(ProjectionSource::Frontmatter(FieldPath(vec![
+                output.to_string()
+            ])))
         }
-        Value::Bool(true) => {
-            Ok(ProjectionSource::Frontmatter(FieldPath(vec![output.to_string()])))
-        }
-        Value::Null => {
-            Ok(ProjectionSource::Frontmatter(FieldPath(vec![output.to_string()])))
-        }
+        Value::Bool(true) => Ok(ProjectionSource::Frontmatter(FieldPath(vec![
+            output.to_string()
+        ]))),
+        Value::Null => Ok(ProjectionSource::Frontmatter(FieldPath(vec![
+            output.to_string()
+        ]))),
         Value::String(s) => {
             if let Some(stripped) = s.strip_prefix('$') {
                 let selector = format!("${}", stripped);
@@ -797,7 +804,6 @@ fn build_projection_source(output: &str, v: &Value) -> Result<ProjectionSource, 
         }),
     }
 }
-
 
 fn build_sort(raw: RawSort) -> Result<Sort, ParseError> {
     let map = raw.0;
@@ -840,7 +846,6 @@ fn build_sort(raw: RawSort) -> Result<Sort, ParseError> {
     Ok(Sort { key: path, dir })
 }
 
-
 fn build_limit(raw: i64) -> Result<Limit, ParseError> {
     if raw < 0 {
         Err(ParseError::NegativeLimit(raw))
@@ -848,7 +853,6 @@ fn build_limit(raw: i64) -> Result<Limit, ParseError> {
         Ok(Limit(raw as u64))
     }
 }
-
 
 pub fn build_update_doc(raw: RawUpdate) -> Result<Update, ParseError> {
     if raw.set.is_none() && raw.unset.is_none() {
@@ -1006,14 +1010,14 @@ fn parse_key_op(value: &Value, op: &'static str) -> Result<KeyOp, ParseError> {
             }
         }
     }
-    let m: RawKeyOpMap = serde_yaml::from_value(value.clone())
-        .map_err(|_| ParseError::KeyOpForbidden { op })?;
+    let m: RawKeyOpMap =
+        serde_yaml::from_value(value.clone()).map_err(|_| ParseError::KeyOpForbidden { op })?;
     key_op_from_map(m, op)
 }
 
 fn key_op_from_map(m: RawKeyOpMap, op: &'static str) -> Result<KeyOp, ParseError> {
-    let count = m.eq.is_some() as u8 + m.ne.is_some() as u8 + m.in_.is_some() as u8
-        + m.nin.is_some() as u8;
+    let count =
+        m.eq.is_some() as u8 + m.ne.is_some() as u8 + m.in_.is_some() as u8 + m.nin.is_some() as u8;
     if count != 1 {
         return Err(ParseError::KeyOpForbidden { op });
     }
@@ -1101,7 +1105,11 @@ fn parse_inclusion_arg(value: &Value, op: &'static str) -> Result<InclusionAncho
     if min_depth > max_depth {
         return Err(ParseError::DepthRangeInverted { op });
     }
-    Ok(InclusionAnchor::with_match(match_filter, min_depth, max_depth))
+    Ok(InclusionAnchor::with_match(
+        match_filter,
+        min_depth,
+        max_depth,
+    ))
 }
 
 fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAnchor, ParseError> {
@@ -1133,7 +1141,11 @@ fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAncho
     if min_distance > max_distance {
         return Err(ParseError::DepthRangeInverted { op });
     }
-    Ok(ReferenceAnchor::with_match(match_filter, min_distance, max_distance))
+    Ok(ReferenceAnchor::with_match(
+        match_filter,
+        min_distance,
+        max_distance,
+    ))
 }
 
 fn check_update_conflicts(ops: &[UpdateOperator]) -> Result<(), ParseError> {
@@ -1170,7 +1182,6 @@ fn is_prefix_of(prefix: &[String], path: &[String]) -> bool {
     prefix.iter().zip(path.iter()).all(|(a, b)| a == b)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1182,7 +1193,6 @@ mod tests {
     fn parse_err(yaml: &str, kind: OperationKind) -> ParseError {
         parse(yaml, kind).expect_err("expected parse failure")
     }
-
 
     #[test]
     fn find_rejects_update_field() {
@@ -1246,22 +1256,15 @@ mod tests {
 
     #[test]
     fn delete_with_empty_filter_ok() {
-
         let op = parse("filter: {}\n", OperationKind::Delete).unwrap();
         assert!(matches!(op, Operation::Delete(_)));
     }
 
-
     #[test]
     fn scope_field_rejected_at_wire() {
-
-        let err = parse_err(
-            "scope:\n  notes/foo: { self: true }\n",
-            OperationKind::Find,
-        );
+        let err = parse_err("scope:\n  notes/foo: { self: true }\n", OperationKind::Find);
         assert!(matches!(err, ParseError::Wire(_)));
     }
-
 
     #[test]
     fn filter_mixed_dollar_and_bare_rejected() {
@@ -1279,7 +1282,9 @@ mod tests {
             OperationKind::Find,
         )
         .unwrap();
-        let Operation::Find(find) = op else { panic!("expected Find") };
+        let Operation::Find(find) = op else {
+            panic!("expected Find")
+        };
         let parts = match find.filter.unwrap() {
             Filter::And(p) => p,
             other => panic!("expected And, got {:?}", other),
@@ -1299,29 +1304,20 @@ mod tests {
 
     #[test]
     fn filter_top_level_not_rejected() {
-        let err = parse_err(
-            "filter:\n  $not:\n    status: draft\n",
-            OperationKind::Find,
-        );
+        let err = parse_err("filter:\n  $not:\n    status: draft\n", OperationKind::Find);
         assert!(matches!(err, ParseError::TopLevelNotNotSupported { .. }));
     }
 
     #[test]
     fn filter_empty_and_rejected() {
         let err = parse_err("filter:\n  $and: []\n", OperationKind::Find);
-        assert!(matches!(
-            err,
-            ParseError::EmptyOperatorList { op: "$and" }
-        ));
+        assert!(matches!(err, ParseError::EmptyOperatorList { op: "$and" }));
     }
 
     #[test]
     fn filter_empty_or_rejected() {
         let err = parse_err("filter:\n  $or: []\n", OperationKind::Find);
-        assert!(matches!(
-            err,
-            ParseError::EmptyOperatorList { op: "$or" }
-        ));
+        assert!(matches!(err, ParseError::EmptyOperatorList { op: "$or" }));
     }
 
     #[test]
@@ -1363,14 +1359,9 @@ mod tests {
         }
     }
 
-
     #[test]
     fn project_accepts_one_true_null() {
-        let op = parse(
-            "project:\n  a: 1\n  b: true\n  c: ~\n",
-            OperationKind::Find,
-        )
-        .unwrap();
+        let op = parse("project:\n  a: 1\n  b: true\n  c: ~\n", OperationKind::Find).unwrap();
         if let Operation::Find(find) = op {
             let p = find.project.unwrap();
             assert_eq!(p.fields.len(), 3);
@@ -1394,11 +1385,7 @@ mod tests {
 
     #[test]
     fn project_string_source_resolves_to_path() {
-        let op = parse(
-            "project:\n  name: author.name\n",
-            OperationKind::Find,
-        )
-        .unwrap();
+        let op = parse("project:\n  name: author.name\n", OperationKind::Find).unwrap();
         if let Operation::Find(find) = op {
             let p = find.project.unwrap();
             assert_eq!(p.fields[0].output, "name");
@@ -1466,11 +1453,7 @@ mod tests {
 
     #[test]
     fn add_fields_extend_mode() {
-        let op = parse(
-            "addFields:\n  body: $content\n",
-            OperationKind::Find,
-        )
-        .unwrap();
+        let op = parse("addFields:\n  body: $content\n", OperationKind::Find).unwrap();
         if let Operation::Find(find) = op {
             let p = find.project.unwrap();
             assert_eq!(p.mode, ProjectionMode::Extend);
@@ -1480,7 +1463,6 @@ mod tests {
             panic!()
         }
     }
-
 
     #[test]
     fn sort_accepts_one_ascending() {
@@ -1525,7 +1507,6 @@ mod tests {
 
     #[test]
     fn sort_rejects_multi_key() {
-
         let err = parse_err("sort:\n  a: 1\n  b: -1\n", OperationKind::Find);
         assert!(matches!(err, ParseError::MultiKeySortNotSupportedV1));
     }
@@ -1535,7 +1516,6 @@ mod tests {
         let err = parse_err("sort: {}\n", OperationKind::Find);
         assert!(matches!(err, ParseError::EmptySort));
     }
-
 
     #[test]
     fn limit_negative_rejected() {
@@ -1554,22 +1534,15 @@ mod tests {
         }
     }
 
-
     #[test]
     fn update_empty_rejected() {
-        let err = parse_err(
-            "filter: {}\nupdate: {}\n",
-            OperationKind::Update,
-        );
+        let err = parse_err("filter: {}\nupdate: {}\n", OperationKind::Update);
         assert!(matches!(err, ParseError::EmptyUpdate));
     }
 
     #[test]
     fn update_empty_set_rejected() {
-        let err = parse_err(
-            "filter: {}\nupdate:\n  $set: {}\n",
-            OperationKind::Update,
-        );
+        let err = parse_err("filter: {}\nupdate:\n  $set: {}\n", OperationKind::Update);
         assert!(matches!(
             err,
             ParseError::EmptyUpdateOperator { op: "$set" }
@@ -1632,10 +1605,7 @@ mod tests {
 
     #[test]
     fn type_bare_yaml_null_is_rejected_with_specific_error() {
-        let err = parse_err(
-            "filter:\n  field:\n    $type: null\n",
-            OperationKind::Find,
-        );
+        let err = parse_err("filter:\n  field:\n    $type: null\n", OperationKind::Find);
         assert!(matches!(err, ParseError::TypeBareYamlNull));
     }
 
@@ -1693,15 +1663,12 @@ mod tests {
 
     #[test]
     fn size_float_distinguishes_from_negative() {
-        let float_err = parse_err(
-            "filter:\n  tags:\n    $size: 1.5\n",
-            OperationKind::Find,
-        );
-        assert!(matches!(float_err, ParseError::OperatorExpectedInteger { op: "$size" }));
-        let neg_err = parse_err(
-            "filter:\n  tags:\n    $size: -1\n",
-            OperationKind::Find,
-        );
+        let float_err = parse_err("filter:\n  tags:\n    $size: 1.5\n", OperationKind::Find);
+        assert!(matches!(
+            float_err,
+            ParseError::OperatorExpectedInteger { op: "$size" }
+        ));
+        let neg_err = parse_err("filter:\n  tags:\n    $size: -1\n", OperationKind::Find);
         assert!(matches!(
             neg_err,
             ParseError::OperatorExpectedNonNegativeInt { op: "$size" }
@@ -1710,28 +1677,19 @@ mod tests {
 
     #[test]
     fn filter_path_with_whitespace_rejected() {
-        let err = parse_err(
-            "filter:\n  \"foo .bar\": 1\n",
-            OperationKind::Find,
-        );
+        let err = parse_err("filter:\n  \"foo .bar\": 1\n", OperationKind::Find);
         assert!(matches!(err, ParseError::InvalidPathSegment { .. }));
     }
 
     #[test]
     fn projection_path_with_whitespace_rejected() {
-        let err = parse_err(
-            "project:\n  \" foo\": 1\n",
-            OperationKind::Find,
-        );
+        let err = parse_err("project:\n  \" foo\": 1\n", OperationKind::Find);
         assert!(matches!(err, ParseError::InvalidPathSegment { .. }));
     }
 
     #[test]
     fn sort_path_with_empty_segment_rejected() {
-        let err = parse_err(
-            "sort:\n  \"a..b\": 1\n",
-            OperationKind::Find,
-        );
+        let err = parse_err("sort:\n  \"a..b\": 1\n", OperationKind::Find);
         assert!(matches!(err, ParseError::InvalidPathSegment { .. }));
     }
 

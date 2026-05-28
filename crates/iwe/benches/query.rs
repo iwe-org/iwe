@@ -60,17 +60,12 @@ fn bench_filters(c: &mut Criterion, graph: &liwe::graph::Graph, n: usize) {
 
     let f_included_by_unbounded =
         Filter::IncludedBy(Box::new(InclusionAnchor::with_max(hub_key(), u32::MAX)));
-    group.bench_with_input(
-        BenchmarkId::new("included_by_unbounded", n),
-        &n,
-        |b, _| {
-            b.iter(|| evaluate(&f_included_by_unbounded, graph));
-        },
-    );
+    group.bench_with_input(BenchmarkId::new("included_by_unbounded", n), &n, |b, _| {
+        b.iter(|| evaluate(&f_included_by_unbounded, graph));
+    });
 
     let ref_target = doc_key(1);
-    let f_referenced_by =
-        Filter::ReferencedBy(Box::new(ReferenceAnchor::with_max(ref_target, 1)));
+    let f_referenced_by = Filter::ReferencedBy(Box::new(ReferenceAnchor::with_max(ref_target, 1)));
     group.bench_with_input(BenchmarkId::new("referenced_by", n), &n, |b, _| {
         b.iter(|| evaluate(&f_referenced_by, graph));
     });
@@ -104,9 +99,7 @@ fn bench_operations(c: &mut Criterion, graph: &liwe::graph::Graph, n: usize) {
         b.iter(|| execute(&op_find, graph));
     });
 
-    let op_count = Operation::Count(
-        CountOp::new().filter(Filter::eq("status", "published")),
-    );
+    let op_count = Operation::Count(CountOp::new().filter(Filter::eq("status", "published")));
     group.bench_with_input(BenchmarkId::new("count", n), &n, |b, _| {
         b.iter(|| execute(&op_count, graph));
     });

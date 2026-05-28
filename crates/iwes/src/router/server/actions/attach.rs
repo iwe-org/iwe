@@ -175,22 +175,26 @@ impl ActionProvider for AttachAction {
 
             let updated = tree.attach(reference);
 
-            Some(Changes::new().update(
-                attach_to_key.clone(),
-                updated
-                    .iter()
-                    .to_markdown(&attach_to_key.parent(), context.markdown_options()),
-            ))
-        } else {
-            Some(Changes::new().create(
-                attach_to_key.clone(),
-                self.format_target_document(
-                    now,
-                    reference
+            Some(
+                Changes::new().update(
+                    attach_to_key.clone(),
+                    updated
                         .iter()
                         .to_markdown(&attach_to_key.parent(), context.markdown_options()),
                 ),
-            ))
+            )
+        } else {
+            Some(
+                Changes::new().create(
+                    attach_to_key.clone(),
+                    self.format_target_document(
+                        now,
+                        reference
+                            .iter()
+                            .to_markdown(&attach_to_key.parent(), context.markdown_options()),
+                    ),
+                ),
+            )
         }
     }
 }

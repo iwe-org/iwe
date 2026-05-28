@@ -65,7 +65,6 @@ fn folding_range_for_code_blocks() {
     );
 }
 
-
 #[test]
 fn folding_range_for_quotes() {
     Fixture::with(indoc! {"

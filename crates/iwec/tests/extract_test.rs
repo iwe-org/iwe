@@ -1,4 +1,3 @@
-
 use crate::fixture::Fixture;
 use serde_json::json;
 
@@ -31,10 +30,7 @@ async fn extract_by_section_title() {
     .await;
 
     let result = f
-        .call_tool(
-            "iwe_extract",
-            json!({"key": "1", "section": "Section A"}),
-        )
+        .call_tool("iwe_extract", json!({"key": "1", "section": "Section A"}))
         .await;
     let output = Fixture::result_json(&result);
 
@@ -72,11 +68,7 @@ async fn extract_by_block_number() {
 
 #[tokio::test]
 async fn extract_dry_run() {
-    let f = Fixture::with_documents(vec![(
-        "1",
-        "# Root\n\n## Sub\n\nText\n",
-    )])
-    .await;
+    let f = Fixture::with_documents(vec![("1", "# Root\n\n## Sub\n\nText\n")]).await;
 
     let result = f
         .call_tool(

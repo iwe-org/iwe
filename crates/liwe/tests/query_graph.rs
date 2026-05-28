@@ -488,9 +488,7 @@ fn exclude_inside_descendants() {
             # C
         "},
         filter(and(vec![
-            included_by(InclusionAnchor::with_max(
-                "1", 5,
-            )),
+            included_by(InclusionAnchor::with_max("1", 5)),
             key_ne("3"),
         ])),
         &["2"],
@@ -516,8 +514,8 @@ fn disconnected_components() {
 
 #[test]
 fn sort_after_graph_filter() {
-    use liwe::query::Sort;
     use liwe::query::prelude::exists;
+    use liwe::query::Sort;
     assert_keys(
         indoc! {"
             ---

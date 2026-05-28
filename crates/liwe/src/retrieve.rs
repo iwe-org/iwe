@@ -1,14 +1,12 @@
 use std::collections::HashSet;
 
-use itertools::Itertools;
-use serde::Serialize;
-use crate::graph::walk::{
-    ancestors_inclusion, descendants_inclusion, outbound_reference,
-};
+use crate::graph::walk::{ancestors_inclusion, descendants_inclusion, outbound_reference};
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
 use crate::query::{self, Filter};
+use itertools::Itertools;
+use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,8 +78,7 @@ impl<'a> DocumentReader<'a> {
         let effective_keys: Vec<Key> = match (&options.filter, keys.is_empty()) {
             (Some(f), true) => query::evaluate(f, self.graph),
             (Some(f), false) => {
-                let set: HashSet<Key> =
-                    query::evaluate(f, self.graph).into_iter().collect();
+                let set: HashSet<Key> = query::evaluate(f, self.graph).into_iter().collect();
                 keys.iter().filter(|k| set.contains(k)).cloned().collect()
             }
             (None, _) => keys.to_vec(),
@@ -139,10 +136,9 @@ impl<'a> DocumentReader<'a> {
             }
 
             if options.depth > 0 {
-                let mut sub_doc_keys: Vec<Key> =
-                    descendants_inclusion(self.graph, key, 1)
-                        .into_keys()
-                        .collect();
+                let mut sub_doc_keys: Vec<Key> = descendants_inclusion(self.graph, key, 1)
+                    .into_keys()
+                    .collect();
                 sub_doc_keys.sort();
                 for sub_key in sub_doc_keys {
                     let mut sub_anc: Vec<(Key, u32)> =
@@ -158,9 +154,8 @@ impl<'a> DocumentReader<'a> {
         }
 
         if options.links {
-            let mut links: Vec<(Key, u32)> = outbound_reference(self.graph, key, 1)
-                .into_iter()
-                .collect();
+            let mut links: Vec<(Key, u32)> =
+                outbound_reference(self.graph, key, 1).into_iter().collect();
             links.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
             for (k, _) in links {
                 push(k, &mut result, &mut seen);
@@ -241,8 +236,7 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
-        let mut parents: Vec<EdgeRef> =
-            parents.into_iter().unique_by(|p| p.key.clone()).collect();
+        let mut parents: Vec<EdgeRef> = parents.into_iter().unique_by(|p| p.key.clone()).collect();
         parents.sort_by(|a, b| a.key.cmp(&b.key));
         parents
     }

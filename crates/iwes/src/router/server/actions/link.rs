@@ -26,7 +26,9 @@ impl LinkAction {
         word: &str,
     ) -> Key {
         let now: DateTime<Local> = context.now().into();
-        let formatted = now.format_localized(&self.key_date_format, self.locale).to_string();
+        let formatted = now
+            .format_localized(&self.key_date_format, self.locale)
+            .to_string();
         let slug = string_to_slug(word);
 
         let relative_key = Environment::new()

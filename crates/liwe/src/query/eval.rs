@@ -2,16 +2,14 @@ use std::collections::HashSet;
 
 use rayon::prelude::*;
 
-use crate::graph::Graph;
-use crate::model::Key;
-use crate::query::document::{
-    FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, ReferenceAnchor,
-};
-use crate::query::filter::{match_field_op, resolve_path, Resolution};
-use crate::query::graph_match::match_key_op;
 use crate::graph::walk::{
     ancestors_inclusion, descendants_inclusion, inbound_reference, outbound_reference,
 };
+use crate::graph::Graph;
+use crate::model::Key;
+use crate::query::document::{FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, ReferenceAnchor};
+use crate::query::filter::{match_field_op, resolve_path, Resolution};
+use crate::query::graph_match::match_key_op;
 
 const PARALLEL_THRESHOLD: usize = 64;
 
@@ -91,7 +89,10 @@ fn eval_or(children: &[Filter], graph: &Graph, scope: Option<&HashSet<Key>>) -> 
 fn eval_nor(children: &[Filter], graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<Key> {
     let universe = scope.cloned().unwrap_or_else(|| all_keys(graph));
     let union = eval_or(children, graph, Some(&universe));
-    universe.into_iter().filter(|k| !union.contains(k)).collect()
+    universe
+        .into_iter()
+        .filter(|k| !union.contains(k))
+        .collect()
 }
 
 fn eval_field(
@@ -106,7 +107,10 @@ fn eval_field(
 
 fn eval_key(op: &KeyOp, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<Key> {
     let universe = scope.cloned().unwrap_or_else(|| all_keys(graph));
-    universe.into_iter().filter(|k| match_key_op(op, k)).collect()
+    universe
+        .into_iter()
+        .filter(|k| match_key_op(op, k))
+        .collect()
 }
 
 fn eval_inclusion(

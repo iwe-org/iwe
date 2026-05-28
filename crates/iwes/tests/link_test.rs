@@ -253,16 +253,17 @@ fn link_word_with_collision() {
     );
     files.insert("existing".to_string(), "# existing\n".to_string());
 
-    Fixture::with_options_and_client(files, create_link_config("existing", None), "", None).code_action(
-        uri(1).to_code_action_params(2, "custom.link"),
-        vec![
-            uri_from("existing-1").to_create_file(),
-            uri_from("existing-1").to_edit("# word\n"),
-            uri(1).to_edit("# test\n\n[word](existing-1) here\n"),
-        ]
-        .to_workspace_edit()
-        .to_code_action("Link word", "custom.link"),
-    );
+    Fixture::with_options_and_client(files, create_link_config("existing", None), "", None)
+        .code_action(
+            uri(1).to_code_action_params(2, "custom.link"),
+            vec![
+                uri_from("existing-1").to_create_file(),
+                uri_from("existing-1").to_edit("# word\n"),
+                uri(1).to_edit("# test\n\n[word](existing-1) here\n"),
+            ]
+            .to_workspace_edit()
+            .to_code_action("Link word", "custom.link"),
+        );
 }
 
 #[test]

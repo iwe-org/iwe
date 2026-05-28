@@ -1,15 +1,10 @@
-
 use crate::fixture::Fixture;
 use liwe::model::config::{ActionDefinition, Attach, Configuration};
 use rmcp::model::ResourceContents;
 
 #[tokio::test]
 async fn list_resources_includes_documents() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Doc one\n"),
-        ("2", "# Doc two\n"),
-    ])
-    .await;
+    let f = Fixture::with_documents(vec![("1", "# Doc one\n"), ("2", "# Doc two\n")]).await;
 
     let result = f.list_resources().await;
     assert!(result.resources.len() >= 5);
@@ -40,11 +35,8 @@ async fn read_document_resource() {
 
 #[tokio::test]
 async fn read_tree_resource() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root\n\n[Child](2)\n"),
-        ("2", "# Child\n"),
-    ])
-    .await;
+    let f =
+        Fixture::with_documents(vec![("1", "# Root\n\n[Child](2)\n"), ("2", "# Child\n")]).await;
 
     let result = f.read_resource("iwe://tree").await;
     let text = match &result.contents[0] {

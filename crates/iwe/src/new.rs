@@ -116,11 +116,15 @@ impl<'a> DocumentCreator<'a> {
         let markdown_locale = get_locale(self.config.markdown.locale.as_deref());
 
         let now = Local::now();
-        let key_today = now.format_localized(&key_date_format, key_locale).to_string();
+        let key_today = now
+            .format_localized(&key_date_format, key_locale)
+            .to_string();
         let markdown_today = now
             .format_localized(&markdown_date_format, markdown_locale)
             .to_string();
-        let key_now = now.format_localized(&key_time_format, key_locale).to_string();
+        let key_now = now
+            .format_localized(&key_time_format, key_locale)
+            .to_string();
         let markdown_now = now
             .format_localized(&markdown_time_format, markdown_locale)
             .to_string();

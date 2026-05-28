@@ -2,7 +2,7 @@ use liwe::graph::Graph;
 use liwe::model::Key;
 use liwe::query::execute;
 use liwe::query::prelude::{count, filter, find, includes, key_eq, or, references};
-use liwe::query::{FindMatch, FindOp, Filter, InclusionAnchor, Outcome, ReferenceAnchor};
+use liwe::query::{Filter, FindMatch, FindOp, InclusionAnchor, Outcome, ReferenceAnchor};
 
 pub fn all_keys(graph: &Graph) -> Vec<FindMatch> {
     match execute(&find(FindOp::new()), graph) {

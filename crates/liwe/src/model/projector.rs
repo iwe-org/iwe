@@ -172,7 +172,9 @@ impl Projector {
         if iter.child().map(|n| n.is_leaf()).unwrap_or(false) {
             items.push(vec![GraphBlock::Para(self.resolve_inlines(iter.inlines()))]);
         } else {
-            items.push(vec![GraphBlock::Plain(self.resolve_inlines(iter.inlines()))]);
+            items.push(vec![GraphBlock::Plain(
+                self.resolve_inlines(iter.inlines()),
+            )]);
         }
 
         if let Some(sub_list) = iter.child().map(|child| self.with(0).project_node(child)) {

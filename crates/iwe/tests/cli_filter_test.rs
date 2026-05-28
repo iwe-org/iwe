@@ -5,7 +5,6 @@ use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
-
 fn setup() -> TempDir {
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path();
@@ -117,7 +116,6 @@ fn count_filter_status_draft() {
     assert_eq!(stdout.trim(), "2");
 }
 
-
 #[test]
 fn find_filter_status_draft_returns_two_keys() {
     let dir = setup();
@@ -218,16 +216,8 @@ fn delete_filter_matches_multi_doc() {
 fn delete_f_keys_matches_legacy_keys_flag() {
     let dir_a = setup();
     let dir_b = setup();
-    let (out_new, _, ok_new) = run(
-        dir_a.path(),
-        "delete",
-        &["a", "--dry-run", "-f", "keys"],
-    );
-    let (out_old, _, ok_old) = run(
-        dir_b.path(),
-        "delete",
-        &["a", "--dry-run", "--keys"],
-    );
+    let (out_new, _, ok_new) = run(dir_a.path(), "delete", &["a", "--dry-run", "-f", "keys"]);
+    let (out_old, _, ok_old) = run(dir_b.path(), "delete", &["a", "--dry-run", "--keys"]);
     assert!(ok_new);
     assert!(ok_old);
     assert_eq!(out_new, out_old, "-f keys must match --keys output exactly");
@@ -256,11 +246,7 @@ fn rename_f_keys_matches_legacy_keys_flag() {
 #[test]
 fn find_max_depth_widens_includes_anchor() {
     let dir = setup();
-    let (out_default, _, ok1) = run(
-        dir.path(),
-        "find",
-        &["--includes", "a", "-f", "keys"],
-    );
+    let (out_default, _, ok1) = run(dir.path(), "find", &["--includes", "a", "-f", "keys"]);
     assert!(ok1);
     let (out_widened, _, ok2) = run(
         dir.path(),
@@ -274,11 +260,7 @@ fn find_max_depth_widens_includes_anchor() {
 #[test]
 fn find_max_distance_widens_references_anchor() {
     let dir = setup();
-    let (out_default, _, ok1) = run(
-        dir.path(),
-        "find",
-        &["--references", "a", "-f", "keys"],
-    );
+    let (out_default, _, ok1) = run(dir.path(), "find", &["--references", "a", "-f", "keys"]);
     assert!(ok1);
     let (out_widened, _, ok2) = run(
         dir.path(),
@@ -292,11 +274,7 @@ fn find_max_distance_widens_references_anchor() {
 #[test]
 fn update_set_reserved_top_level_rejected() {
     let dir = setup();
-    let (_, stderr, ok) = run(
-        dir.path(),
-        "update",
-        &["-k", "a", "--set", "_hidden=1"],
-    );
+    let (_, stderr, ok) = run(dir.path(), "update", &["-k", "a", "--set", "_hidden=1"]);
     assert!(!ok);
     assert!(
         stderr.contains("reserved prefix"),
@@ -347,11 +325,7 @@ fn update_set_reserved_in_nested_value_rejected() {
 #[test]
 fn update_set_whitespace_segment_rejected() {
     let dir = setup();
-    let (_, stderr, ok) = run(
-        dir.path(),
-        "update",
-        &["-k", "a", "--set", " foo=1"],
-    );
+    let (_, stderr, ok) = run(dir.path(), "update", &["-k", "a", "--set", " foo=1"]);
     assert!(!ok);
     assert!(
         stderr.contains("invalid path segment"),
@@ -363,11 +337,7 @@ fn update_set_whitespace_segment_rejected() {
 #[test]
 fn update_set_control_char_segment_rejected() {
     let dir = setup();
-    let (_, stderr, ok) = run(
-        dir.path(),
-        "update",
-        &["-k", "a", "--set", "foo\tbar=1"],
-    );
+    let (_, stderr, ok) = run(dir.path(), "update", &["-k", "a", "--set", "foo\tbar=1"]);
     assert!(!ok);
     assert!(
         stderr.contains("invalid path segment"),
@@ -429,13 +399,12 @@ fn count_rejects_sort_flag() {
 #[test]
 fn error_messages_are_human_readable() {
     let dir = setup();
-    let (_, stderr, code) = run_with_code(
-        dir.path(),
-        "update",
-        &["-k", "a", "--set", "_bad=1"],
-    );
+    let (_, stderr, code) = run_with_code(dir.path(), "update", &["-k", "a", "--set", "_bad=1"]);
     assert_eq!(code, 2);
-    assert_eq!(stderr, "error: invalid update: field '_bad' uses a reserved prefix\n");
+    assert_eq!(
+        stderr,
+        "error: invalid update: field '_bad' uses a reserved prefix\n"
+    );
 }
 
 #[test]
@@ -494,11 +463,7 @@ fn update_body_preserves_frontmatter() {
 #[test]
 fn update_set_preserves_body_exactly() {
     let dir = setup();
-    let (stdout, _, ok) = run(
-        dir.path(),
-        "update",
-        &["-k", "a", "--set", "reviewed=true"],
-    );
+    let (stdout, _, ok) = run(dir.path(), "update", &["-k", "a", "--set", "reviewed=true"]);
     assert!(ok);
     assert_eq!(stdout, "Updated 1 document(s)\n");
     let content = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
@@ -551,4 +516,3 @@ fn find_filter_field_value_mix_rejected_with_clear_message() {
         "error: invalid --filter expression: cannot mix operator keys ($...) and bare keys inside a field-value mapping at 'author' (use one form: either all operators on the field, or only nested-field references)\n"
     );
 }
-

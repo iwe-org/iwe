@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 fn setup_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
@@ -105,7 +104,8 @@ fn test_retrieve_json_format() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "test-doc", "-d", "0", "-f", "json"]);
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "test-doc", "-d", "0", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -140,7 +140,8 @@ fn test_retrieve_yaml_format() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "test-doc", "-d", "0", "-f", "yaml"]);
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "test-doc", "-d", "0", "-f", "yaml"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -290,7 +291,8 @@ fn test_retrieve_with_both_parent_and_backlinks() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "child", "-d", "0", "-b", "-c", "0"]);
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "child", "-d", "0", "-b", "-c", "0"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -819,7 +821,10 @@ fn test_retrieve_context_json_format() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "child", "-d", "0", "-c", "1", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "child", "-d", "0", "-c", "1", "-f", "json"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -944,7 +949,8 @@ fn test_retrieve_links_with_depth_and_context() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "middle", "-d", "1", "-c", "1", "-l"]);
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "middle", "-d", "1", "-c", "1", "-l"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1300,7 +1306,10 @@ fn test_retrieve_all_document_types_json() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "main", "-d", "1", "-c", "1", "-l", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "main", "-d", "1", "-c", "1", "-l", "-f", "json"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1406,7 +1415,10 @@ fn test_retrieve_context_multiple_parents() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "child", "-d", "0", "-c", "1", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "child", "-d", "0", "-c", "1", "-f", "json"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1490,7 +1502,10 @@ fn test_retrieve_context_includes_parents_of_sub_documents() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "main", "-d", "1", "-c", "1", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "main", "-d", "1", "-c", "1", "-f", "json"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1574,7 +1589,10 @@ fn test_retrieve_context_sub_document_parents_without_depth() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "main", "-d", "0", "-c", "1", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "main", "-d", "0", "-c", "1", "-f", "json"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1639,7 +1657,10 @@ fn test_retrieve_context_only_direct_sub_document_parents() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "main", "-d", "2", "-c", "1", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "main", "-d", "2", "-c", "1", "-f", "json"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1834,8 +1855,7 @@ fn test_retrieve_children_flag_populates_includes() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value =
-        serde_json::from_str(&stdout).expect("valid JSON output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON output");
     let parent = &parsed[0];
     assert_eq!(parent["key"], "parent");
     let includes = parent["includes"].as_array().expect("includes is array");
@@ -1869,8 +1889,7 @@ fn test_retrieve_no_content_does_not_populate_includes() {
 
     assert!(success, "stderr: {}", stderr);
 
-    let parsed: serde_json::Value =
-        serde_json::from_str(&stdout).expect("valid JSON output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON output");
     let parent = &parsed[0];
     assert_eq!(parent["content"], "");
     let includes = parent["includes"].as_array().expect("includes is array");
@@ -1911,7 +1930,12 @@ fn test_retrieve_multiple_keys() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "doc1", "-k", "doc2", "-k", "doc3", "-d", "0", "-c", "0", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k", "doc1", "-k", "doc2", "-k", "doc3", "-d", "0", "-c", "0", "-f", "json",
+        ],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1984,7 +2008,12 @@ fn test_retrieve_multiple_keys_with_deduplication() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "doc1", "-k", "doc2", "-d", "1", "-c", "0", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k", "doc1", "-k", "doc2", "-d", "1", "-c", "0", "-f", "json",
+        ],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2058,7 +2087,12 @@ fn test_retrieve_exclude_single_key() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "-c", "0", "-e", "child", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k", "parent", "-d", "1", "-c", "0", "-e", "child", "-f", "json",
+        ],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2101,7 +2135,12 @@ fn test_retrieve_exclude_multiple_keys() {
     write(dir.path().join("b.md"), "# B\n\nContent B.").unwrap();
     write(dir.path().join("c.md"), "# C\n\nContent C.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "root", "-d", "1", "-c", "0", "-e", "a", "-e", "c", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k", "root", "-d", "1", "-c", "0", "-e", "a", "-e", "c", "-f", "json",
+        ],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2151,7 +2190,10 @@ fn test_retrieve_exclude_main_document() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "doc", "-d", "0", "-c", "0", "-e", "doc", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "doc", "-d", "0", "-c", "0", "-e", "doc", "-f", "json"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2176,7 +2218,20 @@ fn test_retrieve_no_content_flag() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "doc", "-d", "0", "-c", "0", "--no-content", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "doc",
+            "-d",
+            "0",
+            "-c",
+            "0",
+            "--no-content",
+            "-f",
+            "json",
+        ],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2221,7 +2276,21 @@ fn test_retrieve_no_content_with_multiple_documents() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "-c", "0", "--no-content", "--children", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "parent",
+            "-d",
+            "1",
+            "-c",
+            "0",
+            "--no-content",
+            "--children",
+            "-f",
+            "json",
+        ],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2287,7 +2356,20 @@ fn test_retrieve_no_content_preserves_parent_documents() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "child", "-d", "0", "-c", "0", "--no-content", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "child",
+            "-d",
+            "0",
+            "-c",
+            "0",
+            "--no-content",
+            "-f",
+            "json",
+        ],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2336,7 +2418,10 @@ fn test_retrieve_no_content_multiple_children() {
     write(dir.path().join("child2.md"), "# Child Two\n\nContent 2.").unwrap();
     write(dir.path().join("child3.md"), "# Child Three\n\nContent 3.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "0", "-c", "0", "--no-content"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "parent", "-d", "0", "-c", "0", "--no-content"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2375,7 +2460,10 @@ fn test_retrieve_keys_format_output() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "-c", "0", "-f", "keys"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "parent", "-d", "1", "-c", "0", "-f", "keys"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2419,7 +2507,10 @@ fn test_retrieve_keys_format_with_context() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "child", "-d", "0", "-c", "1", "-f", "keys"]);
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "child", "-d", "0", "-c", "1", "-f", "keys"],
+    );
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2735,8 +2826,7 @@ fn test_retrieve_markdown_children_populates_includes() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) =
-        run_iwe(dir.path(), &["-k", "parent", "-d", "0", "--children"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "0", "--children"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2757,5 +2847,3 @@ fn test_retrieve_markdown_children_populates_includes() {
 
     assert_eq!(stdout, expected);
 }
-
-

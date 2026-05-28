@@ -1,8 +1,7 @@
 use indoc::indoc;
 use liwe::query::prelude::{
-    all, and, count, delete, eq, exists, filter, find, gt, gte, in_, included_by, includes,
-    key_eq, key_in, lt, lte, ne, nin, nor, or, referenced_by, references, size, type_of,
-    update, update_op,
+    all, and, count, delete, eq, exists, filter, find, gt, gte, in_, included_by, includes, key_eq,
+    key_in, lt, lte, ne, nin, nor, or, referenced_by, references, size, type_of, update, update_op,
 };
 use liwe::query::{
     parse_operation, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, Limit,
@@ -10,12 +9,10 @@ use liwe::query::{
 };
 use serde_yaml::Value;
 
-
 fn assert_parse(yaml: &str, kind: OperationKind, expected: Operation) {
     let actual = parse_operation(yaml, kind).expect("parse");
     assert_eq!(actual, expected);
 }
-
 
 fn assert_parse_error(yaml: &str, kind: OperationKind, needle: &str) {
     let err = parse_operation(yaml, kind).expect_err("parse must fail");
@@ -36,10 +33,12 @@ fn find_round_trips_filter_project_sort_limit() {
             limit: 5
         "},
         OperationKind::Find,
-        find(filter::<FindOp>(eq("status", "draft"))
-            .project(Projection::fields(&["title"]))
-            .sort(Sort::desc("modified"))
-            .limit(5)),
+        find(
+            filter::<FindOp>(eq("status", "draft"))
+                .project(Projection::fields(&["title"]))
+                .sort(Sort::desc("modified"))
+                .limit(5),
+        ),
     );
 }
 
@@ -93,11 +92,7 @@ fn delete_round_trips_filter() {
 
 #[test]
 fn empty_yaml_parses_to_default_find() {
-    assert_parse(
-        "",
-        OperationKind::Find,
-        find(FindOp::new()),
-    );
+    assert_parse("", OperationKind::Find, find(FindOp::new()));
 }
 
 #[test]
@@ -289,10 +284,7 @@ fn filter_and() {
                 - { y: 2 }
         "},
         OperationKind::Find,
-        find(filter(and(vec![
-            eq("x", 1i64),
-            eq("y", 2i64),
-        ]))),
+        find(filter(and(vec![eq("x", 1i64), eq("y", 2i64)]))),
     );
 }
 
@@ -306,10 +298,7 @@ fn filter_or() {
                 - { y: 2 }
         "},
         OperationKind::Find,
-        find(filter(or(vec![
-            eq("x", 1i64),
-            eq("y", 2i64),
-        ]))),
+        find(filter(or(vec![eq("x", 1i64), eq("y", 2i64)]))),
     );
 }
 
@@ -365,9 +354,9 @@ fn filter_per_field_nested_not_parses() {
         OperationKind::Find,
         find(filter(Filter::Field {
             path: FieldPath::from_dotted("priority"),
-            op: FieldOp::Not(Box::new(FieldOp::Not(Box::new(FieldOp::Gt(
-                Value::from(5i64),
-            ))))),
+            op: FieldOp::Not(Box::new(FieldOp::Not(Box::new(FieldOp::Gt(Value::from(
+                5i64,
+            )))))),
         })),
     );
 }
@@ -395,10 +384,7 @@ fn filter_dotted_and_nested_paths_produce_same_path() {
     let dotted = parse_operation("filter:\n  a.b: 1\n", OperationKind::Find).unwrap();
     let nested = parse_operation("filter:\n  a:\n    b: 1\n", OperationKind::Find).unwrap();
     assert_eq!(dotted, nested);
-    assert_eq!(
-        dotted,
-        find(filter(eq("a.b", 1i64))),
-    );
+    assert_eq!(dotted, find(filter(eq("a.b", 1i64))),);
 }
 
 #[test]
@@ -627,11 +613,7 @@ fn update_filter_required_at_parse() {
 
 #[test]
 fn delete_filter_required_at_parse() {
-    assert_parse_error(
-        "limit: 10\n",
-        OperationKind::Delete,
-        "MissingRequiredField",
-    );
+    assert_parse_error("limit: 10\n", OperationKind::Delete, "MissingRequiredField");
 }
 
 #[test]
@@ -769,7 +751,11 @@ fn included_by_range() {
                 maxDepth: 5
         "},
         OperationKind::Find,
-        find(filter(included_by(InclusionAnchor::new("projects/alpha", 2, 5)))),
+        find(filter(included_by(InclusionAnchor::new(
+            "projects/alpha",
+            2,
+            5,
+        )))),
     );
 }
 
@@ -935,7 +921,11 @@ fn references_scalar_shorthand() {
               $references: people/alice
         "},
         OperationKind::Find,
-        find(filter(references(ReferenceAnchor::new("people/alice", 1, 1)))),
+        find(filter(references(ReferenceAnchor::new(
+            "people/alice",
+            1,
+            1,
+        )))),
     );
 }
 
@@ -947,7 +937,10 @@ fn references_with_distance() {
               $references: { match: { $key: people/dmytro }, maxDistance: 1 }
         "},
         OperationKind::Find,
-        find(filter(references(ReferenceAnchor::with_max("people/dmytro", 1)))),
+        find(filter(references(ReferenceAnchor::with_max(
+            "people/dmytro",
+            1,
+        )))),
     );
 }
 
@@ -962,7 +955,11 @@ fn referenced_by_range() {
                 maxDistance: 3
         "},
         OperationKind::Find,
-        find(filter(referenced_by(ReferenceAnchor::new("archive/index", 1, 3)))),
+        find(filter(referenced_by(ReferenceAnchor::new(
+            "archive/index",
+            1,
+            3,
+        )))),
     );
 }
 

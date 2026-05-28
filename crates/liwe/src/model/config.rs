@@ -569,7 +569,8 @@ impl TargetType {
 }
 
 pub fn load_config() -> Result<Configuration, String> {
-    let current_dir = env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let current_dir =
+        env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
     let mut config_path = current_dir.clone();
     config_path.push(IWE_MARKER);
     config_path.push(CONFIG_FILE_NAME);
@@ -577,12 +578,22 @@ pub fn load_config() -> Result<Configuration, String> {
     if config_path.exists() {
         debug!("reading config from path: {:?}", config_path);
 
-        let raw = read_to_string(&config_path)
-            .map_err(|e| format!("Failed to read config file '{}': {}", config_path.display(), e))?;
+        let raw = read_to_string(&config_path).map_err(|e| {
+            format!(
+                "Failed to read config file '{}': {}",
+                config_path.display(),
+                e
+            )
+        })?;
         let configuration = migrate(&raw)?;
 
-        let mut config = toml::from_str::<Configuration>(&configuration)
-            .map_err(|e| format!("Failed to parse config file '{}': {}", config_path.display(), e))?;
+        let mut config = toml::from_str::<Configuration>(&configuration).map_err(|e| {
+            format!(
+                "Failed to parse config file '{}': {}",
+                config_path.display(),
+                e
+            )
+        })?;
         config.markdown.formatting = config.markdown.formatting.validated();
         Ok(config)
     } else {
@@ -592,7 +603,8 @@ pub fn load_config() -> Result<Configuration, String> {
 }
 
 fn migrate(config: &str) -> Result<String, String> {
-    let doc = config.parse::<DocumentMut>()
+    let doc = config
+        .parse::<DocumentMut>()
         .map_err(|e| format!("Config file is not valid TOML: {}", e))?;
     let current_version = doc
         .get("version")
@@ -631,14 +643,20 @@ fn migrate(config: &str) -> Result<String, String> {
 
     if needs_update {
         debug!("configuration file migration applied");
-        let current_dir = env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let current_dir =
+            env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
         let mut config_path = current_dir.clone();
         config_path.push(IWE_MARKER);
         config_path.push(CONFIG_FILE_NAME);
 
         debug!("updating configuration file");
-        std::fs::write(&config_path, &updated)
-            .map_err(|e| format!("Failed to write config file '{}': {}", config_path.display(), e))?;
+        std::fs::write(&config_path, &updated).map_err(|e| {
+            format!(
+                "Failed to write config file '{}': {}",
+                config_path.display(),
+                e
+            )
+        })?;
     }
 
     Ok(updated)

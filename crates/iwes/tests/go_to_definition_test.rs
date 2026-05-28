@@ -196,10 +196,7 @@ fn definition_external_http_url() {
             [example](http://example.com)
 
             "})
-    .go_to_definition_external(
-        uri(1).to_goto_definition_params(2, 5),
-        "http://example.com",
-    );
+    .go_to_definition_external(uri(1).to_goto_definition_params(2, 5), "http://example.com");
 }
 
 #[test]
@@ -296,11 +293,9 @@ fn definition_markdown_link_after_multibyte_text() {
 
 #[test]
 fn definition_bare_url_after_multibyte_text() {
-    Fixture::with_documents(vec![
-        ("1", "\u{03B1}\u{03B2} https://example.com\n"),
-    ])
-    .go_to_definition_external(
-        uri(1).to_goto_definition_params(0, 5),
-        "https://example.com",
-    );
+    Fixture::with_documents(vec![("1", "\u{03B1}\u{03B2} https://example.com\n")])
+        .go_to_definition_external(
+            uri(1).to_goto_definition_params(0, 5),
+            "https://example.com",
+        );
 }

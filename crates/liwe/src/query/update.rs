@@ -97,10 +97,16 @@ mod tests {
     fn set_replaces_existing_field() {
         let mut d = doc(vec![("status", "draft".into())]);
         let u = Update {
-            operators: vec![build_set(&["status"], Value::String("published".to_string()))],
+            operators: vec![build_set(
+                &["status"],
+                Value::String("published".to_string()),
+            )],
         };
         apply(&u, &mut d);
-        assert_eq!(d.get(key("status")), Some(&Value::String("published".into())));
+        assert_eq!(
+            d.get(key("status")),
+            Some(&Value::String("published".into()))
+        );
     }
 
     #[test]
@@ -140,10 +146,7 @@ mod tests {
 
     #[test]
     fn unset_existing_field() {
-        let mut d = doc(vec![
-            ("status", "draft".into()),
-            ("reviewed", true.into()),
-        ]);
+        let mut d = doc(vec![("status", "draft".into()), ("reviewed", true.into())]);
         let u = Update {
             operators: vec![build_unset(&["reviewed"])],
         };

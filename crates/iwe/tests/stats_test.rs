@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_stats_markdown_output() {
     let temp_dir = setup_test_workspace();
@@ -194,8 +193,11 @@ fn setup_test_workspace_with_broken_links() -> TempDir {
         [also-missing](also-missing)
     "};
 
-    write(temp_path.join("doc-with-block-ref.md"), doc_with_broken_block)
-        .expect("Failed to write doc file");
+    write(
+        temp_path.join("doc-with-block-ref.md"),
+        doc_with_broken_block,
+    )
+    .expect("Failed to write doc file");
 
     temp_dir
 }
@@ -384,7 +386,10 @@ fn test_stats_per_doc_default_format_outputs_markdown() {
     let temp_dir = setup_test_workspace();
     let output = run_stats_command(&temp_dir, &["-k", "test"]);
 
-    assert!(output.status.success(), "Should succeed with default format");
+    assert!(
+        output.status.success(),
+        "Should succeed with default format"
+    );
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
     let expected = indoc! {"
         # Test Document

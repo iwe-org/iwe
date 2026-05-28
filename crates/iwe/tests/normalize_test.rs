@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_normalize_basic_formatting() {
     let temp_dir = setup_test_workspace_with_unformatted_content();
@@ -201,16 +200,8 @@ fn test_invalid_config_error_message() {
     assert!(!output.status.success(), "Should fail with invalid config");
 
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(
-        stderr.contains("Error:"),
-        "Should report error: {}",
-        stderr
-    );
-    assert!(
-        !stderr.contains("panicked"),
-        "Should not panic: {}",
-        stderr
-    );
+    assert!(stderr.contains("Error:"), "Should report error: {}", stderr);
+    assert!(!stderr.contains("panicked"), "Should not panic: {}", stderr);
 }
 
 fn setup_test_workspace_with_content() -> TempDir {
@@ -532,11 +523,7 @@ fn test_normalize_empty_frontmatter() {
 
     setup_iwe_config(temp_path);
 
-    write(
-        temp_path.join("empty-fm.md"),
-        "---\n---\n\n# Heading\n",
-    )
-    .expect("Should write file");
+    write(temp_path.join("empty-fm.md"), "---\n---\n\n# Heading\n").expect("Should write file");
 
     let output = run_normalize_command(temp_path);
     assert!(output.status.success());

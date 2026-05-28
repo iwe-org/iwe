@@ -97,7 +97,9 @@ impl GraphBlock {
 
     pub fn to_markdown_indented(&self, options: &MarkdownOptions, indent: usize) -> String {
         match self {
-            GraphBlock::Frontmatter(mapping) => format!("---\n{}---\n", frontmatter_to_yaml(mapping)),
+            GraphBlock::Frontmatter(mapping) => {
+                format!("---\n{}---\n", frontmatter_to_yaml(mapping))
+            }
             GraphBlock::Plain(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
             GraphBlock::Para(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
             GraphBlock::LineBlock(lines) => lines
@@ -113,7 +115,13 @@ impl GraphBlock {
                 lang.clone()
                     .filter(|lang| !lang.trim().is_empty())
                     .map(|lang| {
-                        format!("{} {}\n{}\n{}\n", fence, lang, text.trim_matches('\n'), fence)
+                        format!(
+                            "{} {}\n{}\n{}\n",
+                            fence,
+                            lang,
+                            text.trim_matches('\n'),
+                            fence
+                        )
                     })
                     .unwrap_or_else(|| {
                         format!("{}\n{}\n{}\n", fence, text.trim_matches('\n'), fence)
@@ -155,8 +163,7 @@ impl GraphBlock {
                     .join(if self.is_sparce_list() { "\n" } else { "" })
             }
             GraphBlock::BulletList(items) => {
-                let child_indent =
-                    indent + options.formatting.list_token().chars().count() + 1;
+                let child_indent = indent + options.formatting.list_token().chars().count() + 1;
                 items
                     .iter()
                     .map(|item| {
@@ -409,7 +416,12 @@ fn left_pad_and_prefix(text: &str, list_token: &str) -> String {
 }
 
 fn left_pad_and_prefix_num(text: &str, num: usize, ordered_list_token: char) -> String {
-    let prefix = format!("{}{}{}", num, ordered_list_token, if num > 9 { "" } else { " " });
+    let prefix = format!(
+        "{}{}{}",
+        num,
+        ordered_list_token,
+        if num > 9 { "" } else { " " }
+    );
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {
@@ -460,7 +472,8 @@ struct TokenStream {
 impl TokenStream {
     fn flush(&mut self) {
         if !self.current.is_empty() {
-            self.tokens.push(WrapToken::Word(std::mem::take(&mut self.current)));
+            self.tokens
+                .push(WrapToken::Word(std::mem::take(&mut self.current)));
         }
     }
 
@@ -486,21 +499,13 @@ impl MarkdownSink for TokenStream {
     }
 }
 
-fn render_inlines<S: MarkdownSink>(
-    inlines: &GraphInlines,
-    options: &MarkdownOptions,
-    out: &mut S,
-) {
+fn render_inlines<S: MarkdownSink>(inlines: &GraphInlines, options: &MarkdownOptions, out: &mut S) {
     for inline in inlines {
         render_inline(inline, options, out);
     }
 }
 
-fn render_inline<S: MarkdownSink>(
-    inline: &GraphInline,
-    options: &MarkdownOptions,
-    out: &mut S,
-) {
+fn render_inline<S: MarkdownSink>(inline: &GraphInline, options: &MarkdownOptions, out: &mut S) {
     match inline {
         GraphInline::Str(text) => out.push(text),
         GraphInline::Space => out.space(),
@@ -561,7 +566,13 @@ fn render_inline<S: MarkdownSink>(
         GraphInline::Reference(reference) => {
             let url = reference.key.to_library_url();
             let inlines = text_to_inlines(&reference.text);
-            emit_link(&url, reference.reference_type.to_link_type(), &inlines, options, out);
+            emit_link(
+                &url,
+                reference.reference_type.to_link_type(),
+                &inlines,
+                options,
+                out,
+            );
         }
         GraphInline::Image(url, _, alt) => {
             out.push("![");
@@ -968,5 +979,4 @@ pub mod tests {
             blocks_to_markdown(&list, &MarkdownOptions::default()),
         );
     }
-
 }

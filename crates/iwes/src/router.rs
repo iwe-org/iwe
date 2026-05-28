@@ -12,8 +12,8 @@ use lsp_server::{Notification, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
     DidChangeWatchedFilesParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, FoldingRangeParams, GotoDefinitionResponse, HoverParams,
-    InlayHintParams, InlineValueParams, ReferenceParams, RenameParams, ShowDocumentParams,
+    DocumentSymbolParams, FoldingRangeParams, GotoDefinitionResponse, HoverParams, InlayHintParams,
+    InlineValueParams, ReferenceParams, RenameParams, ShowDocumentParams,
     TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
@@ -201,33 +201,29 @@ impl Router {
             "textDocument/documentSymbol" => DocumentSymbolParams::deserialize(request.params)
                 .map(|params| self.server.handle_document_symbols(params))
                 .map(|response| to_value(response).unwrap()),
-            "textDocument/definition" => {
-                match GotoDefinitionParams::deserialize(request.params) {
-                    Ok(params) => {
-                        match self.server.handle_goto_definition(params) {
-                            DefinitionResult::Internal(response) => Ok(to_value(response).unwrap()),
-                            DefinitionResult::External(url) => {
-                                if let Ok(uri) = url.parse() {
-                                    let show_doc_request = Request {
-                                        id: Uuid::new_v4().to_string().into(),
-                                        method: "window/showDocument".to_string(),
-                                        params: to_value(ShowDocumentParams {
-                                            uri,
-                                            external: Some(true),
-                                            take_focus: Some(true),
-                                            selection: None,
-                                        })
-                                        .unwrap(),
-                                    };
-                                    self.send(Message::Request(show_doc_request));
-                                }
-                                Ok(to_value(GotoDefinitionResponse::Array(vec![])).unwrap())
-                            }
+            "textDocument/definition" => match GotoDefinitionParams::deserialize(request.params) {
+                Ok(params) => match self.server.handle_goto_definition(params) {
+                    DefinitionResult::Internal(response) => Ok(to_value(response).unwrap()),
+                    DefinitionResult::External(url) => {
+                        if let Ok(uri) = url.parse() {
+                            let show_doc_request = Request {
+                                id: Uuid::new_v4().to_string().into(),
+                                method: "window/showDocument".to_string(),
+                                params: to_value(ShowDocumentParams {
+                                    uri,
+                                    external: Some(true),
+                                    take_focus: Some(true),
+                                    selection: None,
+                                })
+                                .unwrap(),
+                            };
+                            self.send(Message::Request(show_doc_request));
                         }
+                        Ok(to_value(GotoDefinitionResponse::Array(vec![])).unwrap())
                     }
-                    Err(e) => Err(e),
-                }
-            }
+                },
+                Err(e) => Err(e),
+            },
             "workspace/symbol" => WorkspaceSymbolParams::deserialize(request.params)
                 .map(|params| self.server.handle_workspace_symbols(params))
                 .map(|response| to_value(response).unwrap()),

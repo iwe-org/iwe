@@ -3,7 +3,6 @@ use std::fs::{create_dir_all, read_to_string, File};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_init_creates_iwe_directory() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");

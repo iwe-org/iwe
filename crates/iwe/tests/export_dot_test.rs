@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_export_dot_basic() {
     let temp_dir = setup_test_workspace();

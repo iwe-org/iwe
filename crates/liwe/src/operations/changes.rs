@@ -75,7 +75,9 @@ impl fmt::Display for OperationError {
             OperationError::NotFound(key) => write!(f, "Document '{}' not found", key),
             OperationError::AlreadyExists(key) => write!(f, "Document '{}' already exists", key),
             OperationError::InvalidTarget(msg) => write!(f, "Invalid target: {}", msg),
-            OperationError::NoParentSection => write!(f, "Cannot extract top-level document section"),
+            OperationError::NoParentSection => {
+                write!(f, "Cannot extract top-level document section")
+            }
             OperationError::TargetNotFound(key) => write!(f, "Target document '{}' not found", key),
         }
     }

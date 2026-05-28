@@ -1,5 +1,7 @@
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Attach, Configuration, LibraryOptions, MarkdownOptions};
+use liwe::model::config::{
+    ActionDefinition, Attach, Configuration, LibraryOptions, MarkdownOptions,
+};
 use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;

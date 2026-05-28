@@ -74,12 +74,20 @@ fn completion_test_with_refs_extension() {
 fn completion_relative_test() {
     Fixture::with_options_and_client(
         vec![
-            ("dir/sub".to_string(), indoc! {"
+            (
+                "dir/sub".to_string(),
+                indoc! {"
                 # sub-document
-            "}.to_string()),
-            ("top".to_string(), indoc! {"
+            "}
+                .to_string(),
+            ),
+            (
+                "top".to_string(),
+                indoc! {"
                 # top-level
-            "}.to_string()),
+            "}
+                .to_string(),
+            ),
         ]
         .into_iter()
         .collect(),
@@ -149,12 +157,20 @@ fn completion_relative_test_with_refs_extension() {
 fn completion_after_file_deleted() {
     Fixture::with_options_and_client(
         vec![
-            ("first".to_string(), indoc! {"
+            (
+                "first".to_string(),
+                indoc! {"
                 # first-document
-            "}.to_string()),
-            ("second".to_string(), indoc! {"
+            "}
+                .to_string(),
+            ),
+            (
+                "second".to_string(),
+                indoc! {"
                 # second-document
-            "}.to_string()),
+            "}
+                .to_string(),
+            ),
         ]
         .into_iter()
         .collect(),
@@ -236,12 +252,20 @@ fn completion_with_wikilink_format_multiple_documents() {
 
     Fixture::with_options_and_client(
         vec![
-            ("first".to_string(), indoc! {"
+            (
+                "first".to_string(),
+                indoc! {"
                 # First Document
-            "}.to_string()),
-            ("second".to_string(), indoc! {"
+            "}
+                .to_string(),
+            ),
+            (
+                "second".to_string(),
+                indoc! {"
                 # Second Document
-            "}.to_string()),
+            "}
+                .to_string(),
+            ),
         ]
         .into_iter()
         .collect(),
@@ -358,7 +382,8 @@ fn completion_uses_frontmatter_title() {
                 ---
 
                 # Header
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -397,7 +422,8 @@ fn completion_fallback_to_header_when_frontmatter_missing() {
             "doc".to_string(),
             indoc! {"
                 # Header Title
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -433,7 +459,8 @@ fn completion_returns_empty_when_prefix_too_short() {
             indoc! {"
                 # Test
                 ab
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -484,7 +511,8 @@ fn completion_does_not_panic_on_multibyte_prefix() {
             indoc! {"
                 # Test
                 αβγ
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -520,7 +548,8 @@ fn completion_respects_custom_min_prefix_length() {
             indoc! {"
                 # Test
                 abcd
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -542,7 +571,8 @@ fn completion_with_bracket_prefix_replaces_typed_bracket() {
             indoc! {"
                 # Header
                 [fo
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -570,7 +600,8 @@ fn completion_with_double_bracket_prefix_emits_wiki_link() {
             indoc! {"
                 # Header
                 [[fo
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -607,7 +638,8 @@ fn completion_with_double_bracket_prefix_overrides_markdown_link_format() {
             indoc! {"
                 # Header
                 [[
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -644,7 +676,8 @@ fn completion_with_single_bracket_prefix_overrides_wiki_link_format() {
             indoc! {"
                 # Header
                 [
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -672,7 +705,8 @@ fn completion_with_bracket_auto_pair_consumes_trailing_bracket() {
             indoc! {"
                 # Header
                 []
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -700,7 +734,8 @@ fn completion_with_double_bracket_auto_pair_consumes_trailing_brackets() {
             indoc! {"
                 # Header
                 [[]]
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),
@@ -736,7 +771,8 @@ fn completion_bracket_prefix_min_length_applies_to_query_only() {
             indoc! {"
                 # Header
                 [a
-            "}.to_string(),
+            "}
+            .to_string(),
         )]
         .into_iter()
         .collect(),

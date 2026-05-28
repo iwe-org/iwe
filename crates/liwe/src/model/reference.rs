@@ -1,5 +1,5 @@
-use crate::model::Key;
 use crate::model::document::LinkType;
+use crate::model::Key;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ReferenceType {

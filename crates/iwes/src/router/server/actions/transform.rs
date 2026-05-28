@@ -41,7 +41,12 @@ fn expand_env_var(value: &str) -> String {
                 (&rest[..end], end + 1)
             };
             let replacement = std::env::var(var_name).unwrap_or_default();
-            result = format!("{}{}{}", &result[..i], replacement, &result[i + end_offset..]);
+            result = format!(
+                "{}{}{}",
+                &result[..i],
+                replacement,
+                &result[i + end_offset..]
+            );
             i += replacement.len();
         } else {
             i += 1;

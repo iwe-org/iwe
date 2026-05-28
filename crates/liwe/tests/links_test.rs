@@ -174,10 +174,7 @@ fn sub_dir_relative_inline_link_resolved() {
             ("docs/api/reference", "# API reference\n"),
         ],
         vec![
-            (
-                "docs/guide",
-                "See [old text](api/reference) for details.",
-            ),
+            ("docs/guide", "See [old text](api/reference) for details."),
             ("docs/api/reference", "# API reference"),
         ],
     );

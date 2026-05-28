@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 fn setup_workspace() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
@@ -149,8 +148,16 @@ fn test_find_yaml_format() {
 fn test_find_fuzzy_search() {
     let dir = setup_workspace();
 
-    write(dir.path().join("authentication.md"), "# User Authentication\n\nAuth content.").unwrap();
-    write(dir.path().join("database.md"), "# Database Config\n\nDB content.").unwrap();
+    write(
+        dir.path().join("authentication.md"),
+        "# User Authentication\n\nAuth content.",
+    )
+    .unwrap();
+    write(
+        dir.path().join("database.md"),
+        "# Database Config\n\nDB content.",
+    )
+    .unwrap();
     write(dir.path().join("api.md"), "# API Endpoints\n\nAPI content.").unwrap();
 
     let (stdout, stderr, success) = run_iwe(dir.path(), &["auth", "-f", "json"]);
@@ -258,7 +265,11 @@ fn test_find_refs_from() {
 
     write(dir.path().join("child1.md"), "# Child One\n\nContent.").unwrap();
     write(dir.path().join("child2.md"), "# Child Two\n\nContent.").unwrap();
-    write(dir.path().join("other.md"), "# Other\n\nNot referenced by source.").unwrap();
+    write(
+        dir.path().join("other.md"),
+        "# Other\n\nNot referenced by source.",
+    )
+    .unwrap();
 
     let (stdout, stderr, success) = run_iwe(dir.path(), &["--refs-from", "source", "-f", "json"]);
 
@@ -357,10 +368,7 @@ fn test_find_limit_in_markdown() {
     write(dir.path().join("c.md"), "# C\n\nC body.").unwrap();
     write(dir.path().join("d.md"), "# D\n\nD body.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["--limit", "2", "-f", "markdown"],
-    );
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--limit", "2", "-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -409,7 +417,11 @@ fn test_find_keys_format() {
 fn test_find_markdown_format() {
     let dir = setup_workspace();
 
-    write(dir.path().join("test-doc.md"), "# Test Document\n\nContent.").unwrap();
+    write(
+        dir.path().join("test-doc.md"),
+        "# Test Document\n\nContent.",
+    )
+    .unwrap();
 
     let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "markdown"]);
 
@@ -807,8 +819,7 @@ fn test_find_markdown_multi_doc_stream() {
     write(dir.path().join("alpha.md"), "# Alpha\n\nAlpha body.").unwrap();
     write(dir.path().join("beta.md"), "# Beta\n\nBeta body.").unwrap();
 
-    let (stdout, stderr, success) =
-        run_iwe(dir.path(), &["-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -853,10 +864,7 @@ fn test_find_markdown_includes_parent_edges() {
 
     write(dir.path().join("child.md"), "# Child\n\nChild body.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["-f", "markdown", "-k", "child"],
-    );
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "markdown", "-k", "child"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -971,8 +979,7 @@ fn test_find_project_bare_pseudo_uses_default_name() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) =
-        run_iwe(dir.path(), &["--project", "$content", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--project", "$content", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1004,12 +1011,7 @@ fn test_find_project_yaml_mapping_form() {
 
     let (stdout, stderr, success) = run_iwe(
         dir.path(),
-        &[
-            "--project",
-            "{key: $key, status: 1}",
-            "-f",
-            "json",
-        ],
+        &["--project", "{key: $key, status: 1}", "-f", "json"],
     );
 
     assert!(success, "stderr: {}", stderr);
@@ -1043,10 +1045,8 @@ fn test_find_add_fields_extends_default() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["--add-fields", "body=$content", "-f", "json"],
-    );
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--add-fields", "body=$content", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1073,10 +1073,8 @@ fn test_find_project_and_add_fields_conflict() {
     let dir = setup_workspace();
     write(dir.path().join("a.md"), "# A").unwrap();
 
-    let (_stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["--project", "key", "--add-fields", "status"],
-    );
+    let (_stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "key", "--add-fields", "status"]);
 
     assert!(!success, "stderr: {}", stderr);
     assert!(
@@ -1091,8 +1089,7 @@ fn test_find_project_unknown_pseudo_rejected() {
     let dir = setup_workspace();
     write(dir.path().join("a.md"), "# A").unwrap();
 
-    let (_stdout, stderr, success) =
-        run_iwe(dir.path(), &["--project", "$bogus"]);
+    let (_stdout, stderr, success) = run_iwe(dir.path(), &["--project", "$bogus"]);
 
     assert!(!success, "stderr: {}", stderr);
     assert!(
@@ -1185,8 +1182,7 @@ fn test_find_project_key_only_emits_no_frontmatter() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) =
-        run_iwe(dir.path(), &["--project", "key", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--project", "key", "-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1213,8 +1209,7 @@ fn test_find_project_missing_frontmatter_field_emits_null() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) =
-        run_iwe(dir.path(), &["--project", "pillar", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--project", "pillar", "-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1288,8 +1283,7 @@ fn test_find_default_projection_renders_inclusion_edges() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) =
-        run_iwe(dir.path(), &["--key", "doc1", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--key", "doc1", "-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1326,10 +1320,8 @@ fn test_find_project_yaml_form() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["--project", "k=$key,status", "-f", "yaml"],
-    );
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "k=$key,status", "-f", "yaml"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1395,10 +1387,8 @@ fn test_find_add_fields_user_fm_title_wins() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["--add-fields", "note=$key", "-f", "json"],
-    );
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--add-fields", "note=$key", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1606,7 +1596,14 @@ fn test_find_project_includes_edges_json_shape() {
 
     let (stdout, stderr, success) = run_iwe(
         dir.path(),
-        &["--key", "parent", "--project", "k=$key,inc=$includes", "-f", "json"],
+        &[
+            "--key",
+            "parent",
+            "--project",
+            "k=$key,inc=$includes",
+            "-f",
+            "json",
+        ],
     );
 
     assert!(success, "stderr: {}", stderr);
@@ -1643,10 +1640,8 @@ fn test_find_add_fields_collision_overwrites_default_title() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["--add-fields", "title=$key", "-f", "json"],
-    );
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--add-fields", "title=$key", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 

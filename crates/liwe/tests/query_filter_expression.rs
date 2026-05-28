@@ -61,10 +61,8 @@ fn whitespace_only_input_yields_empty_and() {
 
 #[test]
 fn parses_top_level_bare_and_or() {
-    let f = parse_filter_expression(
-        "{type: tracker, $or: [{status: open}, {status: pending}]}",
-    )
-    .unwrap();
+    let f = parse_filter_expression("{type: tracker, $or: [{status: open}, {status: pending}]}")
+        .unwrap();
     let parts = match f {
         Filter::And(p) => p,
         other => panic!("expected And, got {:?}", other),
@@ -149,10 +147,7 @@ fn parses_top_level_bare_and_key() {
 
 #[test]
 fn parses_top_level_multiple_bare_and_multiple_dollar() {
-    let f = parse_filter_expression(
-        "{a: 1, b: 2, $or: [{c: 3}], $and: [{d: 4}]}",
-    )
-    .unwrap();
+    let f = parse_filter_expression("{a: 1, b: 2, $or: [{c: 3}], $and: [{d: 4}]}").unwrap();
     let parts = match f {
         Filter::And(p) => p,
         other => panic!("expected And, got {:?}", other),
@@ -166,10 +161,7 @@ fn parses_top_level_multiple_bare_and_multiple_dollar() {
 
 #[test]
 fn parses_mix_inside_or_branch() {
-    let f = parse_filter_expression(
-        "$or: [{a: 1, $nor: [{b: 2}]}, {c: 3}]",
-    )
-    .unwrap();
+    let f = parse_filter_expression("$or: [{a: 1, $nor: [{b: 2}]}, {c: 3}]").unwrap();
     let branches = match f {
         Filter::Or(b) => b,
         other => panic!("expected Or, got {:?}", other),
@@ -238,10 +230,8 @@ fn parses_mix_inside_nor_branch() {
 
 #[test]
 fn parses_mix_inside_graph_anchor_match() {
-    let f = parse_filter_expression(
-        "$includedBy: { match: {a: 1, $key: notes/foo}, maxDepth: 3 }",
-    )
-    .unwrap();
+    let f = parse_filter_expression("$includedBy: { match: {a: 1, $key: notes/foo}, maxDepth: 3 }")
+        .unwrap();
     let anchor = match f {
         Filter::IncludedBy(a) => a,
         other => panic!("expected IncludedBy, got {:?}", other),

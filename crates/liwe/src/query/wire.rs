@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use serde_yaml::{Mapping, Value};
 
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawOperation {
@@ -39,7 +38,6 @@ pub struct RawUpdate {
     #[serde(rename = "$unset", default)]
     pub unset: Option<Mapping>,
 }
-
 
 pub fn parse(yaml: &str) -> Result<RawOperation, serde_yaml::Error> {
     if yaml.trim().is_empty() {
@@ -137,7 +135,6 @@ mod tests {
 
     #[test]
     fn scope_field_rejected() {
-
         let err = parse_err("scope:\n  notes/foo: { self: true }\n");
         assert!(err.contains("scope"), "{}", err);
     }
@@ -146,8 +143,7 @@ mod tests {
     fn limit_string_rejected() {
         let err = parse_err("limit: \"20\"\n");
         assert!(
-            err.to_lowercase().contains("invalid type")
-                || err.to_lowercase().contains("expected"),
+            err.to_lowercase().contains("invalid type") || err.to_lowercase().contains("expected"),
             "{}",
             err
         );
@@ -155,8 +151,6 @@ mod tests {
 
     #[test]
     fn sort_parses_as_raw_mapping() {
-
-
         let op = parse_ok("sort:\n  modified_at: -1\n");
         assert!(op.sort.is_some());
     }

@@ -142,7 +142,6 @@ impl DocumentBlock {
             DocumentBlock::Table(table) => {
                 let mut result = Vec::new();
 
-
                 let header_text = table
                     .header
                     .iter()
@@ -164,7 +163,6 @@ impl DocumentBlock {
                         .join(" | ");
                     result.push(format!("| {} |", separator));
                 }
-
 
                 for row in &table.rows {
                     let row_text = row
@@ -662,22 +660,20 @@ impl DocumentInline {
 
     pub fn key_range(&self) -> Option<InlineRange> {
         match self {
-            DocumentInline::Link(link) => {
-                Some(InlineRange {
-                    start: Position {
-                        line: link.inline_range.start.line,
+            DocumentInline::Link(link) => Some(InlineRange {
+                start: Position {
+                    line: link.inline_range.start.line,
 
-                        character: link.inline_range.start.character
-                            + self.to_plain_text().chars().count()
-                            + 3,
-                    },
-                    end: Position {
-                        line: link.inline_range.end.line,
+                    character: link.inline_range.start.character
+                        + self.to_plain_text().chars().count()
+                        + 3,
+                },
+                end: Position {
+                    line: link.inline_range.end.line,
 
-                        character: link.inline_range.end.character - 1,
-                    },
-                })
-            }
+                    character: link.inline_range.end.character - 1,
+                },
+            }),
             _ => None,
         }
     }

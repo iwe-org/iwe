@@ -4,17 +4,19 @@ use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_inline_list_references() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Architecture](arch)
 
             [Database](db)
-        "}),
+        "},
+        ),
         ("arch", "# Architecture"),
         ("db", "# Database"),
     ]);
@@ -36,23 +38,32 @@ fn test_inline_list_references() {
 #[test]
 fn test_inline_by_reference() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Architecture](arch)
-        "}),
-        ("arch", indoc! {"
+        "},
+        ),
+        (
+            "arch",
+            indoc! {"
             # Architecture
 
             Architecture content here.
-        "}),
+        "},
+        ),
     ]);
     let temp_path = temp_dir.path();
 
     let output = run_inline_command(temp_path, &["index", "--reference", "arch"]);
     assert!(output.status.success());
 
-    assert!(!temp_path.join("arch.md").exists(), "Target file should be deleted");
+    assert!(
+        !temp_path.join("arch.md").exists(),
+        "Target file should be deleted"
+    );
 
     let index_content = read_to_string(temp_path.join("index.md")).unwrap();
     assert_eq!(
@@ -70,13 +81,16 @@ fn test_inline_by_reference() {
 #[test]
 fn test_inline_by_block_number() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [First](first)
 
             [Second](second)
-        "}),
+        "},
+        ),
         ("first", "# First\n\nFirst content"),
         ("second", "# Second\n\nSecond content"),
     ]);
@@ -85,8 +99,14 @@ fn test_inline_by_block_number() {
     let output = run_inline_command(temp_path, &["index", "--block", "1"]);
     assert!(output.status.success());
 
-    assert!(!temp_path.join("first.md").exists(), "First file should be deleted");
-    assert!(temp_path.join("second.md").exists(), "Second file should remain");
+    assert!(
+        !temp_path.join("first.md").exists(),
+        "First file should be deleted"
+    );
+    assert!(
+        temp_path.join("second.md").exists(),
+        "Second file should remain"
+    );
 
     let index_content = read_to_string(temp_path.join("index.md")).unwrap();
     assert_eq!(
@@ -106,23 +126,35 @@ fn test_inline_by_block_number() {
 #[test]
 fn test_inline_keep_target() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Architecture](arch)
-        "}),
-        ("arch", indoc! {"
+        "},
+        ),
+        (
+            "arch",
+            indoc! {"
             # Architecture
 
             Architecture content.
-        "}),
+        "},
+        ),
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_inline_command(temp_path, &["index", "--reference", "arch", "--keep-target"]);
+    let output = run_inline_command(
+        temp_path,
+        &["index", "--reference", "arch", "--keep-target"],
+    );
     assert!(output.status.success());
 
-    assert!(temp_path.join("arch.md").exists(), "Target file should be kept");
+    assert!(
+        temp_path.join("arch.md").exists(),
+        "Target file should be kept"
+    );
 
     let index_content = read_to_string(temp_path.join("index.md")).unwrap();
     assert_eq!(
@@ -140,16 +172,22 @@ fn test_inline_keep_target() {
 #[test]
 fn test_inline_as_quote() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Quote](quote)
-        "}),
-        ("quote", indoc! {"
+        "},
+        ),
+        (
+            "quote",
+            indoc! {"
             Quote paragraph 1
 
             Quote paragraph 2
-        "}),
+        "},
+        ),
     ]);
     let temp_path = temp_dir.path();
 
@@ -172,16 +210,22 @@ fn test_inline_as_quote() {
 #[test]
 fn test_inline_cleans_other_references() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Target](target)
-        "}),
-        ("other", indoc! {"
+        "},
+        ),
+        (
+            "other",
+            indoc! {"
             # Other
 
             [Also refs target](target)
-        "}),
+        "},
+        ),
         ("target", "# Target\n\nContent"),
     ]);
     let temp_path = temp_dir.path();
@@ -196,13 +240,16 @@ fn test_inline_cleans_other_references() {
 #[test]
 fn test_inline_ambiguous_reference_fails() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Notes A](notes-a)
 
             [Notes B](notes-b)
-        "}),
+        "},
+        ),
         ("notes-a", "# Notes A"),
         ("notes-b", "# Notes B"),
     ]);
@@ -225,9 +272,7 @@ fn test_inline_ambiguous_reference_fails() {
 
 #[test]
 fn test_inline_nonexistent_key() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "# Doc A"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A")]);
     let temp_path = temp_dir.path();
 
     let output = run_inline_command(temp_path, &["nonexistent", "--block", "1"]);
@@ -240,11 +285,14 @@ fn test_inline_nonexistent_key() {
 #[test]
 fn test_inline_reference_not_found() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Link](target)
-        "}),
+        "},
+        ),
         ("target", "# Target"),
     ]);
     let temp_path = temp_dir.path();
@@ -259,11 +307,14 @@ fn test_inline_reference_not_found() {
 #[test]
 fn test_inline_block_out_of_range() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Link](target)
-        "}),
+        "},
+        ),
         ("target", "# Target"),
     ]);
     let temp_path = temp_dir.path();
@@ -278,11 +329,14 @@ fn test_inline_block_out_of_range() {
 #[test]
 fn test_inline_dry_run() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+        (
+            "index",
+            indoc! {"
             # Index
 
             [Target](target)
-        "}),
+        "},
+        ),
         ("target", "# Target\n\nContent"),
     ]);
     let temp_path = temp_dir.path();
@@ -293,8 +347,14 @@ fn test_inline_dry_run() {
     assert!(output.status.success());
 
     let after_content = read_to_string(temp_path.join("index.md")).unwrap();
-    assert_eq!(original_content, after_content, "File should not be modified");
-    assert!(temp_path.join("target.md").exists(), "Target should still exist");
+    assert_eq!(
+        original_content, after_content,
+        "File should not be modified"
+    );
+    assert!(
+        temp_path.join("target.md").exists(),
+        "Target should still exist"
+    );
 }
 
 #[test]
@@ -305,7 +365,10 @@ fn test_inline_keys_output() {
     ]);
     let temp_path = temp_dir.path();
 
-    let output = run_inline_command(temp_path, &["index", "--reference", "target", "--keys", "--dry-run"]);
+    let output = run_inline_command(
+        temp_path,
+        &["index", "--reference", "target", "--keys", "--dry-run"],
+    );
     let stderr = String::from_utf8(output.stderr.clone()).unwrap();
     assert!(output.status.success(), "Command failed: {}", stderr);
 
@@ -326,25 +389,32 @@ fn test_inline_quiet_mode() {
     assert!(output.status.success(), "Command failed: {}", stderr);
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.trim().is_empty(), "Quiet mode should suppress output");
+    assert!(
+        stdout.trim().is_empty(),
+        "Quiet mode should suppress output"
+    );
 }
 
 #[test]
 fn test_inline_no_references() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("index", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "index",
+        indoc! {"
             # Index
 
             Just regular content, no references.
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_inline_command(temp_path, &["index", "--list"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.trim().is_empty(), "Should have no references to list");
+    assert!(
+        stdout.trim().is_empty(),
+        "Should have no references to list"
+    );
 }
 
 fn setup_workspace_with_docs(docs: Vec<(&str, &str)>) -> TempDir {
