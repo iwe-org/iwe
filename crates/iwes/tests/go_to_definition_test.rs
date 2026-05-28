@@ -257,3 +257,50 @@ fn definition_bare_mailto_url() {
         "mailto:test@example.com",
     );
 }
+
+#[test]
+fn definition_wiki_link_after_multibyte_text() {
+    Fixture::with_documents(vec![
+        ("1", "- \u{03B1}\u{03B2}\u{03B3}[[link]]\n"),
+        ("link", "# target\n"),
+    ])
+    .go_to_definition(
+        uri(1).to_goto_definition_params(0, 5),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
+    )
+    .go_to_definition(
+        uri(1).to_goto_definition_params(0, 2),
+        goto_definition_response_empty(),
+    );
+}
+
+#[test]
+fn definition_markdown_link_after_multibyte_text() {
+    Fixture::with_documents(vec![
+        ("1", "\u{03B1}\u{03B2} [test](link)\n"),
+        ("link", "# target\n"),
+    ])
+    .go_to_definition(
+        uri(1).to_goto_definition_params(0, 4),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
+    )
+    .go_to_definition(
+        uri(1).to_goto_definition_params(0, 1),
+        goto_definition_response_empty(),
+    );
+}
+
+#[test]
+fn definition_bare_url_after_multibyte_text() {
+    Fixture::with_documents(vec![
+        ("1", "\u{03B1}\u{03B2} https://example.com\n"),
+    ])
+    .go_to_definition_external(
+        uri(1).to_goto_definition_params(0, 5),
+        "https://example.com",
+    );
+}

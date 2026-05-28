@@ -411,27 +411,28 @@ impl MarkdownEventsReader {
     }
 
     fn to_inline_range(&self, range: Range<usize>) -> InlineRange {
-        let mut start = 0;
+        let content = self.content.as_deref().unwrap_or("");
+        let mut start_line = 0;
         let mut start_char = 0;
-        let mut end = 0;
+        let mut end_line = 0;
         let mut end_char = 0;
 
-        for (line, &line_start) in self.line_starts.iter().enumerate() {
+        for (line_idx, &line_start) in self.line_starts.iter().enumerate() {
             if line_start <= range.start {
-                start = line;
-                start_char = range.start - line_start;
+                start_line = line_idx;
+                start_char = content[line_start..range.start].chars().count();
             }
             if line_start <= range.end {
-                end = line;
-                end_char = range.end - line_start;
+                end_line = line_idx;
+                end_char = content[line_start..range.end].chars().count();
             }
         }
 
         Position {
-            line: start,
+            line: start_line,
             character: start_char,
         }..Position {
-            line: end,
+            line: end_line,
             character: end_char,
         }
     }
@@ -742,4 +743,47 @@ mod tests {
         let ranges = line_starts(content);
         assert_eq!(vec![0, 2, 3, 5, 6, 8], ranges);
     }
+
+    #[test]
+    fn test_link_position_after_multibyte_text() {
+        let content = "\u{03B1}\u{03B2} [link](to)\n";
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let link = actual[0].child_inlines().into_iter().find(|i| i.is_link()).unwrap();
+        assert_eq!(
+            InlineRange {
+                start: Position {
+                    line: 0,
+                    character: 3,
+                },
+                end: Position {
+                    line: 0,
+                    character: 13,
+                },
+            },
+            link.inline_range()
+        );
+    }
+
+    #[test]
+    fn test_wiki_link_position_after_multibyte_text() {
+        let content = "\u{03B1}\u{03B2} [[target]]\n";
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let link = actual[0].child_inlines().into_iter().find(|i| i.is_link()).unwrap();
+        assert_eq!(
+            InlineRange {
+                start: Position {
+                    line: 0,
+                    character: 3,
+                },
+                end: Position {
+                    line: 0,
+                    character: 13,
+                },
+            },
+            link.inline_range()
+        );
+    }
+
 }
