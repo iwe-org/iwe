@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9](https://github.com/iwe-org/iwe/compare/iwes-v0.1.8...iwes-v0.1.9) - 2026-05-27
+
 ### Fixed
 
 - `textDocument/definition` and `textDocument/hover` now resolve links correctly in documents containing multi-byte characters (previously returned empty results due to byte-vs-character offset mismatch)

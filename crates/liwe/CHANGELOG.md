@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9](https://github.com/iwe-org/iwe/compare/liwe-v0.1.8...liwe-v0.1.9) - 2026-05-27
+
 ### Fixed
 
 - `InlineRange` character positions now use character offsets instead of byte offsets, fixing `link_at`/`url_at` position lookups in documents containing multi-byte characters
