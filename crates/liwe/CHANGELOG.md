@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `InlineRange` character positions now use character offsets instead of byte offsets, fixing `link_at`/`url_at` position lookups in documents containing multi-byte characters
+- `line_starts` now counts actual `\n` byte positions instead of using `str::lines().len() + 1`, fixing line offset calculations for `\r\n` line endings
+
 ## [0.1.8](https://github.com/iwe-org/iwe/compare/liwe-v0.1.7...liwe-v0.1.8) - 2026-05-23
 
 ### Added

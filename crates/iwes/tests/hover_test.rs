@@ -80,3 +80,30 @@ fn hover_missing_target_returns_none() {
     Fixture::with_documents(vec![("1", "text [[missing]] text\n")])
         .assert_response::<HoverRequest>(uri(1).to_hover_params(0, 7), None);
 }
+
+#[test]
+fn hover_wiki_link_after_multibyte_text() {
+    Fixture::with_documents(vec![
+        ("1", "\u{03B1}\u{03B2} [[2]] text\n"),
+        ("2", "# Heading\n\nLine 2\n"),
+    ])
+    .assert_response::<HoverRequest>(
+        uri(1).to_hover_params(0, 4),
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "# Heading\n\nLine 2\n".to_string(),
+            }),
+            range: None,
+        }),
+    );
+}
+
+#[test]
+fn hover_outside_link_with_multibyte_text() {
+    Fixture::with_documents(vec![
+        ("1", "\u{03B1}\u{03B2} [[2]] text\n"),
+        ("2", "# Heading\n"),
+    ])
+    .assert_response::<HoverRequest>(uri(1).to_hover_params(0, 1), None);
+}

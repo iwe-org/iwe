@@ -84,6 +84,16 @@ fn sanitize_content(content: String) -> String {
     content.replace("\r\n", "\n").replace('\r', "\n")
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_content_strips_crlf() {
+        assert_eq!("a\nb\nc\n", sanitize_content("a\r\nb\r\nc\r\n".into()));
+    }
+}
+
 fn to_file_name(path: &Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().trim_end_matches(".md").to_string())

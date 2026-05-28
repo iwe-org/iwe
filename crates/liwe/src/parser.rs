@@ -60,7 +60,10 @@ impl Parser {
             let url = &url_part[..end];
             let absolute_end = absolute_start + end;
 
-            if char_pos >= absolute_start && char_pos < absolute_end {
+            let char_start = line[..absolute_start].chars().count();
+            let char_end = line[..absolute_end].chars().count();
+
+            if char_pos >= char_start && char_pos < char_end {
                 return Some(url.to_string());
             }
 
@@ -194,4 +197,35 @@ mod tests {
             parser.url_at((0, 3).into())
         );
     }
+
+    #[test]
+    fn wiki_link_after_multibyte_text() {
+        let parser = Parser::new(
+            "- \u{03B1}\u{03B2}\u{03B3}[[target]]",
+            &MarkdownOptions::default(),
+            crate::markdown::MarkdownReader::new(),
+        );
+
+        assert_eq!(
+            Some("target".to_string()),
+            parser.url_at((0, 5).into())
+        );
+        assert_eq!(None, parser.url_at((0, 2).into()));
+    }
+
+    #[test]
+    fn bare_url_after_multibyte_text() {
+        let parser = Parser::new(
+            "\u{03B1}\u{03B2} https://example.com",
+            &MarkdownOptions::default(),
+            crate::markdown::MarkdownReader::new(),
+        );
+
+        assert_eq!(
+            Some("https://example.com".to_string()),
+            parser.url_at((0, 5).into())
+        );
+        assert_eq!(None, parser.url_at((0, 1).into()));
+    }
+
 }
