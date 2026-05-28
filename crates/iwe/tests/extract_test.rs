@@ -4,11 +4,11 @@ use std::fs::{create_dir_all, read_dir, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_extract_list_sections() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main Title
 
             ## Section A
@@ -18,8 +18,8 @@ fn test_extract_list_sections() {
             ## Section B
 
             Content B
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--list"]);
@@ -38,8 +38,9 @@ fn test_extract_list_sections() {
 
 #[test]
 fn test_extract_by_section_title() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main Title
 
             ## Section A
@@ -49,8 +50,8 @@ fn test_extract_by_section_title() {
             ## Section B
 
             Content B
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--section", "Section A"]);
@@ -86,8 +87,9 @@ fn test_extract_by_section_title() {
 
 #[test]
 fn test_extract_by_block_number() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main Title
 
             ## Section A
@@ -97,8 +99,8 @@ fn test_extract_by_block_number() {
             ## Section B
 
             Content B
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--block", "3"]);
@@ -121,8 +123,9 @@ fn test_extract_by_block_number() {
 
 #[test]
 fn test_extract_ambiguous_section_fails() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Notes
@@ -132,12 +135,15 @@ fn test_extract_ambiguous_section_fails() {
             ## Notes
 
             Second notes
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--section", "Notes"]);
-    assert!(!output.status.success(), "Should fail with ambiguous section");
+    assert!(
+        !output.status.success(),
+        "Should fail with ambiguous section"
+    );
 
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert_eq!(
@@ -153,17 +159,21 @@ fn test_extract_ambiguous_section_fails() {
 
 #[test]
 fn test_extract_top_level_not_allowed() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main Title
 
             Content
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--block", "1"]);
-    assert!(!output.status.success(), "Should fail for top-level section");
+    assert!(
+        !output.status.success(),
+        "Should fail for top-level section"
+    );
 
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert_eq!(stderr, "Error: Cannot extract top-level document section\n");
@@ -171,9 +181,7 @@ fn test_extract_top_level_not_allowed() {
 
 #[test]
 fn test_extract_nonexistent_key() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "# Doc A"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A")]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["nonexistent", "--block", "1"]);
@@ -185,13 +193,14 @@ fn test_extract_nonexistent_key() {
 
 #[test]
 fn test_extract_section_not_found() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Section A
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--section", "Nonexistent"]);
@@ -203,13 +212,14 @@ fn test_extract_section_not_found() {
 
 #[test]
 fn test_extract_block_out_of_range() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Section A
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--block", "10"]);
@@ -221,15 +231,16 @@ fn test_extract_block_out_of_range() {
 
 #[test]
 fn test_extract_dry_run() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Section A
 
             Content A
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let original_content = read_to_string(temp_path.join("main.md")).unwrap();
@@ -238,27 +249,41 @@ fn test_extract_dry_run() {
     assert!(output.status.success());
 
     let after_content = read_to_string(temp_path.join("main.md")).unwrap();
-    assert_eq!(original_content, after_content, "File should not be modified");
+    assert_eq!(
+        original_content, after_content,
+        "File should not be modified"
+    );
 
     let file_count = read_dir(temp_path)
         .unwrap()
-        .filter(|e| e.as_ref().unwrap().path().extension().map(|s| s == "md").unwrap_or(false))
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .path()
+                .extension()
+                .map(|s| s == "md")
+                .unwrap_or(false)
+        })
         .count();
     assert_eq!(file_count, 1, "No new files should be created");
 }
 
 #[test]
 fn test_extract_keys_output() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Section A
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
-    let output = run_extract_command(temp_path, &["main", "--section", "Section A", "--keys", "--dry-run"]);
+    let output = run_extract_command(
+        temp_path,
+        &["main", "--section", "Section A", "--keys", "--dry-run"],
+    );
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -267,26 +292,31 @@ fn test_extract_keys_output() {
 
 #[test]
 fn test_extract_quiet_mode() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Section A
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--section", "Section A", "--quiet"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.trim().is_empty(), "Quiet mode should suppress output");
+    assert!(
+        stdout.trim().is_empty(),
+        "Quiet mode should suppress output"
+    );
 }
 
 #[test]
 fn test_extract_preserves_subsections() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Section A
@@ -296,8 +326,8 @@ fn test_extract_preserves_subsections() {
             ### Subsection A1
 
             Subsection content
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
     let output = run_extract_command(temp_path, &["main", "--block", "2"]);
@@ -354,19 +384,26 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
 
 #[test]
 fn test_extract_section_and_block_conflict() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("main", indoc! {"
+    let temp_dir = setup_workspace_with_docs(vec![(
+        "main",
+        indoc! {"
             # Main
 
             ## Section A
 
             Content A
-        "}),
-    ]);
+        "},
+    )]);
     let temp_path = temp_dir.path();
 
-    let output = run_extract_command(temp_path, &["main", "--section", "Section A", "--block", "2"]);
-    assert!(!output.status.success(), "Should fail with conflicting flags");
+    let output = run_extract_command(
+        temp_path,
+        &["main", "--section", "Section A", "--block", "2"],
+    );
+    assert!(
+        !output.status.success(),
+        "Should fail with conflicting flags"
+    );
 
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(

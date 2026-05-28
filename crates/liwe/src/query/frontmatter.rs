@@ -43,9 +43,8 @@ mod tests {
 
     #[test]
     fn strip_keeps_unreserved_prefixes() {
-        let mut m = map(
-            "foo: 1\nfoo_bar: 2\nfoo123: 3\n\"2024\": 4\n\"-hyphen\": 5\n\"with/slash\": 6\n",
-        );
+        let mut m =
+            map("foo: 1\nfoo_bar: 2\nfoo123: 3\n\"2024\": 4\n\"-hyphen\": 5\n\"with/slash\": 6\n");
         strip_reserved(&mut m);
         assert!(m.contains_key(Value::String("foo".into())));
         assert!(m.contains_key(Value::String("foo_bar".into())));

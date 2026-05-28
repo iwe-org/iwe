@@ -247,7 +247,6 @@ impl Graph {
             .map(|s| s.to_string())
     }
 
-
     pub fn frontmatter(&self, key: &Key) -> Option<&Mapping> {
         self.frontmatter.get(key)
     }
@@ -388,9 +387,8 @@ impl Graph {
             entries
                 .into_iter()
                 .filter_map(|(key, path)| {
-                    crate::fs::read_md_file(&path).map(|content| {
-                        build_doc(&ids, Key::name(&key), content, &markdown_options)
-                    })
+                    crate::fs::read_md_file(&path)
+                        .map(|content| build_doc(&ids, Key::name(&key), content, &markdown_options))
                 })
                 .collect()
         } else {
@@ -450,7 +448,6 @@ impl Graph {
     }
 
     pub fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
-
         self.index
             .get_inclusion_edges_to(key)
             .iter()
@@ -472,7 +469,6 @@ impl Graph {
     }
 
     pub fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
-
         self.index
             .get_reference_edges_to(key)
             .iter()

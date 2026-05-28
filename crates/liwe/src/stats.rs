@@ -325,10 +325,7 @@ impl GraphStatistics {
             0.0
         };
 
-        let leaf_documents = key_stats
-            .iter()
-            .filter(|ks| ks.includes_count == 0)
-            .count();
+        let leaf_documents = key_stats.iter().filter(|ks| ks.includes_count == 0).count();
         let leaf_percentage = if total_documents > 0 {
             (leaf_documents as f64 / total_documents as f64) * 100.0
         } else {

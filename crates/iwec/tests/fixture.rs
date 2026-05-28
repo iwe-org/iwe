@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
+use iwec::IweServer;
 use liwe::model::config::Configuration;
 use rmcp::model::*;
-use rmcp::{ClientHandler, ServiceExt, service::RunningService, RoleClient};
-use iwec::IweServer;
+use rmcp::{service::RunningService, ClientHandler, RoleClient, ServiceExt};
 
 #[derive(Default, Clone)]
 struct TestClient;
@@ -20,7 +20,10 @@ impl Fixture {
         Self::with_documents_and_config(documents, Configuration::default()).await
     }
 
-    pub async fn with_documents_and_config(documents: Vec<(&str, &str)>, config: Configuration) -> Self {
+    pub async fn with_documents_and_config(
+        documents: Vec<(&str, &str)>,
+        config: Configuration,
+    ) -> Self {
         let server = IweServer::from_documents_with_config(documents, config);
         let (server_transport, client_transport) = tokio::io::duplex(65536);
 
@@ -30,7 +33,10 @@ impl Fixture {
             anyhow::Ok(())
         });
 
-        let client = TestClient.serve(client_transport).await.expect("client to connect");
+        let client = TestClient
+            .serve(client_transport)
+            .await
+            .expect("client to connect");
 
         Self {
             client,
@@ -128,11 +134,7 @@ impl Fixture {
         }
     }
 
-    pub async fn get_prompt(
-        &self,
-        name: &str,
-        arguments: serde_json::Value,
-    ) -> GetPromptResult {
+    pub async fn get_prompt(&self, name: &str, arguments: serde_json::Value) -> GetPromptResult {
         let params = match arguments {
             serde_json::Value::Object(map) => {
                 let string_map: serde_json::Map<String, serde_json::Value> = map

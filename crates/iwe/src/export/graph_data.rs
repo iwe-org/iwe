@@ -54,10 +54,7 @@ pub fn graph_data(key_filter: Vec<Key>, depth: u8, graph: &Graph) -> GraphData {
     let keys = filter_keys(graph, key_filter, depth);
 
     keys.iter()
-        .map(|pair| {
-
-            build_graph_data(graph, pair.0, *pair.1)
-        })
+        .map(|pair| build_graph_data(graph, pair.0, *pair.1))
         .fold(
             GraphData {
                 sections: HashMap::new(),

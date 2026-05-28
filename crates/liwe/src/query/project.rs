@@ -35,10 +35,12 @@ pub fn apply_projection(ctx: &ProjectionContext<'_>, projection: &Projection) ->
         out.insert(Value::String(field.output.clone()), v);
     }
     if projection.mode == ProjectionMode::Replace
-        && projection.fields.iter().any(|f| matches!(
-            &f.source,
-            ProjectionSource::Pseudo(PseudoField::Frontmatter)
-        ))
+        && projection.fields.iter().any(|f| {
+            matches!(
+                &f.source,
+                ProjectionSource::Pseudo(PseudoField::Frontmatter)
+            )
+        })
     {
         return out;
     }
@@ -108,12 +110,16 @@ fn resolve_pseudo(ctx: &ProjectionContext<'_>, p: PseudoField) -> Value {
             strip_reserved(&mut fm);
             Value::Mapping(fm)
         }
-        PseudoField::IncludedBy => edges_to_value(crate::query::edges::included_by(ctx.graph, ctx.key)),
+        PseudoField::IncludedBy => {
+            edges_to_value(crate::query::edges::included_by(ctx.graph, ctx.key))
+        }
         PseudoField::Includes => edges_to_value(crate::query::edges::includes(ctx.graph, ctx.key)),
         PseudoField::ReferencedBy => {
             edges_to_value(crate::query::edges::referenced_by(ctx.graph, ctx.key))
         }
-        PseudoField::References => edges_to_value(crate::query::edges::references(ctx.graph, ctx.key)),
+        PseudoField::References => {
+            edges_to_value(crate::query::edges::references(ctx.graph, ctx.key))
+        }
     }
 }
 

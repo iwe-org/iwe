@@ -1,4 +1,3 @@
-
 use crate::fixture::Fixture;
 use rmcp::model::{PromptMessage, PromptMessageContent};
 use serde_json::json;
@@ -23,11 +22,8 @@ async fn list_prompts() {
 
 #[tokio::test]
 async fn explore_prompt() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root\n\n[Child](2)\n"),
-        ("2", "# Child\n"),
-    ])
-    .await;
+    let f =
+        Fixture::with_documents(vec![("1", "# Root\n\n[Child](2)\n"), ("2", "# Child\n")]).await;
 
     let result = f.get_prompt("explore", json!(null)).await;
     assert!(!result.messages.is_empty());

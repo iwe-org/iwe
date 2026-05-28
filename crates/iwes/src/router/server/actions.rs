@@ -268,110 +268,97 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
     let key_locale = get_locale(configuration.library.locale.as_deref());
     let markdown_locale = get_locale(configuration.markdown.locale.as_deref());
 
-    actions.extend(
-        configuration
-            .actions
-            .iter()
-            .map(|(identifier, action)| match action {
-                ActionDefinition::Transform(transform) => {
-                    ActionEnum::TransformBlockAction(TransformBlockAction {
-                        title: transform.title.clone(),
-                        identifier: identifier.clone(),
-                        command: transform.command.clone(),
-                        input_template: transform.input_template.clone(),
-                    })
-                }
-                ActionDefinition::Attach(attach) => {
-                    let md_date_fmt = configuration
+    actions.extend(configuration.actions.iter().map(|(identifier, action)| {
+        match action {
+            ActionDefinition::Transform(transform) => {
+                ActionEnum::TransformBlockAction(TransformBlockAction {
+                    title: transform.title.clone(),
+                    identifier: identifier.clone(),
+                    command: transform.command.clone(),
+                    input_template: transform.input_template.clone(),
+                })
+            }
+            ActionDefinition::Attach(attach) => {
+                let md_date_fmt = configuration
+                    .clone()
+                    .markdown
+                    .date_format
+                    .unwrap_or("%b %d, %Y".into());
+                let key_date_fmt = configuration
+                    .clone()
+                    .library
+                    .date_format
+                    .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into());
+                ActionEnum::AttachAction(AttachAction {
+                    title: attach.title.clone(),
+                    identifier: identifier.clone(),
+                    document_template: attach.document_template.clone(),
+                    key_template: attach.key_template.clone(),
+                    markdown_date_format: md_date_fmt.clone(),
+                    markdown_time_format: configuration
                         .clone()
                         .markdown
-                        .date_format
-                        .unwrap_or("%b %d, %Y".into());
-                    let key_date_fmt = configuration
+                        .time_format
+                        .unwrap_or_else(|| md_date_fmt.clone()),
+                    key_date_format: key_date_fmt.clone(),
+                    key_time_format: configuration
                         .clone()
                         .library
-                        .date_format
-                        .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into());
-                    ActionEnum::AttachAction(AttachAction {
-                        title: attach.title.clone(),
-                        identifier: identifier.clone(),
-                        document_template: attach.document_template.clone(),
-                        key_template: attach.key_template.clone(),
-                        markdown_date_format: md_date_fmt.clone(),
-                        markdown_time_format: configuration
-                            .clone()
-                            .markdown
-                            .time_format
-                            .unwrap_or_else(|| md_date_fmt.clone()),
-                        key_date_format: key_date_fmt.clone(),
-                        key_time_format: configuration
-                            .clone()
-                            .library
-                            .time_format
-                            .unwrap_or_else(|| key_date_fmt.clone()),
-                        key_locale,
-                        markdown_locale,
-                    })
-                }
-                ActionDefinition::Sort(sort) => {
-                    ActionEnum::SortAction(SortAction {
-                        title: sort.title.clone(),
-                        identifier: identifier.clone(),
-                        reverse: sort.reverse.unwrap_or(false),
-                    })
-                }
-                ActionDefinition::Inline(inline) => {
-                    ActionEnum::InlineAction(InlineAction {
-                        title: inline.title.clone(),
-                        identifier: identifier.clone(),
-                        inline_type: inline.inline_type.clone(),
-                        keep_target: inline.keep_target.unwrap_or(false),
-                    })
-                }
-                ActionDefinition::Extract(extract) => {
-                    ActionEnum::SectionExtract(SectionExtract {
-                        title: extract.title.clone(),
-                        identifier: identifier.clone(),
-                        link_type: extract.link_type.clone(),
-                        key_template: extract.key_template.clone(),
-                        key_date_format: configuration
-                            .clone()
-                            .library
-                            .date_format
-                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
-                        locale: key_locale,
-                    })
-                }
-                ActionDefinition::ExtractAll(extract_all) => {
-                    ActionEnum::ExtractAll(ExtractAll {
-                        title: extract_all.title.clone(),
-                        identifier: identifier.clone(),
-                        link_type: extract_all.link_type.clone(),
-                        key_template: extract_all.key_template.clone(),
-                        key_date_format: configuration
-                            .clone()
-                            .library
-                            .date_format
-                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
-                        locale: key_locale,
-                    })
-                }
-                ActionDefinition::Link(link) => {
-                    ActionEnum::LinkAction(LinkAction {
-                        title: link.title.clone(),
-                        identifier: identifier.clone(),
-                        link_type: link.link_type.clone(),
-                        key_template: link.key_template.clone(),
-                        key_date_format: configuration
-                            .clone()
-                            .library
-                            .date_format
-                            .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
-                        locale: key_locale,
-                    })
-                }
+                        .time_format
+                        .unwrap_or_else(|| key_date_fmt.clone()),
+                    key_locale,
+                    markdown_locale,
+                })
+            }
+            ActionDefinition::Sort(sort) => ActionEnum::SortAction(SortAction {
+                title: sort.title.clone(),
+                identifier: identifier.clone(),
+                reverse: sort.reverse.unwrap_or(false),
             }),
-    );
+            ActionDefinition::Inline(inline) => ActionEnum::InlineAction(InlineAction {
+                title: inline.title.clone(),
+                identifier: identifier.clone(),
+                inline_type: inline.inline_type.clone(),
+                keep_target: inline.keep_target.unwrap_or(false),
+            }),
+            ActionDefinition::Extract(extract) => ActionEnum::SectionExtract(SectionExtract {
+                title: extract.title.clone(),
+                identifier: identifier.clone(),
+                link_type: extract.link_type.clone(),
+                key_template: extract.key_template.clone(),
+                key_date_format: configuration
+                    .clone()
+                    .library
+                    .date_format
+                    .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                locale: key_locale,
+            }),
+            ActionDefinition::ExtractAll(extract_all) => ActionEnum::ExtractAll(ExtractAll {
+                title: extract_all.title.clone(),
+                identifier: identifier.clone(),
+                link_type: extract_all.link_type.clone(),
+                key_template: extract_all.key_template.clone(),
+                key_date_format: configuration
+                    .clone()
+                    .library
+                    .date_format
+                    .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                locale: key_locale,
+            }),
+            ActionDefinition::Link(link) => ActionEnum::LinkAction(LinkAction {
+                title: link.title.clone(),
+                identifier: identifier.clone(),
+                link_type: link.link_type.clone(),
+                key_template: link.key_template.clone(),
+                key_date_format: configuration
+                    .clone()
+                    .library
+                    .date_format
+                    .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
+                locale: key_locale,
+            }),
+        }
+    }));
 
     actions
 }

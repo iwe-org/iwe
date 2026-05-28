@@ -207,10 +207,12 @@ impl<'a> GraphBuilder<'a> {
     {
         let child_id = node.id();
         if self.insert {
-            self.store.update_node(self.id, &mut |n| n.set_child_id(child_id));
+            self.store
+                .update_node(self.id, &mut |n| n.set_child_id(child_id));
             self.insert = false;
         } else {
-            self.store.update_node(self.id, &mut |n| n.set_next_id(child_id));
+            self.store
+                .update_node(self.id, &mut |n| n.set_next_id(child_id));
         }
 
         self.id = node.id();
@@ -229,10 +231,12 @@ impl<'a> GraphBuilder<'a> {
     {
         let child_id = node.id();
         if self.insert {
-            self.store.update_node(self.id, &mut |n| n.set_child_id(child_id));
+            self.store
+                .update_node(self.id, &mut |n| n.set_child_id(child_id));
             self.insert = false;
         } else {
-            self.store.update_node(self.id, &mut |n| n.set_next_id(child_id));
+            self.store
+                .update_node(self.id, &mut |n| n.set_next_id(child_id));
         }
 
         self.store.add_graph_node(node.clone());
@@ -375,10 +379,12 @@ impl<'a> GraphBuilder<'a> {
 
     pub fn link_node_id(&mut self, node_id: NodeId) {
         if self.insert {
-            self.store.update_node(self.id, &mut |n| n.set_child_id(node_id));
+            self.store
+                .update_node(self.id, &mut |n| n.set_child_id(node_id));
             self.insert = false;
         } else {
-            self.store.update_node(self.id, &mut |n| n.set_next_id(node_id));
+            self.store
+                .update_node(self.id, &mut |n| n.set_next_id(node_id));
         }
 
         self.id = node_id;

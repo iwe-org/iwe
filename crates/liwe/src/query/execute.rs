@@ -4,9 +4,7 @@ use serde_yaml::Mapping;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{Node, NodeIter};
 use crate::model::Key;
-use crate::query::document::{
-    CountOp, DeleteOp, Filter, FindOp, Limit, Operation, Sort, UpdateOp,
-};
+use crate::query::document::{CountOp, DeleteOp, Filter, FindOp, Limit, Operation, Sort, UpdateOp};
 use crate::query::eval;
 use crate::query::frontmatter::strip_reserved;
 use crate::query::project::{apply_projection, ProjectionContext};
@@ -15,16 +13,10 @@ use crate::query::update;
 
 #[derive(Debug)]
 pub enum Outcome {
-    Find {
-        matches: Vec<FindMatch>,
-    },
+    Find { matches: Vec<FindMatch> },
     Count(usize),
-    Update {
-        changes: Vec<(Key, String)>,
-    },
-    Delete {
-        removed: Vec<Key>,
-    },
+    Update { changes: Vec<(Key, String)> },
+    Delete { removed: Vec<Key> },
 }
 
 #[derive(Debug, Clone)]
@@ -123,7 +115,6 @@ fn execute_delete(op: &DeleteOp, graph: &Graph) -> Outcome {
     let removed = rows.into_iter().map(|(k, _)| k).collect();
     Outcome::Delete { removed }
 }
-
 
 fn render_with_frontmatter(graph: &Graph, key: &Key, mapping: Mapping) -> String {
     let mut tree = graph.collect(key);

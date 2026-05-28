@@ -1,9 +1,7 @@
 use clap::Args;
 
 use liwe::model::Key;
-use liwe::query::{
-    parse_filter_expression, Filter, InclusionAnchor, KeyOp, ReferenceAnchor,
-};
+use liwe::query::{parse_filter_expression, Filter, InclusionAnchor, KeyOp, ReferenceAnchor};
 
 const LEGACY_ALIAS_DEPTH: u32 = 1;
 
@@ -19,7 +17,10 @@ impl KeyDepth {
     }
 
     pub fn with_depth(key: Key, depth: u8) -> Self {
-        Self { key, depth: Some(depth) }
+        Self {
+            key,
+            depth: Some(depth),
+        }
     }
 
     fn inclusion_anchor(&self, default_depth: Option<u8>) -> InclusionAnchor {
@@ -185,21 +186,31 @@ impl FilterArgs {
         }
 
         for kd in &self.includes {
-            conjuncts.push(Filter::Includes(Box::new(kd.inclusion_anchor(self.max_depth))));
+            conjuncts.push(Filter::Includes(Box::new(
+                kd.inclusion_anchor(self.max_depth),
+            )));
         }
         for kd in &self.included_by {
-            conjuncts.push(Filter::IncludedBy(Box::new(kd.inclusion_anchor(self.max_depth))));
+            conjuncts.push(Filter::IncludedBy(Box::new(
+                kd.inclusion_anchor(self.max_depth),
+            )));
         }
         for kd in &self.references {
-            conjuncts.push(Filter::References(Box::new(kd.reference_anchor(self.max_distance))));
+            conjuncts.push(Filter::References(Box::new(
+                kd.reference_anchor(self.max_distance),
+            )));
         }
         for kd in &self.referenced_by {
-            conjuncts.push(Filter::ReferencedBy(Box::new(kd.reference_anchor(self.max_distance))));
+            conjuncts.push(Filter::ReferencedBy(Box::new(
+                kd.reference_anchor(self.max_distance),
+            )));
         }
 
         for kd in &self.in_ {
             eprintln!("warning: --in is deprecated; use --included-by");
-            conjuncts.push(Filter::IncludedBy(Box::new(kd.inclusion_anchor(self.max_depth))));
+            conjuncts.push(Filter::IncludedBy(Box::new(
+                kd.inclusion_anchor(self.max_depth),
+            )));
         }
         if !self.in_any.is_empty() {
             eprintln!(
@@ -208,12 +219,19 @@ impl FilterArgs {
             conjuncts.push(Filter::Or(
                 self.in_any
                     .iter()
-                    .map(|k| Filter::IncludedBy(Box::new(InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH))))
+                    .map(|k| {
+                        Filter::IncludedBy(Box::new(InclusionAnchor::with_max(
+                            k,
+                            LEGACY_ALIAS_DEPTH,
+                        )))
+                    })
                     .collect(),
             ));
         }
         for k in &self.not_in {
-            eprintln!("warning: --not-in is deprecated; use --filter '$nor: [{{ $includedBy: ... }}]'");
+            eprintln!(
+                "warning: --not-in is deprecated; use --filter '$nor: [{{ $includedBy: ... }}]'"
+            );
             conjuncts.push(Filter::Nor(vec![Filter::IncludedBy(Box::new(
                 InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH),
             ))]));
@@ -261,4 +279,3 @@ fn parse_key_depth(s: &str) -> Result<KeyDepth, String> {
         Ok(KeyDepth::bare(Key::name(s)))
     }
 }
-

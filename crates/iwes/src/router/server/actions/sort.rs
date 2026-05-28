@@ -24,9 +24,7 @@ impl ActionProvider for SortAction {
         context
             .collect(&key)
             .get_surrounding_list_id(target_id)
-            .filter(|scope_id| {
-                !context.collect(&key).is_sorted(*scope_id, self.reverse)
-            })
+            .filter(|scope_id| !context.collect(&key).is_sorted(*scope_id, self.reverse))
             .map(|_| Action {
                 title: self.title.clone(),
                 identifier: self.identifier(),

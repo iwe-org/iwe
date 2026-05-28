@@ -4,28 +4,39 @@ use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_rename_basic() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [Link to B](b)
-        "}),
-        ("b", indoc! {"
+        "},
+        ),
+        (
+            "b",
+            indoc! {"
             # Doc B
 
             Content here
-        "}),
+        "},
+        ),
     ]);
     let temp_path = temp_dir.path();
 
     let output = run_rename_command(temp_path, &["b", "renamed-b"]);
     assert!(output.status.success(), "Rename command should succeed");
 
-    assert!(!temp_path.join("b.md").exists(), "Old file should be deleted");
-    assert!(temp_path.join("renamed-b.md").exists(), "New file should exist");
+    assert!(
+        !temp_path.join("b.md").exists(),
+        "Old file should be deleted"
+    );
+    assert!(
+        temp_path.join("renamed-b.md").exists(),
+        "New file should exist"
+    );
 
     let a_content = read_to_string(temp_path.join("a.md")).unwrap();
     assert_eq!(
@@ -41,16 +52,22 @@ fn test_rename_basic() {
 #[test]
 fn test_rename_multiple_references() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [first link](b)
 
             [second link](b)
-        "}),
-        ("b", indoc! {"
+        "},
+        ),
+        (
+            "b",
+            indoc! {"
             # Doc B
-        "}),
+        "},
+        ),
     ]);
     let temp_path = temp_dir.path();
 
@@ -73,19 +90,28 @@ fn test_rename_multiple_references() {
 #[test]
 fn test_rename_updates_multiple_files() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [link](target)
-        "}),
-        ("b", indoc! {"
+        "},
+        ),
+        (
+            "b",
+            indoc! {"
             # Doc B
 
             [another link](target)
-        "}),
-        ("target", indoc! {"
+        "},
+        ),
+        (
+            "target",
+            indoc! {"
             # Target
-        "}),
+        "},
+        ),
     ]);
     let temp_path = temp_dir.path();
 
@@ -115,9 +141,7 @@ fn test_rename_updates_multiple_files() {
 
 #[test]
 fn test_rename_nonexistent_key() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "# Doc A"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A")]);
     let temp_path = temp_dir.path();
 
     let output = run_rename_command(temp_path, &["nonexistent", "new-name"]);
@@ -129,10 +153,7 @@ fn test_rename_nonexistent_key() {
 
 #[test]
 fn test_rename_to_existing_key() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "# Doc A"),
-        ("b", "# Doc B"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A"), ("b", "# Doc B")]);
     let temp_path = temp_dir.path();
 
     let output = run_rename_command(temp_path, &["a", "b"]);
@@ -145,11 +166,14 @@ fn test_rename_to_existing_key() {
 #[test]
 fn test_rename_dry_run() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [link](b)
-        "}),
+        "},
+        ),
         ("b", "# Doc B"),
     ]);
     let temp_path = temp_dir.path();
@@ -157,8 +181,14 @@ fn test_rename_dry_run() {
     let output = run_rename_command(temp_path, &["b", "new-name", "--dry-run"]);
     assert!(output.status.success());
 
-    assert!(temp_path.join("b.md").exists(), "Original file should still exist");
-    assert!(!temp_path.join("new-name.md").exists(), "New file should not be created");
+    assert!(
+        temp_path.join("b.md").exists(),
+        "Original file should still exist"
+    );
+    assert!(
+        !temp_path.join("new-name.md").exists(),
+        "New file should not be created"
+    );
 
     let a_content = read_to_string(temp_path.join("a.md")).unwrap();
     assert_eq!(
@@ -173,10 +203,7 @@ fn test_rename_dry_run() {
 
 #[test]
 fn test_rename_keys_output() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "[link](b)"),
-        ("b", "# Doc B"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "[link](b)"), ("b", "# Doc B")]);
     let temp_path = temp_dir.path();
 
     let output = run_rename_command(temp_path, &["b", "new-name", "--keys", "--dry-run"]);
@@ -188,17 +215,17 @@ fn test_rename_keys_output() {
 
 #[test]
 fn test_rename_quiet_mode() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "[link](b)"),
-        ("b", "# Doc B"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "[link](b)"), ("b", "# Doc B")]);
     let temp_path = temp_dir.path();
 
     let output = run_rename_command(temp_path, &["b", "new-name", "--quiet"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.trim().is_empty(), "Quiet mode should suppress output");
+    assert!(
+        stdout.trim().is_empty(),
+        "Quiet mode should suppress output"
+    );
 }
 
 fn setup_workspace_with_docs(docs: Vec<(&str, &str)>) -> TempDir {
@@ -235,9 +262,7 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
 
 #[test]
 fn test_rename_empty_key_rejected() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "# Doc A"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A")]);
     let temp_path = temp_dir.path();
 
     let output = run_rename_command(temp_path, &["a", ""]);
@@ -246,8 +271,14 @@ fn test_rename_empty_key_rejected() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert_eq!(stderr, "Error: Invalid target: Key cannot be empty\n");
 
-    assert!(temp_path.join("a.md").exists(), "Original file should still exist");
-    assert!(!temp_path.join(".md").exists(), "Phantom .md should not be created");
+    assert!(
+        temp_path.join("a.md").exists(),
+        "Original file should still exist"
+    );
+    assert!(
+        !temp_path.join(".md").exists(),
+        "Phantom .md should not be created"
+    );
 }
 
 #[test]
@@ -261,9 +292,15 @@ fn test_rename_cleans_empty_directory() {
     let output = run_rename_command(temp_path, &["sub/child", "child"]);
     assert!(output.status.success());
 
-    assert!(!temp_path.join("sub").join("child.md").exists(), "Old file removed");
+    assert!(
+        !temp_path.join("sub").join("child.md").exists(),
+        "Old file removed"
+    );
     assert!(temp_path.join("child.md").exists(), "New file created");
-    assert!(!temp_path.join("sub").exists(), "Empty directory should be cleaned up");
+    assert!(
+        !temp_path.join("sub").exists(),
+        "Empty directory should be cleaned up"
+    );
 }
 
 fn run_rename_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::Output {

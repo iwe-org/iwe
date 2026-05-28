@@ -99,15 +99,24 @@ fn field_op(path: &str, op: FieldOp) -> Filter {
 }
 
 pub fn in_(path: &str, values: impl IntoIterator<Item = impl Into<Value>>) -> Filter {
-    field_op(path, FieldOp::In(values.into_iter().map(Into::into).collect()))
+    field_op(
+        path,
+        FieldOp::In(values.into_iter().map(Into::into).collect()),
+    )
 }
 
 pub fn nin(path: &str, values: impl IntoIterator<Item = impl Into<Value>>) -> Filter {
-    field_op(path, FieldOp::Nin(values.into_iter().map(Into::into).collect()))
+    field_op(
+        path,
+        FieldOp::Nin(values.into_iter().map(Into::into).collect()),
+    )
 }
 
 pub fn all(path: &str, values: impl IntoIterator<Item = impl Into<Value>>) -> Filter {
-    field_op(path, FieldOp::All(values.into_iter().map(Into::into).collect()))
+    field_op(
+        path,
+        FieldOp::All(values.into_iter().map(Into::into).collect()),
+    )
 }
 
 pub fn size(path: &str, n: u64) -> Filter {

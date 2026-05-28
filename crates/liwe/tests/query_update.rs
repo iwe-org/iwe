@@ -7,7 +7,6 @@ use liwe::query::{Filter, Outcome, Update, UpdateOp, UpdateOperator};
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
 
-
 fn assert_update(docs: &str, op: UpdateOp, expected: &str) {
     let state = from_indoc(docs);
     let graph = Graph::import(&state, MarkdownOptions::default(), None);

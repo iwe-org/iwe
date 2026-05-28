@@ -204,10 +204,7 @@ mod tests {
 
     #[test]
     fn single_doc_flat_fields() {
-        let graph = build_graph(&[(
-            "doc1",
-            "---\ntype: post\nstatus: draft\n---\n# Title\n",
-        )]);
+        let graph = build_graph(&[("doc1", "---\ntype: post\nstatus: draft\n---\n# Title\n")]);
         let keys = vec![Key::name("doc1")];
         let fields = infer_schema(&graph, &keys);
 
@@ -253,9 +250,17 @@ mod tests {
         assert_eq!(url_field.coverage.count, 2);
         assert_eq!(url_field.types.len(), 2);
 
-        let string_type = url_field.types.iter().find(|t| t.yaml_type == "string").unwrap();
+        let string_type = url_field
+            .types
+            .iter()
+            .find(|t| t.yaml_type == "string")
+            .unwrap();
         assert_eq!(string_type.count, 1);
-        let null_type = url_field.types.iter().find(|t| t.yaml_type == "null").unwrap();
+        let null_type = url_field
+            .types
+            .iter()
+            .find(|t| t.yaml_type == "null")
+            .unwrap();
         assert_eq!(null_type.count, 1);
     }
 
@@ -279,10 +284,7 @@ mod tests {
 
     #[test]
     fn date_detection() {
-        let graph = build_graph(&[(
-            "doc1",
-            "---\ncreated: 2026-04-25\n---\n# A\n",
-        )]);
+        let graph = build_graph(&[("doc1", "---\ncreated: 2026-04-25\n---\n# A\n")]);
         let keys = vec![Key::name("doc1")];
         let fields = infer_schema(&graph, &keys);
 
@@ -310,10 +312,7 @@ mod tests {
 
     #[test]
     fn reserved_fields_skipped() {
-        let graph = build_graph(&[(
-            "doc1",
-            "---\ntype: post\n_internal: secret\n---\n# A\n",
-        )]);
+        let graph = build_graph(&[("doc1", "---\ntype: post\n_internal: secret\n---\n# A\n")]);
         let keys = vec![Key::name("doc1")];
         let fields = infer_schema(&graph, &keys);
 
@@ -326,7 +325,10 @@ mod tests {
     fn filtered_keys_subset() {
         let graph = build_graph(&[
             ("doc1", "---\ntype: post\nstatus: draft\n---\n# A\n"),
-            ("doc2", "---\ntype: external\nurl: https://x.com\n---\n# B\n"),
+            (
+                "doc2",
+                "---\ntype: external\nurl: https://x.com\n---\n# B\n",
+            ),
         ]);
         let keys = vec![Key::name("doc1")];
         let fields = infer_schema(&graph, &keys);

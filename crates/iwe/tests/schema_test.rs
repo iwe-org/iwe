@@ -34,7 +34,10 @@ fn test_schema_json_output() {
     let fields = parsed.as_array().expect("top-level is array");
     assert_eq!(fields.len(), 3);
 
-    let type_field = fields.iter().find(|f| f["field"] == "type").expect("type field");
+    let type_field = fields
+        .iter()
+        .find(|f| f["field"] == "type")
+        .expect("type field");
     assert_eq!(type_field["coverage"]["count"], 3);
     assert_eq!(type_field["coverage"]["percentage"], 100.0);
     assert_eq!(type_field["types"][0]["type"], "string");
@@ -96,7 +99,10 @@ fn test_schema_nested_fields() {
     let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Valid JSON");
     let fields = parsed.as_array().expect("top-level is array");
 
-    let names: Vec<&str> = fields.iter().map(|f| f["field"].as_str().unwrap()).collect();
+    let names: Vec<&str> = fields
+        .iter()
+        .map(|f| f["field"].as_str().unwrap())
+        .collect();
     assert!(names.contains(&"engagement"));
     assert!(names.contains(&"engagement.upvotes"));
     assert!(names.contains(&"engagement.comments"));
@@ -116,8 +122,14 @@ fn test_schema_field_drilldown_nested() {
     let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Valid JSON");
     let fields = parsed.as_array().expect("top-level is array");
 
-    let names: Vec<&str> = fields.iter().map(|f| f["field"].as_str().unwrap()).collect();
-    assert_eq!(names, vec!["engagement", "engagement.comments", "engagement.upvotes"]);
+    let names: Vec<&str> = fields
+        .iter()
+        .map(|f| f["field"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["engagement", "engagement.comments", "engagement.upvotes"]
+    );
 }
 
 #[test]

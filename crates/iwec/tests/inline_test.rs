@@ -1,4 +1,3 @@
-
 use crate::fixture::Fixture;
 use serde_json::json;
 
@@ -72,11 +71,8 @@ async fn inline_keep_target() {
 
 #[tokio::test]
 async fn inline_dry_run() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root\n\n[Child](2)\n"),
-        ("2", "# Child\n"),
-    ])
-    .await;
+    let f =
+        Fixture::with_documents(vec![("1", "# Root\n\n[Child](2)\n"), ("2", "# Child\n")]).await;
 
     let result = f
         .call_tool(
@@ -93,17 +89,10 @@ async fn inline_dry_run() {
 
 #[tokio::test]
 async fn extract_then_inline_round_trip() {
-    let f = Fixture::with_documents(vec![(
-        "1",
-        "# Root\n\n## Sub\n\nSub content\n",
-    )])
-    .await;
+    let f = Fixture::with_documents(vec![("1", "# Root\n\n## Sub\n\nSub content\n")]).await;
 
-    f.call_tool(
-        "iwe_extract",
-        json!({"key": "1", "section": "Sub"}),
-    )
-    .await;
+    f.call_tool("iwe_extract", json!({"key": "1", "section": "Sub"}))
+        .await;
 
     let find = f.call_tool("iwe_find", json!({})).await;
     assert_eq!(Fixture::result_json(&find).as_array().unwrap().len(), 2);

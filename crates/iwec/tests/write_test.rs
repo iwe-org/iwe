@@ -1,4 +1,3 @@
-
 use crate::fixture::Fixture;
 use serde_json::json;
 
@@ -97,11 +96,8 @@ async fn update_not_found() {
 
 #[tokio::test]
 async fn delete_document() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root\n\n[Child](2)\n"),
-        ("2", "# Child\n"),
-    ])
-    .await;
+    let f =
+        Fixture::with_documents(vec![("1", "# Root\n\n[Child](2)\n"), ("2", "# Child\n")]).await;
 
     let result = f.call_tool("iwe_delete", json!({"key": "2"})).await;
     let output = Fixture::result_json(&result);
@@ -141,11 +137,8 @@ async fn delete_not_found() {
 
 #[tokio::test]
 async fn rename_document() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root\n\n[Child](2)\n"),
-        ("2", "# Child\n"),
-    ])
-    .await;
+    let f =
+        Fixture::with_documents(vec![("1", "# Root\n\n[Child](2)\n"), ("2", "# Child\n")]).await;
 
     let result = f
         .call_tool(
@@ -163,9 +156,7 @@ async fn rename_document() {
     let find_output = Fixture::result_json(&find);
     assert_eq!(find_output.as_array().unwrap().len(), 1);
 
-    let old = f
-        .call_tool("iwe_find", json!({"query": "2"}))
-        .await;
+    let old = f.call_tool("iwe_find", json!({"query": "2"})).await;
     let old_output = Fixture::result_json(&old);
     let has_old = old_output
         .as_array()

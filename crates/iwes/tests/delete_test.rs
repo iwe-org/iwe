@@ -191,11 +191,14 @@ fn delete_inline_link() {
     "})
     .code_action(
         uri(1).to_code_action_params_at_position(2, 17, "refactor.delete"),
-        vec![uri(2).to_delete_file(), uri(1).to_edit(indoc! {"
+        vec![
+            uri(2).to_delete_file(),
+            uri(1).to_edit(indoc! {"
             # title a
 
             Some text with title b link.
-        "})]
+        "}),
+        ]
         .to_workspace_edit()
         .to_code_action("Delete", "refactor.delete"),
     );
@@ -238,6 +241,9 @@ fn assert_no_delete_action(source: &str, line: u32) {
 }
 
 fn assert_no_delete_action_at_position(source: &str, line: u32, character: u32) {
-    Fixture::with(source)
-        .no_code_action(uri(1).to_code_action_params_at_position(line, character, "refactor.delete"));
+    Fixture::with(source).no_code_action(uri(1).to_code_action_params_at_position(
+        line,
+        character,
+        "refactor.delete",
+    ));
 }

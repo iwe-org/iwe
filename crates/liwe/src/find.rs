@@ -1,11 +1,11 @@
+use crate::graph::Graph;
+use crate::model::Key;
+use crate::query::project::{apply_projection_or_default, ProjectionContext};
+use crate::query::sort::sort_in_place;
+use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::Serialize;
 use serde_yaml::Mapping;
-use crate::graph::Graph;
-use crate::model::Key;
-use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
-use crate::query::project::{apply_projection_or_default, ProjectionContext};
-use crate::query::sort::sort_in_place;
 
 pub type FindResult = Mapping;
 
@@ -162,8 +162,7 @@ impl<'a> DocumentFinder<'a> {
     }
 
     fn node_rank(&self, key: &Key) -> usize {
-        self.graph.get_reference_edges_to(key).len()
-            + self.graph.get_inclusion_edges_to(key).len()
+        self.graph.get_reference_edges_to(key).len() + self.graph.get_inclusion_edges_to(key).len()
     }
 }
 

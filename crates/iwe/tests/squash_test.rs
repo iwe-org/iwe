@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_squash_basic_functionality() {
     let temp_dir = setup_test_workspace_with_content();

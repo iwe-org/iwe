@@ -69,7 +69,10 @@ impl BasePath {
 
         let mut resolved = source.join(link).expect("valid link");
 
-        let last = resolved.path_segments().and_then(|s| s.last()).unwrap_or("");
+        let last = resolved
+            .path_segments()
+            .and_then(|s| s.last())
+            .unwrap_or("");
         if !last.is_empty() && !last.ends_with(".md") {
             let decoded = percent_decode_str(last).decode_utf8_lossy().into_owned();
             resolved
@@ -120,13 +123,15 @@ fn lowercase_drive_letter(path: &Path) -> PathBuf {
     let (prefix, rest) = s.strip_prefix('/').map_or(("", s.as_ref()), |r| ("/", r));
     let mut chars = rest.chars();
     match (chars.next(), chars.next()) {
-        (Some(d), Some(':')) if d.is_ascii_alphabetic() => {
-            PathBuf::from(format!("{}{}{}", prefix, d.to_ascii_lowercase(), &rest[2..]))
-        }
+        (Some(d), Some(':')) if d.is_ascii_alphabetic() => PathBuf::from(format!(
+            "{}{}{}",
+            prefix,
+            d.to_ascii_lowercase(),
+            &rest[2..]
+        )),
         _ => path.to_path_buf(),
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -162,10 +167,7 @@ mod tests {
         let base_path = BasePath::from_path("/path with spaces/docs");
         let key = liwe::model::Key::name("test.md");
         let url = base_path.key_to_url(&key);
-        assert_eq!(
-            url.to_string(),
-            "file:///path%20with%20spaces/docs/test.md"
-        );
+        assert_eq!(url.to_string(), "file:///path%20with%20spaces/docs/test.md");
     }
 
     #[test]
@@ -181,10 +183,7 @@ mod tests {
         let base_path = BasePath::from_path("/basepath");
         let key = liwe::model::Key::name("my document.md");
         let url = base_path.key_to_url(&key);
-        assert_eq!(
-            url.to_string(),
-            "file:///basepath/my%20document.md"
-        );
+        assert_eq!(url.to_string(), "file:///basepath/my%20document.md");
     }
 
     #[test]
@@ -232,8 +231,7 @@ mod tests {
         let source_key = base_path.url_to_key(&source_uri);
         let target_key = base_path.url_to_key(&target_uri);
 
-        let parsed_target_key =
-            liwe::model::Key::from_rel_link_url("two", &source_key.parent());
+        let parsed_target_key = liwe::model::Key::from_rel_link_url("two", &source_key.parent());
 
         assert_eq!(parsed_target_key.to_string(), target_key.to_string());
     }

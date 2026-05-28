@@ -237,8 +237,7 @@ fn test_migrated_v2_config_parses_correctly() {
 
     let migrated = migrate_v2_to_v3(v2_config);
 
-    let parsed: Configuration =
-        toml::from_str(&migrated).expect("Failed to parse migrated config");
+    let parsed: Configuration = toml::from_str(&migrated).expect("Failed to parse migrated config");
 
     assert!(parsed.commands.contains_key("default"));
     assert_eq!(parsed.commands.get("default").unwrap().run, "");

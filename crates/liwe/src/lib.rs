@@ -9,6 +9,6 @@ pub mod operations;
 pub mod parser;
 pub mod query;
 pub mod retrieve;
-pub mod state;
 pub mod schema;
+pub mod state;
 pub mod stats;

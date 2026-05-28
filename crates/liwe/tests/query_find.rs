@@ -179,7 +179,8 @@ fn find_projection_title_slug() {
     );
     let doc = &matches[0].1;
     assert_eq!(
-        doc.get(Value::String("slug".into())).and_then(|v| v.as_str()),
+        doc.get(Value::String("slug".into()))
+            .and_then(|v| v.as_str()),
         Some("my-cool-doc")
     );
 }
@@ -248,7 +249,8 @@ fn find_projection_alias_with_user_chosen_name() {
     );
     let doc = &matches[0].1;
     assert_eq!(
-        doc.get(Value::String("heading".into())).and_then(|v| v.as_str()),
+        doc.get(Value::String("heading".into()))
+            .and_then(|v| v.as_str()),
         Some("Alpha")
     );
     assert!(!doc.contains_key(Value::String("title".into())));
@@ -371,7 +373,9 @@ fn find_projection_dotted_path_resolves_nested_fm() {
         filter::<FindOp>(Filter::all()).project(projection(
             &[(
                 "p",
-                ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted("metadata.priority")),
+                ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted(
+                    "metadata.priority",
+                )),
             )],
             ProjectionMode::Replace,
         )),
@@ -395,16 +399,15 @@ fn find_projection_dotted_path_missing_intermediate_emits_null() {
         filter::<FindOp>(Filter::all()).project(projection(
             &[(
                 "p",
-                ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted("metadata.priority")),
+                ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted(
+                    "metadata.priority",
+                )),
             )],
             ProjectionMode::Replace,
         )),
     );
     let doc = &matches[0].1;
-    assert_eq!(
-        doc.get(Value::String("p".into())),
-        Some(&Value::Null),
-    );
+    assert_eq!(doc.get(Value::String("p".into())), Some(&Value::Null),);
 }
 
 #[test]
@@ -435,11 +438,13 @@ fn find_projection_pseudo_includes_emits_edge_refs() {
     assert_eq!(inc.len(), 1);
     let edge = inc[0].as_mapping().expect("edge should be a mapping");
     assert_eq!(
-        edge.get(Value::String("key".into())).and_then(|v| v.as_str()),
+        edge.get(Value::String("key".into()))
+            .and_then(|v| v.as_str()),
         Some("2"),
     );
     assert_eq!(
-        edge.get(Value::String("title".into())).and_then(|v| v.as_str()),
+        edge.get(Value::String("title".into()))
+            .and_then(|v| v.as_str()),
         Some("B"),
     );
     assert!(
@@ -476,7 +481,8 @@ fn find_projection_pseudo_referenced_by_emits_edge_refs() {
     assert_eq!(rb.len(), 1);
     let edge = rb[0].as_mapping().expect("edge should be a mapping");
     assert_eq!(
-        edge.get(Value::String("key".into())).and_then(|v| v.as_str()),
+        edge.get(Value::String("key".into()))
+            .and_then(|v| v.as_str()),
         Some("1"),
     );
     assert!(
@@ -506,11 +512,13 @@ fn find_projection_pseudo_frontmatter_emits_full_object() {
         .and_then(|v| v.as_mapping())
         .expect("fm should be a mapping");
     assert_eq!(
-        fm.get(Value::String("status".into())).and_then(|v| v.as_str()),
+        fm.get(Value::String("status".into()))
+            .and_then(|v| v.as_str()),
         Some("draft"),
     );
     assert_eq!(
-        fm.get(Value::String("priority".into())).and_then(|v| v.as_i64()),
+        fm.get(Value::String("priority".into()))
+            .and_then(|v| v.as_i64()),
         Some(5),
     );
 }
@@ -559,7 +567,8 @@ fn find_user_frontmatter_title_overrides_pseudo_title() {
     assert_eq!(matches.len(), 1);
     let doc = &matches[0].1;
     assert_eq!(
-        doc.get(Value::String("title".into())).and_then(|v| v.as_str()),
+        doc.get(Value::String("title".into()))
+            .and_then(|v| v.as_str()),
         Some("FM Title"),
     );
 }
@@ -581,7 +590,8 @@ fn find_user_frontmatter_key_overrides_pseudo_key() {
     assert_eq!(matches.len(), 1);
     let doc = &matches[0].1;
     assert_eq!(
-        doc.get(Value::String("key".into())).and_then(|v| v.as_str()),
+        doc.get(Value::String("key".into()))
+            .and_then(|v| v.as_str()),
         Some("user-supplied"),
     );
 }

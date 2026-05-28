@@ -82,7 +82,6 @@ pub fn match_field_op(op: &FieldOp, value: Option<&Value>) -> bool {
     }
 }
 
-
 fn eq_with_membership(field: &Value, target: &Value) -> bool {
     if let Value::Sequence(seq) = field {
         if !matches!(target, Value::Sequence(_) | Value::Mapping(_)) {
@@ -108,7 +107,6 @@ fn cmp_with_membership(
     }
     pred(cmp_ordered(v, target))
 }
-
 
 pub fn deep_eq(a: &Value, b: &Value) -> bool {
     match (a, b) {
@@ -142,7 +140,6 @@ pub fn deep_eq(a: &Value, b: &Value) -> bool {
         _ => false,
     }
 }
-
 
 pub fn cmp_ordered(a: &Value, b: &Value) -> Option<Ordering> {
     use Value::*;
@@ -273,7 +270,6 @@ mod tests {
     use super::*;
     use crate::query::document::{FieldOp, FieldPath, Filter, YamlType};
 
-
     fn p(s: &str) -> FieldPath {
         if s.contains('.') {
             FieldPath::from_dotted(s)
@@ -283,42 +279,80 @@ mod tests {
     }
 
     fn eq(path: &str, v: impl Into<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Eq(v.into()) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Eq(v.into()),
+        }
     }
     fn ne(path: &str, v: impl Into<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Ne(v.into()) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Ne(v.into()),
+        }
     }
     fn gt(path: &str, v: impl Into<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Gt(v.into()) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Gt(v.into()),
+        }
     }
     fn gte(path: &str, v: impl Into<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Gte(v.into()) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Gte(v.into()),
+        }
     }
     fn lt(path: &str, v: impl Into<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Lt(v.into()) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Lt(v.into()),
+        }
     }
     fn exists(path: &str, present: bool) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Exists(present) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Exists(present),
+        }
     }
     fn in_op(path: &str, values: Vec<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::In(values) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::In(values),
+        }
     }
     fn nin(path: &str, values: Vec<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Nin(values) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Nin(values),
+        }
     }
     fn all(path: &str, values: Vec<Value>) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::All(values) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::All(values),
+        }
     }
     fn size(path: &str, n: u64) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Size(n) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Size(n),
+        }
     }
     fn type_of(path: &str, t: YamlType) -> Filter {
-        Filter::Field { path: p(path), op: FieldOp::Type(vec![t]) }
+        Filter::Field {
+            path: p(path),
+            op: FieldOp::Type(vec![t]),
+        }
     }
-    fn and(filters: Vec<Filter>) -> Filter { Filter::And(filters) }
-    fn or(filters: Vec<Filter>) -> Filter { Filter::Or(filters) }
-    fn nor(filters: Vec<Filter>) -> Filter { Filter::Nor(filters) }
-
+    fn and(filters: Vec<Filter>) -> Filter {
+        Filter::And(filters)
+    }
+    fn or(filters: Vec<Filter>) -> Filter {
+        Filter::Or(filters)
+    }
+    fn nor(filters: Vec<Filter>) -> Filter {
+        Filter::Nor(filters)
+    }
 
     fn doc(pairs: Vec<(&str, Value)>) -> Mapping {
         let mut m = Mapping::new();
@@ -327,9 +361,15 @@ mod tests {
         }
         m
     }
-    fn nested(pairs: Vec<(&str, Value)>) -> Value { Value::Mapping(doc(pairs)) }
-    fn list(values: Vec<Value>) -> Value { Value::Sequence(values) }
-    fn null() -> Value { Value::Null }
+    fn nested(pairs: Vec<(&str, Value)>) -> Value {
+        Value::Mapping(doc(pairs))
+    }
+    fn list(values: Vec<Value>) -> Value {
+        Value::Sequence(values)
+    }
+    fn null() -> Value {
+        Value::Null
+    }
 
     fn matches_doc(filter: &Filter, doc: &Mapping) -> bool {
         match filter {
@@ -364,7 +404,10 @@ mod tests {
 
     #[test]
     fn drafts_modified_this_year() {
-        let f = and(vec![eq("status", "draft"), gte("modified_at", "2026-01-01")]);
+        let f = and(vec![
+            eq("status", "draft"),
+            gte("modified_at", "2026-01-01"),
+        ]);
         check(
             &f,
             &doc(vec![
@@ -426,7 +469,10 @@ mod tests {
 
     #[test]
     fn reviewed_but_no_reviewer() {
-        let f = and(vec![exists("reviewed_at", true), exists("reviewed_by", false)]);
+        let f = and(vec![
+            exists("reviewed_at", true),
+            exists("reviewed_by", false),
+        ]);
         check(&f, &doc(vec![("reviewed_at", "2026-04-26".into())]), true);
         check(
             &f,
@@ -444,10 +490,7 @@ mod tests {
         let f = and(vec![eq("status", "draft"), ne("author", "dmytro")]);
         check(
             &f,
-            &doc(vec![
-                ("status", "draft".into()),
-                ("author", "alice".into()),
-            ]),
+            &doc(vec![("status", "draft".into()), ("author", "alice".into())]),
             true,
         );
         check(

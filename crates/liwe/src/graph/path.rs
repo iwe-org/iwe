@@ -76,11 +76,7 @@ impl NodePath {
             .iter()
             .filter(|id| {
                 let node = context.node(**id);
-                node.is_section()
-                    && node
-                        .to_parent()
-                        .map(|p| p.is_document())
-                        .unwrap_or(true)
+                node.is_section() && node.to_parent().map(|p| p.is_document()).unwrap_or(true)
             })
             .copied()
             .collect();

@@ -1,14 +1,10 @@
-
 use crate::fixture::Fixture;
 use serde_json::json;
 
 #[tokio::test]
 async fn tree_shows_root_documents() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Root\n\n[Child](2)\n"),
-        ("2", "# Child\n"),
-    ])
-    .await;
+    let f =
+        Fixture::with_documents(vec![("1", "# Root\n\n[Child](2)\n"), ("2", "# Child\n")]).await;
 
     let result = f.call_tool("iwe_tree", json!({})).await;
     let output = Fixture::result_json(&result);
@@ -32,9 +28,7 @@ async fn tree_from_specific_key() {
     ])
     .await;
 
-    let result = f
-        .call_tool("iwe_tree", json!({"keys": ["1"]}))
-        .await;
+    let result = f.call_tool("iwe_tree", json!({"keys": ["1"]})).await;
     let output = Fixture::result_json(&result);
 
     let trees = output.as_array().unwrap();
@@ -84,9 +78,7 @@ async fn tree_selector_uses_selected_set_as_roots() {
     ])
     .await;
 
-    let result = f
-        .call_tool("iwe_tree", json!({"in": ["a", "b"]}))
-        .await;
+    let result = f.call_tool("iwe_tree", json!({"in": ["a", "b"]})).await;
     let output = Fixture::result_json(&result);
     assert_eq!(root_keys(&output), vec!["x"]);
 }

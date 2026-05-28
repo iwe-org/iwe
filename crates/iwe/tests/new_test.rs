@@ -5,7 +5,6 @@ use tempfile::TempDir;
 
 use liwe::model::config::{Configuration, NoteTemplate};
 
-
 fn setup_iwe_project() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
@@ -472,7 +471,15 @@ fn test_new_with_german_locale_formats_date() {
     let created_path = stdout.trim();
     let content = read_to_string(created_path).expect("Should read file");
 
-    let german_days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+    let german_days = [
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag",
+        "Sonntag",
+    ];
     let has_german_day = german_days.iter().any(|day| content.contains(day));
     assert!(
         has_german_day,
@@ -495,7 +502,10 @@ fn test_new_long_title_error() {
         .output()
         .expect("Failed to execute iwe new");
 
-    assert!(!output.status.success(), "Should fail for excessively long title");
+    assert!(
+        !output.status.success(),
+        "Should fail for excessively long title"
+    );
 
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(

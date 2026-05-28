@@ -42,11 +42,11 @@ pub fn inline(
 
     let updated_tree = match config.inline_type {
         InlineType::Section => {
-            let section_id = tree
-                .get_surrounding_section_id(ref_id)
-                .ok_or(OperationError::InvalidTarget(
-                    "Reference must be within a section to inline as section".to_string(),
-                ))?;
+            let section_id =
+                tree.get_surrounding_section_id(ref_id)
+                    .ok_or(OperationError::InvalidTarget(
+                        "Reference must be within a section to inline as section".to_string(),
+                    ))?;
             tree.remove_node(ref_id)
                 .append_pre_header(section_id, inline_tree.clone())
         }

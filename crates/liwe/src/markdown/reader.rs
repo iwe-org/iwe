@@ -749,7 +749,11 @@ mod tests {
         let content = "\u{03B1}\u{03B2} [link](to)\n";
         let mut reader = MarkdownEventsReader::new();
         let actual = reader.read(content);
-        let link = actual[0].child_inlines().into_iter().find(|i| i.is_link()).unwrap();
+        let link = actual[0]
+            .child_inlines()
+            .into_iter()
+            .find(|i| i.is_link())
+            .unwrap();
         assert_eq!(
             InlineRange {
                 start: Position {
@@ -770,7 +774,11 @@ mod tests {
         let content = "\u{03B1}\u{03B2} [[target]]\n";
         let mut reader = MarkdownEventsReader::new();
         let actual = reader.read(content);
-        let link = actual[0].child_inlines().into_iter().find(|i| i.is_link()).unwrap();
+        let link = actual[0]
+            .child_inlines()
+            .into_iter()
+            .find(|i| i.is_link())
+            .unwrap();
         assert_eq!(
             InlineRange {
                 start: Position {
@@ -785,5 +793,4 @@ mod tests {
             link.inline_range()
         );
     }
-
 }

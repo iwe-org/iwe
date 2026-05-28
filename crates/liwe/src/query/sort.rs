@@ -7,7 +7,6 @@ use crate::query::document::{FieldPath, Sort, SortDir};
 use crate::query::filter::cmp_ordered;
 use crate::query::frontmatter::is_reserved_segment;
 
-
 pub fn sort_in_place(rows: &mut [(Key, Mapping)], sort: &Sort) {
     rows.sort_by(|a, b| {
         let primary = compare_values(lookup(&a.1, &sort.key), lookup(&b.1, &sort.key), sort.dir);

@@ -1,4 +1,3 @@
-
 use liwe::model::config::{ActionDefinition, Attach, Configuration};
 
 fn config_with_attach() -> Configuration {
@@ -22,7 +21,9 @@ async fn list_attach_actions() {
     )
     .await;
 
-    let result = f.call_tool("iwe_attach", serde_json::json!({"list": true})).await;
+    let result = f
+        .call_tool("iwe_attach", serde_json::json!({"list": true}))
+        .await;
     let json = crate::fixture::Fixture::result_json(&result);
     let actions = json.as_array().unwrap();
     assert_eq!(actions.len(), 1);
@@ -55,10 +56,7 @@ async fn attach_creates_new_target() {
 #[tokio::test]
 async fn attach_appends_to_existing_target() {
     let f = crate::fixture::Fixture::with_documents_and_config(
-        vec![
-            ("notes", "# My Notes"),
-            ("daily", "# Daily\n"),
-        ],
+        vec![("notes", "# My Notes"), ("daily", "# Daily\n")],
         config_with_attach(),
     )
     .await;
@@ -118,11 +116,9 @@ async fn attach_to_multiple_targets() {
         }),
     );
 
-    let f = crate::fixture::Fixture::with_documents_and_config(
-        vec![("notes", "# My Notes")],
-        config,
-    )
-    .await;
+    let f =
+        crate::fixture::Fixture::with_documents_and_config(vec![("notes", "# My Notes")], config)
+            .await;
 
     let result = f
         .call_tool(

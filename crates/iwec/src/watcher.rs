@@ -12,10 +12,7 @@ fn path_to_key(path: &Path, base_path: &Path) -> Option<Key> {
     }
 
     let relative = path.strip_prefix(base_path).ok()?;
-    let key_str = relative
-        .with_extension("")
-        .to_string_lossy()
-        .to_string();
+    let key_str = relative.with_extension("").to_string_lossy().to_string();
 
     Some(Key::name(&key_str))
 }
@@ -54,11 +51,7 @@ pub fn start_with_config(
     });
 }
 
-pub fn start_polling(
-    graph: Arc<Mutex<Graph>>,
-    base_path: PathBuf,
-    interval: std::time::Duration,
-) {
+pub fn start_polling(graph: Arc<Mutex<Graph>>, base_path: PathBuf, interval: std::time::Duration) {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
     let config = notify::Config::default()

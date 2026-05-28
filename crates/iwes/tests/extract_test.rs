@@ -340,16 +340,17 @@ fn assert_extracted_wiki(source: &str, line: u32, target: &str, extracted: &str)
 }
 
 fn assert_extracted_helix(source: &str, line: u32, target: &str, extracted: &str) {
-    Fixture::with_options_and_client(from_indoc(source), extract_config(), "helix", None).code_action(
-        uri(1).to_code_action_params(line, "custom.extract"),
-        vec![
-            uri(2).to_create_file(),
-            uri(2).to_edit(extracted),
-            uri(1).to_edit(target),
-        ]
-        .to_workspace_edit()
-        .to_code_action("Extract section", "custom.extract"),
-    );
+    Fixture::with_options_and_client(from_indoc(source), extract_config(), "helix", None)
+        .code_action(
+            uri(1).to_code_action_params(line, "custom.extract"),
+            vec![
+                uri(2).to_create_file(),
+                uri(2).to_edit(extracted),
+                uri(1).to_edit(target),
+            ]
+            .to_workspace_edit()
+            .to_code_action("Extract section", "custom.extract"),
+        );
 }
 
 #[test]
@@ -424,17 +425,21 @@ fn fixed_now() -> SystemTime {
 fn assert_extracted_with_date_template(source: &str, line: u32, target: &str, extracted: &str) {
     let target_with_date = target.replace("{{today}}", "2026-03-27");
 
-    Fixture::with_config_and_now(source, create_extract_config("{{today}}", None), fixed_now())
-        .code_action(
-            uri(1).to_code_action_params(line, "custom.extract"),
-            vec![
-                uri_from("2026-03-27").to_create_file(),
-                uri_from("2026-03-27").to_edit(extracted),
-                uri(1).to_edit(&target_with_date),
-            ]
-            .to_workspace_edit()
-            .to_code_action("Extract section", "custom.extract"),
-        );
+    Fixture::with_config_and_now(
+        source,
+        create_extract_config("{{today}}", None),
+        fixed_now(),
+    )
+    .code_action(
+        uri(1).to_code_action_params(line, "custom.extract"),
+        vec![
+            uri_from("2026-03-27").to_create_file(),
+            uri_from("2026-03-27").to_edit(extracted),
+            uri(1).to_edit(&target_with_date),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Extract section", "custom.extract"),
+    );
 }
 
 fn assert_no_action(source: &str, line: u32) {

@@ -54,7 +54,9 @@ impl Parser {
             let url_part = &line[absolute_start..];
 
             let end = url_part
-                .find(|c: char| c.is_whitespace() || c == ')' || c == ']' || c == '>' || c == '"' || c == '\'')
+                .find(|c: char| {
+                    c.is_whitespace() || c == ')' || c == ']' || c == '>' || c == '"' || c == '\''
+                })
                 .unwrap_or(url_part.len());
 
             let url = &url_part[..end];
@@ -206,10 +208,7 @@ mod tests {
             crate::markdown::MarkdownReader::new(),
         );
 
-        assert_eq!(
-            Some("target".to_string()),
-            parser.url_at((0, 5).into())
-        );
+        assert_eq!(Some("target".to_string()), parser.url_at((0, 5).into()));
         assert_eq!(None, parser.url_at((0, 2).into()));
     }
 
@@ -227,5 +226,4 @@ mod tests {
         );
         assert_eq!(None, parser.url_at((0, 1).into()));
     }
-
 }

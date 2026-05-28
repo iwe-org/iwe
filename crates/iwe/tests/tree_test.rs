@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_tree_default_format_is_markdown() {
     let temp_dir = setup_workspace_with_linked_documents();
@@ -162,7 +161,10 @@ fn test_tree_invalid_key() {
 
     let output = run_tree_command(temp_path, &["-k", "nonexistent-doc"]);
 
-    assert!(!output.status.success(), "Tree should fail with invalid key");
+    assert!(
+        !output.status.success(),
+        "Tree should fail with invalid key"
+    );
 
     let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 stderr");
     let expected = "Error: Document 'nonexistent-doc' not found\n";
@@ -176,7 +178,10 @@ fn test_tree_empty_workspace() {
     let temp_path = temp_dir.path();
 
     let output = run_tree_command(temp_path, &[]);
-    assert!(output.status.success(), "Tree should succeed with empty workspace");
+    assert!(
+        output.status.success(),
+        "Tree should succeed with empty workspace"
+    );
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
 
@@ -331,7 +336,9 @@ fn test_tree_project_user_frontmatter() {
     assert_eq!(parent_node["title"], "Parent");
     assert_eq!(parent_node["pillar"], "ai-memory");
     assert_eq!(parent_node["status"], "published");
-    let children = parent_node["children"].as_array().expect("children is array");
+    let children = parent_node["children"]
+        .as_array()
+        .expect("children is array");
     assert_eq!(children.len(), 1);
     let child_node = &children[0];
     assert_eq!(child_node["pillar"], "ai-memory");
@@ -377,10 +384,7 @@ fn test_tree_project_pseudo_content() {
     assert_eq!(root["key"], "root");
     assert_eq!(root["title"], "Root");
     assert!(
-        root["body"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("# Root"),
+        root["body"].as_str().unwrap_or_default().contains("# Root"),
         "expected body to contain root content, got: {:?}",
         root["body"]
     );
@@ -506,14 +510,7 @@ fn test_tree_project_and_add_fields_conflict() {
 
     let output = run_tree_command(
         temp_path,
-        &[
-            "-k",
-            "doc",
-            "--project",
-            "key",
-            "--add-fields",
-            "status",
-        ],
+        &["-k", "doc", "--project", "key", "--add-fields", "status"],
     );
     let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
     assert!(!output.status.success(), "expected conflict error");

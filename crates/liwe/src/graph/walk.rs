@@ -19,12 +19,7 @@ pub fn inbound_reference(graph: &Graph, anchor: &Key, max_distance: u32) -> Hash
     bfs_reference(graph, anchor, max_distance, false)
 }
 
-fn bfs_inclusion(
-    graph: &Graph,
-    anchor: &Key,
-    max_depth: u32,
-    outbound: bool,
-) -> HashMap<Key, u32> {
+fn bfs_inclusion(graph: &Graph, anchor: &Key, max_depth: u32, outbound: bool) -> HashMap<Key, u32> {
     let mut out: HashMap<Key, u32> = HashMap::new();
     let mut queue: VecDeque<(Key, u32)> = VecDeque::new();
     queue.push_back((anchor.clone(), 0));

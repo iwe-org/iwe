@@ -5,15 +5,14 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use chrono::Local;
 use liwe::find::{DocumentFinder, FindOptions, FindOutput};
-use liwe::query::cli::parse_projection;
-use liwe::query::{self, Filter, InclusionAnchor, ProjectionMode};
-use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
-use liwe::stats::{GraphStatistics, KeyStatistics};
 use liwe::fs::{new_for_path, new_from_hashmap};
 use liwe::graph::{Graph, GraphContext};
-use chrono::Local;
-use liwe::model::config::{ActionDefinition, CompletionOptions, Configuration, MarkdownOptions, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
+use liwe::model::config::{
+    ActionDefinition, CompletionOptions, Configuration, MarkdownOptions, NoteTemplate,
+    DEFAULT_KEY_DATE_FORMAT,
+};
 use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
 use liwe::model::tree::{Tree, TreeIter};
 use liwe::model::Key;
@@ -21,6 +20,10 @@ use liwe::operations::{
     delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename, Changes,
     ExtractConfig, InlineConfig, OperationError,
 };
+use liwe::query::cli::parse_projection;
+use liwe::query::{self, Filter, InclusionAnchor, ProjectionMode};
+use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
+use liwe::stats::{GraphStatistics, KeyStatistics};
 use minijinja::{context, Environment};
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
@@ -29,7 +32,7 @@ use rmcp::model::*;
 use rmcp::schemars::JsonSchema;
 use rmcp::service::RequestContext;
 use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_router, RoleServer};
-use rmcp::{ErrorData as McpError, ServerHandler, tool_handler};
+use rmcp::{tool_handler, ErrorData as McpError, ServerHandler};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
@@ -47,10 +50,7 @@ fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
 #[serde(untagged)]
 pub enum KeyDepthParam {
     Bare(String),
-    Qualified {
-        key: String,
-        depth: Option<u8>,
-    },
+    Qualified { key: String, depth: Option<u8> },
 }
 
 impl KeyDepthParam {
@@ -81,9 +81,7 @@ pub struct SelectorParams {
     )]
     #[serde(default)]
     pub in_any: Vec<KeyDepthParam>,
-    #[schemars(
-        description = "Exclude candidates that are sub-documents of ANY listed key (NOT)."
-    )]
+    #[schemars(description = "Exclude candidates that are sub-documents of ANY listed key (NOT).")]
     #[serde(default)]
     pub not_in: Vec<KeyDepthParam>,
     #[schemars(
@@ -136,9 +134,13 @@ pub struct FindParams {
     pub refs_from: Option<String>,
     #[schemars(description = "Maximum number of results to return")]
     pub limit: Option<usize>,
-    #[schemars(description = "Replacement projection (e.g. 'title,priority' or 'body=$content,parents=$includedBy'). Mutually exclusive with add_fields.")]
+    #[schemars(
+        description = "Replacement projection (e.g. 'title,priority' or 'body=$content,parents=$includedBy'). Mutually exclusive with add_fields."
+    )]
     pub project: Option<String>,
-    #[schemars(description = "Additive projection: same grammar as project, extends defaults rather than replacing. Mutually exclusive with project.")]
+    #[schemars(
+        description = "Additive projection: same grammar as project, extends defaults rather than replacing. Mutually exclusive with project."
+    )]
     pub add_fields: Option<String>,
     #[serde(flatten)]
     pub selector: SelectorParams,
@@ -179,10 +181,14 @@ impl TryFrom<FindParams> for FindOptions {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RetrieveParams {
-    #[schemars(description = "Document keys to retrieve. Can be empty when a structural selector is provided.")]
+    #[schemars(
+        description = "Document keys to retrieve. Can be empty when a structural selector is provided."
+    )]
     #[serde(default)]
     pub keys: Vec<String>,
-    #[schemars(description = "Levels of block references to expand (0 = document only, 1 = include direct sub-documents). Default: 1")]
+    #[schemars(
+        description = "Levels of block references to expand (0 = document only, 1 = include direct sub-documents). Default: 1"
+    )]
     pub depth: Option<u8>,
     #[schemars(description = "Levels of parent documents to include. Default: 1")]
     pub context: Option<u8>,
@@ -194,7 +200,9 @@ pub struct RetrieveParams {
     pub exclude: Option<Vec<String>>,
     #[schemars(description = "Return metadata only without document content. Default: false")]
     pub no_content: Option<bool>,
-    #[schemars(description = "Populate the `includes` array with child document edges. Default: false")]
+    #[schemars(
+        description = "Populate the `includes` array with child document edges. Default: false"
+    )]
     pub children: Option<bool>,
     #[serde(flatten)]
     pub selector: SelectorParams,
@@ -222,7 +230,9 @@ impl From<RetrieveParams> for RetrieveOptions {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TreeParams {
-    #[schemars(description = "Starting document keys. If empty and no selector, shows all root documents.")]
+    #[schemars(
+        description = "Starting document keys. If empty and no selector, shows all root documents."
+    )]
     pub keys: Option<Vec<String>>,
     #[schemars(description = "Maximum traversal depth. Default: 4")]
     pub depth: Option<u8>,
@@ -239,7 +249,9 @@ struct TreeNode {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct StatsParams {
-    #[schemars(description = "Document key for per-document stats. Omit for aggregate graph statistics")]
+    #[schemars(
+        description = "Document key for per-document stats. Omit for aggregate graph statistics"
+    )]
     pub key: Option<String>,
 }
 
@@ -301,8 +313,22 @@ struct ChangeEntry {
 impl From<&Changes> for ChangesOutput {
     fn from(c: &Changes) -> Self {
         ChangesOutput {
-            creates: c.creates.iter().map(|(k, v)| ChangeEntry { key: k.to_string(), content: v.clone() }).collect(),
-            updates: c.updates.iter().map(|(k, v)| ChangeEntry { key: k.to_string(), content: v.clone() }).collect(),
+            creates: c
+                .creates
+                .iter()
+                .map(|(k, v)| ChangeEntry {
+                    key: k.to_string(),
+                    content: v.clone(),
+                })
+                .collect(),
+            updates: c
+                .updates
+                .iter()
+                .map(|(k, v)| ChangeEntry {
+                    key: k.to_string(),
+                    content: v.clone(),
+                })
+                .collect(),
             removes: c.removes.iter().map(|k| k.to_string()).collect(),
         }
     }
@@ -316,7 +342,9 @@ pub struct ExtractParams {
     pub section: Option<String>,
     #[schemars(description = "Block number to extract (1-indexed, use list mode to discover)")]
     pub block: Option<usize>,
-    #[schemars(description = "List all sections with block numbers instead of extracting. Default: false")]
+    #[schemars(
+        description = "List all sections with block numbers instead of extracting. Default: false"
+    )]
     pub list: Option<bool>,
     #[schemars(description = "Preview changes without applying. Default: false")]
     pub dry_run: Option<bool>,
@@ -355,7 +383,9 @@ struct ReferenceEntry {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AttachParams {
-    #[schemars(description = "Configured attach action(s) to attach to (e.g. 'today'). Pass one or more action names; the source is attached under each resolved target.")]
+    #[schemars(
+        description = "Configured attach action(s) to attach to (e.g. 'today'). Pass one or more action names; the source is attached under each resolved target."
+    )]
     #[serde(default)]
     pub to: Vec<String>,
     #[schemars(description = "Document key to attach as a block reference in the target(s)")]
@@ -469,7 +499,9 @@ pub struct IweServer {
 
 #[tool_router]
 impl IweServer {
-    #[tool(description = "Search and discover documents in the knowledge graph. Supports fuzzy text query (`query`), root filter (`roots`), direct-reference filters (`refs_to`, `refs_from`), and the structural set selector (`in` / `in_any` / `not_in` / `max_depth`) for transitive sub-document AND/OR/NOT queries with configurable depth.")]
+    #[tool(
+        description = "Search and discover documents in the knowledge graph. Supports fuzzy text query (`query`), root filter (`roots`), direct-reference filters (`refs_to`, `refs_from`), and the structural set selector (`in` / `in_any` / `not_in` / `max_depth`) for transitive sub-document AND/OR/NOT queries with configurable depth."
+    )]
     async fn iwe_find(
         &self,
         Parameters(params): Parameters<FindParams>,
@@ -481,7 +513,9 @@ impl IweServer {
         to_json_result(&output.results)
     }
 
-    #[tool(description = "Retrieve documents from the knowledge graph with configurable depth expansion, parent context, backlinks, and linked documents")]
+    #[tool(
+        description = "Retrieve documents from the knowledge graph with configurable depth expansion, parent context, backlinks, and linked documents"
+    )]
     async fn iwe_retrieve(
         &self,
         Parameters(params): Parameters<RetrieveParams>,
@@ -494,7 +528,9 @@ impl IweServer {
         to_json_result(&output.documents)
     }
 
-    #[tool(description = "View the hierarchical tree structure of the knowledge graph showing how documents are connected via block references. Supports the structural set selector (in / in_any / not_in / max_depth) — when provided, the tree roots are restricted to (or selected from) that set.")]
+    #[tool(
+        description = "View the hierarchical tree structure of the knowledge graph showing how documents are connected via block references. Supports the structural set selector (in / in_any / not_in / max_depth) — when provided, the tree roots are restricted to (or selected from) that set."
+    )]
     async fn iwe_tree(
         &self,
         Parameters(params): Parameters<TreeParams>,
@@ -509,8 +545,7 @@ impl IweServer {
             .unwrap_or_default();
 
         let root_keys: Vec<Key> = if let Some(f) = filter {
-            let selector_set: HashSet<Key> =
-                query::evaluate(&f, &graph).into_iter().collect();
+            let selector_set: HashSet<Key> = query::evaluate(&f, &graph).into_iter().collect();
             if explicit_keys.is_empty() {
                 let mut v: Vec<Key> = selector_set.into_iter().collect();
                 v.sort();
@@ -547,7 +582,9 @@ impl IweServer {
         to_json_result(&trees)
     }
 
-    #[tool(description = "Get comprehensive statistics about the knowledge graph including document counts, reference patterns, broken links, and most connected documents")]
+    #[tool(
+        description = "Get comprehensive statistics about the knowledge graph including document counts, reference patterns, broken links, and most connected documents"
+    )]
     async fn iwe_stats(
         &self,
         Parameters(params): Parameters<StatsParams>,
@@ -568,7 +605,9 @@ impl IweServer {
         }
     }
 
-    #[tool(description = "Expand all block references into a single flat markdown document. Useful for export or generating a complete view of a document tree")]
+    #[tool(
+        description = "Expand all block references into a single flat markdown document. Useful for export or generating a complete view of a document tree"
+    )]
     async fn iwe_squash(
         &self,
         Parameters(params): Parameters<SquashParams>,
@@ -591,7 +630,9 @@ impl IweServer {
         to_text_result(content)
     }
 
-    #[tool(description = "Create a new document in the knowledge graph from a title and optional content")]
+    #[tool(
+        description = "Create a new document in the knowledge graph from a title and optional content"
+    )]
     async fn iwe_create(
         &self,
         Parameters(params): Parameters<CreateParams>,
@@ -631,9 +672,7 @@ impl IweServer {
         struct CreateResult {
             key: String,
         }
-        to_json_result(&CreateResult {
-            key: slug,
-        })
+        to_json_result(&CreateResult { key: slug })
     }
 
     #[tool(description = "Update the full markdown content of an existing document")]
@@ -675,7 +714,9 @@ impl IweServer {
         })
     }
 
-    #[tool(description = "Delete a document from the knowledge graph. All block references and inline links to this document in other documents are cleaned up")]
+    #[tool(
+        description = "Delete a document from the knowledge graph. All block references and inline links to this document in other documents are cleaned up"
+    )]
     async fn iwe_delete(
         &self,
         Parameters(params): Parameters<DeleteParams>,
@@ -692,7 +733,9 @@ impl IweServer {
         to_json_result(&ChangesOutput::from(&changes))
     }
 
-    #[tool(description = "Rename a document key. All block references and inline links across the entire graph are updated to point to the new key")]
+    #[tool(
+        description = "Rename a document key. All block references and inline links across the entire graph are updated to point to the new key"
+    )]
     async fn iwe_rename(
         &self,
         Parameters(params): Parameters<RenameParams>,
@@ -710,7 +753,9 @@ impl IweServer {
         to_json_result(&ChangesOutput::from(&changes))
     }
 
-    #[tool(description = "Extract a section from a document into a new standalone document. The original section is replaced with a block reference. Use list mode to discover sections first")]
+    #[tool(
+        description = "Extract a section from a document into a new standalone document. The original section is replaced with a block reference. Use list mode to discover sections first"
+    )]
     async fn iwe_extract(
         &self,
         Parameters(params): Parameters<ExtractParams>,
@@ -748,7 +793,11 @@ impl IweServer {
                     format!(
                         "Multiple sections match '{}': {}",
                         title,
-                        matches.iter().map(|s| s.title.as_str()).collect::<Vec<_>>().join(", ")
+                        matches
+                            .iter()
+                            .map(|s| s.title.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     ),
                     None,
                 ));
@@ -777,7 +826,14 @@ impl IweServer {
             .ok_or_else(|| McpError::invalid_params("Section not found", None))?;
 
         let config = ExtractConfig::default();
-        let changes = op_extract(&graph, &source_key, section_id, &config, std::time::SystemTime::now()).map_err(op_error_to_mcp)?;
+        let changes = op_extract(
+            &graph,
+            &source_key,
+            section_id,
+            &config,
+            std::time::SystemTime::now(),
+        )
+        .map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
             Self::apply_changes(&mut graph, &changes);
@@ -787,7 +843,9 @@ impl IweServer {
         to_json_result(&ChangesOutput::from(&changes))
     }
 
-    #[tool(description = "Replace a block reference with the actual content of the referenced document. Use list mode to discover block references first")]
+    #[tool(
+        description = "Replace a block reference with the actual content of the referenced document. Use list mode to discover block references first"
+    )]
     async fn iwe_inline(
         &self,
         Parameters(params): Parameters<InlineParams>,
@@ -828,7 +886,11 @@ impl IweServer {
                     format!(
                         "Multiple references match '{}': {}",
                         reference,
-                        matches.iter().map(|r| r.key.as_str()).collect::<Vec<_>>().join(", ")
+                        matches
+                            .iter()
+                            .map(|r| r.key.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     ),
                     None,
                 ));
@@ -875,7 +937,9 @@ impl IweServer {
         to_json_result(&ChangesOutput::from(&changes))
     }
 
-    #[tool(description = "Normalize all document formatting across the knowledge graph. Re-parses and re-writes all documents to ensure consistent formatting")]
+    #[tool(
+        description = "Normalize all document formatting across the knowledge graph. Re-parses and re-writes all documents to ensure consistent formatting"
+    )]
     async fn iwe_normalize(&self) -> Result<CallToolResult, McpError> {
         let mut graph = self.graph.lock().await;
         let state = graph.export();
@@ -903,7 +967,9 @@ impl IweServer {
         })
     }
 
-    #[tool(description = "Attach a document as a block reference in one or more target documents determined by configured attach actions. Each target key is derived from the action's key_template (e.g. daily/{{today}}). The `to` field accepts a list of action names; the source is attached under each resolved target. Targets that already contain the source are silently skipped. Use list mode to discover available attach actions.")]
+    #[tool(
+        description = "Attach a document as a block reference in one or more target documents determined by configured attach actions. Each target key is derived from the action's key_template (e.g. daily/{{today}}). The `to` field accepts a list of action names; the source is attached under each resolved target. Targets that already contain the source are silently skipped. Use list mode to discover available attach actions."
+    )]
     async fn iwe_attach(
         &self,
         Parameters(params): Parameters<AttachParams>,
@@ -930,7 +996,8 @@ impl IweServer {
 
         if params.to.is_empty() {
             return Err(McpError::invalid_params(
-                "'to' is required when not in list mode (pass one or more action names)".to_string(),
+                "'to' is required when not in list mode (pass one or more action names)"
+                    .to_string(),
                 None,
             ));
         }
@@ -976,10 +1043,7 @@ impl IweServer {
 
             if (&*graph).get_node_id(&target_key).is_some() {
                 let tree = (&*graph).collect(&target_key);
-                if tree
-                    .get_all_inclusion_edge_keys()
-                    .contains(&source_key)
-                {
+                if tree.get_all_inclusion_edge_keys().contains(&source_key) {
                     continue;
                 }
             }
@@ -1007,10 +1071,7 @@ impl IweServer {
                 let content = reference
                     .iter()
                     .to_markdown(&target_key.parent(), &markdown_options);
-                let document = self.render_document_template(
-                    &attach.document_template,
-                    &content,
-                );
+                let document = self.render_document_template(&attach.document_template, &content);
                 combined.add_create(target_key.clone(), document);
             }
         }
@@ -1141,8 +1202,7 @@ impl IweServer {
     async fn explore(&self) -> Result<GetPromptResult, McpError> {
         let graph = self.graph.lock().await;
         let stats = GraphStatistics::from_graph(&graph);
-        let stats_json =
-            serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "{}".to_string());
+        let stats_json = serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "{}".to_string());
 
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -1152,8 +1212,7 @@ impl IweServer {
             ),
         )];
 
-        Ok(GetPromptResult::new(messages)
-            .with_description("Overview of the IWE knowledge graph"))
+        Ok(GetPromptResult::new(messages).with_description("Overview of the IWE knowledge graph"))
     }
 
     #[prompt(
@@ -1176,8 +1235,8 @@ impl IweServer {
                 ..Default::default()
             },
         );
-        let json = serde_json::to_string_pretty(&output.documents)
-            .unwrap_or_else(|_| "[]".to_string());
+        let json =
+            serde_json::to_string_pretty(&output.documents).unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -1211,8 +1270,8 @@ impl IweServer {
                 ..Default::default()
             },
         );
-        let json = serde_json::to_string_pretty(&output.documents)
-            .unwrap_or_else(|_| "[]".to_string());
+        let json =
+            serde_json::to_string_pretty(&output.documents).unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -1343,10 +1402,7 @@ impl ServerHandler for IweServer {
             let content = graph
                 .get_document(&key)
                 .ok_or_else(|| {
-                    McpError::resource_not_found(
-                        format!("Document '{}' not found", key_str),
-                        None,
-                    )
+                    McpError::resource_not_found(format!("Document '{}' not found", key_str), None)
                 })?
                 .to_string();
             return Ok(ReadResourceResult::new(vec![ResourceContents::text(

@@ -4,20 +4,25 @@ use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_delete_basic() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [Link to B](b)
-        "}),
-        ("b", indoc! {"
+        "},
+        ),
+        (
+            "b",
+            indoc! {"
             # Doc B
 
             Content here
-        "}),
+        "},
+        ),
     ]);
     let temp_path = temp_dir.path();
 
@@ -33,13 +38,16 @@ fn test_delete_basic() {
 #[test]
 fn test_delete_removes_multiple_inclusion_edges() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [Link 1](b)
 
             [Link 2](b)
-        "}),
+        "},
+        ),
         ("b", "# Doc B"),
     ]);
     let temp_path = temp_dir.path();
@@ -54,11 +62,14 @@ fn test_delete_removes_multiple_inclusion_edges() {
 #[test]
 fn test_delete_updates_reference_edges() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             Some text with [inline link](b) in it.
-        "}),
+        "},
+        ),
         ("b", "# Doc B"),
     ]);
     let temp_path = temp_dir.path();
@@ -80,16 +91,22 @@ fn test_delete_updates_reference_edges() {
 #[test]
 fn test_delete_updates_multiple_files() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [link](target)
-        "}),
-        ("b", indoc! {"
+        "},
+        ),
+        (
+            "b",
+            indoc! {"
             # Doc B
 
             [another link](target)
-        "}),
+        "},
+        ),
         ("target", "# Target"),
     ]);
     let temp_path = temp_dir.path();
@@ -106,9 +123,7 @@ fn test_delete_updates_multiple_files() {
 
 #[test]
 fn test_delete_nonexistent_key() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "# Doc A"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A")]);
     let temp_path = temp_dir.path();
 
     let output = run_delete_command(temp_path, &["nonexistent"]);
@@ -121,11 +136,14 @@ fn test_delete_nonexistent_key() {
 #[test]
 fn test_delete_dry_run() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             [link](b)
-        "}),
+        "},
+        ),
         ("b", "# Doc B"),
     ]);
     let temp_path = temp_dir.path();
@@ -148,10 +166,7 @@ fn test_delete_dry_run() {
 
 #[test]
 fn test_delete_keys_output() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "[link](b)"),
-        ("b", "# Doc B"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "[link](b)"), ("b", "# Doc B")]);
     let temp_path = temp_dir.path();
 
     let output = run_delete_command(temp_path, &["b", "--keys", "--dry-run"]);
@@ -163,23 +178,25 @@ fn test_delete_keys_output() {
 
 #[test]
 fn test_delete_quiet_mode() {
-    let temp_dir = setup_workspace_with_docs(vec![
-        ("a", "[link](b)"),
-        ("b", "# Doc B"),
-    ]);
+    let temp_dir = setup_workspace_with_docs(vec![("a", "[link](b)"), ("b", "# Doc B")]);
     let temp_path = temp_dir.path();
 
     let output = run_delete_command(temp_path, &["b", "--quiet"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.trim().is_empty(), "Quiet mode should suppress output");
+    assert!(
+        stdout.trim().is_empty(),
+        "Quiet mode should suppress output"
+    );
 }
 
 #[test]
 fn test_delete_preserves_other_content() {
     let temp_dir = setup_workspace_with_docs(vec![
-        ("a", indoc! {"
+        (
+            "a",
+            indoc! {"
             # Doc A
 
             Some content before.
@@ -191,7 +208,8 @@ fn test_delete_preserves_other_content() {
             ## Section
 
             More content.
-        "}),
+        "},
+        ),
         ("b", "# Doc B"),
     ]);
     let temp_path = temp_dir.path();

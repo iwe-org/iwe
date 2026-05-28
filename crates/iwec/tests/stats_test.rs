@@ -1,4 +1,3 @@
-
 use crate::fixture::Fixture;
 use serde_json::json;
 
@@ -19,10 +18,8 @@ async fn stats_aggregate() {
 
 #[tokio::test]
 async fn stats_per_document() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# My doc\n\nParagraph one\n\nParagraph two\n"),
-    ])
-    .await;
+    let f =
+        Fixture::with_documents(vec![("1", "# My doc\n\nParagraph one\n\nParagraph two\n")]).await;
 
     let result = f.call_tool("iwe_stats", json!({"key": "1"})).await;
     let output = Fixture::result_json(&result);
@@ -46,10 +43,7 @@ async fn stats_not_found() {
 
 #[tokio::test]
 async fn stats_broken_links() {
-    let f = Fixture::with_documents(vec![
-        ("1", "# Doc\n\n[Missing](nonexistent)\n"),
-    ])
-    .await;
+    let f = Fixture::with_documents(vec![("1", "# Doc\n\n[Missing](nonexistent)\n")]).await;
 
     let result = f.call_tool("iwe_stats", json!({})).await;
     let output = Fixture::result_json(&result);
