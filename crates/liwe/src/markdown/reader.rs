@@ -75,9 +75,12 @@ impl MarkdownEventsReader {
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
-        let (content, has_empty_frontmatter) = strip_empty_frontmatter(content);
+        let (mut content, has_empty_frontmatter) = strip_empty_frontmatter(content);
         if has_empty_frontmatter {
             self.frontmatter = Some(Mapping::new());
+        }
+        if !content.is_empty() && !content.ends_with('\n') {
+            content.push('\n');
         }
         self.content = Some(content.clone());
         let iter = Parser::new_ext(

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `textDocument/definition`, `textDocument/hover`, and `textDocument/rename` now recognize links inside table cells; navigating from a `[[wiki]]` or `[text](link)` reference in a table previously returned an empty result.
+- `textDocument/foldingRange` includes the final line of a multi-line block (such as a table) at the end of a document without a trailing newline, and a two-line blockquote is now foldable.
 - `textDocument/hover`, `textDocument/definition`, and `textDocument/rename` now locate links correctly when the line contains emoji or other astral-plane characters; link positions are interpreted as UTF-16 code units per the LSP default (previously a link after an emoji could not be hit because positions were counted as Unicode scalars).
 
 ## [0.1.9](https://github.com/iwe-org/iwe/compare/iwes-v0.1.8...iwes-v0.1.9) - 2026-05-27

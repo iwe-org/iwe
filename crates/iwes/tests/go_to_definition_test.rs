@@ -314,3 +314,57 @@ fn definition_bare_url_after_multibyte_text() {
             "https://example.com",
         );
 }
+
+#[test]
+fn definition_in_table_wiki_link() {
+    Fixture::with(indoc! {"
+            # test
+
+            | a | b |
+            | -- | -- |
+            | [[link]] | text |
+
+            "})
+    .go_to_definition(
+        uri(1).to_goto_definition_params(4, 4),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
+    );
+}
+
+#[test]
+fn definition_in_table_markdown_link() {
+    Fixture::with(indoc! {"
+            # test
+
+            | a | b |
+            | -- | -- |
+            | [text](link) | other |
+
+            "})
+    .go_to_definition(
+        uri(1).to_goto_definition_params(4, 5),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
+    );
+}
+
+#[test]
+fn definition_in_table_header_wiki_link() {
+    Fixture::with(indoc! {"
+            # test
+
+            | [[link]] | b |
+            | -- | -- |
+            | a | text |
+
+            "})
+    .go_to_definition(
+        uri(1).to_goto_definition_params(2, 4),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+        ),
+    );
+}
