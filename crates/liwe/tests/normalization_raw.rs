@@ -119,6 +119,7 @@ fn raw_in_a_list_item() {
     compare(
         indoc! {"
         - list item
+
           ``` markdown
           raw block line 1
 
@@ -132,6 +133,63 @@ fn raw_in_a_list_item() {
           raw block line 1
 
           raw block line 2
+          ```
+    "},
+    );
+}
+
+#[test]
+fn raw_in_a_list_item_without_blank_line() {
+    setup();
+    compare(
+        indoc! {"
+        - list item
+
+          ``` markdown
+          raw block line
+          ```
+    "},
+        indoc! {"
+        - list item
+          ``` markdown
+          raw block line
+          ```
+    "},
+    );
+}
+
+#[test]
+fn raw_in_an_ordered_list_item() {
+    setup();
+    compare(
+        indoc! {"
+        1. list item
+
+           ``` markdown
+           raw block line
+           ```
+    "},
+        indoc! {"
+        1. list item
+           ``` markdown
+           raw block line
+           ```
+    "},
+    );
+}
+
+#[test]
+fn raw_as_only_block_in_a_list_item() {
+    setup();
+    compare(
+        indoc! {"
+        - ```markdown
+          raw block line
+          ```
+    "},
+        indoc! {"
+        - ```markdown
+          raw block line
           ```
     "},
     );

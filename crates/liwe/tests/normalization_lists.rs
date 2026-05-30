@@ -345,6 +345,40 @@ fn checkmark_list() {
     );
 }
 
+#[test]
+fn normalization_table_in_a_list_item() {
+    compare(
+        indoc! {"
+        - list item
+
+          | a   | b   |
+          | --- | --- |
+          | 1   | 2   |
+        "},
+        indoc! {"
+        - list item
+          | a | b |
+          |---|---|
+          | 1 | 2 |
+        "},
+    );
+}
+
+#[test]
+fn normalization_quote_in_a_list_item() {
+    compare(
+        indoc! {"
+        - list item
+
+          > quoted text
+        "},
+        indoc! {"
+        - list item
+          > quoted text
+        "},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 

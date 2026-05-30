@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `iwe normalize` now inserts a blank line between a list item's text and an adjacent code block, table, blockquote, or horizontal rule (previously the block was glued directly under the item text)
+
 ## [0.1.9](https://github.com/iwe-org/iwe/compare/iwe-v0.1.8...iwe-v0.1.9) - 2026-05-27
 
 Workspace version bump — no user-visible changes in this crate.
