@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10](https://github.com/iwe-org/iwe/compare/iwes-v0.1.9...iwes-v0.1.10) - 2026-05-30
+
 ### Fixed
 
 - `textDocument/definition`, `textDocument/hover`, and `textDocument/rename` now recognize links inside table cells; navigating from a `[[wiki]]` or `[text](link)` reference in a table previously returned an empty result.

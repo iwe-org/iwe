@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10](https://github.com/iwe-org/iwe/compare/liwe-v0.1.9...liwe-v0.1.10) - 2026-05-30
+
 ### Fixed
 
 - `DocumentBlock::child_inlines` now returns the inlines of table header and body cells, so `Document::link_at`/`Parser::url_at` resolve links inside table cells (previously returned nothing for tables).
