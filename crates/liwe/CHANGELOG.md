@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DocumentBlock::child_inlines` now returns the inlines of table header and body cells, so `Document::link_at`/`Parser::url_at` resolve links inside table cells (previously returned nothing for tables).
+- `MarkdownReader::read` appends a trailing newline to input that lacks one before parsing, so the last block's `LineRange` covers its final line; a multi-line block (such as a table) at the end of a newline-less document previously had its last line excluded from the range.
 - `InlineRange` character offsets are now UTF-16 code units instead of Unicode scalar counts, matching LSP position semantics; `Document::link_at` and `DocumentInline::key_range` were previously off by one column per preceding astral-plane character (such as an emoji).
 - Fragment-only links like `[text](#header)` no longer produce `[text](.md#header)` when `refs_extension` is set
 - Ordered list items use single space after marker (`1. item` instead of `1.  item`)

@@ -405,6 +405,13 @@ impl DocumentBlock {
             DocumentBlock::Plain(plain) => plain.inlines.clone(),
             DocumentBlock::Para(para) => para.inlines.clone(),
             DocumentBlock::Header(header) => header.inlines.clone(),
+            DocumentBlock::Table(table) => table
+                .header
+                .iter()
+                .chain(table.rows.iter().flatten())
+                .flatten()
+                .cloned()
+                .collect(),
             _ => vec![],
         }
     }

@@ -75,7 +75,10 @@ fn folding_range_for_quotes() {
     "})
     .assert_response::<FoldingRangeRequest>(
         folding_range_params(1),
-        Some(vec![folding_range(0, 2, Some("# test".to_string()))]),
+        Some(vec![
+            folding_range(0, 3, Some("# test".to_string())),
+            folding_range(2, 3, None),
+        ]),
     );
 }
 
@@ -135,8 +138,8 @@ fn folding_range_for_tables() {
     .assert_response::<FoldingRangeRequest>(
         folding_range_params(1),
         Some(vec![
-            folding_range(0, 4, Some("# test".to_string())),
-            folding_range(2, 4, None),
+            folding_range(0, 5, Some("# test".to_string())),
+            folding_range(2, 5, None),
         ]),
     );
 }
