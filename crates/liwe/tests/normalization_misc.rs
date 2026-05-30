@@ -264,7 +264,6 @@ fn table() {
         | header |
         | ------ |
         | row    |
-
     "},
         indoc! {"
         para
@@ -286,7 +285,6 @@ fn two_column_table() {
         | header1 | header2 |
         | ------- | ------- |
         | row1    | row2    |
-
     "},
         indoc! {"
         para
@@ -307,7 +305,6 @@ fn table_with_alignment() {
         |:-----|:------:|------:|
         | a    |   b    |     c |
         | long |  text  |  here |
-
     "},
         indoc! {"
         | left | center | right |
@@ -326,7 +323,6 @@ fn table_with_pipe_in_code() {
         | header   |
         | -------- |
         | `a \\| b` |
-
     "},
         indoc! {"
         | header |

@@ -193,7 +193,7 @@ impl GraphBlock {
             }
             GraphBlock::Table(_, _, _) => {
                 let writer = MarkdownWriter::new(options.clone());
-                format!("{}\n", writer.write(vec![self.clone()]))
+                writer.write(vec![self.clone()])
             }
         }
     }
@@ -205,12 +205,7 @@ fn ordered_prefix_indent(item_count: usize, formatting: &FormattingOptions) -> u
     } else {
         1
     };
-    let prefix = format!(
-        "{}{}{}",
-        last,
-        formatting.ordered_list_token_char(),
-        if last > 9 { "" } else { " " }
-    );
+    let prefix = format!("{}{}", last, formatting.ordered_list_token_char());
     prefix.len() + 1
 }
 
@@ -416,12 +411,7 @@ fn left_pad_and_prefix(text: &str, list_token: &str) -> String {
 }
 
 fn left_pad_and_prefix_num(text: &str, num: usize, ordered_list_token: char) -> String {
-    let prefix = format!(
-        "{}{}{}",
-        num,
-        ordered_list_token,
-        if num > 9 { "" } else { " " }
-    );
+    let prefix = format!("{}{}", num, ordered_list_token);
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {
@@ -697,7 +687,7 @@ fn append_refs_extension(url: &str, extension: &str) -> String {
         None => (url, None),
     };
 
-    let new_path = if has_file_extension(path) {
+    let new_path = if path.is_empty() || has_file_extension(path) {
         path.to_string()
     } else {
         format!("{path}{extension}")
@@ -864,15 +854,15 @@ pub mod tests {
         ])];
         assert_eq!(
             indoc! {"
-                1.  item
-                2.  item
-                3.  item
-                4.  item
-                5.  item
-                6.  item
-                7.  item
-                8.  item
-                9.  item
+                1. item
+                2. item
+                3. item
+                4. item
+                5. item
+                6. item
+                7. item
+                8. item
+                9. item
                 10. item
                 "},
             blocks_to_markdown(&list, &MarkdownOptions::default()),
@@ -887,9 +877,9 @@ pub mod tests {
         ]])];
         assert_eq!(
             indoc! {"
-                1.  item1
+                1. item1
 
-                    para
+                   para
                 "},
             blocks_to_markdown(&list, &MarkdownOptions::default()),
         );

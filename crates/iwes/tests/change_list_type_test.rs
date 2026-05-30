@@ -11,8 +11,8 @@ fn change_to_ordered() {
             "},
         0,
         indoc! {"
-            1.  test
-            2.  test2
+            1. test
+            2. test2
         "},
         "Change to ordered list",
     );
@@ -22,8 +22,8 @@ fn change_to_ordered() {
 fn change_to_bullet() {
     assert_list_change(
         indoc! {"
-            1.  test
-            2.  test2
+            1. test
+            2. test2
             "},
         0,
         indoc! {"

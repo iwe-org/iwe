@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fragment-only links like `[text](#header)` no longer produce `[text](.md#header)` when `refs_extension` is set
+- Ordered list items use single space after marker (`1. item` instead of `1.  item`)
+- Tables no longer produce extra trailing blank line
+
 ## [0.1.9](https://github.com/iwe-org/iwe/compare/liwe-v0.1.8...liwe-v0.1.9) - 2026-05-27
 
 ### Fixed

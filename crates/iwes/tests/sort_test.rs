@@ -168,9 +168,9 @@ fn sort_ordered_list() {
     .code_action(
         uri(1).to_code_action_params(0, "custom.sort"),
         vec![uri(1).to_edit(indoc! {"
-                1.  apple
-                2.  banana
-                3.  zebra
+                1. apple
+                2. banana
+                3. zebra
                 "})]
         .to_workspace_edit()
         .to_code_action("Sort", "custom.sort"),

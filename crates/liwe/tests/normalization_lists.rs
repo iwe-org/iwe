@@ -105,8 +105,8 @@ fn normalization_dual_dash_three_items_list_item() {
 fn normalization_dual_dash_two_items_ordered_list_item() {
     compare(
         indoc! {"
-        1.  item 1
-        2.  item 2
+        1. item 1
+        2. item 2
         "},
         indoc! {"
         1.  1.  item 1
@@ -139,7 +139,7 @@ fn normalization_list_items_with_text() {
 fn normalization_numbered_list_item() {
     compare(
         indoc! {"
-        1.  item 1
+        1. item 1
         "},
         indoc! {"
         1.  item 1
@@ -151,8 +151,8 @@ fn normalization_numbered_list_item() {
 fn normalization_numbered_list_2_items() {
     compare(
         indoc! {"
-        1.  item 1
-        2.  item 1
+        1. item 1
+        2. item 1
         "},
         indoc! {"
         1.  item 1
@@ -165,8 +165,8 @@ fn normalization_numbered_list_2_items() {
 fn normalization_numbered_list_in_list() {
     compare(
         indoc! {"
-        1.  item 1
-            1.  item 1
+        1. item 1
+           1. item 1
         "},
         indoc! {"
         1.  item 1
@@ -179,9 +179,9 @@ fn normalization_numbered_list_in_list() {
 fn normalization_numbered_list_with_para() {
     compare(
         indoc! {"
-        1.  item 1
+        1. item 1
 
-            para
+           para
         "},
         indoc! {"
         1.  item 1
@@ -293,7 +293,7 @@ fn normalization_two_list_with_sub_items() {
 fn normalization_ordered_list() {
     compare(
         indoc! {"
-        1.  list item
+        1. list item
         "},
         indoc! {"
         1. list item
@@ -305,8 +305,8 @@ fn normalization_ordered_list() {
 fn normalization_ordered_list_with_sub_list() {
     compare(
         indoc! {"
-        1.  list item
-            - sub list item
+        1. list item
+           - sub list item
         "},
         indoc! {"
         1. list item
@@ -321,7 +321,7 @@ fn normalization_ordered_list_and_bullet_list() {
         indoc! {"
         - sub list item
 
-        1.  list item
+        1. list item
         "},
         indoc! {"
         - sub list item
