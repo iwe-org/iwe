@@ -87,6 +87,16 @@ impl GraphBlock {
         matches!(self, GraphBlock::Plain(_) | GraphBlock::Para(_))
     }
 
+    fn requires_blank_line_separation(&self) -> bool {
+        matches!(
+            self,
+            GraphBlock::CodeBlock(_, _)
+                | GraphBlock::Table(_, _, _)
+                | GraphBlock::BlockQuote(_)
+                | GraphBlock::HorizontalRule
+        )
+    }
+
     fn is_frontmatter(&self) -> bool {
         matches!(self, GraphBlock::Frontmatter(_))
     }
@@ -725,13 +735,24 @@ pub fn blocks_to_markdown_and_indented(
     options: &MarkdownOptions,
     indent: usize,
 ) -> String {
-    ensure_trailing_newline(
-        blocks
-            .iter()
-            .map(|block| block.to_markdown_indented(options, indent))
-            .collect::<Vec<String>>()
-            .join(if sparce { "\n" } else { "" }),
-    )
+    let rendered = blocks
+        .iter()
+        .map(|block| block.to_markdown_indented(options, indent))
+        .collect::<Vec<String>>();
+
+    let mut result = String::new();
+    for (i, text) in rendered.iter().enumerate() {
+        if i > 0
+            && (sparce
+                || blocks[i - 1].requires_blank_line_separation()
+                || blocks[i].requires_blank_line_separation())
+        {
+            result.push('\n');
+        }
+        result.push_str(text);
+    }
+
+    ensure_trailing_newline(result)
 }
 
 pub fn blocks_to_markdown(blocks: &Blocks, options: &MarkdownOptions) -> String {
