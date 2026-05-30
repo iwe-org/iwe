@@ -135,8 +135,8 @@ fn default_rule_token() {
 fn ordered_list_with_dot() {
     compare(
         indoc! {"
-        1.  item1
-        2.  item2
+        1. item1
+        2. item2
         "},
         indoc! {"
         1. item1
@@ -150,8 +150,8 @@ fn ordered_list_with_dot() {
 fn ordered_list_with_paren() {
     compare(
         indoc! {"
-        1)  item1
-        2)  item2
+        1) item1
+        2) item2
         "},
         indoc! {"
         1. item1
@@ -168,9 +168,9 @@ fn ordered_list_with_paren() {
 fn increment_ordered_list_bullets_true() {
     compare(
         indoc! {"
-        1.  item1
-        2.  item2
-        3.  item3
+        1. item1
+        2. item2
+        3. item3
         "},
         indoc! {"
         1. item1
@@ -185,9 +185,9 @@ fn increment_ordered_list_bullets_true() {
 fn increment_ordered_list_bullets_false() {
     compare(
         indoc! {"
-        1.  item1
-        1.  item2
-        1.  item3
+        1. item1
+        1. item2
+        1. item3
         "},
         indoc! {"
         1. item1

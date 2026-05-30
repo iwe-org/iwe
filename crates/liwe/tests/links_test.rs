@@ -365,6 +365,26 @@ fn normalization_preserves_non_md_extension_in_subdir() {
     assert_str_eq!("[link text](bar/foo.html)\n", normalized);
 }
 
+#[test]
+fn fragment_only_link_preserved() {
+    setup();
+
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+
+    graph.from_markdown(
+        "key".into(),
+        "# title\n\n[text](#title)\n",
+        MarkdownReader::new(),
+    );
+
+    let normalized = graph.to_markdown(&"key".into());
+
+    assert_str_eq!("# title\n\n[text](#title)\n", normalized);
+}
+
 fn normalize(expected: &str, denormalized: &str) {
     setup();
 
