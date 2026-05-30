@@ -205,6 +205,32 @@ fn delete_inline_link() {
 }
 
 #[test]
+fn delete_inline_link_after_astral_character() {
+    Fixture::with(indoc! {"
+        # title a
+
+        \u{1F5FA} [title b](2) link.
+        _
+        # title b
+
+        some content
+    "})
+    .code_action(
+        uri(1).to_code_action_params_at_position(2, 14, "refactor.delete"),
+        vec![
+            uri(2).to_delete_file(),
+            uri(1).to_edit(indoc! {"
+            # title a
+
+            \u{1F5FA} title b link.
+        "}),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Delete", "refactor.delete"),
+    );
+}
+
+#[test]
 fn delete_inline_link_no_action_outside_link() {
     assert_no_delete_action_at_position(
         indoc! {"
