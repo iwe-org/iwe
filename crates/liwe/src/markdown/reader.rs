@@ -420,11 +420,11 @@ impl MarkdownEventsReader {
         for (line_idx, &line_start) in self.line_starts.iter().enumerate() {
             if line_start <= range.start {
                 start_line = line_idx;
-                start_char = content[line_start..range.start].chars().count();
+                start_char = content[line_start..range.start].encode_utf16().count();
             }
             if line_start <= range.end {
                 end_line = line_idx;
-                end_char = content[line_start..range.end].chars().count();
+                end_char = content[line_start..range.end].encode_utf16().count();
             }
         }
 
@@ -598,6 +598,41 @@ mod tests {
                 inlines: vec![DocumentInline::Str("para".to_string())],
             }),
         ];
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_link_position_after_astral_character() {
+        let content = "\u{1F5FA} [link](to)\n";
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let expected = vec![DocumentBlock::Para(Para {
+            line_range: 0..1,
+            inlines: vec![
+                DocumentInline::Str("\u{1F5FA} ".to_string()),
+                DocumentInline::Link(Link {
+                    inlines: vec![DocumentInline::Str("link".to_string())],
+                    target: Target {
+                        url: "to".to_string(),
+                        title: String::default(),
+                    },
+                    attr: Default::default(),
+                    title: String::default(),
+                    inline_range: InlineRange {
+                        start: Position {
+                            line: 0,
+                            character: 3,
+                        },
+                        end: Position {
+                            line: 0,
+                            character: 13,
+                        },
+                    },
+                    link_type: LinkType::Markdown,
+                }),
+            ],
+        })];
 
         assert_eq!(expected, actual);
     }

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `textDocument/hover`, `textDocument/definition`, and `textDocument/rename` now locate links correctly when the line contains emoji or other astral-plane characters; link positions are interpreted as UTF-16 code units per the LSP default (previously a link after an emoji could not be hit because positions were counted as Unicode scalars).
+
 ## [0.1.9](https://github.com/iwe-org/iwe/compare/iwes-v0.1.8...iwes-v0.1.9) - 2026-05-27
 
 ### Fixed

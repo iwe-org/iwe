@@ -274,6 +274,21 @@ fn definition_wiki_link_after_multibyte_text() {
 }
 
 #[test]
+fn definition_wiki_link_after_astral_text() {
+    Fixture::with_documents(vec![("1", "- \u{1F5FA}[[link]]\n"), ("link", "# target\n")])
+        .go_to_definition(
+            uri(1).to_goto_definition_params(0, 11),
+            goto_definition_response_single(
+                lsp_types::Uri::from_str("file:///basepath/link.md").unwrap(),
+            ),
+        )
+        .go_to_definition(
+            uri(1).to_goto_definition_params(0, 3),
+            goto_definition_response_empty(),
+        );
+}
+
+#[test]
 fn definition_markdown_link_after_multibyte_text() {
     Fixture::with_documents(vec![
         ("1", "\u{03B1}\u{03B2} [test](link)\n"),

@@ -665,7 +665,7 @@ impl DocumentInline {
                     line: link.inline_range.start.line,
 
                     character: link.inline_range.start.character
-                        + self.to_plain_text().chars().count()
+                        + self.to_plain_text().encode_utf16().count()
                         + 3,
                 },
                 end: Position {

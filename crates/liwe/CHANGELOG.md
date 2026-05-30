@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `InlineRange` character offsets are now UTF-16 code units instead of Unicode scalar counts, matching LSP position semantics; `Document::link_at` and `DocumentInline::key_range` were previously off by one column per preceding astral-plane character (such as an emoji).
 - Fragment-only links like `[text](#header)` no longer produce `[text](.md#header)` when `refs_extension` is set
 - Ordered list items use single space after marker (`1. item` instead of `1.  item`)
 - Tables no longer produce extra trailing blank line
