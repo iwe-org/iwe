@@ -46,15 +46,15 @@ pub fn walk_md_paths(base_path: &Path) -> Vec<(String, PathBuf)> {
             }
 
             let relative_path = path.strip_prefix(base_path).ok()?;
-            let key = if let Some(parent) = relative_path.parent() {
-                if parent == std::path::Path::new("") {
-                    to_file_name(path)
-                } else {
-                    format!("{}/{}", parent.to_string_lossy(), to_file_name(path))
-                }
-            } else {
-                to_file_name(path)
-            };
+            let key = relative_path
+                .with_extension("")
+                .components()
+                .filter_map(|c| match c {
+                    std::path::Component::Normal(os) => Some(os.to_string_lossy().to_string()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("/");
 
             Some((key, path.to_path_buf()))
         })
@@ -92,10 +92,19 @@ mod tests {
     fn sanitize_content_strips_crlf() {
         assert_eq!("a\nb\nc\n", sanitize_content("a\r\nb\r\nc\r\n".into()));
     }
-}
 
-fn to_file_name(path: &Path) -> String {
-    path.file_name()
-        .map(|name| name.to_string_lossy().trim_end_matches(".md").to_string())
-        .unwrap_or_default()
+    #[test]
+    fn walk_md_paths_uses_forward_slash_separators_for_nested_files() {
+        let base = tempfile::tempdir().unwrap();
+        let nested = base.path().join("sub").join("dir");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("note.md"), "# note\n").unwrap();
+
+        let keys = walk_md_paths(base.path())
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect::<Vec<_>>();
+
+        assert_eq!(keys, vec!["sub/dir/note".to_string()]);
+    }
 }

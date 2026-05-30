@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- File-watcher document keys join relative path components with `/` so they use forward-slash separators on all platforms (previously preserved Windows backslashes)
+
 ## [0.1.9](https://github.com/iwe-org/iwe/compare/iwec-v0.1.8...iwec-v0.1.9) - 2026-05-27
 
 Workspace version bump — no user-visible changes in this crate.

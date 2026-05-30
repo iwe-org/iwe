@@ -12,7 +12,15 @@ fn path_to_key(path: &Path, base_path: &Path) -> Option<Key> {
     }
 
     let relative = path.strip_prefix(base_path).ok()?;
-    let key_str = relative.with_extension("").to_string_lossy().to_string();
+    let key_str = relative
+        .with_extension("")
+        .components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(os) => Some(os.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/");
 
     Some(Key::name(&key_str))
 }
@@ -102,5 +110,20 @@ async fn handle_event(graph: &Arc<Mutex<Graph>>, base_path: &Path, event: Event)
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_to_key_uses_forward_slash_separators_for_nested_files() {
+        let base = PathBuf::from("base");
+        let path = base.join("sub").join("dir").join("note.md");
+
+        let key = path_to_key(&path, &base).unwrap();
+
+        assert_eq!(key, Key::name("sub/dir/note"));
     }
 }
