@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ordered list items use single space after marker (`1. item` instead of `1.  item`)
 - Tables no longer produce extra trailing blank line
 - Code blocks, tables, blockquotes, and horizontal rules inside a list item are now separated from an adjacent block by a blank line (previously rendered with no separator, e.g. a fenced code block glued directly under the item text)
+- `walk_md_paths` joins relative path components with `/` so document keys use forward-slash separators on all platforms (previously preserved Windows backslashes, leaving nested-document keys unmatchable against URI-derived keys)
 
 ## [0.1.9](https://github.com/iwe-org/iwe/compare/liwe-v0.1.8...liwe-v0.1.9) - 2026-05-27
 
