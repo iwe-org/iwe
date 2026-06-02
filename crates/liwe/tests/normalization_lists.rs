@@ -379,6 +379,131 @@ fn normalization_quote_in_a_list_item() {
     );
 }
 
+#[test]
+fn normalization_bullet_items_ending_with_code_block_are_separated() {
+    compare(
+        indoc! {"
+        - item 1
+
+          ``` text
+          some config
+          ```
+
+        - item 2
+
+          ``` text
+          some config
+          ```
+        "},
+        indoc! {"
+        - item 1
+
+          ``` text
+          some config
+          ```
+
+        - item 2
+
+          ``` text
+          some config
+          ```
+        "},
+    );
+}
+
+#[test]
+fn normalization_bullet_items_ending_with_code_block_get_blank_line_added() {
+    compare(
+        indoc! {"
+        - item 1
+
+          ``` text
+          some config
+          ```
+
+        - item 2
+
+          ``` text
+          some config
+          ```
+        "},
+        indoc! {"
+        - item 1
+
+          ``` text
+          some config
+          ```
+        - item 2
+
+          ``` text
+          some config
+          ```
+        "},
+    );
+}
+
+#[test]
+fn normalization_ordered_items_ending_with_code_block_are_separated() {
+    compare(
+        indoc! {"
+        1. item 1
+
+           ``` text
+           some config
+           ```
+
+        2. item 2
+
+           ``` text
+           some config
+           ```
+        "},
+        indoc! {"
+        1. item 1
+
+           ``` text
+           some config
+           ```
+        2. item 2
+
+           ``` text
+           some config
+           ```
+        "},
+    );
+}
+
+#[test]
+fn normalization_bullet_items_ending_with_table_are_separated() {
+    compare(
+        indoc! {"
+        - item 1
+
+          | a   | b   |
+          | --- | --- |
+          | 1   | 2   |
+
+        - item 2
+
+          | a   | b   |
+          | --- | --- |
+          | 1   | 2   |
+        "},
+        indoc! {"
+        - item 1
+
+          | a | b |
+          |---|---|
+          | 1 | 2 |
+        - item 2
+
+          | a | b |
+          |---|---|
+          | 1 | 2 |
+        "},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 

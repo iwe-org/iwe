@@ -54,6 +54,8 @@ pub struct FormattingOptions {
     pub code_block_token: Option<String>,
     pub code_block_token_count: Option<usize>,
     pub increment_ordered_list_bullets: Option<bool>,
+    pub ordered_list_content_indent: Option<usize>,
+    pub bullet_list_content_indent: Option<usize>,
     pub rule_token: Option<String>,
     pub rule_token_count: Option<usize>,
     pub wrap_column: Option<usize>,
@@ -81,6 +83,12 @@ impl FormattingOptions {
                 .filter(|v| matches!(v.as_str(), "`" | "~")),
             code_block_token_count: self.code_block_token_count.filter(|&v| v >= 3),
             increment_ordered_list_bullets: self.increment_ordered_list_bullets,
+            ordered_list_content_indent: self
+                .ordered_list_content_indent
+                .filter(|&v| (2..=4).contains(&v)),
+            bullet_list_content_indent: self
+                .bullet_list_content_indent
+                .filter(|&v| (2..=4).contains(&v)),
             rule_token: self
                 .rule_token
                 .filter(|v| matches!(v.as_str(), "-" | "*" | "_")),
@@ -129,6 +137,14 @@ impl FormattingOptions {
 
     pub fn increment_ordered_list_bullets(&self) -> bool {
         self.increment_ordered_list_bullets.unwrap_or(true)
+    }
+
+    pub fn ordered_list_content_indent(&self) -> Option<usize> {
+        self.ordered_list_content_indent
+    }
+
+    pub fn bullet_list_content_indent(&self) -> Option<usize> {
+        self.bullet_list_content_indent
     }
 
     pub fn rule_token(&self) -> &str {

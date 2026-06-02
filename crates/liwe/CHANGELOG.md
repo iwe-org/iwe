@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `markdown.formatting.ordered_list_content_indent: Option<usize>` and `markdown.formatting.bullet_list_content_indent: Option<usize>` set the minimum column where list item content and continuation lines start (accepts `2`–`4`; other values are ignored). When unset, content aligns one space after the marker as before; set to `4` for MkDocs-style alignment (`1.  item` / `-   item` with 4-space continuation). The natural marker width is always respected. `FormattingOptions` gains the `ordered_list_content_indent()` / `bullet_list_content_indent()` getters.
+
 ### Fixed
+- List rendering now treats a list as loose when any item contains a block requiring blank-line separation (code block, table, blockquote, horizontal rule), inserting a blank line between items, so a following item is no longer glued directly under the preceding item's block (previously only multi-paragraph items triggered loose rendering)
 - Wiki links (`[[name]]`) now resolve by path-suffix across the whole document set instead of relative to the linking file's directory: a bare name matches any document with that basename, and a partial path (`[[folder/name]]`) matches any document whose path ends with those segments, with ambiguity resolved deterministically (fewest path segments, then lexicographic). Markdown link resolution is unchanged, and wiki link backlink edges are keyed by the resolved target.
 
 ### Changed
@@ -15,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Graph` caches a `KeyIndex` built from its keys and exposes it via `Graph::key_index(&self) -> &KeyIndex` (previously this method built and returned an owned index per call); the cache is kept in sync as documents are added and removed.
 - `KeyIndex` gains `insert`, `remove`, and `resolve_link_key`, and derives `Clone`/`Default`; wiki links are rendered/normalized as the shortest path-suffix that uniquely identifies the target via `KeyIndex::shorten_wiki`. `NodeIter::to_markdown_indexed` / `to_markdown_skip_frontmatter_indexed` and `Projector::project` take an optional `KeyIndex`.
 - `to_graph_inlines`, `DocumentInline::to_graph_inline`, and `SectionsBuilder::new` take a `&KeyIndex` and resolve each reference to its canonical `Key` as the document is built (markdown links relative to the document, wiki links by path-suffix), so the graph no longer stores the raw as-written wiki target.
-
 ## [0.1.10](https://github.com/iwe-org/iwe/compare/liwe-v0.1.9...liwe-v0.1.10) - 2026-05-30
 
 ### Fixed
