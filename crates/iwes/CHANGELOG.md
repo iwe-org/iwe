@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `markdown.formatting.ordered_list_content_indent` and `markdown.formatting.bullet_list_content_indent` config options control the minimum indentation of list item content in normalize-on-format output (accepts `2`–`4`); set either to `4` for MkDocs-style alignment (`1.  item` / `-   item` with 4-space continuation)
+
+### Fixed
+- Hover, go-to-definition, and find-references for wiki links (`[[name]]`) now resolve the target by basename anywhere in the workspace rather than relative to the current file's folder, so a wiki link in a nested folder finds its target in another folder.
+
+### Changed
+- Completion and the create-link code action now insert wiki links in their shortest unambiguous form (e.g. `[[target]]` instead of `[[folder/target]]`), and normalize-on-format rewrites existing wiki links to that form.
+
 ## [0.1.10](https://github.com/iwe-org/iwe/compare/iwes-v0.1.9...iwes-v0.1.10) - 2026-05-30
 
 ### Fixed

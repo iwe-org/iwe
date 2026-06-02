@@ -55,3 +55,16 @@ fn link() {
         "})
     .references(uri(1).to_reference_params(2, 15, false), vec![]);
 }
+
+#[test]
+fn wiki_link_reference_resolves_target_in_another_directory() {
+    Fixture::with_documents(vec![
+        ("first/note", "[[target]]\n"),
+        ("third/note", "[[target]]\n"),
+        ("second/target", "# target\n"),
+    ])
+    .references(
+        uri_from("first/note").to_reference_params(0, 3, false),
+        vec![uri_from("third/note").to_location(0, 1)],
+    );
+}

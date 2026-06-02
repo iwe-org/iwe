@@ -352,6 +352,50 @@ fn definition_in_table_markdown_link() {
 }
 
 #[test]
+fn definition_wiki_link_resolves_target_in_another_directory() {
+    Fixture::with_documents(vec![
+        ("first/note", "[[target]]\n"),
+        ("second/target", "# target\n"),
+    ])
+    .go_to_definition(
+        uri_from("first/note").to_goto_definition_params(0, 3),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/second/target.md").unwrap(),
+        ),
+    );
+}
+
+#[test]
+fn definition_markdown_link_resolves_relative_to_current_directory() {
+    Fixture::with_documents(vec![
+        ("first/note", "[t](target)\n"),
+        ("first/target", "# sibling\n"),
+        ("second/target", "# other\n"),
+    ])
+    .go_to_definition(
+        uri_from("first/note").to_goto_definition_params(0, 1),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/first/target.md").unwrap(),
+        ),
+    );
+}
+
+#[test]
+fn definition_wiki_link_ambiguous_basename_prefers_fewest_segments() {
+    Fixture::with_documents(vec![
+        ("first/note", "[[target]]\n"),
+        ("target", "# root\n"),
+        ("deep/dir/target", "# deep\n"),
+    ])
+    .go_to_definition(
+        uri_from("first/note").to_goto_definition_params(0, 3),
+        goto_definition_response_single(
+            lsp_types::Uri::from_str("file:///basepath/target.md").unwrap(),
+        ),
+    );
+}
+
+#[test]
 fn definition_in_table_header_wiki_link() {
     Fixture::with(indoc! {"
             # test

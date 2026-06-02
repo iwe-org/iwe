@@ -6,6 +6,7 @@ use relative_path::RelativePath;
 pub mod config;
 pub mod document;
 pub mod graph;
+pub mod key_index;
 pub mod node;
 pub mod projector;
 pub mod reference;

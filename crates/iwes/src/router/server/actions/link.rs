@@ -1,5 +1,6 @@
 use chrono::{DateTime, Local, Locale};
 use liwe::model::config::LinkType as ConfigLinkType;
+use liwe::model::key_index::KeyIndex;
 use liwe::model::Key;
 use liwe::operations::Changes;
 use minijinja::{context, Environment};
@@ -105,9 +106,10 @@ impl LinkAction {
         end_byte: usize,
         new_key: &Key,
         link_type: Option<&ConfigLinkType>,
+        key_index: &KeyIndex,
     ) -> String {
         let link_text = match link_type {
-            Some(ConfigLinkType::WikiLink) => format!("[[{}]]", new_key),
+            Some(ConfigLinkType::WikiLink) => format!("[[{}]]", key_index.shorten_wiki(new_key)),
             Some(ConfigLinkType::Markdown) | None => format!("[{}]({})", word, new_key),
         };
 
@@ -189,6 +191,14 @@ impl ActionProvider for LinkAction {
 
             let new_markdown = format!("# {}\n", word);
 
+            let key_index = KeyIndex::build(
+                context
+                    .graph()
+                    .keys()
+                    .iter()
+                    .chain(std::iter::once(&new_key)),
+            );
+
             let updated_line = Self::replace_word_with_link(
                 line_text,
                 &word,
@@ -196,6 +206,7 @@ impl ActionProvider for LinkAction {
                 end,
                 &new_key,
                 self.link_type.as_ref(),
+                &key_index,
             );
 
             let updated_markdown = lines

@@ -27,6 +27,7 @@ use crate::parser::Parser;
 use crate::graph::graph_node::GraphNode;
 use crate::model::config::MarkdownOptions;
 use crate::model::graph::GraphInlines;
+use crate::model::key_index::KeyIndex;
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::InlinesContext;
 use crate::model::{Content, Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
@@ -58,6 +59,7 @@ pub struct Graph {
     frontmatter: HashMap<Key, Mapping>,
     content: Documents,
     frontmatter_document_title: Option<String>,
+    key_index: KeyIndex,
 }
 
 pub trait Reader {
@@ -100,6 +102,7 @@ impl Graph {
             markdown_options: self.markdown_options.clone(),
             frontmatter: self.frontmatter.clone(),
             frontmatter_document_title: self.frontmatter_document_title.clone(),
+            key_index: self.key_index.clone(),
             ..Default::default()
         }
     }
@@ -135,6 +138,7 @@ impl Graph {
         }
 
         self.keys.remove(&key);
+        self.key_index.remove(&key);
         self.nodes_map.remove(&key);
         self.keys_to_ref_text.remove(&key);
         self.frontmatter.remove(&key);
@@ -188,6 +192,7 @@ impl Graph {
     pub fn build_key(&mut self, key: &Key) -> GraphBuilder<'_> {
         let id = self.arena.new_node_id();
         self.keys.insert(key.clone(), id);
+        self.key_index.insert(key);
         self.arena
             .set_node(id, GraphNode::new_root(key.clone(), id));
         GraphBuilder::new(self, id)
@@ -211,6 +216,7 @@ impl Graph {
     {
         let id = self.arena.new_node_id();
         self.keys.insert(key.clone(), id);
+        self.key_index.insert(key);
         self.arena
             .set_node(id, GraphNode::new_root(key.clone(), id));
         f(&mut GraphBuilder::new(self, id));
@@ -273,10 +279,14 @@ impl Graph {
             self.frontmatter.remove(&key);
         }
 
+        let mut key_index = std::mem::take(&mut self.key_index);
+        key_index.insert(&key);
+
         let mut build_key = self.build_key(&key);
         let id = build_key.id();
 
-        let nodes_map = SectionsBuilder::new(&mut build_key, &document.blocks, &key).nodes_map();
+        let nodes_map =
+            SectionsBuilder::new(&mut build_key, &document.blocks, &key, &key_index).nodes_map();
 
         self.nodes_map.insert(key.clone(), nodes_map.clone());
         self.global_nodes_map.extend(nodes_map);
@@ -285,18 +295,25 @@ impl Graph {
         index.index_node(self, id);
         self.index.merge(index);
 
+        self.key_index = key_index;
+
         self.extract_ref_text(&key)
             .map(|text| self.keys_to_ref_text.insert(key, text));
+    }
+
+    pub fn key_index(&self) -> &KeyIndex {
+        &self.key_index
     }
 
     pub fn to_markdown(&self, key: &Key) -> String {
         if !self.keys.contains_key(key) {
             return String::new();
         }
-        let markdown = self
-            .collect(key)
-            .iter()
-            .to_markdown(&key.parent(), &self.markdown_options);
+        let markdown = self.collect(key).iter().to_markdown_indexed(
+            &key.parent(),
+            &self.markdown_options,
+            self.key_index(),
+        );
 
         markdown
     }
@@ -308,7 +325,11 @@ impl Graph {
         let markdown = self
             .collect(key)
             .iter()
-            .to_markdown_skip_frontmatter(&key.parent(), &self.markdown_options);
+            .to_markdown_skip_frontmatter_indexed(
+                &key.parent(),
+                &self.markdown_options,
+                self.key_index(),
+            );
 
         markdown
     }
@@ -349,23 +370,29 @@ impl Graph {
         graph.set_sequential_keys(sequential_ids);
         graph.frontmatter_document_title = frontmatter_document_title;
 
+        let keys: Vec<Key> = state.iter().map(|(k, _)| Key::name(k)).collect();
+        let key_index = KeyIndex::build(keys.iter());
+
         let ids = BuildIds::new();
         let outputs: Vec<DocBuildOutput> = if state.len() < PARALLEL_BUILD_THRESHOLD {
             state
                 .iter()
-                .map(|(k, v)| build_doc(&ids, Key::name(k), v.clone(), &markdown_options))
+                .map(|(k, v)| {
+                    build_doc(&ids, Key::name(k), v.clone(), &markdown_options, &key_index)
+                })
                 .collect()
         } else {
             state
                 .par_iter()
                 .map(|(k, v)| {
                     debug!("building doc, key={}", k);
-                    build_doc(&ids, Key::name(k), v.clone(), &markdown_options)
+                    build_doc(&ids, Key::name(k), v.clone(), &markdown_options, &key_index)
                 })
                 .collect()
         };
 
         merge_outputs(&mut graph, outputs, &ids);
+        graph.key_index = key_index;
         build_index_and_titles(&mut graph);
         graph
     }
@@ -382,13 +409,23 @@ impl Graph {
 
         let entries = crate::fs::walk_md_paths(base_path);
 
+        let keys: Vec<Key> = entries.iter().map(|(k, _)| Key::name(k)).collect();
+        let key_index = KeyIndex::build(keys.iter());
+
         let ids = BuildIds::new();
         let outputs: Vec<DocBuildOutput> = if entries.len() < PARALLEL_BUILD_THRESHOLD {
             entries
                 .into_iter()
                 .filter_map(|(key, path)| {
-                    crate::fs::read_md_file(&path)
-                        .map(|content| build_doc(&ids, Key::name(&key), content, &markdown_options))
+                    crate::fs::read_md_file(&path).map(|content| {
+                        build_doc(
+                            &ids,
+                            Key::name(&key),
+                            content,
+                            &markdown_options,
+                            &key_index,
+                        )
+                    })
                 })
                 .collect()
         } else {
@@ -396,13 +433,21 @@ impl Graph {
                 .into_par_iter()
                 .filter_map(|(key, path)| {
                     debug!("building doc, key={}", key);
-                    crate::fs::read_md_file(&path)
-                        .map(|content| build_doc(&ids, Key::name(&key), content, &markdown_options))
+                    crate::fs::read_md_file(&path).map(|content| {
+                        build_doc(
+                            &ids,
+                            Key::name(&key),
+                            content,
+                            &markdown_options,
+                            &key_index,
+                        )
+                    })
                 })
                 .collect()
         };
 
         merge_outputs(&mut graph, outputs, &ids);
+        graph.key_index = key_index;
         build_index_and_titles(&mut graph);
         graph
     }
@@ -412,9 +457,17 @@ impl Graph {
     }
 
     pub fn export(&self) -> State {
+        let key_index = self.key_index();
         self.keys
             .par_iter()
-            .map(|(k, _)| (k.to_string(), self.to_markdown(k)))
+            .map(|(k, _)| {
+                let markdown = self.collect(k).iter().to_markdown_indexed(
+                    &k.parent(),
+                    &self.markdown_options,
+                    key_index,
+                );
+                (k.to_string(), markdown)
+            })
             .collect()
     }
 
@@ -567,6 +620,7 @@ fn build_doc(
     key: Key,
     content: String,
     markdown_options: &MarkdownOptions,
+    key_index: &KeyIndex,
 ) -> DocBuildOutput {
     let document = MarkdownReader::new().document(&content, markdown_options);
 
@@ -578,6 +632,7 @@ fn build_doc(
         &mut GraphBuilder::new(&mut arena, root_id),
         &document.blocks,
         &key,
+        key_index,
     )
     .nodes_map();
 

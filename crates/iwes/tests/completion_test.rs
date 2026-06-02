@@ -295,6 +295,52 @@ fn completion_with_wikilink_format_multiple_documents() {
 }
 
 #[test]
+fn completion_with_wikilink_format_shortens_nested_key_to_bare_name() {
+    let config = liwe::model::config::Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::WikiLink),
+            min_prefix_length: Some(0),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![
+            ("other".to_string(), "# Other Doc\n".to_string()),
+            (
+                "deep/folder/target".to_string(),
+                "# Target Doc\n".to_string(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+        None,
+    )
+    .completion(
+        uri_from("other").to_completion_params(2, 0),
+        completion_list(vec![
+            completion_item(
+                "🔗 Other Doc",
+                "[[other]]",
+                "otherdoc",
+                "Other Doc",
+                empty_range(2, 0),
+            ),
+            completion_item(
+                "🔗 Target Doc",
+                "[[target]]",
+                "targetdoc",
+                "Target Doc",
+                empty_range(2, 0),
+            ),
+        ]),
+    );
+}
+
+#[test]
 fn completion_with_markdown_format_explicit() {
     let config = liwe::model::config::Configuration {
         completion: CompletionOptions {

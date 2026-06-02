@@ -1,6 +1,7 @@
 use serde_yaml::Mapping;
 
 use crate::model::graph::{blocks_to_markdown_sparce_skip_frontmatter, GraphInlines};
+use crate::model::key_index::KeyIndex;
 use crate::model::{Key, NodeId};
 
 use super::config::MarkdownOptions;
@@ -75,12 +76,30 @@ pub trait NodeIter<'a>: Sized {
     fn node(&self) -> Option<Node>;
 
     fn to_markdown(self, parent: &str, options: &MarkdownOptions) -> String {
-        let blocks = Projector::project(self, parent);
+        self.to_markdown_indexed(parent, options, &KeyIndex::default())
+    }
+
+    fn to_markdown_indexed(
+        self,
+        parent: &str,
+        options: &MarkdownOptions,
+        key_index: &KeyIndex,
+    ) -> String {
+        let blocks = Projector::project(self, parent, key_index);
         blocks_to_markdown_sparce(&blocks, options)
     }
 
     fn to_markdown_skip_frontmatter(self, parent: &str, options: &MarkdownOptions) -> String {
-        let blocks = Projector::project(self, parent);
+        self.to_markdown_skip_frontmatter_indexed(parent, options, &KeyIndex::default())
+    }
+
+    fn to_markdown_skip_frontmatter_indexed(
+        self,
+        parent: &str,
+        options: &MarkdownOptions,
+        key_index: &KeyIndex,
+    ) -> String {
+        let blocks = Projector::project(self, parent, key_index);
         blocks_to_markdown_sparce_skip_frontmatter(&blocks, options)
     }
 

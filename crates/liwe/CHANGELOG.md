@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Wiki links (`[[name]]`) now resolve by path-suffix across the whole document set instead of relative to the linking file's directory: a bare name matches any document with that basename, and a partial path (`[[folder/name]]`) matches any document whose path ends with those segments, with ambiguity resolved deterministically (fewest path segments, then lexicographic). Markdown link resolution is unchanged, and wiki link backlink edges are keyed by the resolved target.
+
+### Changed
+- Wiki link references are now stored fully resolved in the graph — resolved to their canonical `Key` when the document is built, the same way markdown links are — so reference and inclusion edges carry the resolved target and no longer need to be re-resolved at query time. The shortest path-suffix form is computed only when rendering markdown (document content and completion).
+- `Graph` caches a `KeyIndex` built from its keys and exposes it via `Graph::key_index(&self) -> &KeyIndex` (previously this method built and returned an owned index per call); the cache is kept in sync as documents are added and removed.
+- `KeyIndex` gains `insert`, `remove`, and `resolve_link_key`, and derives `Clone`/`Default`; wiki links are rendered/normalized as the shortest path-suffix that uniquely identifies the target via `KeyIndex::shorten_wiki`. `NodeIter::to_markdown_indexed` / `to_markdown_skip_frontmatter_indexed` and `Projector::project` take an optional `KeyIndex`.
+- `to_graph_inlines`, `DocumentInline::to_graph_inline`, and `SectionsBuilder::new` take a `&KeyIndex` and resolve each reference to its canonical `Key` as the document is built (markdown links relative to the document, wiki links by path-suffix), so the graph no longer stores the raw as-written wiki target.
+
 ## [0.1.10](https://github.com/iwe-org/iwe/compare/liwe-v0.1.9...liwe-v0.1.10) - 2026-05-30
 
 ### Fixed
