@@ -221,6 +221,113 @@ fn nested_parent_dir_relative_inline_link_resolved() {
 }
 
 #[test]
+fn wiki_link_across_directories_renders_as_bare_name() {
+    compare_state(
+        vec![
+            ("notes/note", "[[target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[[target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+    );
+}
+
+#[test]
+fn wiki_link_full_path_shortened_to_bare_name_on_normalize() {
+    compare_state(
+        vec![
+            ("notes/note", "[[target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[[clippings/target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+    );
+}
+
+#[test]
+fn wiki_link_shortened_to_shortest_unique_suffix_on_normalize() {
+    compare_state(
+        vec![
+            ("notes/note", "[[a/target]]\n"),
+            ("x/a/target", "# A\n"),
+            ("y/b/target", "# B\n"),
+        ],
+        vec![
+            ("notes/note", "[[x/a/target]]\n"),
+            ("x/a/target", "# A\n"),
+            ("y/b/target", "# B\n"),
+        ],
+    );
+}
+
+#[test]
+fn wiki_link_across_directories_resolves_backlink() {
+    setup();
+
+    let state: State = vec![
+        ("notes/note".to_string(), "[[target]]\n".to_string()),
+        ("clippings/target".to_string(), "# Target\n".to_string()),
+    ]
+    .into_iter()
+    .collect();
+
+    let graph = Graph::import(
+        &state,
+        MarkdownOptions {
+            refs_extension: String::default(),
+            ..Default::default()
+        },
+        None,
+    );
+
+    assert_eq!(
+        1,
+        graph
+            .get_inclusion_edges_to(&"clippings/target".into())
+            .len()
+    );
+    assert_eq!(
+        0,
+        graph.get_inclusion_edges_to(&"notes/target".into()).len()
+    );
+}
+
+#[test]
+fn wiki_link_resolves_backlink_after_incremental_update() {
+    setup();
+
+    let state: State = vec![
+        ("notes/note".to_string(), "# Note\n".to_string()),
+        ("clippings/target".to_string(), "# Target\n".to_string()),
+    ]
+    .into_iter()
+    .collect();
+
+    let mut graph = Graph::import(
+        &state,
+        MarkdownOptions {
+            refs_extension: String::default(),
+            ..Default::default()
+        },
+        None,
+    );
+
+    graph.update_document("notes/note".into(), "[[target]]\n".to_string());
+
+    assert_eq!(
+        1,
+        graph
+            .get_inclusion_edges_to(&"clippings/target".into())
+            .len()
+    );
+    assert_str_eq!("[[target]]\n", graph.to_markdown(&"notes/note".into()));
+}
+
+#[test]
 fn normalization_of_refs_extensions() {
     setup();
 

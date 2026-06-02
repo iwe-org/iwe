@@ -5,6 +5,7 @@ use crate::markdown::writer::MarkdownWriter;
 use crate::model;
 use crate::model::config::{FormattingOptions, MarkdownOptions};
 use crate::model::document::{DocumentInline, DocumentInlines};
+use crate::model::key_index::KeyIndex;
 use crate::model::node::ColumnAlignment;
 use crate::model::reference::{Reference, ReferenceType};
 use crate::model::{InlinesContext, Key, Lang, Level, LibraryUrl, Title};
@@ -796,12 +797,16 @@ pub fn blocks_to_markdown_sparce_skip_frontmatter(
     )
 }
 
-pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<GraphInline> {
+pub fn to_graph_inlines(
+    content: &DocumentInlines,
+    relative_to: &str,
+    key_index: &KeyIndex,
+) -> Vec<GraphInline> {
     let mut out = Vec::new();
     for inline in content {
         match inline {
             DocumentInline::Str(text) => split_text_words(text, &mut out),
-            other => out.push(other.to_graph_inline(relative_to)),
+            other => out.push(other.to_graph_inline(relative_to, key_index)),
         }
     }
     out

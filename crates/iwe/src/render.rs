@@ -245,7 +245,7 @@ fn render_content(graph: &Graph, key: &Key) -> Vec<GraphBlock> {
 
     let annotated = tree.annotate_references(&parent_lookup, &key.parent());
 
-    Projector::project(TreeIter::new(&annotated), &key.parent())
+    Projector::project(TreeIter::new(&annotated), &key.parent(), graph.key_index())
 }
 
 fn outer_fence_len(body: &str) -> usize {

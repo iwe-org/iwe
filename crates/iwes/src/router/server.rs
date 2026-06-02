@@ -7,6 +7,7 @@ use liwe::{
         config::{Command, Configuration, MarkdownOptions},
         is_ref_url,
         node::NodePointer,
+        reference::ReferenceType,
         tree::Tree,
         Key, NodeId,
     },
@@ -69,6 +70,20 @@ impl Server {
         &self.graph
     }
 
+    fn resolve_link_key(&self, url: &str, relative_to: &str, reference_type: ReferenceType) -> Key {
+        self.graph
+            .key_index()
+            .resolve_link_key(url, relative_to, reference_type)
+    }
+
+    fn ref_type_at(&self, key: &Key, position: liwe::model::Position) -> ReferenceType {
+        self.graph()
+            .parser(key)
+            .and_then(|parser| parser.link_at(position))
+            .and_then(|link| link.ref_type())
+            .unwrap_or(ReferenceType::Regular)
+    }
+
     pub fn handle_hover(&self, params: HoverParams) -> Option<Hover> {
         let key = params
             .text_document_position_params
@@ -90,7 +105,8 @@ impl Server {
             return None;
         }
 
-        let target_key = Key::from_rel_link_url(url, &relative_to);
+        let reference_type = self.ref_type_at(&key, position.to_model());
+        let target_key = self.resolve_link_key(url, &relative_to, reference_type);
         let markdown = self.graph.to_markdown_skip_frontmatter(&target_key);
 
         if markdown.trim().is_empty() {
@@ -153,6 +169,8 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
+        let key_index = self.graph.key_index();
+
         query::all_keys(&self.graph)
             .iter()
             .map(|m| {
@@ -162,6 +180,7 @@ impl Server {
                     &self.configuration.completion,
                     &self.base_path,
                     completion_context,
+                    key_index,
                 )
             })
             .sorted_by(|a, b| a.label.cmp(&b.label))
@@ -267,8 +286,15 @@ impl Server {
             return DefinitionResult::External(url);
         }
 
+        let location_url = match self.ref_type_at(&key, position.to_model()) {
+            ReferenceType::Regular => self.base_path.resolve_relative_url(&url, &relative_to),
+            ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => self
+                .base_path
+                .key_to_url(&self.graph.key_index().resolve_wiki(&url)),
+        };
+
         DefinitionResult::Internal(GotoDefinitionResponse::Scalar(Location::new(
-            self.base_path.resolve_relative_url(&url, &relative_to),
+            location_url,
             Range::default(),
         )))
     }
@@ -426,24 +452,20 @@ impl Server {
             });
         }
 
-        let relative_to = &params
+        let doc_key = params
             .text_document_position
             .text_document
             .uri
-            .to_key(&self.base_path)
-            .parent();
+            .to_key(&self.base_path);
+        let relative_to = &doc_key.parent();
+        let position = params.text_document_position.position.to_model();
+        let reference_type = self.ref_type_at(&doc_key, position);
 
         Result::Ok(
             self.graph()
-                .parser(
-                    &params
-                        .text_document_position
-                        .text_document
-                        .uri
-                        .to_key(&self.base_path),
-                )
-                .and_then(|parser| parser.url_at(params.text_document_position.position.to_model()))
-                .map(|url| Key::from_rel_link_url(&url, relative_to))
+                .parser(&doc_key)
+                .and_then(|parser| parser.url_at(position))
+                .map(|url| self.resolve_link_key(&url, relative_to, reference_type))
                 .filter(|key| query::key_exists(&self.graph, key))
                 .map(|key| {
                     let affected_keys = query::all_backlinks(&self.graph, &key)
@@ -516,24 +538,15 @@ impl Server {
             .uri
             .to_key(&self.base_path);
 
-        let relative_to = &params
-            .text_document_position
-            .text_document
-            .uri
-            .to_key(&self.base_path)
-            .parent();
+        let relative_to = &key.parent();
+        let position = params.text_document_position.position.to_model();
+        let reference_type = self.ref_type_at(&key, position);
 
         let key_under_cursor = self
             .graph()
-            .parser(
-                &params
-                    .text_document_position
-                    .text_document
-                    .uri
-                    .to_key(&self.base_path),
-            )
-            .and_then(|parser| parser.url_at(params.text_document_position.position.to_model()))
-            .map(|url| Key::from_rel_link_url(&url, relative_to))
+            .parser(&key)
+            .and_then(|parser| parser.url_at(position))
+            .map(|url| self.resolve_link_key(&url, relative_to, reference_type))
             .unwrap_or(key.clone());
 
         self.graph
@@ -854,7 +867,8 @@ impl ActionContext for &Server {
             return None;
         }
 
-        let target_key = Key::from_rel_link_url(&url, &key.parent());
+        let reference_type = self.ref_type_at(key, position);
+        let target_key = self.resolve_link_key(&url, &key.parent(), reference_type);
         self.graph.maybe_key(&target_key)?;
         Some(target_key)
     }

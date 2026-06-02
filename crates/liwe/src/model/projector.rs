@@ -1,25 +1,38 @@
 use crate::model::graph::{GraphBlock, GraphInline, GraphInlines};
+use crate::model::key_index::KeyIndex;
 use crate::model::node::{Node, NodeIter, ReferenceType};
+use crate::model::Key;
 
-pub struct Projector {
+pub struct Projector<'i> {
     header_level: usize,
     parent: String,
+    key_index: &'i KeyIndex,
 }
 
-impl Projector {
-    pub fn project<'a>(iter: impl NodeIter<'a>, parent: &str) -> Vec<GraphBlock> {
+impl<'i> Projector<'i> {
+    pub fn project<'a>(
+        iter: impl NodeIter<'a>,
+        parent: &str,
+        key_index: &'i KeyIndex,
+    ) -> Vec<GraphBlock> {
         Projector {
             header_level: 0,
             parent: parent.to_string(),
+            key_index,
         }
         .project_node(iter)
     }
 
-    fn with(&self, header_level: usize) -> Projector {
+    fn with(&self, header_level: usize) -> Projector<'i> {
         Projector {
             header_level,
             parent: self.parent.clone(),
+            key_index: self.key_index,
         }
+    }
+
+    fn wiki_url(&self, key: &Key) -> String {
+        self.key_index.shorten_wiki(key)
     }
 
     fn resolve_inlines(&self, inlines: GraphInlines) -> GraphInlines {
@@ -32,7 +45,12 @@ impl Projector {
     fn resolve_inline(&self, inline: GraphInline) -> GraphInline {
         match inline {
             GraphInline::Reference(reference) => {
-                let url = reference.key.to_rel_link_url(&self.parent);
+                let url = match reference.reference_type {
+                    ReferenceType::Regular => reference.key.to_rel_link_url(&self.parent),
+                    ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
+                        self.wiki_url(&reference.key)
+                    }
+                };
                 let inlines = match reference.reference_type {
                     ReferenceType::WikiLink => vec![],
                     _ => vec![GraphInline::Str(reference.text)],
@@ -119,7 +137,8 @@ impl Projector {
                 blocks.push(GraphBlock::HorizontalRule);
             }
             Node::Reference(_) => {
-                let inlines = match iter.ref_type().unwrap() {
+                let reference_type = iter.ref_type().unwrap();
+                let inlines = match reference_type {
                     ReferenceType::Regular => self.resolve_inlines(iter.inlines()),
                     ReferenceType::WikiLink => vec![],
                     ReferenceType::WikiLinkPiped => {
@@ -127,10 +146,16 @@ impl Projector {
                     }
                 };
 
+                let key = iter.ref_key2().unwrap();
+                let url = match reference_type {
+                    ReferenceType::Regular => key.to_rel_link_url(&self.parent),
+                    ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => self.wiki_url(&key),
+                };
+
                 let link = GraphInline::Link(
-                    iter.ref_key2().unwrap().to_rel_link_url(&self.parent),
+                    url,
                     String::default(),
-                    iter.ref_type().unwrap().to_link_type(),
+                    reference_type.to_link_type(),
                     inlines,
                 );
 

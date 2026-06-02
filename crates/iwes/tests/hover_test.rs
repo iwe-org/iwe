@@ -125,3 +125,40 @@ fn hover_outside_link_with_multibyte_text() {
     ])
     .assert_response::<HoverRequest>(uri(1).to_hover_params(0, 1), None);
 }
+
+#[test]
+fn hover_wiki_link_resolves_target_in_another_directory() {
+    Fixture::with_documents(vec![
+        ("first/note", "[[target]]\n"),
+        ("second/target", "# Heading\n\nLine 2\n"),
+    ])
+    .assert_response::<HoverRequest>(
+        uri_from("first/note").to_hover_params(0, 3),
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "# Heading\n\nLine 2\n".to_string(),
+            }),
+            range: None,
+        }),
+    );
+}
+
+#[test]
+fn hover_markdown_link_resolves_relative_to_current_directory() {
+    Fixture::with_documents(vec![
+        ("first/note", "[target](target)\n"),
+        ("first/target", "# Sibling\n"),
+        ("second/target", "# Other\n"),
+    ])
+    .assert_response::<HoverRequest>(
+        uri_from("first/note").to_hover_params(0, 3),
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "# Sibling\n".to_string(),
+            }),
+            range: None,
+        }),
+    );
+}

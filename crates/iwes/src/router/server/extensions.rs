@@ -8,6 +8,7 @@ use liwe::graph::GraphContext;
 
 use super::search::SearchPath;
 use liwe::model::config::{CompletionOptions, LinkType};
+use liwe::model::key_index::KeyIndex;
 use liwe::model::{self, Content, InlineRange, Key};
 
 use super::actions::Change;
@@ -401,15 +402,16 @@ pub impl Key {
         completion_options: &CompletionOptions,
         _: &BasePath,
         completion_context: &LinkCompletionContext,
+        key_index: &KeyIndex,
     ) -> CompletionItem {
         let ref_text = context.get_ref_text(self).unwrap_or_default();
         let refs_extension = &context.markdown_options().refs_extension;
 
         let new_text = match completion_context.bracket_prefix.as_str() {
-            "[[" => format!("[[{}]]", self.relative_path),
+            "[[" => format!("[[{}]]", key_index.shorten_wiki(self)),
             "[" => self.to_link(ref_text.clone(), relative_to, refs_extension),
             _ => match completion_options.link_format {
-                Some(LinkType::WikiLink) => format!("[[{}]]", self.relative_path),
+                Some(LinkType::WikiLink) => format!("[[{}]]", key_index.shorten_wiki(self)),
                 _ => self.to_link(ref_text.clone(), relative_to, refs_extension),
             },
         };

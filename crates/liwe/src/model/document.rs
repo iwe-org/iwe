@@ -3,6 +3,7 @@ use serde_yaml::Mapping;
 use super::{InlineRange, Position};
 use crate::model;
 use crate::model::graph::{to_plain_text, GraphInline};
+use crate::model::key_index::KeyIndex;
 use crate::model::node::ColumnAlignment;
 use crate::model::reference::{Reference, ReferenceType};
 use crate::model::{Key, Lang, LineRange};
@@ -521,40 +522,48 @@ impl DocumentInline {
         }
     }
 
-    pub fn to_graph_inline(&self, relative_to: &str) -> GraphInline {
+    pub fn to_graph_inline(&self, relative_to: &str, key_index: &KeyIndex) -> GraphInline {
         use crate::model::graph::to_graph_inlines;
         match self {
             DocumentInline::Str(text) => GraphInline::Str(text.clone()),
             DocumentInline::Emph(emph) => {
-                GraphInline::Emph(to_graph_inlines(&emph.inlines, relative_to))
+                GraphInline::Emph(to_graph_inlines(&emph.inlines, relative_to, key_index))
             }
             DocumentInline::Underline(underline) => {
-                GraphInline::Underline(to_graph_inlines(&underline.inlines, relative_to))
+                GraphInline::Underline(to_graph_inlines(&underline.inlines, relative_to, key_index))
             }
             DocumentInline::Strong(strong) => {
-                GraphInline::Strong(to_graph_inlines(&strong.inlines, relative_to))
+                GraphInline::Strong(to_graph_inlines(&strong.inlines, relative_to, key_index))
             }
             DocumentInline::Strikeout(strikeout) => {
-                GraphInline::Strikeout(to_graph_inlines(&strikeout.inlines, relative_to))
+                GraphInline::Strikeout(to_graph_inlines(&strikeout.inlines, relative_to, key_index))
             }
-            DocumentInline::Superscript(superscript) => {
-                GraphInline::Superscript(to_graph_inlines(&superscript.inlines, relative_to))
-            }
+            DocumentInline::Superscript(superscript) => GraphInline::Superscript(to_graph_inlines(
+                &superscript.inlines,
+                relative_to,
+                key_index,
+            )),
             DocumentInline::Subscript(subscript) => {
-                GraphInline::Subscript(to_graph_inlines(&subscript.inlines, relative_to))
+                GraphInline::Subscript(to_graph_inlines(&subscript.inlines, relative_to, key_index))
             }
-            DocumentInline::SmallCaps(small_caps) => {
-                GraphInline::SmallCaps(to_graph_inlines(&small_caps.inlines, relative_to))
-            }
+            DocumentInline::SmallCaps(small_caps) => GraphInline::SmallCaps(to_graph_inlines(
+                &small_caps.inlines,
+                relative_to,
+                key_index,
+            )),
             DocumentInline::Code(code) => GraphInline::Code(None, code.text.clone()),
             DocumentInline::Space(_) => GraphInline::Space,
             DocumentInline::SoftBreak(_) => GraphInline::SoftBreak,
             DocumentInline::LineBreak(_) => GraphInline::LineBreak,
             DocumentInline::Link(link) => {
-                let inlines = to_graph_inlines(&link.inlines, relative_to);
+                let inlines = to_graph_inlines(&link.inlines, relative_to, key_index);
                 if model::is_ref_url(&link.target.url) && !link.target.url.starts_with('#') {
                     GraphInline::Reference(Reference {
-                        key: Key::from_rel_link_url(&link.target.url, relative_to),
+                        key: key_index.resolve_link_key(
+                            &link.target.url,
+                            relative_to,
+                            link.link_type.to_ref_type(),
+                        ),
                         text: to_plain_text(&inlines),
                         reference_type: link.link_type.to_ref_type(),
                     })
@@ -573,7 +582,7 @@ impl DocumentInline {
             DocumentInline::Image(image) => GraphInline::Image(
                 image.target.url.clone(),
                 image.target.title.clone(),
-                to_graph_inlines(&image.inlines, relative_to),
+                to_graph_inlines(&image.inlines, relative_to, key_index),
             ),
             DocumentInline::Math(math) => GraphInline::Math(math.content.clone()),
         }
@@ -625,7 +634,7 @@ impl DocumentInline {
         }
     }
 
-    fn ref_type(&self) -> Option<ReferenceType> {
+    pub fn ref_type(&self) -> Option<ReferenceType> {
         match self {
             DocumentInline::Link(link) => Some(link.link_type.to_ref_type()),
             _ => None,

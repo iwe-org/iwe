@@ -1,6 +1,6 @@
 use crate::{
     graph::builder::GraphBuilder,
-    model::{document::DocumentInline, Key, LineRange, NodesMap},
+    model::{document::DocumentInline, key_index::KeyIndex, Key, LineRange, NodesMap},
 };
 use itertools::Itertools;
 
@@ -17,6 +17,7 @@ pub struct SectionsBuilder<'a> {
     builder: &'a mut GraphBuilder<'a>,
     nodes_map: NodesMap,
     key: Key,
+    key_index: &'a KeyIndex,
 }
 
 impl<'a> SectionsBuilder<'a> {
@@ -28,11 +29,13 @@ impl<'a> SectionsBuilder<'a> {
         builder: &'a mut GraphBuilder<'a>,
         content: &DocumentBlocks,
         key: &Key,
+        key_index: &'a KeyIndex,
     ) -> SectionsBuilder<'a> {
         let mut builder = SectionsBuilder {
             builder,
             nodes_map: vec![],
             key: key.clone(),
+            key_index,
         };
         builder.process_blocks(0..content.len(), content);
         builder
@@ -95,18 +98,27 @@ impl<'a> SectionsBuilder<'a> {
     pub fn section_block(&mut self, block: &DocumentBlock) {
         match block.clone() {
             Para(para) => {
-                self.builder
-                    .section(to_graph_inlines(&para.inlines, &self.key.parent()));
+                self.builder.section(to_graph_inlines(
+                    &para.inlines,
+                    &self.key.parent(),
+                    self.key_index,
+                ));
                 self.set_lines_range(para.line_range);
             }
             Plain(plain) => {
-                self.builder
-                    .section(to_graph_inlines(&plain.inlines, &self.key.parent()));
+                self.builder.section(to_graph_inlines(
+                    &plain.inlines,
+                    &self.key.parent(),
+                    self.key_index,
+                ));
                 self.set_lines_range(plain.line_range);
             }
             Header(header) => {
-                self.builder
-                    .section(to_graph_inlines(&header.inlines, &self.key.parent()));
+                self.builder.section(to_graph_inlines(
+                    &header.inlines,
+                    &self.key.parent(),
+                    self.key_index,
+                ));
                 self.set_lines_range(header.line_range);
             }
             Div(div) => {
@@ -126,6 +138,7 @@ impl<'a> SectionsBuilder<'a> {
                 self.builder.section(to_graph_inlines(
                     &vec![DocumentInline::Str(block.to_section_plain_text())],
                     &self.key.parent(),
+                    self.key_index,
                 ));
                 self.set_lines_range(block.line_range());
             }
@@ -143,20 +156,29 @@ impl<'a> SectionsBuilder<'a> {
                 self.set_lines_range(raw_block.line_range);
             }
             Plain(plain) => {
-                self.builder
-                    .leaf(to_graph_inlines(&plain.inlines, &self.key.parent()));
+                self.builder.leaf(to_graph_inlines(
+                    &plain.inlines,
+                    &self.key.parent(),
+                    self.key_index,
+                ));
                 self.set_lines_range(plain.line_range);
             }
             Para(para) => {
                 if block.is_ref() {
-                    self.builder.reference_with_text(
-                        &Key::from_rel_link_url(&block.url().unwrap(), &self.key.parent()),
-                        &block.ref_text().unwrap(),
-                        block.ref_type().unwrap(),
-                    )
-                } else {
+                    let ref_type = block.ref_type().unwrap();
+                    let key = self.key_index.resolve_link_key(
+                        &block.url().unwrap(),
+                        &self.key.parent(),
+                        ref_type,
+                    );
                     self.builder
-                        .leaf(to_graph_inlines(&para.inlines, &self.key.parent()))
+                        .reference_with_text(&key, &block.ref_text().unwrap(), ref_type)
+                } else {
+                    self.builder.leaf(to_graph_inlines(
+                        &para.inlines,
+                        &self.key.parent(),
+                        self.key_index,
+                    ))
                 }
                 self.set_lines_range(para.line_range);
             }
@@ -192,6 +214,7 @@ impl<'a> SectionsBuilder<'a> {
                     &mut self.builder.child_builder(id),
                     &quote.blocks,
                     &self.key,
+                    self.key_index,
                 );
             }
             HorizontalRule(rule) => {
@@ -208,7 +231,7 @@ impl<'a> SectionsBuilder<'a> {
                 let header = table
                     .header
                     .iter()
-                    .map(|cell| to_graph_inlines(cell, &self.key.parent()))
+                    .map(|cell| to_graph_inlines(cell, &self.key.parent(), self.key_index))
                     .map(|inlines| self.builder.add_line(inlines))
                     .collect_vec();
 
@@ -217,7 +240,7 @@ impl<'a> SectionsBuilder<'a> {
                     .iter()
                     .map(|row| {
                         row.iter()
-                            .map(|cell| to_graph_inlines(cell, &self.key.parent()))
+                            .map(|cell| to_graph_inlines(cell, &self.key.parent(), self.key_index))
                             .map(|inlines| self.builder.add_line(inlines))
                             .collect_vec()
                     })
