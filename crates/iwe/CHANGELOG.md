@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/iwe-org/iwe/compare/iwe-v0.1.10...iwe-v0.2.0) - 2026-06-02
+
 ### Added
 
 - `markdown.formatting.ordered_list_content_indent` and `markdown.formatting.bullet_list_content_indent` config options set the minimum indentation for list item content and continuation lines (accepts `2`–`4`); set either to `4` for MkDocs-style alignment (`1.  item` / `-   item` with 4-space continuation) instead of the default single space after the marker

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/iwe-org/iwe/compare/liwe-v0.1.10...liwe-v0.2.0) - 2026-06-02
+
 ### Added
 - `markdown.formatting.ordered_list_content_indent: Option<usize>` and `markdown.formatting.bullet_list_content_indent: Option<usize>` set the minimum column where list item content and continuation lines start (accepts `2`–`4`; other values are ignored). When unset, content aligns one space after the marker as before; set to `4` for MkDocs-style alignment (`1.  item` / `-   item` with 4-space continuation). The natural marker width is always respected. `FormattingOptions` gains the `ordered_list_content_indent()` / `bullet_list_content_indent()` getters.
 
