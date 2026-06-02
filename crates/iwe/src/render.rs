@@ -1,9 +1,9 @@
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::config::MarkdownOptions;
-use liwe::model::graph::{blocks_to_markdown_sparce_skip_frontmatter, GraphBlock};
 use liwe::model::node::NodePointer;
 use liwe::model::projector::Projector;
 use liwe::model::tree::TreeIter;
+use liwe::model::writer::{blocks_to_markdown_sparce_skip_frontmatter, Block};
 use liwe::model::Key;
 use liwe::retrieve::{DocumentOutput, EdgeRef, RetrieveOutput};
 use serde::Serialize;
@@ -216,7 +216,7 @@ fn render_body(graph: &Graph, options: &MarkdownOptions, key: &str) -> String {
     blocks_to_markdown_sparce_skip_frontmatter(&blocks, options)
 }
 
-fn render_content(graph: &Graph, key: &Key) -> Vec<GraphBlock> {
+fn render_content(graph: &Graph, key: &Key) -> Vec<Block> {
     let tree = graph.collect(key);
 
     let parent_lookup = |ref_key: &Key| -> Vec<(Key, String)> {
@@ -245,7 +245,7 @@ fn render_content(graph: &Graph, key: &Key) -> Vec<GraphBlock> {
 
     let annotated = tree.annotate_references(&parent_lookup, &key.parent());
 
-    Projector::project(TreeIter::new(&annotated), &key.parent(), graph.key_index())
+    Projector::project(TreeIter::new(&annotated), &key.parent())
 }
 
 fn outer_fence_len(body: &str) -> usize {

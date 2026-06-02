@@ -2,12 +2,10 @@ use pulldown_cmark::{Event, HeadingLevel, MetadataBlockKind, Tag, TagEnd};
 use pulldown_cmark_to_cmark::cmark_with_options;
 
 use crate::model::config::MarkdownOptions;
+use crate::model::inline::{inlines_to_markdown, Inline, Inlines};
 use crate::model::node::ColumnAlignment;
-use crate::model::{
-    document,
-    graph::{frontmatter_to_yaml, inlines_to_markdown, GraphBlock, GraphInline, GraphInlines},
-    is_ref_url,
-};
+use crate::model::writer::{frontmatter_to_yaml, Block};
+use crate::model::{document, is_ref_url};
 
 pub struct MarkdownWriter {
     options: MarkdownOptions,
@@ -18,7 +16,7 @@ impl MarkdownWriter {
         MarkdownWriter { options }
     }
 
-    pub fn write(&self, blocks: Vec<GraphBlock>) -> String {
+    pub fn write(&self, blocks: Vec<Block>) -> String {
         let mut buf = String::new();
         cmark_with_options(
             self.blocks_events(blocks).iter().cloned(),
@@ -29,16 +27,16 @@ impl MarkdownWriter {
         buf
     }
 
-    fn blocks_events(&self, iter: Vec<GraphBlock>) -> Vec<Event<'_>> {
+    fn blocks_events(&self, iter: Vec<Block>) -> Vec<Event<'_>> {
         iter.into_iter()
             .flat_map(|block| self.block_events(block))
             .collect()
     }
 
-    fn block_events(&self, block: GraphBlock) -> Vec<Event<'_>> {
+    fn block_events(&self, block: Block) -> Vec<Event<'_>> {
         let mut events = Vec::new();
         match block {
-            GraphBlock::Frontmatter(mapping) => {
+            Block::Frontmatter(mapping) => {
                 events.push(Event::Start(Tag::MetadataBlock(
                     MetadataBlockKind::YamlStyle,
                 )));
@@ -47,7 +45,7 @@ impl MarkdownWriter {
                     MetadataBlockKind::YamlStyle,
                 )));
             }
-            GraphBlock::Header(level, inlines) => {
+            Block::Header(level, inlines) => {
                 events.push(Event::Start(Tag::Heading {
                     level: header_level(level),
                     id: None,
@@ -57,12 +55,12 @@ impl MarkdownWriter {
                 events.append(&mut self.inlines_to_events(inlines));
                 events.push(Event::End(TagEnd::Heading(header_level(level))));
             }
-            GraphBlock::BlockQuote(blocks) => {
+            Block::BlockQuote(blocks) => {
                 events.push(Event::Start(Tag::BlockQuote(None)));
                 events.append(&mut self.blocks_events(blocks));
                 events.push(Event::End(TagEnd::BlockQuote(None)));
             }
-            GraphBlock::BulletList(items) => {
+            Block::BulletList(items) => {
                 events.push(Event::Start(Tag::List(None)));
                 for item in items {
                     events.push(Event::Start(Tag::Item));
@@ -71,7 +69,7 @@ impl MarkdownWriter {
                 }
                 events.push(Event::End(TagEnd::List(false)));
             }
-            GraphBlock::OrderedList(items) => {
+            Block::OrderedList(items) => {
                 events.push(Event::Start(Tag::List(Some(1))));
                 for blocks in items {
                     events.push(Event::Start(Tag::Item));
@@ -80,23 +78,23 @@ impl MarkdownWriter {
                 }
                 events.push(Event::End(TagEnd::List(true)));
             }
-            GraphBlock::Para(inlines) => {
+            Block::Para(inlines) => {
                 events.push(Event::Start(Tag::Paragraph));
                 events.append(&mut self.inlines_to_events(inlines));
                 events.push(Event::End(TagEnd::Paragraph));
             }
-            GraphBlock::RawBlock(_, content) => {
+            Block::RawBlock(_, content) => {
                 events.push(Event::Html(content.into()));
             }
-            GraphBlock::HorizontalRule => {
+            Block::HorizontalRule => {
                 events.push(Event::Rule);
             }
-            GraphBlock::Plain(inlines) => {
+            Block::Plain(inlines) => {
                 events.push(Event::Start(Tag::Paragraph));
                 events.append(&mut self.inlines_to_events(inlines));
                 events.push(Event::End(TagEnd::Paragraph));
             }
-            GraphBlock::LineBlock(lines) => {
+            Block::LineBlock(lines) => {
                 events.push(Event::Start(Tag::Paragraph));
                 lines.iter().for_each(|line| {
                     events.append(&mut self.inlines_to_events(line.clone()));
@@ -104,13 +102,13 @@ impl MarkdownWriter {
                 });
                 events.push(Event::End(TagEnd::Paragraph));
             }
-            GraphBlock::CodeBlock(_, content) => {
+            Block::CodeBlock(_, content) => {
                 events.push(Event::Start(Tag::CodeBlock(
                     pulldown_cmark::CodeBlockKind::Fenced(content.into()),
                 )));
                 events.push(Event::End(TagEnd::CodeBlock));
             }
-            GraphBlock::Table(header_row, alignment, rows) => {
+            Block::Table(header_row, alignment, rows) => {
                 let table_md = self.render_aligned_table(&header_row, &alignment, &rows);
                 events.push(Event::Html(table_md.into()));
             }
@@ -118,22 +116,22 @@ impl MarkdownWriter {
         events
     }
 
-    fn inlines_to_events(&self, inlines: GraphInlines) -> Vec<Event<'_>> {
+    fn inlines_to_events(&self, inlines: Inlines) -> Vec<Event<'_>> {
         let mut events = Vec::new();
         for inline in inlines {
             match inline {
-                GraphInline::Code(_, code) => {
+                Inline::Code(_, code) => {
                     events.push(Event::Start(Tag::CodeBlock(
                         pulldown_cmark::CodeBlockKind::Fenced(code.into()),
                     )));
                     events.push(Event::End(TagEnd::CodeBlock));
                 }
-                GraphInline::Emph(vec) => {
+                Inline::Emph(vec) => {
                     events.push(Event::Start(Tag::Emphasis));
                     events.extend(self.inlines_to_events(vec));
                     events.push(Event::End(TagEnd::Emphasis));
                 }
-                GraphInline::Image(url, title, _) => {
+                Inline::Image(url, title, _) => {
                     events.push(Event::Start(Tag::Image {
                         title: title.into(),
                         link_type: pulldown_cmark::LinkType::Autolink,
@@ -142,10 +140,10 @@ impl MarkdownWriter {
                     }));
                     events.push(Event::End(TagEnd::Image));
                 }
-                GraphInline::LineBreak => {
+                Inline::LineBreak => {
                     events.push(Event::HardBreak);
                 }
-                GraphInline::Link(url, title, t, inlines) => {
+                Inline::Link(url, title, t, inlines) => {
                     let text = inlines_to_markdown(&inlines, &self.options);
                     if !is_ref_url(&url) && text.eq_ignore_ascii_case(&url) {
                         events.push(Event::Start(Tag::Link {
@@ -167,7 +165,7 @@ impl MarkdownWriter {
                         events.push(Event::End(TagEnd::Link));
                     }
                 }
-                GraphInline::Reference(reference) => {
+                Inline::Reference(reference) => {
                     events.push(Event::Start(Tag::Link {
                         title: "".into(),
                         link_type: link_type(reference.reference_type.to_link_type()),
@@ -177,41 +175,41 @@ impl MarkdownWriter {
                     events.push(Event::Text(reference.text.into()));
                     events.push(Event::End(TagEnd::Link));
                 }
-                GraphInline::Math(math) => {
+                Inline::Math(math) => {
                     events.push(Event::Html(format!("\\({}\\)", math).into()));
                 }
-                GraphInline::RawInline(_, content) => {
+                Inline::RawInline(_, content) => {
                     events.push(Event::Html(content.into()));
                 }
-                GraphInline::SmallCaps(vec) => {
+                Inline::SmallCaps(vec) => {
                     events.extend(self.inlines_to_events(vec));
                 }
-                GraphInline::SoftBreak => {
+                Inline::SoftBreak => {
                     events.push(Event::SoftBreak);
                 }
-                GraphInline::Space => {
+                Inline::Space => {
                     events.push(Event::Text(" ".into()));
                 }
-                GraphInline::Str(text) => {
+                Inline::Str(text) => {
                     events.push(Event::Text(text.into()));
                 }
-                GraphInline::Strikeout(vec) => {
+                Inline::Strikeout(vec) => {
                     events.push(Event::Start(Tag::Strikethrough));
                     events.extend(self.inlines_to_events(vec));
                     events.push(Event::End(TagEnd::Strikethrough));
                 }
-                GraphInline::Strong(vec) => {
+                Inline::Strong(vec) => {
                     events.push(Event::Start(Tag::Strong));
                     events.extend(self.inlines_to_events(vec));
                     events.push(Event::End(TagEnd::Strong));
                 }
-                GraphInline::Subscript(vec) => {
+                Inline::Subscript(vec) => {
                     events.extend(self.inlines_to_events(vec));
                 }
-                GraphInline::Superscript(vec) => {
+                Inline::Superscript(vec) => {
                     events.extend(self.inlines_to_events(vec));
                 }
-                GraphInline::Underline(vec) => {
+                Inline::Underline(vec) => {
                     events.extend(self.inlines_to_events(vec));
                 }
             }
@@ -221,9 +219,9 @@ impl MarkdownWriter {
 
     fn render_aligned_table(
         &self,
-        header: &[GraphInlines],
+        header: &[Inlines],
         alignment: &[ColumnAlignment],
-        rows: &[Vec<GraphInlines>],
+        rows: &[Vec<Inlines>],
     ) -> String {
         let header_strs: Vec<String> = header
             .iter()

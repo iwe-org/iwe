@@ -1,6 +1,6 @@
 use super::*;
 use crate::graph::arena::NodeStore;
-use crate::model::graph::GraphInline;
+use crate::model::inline::Inline;
 use crate::model::node::{ColumnAlignment, Node, Reference, ReferenceType};
 
 pub struct GraphBuilder<'a> {
@@ -48,7 +48,7 @@ impl<'a> GraphBuilder<'a> {
         self
     }
 
-    pub fn add_line(&mut self, inlines: GraphInlines) -> LineId {
+    pub fn add_line(&mut self, inlines: Inlines) -> LineId {
         self.store.add_line(inlines)
     }
 
@@ -123,7 +123,7 @@ impl<'a> GraphBuilder<'a> {
     }
 
     pub fn section_text(&mut self, text: &str) -> &mut Self {
-        let line_id = self.store.add_line(GraphInline::from_string(text));
+        let line_id = self.store.add_line(Inline::from_string(text));
         let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_section(self.id, new_id, line_id), |_| {});
         self
@@ -133,17 +133,17 @@ impl<'a> GraphBuilder<'a> {
     where
         F: FnOnce(&mut GraphBuilder),
     {
-        let line_id = self.store.add_line(GraphInline::from_string(text));
+        let line_id = self.store.add_line(Inline::from_string(text));
         let new_id = self.store.new_node_id();
         self.add_node_and(GraphNode::new_section(self.id, new_id, line_id), f);
         self
     }
 
-    pub fn section(&mut self, inlines: GraphInlines) {
+    pub fn section(&mut self, inlines: Inlines) {
         self.section_and(inlines, |_| {})
     }
 
-    pub fn section_and<F>(&mut self, inlines: GraphInlines, f: F)
+    pub fn section_and<F>(&mut self, inlines: Inlines, f: F)
     where
         F: FnOnce(&mut GraphBuilder),
     {
@@ -153,13 +153,13 @@ impl<'a> GraphBuilder<'a> {
     }
 
     pub fn leaf_text(&mut self, text: &str) -> &mut Self {
-        let line_id = self.store.add_line(GraphInline::from_string(text));
+        let line_id = self.store.add_line(Inline::from_string(text));
         let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_leaf(self.id, new_id, line_id));
         self
     }
 
-    pub fn leaf(&mut self, block: GraphInlines) {
+    pub fn leaf(&mut self, block: Inlines) {
         let line_id = self.store.add_line(block);
         let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_leaf(self.id, new_id, line_id));
@@ -276,6 +276,13 @@ impl<'a> GraphBuilder<'a> {
                 let new_id = self.store.new_node_id();
                 self.add_node_and2(GraphNode::new_leaf(self.id, new_id, line_id), f);
             }
+            Node::Item(checked, inlines) => {
+                let line_id = self
+                    .store
+                    .add_line(crate::model::inline::prepend_checkbox(checked, inlines));
+                let new_id = self.store.new_node_id();
+                self.add_node_and2(GraphNode::new_section(self.id, new_id, line_id), f);
+            }
             Node::Raw(lang, content) => {
                 let new_id = self.store.new_node_id();
                 self.add_node_and2(
@@ -291,6 +298,7 @@ impl<'a> GraphBuilder<'a> {
                 key,
                 text: title,
                 reference_type,
+                display_url: _,
             }) => {
                 let new_id = self.store.new_node_id();
                 self.add_node_and2(
@@ -403,17 +411,16 @@ impl<'a> GraphBuilder<'a> {
 mod test {
     use super::{Graph, GraphNodePointer, Tree};
     use crate::markdown::MarkdownReader;
-    use crate::model::graph::GraphInline;
+    use crate::model::inline::Inline;
     use crate::model::node::{Node, NodePointer};
     use indoc::indoc;
 
     #[test]
     pub fn simple_tree() {
         let graph = Graph::with(|graph| {
-            graph.build_key(&"key".into()).add_new_node_and(
-                Node::Leaf(vec![GraphInline::Str("item".to_string())]),
-                |_| {},
-            )
+            graph
+                .build_key(&"key".into())
+                .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {})
         });
 
         let visitor = GraphNodePointer::new(&graph, graph.get_document_id(&"key".into()));
@@ -424,7 +431,7 @@ mod test {
                 node: Node::Document("key".into(), None),
                 children: vec![Tree {
                     id: Some(1),
-                    node: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
+                    node: Node::Leaf(vec![Inline::Str("item".to_string())]),
                     children: vec![]
                 }]
             },
@@ -436,12 +443,9 @@ mod test {
     pub fn nested_tree() {
         let graph = Graph::with(|graph| {
             graph.build_key(&"key".into()).add_new_node_and(
-                Node::Section(vec![GraphInline::Str("item".to_string())]),
+                Node::Section(vec![Inline::Str("item".to_string())]),
                 |f| {
-                    f.add_new_node_and(
-                        Node::Leaf(vec![GraphInline::Str("item".to_string())]),
-                        |_| {},
-                    );
+                    f.add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {});
                 },
             )
         });
@@ -454,10 +458,10 @@ mod test {
                 node: Node::Document("key".into(), None),
                 children: vec![Tree {
                     id: Some(1),
-                    node: Node::Section(vec![GraphInline::Str("item".to_string())]),
+                    node: Node::Section(vec![Inline::Str("item".to_string())]),
                     children: vec![Tree {
                         id: Some(2),
-                        node: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
+                        node: Node::Leaf(vec![Inline::Str("item".to_string())]),
                         children: vec![]
                     }]
                 }]
@@ -473,10 +477,10 @@ mod test {
             node: Node::Document("key".into(), None),
             children: vec![Tree {
                 id: Some(1),
-                node: Node::Section(vec![GraphInline::Str("section".to_string())]),
+                node: Node::Section(vec![Inline::Str("section".to_string())]),
                 children: vec![Tree {
                     id: Some(2),
-                    node: Node::Leaf(vec![GraphInline::Str("item".to_string())]),
+                    node: Node::Leaf(vec![Inline::Str("item".to_string())]),
                     children: vec![],
                 }],
             }],
@@ -500,10 +504,9 @@ mod test {
     pub fn add_new_node_leaf() {
         assert_eq(
             Graph::with(|graph| {
-                graph.build_key(&"key".into()).add_new_node_and(
-                    Node::Leaf(vec![GraphInline::Str("item".to_string())]),
-                    |_| {},
-                )
+                graph
+                    .build_key(&"key".into())
+                    .add_new_node_and(Node::Leaf(vec![Inline::Str("item".to_string())]), |_| {})
             }),
             indoc! {"
             item
@@ -519,7 +522,7 @@ mod test {
                     .build_key(&"key".into())
                     .add_new_node_and(Node::BulletList(), |f| {
                         f.add_new_node_and(
-                            Node::Section(vec![GraphInline::Str("item".to_string())]),
+                            Node::Section(vec![Inline::Str("item".to_string())]),
                             |_| {},
                         )
                     })
@@ -538,11 +541,11 @@ mod test {
                     .build_key(&"key".into())
                     .add_new_node_and(Node::BulletList(), |list| {
                         list.add_new_node_and(
-                            Node::Section(vec![GraphInline::Str("item".to_string())]),
+                            Node::Section(vec![Inline::Str("item".to_string())]),
                             |section| {
                                 section.add_new_node_and(Node::BulletList(), |list| {
                                     list.add_new_node_and(
-                                        Node::Section(vec![GraphInline::Str("item2".to_string())]),
+                                        Node::Section(vec![Inline::Str("item2".to_string())]),
                                         |_| {},
                                     );
                                 });

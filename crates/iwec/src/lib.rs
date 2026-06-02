@@ -1054,6 +1054,7 @@ impl IweServer {
                     key: source_key.clone(),
                     text: reference_text.clone(),
                     reference_type: ReferenceType::Regular,
+                    display_url: None,
                 }),
                 children: vec![],
             };

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use itertools::Itertools;
 
 use super::{
-    graph::GraphInline,
-    node::{Node, NodeIter, NodePointer, Reference, ReferenceType},
+    inline::{prepend_checkbox, Inline},
+    node::{Node, NodePointer, Reference, ReferenceType},
     Key, NodeId,
 };
 
@@ -47,6 +47,7 @@ impl Tree {
                         key,
                         text,
                         reference_type: ReferenceType::Regular,
+                        display_url: None,
                     }),
                     children: vec![],
                 }
@@ -106,7 +107,7 @@ impl Tree {
                 pos + 1,
                 Tree {
                     id: None,
-                    node: Node::Leaf(vec![GraphInline::Str(end.to_string())]),
+                    node: Node::Leaf(vec![Inline::Str(end.to_string())]),
                     children: vec![],
                 },
             );
@@ -114,7 +115,7 @@ impl Tree {
                 pos,
                 Tree {
                     id: None,
-                    node: Node::Leaf(vec![GraphInline::Str(start.to_string())]),
+                    node: Node::Leaf(vec![Inline::Str(start.to_string())]),
                     children: vec![],
                 },
             );
@@ -129,13 +130,14 @@ impl Tree {
         }
     }
 
-    pub fn update_node(&self, target_id: NodeId, inlines: &Vec<GraphInline>) -> Tree {
+    pub fn update_node(&self, target_id: NodeId, inlines: &Vec<Inline>) -> Tree {
         if self.id_eq(target_id) {
             Tree {
                 id: self.id,
                 node: match &self.node {
                     Node::Section(_) => Node::Section(inlines.clone()),
                     Node::Leaf(_) => Node::Leaf(inlines.clone()),
+                    Node::Item(checked, _) => Node::Item(*checked, inlines.clone()),
                     _ => self.node.clone(),
                 },
                 children: self.children.clone(),
@@ -276,13 +278,29 @@ impl Tree {
         }
     }
 
+    fn list_item_to_section(&self) -> Tree {
+        match &self.node {
+            Node::Item(checked, inlines) => Tree {
+                id: self.id,
+                node: Node::Section(prepend_checkbox(*checked, inlines.clone())),
+                children: self.children.clone(),
+            },
+            _ => self.clone(),
+        }
+    }
+
     pub fn unwrap_list(&self, node_id: NodeId) -> Tree {
         if self.children.iter().any(|child| child.id_eq(node_id)) {
             let mut children = vec![];
 
             for child in self.children.iter() {
                 if child.id_eq(node_id) {
-                    children.extend(child.children.clone());
+                    children.extend(
+                        child
+                            .children
+                            .iter()
+                            .map(|item| item.list_item_to_section()),
+                    );
                 } else {
                     children.push(child.unwrap_list(node_id));
                 }
@@ -314,6 +332,13 @@ impl Tree {
                         .map(|inline| inline.change_key(target_key, updated_key))
                         .collect_vec(),
                 ),
+                Node::Item(checked, inlines) => Node::Item(
+                    *checked,
+                    inlines
+                        .iter()
+                        .map(|inline| inline.change_key(target_key, updated_key))
+                        .collect_vec(),
+                ),
                 Node::Reference(reference) => Node::Reference(Reference {
                     key: if reference.key.eq(target_key) {
                         updated_key.clone()
@@ -322,6 +347,7 @@ impl Tree {
                     },
                     text: reference.text.clone(),
                     reference_type: reference.reference_type,
+                    display_url: None,
                 }),
                 _ => self.node.clone(),
             },
@@ -576,6 +602,10 @@ impl Tree {
             Node::Section(inlines) => {
                 Node::Section(Self::remove_inline_links_to_rec(inlines, target_key))
             }
+            Node::Item(checked, inlines) => Node::Item(
+                *checked,
+                Self::remove_inline_links_to_rec(inlines, target_key),
+            ),
             _ => self.node.clone(),
         };
 
@@ -590,43 +620,43 @@ impl Tree {
         }
     }
 
-    fn remove_inline_links_to_rec(inlines: &[GraphInline], target_key: &Key) -> Vec<GraphInline> {
+    fn remove_inline_links_to_rec(inlines: &[Inline], target_key: &Key) -> Vec<Inline> {
         inlines
             .iter()
             .map(|inline| match inline {
-                GraphInline::Reference(reference) => {
+                Inline::Reference(reference) => {
                     if &reference.key == target_key {
-                        GraphInline::Str(reference.text.clone())
+                        Inline::Str(reference.text.clone())
                     } else {
                         inline.clone()
                     }
                 }
-                GraphInline::Link(url, title, link_type, nested) => GraphInline::Link(
+                Inline::Link(url, title, link_type, nested) => Inline::Link(
                     url.clone(),
                     title.clone(),
                     *link_type,
                     Self::remove_inline_links_to_rec(nested, target_key),
                 ),
-                GraphInline::Emph(nested) => {
-                    GraphInline::Emph(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Emph(nested) => {
+                    Inline::Emph(Self::remove_inline_links_to_rec(nested, target_key))
                 }
-                GraphInline::Strong(nested) => {
-                    GraphInline::Strong(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Strong(nested) => {
+                    Inline::Strong(Self::remove_inline_links_to_rec(nested, target_key))
                 }
-                GraphInline::Strikeout(nested) => {
-                    GraphInline::Strikeout(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Strikeout(nested) => {
+                    Inline::Strikeout(Self::remove_inline_links_to_rec(nested, target_key))
                 }
-                GraphInline::Underline(nested) => {
-                    GraphInline::Underline(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Underline(nested) => {
+                    Inline::Underline(Self::remove_inline_links_to_rec(nested, target_key))
                 }
-                GraphInline::Superscript(nested) => {
-                    GraphInline::Superscript(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Superscript(nested) => {
+                    Inline::Superscript(Self::remove_inline_links_to_rec(nested, target_key))
                 }
-                GraphInline::Subscript(nested) => {
-                    GraphInline::Subscript(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Subscript(nested) => {
+                    Inline::Subscript(Self::remove_inline_links_to_rec(nested, target_key))
                 }
-                GraphInline::SmallCaps(nested) => {
-                    GraphInline::SmallCaps(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::SmallCaps(nested) => {
+                    Inline::SmallCaps(Self::remove_inline_links_to_rec(nested, target_key))
                 }
                 _ => inline.clone(),
             })
@@ -651,23 +681,25 @@ impl Tree {
                     self.clone()
                 } else {
                     let mut inlines = vec![];
-                    inlines.push(GraphInline::Reference(Reference {
+                    inlines.push(Inline::Reference(Reference {
                         key: reference.key.clone(),
                         text: reference.text.clone(),
                         reference_type: reference.reference_type,
+                        display_url: reference.display_url.clone(),
                     }));
-                    inlines.push(GraphInline::Space);
-                    inlines.push(GraphInline::Str("<-".to_string()));
-                    inlines.push(GraphInline::Space);
+                    inlines.push(Inline::Space);
+                    inlines.push(Inline::Str("<-".to_string()));
+                    inlines.push(Inline::Space);
                     for (i, (p_key, p_title)) in parents.iter().enumerate() {
                         if i > 0 {
-                            inlines.push(GraphInline::Str(",".to_string()));
-                            inlines.push(GraphInline::Space);
+                            inlines.push(Inline::Str(",".to_string()));
+                            inlines.push(Inline::Space);
                         }
-                        inlines.push(GraphInline::Reference(Reference {
+                        inlines.push(Inline::Reference(Reference {
                             key: p_key.clone(),
                             text: p_title.clone(),
                             reference_type: ReferenceType::Regular,
+                            display_url: None,
                         }));
                     }
 
@@ -683,62 +715,7 @@ impl Tree {
     }
 }
 
-pub struct TreeIter<'a> {
-    tree_node: &'a Tree,
-    path: Vec<usize>,
-}
-
-impl<'a> TreeIter<'a> {
-    pub fn new(tree_node: &'a Tree) -> TreeIter<'a> {
-        TreeIter {
-            tree_node,
-            path: vec![],
-        }
-    }
-}
-
-impl<'a, 'b> NodeIter<'a> for TreeIter<'b> {
-    fn next(&self) -> Option<Self> {
-        self.path
-            .last()
-            .filter(|_| self.node().is_some())
-            .map(|last_index| {
-                let mut path = self.path.clone();
-                path.pop();
-                path.push(last_index + 1);
-
-                TreeIter {
-                    tree_node: self.tree_node,
-                    path,
-                }
-            })
-    }
-
-    fn child(&self) -> Option<Self> {
-        let mut path = self.path.clone();
-        path.push(0);
-
-        Some(TreeIter {
-            tree_node: self.tree_node,
-            path,
-        })
-        .filter(|_| self.node().is_some())
-    }
-
-    fn node(&self) -> Option<Node> {
-        let mut node = self.tree_node;
-
-        for n in self.path.iter() {
-            if let Some(n) = &node.children.get(*n) {
-                node = n;
-            } else {
-                return None;
-            }
-        }
-
-        Some(node.node.clone())
-    }
-}
+pub use super::tree_iter::TreeIter;
 
 #[cfg(test)]
 mod tests {
@@ -808,13 +785,13 @@ mod tests {
 
     #[test]
     fn test_update_node() {
-        let inlines = vec![GraphInline::Str("Updated".to_string())];
+        let inlines = vec![Inline::Str("Updated".to_string())];
         let root = Tree {
             id: Some(1),
             node: Node::Quote(),
             children: vec![Tree {
                 id: Some(2),
-                node: Node::Section(vec![GraphInline::Str("Old".to_string())]),
+                node: Node::Section(vec![Inline::Str("Old".to_string())]),
                 children: vec![],
             }],
         };
@@ -891,7 +868,7 @@ mod tests {
                     node: Node::Quote(),
                     children: vec![Tree {
                         id: Some(3),
-                        node: Node::Leaf(vec![GraphInline::Str("Test".to_string())]),
+                        node: Node::Leaf(vec![Inline::Str("Test".to_string())]),
                         children: vec![],
                     }],
                 }],
