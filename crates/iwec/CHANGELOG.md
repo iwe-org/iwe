@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/iwe-org/iwe/compare/iwec-v0.2.0...iwec-v0.3.0) - 2026-06-02
+
 ### Changed
 
 - The `iwe_normalize` tool now recognizes task-list markers in list items (`- [ ]`, `- [x]`) and normalizes `[X]` to lowercase `[x]`

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/iwe-org/iwe/compare/liwe-v0.2.0...liwe-v0.3.0) - 2026-06-02
+
 ### Added
 - `Node::Item(Option<bool>, Inlines)` represents a list item as a first-class node carrying task-checkbox state (`- [ ]` → `Some(false)`, `- [x]`/`- [X]` → `Some(true)`, plain item → `None`); checkboxes are detected when the tree is collected and re-emitted (normalized to lowercase `[x]`) when rendering markdown.
 - `Reference.url: String` carries the wiki link target exactly as written, and `Reference.display_url: Option<String>` holds the pre-resolved wiki display URL, both populated when the tree is collected so markdown rendering is self-contained.

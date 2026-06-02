@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/iwe-org/iwe/compare/iwes-v0.2.0...iwes-v0.3.0) - 2026-06-02
+
 ### Added
 - `markdown.wiki_link_path` config option (`preserve` | `full` | `short`, default `preserve`) controls how completion, the create-link code action, and normalize-on-format write the path inside a wiki link: `preserve` keeps each link as typed, `full` emits the full key path (`[[folder/target]]`), and `short` emits the shortest unambiguous suffix. Completion and create-link, which have no original link to preserve, emit the full key path under `preserve`.
 

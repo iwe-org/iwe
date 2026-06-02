@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/iwe-org/iwe/compare/iwe-v0.2.0...iwe-v0.3.0) - 2026-06-02
+
 ### Added
 
 - `markdown.wiki_link_path` config option (`preserve` | `full` | `short`, default `preserve`) controls how `iwe normalize` and `iwe export` write the path inside a wiki link: `preserve` keeps each link as typed, `full` rewrites to the target's full key path, and `short` rewrites to the shortest unambiguous suffix. `iwe init` now writes the option in the generated config.
