@@ -5,12 +5,16 @@ use relative_path::RelativePath;
 
 pub mod config;
 pub mod document;
-pub mod graph;
+pub mod inline;
 pub mod key_index;
 pub mod node;
+pub mod node_iter;
+pub mod node_pointer;
 pub mod projector;
 pub mod reference;
 pub mod tree;
+pub mod tree_iter;
+pub mod writer;
 
 pub type Markdown = String;
 
@@ -154,6 +158,7 @@ pub type Title = String;
 
 pub trait InlinesContext: Copy {
     fn get_ref_title(&self, key: &Key) -> Option<String>;
+    fn shorten_wiki(&self, key: &Key) -> String;
 }
 
 pub fn is_ref_url(url: &str) -> bool {

@@ -706,7 +706,7 @@ impl Server {
         if let Some(id) = tree.id {
             if let Some(line_range) = self.graph.node_line_range(id) {
                 let (end_line, collapsed_text) = match &tree.node {
-                    Node::Section(inlines) => {
+                    Node::Section(inlines) | Node::Item(_, inlines) => {
                         let end = self.section_end_line(tree, line_range.end);
                         let header_prefix = "#".repeat(level as usize);
                         let text: String = inlines.iter().map(|i| i.plain_text()).collect();

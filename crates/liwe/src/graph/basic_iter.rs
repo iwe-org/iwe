@@ -80,9 +80,20 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
                 document.key().clone(),
                 self.graph.frontmatter.get(document.key()).cloned(),
             )),
-            GraphNode::Section(section) => Some(Node::Section(
-                self.graph.get_line(section.line_id()).normalize(self.graph),
-            )),
+            GraphNode::Section(section) => {
+                let inlines = self.graph.get_line(section.line_id()).normalize(self.graph);
+                let parent_is_list = self
+                    .to_parent()
+                    .map(|p| p.is_bullet_list() || p.is_ordered_list())
+                    .unwrap_or(false);
+                if parent_is_list {
+                    let (checked, stripped) =
+                        crate::model::inline::detect_and_strip_checkbox(&inlines);
+                    Some(Node::Item(checked, stripped))
+                } else {
+                    Some(Node::Section(inlines))
+                }
+            }
             GraphNode::Quote(_) => Some(Node::Quote()),
             GraphNode::BulletList(_) => Some(Node::BulletList()),
             GraphNode::OrderedList(_) => Some(Node::OrderedList()),
@@ -101,10 +112,19 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
                     ReferenceType::WikiLinkPiped => reference.text().to_string(),
                 };
 
+                let key = reference.key().clone();
+                let display_url = match reference.reference_type() {
+                    ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
+                        Some(self.graph.key_index().shorten_wiki(&key))
+                    }
+                    ReferenceType::Regular => None,
+                };
+
                 Some(Node::Reference(Reference {
-                    key: reference.key().clone(),
+                    key,
                     text,
                     reference_type: reference.reference_type(),
+                    display_url,
                 }))
             }
             GraphNode::Table(table) => Some(Node::Table(Table {

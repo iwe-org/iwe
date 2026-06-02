@@ -26,7 +26,7 @@ use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
 use crate::model::config::MarkdownOptions;
-use crate::model::graph::GraphInlines;
+use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::InlinesContext;
@@ -309,11 +309,10 @@ impl Graph {
         if !self.keys.contains_key(key) {
             return String::new();
         }
-        let markdown = self.collect(key).iter().to_markdown_indexed(
-            &key.parent(),
-            &self.markdown_options,
-            self.key_index(),
-        );
+        let markdown = self
+            .collect(key)
+            .iter()
+            .to_markdown(&key.parent(), &self.markdown_options);
 
         markdown
     }
@@ -325,11 +324,7 @@ impl Graph {
         let markdown = self
             .collect(key)
             .iter()
-            .to_markdown_skip_frontmatter_indexed(
-                &key.parent(),
-                &self.markdown_options,
-                self.key_index(),
-            );
+            .to_markdown_skip_frontmatter(&key.parent(), &self.markdown_options);
 
         markdown
     }
@@ -457,15 +452,13 @@ impl Graph {
     }
 
     pub fn export(&self) -> State {
-        let key_index = self.key_index();
         self.keys
             .par_iter()
             .map(|(k, _)| {
-                let markdown = self.collect(k).iter().to_markdown_indexed(
-                    &k.parent(),
-                    &self.markdown_options,
-                    key_index,
-                );
+                let markdown = self
+                    .collect(k)
+                    .iter()
+                    .to_markdown(&k.parent(), &self.markdown_options);
                 (k.to_string(), markdown)
             })
             .collect()
@@ -580,7 +573,7 @@ impl NodeStore for Graph {
         self.arena.new_node_id()
     }
 
-    fn add_line(&mut self, inlines: GraphInlines) -> LineId {
+    fn add_line(&mut self, inlines: Inlines) -> LineId {
         self.arena.add_line(inlines)
     }
 
@@ -602,6 +595,9 @@ impl NodeStore for Graph {
 impl InlinesContext for &Graph {
     fn get_ref_title(&self, key: &Key) -> Option<String> {
         self.get_key_title(key)
+    }
+    fn shorten_wiki(&self, key: &Key) -> String {
+        self.key_index().shorten_wiki(key)
     }
 }
 

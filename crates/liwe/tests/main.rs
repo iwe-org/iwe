@@ -19,4 +19,5 @@ mod query_graph;
 mod query_reserved_prefix;
 mod query_update;
 mod squash_test;
+mod task_items_test;
 mod toc_test;

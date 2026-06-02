@@ -137,6 +137,7 @@ fn extract_section_rec(
                     key: new_key.clone(),
                     text: title.to_string(),
                     reference_type,
+                    display_url: None,
                 }),
                 children: vec![],
             },

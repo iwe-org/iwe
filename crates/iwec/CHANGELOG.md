@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `iwe_normalize` tool now recognizes task-list markers in list items (`- [ ]`, `- [x]`) and normalizes `[X]` to lowercase `[x]`
+- List items are now a distinct node type rather than sections, so `iwe_stats` no longer counts them toward the section total and `iwe_extract` no longer lists them as extractable sections (block numbers shift accordingly)
+
 ## [0.2.0](https://github.com/iwe-org/iwe/compare/iwec-v0.1.10...iwec-v0.2.0) - 2026-06-02
 
 Workspace version bump — no user-visible changes in this crate.

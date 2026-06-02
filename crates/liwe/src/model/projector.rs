@@ -1,85 +1,72 @@
-use crate::model::graph::{GraphBlock, GraphInline, GraphInlines};
-use crate::model::key_index::KeyIndex;
+use crate::model::inline::{prepend_checkbox, Inline, Inlines};
 use crate::model::node::{Node, NodeIter, ReferenceType};
-use crate::model::Key;
+use crate::model::writer::Block;
 
-pub struct Projector<'i> {
+pub struct Projector {
     header_level: usize,
     parent: String,
-    key_index: &'i KeyIndex,
 }
 
-impl<'i> Projector<'i> {
-    pub fn project<'a>(
-        iter: impl NodeIter<'a>,
-        parent: &str,
-        key_index: &'i KeyIndex,
-    ) -> Vec<GraphBlock> {
+impl Projector {
+    pub fn project<'a>(iter: impl NodeIter<'a>, parent: &str) -> Vec<Block> {
         Projector {
             header_level: 0,
             parent: parent.to_string(),
-            key_index,
         }
         .project_node(iter)
     }
 
-    fn with(&self, header_level: usize) -> Projector<'i> {
+    fn with(&self, header_level: usize) -> Projector {
         Projector {
             header_level,
             parent: self.parent.clone(),
-            key_index: self.key_index,
         }
     }
 
-    fn wiki_url(&self, key: &Key) -> String {
-        self.key_index.shorten_wiki(key)
-    }
-
-    fn resolve_inlines(&self, inlines: GraphInlines) -> GraphInlines {
+    fn resolve_inlines(&self, inlines: Inlines) -> Inlines {
         inlines
             .into_iter()
             .map(|i| self.resolve_inline(i))
             .collect()
     }
 
-    fn resolve_inline(&self, inline: GraphInline) -> GraphInline {
+    fn resolve_inline(&self, inline: Inline) -> Inline {
         match inline {
-            GraphInline::Reference(reference) => {
+            Inline::Reference(reference) => {
                 let url = match reference.reference_type {
                     ReferenceType::Regular => reference.key.to_rel_link_url(&self.parent),
-                    ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
-                        self.wiki_url(&reference.key)
-                    }
+                    ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => reference
+                        .display_url
+                        .clone()
+                        .unwrap_or_else(|| reference.key.to_library_url()),
                 };
                 let inlines = match reference.reference_type {
                     ReferenceType::WikiLink => vec![],
-                    _ => vec![GraphInline::Str(reference.text)],
+                    _ => vec![Inline::Str(reference.text)],
                 };
-                GraphInline::Link(
+                Inline::Link(
                     url,
                     String::default(),
                     reference.reference_type.to_link_type(),
                     inlines,
                 )
             }
-            GraphInline::Emph(v) => GraphInline::Emph(self.resolve_inlines(v)),
-            GraphInline::Strong(v) => GraphInline::Strong(self.resolve_inlines(v)),
-            GraphInline::Strikeout(v) => GraphInline::Strikeout(self.resolve_inlines(v)),
-            GraphInline::Underline(v) => GraphInline::Underline(self.resolve_inlines(v)),
-            GraphInline::Superscript(v) => GraphInline::Superscript(self.resolve_inlines(v)),
-            GraphInline::Subscript(v) => GraphInline::Subscript(self.resolve_inlines(v)),
-            GraphInline::SmallCaps(v) => GraphInline::SmallCaps(self.resolve_inlines(v)),
-            GraphInline::Image(url, title, v) => {
-                GraphInline::Image(url, title, self.resolve_inlines(v))
-            }
-            GraphInline::Link(url, title, lt, v) => {
-                GraphInline::Link(url, title, lt, self.resolve_inlines(v))
+            Inline::Emph(v) => Inline::Emph(self.resolve_inlines(v)),
+            Inline::Strong(v) => Inline::Strong(self.resolve_inlines(v)),
+            Inline::Strikeout(v) => Inline::Strikeout(self.resolve_inlines(v)),
+            Inline::Underline(v) => Inline::Underline(self.resolve_inlines(v)),
+            Inline::Superscript(v) => Inline::Superscript(self.resolve_inlines(v)),
+            Inline::Subscript(v) => Inline::Subscript(self.resolve_inlines(v)),
+            Inline::SmallCaps(v) => Inline::SmallCaps(self.resolve_inlines(v)),
+            Inline::Image(url, title, v) => Inline::Image(url, title, self.resolve_inlines(v)),
+            Inline::Link(url, title, lt, v) => {
+                Inline::Link(url, title, lt, self.resolve_inlines(v))
             }
             other => other,
         }
     }
 
-    fn project_node<'a>(&self, iter: impl NodeIter<'a>) -> Vec<GraphBlock> {
+    fn project_node<'a>(&self, iter: impl NodeIter<'a>) -> Vec<Block> {
         let mut blocks = vec![];
 
         if iter.node().is_none() {
@@ -89,14 +76,14 @@ impl<'i> Projector<'i> {
         match iter.node().unwrap() {
             Node::Document(_, frontmatter) => {
                 if let Some(mapping) = frontmatter {
-                    blocks.push(GraphBlock::Frontmatter(mapping.clone()));
+                    blocks.push(Block::Frontmatter(mapping.clone()));
                 }
                 if let Some(child) = iter.child() {
                     blocks.extend(self.with(self.header_level).project_node(child));
                 }
             }
             Node::Section(_) => {
-                blocks.push(GraphBlock::Header(
+                blocks.push(Block::Header(
                     self.header_level as u8 + 1,
                     self.resolve_inlines(iter.inlines()),
                 ));
@@ -107,62 +94,68 @@ impl<'i> Projector<'i> {
             }
             Node::Quote() => {
                 if let Some(child) = iter.child() {
-                    blocks.push(GraphBlock::BlockQuote(self.with(0).project_node(child)));
+                    blocks.push(Block::BlockQuote(self.with(0).project_node(child)));
                 }
             }
             Node::BulletList() => {
                 if let Some(child) = iter.child() {
-                    blocks.push(GraphBlock::BulletList(
-                        self.with(0).project_list_item(child),
-                    ));
+                    blocks.push(Block::BulletList(self.with(0).project_list_item(child)));
                 }
             }
             Node::OrderedList() => {
                 if let Some(child) = iter.child() {
-                    blocks.push(GraphBlock::OrderedList(
-                        self.with(0).project_list_item(child),
-                    ));
+                    blocks.push(Block::OrderedList(self.with(0).project_list_item(child)));
                 }
             }
             Node::Leaf(_) => {
-                blocks.push(GraphBlock::Para(self.resolve_inlines(iter.inlines())));
+                blocks.push(Block::Para(self.resolve_inlines(iter.inlines())));
+            }
+            Node::Item(checked, _) => {
+                let inlines = prepend_checkbox(checked, self.resolve_inlines(iter.inlines()));
+                blocks.push(Block::Para(inlines));
+
+                if let Some(child) = iter.child() {
+                    blocks.extend(self.with(self.header_level).project_node(child));
+                }
             }
             Node::Raw(_, _) => {
-                blocks.push(GraphBlock::CodeBlock(
+                blocks.push(Block::CodeBlock(
                     iter.lang(),
                     iter.content().unwrap_or_default(),
                 ));
             }
             Node::HorizontalRule() => {
-                blocks.push(GraphBlock::HorizontalRule);
+                blocks.push(Block::HorizontalRule);
             }
-            Node::Reference(_) => {
-                let reference_type = iter.ref_type().unwrap();
+            Node::Reference(reference) => {
+                let reference_type = reference.reference_type;
                 let inlines = match reference_type {
                     ReferenceType::Regular => self.resolve_inlines(iter.inlines()),
                     ReferenceType::WikiLink => vec![],
                     ReferenceType::WikiLinkPiped => {
-                        vec![GraphInline::Str(iter.ref_text().unwrap_or_default())]
+                        vec![Inline::Str(iter.ref_text().unwrap_or_default())]
                     }
                 };
 
-                let key = iter.ref_key2().unwrap();
                 let url = match reference_type {
-                    ReferenceType::Regular => key.to_rel_link_url(&self.parent),
-                    ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => self.wiki_url(&key),
+                    ReferenceType::Regular => reference.key.to_rel_link_url(&self.parent),
+                    ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => reference
+                        .display_url
+                        .clone()
+                        .unwrap_or_else(|| reference.key.to_library_url()),
                 };
 
-                let link = GraphInline::Link(
+                let link = Inline::Link(
                     url,
                     String::default(),
                     reference_type.to_link_type(),
                     inlines,
                 );
 
-                blocks.push(GraphBlock::Para(vec![link]));
+                blocks.push(Block::Para(vec![link]));
             }
             Node::Table(_) => {
-                blocks.push(GraphBlock::Table(
+                blocks.push(Block::Table(
                     iter.table_header()
                         .unwrap_or_default()
                         .into_iter()
@@ -187,19 +180,23 @@ impl<'i> Projector<'i> {
         blocks
     }
 
-    fn project_list_item<'a>(&self, iter: impl NodeIter<'a>) -> Vec<Vec<GraphBlock>> {
-        let mut items: Vec<Vec<GraphBlock>> = vec![];
+    fn project_list_item<'a>(&self, iter: impl NodeIter<'a>) -> Vec<Vec<Block>> {
+        let mut items: Vec<Vec<Block>> = vec![];
 
         if iter.node().is_none() {
             return items;
         }
 
-        if iter.child().map(|n| n.is_leaf()).unwrap_or(false) {
-            items.push(vec![GraphBlock::Para(self.resolve_inlines(iter.inlines()))]);
+        let inlines = if iter.is_item() {
+            prepend_checkbox(iter.item_checked(), self.resolve_inlines(iter.inlines()))
         } else {
-            items.push(vec![GraphBlock::Plain(
-                self.resolve_inlines(iter.inlines()),
-            )]);
+            self.resolve_inlines(iter.inlines())
+        };
+
+        if iter.child().map(|n| n.is_leaf()).unwrap_or(false) {
+            items.push(vec![Block::Para(inlines)]);
+        } else {
+            items.push(vec![Block::Plain(inlines)]);
         }
 
         if let Some(sub_list) = iter.child().map(|child| self.with(0).project_node(child)) {

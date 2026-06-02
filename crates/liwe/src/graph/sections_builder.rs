@@ -9,7 +9,7 @@ use crate::model::document::DocumentBlock::{
     RawBlock,
 };
 use crate::model::document::DocumentBlocks;
-use crate::model::graph::to_graph_inlines;
+use crate::model::inline::to_graph_inlines;
 
 type Range = std::ops::Range<usize>;
 

@@ -5,7 +5,7 @@ use crate::graph::{
     LineId, NodeId,
     {graph_line::Line, graph_node::GraphNode},
 };
-use crate::model::graph::GraphInlines;
+use crate::model::inline::Inlines;
 
 #[derive(Clone, Default)]
 pub struct Arena {
@@ -26,7 +26,7 @@ impl Arena {
         self.lines[id].clone()
     }
 
-    pub fn add_line(&mut self, inlines: GraphInlines) -> LineId {
+    pub fn add_line(&mut self, inlines: Inlines) -> LineId {
         let id = self.new_line_id();
         self.lines.push(Line::new(id, inlines));
         id
@@ -42,7 +42,7 @@ impl Arena {
 
     pub fn delete_branch(&mut self, from_id: NodeId) {
         if let Some(line_id) = self.node(from_id).line_id() {
-            self.lines[line_id] = Line::new(line_id, GraphInlines::new());
+            self.lines[line_id] = Line::new(line_id, Inlines::new());
         }
 
         if let Some(id) = self.node(from_id).child_id() {
@@ -161,7 +161,7 @@ impl<'a> BuildArena<'a> {
         self.nodes.insert(id, node);
     }
 
-    pub fn add_line(&mut self, inlines: GraphInlines) -> LineId {
+    pub fn add_line(&mut self, inlines: Inlines) -> LineId {
         let id = self.new_line_id();
         self.lines.insert(id, Line::new(id, inlines));
         id
@@ -192,7 +192,7 @@ impl<'a> BuildArena<'a> {
 
 pub trait NodeStore {
     fn new_node_id(&mut self) -> NodeId;
-    fn add_line(&mut self, inlines: GraphInlines) -> LineId;
+    fn add_line(&mut self, inlines: Inlines) -> LineId;
     fn add_graph_node(&mut self, node: GraphNode) -> NodeId;
     fn update_node(&mut self, id: NodeId, f: &mut dyn FnMut(&mut GraphNode));
     fn graph_node(&self, id: NodeId) -> GraphNode;
@@ -203,7 +203,7 @@ impl<'a> NodeStore for BuildArena<'a> {
         BuildArena::new_node_id(self)
     }
 
-    fn add_line(&mut self, inlines: GraphInlines) -> LineId {
+    fn add_line(&mut self, inlines: Inlines) -> LineId {
         BuildArena::add_line(self, inlines)
     }
 
@@ -231,7 +231,7 @@ pub fn finalize_build(
 
     let mut nodes = vec![GraphNode::Empty; total_nodes];
     let mut lines: Vec<Line> = (0..total_lines)
-        .map(|i| Line::new(i, GraphInlines::new()))
+        .map(|i| Line::new(i, Inlines::new()))
         .collect();
 
     for (doc_nodes, doc_lines) in parts {
