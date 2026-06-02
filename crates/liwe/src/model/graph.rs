@@ -70,12 +70,8 @@ impl From<String> for GraphInline {
 impl GraphBlock {
     fn is_sparce_list(&self) -> bool {
         match self {
-            GraphBlock::BulletList(items) => items
-                .iter()
-                .any(|item| item.iter().filter(|block| block.is_paragraph()).count() > 1),
-            GraphBlock::OrderedList(items) => items
-                .iter()
-                .any(|item| item.iter().filter(|block| block.is_paragraph()).count() > 1),
+            GraphBlock::BulletList(items) => items.iter().any(item_requires_blank_lines),
+            GraphBlock::OrderedList(items) => items.iter().any(item_requires_blank_lines),
             _ => false,
         }
     }
@@ -149,7 +145,12 @@ impl GraphBlock {
                     + "\n"
             }
             GraphBlock::OrderedList(items) => {
-                let child_indent = indent + ordered_prefix_indent(items.len(), &options.formatting);
+                let content_indent = options
+                    .formatting
+                    .ordered_list_content_indent()
+                    .unwrap_or(0);
+                let child_indent = indent
+                    + ordered_prefix_indent(items.len(), &options.formatting).max(content_indent);
                 items
                     .iter()
                     .enumerate()
@@ -168,13 +169,16 @@ impl GraphBlock {
                             ),
                             num,
                             options.formatting.ordered_list_token_char(),
+                            content_indent,
                         )
                     })
                     .collect::<Vec<String>>()
                     .join(if self.is_sparce_list() { "\n" } else { "" })
             }
             GraphBlock::BulletList(items) => {
-                let child_indent = indent + options.formatting.list_token().chars().count() + 1;
+                let content_indent = options.formatting.bullet_list_content_indent().unwrap_or(0);
+                let child_indent = indent
+                    + (options.formatting.list_token().chars().count() + 1).max(content_indent);
                 items
                     .iter()
                     .map(|item| {
@@ -186,6 +190,7 @@ impl GraphBlock {
                                 child_indent,
                             ),
                             options.formatting.list_token(),
+                            content_indent,
                         )
                     })
                     .collect::<Vec<String>>()
@@ -406,31 +411,50 @@ impl GraphInline {
     }
 }
 
-fn left_pad_and_prefix(text: &str, list_token: &str) -> String {
+fn left_pad_and_prefix(text: &str, list_token: &str, content_indent: usize) -> String {
+    let token_width = list_token.chars().count();
+    let pad = content_indent.max(token_width + 1);
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {
             result.push('\n');
         } else if n == 0 {
-            result.push_str(&format!("{} {}\n", list_token, line));
+            result.push_str(&format!(
+                "{}{}{}\n",
+                list_token,
+                " ".repeat(pad - token_width),
+                line
+            ));
         } else {
-            result.push_str(&format!("{} {}\n", " ".repeat(list_token.len()), line));
+            result.push_str(&format!("{}{}\n", " ".repeat(pad), line));
         }
     }
 
     result
 }
 
-fn left_pad_and_prefix_num(text: &str, num: usize, ordered_list_token: char) -> String {
+fn left_pad_and_prefix_num(
+    text: &str,
+    num: usize,
+    ordered_list_token: char,
+    content_indent: usize,
+) -> String {
     let prefix = format!("{}{}", num, ordered_list_token);
+    let prefix_width = prefix.chars().count();
+    let pad = content_indent.max(prefix_width + 1);
     let mut result = String::new();
     for (n, line) in text.lines().enumerate() {
         if line.is_empty() {
             result.push('\n');
         } else if n == 0 {
-            result.push_str(&format!("{} {}\n", prefix, line));
+            result.push_str(&format!(
+                "{}{}{}\n",
+                prefix,
+                " ".repeat(pad - prefix_width),
+                line
+            ));
         } else {
-            result.push_str(&format!("{} {}\n", " ".repeat(prefix.len()), line));
+            result.push_str(&format!("{}{}\n", " ".repeat(pad), line));
         }
     }
 
@@ -728,6 +752,13 @@ fn ensure_trailing_newline(s: String) -> String {
 
 pub fn blocks_to_markdown_and(blocks: &Blocks, sparce: bool, options: &MarkdownOptions) -> String {
     blocks_to_markdown_and_indented(blocks, sparce, options, 0)
+}
+
+fn item_requires_blank_lines(item: &Blocks) -> bool {
+    item.iter().filter(|block| block.is_paragraph()).count() > 1
+        || item.windows(2).any(|pair| {
+            pair[0].requires_blank_line_separation() || pair[1].requires_blank_line_separation()
+        })
 }
 
 pub fn blocks_to_markdown_and_indented(

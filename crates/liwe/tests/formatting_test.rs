@@ -368,6 +368,8 @@ fn valid_values_preserved_after_validation() {
         code_block_token: Some("~".into()),
         code_block_token_count: Some(4),
         increment_ordered_list_bullets: Some(true),
+        ordered_list_content_indent: Some(4),
+        bullet_list_content_indent: Some(4),
         rule_token: Some("*".into()),
         rule_token_count: Some(5),
         wrap_column: Some(80),
@@ -383,6 +385,8 @@ fn valid_values_preserved_after_validation() {
     assert_eq!(formatting.code_block_token_char(), '~');
     assert_eq!(formatting.code_block_token_count(), 4);
     assert_eq!(formatting.increment_ordered_list_bullets(), true);
+    assert_eq!(formatting.ordered_list_content_indent(), Some(4));
+    assert_eq!(formatting.bullet_list_content_indent(), Some(4));
     assert_eq!(formatting.rule_token(), "*");
     assert_eq!(formatting.rule_token_count(), 5);
     assert_eq!(formatting.wrap_column(), Some(80));
@@ -580,6 +584,123 @@ fn wrap_column_wraps_inside_bullet_list() {
             ..Default::default()
         },
     );
+}
+
+#[test]
+fn invalid_content_indent_falls_back_to_default() {
+    let formatting = FormattingOptions {
+        ordered_list_content_indent: Some(1),
+        bullet_list_content_indent: Some(9),
+        ..Default::default()
+    }
+    .validated();
+
+    assert_eq!(formatting.ordered_list_content_indent(), None);
+    assert_eq!(formatting.bullet_list_content_indent(), None);
+}
+
+#[test]
+fn bullet_list_content_indent_four_spaces() {
+    compare(
+        indoc! {"
+        -   item 1
+
+            ``` text
+            some config
+            ```
+
+        -   item 2
+        "},
+        indoc! {"
+        - item 1
+
+          ``` text
+          some config
+          ```
+        - item 2
+        "},
+        FormattingOptions {
+            bullet_list_content_indent: Some(4),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn ordered_list_content_indent_four_spaces() {
+    compare(
+        indoc! {"
+        1.  item 1
+
+            ``` text
+            some config
+            ```
+
+        2.  item 2
+        "},
+        indoc! {"
+        1. item 1
+
+           ``` text
+           some config
+           ```
+        2. item 2
+        "},
+        FormattingOptions {
+            ordered_list_content_indent: Some(4),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn bullet_list_content_indent_nested() {
+    compare(
+        indoc! {"
+        -   item 1
+            -   nested 1
+            -   nested 2
+        "},
+        indoc! {"
+        - item 1
+          - nested 1
+          - nested 2
+        "},
+        FormattingOptions {
+            bullet_list_content_indent: Some(4),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn content_indent_is_idempotent() {
+    let formatting = FormattingOptions {
+        ordered_list_content_indent: Some(4),
+        bullet_list_content_indent: Some(4),
+        ..Default::default()
+    };
+    let once = normalize_with(
+        indoc! {"
+        - item 1
+
+          ``` text
+          some config
+          ```
+        - item 2
+
+        1. step 1
+
+           ``` text
+           more config
+           ```
+        2. step 2
+        "},
+        formatting.clone(),
+    );
+    let twice = normalize_with(&once, formatting);
+
+    assert_str_eq!(once, twice);
 }
 
 fn compare(expected: &str, input: &str, formatting: FormattingOptions) {

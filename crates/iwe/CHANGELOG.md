@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `markdown.formatting.ordered_list_content_indent` and `markdown.formatting.bullet_list_content_indent` config options set the minimum indentation for list item content and continuation lines (accepts `2`–`4`); set either to `4` for MkDocs-style alignment (`1.  item` / `-   item` with 4-space continuation) instead of the default single space after the marker
+
+### Fixed
+
+- `iwe normalize` now renders a list as loose (a blank line between items) when any item contains a code block, table, blockquote, or horizontal rule, so a following item is no longer glued directly under the preceding item's block (previously only items with multiple paragraphs triggered loose rendering)
+
 ## [0.1.10](https://github.com/iwe-org/iwe/compare/iwe-v0.1.9...iwe-v0.1.10) - 2026-05-30
 
 ### Fixed

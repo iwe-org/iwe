@@ -19,6 +19,8 @@ ordered_list_token = "."
 code_block_token = "`"
 code_block_token_count = 3
 increment_ordered_list_bullets = true
+ordered_list_content_indent = 4
+bullet_list_content_indent = 4
 rule_token = "-"
 rule_token_count = 72
 
@@ -60,6 +62,8 @@ list_token = "-"
 - `code_block_token`: Character for code block fences (default: `` "`" ``). Options: `` "`" `` or `"~"`
 - `code_block_token_count`: Minimum number of fence characters (default: `3`)
 - `increment_ordered_list_bullets`: Whether to increment ordered list numbers (default: `true`). When `true`, items use `1.`, `2.`, `3.`; when `false`, all items use `1.`
+- `ordered_list_content_indent`: Minimum column where ordered list item content and continuation lines start (default: unset, content aligns one space after the marker, e.g. `1. item` with 3-space continuation). Accepts `2`–`4`; values outside the range are ignored. Set to `4` for MkDocs-style alignment (`1.  item` with 4-space continuation). The marker width is always respected, so wider markers (e.g. `10.`) use their natural width when it exceeds the configured value.
+- `bullet_list_content_indent`: Minimum column where unordered list item content and continuation lines start (default: unset, content aligns one space after the marker, e.g. `- item` with 2-space continuation). Accepts `2`–`4`; values outside the range are ignored. Set to `4` for MkDocs-style alignment (`-   item` with 4-space continuation).
 - `rule_token`: Character for horizontal rules (default: `"-"`). Options: `"-"`, `"*"`, or `"_"`
 - `rule_token_count`: Number of characters in horizontal rules (default: `72`)
 - `wrap_column`: Wrap paragraphs at this column (default: unset, no wrapping). Minimum effective value is `20`; lower values are ignored. Wrapping splits at word boundaries; inline code, wiki links, math, and link/image URLs stay atomic; inline-link and image text wraps at spaces with the closing `](url)` glued to the last word. List and blockquote indents are subtracted from the effective width so wrapped lines inside `- ` items respect `wrap_column`. Tokens longer than the limit sit on their own line.
