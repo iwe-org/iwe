@@ -55,9 +55,20 @@ Given documents `area-one/note` and `area-two/note`, the link `[[note]]` is ambi
 
 When IWE writes a document, it normalizes every link so the stored form is canonical. This happens on formatting, normalization, rename, and any action that rewrites a document.
 
-### Wiki links are written in the shortest unambiguous form
+### Wiki link paths
 
-A wiki link is always written as the **shortest path suffix that still resolves to its target uniquely**. IWE starts from the bare file name and grows the suffix only as far as needed to disambiguate:
+How the path inside a wiki link (`[[…]]`) is written on normalization is controlled by `wiki_link_path` under `[markdown]`. It takes one of three values:
+
+``` toml
+[markdown]
+wiki_link_path = "preserve"  # "preserve" | "full" | "short"
+```
+
+- `"preserve"` (default) — links are kept exactly as written. IWE does not rewrite the path; `[[topic]]` and `[[clippings/topic]]` are both left unchanged.
+- `"full"` — every link is rewritten to its target's full key path, so `[[topic]]` becomes `[[clippings/topic]]`.
+- `"short"` — every link is rewritten to the **shortest path suffix that still resolves to its target uniquely**.
+
+With `"short"`, IWE starts from the bare file name and grows the suffix only as far as needed to disambiguate:
 
 - A link to `clippings/topic` is written `[[topic]]` when no other document is named `topic`.
 - With both `area-one/note` and `area-two/note` present, links are written `[[area-one/note]]` and `[[area-two/note]]` — the bare name `note` would be ambiguous, so one extra segment is added.
@@ -65,27 +76,18 @@ A wiki link is always written as the **shortest path suffix that still resolves 
 
 A shortened link only ever resolves back to the exact document it was shortened from — if a link's target is not one of the indexed documents, it is left at its full path rather than collapsed onto an unrelated document that happens to share the file name.
 
-### Disabling shortening
-
-Shortening is on by default. To keep wiki links exactly as written — at their full path — set `shorten_wiki_links = false` under `[markdown]`:
-
-``` toml
-[markdown]
-shorten_wiki_links = false
-```
-
-With shortening off, write-time normalization, completion, and the link actions all emit the full key path (`[[clippings/topic]]`) instead of the shortest suffix. Resolution is unaffected — short links that already exist in your documents still resolve.
+Whichever value you choose, write-time normalization, completion, and the link actions all follow it. Resolution of existing links is unaffected — short, full, and as-typed links all resolve regardless of the setting.
 
 ### Markdown links and the reference extension
 
 Markdown links are written as paths relative to the containing document. By default no extension is added; set `refs_extension` in `[markdown]` (for example `".md"`) to append an extension to written markdown links. Wiki links never receive an extension. Fragment anchors (`#section`) are preserved.
 
-See [Configuration](configuration.md) for `refs_extension`, `shorten_wiki_links`, and the completion `link_format` option that controls which link style new links are created in.
+See [Configuration](configuration.md) for `refs_extension`, `wiki_link_path`, and the completion `link_format` option that controls which link style new links are created in.
 
 ## Caveats
 
-The shortest form of a wiki link depends on the whole document set, so a few behaviors are worth knowing:
+With `wiki_link_path = "short"`, the shortest form of a wiki link depends on the whole document set, so a few behaviors are worth knowing:
 
 - **Adding or removing a document can change the canonical form of links in other files.** Creating a second `note` makes the bare `[[note]]` ambiguous; existing `[[note]]` links elsewhere are only rewritten to the disambiguated form the next time those files are normalized.
 - **A bare link that has become ambiguous still resolves without error** — it picks the match with the fewest path segments, breaking ties lexicographically. Adding a document that sorts ahead of the previous winner can therefore change which document an un-normalized bare link points to. Re-normalizing the referencing files settles them on explicit suffixes.
-- **Round-tripping holds only for a fixed document set.** Within one snapshot, shortening and resolution are inverses; across edits to the corpus the shortest form can change. Set `shorten_wiki_links = false` if you prefer links that never change shape.
+- **Round-tripping holds only for a fixed document set.** Within one snapshot, shortening and resolution are inverses; across edits to the corpus the shortest form can change. Keep the default `wiki_link_path = "preserve"` (or use `"full"`) if you prefer links that never change shape.

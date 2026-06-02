@@ -22,14 +22,19 @@ pub struct MarkdownOptions {
     pub date_format: Option<String>,
     pub time_format: Option<String>,
     pub locale: Option<String>,
-    #[serde(default = "default_shorten_wiki_links")]
-    pub shorten_wiki_links: bool,
+    #[serde(default)]
+    pub wiki_link_path: WikiLinkPath,
     #[serde(default)]
     pub formatting: FormattingOptions,
 }
 
-fn default_shorten_wiki_links() -> bool {
-    true
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WikiLinkPath {
+    Full,
+    Short,
+    #[default]
+    Preserve,
 }
 
 impl Default for MarkdownOptions {
@@ -39,7 +44,7 @@ impl Default for MarkdownOptions {
             date_format: Some("%b %d, %Y".into()),
             time_format: None,
             locale: None,
-            shorten_wiki_links: default_shorten_wiki_links(),
+            wiki_link_path: WikiLinkPath::Preserve,
             formatting: FormattingOptions::default(),
         }
     }

@@ -10,7 +10,7 @@ refs_extension = ""
 date_format = "%b %d, %Y"
 time_format = "%b %d, %Y %H:%M"
 locale = "de_DE"
-shorten_wiki_links = true
+wiki_link_path = "preserve"
 
 [markdown.formatting]
 emphasis_token = "_"
@@ -44,7 +44,7 @@ trigger_characters = ["["]
 - `date_format`: Date format for markdown content display and the `{{today}}` variable (default: `"%b %d, %Y"`, e.g., "Jan 15, 2024")
 - `time_format`: Format for the `{{now}}` variable in document content (default: falls back to `date_format`). Use this to include time components like `%H`, `%M`, `%S` in `{{now}}` while keeping `{{today}}` date-only.
 - `locale`: Locale for date formatting in document content (default: system locale). Allows different localization for content than for file keys.
-- `shorten_wiki_links`: Whether wiki links are rewritten to their shortest unambiguous path suffix when documents are written (default: `true`). Set to `false` to keep wiki links at their full key path, so links never change shape as the document set grows. Affects normalization, completion, and link actions; resolution of existing short links is unaffected. See [Keys and Cross-References](keys.md) for details.
+- `wiki_link_path`: How the path inside a wiki link (`[[…]]`) is written when documents are written (default: `"preserve"`). One of `"preserve"`, `"full"`, or `"short"`: `"preserve"` keeps each link exactly as typed, `"full"` rewrites every link to its full key path, and `"short"` rewrites every link to its shortest unambiguous path suffix. Affects normalization, completion, and link actions; resolution of existing links is unaffected. See [Keys and Cross-References](keys.md) for details.
 
 ### Formatting Settings
 

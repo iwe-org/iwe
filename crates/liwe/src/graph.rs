@@ -25,7 +25,7 @@ use rayon::prelude::*;
 use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
-use crate::model::config::MarkdownOptions;
+use crate::model::config::{MarkdownOptions, WikiLinkPath};
 use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
 use crate::model::node::{NodeIter, NodePointer};
@@ -97,6 +97,14 @@ impl Graph {
         self.markdown_options.clone()
     }
 
+    pub fn wiki_display(&self, key: &Key, original_url: &str) -> String {
+        match self.markdown_options.wiki_link_path {
+            WikiLinkPath::Full => key.to_library_url(),
+            WikiLinkPath::Short => self.key_index.shorten_wiki(key),
+            WikiLinkPath::Preserve => original_url.to_string(),
+        }
+    }
+
     pub fn new_patch(&self) -> Graph {
         Graph {
             markdown_options: self.markdown_options.clone(),
@@ -108,11 +116,8 @@ impl Graph {
     }
 
     pub fn new_with_options(markdown_options: MarkdownOptions) -> Graph {
-        let mut key_index = KeyIndex::default();
-        key_index.set_shortening(markdown_options.shorten_wiki_links);
         Graph {
             markdown_options,
-            key_index,
             ..Default::default()
         }
     }
@@ -369,8 +374,7 @@ impl Graph {
         graph.frontmatter_document_title = frontmatter_document_title;
 
         let keys: Vec<Key> = state.iter().map(|(k, _)| Key::name(k)).collect();
-        let mut key_index = KeyIndex::build(keys.iter());
-        key_index.set_shortening(markdown_options.shorten_wiki_links);
+        let key_index = KeyIndex::build(keys.iter());
 
         let ids = BuildIds::new();
         let outputs: Vec<DocBuildOutput> = if state.len() < PARALLEL_BUILD_THRESHOLD {
@@ -409,8 +413,7 @@ impl Graph {
         let entries = crate::fs::walk_md_paths(base_path);
 
         let keys: Vec<Key> = entries.iter().map(|(k, _)| Key::name(k)).collect();
-        let mut key_index = KeyIndex::build(keys.iter());
-        key_index.set_shortening(markdown_options.shorten_wiki_links);
+        let key_index = KeyIndex::build(keys.iter());
 
         let ids = BuildIds::new();
         let outputs: Vec<DocBuildOutput> = if entries.len() < PARALLEL_BUILD_THRESHOLD {
@@ -601,8 +604,8 @@ impl InlinesContext for &Graph {
     fn get_ref_title(&self, key: &Key) -> Option<String> {
         self.get_key_title(key)
     }
-    fn shorten_wiki(&self, key: &Key) -> String {
-        self.key_index().shorten_wiki(key)
+    fn wiki_display(&self, key: &Key, original_url: &str) -> String {
+        Graph::wiki_display(self, key, original_url)
     }
 }
 

@@ -2,22 +2,13 @@ use std::collections::HashMap;
 
 use percent_encoding::percent_decode_str;
 
+use crate::model::config::WikiLinkPath;
 use crate::model::reference::ReferenceType;
 use crate::model::Key;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct KeyIndex {
     by_basename: HashMap<String, Vec<Key>>,
-    shorten: bool,
-}
-
-impl Default for KeyIndex {
-    fn default() -> Self {
-        KeyIndex {
-            by_basename: HashMap::new(),
-            shorten: true,
-        }
-    }
 }
 
 impl KeyIndex {
@@ -35,14 +26,14 @@ impl KeyIndex {
             bucket.sort_by(resolution_order);
         }
 
-        KeyIndex {
-            by_basename,
-            shorten: true,
-        }
+        KeyIndex { by_basename }
     }
 
-    pub fn set_shortening(&mut self, shorten: bool) {
-        self.shorten = shorten;
+    pub fn wiki_target(&self, target: &Key, mode: WikiLinkPath) -> String {
+        match mode {
+            WikiLinkPath::Short => self.shorten_wiki(target),
+            WikiLinkPath::Full | WikiLinkPath::Preserve => target.to_library_url(),
+        }
     }
 
     pub fn insert(&mut self, key: &Key) {
@@ -84,10 +75,6 @@ impl KeyIndex {
 
     pub fn shorten_wiki(&self, target: &Key) -> String {
         let path = target.relative_path.to_string();
-
-        if !self.shorten {
-            return path;
-        }
 
         let segs = segments(&path);
 
@@ -247,12 +234,29 @@ mod test {
     }
 
     #[test]
-    fn shorten_disabled_keeps_full_path() {
-        let mut index = index(&["clippings/target", "notes/note"]);
-        index.set_shortening(false);
+    fn wiki_target_full_keeps_full_path() {
+        let index = index(&["clippings/target", "notes/note"]);
         assert_eq!(
             "clippings/target",
-            index.shorten_wiki(&Key::name("clippings/target"))
+            index.wiki_target(&Key::name("clippings/target"), WikiLinkPath::Full)
+        );
+    }
+
+    #[test]
+    fn wiki_target_short_uses_shortest_suffix() {
+        let index = index(&["clippings/target", "notes/note"]);
+        assert_eq!(
+            "target",
+            index.wiki_target(&Key::name("clippings/target"), WikiLinkPath::Short)
+        );
+    }
+
+    #[test]
+    fn wiki_target_preserve_keeps_full_path() {
+        let index = index(&["clippings/target", "notes/note"]);
+        assert_eq!(
+            "clippings/target",
+            index.wiki_target(&Key::name("clippings/target"), WikiLinkPath::Preserve)
         );
     }
 

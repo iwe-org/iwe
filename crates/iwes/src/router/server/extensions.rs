@@ -406,12 +406,15 @@ pub impl Key {
     ) -> CompletionItem {
         let ref_text = context.get_ref_text(self).unwrap_or_default();
         let refs_extension = &context.markdown_options().refs_extension;
+        let wiki_link_path = context.markdown_options().wiki_link_path;
 
         let new_text = match completion_context.bracket_prefix.as_str() {
-            "[[" => format!("[[{}]]", key_index.shorten_wiki(self)),
+            "[[" => format!("[[{}]]", key_index.wiki_target(self, wiki_link_path)),
             "[" => self.to_link(ref_text.clone(), relative_to, refs_extension),
             _ => match completion_options.link_format {
-                Some(LinkType::WikiLink) => format!("[[{}]]", key_index.shorten_wiki(self)),
+                Some(LinkType::WikiLink) => {
+                    format!("[[{}]]", key_index.wiki_target(self, wiki_link_path))
+                }
                 _ => self.to_link(ref_text.clone(), relative_to, refs_extension),
             },
         };

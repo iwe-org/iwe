@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `markdown.shorten_wiki_links` config option (default `true`) controls wiki link shortening; set to `false` to make completion, the create-link code action, and normalize-on-format emit full key paths (`[[folder/target]]`) instead of the shortest unambiguous suffix.
+- `markdown.wiki_link_path` config option (`preserve` | `full` | `short`, default `preserve`) controls how completion, the create-link code action, and normalize-on-format write the path inside a wiki link: `preserve` keeps each link as typed, `full` emits the full key path (`[[folder/target]]`), and `short` emits the shortest unambiguous suffix. Completion and create-link, which have no original link to preserve, emit the full key path under `preserve`.
 
 ### Changed
 

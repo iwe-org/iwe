@@ -115,7 +115,7 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
                 let key = reference.key().clone();
                 let display_url = match reference.reference_type() {
                     ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
-                        Some(self.graph.key_index().shorten_wiki(&key))
+                        Some(self.graph.wiki_display(&key, reference.url()))
                     }
                     ReferenceType::Regular => None,
                 };
@@ -124,6 +124,7 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
                     key,
                     text,
                     reference_type: reference.reference_type(),
+                    url: reference.url().to_string(),
                     display_url,
                 }))
             }

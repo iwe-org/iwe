@@ -23,5 +23,6 @@ pub struct Reference {
     pub key: Key,
     pub text: String,
     pub reference_type: ReferenceType,
+    pub url: String,
     pub display_url: Option<String>,
 }

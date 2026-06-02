@@ -1,5 +1,6 @@
 use chrono::{DateTime, Local, Locale};
 use liwe::model::config::LinkType as ConfigLinkType;
+use liwe::model::config::WikiLinkPath;
 use liwe::model::key_index::KeyIndex;
 use liwe::model::Key;
 use liwe::operations::Changes;
@@ -107,9 +108,12 @@ impl LinkAction {
         new_key: &Key,
         link_type: Option<&ConfigLinkType>,
         key_index: &KeyIndex,
+        wiki_link_path: WikiLinkPath,
     ) -> String {
         let link_text = match link_type {
-            Some(ConfigLinkType::WikiLink) => format!("[[{}]]", key_index.shorten_wiki(new_key)),
+            Some(ConfigLinkType::WikiLink) => {
+                format!("[[{}]]", key_index.wiki_target(new_key, wiki_link_path))
+            }
             Some(ConfigLinkType::Markdown) | None => format!("[{}]({})", word, new_key),
         };
 
@@ -191,14 +195,13 @@ impl ActionProvider for LinkAction {
 
             let new_markdown = format!("# {}\n", word);
 
-            let mut key_index = KeyIndex::build(
+            let key_index = KeyIndex::build(
                 context
                     .graph()
                     .keys()
                     .iter()
                     .chain(std::iter::once(&new_key)),
             );
-            key_index.set_shortening(context.graph().markdown_options().shorten_wiki_links);
 
             let updated_line = Self::replace_word_with_link(
                 line_text,
@@ -208,6 +211,7 @@ impl ActionProvider for LinkAction {
                 &new_key,
                 self.link_type.as_ref(),
                 &key_index,
+                context.graph().markdown_options().wiki_link_path,
             );
 
             let updated_markdown = lines

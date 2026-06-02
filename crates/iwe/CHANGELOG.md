@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `markdown.shorten_wiki_links` config option (default `true`); set to `false` so `iwe normalize` and `iwe export` keep wiki links at their full key path instead of rewriting them to the shortest unambiguous suffix. `iwe init` now writes the option in the generated config.
+- `markdown.wiki_link_path` config option (`preserve` | `full` | `short`, default `preserve`) controls how `iwe normalize` and `iwe export` write the path inside a wiki link: `preserve` keeps each link as typed, `full` rewrites to the target's full key path, and `short` rewrites to the shortest unambiguous suffix. `iwe init` now writes the option in the generated config.
 
 ### Changed
 

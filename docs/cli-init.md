@@ -29,7 +29,7 @@ version = 3
 [markdown]
 refs_extension = ""
 date_format = "%b %d, %Y"
-shorten_wiki_links = true
+wiki_link_path = "preserve"
 
 [library]
 path = ""
@@ -83,7 +83,7 @@ document_template = "# {{title}}\n\n{{content}}"
 | -------------------- | ----------- | ----------------------------------------------------------------- |
 | `refs_extension`     | `""`        | File extension to append to references (e.g., `.md`)              |
 | `date_format`        | `%b %d, %Y` | Format for dates displayed in documents                           |
-| `shorten_wiki_links` | `true`      | Rewrite wiki links to their shortest unambiguous path on write    |
+| `wiki_link_path`     | `preserve`  | How wiki link paths are written: `preserve`, `full`, or `short`   |
 
 
 ### Completion Section

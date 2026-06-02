@@ -240,6 +240,7 @@ pub struct Reference {
     key: Key,
     text: String,
     reference_type: ReferenceType,
+    url: String,
 }
 
 impl Reference {
@@ -253,6 +254,10 @@ impl Reference {
 
     pub fn text(&self) -> &str {
         &self.text
+    }
+
+    pub fn url(&self) -> &str {
+        &self.url
     }
 
     pub fn next_id(&self) -> MaybeNodeId {
@@ -528,6 +533,7 @@ impl GraphNode {
         key: Key,
         text: String,
         reference_type: ReferenceType,
+        url: String,
     ) -> GraphNode {
         GraphNode::Reference(Reference {
             id,
@@ -536,6 +542,7 @@ impl GraphNode {
             key,
             text,
             reference_type,
+            url,
         })
     }
 

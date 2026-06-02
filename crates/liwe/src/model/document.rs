@@ -566,6 +566,7 @@ impl DocumentInline {
                         ),
                         text: to_plain_text(&inlines),
                         reference_type: link.link_type.to_ref_type(),
+                        url: link.target.url.clone(),
                         display_url: None,
                     })
                 } else {

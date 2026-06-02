@@ -1,6 +1,6 @@
 use indoc::indoc;
 use liwe::model::config::{
-    CompletionOptions, Configuration, LibraryOptions, LinkType, MarkdownOptions,
+    CompletionOptions, Configuration, LibraryOptions, LinkType, MarkdownOptions, WikiLinkPath,
 };
 
 use crate::fixture::*;
@@ -43,7 +43,7 @@ fn completion_test_with_refs_extension() {
             date_format: None,
             time_format: None,
             locale: None,
-            shorten_wiki_links: true,
+            wiki_link_path: WikiLinkPath::Short,
             formatting: Default::default(),
         },
         completion: CompletionOptions {
@@ -124,7 +124,7 @@ fn completion_relative_test_with_refs_extension() {
         date_format: None,
         time_format: None,
         locale: None,
-        shorten_wiki_links: true,
+        wiki_link_path: WikiLinkPath::Short,
         formatting: Default::default(),
     };
 
@@ -299,6 +299,10 @@ fn completion_with_wikilink_format_multiple_documents() {
 #[test]
 fn completion_with_wikilink_format_shortens_nested_key_to_bare_name() {
     let config = liwe::model::config::Configuration {
+        markdown: MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Short,
+            ..Default::default()
+        },
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),
             min_prefix_length: Some(0),
@@ -379,7 +383,7 @@ fn completion_with_wikilink_and_refs_extension() {
             date_format: None,
             time_format: None,
             locale: None,
-            shorten_wiki_links: true,
+            wiki_link_path: WikiLinkPath::Short,
             formatting: Default::default(),
         },
         completion: CompletionOptions {
