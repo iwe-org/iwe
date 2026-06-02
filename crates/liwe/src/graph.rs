@@ -108,8 +108,11 @@ impl Graph {
     }
 
     pub fn new_with_options(markdown_options: MarkdownOptions) -> Graph {
+        let mut key_index = KeyIndex::default();
+        key_index.set_shortening(markdown_options.shorten_wiki_links);
         Graph {
             markdown_options,
+            key_index,
             ..Default::default()
         }
     }
@@ -366,7 +369,8 @@ impl Graph {
         graph.frontmatter_document_title = frontmatter_document_title;
 
         let keys: Vec<Key> = state.iter().map(|(k, _)| Key::name(k)).collect();
-        let key_index = KeyIndex::build(keys.iter());
+        let mut key_index = KeyIndex::build(keys.iter());
+        key_index.set_shortening(markdown_options.shorten_wiki_links);
 
         let ids = BuildIds::new();
         let outputs: Vec<DocBuildOutput> = if state.len() < PARALLEL_BUILD_THRESHOLD {
@@ -405,7 +409,8 @@ impl Graph {
         let entries = crate::fs::walk_md_paths(base_path);
 
         let keys: Vec<Key> = entries.iter().map(|(k, _)| Key::name(k)).collect();
-        let key_index = KeyIndex::build(keys.iter());
+        let mut key_index = KeyIndex::build(keys.iter());
+        key_index.set_shortening(markdown_options.shorten_wiki_links);
 
         let ids = BuildIds::new();
         let outputs: Vec<DocBuildOutput> = if entries.len() < PARALLEL_BUILD_THRESHOLD {

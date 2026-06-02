@@ -5,9 +5,19 @@ use percent_encoding::percent_decode_str;
 use crate::model::reference::ReferenceType;
 use crate::model::Key;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct KeyIndex {
     by_basename: HashMap<String, Vec<Key>>,
+    shorten: bool,
+}
+
+impl Default for KeyIndex {
+    fn default() -> Self {
+        KeyIndex {
+            by_basename: HashMap::new(),
+            shorten: true,
+        }
+    }
 }
 
 impl KeyIndex {
@@ -25,7 +35,14 @@ impl KeyIndex {
             bucket.sort_by(resolution_order);
         }
 
-        KeyIndex { by_basename }
+        KeyIndex {
+            by_basename,
+            shorten: true,
+        }
+    }
+
+    pub fn set_shortening(&mut self, shorten: bool) {
+        self.shorten = shorten;
     }
 
     pub fn insert(&mut self, key: &Key) {
@@ -67,6 +84,11 @@ impl KeyIndex {
 
     pub fn shorten_wiki(&self, target: &Key) -> String {
         let path = target.relative_path.to_string();
+
+        if !self.shorten {
+            return path;
+        }
+
         let segs = segments(&path);
 
         let Some(basename) = segs.last() else {
@@ -78,12 +100,11 @@ impl KeyIndex {
 
         for length in 1..=segs.len() {
             let suffix = &segs[segs.len() - length..];
-            let sharing = bucket
-                .iter()
-                .filter(|key| ends_with_segments(key, suffix))
-                .count();
-            if sharing <= 1 {
-                return suffix.join("/");
+            let mut matching = bucket.iter().filter(|key| ends_with_segments(key, suffix));
+            if let (Some(only), None) = (matching.next(), matching.next()) {
+                if only == target {
+                    return suffix.join("/");
+                }
             }
         }
 
@@ -217,6 +238,22 @@ mod test {
         let index = index(&["x/a/note", "y/b/note"]);
         let shortened = index.shorten_wiki(&Key::name("x/a/note"));
         assert_eq!(Key::name("x/a/note"), index.resolve_wiki(&shortened));
+    }
+
+    #[test]
+    fn shorten_keeps_full_path_for_target_absent_from_index() {
+        let index = index(&["first/note"]);
+        assert_eq!("second/note", index.shorten_wiki(&Key::name("second/note")));
+    }
+
+    #[test]
+    fn shorten_disabled_keeps_full_path() {
+        let mut index = index(&["clippings/target", "notes/note"]);
+        index.set_shortening(false);
+        assert_eq!(
+            "clippings/target",
+            index.shorten_wiki(&Key::name("clippings/target"))
+        );
     }
 
     #[test]

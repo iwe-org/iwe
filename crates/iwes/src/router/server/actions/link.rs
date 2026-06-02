@@ -191,13 +191,14 @@ impl ActionProvider for LinkAction {
 
             let new_markdown = format!("# {}\n", word);
 
-            let key_index = KeyIndex::build(
+            let mut key_index = KeyIndex::build(
                 context
                     .graph()
                     .keys()
                     .iter()
                     .chain(std::iter::once(&new_key)),
             );
+            key_index.set_shortening(context.graph().markdown_options().shorten_wiki_links);
 
             let updated_line = Self::replace_word_with_link(
                 line_text,

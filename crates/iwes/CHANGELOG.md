@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `markdown.shorten_wiki_links` config option (default `true`) controls wiki link shortening; set to `false` to make completion, the create-link code action, and normalize-on-format emit full key paths (`[[folder/target]]`) instead of the shortest unambiguous suffix.
+
 ### Changed
 
 - Normalize-on-format now recognizes task-list markers in list items (`- [ ]`, `- [x]`) and normalizes `[X]` to lowercase `[x]`
 
+### Fixed
+- Wiki link shortening no longer rewrites a link whose target is missing from the workspace onto an unrelated document that happens to share the file name; such links keep their full path.
 ## [0.2.0](https://github.com/iwe-org/iwe/compare/iwes-v0.1.10...iwes-v0.2.0) - 2026-06-02
 
 ### Added

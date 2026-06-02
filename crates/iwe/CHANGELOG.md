@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `markdown.shorten_wiki_links` config option (default `true`); set to `false` so `iwe normalize` and `iwe export` keep wiki links at their full key path instead of rewriting them to the shortest unambiguous suffix. `iwe init` now writes the option in the generated config.
+
 ### Changed
 
 - `iwe normalize` now recognizes task-list markers in list items (`- [ ]`, `- [x]`) and normalizes `[X]` to lowercase `[x]`
 - List items are now a distinct node type rather than sections, so `iwe stats` no longer counts them toward the section total and `iwe extract` no longer lists them as extractable sections (section and `--block` numbers shift accordingly)
 
+### Fixed
+
+- Wiki link shortening no longer rewrites a link whose target is missing from the document set onto an unrelated document that shares the same file name; such links keep their full path.
 ## [0.2.0](https://github.com/iwe-org/iwe/compare/iwe-v0.1.10...iwe-v0.2.0) - 2026-06-02
 
 ### Added

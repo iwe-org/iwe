@@ -43,6 +43,7 @@ fn completion_test_with_refs_extension() {
             date_format: None,
             time_format: None,
             locale: None,
+            shorten_wiki_links: true,
             formatting: Default::default(),
         },
         completion: CompletionOptions {
@@ -123,6 +124,7 @@ fn completion_relative_test_with_refs_extension() {
         date_format: None,
         time_format: None,
         locale: None,
+        shorten_wiki_links: true,
         formatting: Default::default(),
     };
 
@@ -377,6 +379,7 @@ fn completion_with_wikilink_and_refs_extension() {
             date_format: None,
             time_format: None,
             locale: None,
+            shorten_wiki_links: true,
             formatting: Default::default(),
         },
         completion: CompletionOptions {

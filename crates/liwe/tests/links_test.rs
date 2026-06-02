@@ -265,6 +265,35 @@ fn wiki_link_shortened_to_shortest_unique_suffix_on_normalize() {
 }
 
 #[test]
+fn wiki_link_kept_full_when_shortening_disabled() {
+    setup();
+
+    let state: State = vec![
+        (
+            "notes/note".to_string(),
+            "[[clippings/target]]\n".to_string(),
+        ),
+        ("clippings/target".to_string(), "# Target\n".to_string()),
+    ]
+    .into_iter()
+    .collect();
+
+    let graph = Graph::import(
+        &state,
+        MarkdownOptions {
+            shorten_wiki_links: false,
+            ..Default::default()
+        },
+        None,
+    );
+
+    assert_str_eq!(
+        "[[clippings/target]]\n",
+        graph.to_markdown(&"notes/note".into())
+    );
+}
+
+#[test]
 fn wiki_link_across_directories_resolves_backlink() {
     setup();
 
