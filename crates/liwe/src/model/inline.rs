@@ -159,7 +159,7 @@ impl Inline {
 
                 let display_url = match reference.reference_type {
                     ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
-                        Some(context.shorten_wiki(&reference.key))
+                        Some(context.wiki_display(&reference.key, &reference.url))
                     }
                     ReferenceType::Regular => None,
                 };
@@ -168,6 +168,7 @@ impl Inline {
                     key: reference.key.clone(),
                     text: new_text,
                     reference_type: reference.reference_type,
+                    url: reference.url.clone(),
                     display_url,
                 })
             }
@@ -220,6 +221,7 @@ impl Inline {
                         key: updated_key.clone(),
                         text: reference.text.clone(),
                         reference_type: reference.reference_type,
+                        url: updated_key.to_library_url(),
                         display_url: None,
                     });
                 }

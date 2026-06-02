@@ -29,6 +29,7 @@ version = 3
 [markdown]
 refs_extension = ""
 date_format = "%b %d, %Y"
+wiki_link_path = "preserve"
 
 [library]
 path = ""
@@ -78,10 +79,11 @@ document_template = "# {{title}}\n\n{{content}}"
 
 ### Markdown Section
 
-| Option           | Default     | Description                                          |
-| ---------------- | ----------- | ---------------------------------------------------- |
-| `refs_extension` | `""`        | File extension to append to references (e.g., `.md`) |
-| `date_format`    | `%b %d, %Y` | Format for dates displayed in documents              |
+| Option               | Default     | Description                                                       |
+| -------------------- | ----------- | ----------------------------------------------------------------- |
+| `refs_extension`     | `""`        | File extension to append to references (e.g., `.md`)              |
+| `date_format`        | `%b %d, %Y` | Format for dates displayed in documents                           |
+| `wiki_link_path`     | `preserve`  | How wiki link paths are written: `preserve`, `full`, or `short`   |
 
 
 ### Completion Section

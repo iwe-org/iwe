@@ -47,6 +47,7 @@ impl Tree {
                         key,
                         text,
                         reference_type: ReferenceType::Regular,
+                        url: String::new(),
                         display_url: None,
                     }),
                     children: vec![],
@@ -347,6 +348,11 @@ impl Tree {
                     },
                     text: reference.text.clone(),
                     reference_type: reference.reference_type,
+                    url: if reference.key.eq(target_key) {
+                        updated_key.to_library_url()
+                    } else {
+                        reference.url.clone()
+                    },
                     display_url: None,
                 }),
                 _ => self.node.clone(),
@@ -685,6 +691,7 @@ impl Tree {
                         key: reference.key.clone(),
                         text: reference.text.clone(),
                         reference_type: reference.reference_type,
+                        url: reference.url.clone(),
                         display_url: reference.display_url.clone(),
                     }));
                     inlines.push(Inline::Space);
@@ -699,6 +706,7 @@ impl Tree {
                             key: p_key.clone(),
                             text: p_title.clone(),
                             reference_type: ReferenceType::Regular,
+                            url: String::new(),
                             display_url: None,
                         }));
                     }

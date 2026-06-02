@@ -25,7 +25,7 @@ use rayon::prelude::*;
 use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
-use crate::model::config::MarkdownOptions;
+use crate::model::config::{MarkdownOptions, WikiLinkPath};
 use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
 use crate::model::node::{NodeIter, NodePointer};
@@ -95,6 +95,14 @@ impl Graph {
 
     pub fn markdown_options(&self) -> MarkdownOptions {
         self.markdown_options.clone()
+    }
+
+    pub fn wiki_display(&self, key: &Key, original_url: &str) -> String {
+        match self.markdown_options.wiki_link_path {
+            WikiLinkPath::Full => key.to_library_url(),
+            WikiLinkPath::Short => self.key_index.shorten_wiki(key),
+            WikiLinkPath::Preserve => original_url.to_string(),
+        }
     }
 
     pub fn new_patch(&self) -> Graph {
@@ -596,8 +604,8 @@ impl InlinesContext for &Graph {
     fn get_ref_title(&self, key: &Key) -> Option<String> {
         self.get_key_title(key)
     }
-    fn shorten_wiki(&self, key: &Key) -> String {
-        self.key_index().shorten_wiki(key)
+    fn wiki_display(&self, key: &Key, original_url: &str) -> String {
+        Graph::wiki_display(self, key, original_url)
     }
 }
 

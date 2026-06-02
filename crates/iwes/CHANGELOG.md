@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `markdown.wiki_link_path` config option (`preserve` | `full` | `short`, default `preserve`) controls how completion, the create-link code action, and normalize-on-format write the path inside a wiki link: `preserve` keeps each link as typed, `full` emits the full key path (`[[folder/target]]`), and `short` emits the shortest unambiguous suffix. Completion and create-link, which have no original link to preserve, emit the full key path under `preserve`.
+
 ### Changed
 
 - Normalize-on-format now recognizes task-list markers in list items (`- [ ]`, `- [x]`) and normalizes `[X]` to lowercase `[x]`
 
+### Fixed
+- Wiki link shortening no longer rewrites a link whose target is missing from the workspace onto an unrelated document that happens to share the file name; such links keep their full path.
 ## [0.2.0](https://github.com/iwe-org/iwe/compare/iwes-v0.1.10...iwes-v0.2.0) - 2026-06-02
 
 ### Added

@@ -46,6 +46,8 @@
 
 [Inclusion Links](inclusion-links.md)
 
+[Keys and Cross-References](keys.md)
+
 ## Features
 
 [Notes Search](feature-search.md)

@@ -183,10 +183,17 @@ impl<'a> GraphBuilder<'a> {
             key.clone(),
             String::default(),
             ReferenceType::Regular,
+            key.to_library_url(),
         ));
     }
 
-    pub fn reference_with_text(&mut self, key: &Key, text: &str, reference_type: ReferenceType) {
+    pub fn reference_with_text(
+        &mut self,
+        key: &Key,
+        text: &str,
+        reference_type: ReferenceType,
+        url: String,
+    ) {
         let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_ref(
             self.id,
@@ -194,6 +201,7 @@ impl<'a> GraphBuilder<'a> {
             key.clone(),
             text.to_string(),
             reference_type,
+            url,
         ));
     }
 
@@ -298,6 +306,7 @@ impl<'a> GraphBuilder<'a> {
                 key,
                 text: title,
                 reference_type,
+                url,
                 display_url: _,
             }) => {
                 let new_id = self.store.new_node_id();
@@ -308,6 +317,7 @@ impl<'a> GraphBuilder<'a> {
                         key.clone(),
                         title.to_string(),
                         reference_type,
+                        url.clone(),
                     ),
                     f,
                 );

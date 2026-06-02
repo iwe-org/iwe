@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `Node::Item(Option<bool>, Inlines)` represents a list item as a first-class node carrying task-checkbox state (`- [ ]` → `Some(false)`, `- [x]`/`- [X]` → `Some(true)`, plain item → `None`); checkboxes are detected when the tree is collected and re-emitted (normalized to lowercase `[x]`) when rendering markdown.
-- `Reference.display_url: Option<String>` holds the pre-resolved wiki display URL, populated when the tree is collected so markdown rendering is self-contained.
-- `InlinesContext::shorten_wiki(&self, &Key) -> String` exposes wiki path-suffix shortening to the inline-resolution pass.
+- `Reference.url: String` carries the wiki link target exactly as written, and `Reference.display_url: Option<String>` holds the pre-resolved wiki display URL, both populated when the tree is collected so markdown rendering is self-contained.
+- `MarkdownOptions.wiki_link_path: WikiLinkPath` (`Full` | `Short` | `Preserve`, default `Preserve`) controls how the path inside a wiki link is rendered: `Preserve` keeps `Reference.url` as written, `Full` uses the target's full key path, and `Short` uses the shortest unambiguous suffix. `Graph::wiki_display(&self, &Key, &str) -> String` applies the setting, exposed to the inline-resolution pass through `InlinesContext::wiki_display` (replacing `InlinesContext::shorten_wiki`). `KeyIndex::wiki_target(&self, &Key, WikiLinkPath) -> String` computes the form for newly created links.
 
 ### Changed
 - The markdown model types moved out of the now-removed `model::graph` module: `GraphInline`/`GraphInlines` became `Inline`/`Inlines` in `model::inline`, and `GraphBlock` became `Block` in `model::writer` (`Blocks` and the `blocks_to_markdown*` helpers move with it). `NodeIter` and `NodePointer` move to `model::node_iter` and `model::node_pointer`, and `TreeIter` to `model::tree_iter`.
-- `Projector::project`, `NodeIter::to_markdown` / `to_markdown_skip_frontmatter`, and `Graph::to_markdown` / `to_markdown_skip_frontmatter` no longer take a `KeyIndex` and render markdown purely from the collected tree; the `*_indexed` `NodeIter` variants are removed. Wiki links are shortened to their path-suffix form when the tree is collected (was at render time) and the result is carried on `Reference.display_url`.
+- `Projector::project`, `NodeIter::to_markdown` / `to_markdown_skip_frontmatter`, and `Graph::to_markdown` / `to_markdown_skip_frontmatter` no longer take a `KeyIndex` and render markdown purely from the collected tree; the `*_indexed` `NodeIter` variants are removed. Wiki links are resolved to their display form (per `wiki_link_path`) when the tree is collected (was at render time) and the result is carried on `Reference.display_url`.
 
+### Fixed
+- Wiki link shortening no longer shortens a target absent from the document set onto an unrelated document that shares its file name (previously a suffix matching zero keys was accepted, so a link could be rewritten to a shorter form resolving elsewhere); the shortened form now resolves only to the exact target it was derived from, otherwise the full path is kept.
 ## [0.2.0](https://github.com/iwe-org/iwe/compare/liwe-v0.1.10...liwe-v0.2.0) - 2026-06-02
 
 ### Added

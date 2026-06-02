@@ -166,13 +166,16 @@ impl<'a> SectionsBuilder<'a> {
             Para(para) => {
                 if block.is_ref() {
                     let ref_type = block.ref_type().unwrap();
-                    let key = self.key_index.resolve_link_key(
-                        &block.url().unwrap(),
-                        &self.key.parent(),
+                    let url = block.url().unwrap();
+                    let key = self
+                        .key_index
+                        .resolve_link_key(&url, &self.key.parent(), ref_type);
+                    self.builder.reference_with_text(
+                        &key,
+                        &block.ref_text().unwrap(),
                         ref_type,
-                    );
-                    self.builder
-                        .reference_with_text(&key, &block.ref_text().unwrap(), ref_type)
+                        url,
+                    )
                 } else {
                     self.builder.leaf(to_graph_inlines(
                         &para.inlines,

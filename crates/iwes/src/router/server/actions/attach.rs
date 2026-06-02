@@ -166,6 +166,7 @@ impl ActionProvider for AttachAction {
                 key: reference_key,
                 text: reference_text,
                 reference_type: ReferenceType::Regular,
+                url: String::new(),
                 display_url: None,
             }),
             children: vec![],

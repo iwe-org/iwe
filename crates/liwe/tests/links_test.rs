@@ -3,7 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use pretty_assertions::assert_str_eq;
 
-use liwe::model::config::MarkdownOptions;
+use liwe::model::config::{MarkdownOptions, WikiLinkPath};
 use liwe::{
     graph::Graph,
     markdown::MarkdownReader,
@@ -236,7 +236,7 @@ fn wiki_link_across_directories_renders_as_bare_name() {
 
 #[test]
 fn wiki_link_full_path_shortened_to_bare_name_on_normalize() {
-    compare_state(
+    compare_state_with_options(
         vec![
             ("notes/note", "[[target]]\n"),
             ("clippings/target", "# Target\n"),
@@ -245,12 +245,16 @@ fn wiki_link_full_path_shortened_to_bare_name_on_normalize() {
             ("notes/note", "[[clippings/target]]\n"),
             ("clippings/target", "# Target\n"),
         ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Short,
+            ..Default::default()
+        },
     );
 }
 
 #[test]
 fn wiki_link_shortened_to_shortest_unique_suffix_on_normalize() {
-    compare_state(
+    compare_state_with_options(
         vec![
             ("notes/note", "[[a/target]]\n"),
             ("x/a/target", "# A\n"),
@@ -261,6 +265,122 @@ fn wiki_link_shortened_to_shortest_unique_suffix_on_normalize() {
             ("x/a/target", "# A\n"),
             ("y/b/target", "# B\n"),
         ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Short,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wiki_link_full_path_kept_on_normalize() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[clippings/target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[[clippings/target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Full,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wiki_link_bare_name_expanded_to_full_path_on_normalize() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[clippings/target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[[target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Full,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wiki_link_shortest_suffix_expanded_to_full_path_on_normalize() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[x/a/target]]\n"),
+            ("x/a/target", "# A\n"),
+            ("y/b/target", "# B\n"),
+        ],
+        vec![
+            ("notes/note", "[[a/target]]\n"),
+            ("x/a/target", "# A\n"),
+            ("y/b/target", "# B\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Full,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wiki_link_preserved_keeps_bare_name_on_normalize() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[[target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Preserve,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wiki_link_preserved_keeps_full_path_on_normalize() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[clippings/target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[[clippings/target]]\n"),
+            ("clippings/target", "# Target\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Preserve,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wiki_link_preserved_keeps_partial_suffix_on_normalize() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[a/target]]\n"),
+            ("x/a/target", "# A\n"),
+            ("y/b/target", "# B\n"),
+        ],
+        vec![
+            ("notes/note", "[[a/target]]\n"),
+            ("x/a/target", "# A\n"),
+            ("y/b/target", "# B\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Preserve,
+            ..Default::default()
+        },
     );
 }
 
@@ -512,6 +632,17 @@ fn normalize(expected: &str, denormalized: &str) {
 pub type Documents = Vec<(&'static str, &'static str)>;
 
 fn compare_state(exp: Documents, den: Documents) {
+    compare_state_with_options(
+        exp,
+        den,
+        MarkdownOptions {
+            refs_extension: String::default(),
+            ..Default::default()
+        },
+    );
+}
+
+fn compare_state_with_options(exp: Documents, den: Documents, options: MarkdownOptions) {
     setup();
 
     let expected: State = exp
@@ -529,10 +660,7 @@ fn compare_state(exp: Documents, den: Documents) {
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect(),
-        MarkdownOptions {
-            refs_extension: String::default(),
-            ..Default::default()
-        },
+        options,
         None,
     );
 
