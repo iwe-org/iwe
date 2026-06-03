@@ -133,15 +133,15 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         library_path.push(configuration.clone().library.path);
     }
 
-    main_loop(
-        connection,
-        ServerParams {
-            client_name: initialize_params.client_info.map(|it| it.name),
-            configuration: configuration.clone(),
-            base_path: library_path.to_string_lossy().to_string(),
-            ..Default::default()
-        },
-    )?;
+    let server_params = ServerParams {
+        client_name: initialize_params.client_info.map(|it| it.name),
+        configuration: configuration.clone(),
+        base_path: library_path.to_string_lossy().to_string(),
+        ..Default::default()
+    };
+
+    main_loop(connection, server_params)?;
+
     io_threads.join()?;
 
     // Shut down gracefully.

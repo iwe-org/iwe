@@ -21,3 +21,4 @@ mod query_update;
 mod squash_test;
 mod task_items_test;
 mod toc_test;
+mod windows_paths_test;

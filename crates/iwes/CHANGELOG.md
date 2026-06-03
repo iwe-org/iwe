@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- File URLs are now emitted with a lowercased Windows drive letter (`C:` becomes `c:`) so URIs returned by the server match the casing editors use; drive-letter normalization previously had no effect on Windows.
+
 ## [0.3.0](https://github.com/iwe-org/iwe/compare/iwes-v0.2.0...iwes-v0.3.0) - 2026-06-02
 
 ### Added

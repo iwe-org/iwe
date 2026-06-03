@@ -330,13 +330,33 @@ pub impl WorkspaceEdit {
     }
 }
 
+fn base_uri_prefix() -> &'static str {
+    if cfg!(windows) {
+        "file:///c:/basepath/"
+    } else {
+        "file:///basepath/"
+    }
+}
+
+pub fn server_base_path() -> String {
+    if cfg!(windows) {
+        "C:/basepath".to_string()
+    } else {
+        "/basepath".to_string()
+    }
+}
+
+pub fn file_uri(rel: &str) -> Uri {
+    Uri::from_str(&format!("{}{}", base_uri_prefix(), rel)).unwrap()
+}
+
 pub fn uri(number: u32) -> Uri {
-    Uri::from_str(&format!("file:///basepath/{}.md", number)).unwrap()
+    file_uri(&format!("{}.md", number))
 }
 
 #[allow(unused, dead_code)]
 pub fn uri_from(key: &str) -> Uri {
-    Uri::from_str(&format!("file:///basepath/{}.md", key)).unwrap()
+    file_uri(&format!("{}.md", key))
 }
 
 #[allow(unused, dead_code)]
@@ -489,7 +509,7 @@ impl Fixture {
                         },
                         client_name,
                         sequential_ids: Some(true),
-                        base_path: "/basepath".to_string(),
+                        base_path: server_base_path(),
                         configuration,
                         override_now,
                     },

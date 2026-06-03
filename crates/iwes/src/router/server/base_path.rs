@@ -1,4 +1,3 @@
-use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use lsp_types::*;
@@ -107,83 +106,102 @@ fn canonical(url: Url) -> Url {
     }
     let was_directory = url.path().ends_with('/');
     let Ok(path) = url.to_file_path() else {
-        return url;
+        return lowercase_url_drive(url);
     };
-    let path = lowercase_drive_letter(&path);
     let result = if was_directory {
         Url::from_directory_path(&path)
     } else {
         Url::from_file_path(&path)
     };
-    result.unwrap_or(url)
+    lowercase_url_drive(result.unwrap_or(url))
 }
 
-fn lowercase_drive_letter(path: &Path) -> PathBuf {
-    let s = path.to_string_lossy();
-    let (prefix, rest) = s.strip_prefix('/').map_or(("", s.as_ref()), |r| ("/", r));
-    let mut chars = rest.chars();
-    match (chars.next(), chars.next()) {
-        (Some(d), Some(':')) if d.is_ascii_alphabetic() => PathBuf::from(format!(
-            "{}{}{}",
-            prefix,
-            d.to_ascii_lowercase(),
-            &rest[2..]
-        )),
-        _ => path.to_path_buf(),
+fn lowercase_url_drive(mut url: Url) -> Url {
+    let path = url.path();
+    let bytes = path.as_bytes();
+    if bytes.len() >= 3 && bytes[0] == b'/' && bytes[1].is_ascii_uppercase() && bytes[2] == b':' {
+        let lowered = format!("/{}{}", (bytes[1] as char).to_ascii_lowercase(), &path[2..]);
+        url.set_path(&lowered);
     }
+    url
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn abs_path(rel: &str) -> String {
+        if cfg!(windows) {
+            format!("C:/{rel}")
+        } else {
+            format!("/{rel}")
+        }
+    }
+
+    fn file_url(rel: &str) -> String {
+        if cfg!(windows) {
+            format!("file:///c:/{rel}")
+        } else {
+            format!("file:///{rel}")
+        }
+    }
+
     #[test]
     fn test_url_to_key_with_danish_characters() {
-        let base_path = BasePath::new("file:///basepath/".to_string());
-        let uri = Uri::from_str("file:///basepath/t%C3%B8j.md").unwrap();
+        let base_path = BasePath::new(file_url("basepath/"));
+        let uri = Uri::from_str(&file_url("basepath/t%C3%B8j.md")).unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "tøj");
     }
 
     #[test]
     fn test_url_to_key_with_regular_characters() {
-        let base_path = BasePath::new("file:///basepath/".to_string());
+        let base_path = BasePath::new(file_url("basepath/"));
 
-        let uri = Uri::from_str("file:///basepath/regular.md").unwrap();
+        let uri = Uri::from_str(&file_url("basepath/regular.md")).unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "regular");
     }
 
     #[test]
     fn test_url_to_key_with_spaces_in_base_path() {
-        let base_path = BasePath::from_path("/path with spaces/docs");
-        let uri = Uri::from_str("file:///path%20with%20spaces/docs/test.md").unwrap();
+        let base_path = BasePath::from_path(&abs_path("path with spaces/docs"));
+        let uri = Uri::from_str(&file_url("path%20with%20spaces/docs/test.md")).unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "test");
     }
 
     #[test]
     fn test_key_to_url_with_spaces_in_base_path() {
-        let base_path = BasePath::from_path("/path with spaces/docs");
+        let base_path = BasePath::from_path(&abs_path("path with spaces/docs"));
         let key = liwe::model::Key::name("test.md");
         let url = base_path.key_to_url(&key);
-        assert_eq!(url.to_string(), "file:///path%20with%20spaces/docs/test.md");
+        assert_eq!(
+            url.to_string(),
+            file_url("path%20with%20spaces/docs/test.md")
+        );
     }
 
     #[test]
     fn test_url_to_key_with_spaces_in_key() {
-        let base_path = BasePath::from_path("/basepath");
-        let uri = Uri::from_str("file:///basepath/my%20document.md").unwrap();
+        let base_path = BasePath::from_path(&abs_path("basepath"));
+        let uri = Uri::from_str(&file_url("basepath/my%20document.md")).unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "my document");
     }
 
     #[test]
     fn test_key_to_url_with_spaces_in_key() {
-        let base_path = BasePath::from_path("/basepath");
+        let base_path = BasePath::from_path(&abs_path("basepath"));
         let key = liwe::model::Key::name("my document.md");
         let url = base_path.key_to_url(&key);
-        assert_eq!(url.to_string(), "file:///basepath/my%20document.md");
+        assert_eq!(url.to_string(), file_url("basepath/my%20document.md"));
+    }
+
+    #[test]
+    fn canonical_lowercases_drive_letter_and_preserves_other_segments() {
+        let url = Url::parse("file:///C:/Base/Note.md").unwrap();
+        assert_eq!(canonical(url).as_str(), "file:///c:/Base/Note.md");
     }
 
     #[test]
@@ -196,23 +214,23 @@ mod tests {
 
     #[test]
     fn test_resolve_relative_url_doubles_md_suffix_when_link_has_md_extension() {
-        let base_path = BasePath::from_path("/basepath");
+        let base_path = BasePath::from_path(&abs_path("basepath"));
         let url = base_path.resolve_relative_url("one.md", "");
-        assert_eq!(url.to_string(), "file:///basepath/one.md");
+        assert_eq!(url.to_string(), file_url("basepath/one.md"));
     }
 
     #[test]
     fn test_name_to_url_with_md_suffix_in_name() {
-        let base_path = BasePath::from_path("/basepath");
+        let base_path = BasePath::from_path(&abs_path("basepath"));
         let url = base_path.name_to_url("one.md");
-        assert_eq!(url.to_string(), "file:///basepath/one.md");
+        assert_eq!(url.to_string(), file_url("basepath/one.md"));
     }
 
     #[test]
     fn test_resolve_relative_url_with_anchor_fragment() {
-        let base_path = BasePath::from_path("/basepath");
+        let base_path = BasePath::from_path(&abs_path("basepath"));
         let url = base_path.resolve_relative_url("one#section", "");
-        assert_eq!(url.to_string(), "file:///basepath/one.md#section");
+        assert_eq!(url.to_string(), file_url("basepath/one.md#section"));
     }
 
     #[test]

@@ -206,9 +206,14 @@ fn test_new_creates_parent_directories() {
     assert!(output.status.success(), "Command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8");
-    assert!(stdout.contains("notes/"), "Should create nested path");
-
     let created_path = stdout.trim();
+    assert!(
+        std::path::Path::new(created_path)
+            .components()
+            .any(|c| c.as_os_str() == "notes"),
+        "Should create nested path"
+    );
+
     assert!(
         std::path::Path::new(created_path).exists(),
         "File should exist in nested directory"
