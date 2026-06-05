@@ -415,21 +415,16 @@ impl MarkdownEventsReader {
 
     fn to_inline_range(&self, range: Range<usize>) -> InlineRange {
         let content = self.content.as_deref().unwrap_or("");
-        let mut start_line = 0;
-        let mut start_char = 0;
-        let mut end_line = 0;
-        let mut end_char = 0;
 
-        for (line_idx, &line_start) in self.line_starts.iter().enumerate() {
-            if line_start <= range.start {
-                start_line = line_idx;
-                start_char = content[line_start..range.start].encode_utf16().count();
-            }
-            if line_start <= range.end {
-                end_line = line_idx;
-                end_char = content[line_start..range.end].encode_utf16().count();
-            }
-        }
+        let start_line = self.line_index(range.start);
+        let start_char = content[self.line_starts[start_line]..range.start]
+            .encode_utf16()
+            .count();
+
+        let end_line = self.line_index(range.end);
+        let end_char = content[self.line_starts[end_line]..range.end]
+            .encode_utf16()
+            .count();
 
         Position {
             line: start_line,
@@ -440,18 +435,15 @@ impl MarkdownEventsReader {
         }
     }
 
-    fn to_line_range(&self, range: Range<usize>) -> LineRange {
-        let mut start = 0;
-        let mut end = 0;
+    fn line_index(&self, offset: usize) -> usize {
+        self.line_starts
+            .partition_point(|&line_start| line_start <= offset)
+            .saturating_sub(1)
+    }
 
-        for (line, &line_start) in self.line_starts.iter().enumerate() {
-            if line_start <= range.start {
-                start = line;
-            }
-            if line_start <= range.end {
-                end = line;
-            }
-        }
+    fn to_line_range(&self, range: Range<usize>) -> LineRange {
+        let start = self.line_index(range.start);
+        let mut end = self.line_index(range.end);
 
         if start == end {
             end += 1;
@@ -829,6 +821,60 @@ mod tests {
                 },
             },
             link.inline_range()
+        );
+    }
+
+    #[test]
+    fn test_link_position_on_late_line() {
+        let mut content = String::new();
+        for _ in 0..500 {
+            content.push_str("\u{03B1}\u{03B2} filler text\n\n");
+        }
+        content.push_str("\u{03B1}\u{03B2} [link](to)\n");
+
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(&content);
+        let link = actual
+            .last()
+            .unwrap()
+            .child_inlines()
+            .into_iter()
+            .find(|i| i.is_link())
+            .unwrap();
+
+        assert_eq!(
+            InlineRange {
+                start: Position {
+                    line: 1000,
+                    character: 3,
+                },
+                end: Position {
+                    line: 1000,
+                    character: 13,
+                },
+            },
+            link.inline_range()
+        );
+    }
+
+    #[test]
+    fn test_large_document_parses_quickly() {
+        let mut content = String::new();
+        for _ in 0..4000 {
+            content.push_str(
+                "Some longer paragraph text that contains a [link](target-url) inside it.\n\n",
+            );
+        }
+
+        let mut reader = MarkdownEventsReader::new();
+        let start = std::time::Instant::now();
+        let actual = reader.read(&content);
+        let elapsed = start.elapsed();
+
+        assert_eq!(4000, actual.len());
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "parsing took {elapsed:?}, expected well under 5s"
         );
     }
 }

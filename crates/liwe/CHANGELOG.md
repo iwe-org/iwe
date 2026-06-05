@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `MarkdownReader` parsing of large documents no longer runs in quadratic time; source offsets are mapped to line/column positions with a binary search over the line table and a single UTF-16 count per endpoint, instead of rescanning every preceding line for each inline element.
+
 ## [0.3.1](https://github.com/iwe-org/iwe/compare/liwe-v0.3.0...liwe-v0.3.1) - 2026-06-03
 
 Workspace version bump — no user-visible changes in this crate.
