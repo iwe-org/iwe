@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/iwe-org/iwe/compare/iwes-v0.3.1...iwes-v0.3.2) - 2026-06-05
+
 ### Fixed
 - Editing a large document no longer pins the server at 100% CPU; each `textDocument/didChange` reparses the document, and the parser's offset-to-position mapping is no longer quadratic.
 
