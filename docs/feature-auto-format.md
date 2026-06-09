@@ -110,13 +110,7 @@ Trigger formatting manually:
 
 ## Configuration
 
-Formatting behavior can be configured in `.iwe/config.toml`:
-
-``` toml
-[markdown]
-normalize_headers = true  # Adjust header levels
-normalize_lists = true    # Fix list formatting
-```
+Link title updates, header level adjustment, list renumbering, and whitespace cleanup are always part of formatting and cannot be toggled individually. The markdown syntax used in the formatted output is configurable in `.iwe/config.toml`.
 
 ### Custom Formatting Tokens
 

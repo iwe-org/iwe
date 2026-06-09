@@ -20,7 +20,6 @@ iwe count [OPTIONS]
 | `--referenced-by <KEY[:DIST]>` | `$referencedBy` anchor. Repeatable; anchors are ANDed.                                                  | none          |
 | `--max-depth <N>`          | Session default for inclusion anchor flags without a colon-suffix. `0` = unbounded.                          | 1             |
 | `--max-distance <N>`       | Session default for reference anchor flags without a colon-suffix. `0` = unbounded.                          | 1             |
-| `--sort <field:DIR>`       | Sort by frontmatter field before applying `--limit`. `DIR` is `1` (asc) or `-1` (desc).                      | none          |
 | `-l, --limit <N>`          | Cap the number of matches counted (`0` = unlimited).                                                         | none          |
 
 `count` does not accept `-f / --format` or `--project`. Output is always a single integer terminated by a newline.

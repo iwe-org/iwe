@@ -25,7 +25,7 @@ iwe extract <KEY> [OPTIONS]
 | `--action <NAME>`   | Action name from config to use for extraction |
 | `--dry-run`         | Preview changes without writing to disk       |
 | `--quiet`           | Suppress progress output                      |
-| `--keys`            | Print affected document keys (one per line)   |
+| `-f, --format <FMT>` | Output format: `markdown` (default) or `keys` (print affected document keys, one per line) |
 
 
 ## How It Works
@@ -79,7 +79,7 @@ Without `--action`, the command uses the first `extract` action found in config,
 
 ### Key Template Variables
 
-See [feature-extract.md](feature-extract.md#template-variables.md) for all available template variables.
+See [feature-extract.md](feature-extract.md#template-variables) for all available template variables.
 
 ## Output Modes
 
@@ -103,12 +103,12 @@ Would extract section 'Design' to 'design'
 Would update 'my-document'
 ```
 
-### Keys Output (`--keys`)
+### Keys Output (`-f keys`)
 
 Print affected document keys:
 
 ``` bash
-$ iwe extract my-document --block 2 --keys
+$ iwe extract my-document --block 2 -f keys
 my-document
 getting-started
 ```
@@ -132,7 +132,7 @@ iwe extract notes/project --section "Notes" --dry-run
 iwe extract notes/project --section "Design" --action "my-extract"
 
 # Get keys for scripting
-iwe extract notes/project --section "API" --keys
+iwe extract notes/project --section "API" -f keys
 ```
 
 ## Use Cases
@@ -169,7 +169,7 @@ Use with other commands:
 
 ``` bash
 # Extract and get the new document key
-NEW_KEY=$(iwe extract doc --section "API" --keys | tail -1)
+NEW_KEY=$(iwe extract doc --section "API" -f keys | tail -1)
 echo "Created: $NEW_KEY"
 ```
 

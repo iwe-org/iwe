@@ -1,7 +1,7 @@
 Delete documents and clean up all references to them.
 
 Targets are selected by either a positional KEY (sugar for '$key: K') or
---filter EXPR (inline YAML filter document, per the spec). Both may be
+--filter EXPR (inline YAML filter document). Both may be
 given; the union is deleted. Reference cleanup applies once over the
 whole matched set. Use --dry-run to preview before applying.
 

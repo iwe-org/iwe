@@ -6,9 +6,9 @@ MARKDOWN (default, -f markdown):
 
 CSV (-f csv):
   Per-document statistics with columns:
-  key, title, sections, paragraphs, lines, words, parents,
-  incoming_inline_refs, total_incoming_refs, children,
-  outgoing_inline_refs, total_connections, bullet_lists, ordered_lists,
+  key, title, sections, paragraphs, lines, words, included_by_count,
+  referenced_by_count, incoming_edges_count, includes_count,
+  references_count, total_edges_count, bullet_lists, ordered_lists,
   code_blocks, tables, quotes
 
 JSON (-f json):
@@ -18,8 +18,8 @@ YAML (-f yaml):
   Same shape as JSON, rendered as YAML.
 
 PER-DOCUMENT STATS (-k <KEY>):
-  Returns the record for a single document (JSON by default, YAML with
-  -f yaml). Useful for scripting.
+  Returns the record for a single document. Default -f markdown prints
+  a bullet-list record; csv, json, and yaml are also supported.
 
 EXAMPLES:
 
@@ -35,10 +35,11 @@ EXAMPLES:
   # Aggregate stats as YAML
   iwe stats -f yaml
 
-  # Per-document stats (JSON by default)
+  # Per-document stats (markdown record by default)
   iwe stats -k my-document
 
-  # Per-document stats as YAML
+  # Per-document stats as JSON or YAML
+  iwe stats -k my-document -f json
   iwe stats -k my-document -f yaml
 
   # Find most connected documents

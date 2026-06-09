@@ -17,7 +17,7 @@ iwe tree
 
 iwe tree -f keys | grep api
 
-iwe export dot --key "machine-learning" --include-headers > ml.dot
+iwe export -f dot --key "machine-learning" --include-headers > ml.dot
 dot -Tpng ml.dot -o ml-graph.png
 ```
 
@@ -38,5 +38,5 @@ iwe normalize -v 2
 
 iwe tree --depth 8 -v 2
 
-iwe export dot --include-headers --depth 5 > full-graph.dot
+iwe export -f dot --include-headers --depth 5 > full-graph.dot
 ```

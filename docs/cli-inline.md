@@ -27,7 +27,7 @@ iwe inline <KEY> [OPTIONS]
 | `--keep-target`     | Keep the target document after inlining     |
 | `--dry-run`         | Preview changes without writing to disk     |
 | `--quiet`           | Suppress progress output                    |
-| `--keys`            | Print affected document keys (one per line) |
+| `-f, --format <FMT>` | Output format: `markdown` (default) or `keys` (print affected document keys, one per line) |
 
 
 ## How It Works
@@ -163,12 +163,12 @@ Would delete 'config'
 Would update 2 additional document(s)
 ```
 
-### Keys Output (`--keys`)
+### Keys Output (`-f keys`)
 
 Print affected document keys:
 
 ``` bash
-$ iwe inline my-document --block 1 --keys
+$ iwe inline my-document --block 1 -f keys
 my-document
 introduction
 other-referencing-doc
@@ -232,7 +232,7 @@ Check what would be affected before inlining:
 iwe inline index --reference "shared-doc" --dry-run
 
 # Get keys for further analysis
-iwe inline index --reference "shared-doc" --keys --dry-run
+iwe inline index --reference "shared-doc" -f keys --dry-run
 ```
 
 ### Scripting

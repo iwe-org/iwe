@@ -71,6 +71,8 @@ The core differentiator is the shared library architecture between CLI, LSP, and
 
 ## Detailed Comparisons
 
+The comparisons below reflect the state of these tools as of May 2026; check each project for changes since then.
+
 ### IWE vs markdown-oxide
 
 **markdown-oxide** is an actively-maintained PKM Language Server for markdown:

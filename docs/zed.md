@@ -47,7 +47,7 @@ Create an IWE project in your notes directory:
 
 ``` bash
 cd ~/notes
-iwes init
+iwe init
 ```
 
 This creates the `.iwe/config.toml` configuration file.

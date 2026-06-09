@@ -140,7 +140,7 @@ re-running for a clean signal.
 
 ## Numbers
 
-All times are per-iteration, measured on an Apple M3 Pro laptop.
+All times are per-iteration, measured in May 2026 on an Apple M3 Pro laptop.
 
 ### Stage 1 — load
 

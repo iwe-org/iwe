@@ -4,19 +4,19 @@ IWE provides powerful graph visualization capabilities through DOT format export
 
 ## Export Command
 
-The `iwe export dot` command generates graph data in DOT format, which can be processed by Graphviz and other visualization tools.
+The `iwe export -f dot` command generates graph data in DOT format, which can be processed by Graphviz and other visualization tools.
 
 ### Basic Usage
 
 ``` bash
 # Export all root documents
-iwe export dot
+iwe export -f dot
 
 # Export specific document by key
-iwe export dot --key project-notes
+iwe export -f dot --key project-notes
 
 # Export with depth limit
-iwe export dot --depth 3
+iwe export -f dot --depth 3
 ```
 
 ### Advanced Visualization with Headers
@@ -25,13 +25,13 @@ Use the `--include-headers` flag to create detailed visualizations that show doc
 
 ``` bash
 # Include sections and subgraphs
-iwe export dot --include-headers
+iwe export -f dot --include-headers
 
 # Detailed view of specific document
-iwe export dot --key documentation --include-headers
+iwe export -f dot --key documentation --include-headers
 
 # Combined with depth limit
-iwe export dot --key meetings --depth 2 --include-headers
+iwe export -f dot --key meetings --depth 2 --include-headers
 ```
 
 ## Visualization Modes
@@ -50,6 +50,10 @@ digraph G {
   1 -> 2 [color="#38546c66",arrowhead=normal,penwidth=1.2]
 }
 ```
+
+Rendered for this documentation directory (regenerate with `make` in `docs/`):
+
+![](docs-basic.svg)
 
 ### Detailed Mode (--include-headers)
 
@@ -77,6 +81,10 @@ digraph G {
 }
 ```
 
+Rendered for this documentation directory (regenerate with `make` in `docs/`):
+
+![](docs-detailed.svg)
+
 ## Key Features
 
 - **Color Coding**: Each document key gets a unique, consistent color scheme
@@ -91,39 +99,39 @@ digraph G {
 
 ``` bash
 # Basic visualization
-iwe export dot | dot -Tpng -o knowledge-graph.png
+iwe export -f dot | dot -Tpng -o knowledge-graph.png
 
 # Detailed with sections
-iwe export dot --include-headers | dot -Tpng -o detailed-graph.png
+iwe export -f dot --include-headers | dot -Tpng -o detailed-graph.png
 
 # Focus on specific topic
-iwe export dot --key project --include-headers | dot -Tpng -o project-structure.png
+iwe export -f dot --key project --include-headers | dot -Tpng -o project-structure.png
 ```
 
 ### Generate SVG for Web
 
 ``` bash
 # Scalable vector graphics
-iwe export dot | dot -Tsvg -o interactive-graph.svg
+iwe export -f dot | dot -Tsvg -o interactive-graph.svg
 
 # With better layout for complex graphs
-iwe export dot --include-headers | neato -Tsvg -o network-view.svg
+iwe export -f dot --include-headers | neato -Tsvg -o network-view.svg
 ```
 
 ### Different Layout Engines
 
 ``` bash
 # Hierarchical layout (default)
-iwe export dot | dot -Tpng -o hierarchical.png
+iwe export -f dot | dot -Tpng -o hierarchical.png
 
 # Force-directed layout
-iwe export dot | neato -Tpng -o network.png
+iwe export -f dot | neato -Tpng -o network.png
 
 # Circular layout
-iwe export dot | circo -Tpng -o circular.png
+iwe export -f dot | circo -Tpng -o circular.png
 
 # Spring-based layout
-iwe export dot | fdp -Tpng -o spring.png
+iwe export -f dot | fdp -Tpng -o spring.png
 ```
 
 ## Filtering and Focusing
@@ -132,20 +140,20 @@ iwe export dot | fdp -Tpng -o spring.png
 
 ``` bash
 # Show only documents related to 'meetings'
-iwe export dot --key meetings --include-headers
+iwe export -f dot --key meetings --include-headers
 
 # Multiple levels of related documents
-iwe export dot --key architecture --depth 2
+iwe export -f dot --key architecture --depth 2
 ```
 
 ### By Content Depth
 
 ``` bash
 # Show only immediate relationships
-iwe export dot --depth 1
+iwe export -f dot --depth 1
 
 # Show deeper connections
-iwe export dot --depth 3 --include-headers
+iwe export -f dot --depth 3 --include-headers
 ```
 
 ## Workflow Examples
@@ -155,7 +163,7 @@ iwe export dot --depth 3 --include-headers
 ``` bash
 #!/bin/bash
 # Generate today's knowledge graph
-iwe export dot --include-headers > today.dot
+iwe export -f dot --include-headers > today.dot
 dot -Tpng today.dot -o daily-review.png
 open daily-review.png  # macOS
 ```
@@ -165,7 +173,7 @@ open daily-review.png  # macOS
 ``` bash
 #!/bin/bash
 # Analyze specific project structure
-iwe export dot --key $PROJECT_NAME --include-headers | \
+iwe export -f dot --key $PROJECT_NAME --include-headers | \
   dot -Tsvg -o "project-${PROJECT_NAME}.svg"
 ```
 
@@ -174,8 +182,8 @@ iwe export dot --key $PROJECT_NAME --include-headers | \
 ``` bash
 #!/bin/bash
 # Create multiple views of your knowledge base
-iwe export dot > overview.dot
-iwe export dot --include-headers > detailed.dot
+iwe export -f dot > overview.dot
+iwe export -f dot --include-headers > detailed.dot
 
 # Generate both views
 dot -Tpng overview.dot -o overview.png
@@ -214,10 +222,10 @@ Graphviz supports many output formats:
 
 ``` bash
 # Reduce complexity with depth limits
-iwe export dot --depth 2 | dot -Tpng -o simplified.png
+iwe export -f dot --depth 2 | dot -Tpng -o simplified.png
 
 # Use different layout engine
-iwe export dot | fdp -Tpng -o alternative-layout.png
+iwe export -f dot | fdp -Tpng -o alternative-layout.png
 ```
 
 ### Missing Graphviz
@@ -241,10 +249,10 @@ For complex graphs, try different approaches:
 
 ``` bash
 # Increase node separation
-iwe export dot | dot -Tpng -Gnodesep=1.0 -o spaced.png
+iwe export -f dot | dot -Tpng -Gnodesep=1.0 -o spaced.png
 
 # Adjust DPI for clarity
-iwe export dot | dot -Tpng -Gdpi=200 -o high-res.png
+iwe export -f dot | dot -Tpng -Gdpi=200 -o high-res.png
 ```
 
 The visualization feature makes IWE's knowledge management capabilities tangible, helping you understand and navigate your documentation structure at a glance.

@@ -1351,7 +1351,7 @@ This section specifies the `iwe` CLI surface for the four query operations. It c
 | Subcommand | Spec operation | Notes |
 |---|---|---|
 | `iwe find [QUERY]` | `find` | Combines fuzzy `QUERY` (positional, on title/key) with filter flags via AND. Supports `--project`, `--sort`, `--limit`. |
-| `iwe count` | `count` | Prints integer matches to stdout. Supports `--sort`, `--limit`. |
+| `iwe count` | `count` | Prints integer matches to stdout. Supports `--limit`. |
 | `iwe update` | `update` (mutation mode) | Two modes: body overwrite (`-k -c`) or frontmatter mutation (`--filter`/`-k` + `--set`/`--unset`). Modes are mutually exclusive. |
 | `iwe delete [KEY]` | `delete` | Positional `KEY` is sugar for `$key: K`. Combine with `--filter` to widen. Either `KEY` or `--filter` is required. |
 | `iwe tree`, `retrieve`, `export` | (selection only) | Reuse the same filter flag set to narrow what they operate on. They are not spec operations. |
@@ -1473,7 +1473,7 @@ Read-side commands (`find`, `retrieve`, `tree`, `export`) share one format set s
 |---|---|---|
 | `--project f1,f2[,f3]` | `project: { f1: 1, f2: 1, f3: 1 }` | `find` only |
 | `--add-fields f1,f2[,f3]` | `addFields: { f1: 1, f2: 1, f3: 1 }` | `find` only |
-| `--sort field:1`, `--sort field:-1` | `sort: { field: 1 }` / `sort: { field: -1 }` | `find`, `count` |
+| `--sort field:1`, `--sort field:-1` | `sort: { field: 1 }` / `sort: { field: -1 }` | `find` only |
 | `-l, --limit N` | `limit: N` (0 = unlimited, matching §8) | `find`, `count` |
 
 `--project` and `--add-fields` accept two argument forms:

@@ -30,7 +30,6 @@ iwe export -f <FORMAT> [OPTIONS]
 | `--referenced-by <KEY[:DIST]>`  | -         | `$referencedBy` anchor. Repeatable; anchors are ANDed.                               |
 | `--max-depth <N>`               | `1`       | Session default for inclusion anchor flags without a colon-suffix. `0` = unbounded.  |
 | `--max-distance <N>`            | `1`       | Session default for reference anchor flags without a colon-suffix. `0` = unbounded.  |
-| `-v, --verbose <LEVEL>`         | `0`       | Verbosity level.                                                                     |
 
 > **Breaking change:** in earlier versions, `iwe export <FORMAT>` accepted the format as a positional argument. The format is now the `-f / --format` flag with a default of `dot`. The previous `iwe export dot` becomes `iwe export -f dot` (or simply `iwe export`).
 

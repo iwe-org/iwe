@@ -1,6 +1,6 @@
-# IWE — Turn your thinking into queryable context
+# IWE - Memory system for you and your AI agents
 
-> A markdown knowledge graph for you and your AI agent.
+> Turn your thinking into queryable context
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![Downloads](https://img.shields.io/crates/d/iwe.svg)](https://crates.io/crates/iwe)

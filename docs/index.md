@@ -48,6 +48,10 @@
 
 [Keys and Cross-References](keys.md)
 
+[Query Language](query-language.md)
+
+[Query Language Specification](spec.md)
+
 ## Features
 
 [Notes Search](feature-search.md)

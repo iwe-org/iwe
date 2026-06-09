@@ -22,7 +22,7 @@ iwe rename <OLD_KEY> <NEW_KEY> [OPTIONS]
 | ----------- | ------------------------------------------- |
 | `--dry-run` | Preview changes without writing to disk     |
 | `--quiet`   | Suppress progress output                    |
-| `--keys`    | Print affected document keys (one per line) |
+| `-f, --format <FMT>` | Output format: `markdown` (default) or `keys` (print affected document keys, one per line) |
 
 
 ## How It Works
@@ -59,12 +59,12 @@ Would update 3 document(s)
   related-topic
 ```
 
-### Keys Output (`--keys`)
+### Keys Output (`-f keys`)
 
 Print affected document keys for scripting:
 
 ``` bash
-$ iwe rename old-document new-document --keys
+$ iwe rename old-document new-document -f keys
 old-document
 new-document
 index
@@ -90,7 +90,7 @@ iwe rename my-note renamed-note
 iwe rename old-key new-key --dry-run
 
 # Get affected keys for processing
-iwe rename document new-document --keys
+iwe rename document new-document -f keys
 
 # Silent rename (for scripts)
 iwe rename doc new-doc --quiet
@@ -125,7 +125,7 @@ Use with other commands for batch operations:
 
 ``` bash
 # Get list of affected documents for further processing
-iwe rename old-api api-v2 --keys | while read key; do
+iwe rename old-api api-v2 -f keys | while read key; do
   echo "Affected: $key"
 done
 ```

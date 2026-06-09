@@ -1,23 +1,28 @@
 DOT OUTPUT FORMAT:
 
-  Graphviz DOT language with the following structure:
+  Graphviz DOT language. Nodes use numeric ids labeled with document
+  titles, note-shaped and filled with a per-document color:
 
-    digraph {
+    digraph G {
       rankdir=LR
-      node [shape=box]
-      "doc-key" [label="Document Title"]
-      "doc-key" -> "referenced-key"
+      1[label="Document Title",fillcolor="#ffeaea",shape=note,style=filled]
+      2[label="Other Document",fillcolor="#f6e5ee",shape=note,style=filled]
+      1 -> 2
     }
 
-  With --include-headers, sections become subgraphs:
+  With --include-headers, sections become plain-shaped nodes grouped in
+  colored subgraphs per document:
 
-    digraph {
-      subgraph cluster_doc_key {
-        label="Document Title"
+    digraph G {
+      rankdir=LR
+      1[label="Document Title",shape=note,style=filled]
+      2[label="Section",shape=plain]
+      subgraph cluster_0 {
         style=filled
-        fillcolor="#..."
-        "doc-key/section" [label="Section"]
+        fillcolor="#fff9de"
+        2
       }
+      2 -> 1 [arrowhead="empty",style="dashed"]
     }
 
 FILTER FLAGS (narrow the exported set):

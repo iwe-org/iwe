@@ -7,7 +7,7 @@ LSP server features.
 Configuration options in .iwe/config.toml:
 - library.path: Subdirectory containing markdown files (default: "")
 - library.date_format: Date format for templates (default: "%Y-%m-%d")
-- markdown.refs_extension: Append .md to links (default: false)
+- markdown.refs_extension: Extension appended to written markdown links (default: empty)
 - completion.link_format: Link style - "markdown" or "wiki"
 
 Prerequisites:

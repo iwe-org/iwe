@@ -1,9 +1,9 @@
 Search and discover documents in your knowledge base.
 
 Combines fuzzy text matching (positional QUERY on title and key) with
-spec-aligned filter operators. Without a query, documents are sorted by
-popularity (incoming references count); with --sort, frontmatter sort wins.
+filter operators. Without a query, documents are sorted by popularity
+(incoming references count); with --sort, frontmatter sort wins.
 
-Filter shorthand flags are spec-named (--key, --included-by, --references,
---referenced-by, etc.). Use --filter for inline YAML predicates such as
---filter 'status: draft'.
+Filter shorthand flags map onto the query operators (--key, --included-by,
+--references, --referenced-by, etc.). Use --filter for inline YAML
+predicates such as --filter 'status: draft'.

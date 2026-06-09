@@ -27,7 +27,7 @@ The IWE extension requires the `iwes` LSP server binary to be installed on your 
 
 1.  **Install via Cargo** (recommended):
     ``` bash
-    cargo install iwe
+    cargo install iwes
     ```
 2.  **Download from GitHub Releases**:
     - Visit [IWE releases](https://github.com/iwe-org/iwe/releases)

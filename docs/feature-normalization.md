@@ -1,5 +1,7 @@
 # Header Levels Normalization
 
+Header level adjustment is one of the normalizations applied by [document formatting](feature-auto-format.md); this page describes its rules in detail.
+
 IWE reads and understands nested structures based on headers. It identifies sub-header relationships. Markdown allows header structures where the nesting isn't clear, like:
 
 ``` markdown

@@ -54,7 +54,8 @@ SHAPE FLAGS:
 
   --children                  Populate the includes array with child document edges.
   --no-content                Exclude document content (metadata only).
-  -b, --backlinks             Include incoming references (referencedBy).
+  -b, --backlinks             Include incoming references (referencedBy). On by default.
+  -e, --exclude KEY           Exclude document key(s) from results. Repeatable.
   -d N                        Follow block refs down N levels (default 1).
   -c N                        Include N levels of parent context (default 1).
   -l, --links                 Include inline references.

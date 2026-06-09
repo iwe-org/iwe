@@ -56,9 +56,11 @@ Commands respect settings in `.iwe/config.toml`:
 path = ""  # Subdirectory containing markdown files
 
 [markdown]
-normalize_headers = true
-normalize_lists = true
+refs_extension = ""
+date_format = "%b %d, %Y"
 ```
+
+See [Configuration](configuration.md) for all available options.
 
 ## Querying
 

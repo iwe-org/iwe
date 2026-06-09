@@ -17,11 +17,11 @@ BOOK_MD = book.md
 # Default target - generate all files
 all:
 	@echo "Generating basic DOT export with maximum depth..."
-	$(IWE_BIN) export dot --depth 10 > $(BASIC_DOT)
+	$(IWE_BIN) export -f dot --depth 10 > $(BASIC_DOT)
 	@echo "Converting basic DOT to SVG..."
 	neato -Tsvg $(BASIC_DOT) -o $(BASIC_SVG)
 	@echo "Generating detailed DOT export focused on index document..."
-	$(IWE_BIN) export dot --key index --include-headers --depth 3 > $(DETAILED_DOT)
+	$(IWE_BIN) export -f dot --key index --include-headers --depth 3 > $(DETAILED_DOT)
 	@echo "Converting detailed DOT to SVG..."
 	neato -Tsvg $(DETAILED_DOT) -o $(DETAILED_SVG)
 	@echo "✓ All visualizations generated successfully"

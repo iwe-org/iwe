@@ -4,18 +4,6 @@ IWE's data model is built around a **graph-based representation** of markdown do
 
 [Data Model](data-model.md)
 
-[Node Types and Structure](note-types.md)
-
-[Document Processing Pipeline](documents-processing.md)
-
-[Key System and Cross-References](keys.md)
-
-[Graph Operations and Algorithms](graph.md)
-
-[Data Flow Architecture](data-flow.md)
-
-[Indexing and Reference Systems](indexing.md)
-
-[Advanced Features](graph-operations.md)
+[Keys and Cross-References](keys.md)
 
 [Benchmark](benchmark.md)

@@ -7,8 +7,8 @@ Two modes, selected by which flags are present:
     to read from stdin.
 
   Frontmatter-mutation mode (--filter EXPR | -k KEY) + --set / --unset
-    Applies $set / $unset operators (per docs/specs/query-language-spec.md
-    §8) to every document matched by the filter. -k KEY is sugar for
+    Applies $set / $unset operators to every document matched by the
+    filter. -k KEY is sugar for
     '$key: K'; combine with --filter to AND further constraints.
 
 Body and mutation flags cannot be combined; pass exactly one mode.

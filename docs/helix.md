@@ -28,7 +28,7 @@ auto-format = true
 
 ### Setup IWE Only For Your Notes
 
-You probably don't want `iwe` enabled for **every Markdown file you ever open**. For example, you may not want its features when you're working on README files for different projects. In that case, I recommend Helix's project-specific configuration feature. In the root of your notes directory, you can create a folder called `.helix`, add a file called `languages.toml` and put the [setup snippet](#setup-snippet.md) in there.
+You probably don't want `iwe` enabled for **every Markdown file you ever open**. For example, you may not want its features when you're working on README files for different projects. In that case, I recommend Helix's project-specific configuration feature. In the root of your notes directory, you can create a folder called `.helix`, add a file called `languages.toml` and put the [setup snippet](#setup-snippet) in there.
 
 ## Usage
 

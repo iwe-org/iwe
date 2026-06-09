@@ -1,21 +1,14 @@
-# Key System and Cross-References
+# Keys and Cross-References
 
 ## Document Identification
 
-Each document is identified by a `Key` - a path-based identifier:
-
-``` rust
-pub struct Key {
-    pub relative_path: Arc<String>,  // e.g., "folder/document"
-}
-```
+Each document is identified by a key — its path relative to the project root, without the `.md` extension (e.g. `folder/document`).
 
 **Key features:**
 
 - **Path-based**: Hierarchical organization support
-- **Reference counting**: Arc enables efficient cloning
-- **Extension handling**: Automatic .md extension management
-- **Relative linking**: Support for ../parent/document syntax
+- **Extension handling**: Automatic `.md` extension management
+- **Relative linking**: Support for `../parent/document` syntax
 
 ## Reference Types
 

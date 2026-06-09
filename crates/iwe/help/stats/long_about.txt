@@ -1,7 +1,7 @@
 Generate comprehensive statistics about your knowledge graph.
 
 By default, returns aggregate stats across the whole graph. Use -k/--key to
-restrict output to a single document (always JSON).
+restrict output to a single document's record; all -f formats apply.
 
 Provides analytics including:
 - Overview: document count, node count, path count

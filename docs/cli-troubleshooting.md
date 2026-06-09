@@ -45,7 +45,7 @@ When no markdown files exist:
 | `tree`       | No output            |
 | `find`       | No matches found     |
 | `stats`      | Shows zero counts    |
-| `export dot` | Produces empty graph |
+| `export`     | Produces empty graph |
 
 
 ### Missing Referenced Documents

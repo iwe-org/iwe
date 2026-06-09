@@ -78,7 +78,7 @@ iwe rename old-topic new-topic
 iwe rename old-topic new-topic --dry-run
 
 # Get affected document keys
-iwe rename old-topic new-topic --keys
+iwe rename old-topic new-topic -f keys
 ```
 
 See [IWE Rename](cli-rename.md) for full documentation.
