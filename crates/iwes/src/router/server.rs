@@ -444,14 +444,6 @@ impl Server {
         &self,
         params: RenameParams,
     ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-        if query::key_exists(&self.graph, &params.new_name.clone().into()) {
-            return Result::Err(ResponseError {
-                code: 1,
-                message: format!("The file name {} is already taken", params.new_name),
-                data: None,
-            });
-        }
-
         let doc_key = params
             .text_document_position
             .text_document
@@ -460,6 +452,16 @@ impl Server {
         let relative_to = &doc_key.parent();
         let position = params.text_document_position.position.to_model();
         let reference_type = self.ref_type_at(&doc_key, position);
+
+        let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
+
+        if query::key_exists(&self.graph, &new_key) {
+            return Result::Err(ResponseError {
+                code: 1,
+                message: format!("The file name {} is already taken", params.new_name),
+                data: None,
+            });
+        }
 
         Result::Ok(
             self.graph()
@@ -476,25 +478,21 @@ impl Server {
 
                     let mut patch = self.graph.new_patch();
 
-                    patch
-                        .build_key(&params.new_name.clone().into())
-                        .insert_from_iter(
-                            (&self.graph)
-                                .collect(&key)
-                                .change_key(&key, &params.new_name.clone().into())
-                                .iter(),
-                        );
+                    patch.build_key(&new_key).insert_from_iter(
+                        (&self.graph)
+                            .collect(&key)
+                            .change_key(&key, &new_key)
+                            .iter(),
+                    );
 
                     affected_keys.iter().for_each(|affected_key| {
                         patch.build_key(affected_key).insert_from_iter(
                             (&self.graph)
                                 .collect(affected_key)
-                                .change_key(&key, &params.new_name.clone().into())
+                                .change_key(&key, &new_key)
                                 .iter(),
                         );
                     });
-
-                    let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
 
                     let document_changes = affected_keys
                         .into_iter()
@@ -511,10 +509,9 @@ impl Server {
                             .to_full_url(&self.base_path)
                             .to_delete_file_op()])
                         .chain(vec![
-                            params.new_name.to_url(&self.base_path).to_create_file_op(),
-                            params
-                                .new_name
-                                .to_url(&self.base_path)
+                            new_key.to_full_url(&self.base_path).to_create_file_op(),
+                            new_key
+                                .to_full_url(&self.base_path)
                                 .to_override_new_file_op(
                                     &self.base_path,
                                     patch.export_key(&new_key).expect("to have key"),
