@@ -122,6 +122,29 @@ fn rename_link_to_nonexistent_file_returns_no_edit() {
     assert_eq!(actual, serde_json::Value::Null);
 }
 
+#[test]
+fn rename_in_subdirectory_preserves_content() {
+    let fixture =
+        Fixture::with_documents(vec![("sub/one", "[two](two)\n"), ("sub/two", "# two\n")]);
+
+    fixture.rename(
+        uri_from("sub/one").to_rename_params(0, 0, "three".to_string()),
+        vec![
+            uri_from("sub/one").to_edit("[two](three)\n"),
+            uri_from("sub/two").to_delete_file(),
+            uri_from("sub/three").to_create_file(),
+            uri_from("sub/three").to_edit_with_range(
+                "# two\n",
+                lsp_types::Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            ),
+        ]
+        .to_workspace_edit(),
+    );
+}
+
 fn assert_prepare_rename(source: &str, _: &str) {
     Fixture::with(source).prepare_rename(
         uri(1).to_text_document_position_params(0, 0),
