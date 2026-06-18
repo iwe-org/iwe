@@ -58,6 +58,22 @@ fn normalization_meta_empty_frontmatter() {
     );
 }
 
+#[test]
+fn normalization_meta_block_crlf() {
+    setup();
+    compare(
+        indoc! {"
+        ---
+        title: value
+        date: 2024-01-01
+        ---
+
+        # header
+        "},
+        "---\r\ntitle: value\r\ndate: 2024-01-01\r\n---\r\n\r\n# header\r\n",
+    );
+}
+
 static INIT: Once = Once::new();
 
 fn setup() {

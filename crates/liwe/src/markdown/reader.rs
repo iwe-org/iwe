@@ -75,7 +75,8 @@ impl MarkdownEventsReader {
     }
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
-        let (mut content, has_empty_frontmatter) = strip_empty_frontmatter(content);
+        let normalized = normalize_line_endings(content);
+        let (mut content, has_empty_frontmatter) = strip_empty_frontmatter(&normalized);
         if has_empty_frontmatter {
             self.frontmatter = Some(Mapping::new());
         }
@@ -470,6 +471,10 @@ fn parse_frontmatter(text: &str) -> Mapping {
     }
 }
 
+fn normalize_line_endings(content: &str) -> String {
+    content.replace("\r\n", "\n").replace('\r', "\n")
+}
+
 fn strip_empty_frontmatter(content: &str) -> (String, bool) {
     if content.starts_with("---\n---\n") {
         (content["---\n---\n".len()..].to_string(), true)
@@ -554,6 +559,52 @@ mod tests {
 
             para
             "};
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let expected = vec![
+            DocumentBlock::Para(Para {
+                line_range: 0..1,
+                inlines: vec![DocumentInline::Str("para".to_string())],
+            }),
+            DocumentBlock::Para(Para {
+                line_range: 2..3,
+                inlines: vec![
+                    DocumentInline::Str("text ".to_string()),
+                    DocumentInline::Link(Link {
+                        inlines: vec![DocumentInline::Str("link".to_string())],
+                        target: Target {
+                            url: "to".to_string(),
+                            title: String::default(),
+                        },
+                        attr: Default::default(),
+                        title: String::default(),
+                        inline_range: InlineRange {
+                            start: Position {
+                                line: 2,
+                                character: 5,
+                            },
+                            end: Position {
+                                line: 2,
+                                character: 15,
+                            },
+                        },
+                        link_type: LinkType::Markdown,
+                    }),
+                    DocumentInline::Str(" text".to_string()),
+                ],
+            }),
+            DocumentBlock::Para(Para {
+                line_range: 4..5,
+                inlines: vec![DocumentInline::Str("para".to_string())],
+            }),
+        ];
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_link_position_inside_text_crlf() {
+        let content = "para\r\n\r\ntext [link](to) text\r\n\r\npara\r\n";
         let mut reader = MarkdownEventsReader::new();
         let actual = reader.read(content);
         let expected = vec![
