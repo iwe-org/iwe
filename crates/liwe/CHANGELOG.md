@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `MarkdownReader` now normalizes Windows line endings before parsing, so documents with `\r\n` line endings keep their frontmatter and report correct positions (previously frontmatter was dropped and positions drifted one column per line).
+
 ## [0.3.2](https://github.com/iwe-org/iwe/compare/liwe-v0.3.1...liwe-v0.3.2) - 2026-06-05
 
 ### Fixed
