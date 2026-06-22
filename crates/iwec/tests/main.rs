@@ -3,6 +3,7 @@ mod fixture;
 mod attach_test;
 mod extract_test;
 mod find_test;
+mod http_transport_test;
 mod inline_test;
 mod normalize_test;
 mod prompt_test;

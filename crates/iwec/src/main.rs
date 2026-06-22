@@ -1,14 +1,36 @@
 use std::env;
 
 use anyhow::Result;
+use clap::{Parser, ValueEnum};
 use iwec::IweServer;
 use liwe::model::config::load_config;
 use rmcp::transport::stdio;
+use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
+use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
 use rmcp::ServiceExt;
+use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Transport {
+    Stdio,
+    Http,
+}
+
+#[derive(Debug, Parser)]
+#[command(name = "iwec", version, about = "IWE MCP server")]
+struct Cli {
+    #[arg(long, value_enum, default_value_t = Transport::Stdio)]
+    transport: Transport,
+
+    #[arg(long, default_value_t = 8000)]
+    port: u16,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let cli = Cli::parse();
+
     if env::var("IWE_DEBUG").is_ok() {
         tracing_subscriber::fmt()
             .with_env_filter(
@@ -43,10 +65,33 @@ async fn main() -> Result<()> {
     let server = IweServer::new(&library_path.to_string_lossy(), &configuration);
     server.start_watching();
 
-    let service = server.serve(stdio()).await.inspect_err(|e| {
-        tracing::error!("serving error: {:?}", e);
-    })?;
+    match cli.transport {
+        Transport::Stdio => {
+            let service = server.serve(stdio()).await.inspect_err(|e| {
+                tracing::error!("serving error: {:?}", e);
+            })?;
+            service.waiting().await?;
+        }
+        Transport::Http => {
+            let bind_address = format!("127.0.0.1:{}", cli.port);
+            let cancellation = CancellationToken::new();
+            let service = StreamableHttpService::new(
+                move || Ok(server.clone()),
+                LocalSessionManager::default().into(),
+                StreamableHttpServerConfig::default()
+                    .with_cancellation_token(cancellation.child_token()),
+            );
+            let router = axum::Router::new().nest_service("/mcp", service);
+            let listener = tokio::net::TcpListener::bind(&bind_address).await?;
+            tracing::info!("listening on http://{}/mcp", bind_address);
+            axum::serve(listener, router)
+                .with_graceful_shutdown(async move {
+                    tokio::signal::ctrl_c().await.ok();
+                    cancellation.cancel();
+                })
+                .await?;
+        }
+    }
 
-    service.waiting().await?;
     Ok(())
 }

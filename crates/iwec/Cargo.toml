@@ -22,8 +22,11 @@ serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 anyhow.workspace = true
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std"] }
-rmcp = { version = "1", features = ["server", "macros", "transport-io", "schemars"] }
+clap.workspace = true
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "net", "signal"] }
+tokio-util = "0.7"
+axum = "0.8"
+rmcp = { version = "1", features = ["server", "macros", "transport-io", "transport-streamable-http-server", "schemars"] }
 schemars = "1.2"
 notify = "8"
 minijinja.workspace = true
@@ -37,6 +40,6 @@ path = "tests/main.rs"
 serde_json.workspace = true
 tempfile.workspace = true
 liwe.workspace = true
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-util", "test-util"] }
-rmcp = { version = "1", features = ["server", "client", "macros", "transport-io", "transport-async-rw", "schemars"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-util", "test-util", "net", "time"] }
+rmcp = { version = "1", features = ["server", "client", "macros", "transport-io", "transport-async-rw", "transport-streamable-http-client-reqwest", "reqwest", "schemars"] }
 anyhow = "1"
