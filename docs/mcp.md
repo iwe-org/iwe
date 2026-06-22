@@ -4,7 +4,24 @@ IWE provides an MCP (Model Context Protocol) server that gives AI agents direct 
 
 ## Setup
 
-The MCP server runs as a stdio process. You configure it by pointing your AI tool to the `iwec` binary and setting the working directory to your knowledge graph.
+You configure the server by pointing your AI tool to the `iwec` binary and setting the working directory to your knowledge graph. By default it communicates over stdio, which is what most editor and agent integrations expect.
+
+### Transport options
+
+`iwec` accepts two flags that control how it serves the protocol:
+
+| Flag                        | Default | Description                                                  |
+| --------------------------- | ------- | ------------------------------------------------------------ |
+| `--transport <stdio\|http>` | `stdio` | Serve over stdio, or over HTTP                               |
+| `--port <PORT>`             | `8000`  | Port to listen on (only used with `--transport http`)        |
+
+With `--transport http` the server listens for Streamable HTTP connections at `http://127.0.0.1:<port>/mcp`:
+
+```bash
+iwec --transport http --port 8000
+```
+
+The HTTP server binds to localhost and speaks plain HTTP.
 
 ## Tools
 
