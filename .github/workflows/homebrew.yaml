@@ -31,7 +31,7 @@ jobs:
           echo "linux_arm_sha=$LINUX_ARM_SHA" >> $GITHUB_OUTPUT
 
       - name: Checkout homebrew-iwe
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: iwe-org/homebrew-iwe
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
