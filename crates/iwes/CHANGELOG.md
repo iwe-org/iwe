@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Documents with Windows line endings are no longer stripped of their frontmatter when edited or saved, and code action ranges no longer drift one column per line on such documents.
 - Renaming a link target in a document inside a subfolder no longer deletes the target file and replaces it with an empty one; the new file is written to the correct folder with the original content, and backlinks are updated to a valid path.
+- Formatting and code actions no longer turn escaped literal text into live Markdown; an escaped `\*text\*`, `\#`, or `\[label\](url)` keeps its escapes, and a list item written as `\[ \]` is no longer rewritten into a task checkbox.
 
 ## [0.3.2](https://github.com/iwe-org/iwe/compare/iwes-v0.3.1...iwes-v0.3.2) - 2026-06-05
 

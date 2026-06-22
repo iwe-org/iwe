@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `MarkdownReader` now normalizes Windows line endings before parsing, so documents with `\r\n` line endings keep their frontmatter and report correct positions (previously frontmatter was dropped and positions drifted one column per line).
+- The Markdown writer now re-escapes special characters in text, so escaped literals such as `\*text\*`, a leading `\#`, `\[label\](url)`, and `1\.` survive normalization instead of turning back into emphasis, headings, links, or list markers; inline code containing a backtick is fenced with enough backticks to render intact, and a list item written as an escaped `\[ \]` is no longer mistaken for a task checkbox.
 
 ## [0.3.2](https://github.com/iwe-org/iwe/compare/liwe-v0.3.1...liwe-v0.3.2) - 2026-06-05
 

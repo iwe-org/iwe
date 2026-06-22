@@ -4,6 +4,7 @@ mod frontmatter_title_test;
 mod gitignore_test;
 mod links_test;
 mod nested_keys_test;
+mod normalization_escapes;
 mod normalization_headers;
 mod normalization_html;
 mod normalization_lists;

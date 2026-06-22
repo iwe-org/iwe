@@ -47,7 +47,14 @@ impl Inline {
     }
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
         let mut out = String::new();
-        render_inline(self, options, &mut out);
+        let plain = self.plain_text();
+        let ctx = EscapeCtx {
+            top_level: false,
+            asterisk_pair: plain.matches('*').count() >= 2,
+            underscore_pair: plain.matches('_').count() >= 2,
+            backtick_pair: plain.matches('`').count() >= 2,
+        };
+        render_inline(self, options, &mut out, LinePos::Mid, ctx);
         out
     }
     pub fn plain_text(&self) -> String {
@@ -299,56 +306,150 @@ impl MarkdownSink for TokenStream {
     }
 }
 
-fn render_inlines<S: MarkdownSink>(inlines: &Inlines, options: &MarkdownOptions, out: &mut S) {
+#[derive(Clone, Copy, PartialEq)]
+enum LinePos {
+    Start,
+    AfterDigits,
+    Mid,
+}
+
+#[derive(Clone, Copy)]
+struct EscapeCtx {
+    top_level: bool,
+    asterisk_pair: bool,
+    underscore_pair: bool,
+    backtick_pair: bool,
+}
+
+enum RenderCtx {
+    Inline,
+    Block { top_level: bool },
+}
+
+fn render_inlines<S: MarkdownSink>(
+    inlines: &Inlines,
+    options: &MarkdownOptions,
+    out: &mut S,
+    context: RenderCtx,
+) {
+    let (at_line_start, top_level) = match context {
+        RenderCtx::Block { top_level } => (true, top_level),
+        RenderCtx::Inline => (false, false),
+    };
+    let (mut stars, mut unders, mut ticks) = (0usize, 0usize, 0usize);
     for inline in inlines {
-        render_inline(inline, options, out);
+        if let Inline::Str(text) = inline {
+            for b in text.bytes() {
+                match b {
+                    b'*' => stars += 1,
+                    b'_' => unders += 1,
+                    b'`' => ticks += 1,
+                    _ => {}
+                }
+            }
+        }
+    }
+    let ctx = EscapeCtx {
+        top_level,
+        asterisk_pair: stars >= 2,
+        underscore_pair: unders >= 2,
+        backtick_pair: ticks >= 2,
+    };
+    let mut pos = if at_line_start {
+        LinePos::Start
+    } else {
+        LinePos::Mid
+    };
+    if pos == LinePos::Start
+        && (starts_with_literal_checkbox(inlines) || (top_level && is_thematic_break(inlines)))
+    {
+        out.push("\\");
+    }
+    for inline in inlines {
+        pos = render_inline(inline, options, out, pos, ctx);
     }
 }
 
-fn render_inline<S: MarkdownSink>(inline: &Inline, options: &MarkdownOptions, out: &mut S) {
+fn render_inline<S: MarkdownSink>(
+    inline: &Inline,
+    options: &MarkdownOptions,
+    out: &mut S,
+    pos: LinePos,
+    ctx: EscapeCtx,
+) -> LinePos {
     match inline {
-        Inline::Str(text) => out.push(text),
-        Inline::Space => out.space(),
-        Inline::SoftBreak => out.soft_break(),
-        Inline::LineBreak => out.line_break(options.formatting.line_break_marker()),
+        Inline::Str(text) => {
+            escape_str(text, pos, ctx, out);
+            if text.is_empty() {
+                pos
+            } else if pos != LinePos::Mid && text.chars().all(|c| c.is_ascii_digit()) {
+                LinePos::AfterDigits
+            } else {
+                LinePos::Mid
+            }
+        }
+        Inline::Space => {
+            out.space();
+            if pos == LinePos::Start {
+                LinePos::Start
+            } else {
+                LinePos::Mid
+            }
+        }
+        Inline::SoftBreak => {
+            out.soft_break();
+            LinePos::Start
+        }
+        Inline::LineBreak => {
+            out.line_break(options.formatting.line_break_marker());
+            LinePos::Start
+        }
         Inline::Code(_, body) | Inline::RawInline(_, body) => {
-            out.push("`");
-            out.push(body);
-            out.push("`");
+            render_code_span(body, out);
+            LinePos::Mid
         }
         Inline::Math(body) => {
             out.push("$");
             out.push(body);
             out.push("$");
+            LinePos::Mid
         }
         Inline::Emph(inner) => {
             let t = options.formatting.emphasis_token();
             out.push(t);
-            render_inlines(inner, options, out);
+            render_inlines(inner, options, out, RenderCtx::Inline);
             out.push(t);
+            LinePos::Mid
         }
         Inline::Strong(inner) => {
             let t = options.formatting.strong_token();
             out.push(t);
-            render_inlines(inner, options, out);
+            render_inlines(inner, options, out, RenderCtx::Inline);
             out.push(t);
+            LinePos::Mid
         }
         Inline::Strikeout(inner) => {
             out.push("~~");
-            render_inlines(inner, options, out);
+            render_inlines(inner, options, out, RenderCtx::Inline);
             out.push("~~");
+            LinePos::Mid
         }
         Inline::Superscript(inner) => {
             out.push("^");
-            render_inlines(inner, options, out);
+            render_inlines(inner, options, out, RenderCtx::Inline);
             out.push("^");
+            LinePos::Mid
         }
         Inline::Subscript(inner) => {
             out.push("~");
-            render_inlines(inner, options, out);
+            render_inlines(inner, options, out, RenderCtx::Inline);
             out.push("~");
+            LinePos::Mid
         }
-        Inline::SmallCaps(inner) | Inline::Underline(inner) => render_inlines(inner, options, out),
+        Inline::SmallCaps(inner) | Inline::Underline(inner) => {
+            render_inlines(inner, options, out, RenderCtx::Inline);
+            LinePos::Mid
+        }
         Inline::Link(url, _, link_type, inlines) => {
             if *link_type == LinkType::Markdown && !model::is_ref_url(url) {
                 let inner = inlines_to_markdown(inlines, options);
@@ -356,10 +457,11 @@ fn render_inline<S: MarkdownSink>(inline: &Inline, options: &MarkdownOptions, ou
                     out.push("<");
                     out.push(url);
                     out.push(">");
-                    return;
+                    return LinePos::Mid;
                 }
             }
             emit_link(url, *link_type, inlines, options, out);
+            LinePos::Mid
         }
         Inline::Reference(reference) => {
             let url = reference.key.to_library_url();
@@ -371,15 +473,128 @@ fn render_inline<S: MarkdownSink>(inline: &Inline, options: &MarkdownOptions, ou
                 options,
                 out,
             );
+            LinePos::Mid
         }
         Inline::Image(url, _, alt) => {
             out.push("![");
-            render_inlines(alt, options, out);
+            render_inlines(alt, options, out, RenderCtx::Inline);
             out.push("](");
             out.push(url);
             out.push(")");
+            LinePos::Mid
         }
     }
+}
+
+fn render_code_span<S: MarkdownSink>(body: &str, out: &mut S) {
+    let mut max_run = 0;
+    let mut run = 0;
+    for ch in body.chars() {
+        if ch == '`' {
+            run += 1;
+            max_run = max_run.max(run);
+        } else {
+            run = 0;
+        }
+    }
+    let fence = "`".repeat(max_run + 1);
+    let padded = body.starts_with('`')
+        || body.ends_with('`')
+        || (body.starts_with(' ') && body.ends_with(' ') && !body.trim_matches(' ').is_empty());
+    out.push(&fence);
+    if padded {
+        out.push(" ");
+    }
+    out.push(body);
+    if padded {
+        out.push(" ");
+    }
+    out.push(&fence);
+}
+
+fn escape_str<S: MarkdownSink>(text: &str, pos: LinePos, ctx: EscapeCtx, out: &mut S) {
+    let line_start = pos == LinePos::Start;
+    let block_start = ctx.top_level && line_start;
+    let lead = text.as_bytes().first().copied();
+    let lead_block_marker = block_start
+        && lead.is_some_and(|b| matches!(b, b'#' | b'>' | b'-' | b'+') || b.is_ascii_digit());
+    let lead_ordered_marker = ctx.top_level
+        && pos == LinePos::AfterDigits
+        && lead.is_some_and(|b| matches!(b, b'.' | b')'));
+    let has_inline_marker = text
+        .bytes()
+        .any(|b| matches!(b, b'\\' | b'*' | b'_' | b'[' | b']' | b'`'));
+    if !lead_block_marker && !lead_ordered_marker && !has_inline_marker {
+        out.push(text);
+        return;
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let mut result = String::with_capacity(text.len());
+    for (i, &ch) in chars.iter().enumerate() {
+        let next = chars.get(i + 1).copied();
+        let prev = if i > 0 { Some(chars[i - 1]) } else { None };
+        let trailing_marker_space = next.is_none_or(|c| c == ' ' || c == '\t');
+        let escape = match ch {
+            '\\' => true,
+            '*' => ctx.asterisk_pair,
+            '_' if ctx.underscore_pair => {
+                let between_alnum = prev.is_some_and(|c| c.is_alphanumeric())
+                    && next.is_some_and(|c| c.is_alphanumeric());
+                !between_alnum
+            }
+            ']' => next == Some('('),
+            '[' => next == Some('['),
+            '`' if ctx.top_level => ctx.backtick_pair,
+            '#' if block_start && i == 0 => {
+                let hashes = chars.iter().take_while(|&&c| c == '#').count();
+                hashes <= 6 && chars.get(hashes).is_none_or(|&c| c == ' ' || c == '\t')
+            }
+            '>' if block_start && i == 0 => true,
+            '-' | '+' if block_start && i == 0 => trailing_marker_space,
+            '.' | ')' if ctx.top_level => {
+                trailing_marker_space
+                    && ((pos == LinePos::AfterDigits && i == 0)
+                        || (line_start && i > 0 && chars[..i].iter().all(|c| c.is_ascii_digit())))
+            }
+            _ => false,
+        };
+        if escape {
+            result.push('\\');
+        }
+        result.push(ch);
+    }
+    out.push(&result);
+}
+
+fn starts_with_literal_checkbox(inlines: &Inlines) -> bool {
+    if let Some(Inline::Str(first)) = inlines.first() {
+        if first == "[x] " || first == "[X] " || first == "[ ] " {
+            return false;
+        }
+    }
+    let mut prefix = String::new();
+    for inline in inlines {
+        match inline {
+            Inline::Str(text) => prefix.push_str(text),
+            Inline::Space => prefix.push(' '),
+            _ => break,
+        }
+        if prefix.len() >= 4 {
+            break;
+        }
+    }
+    prefix.starts_with("[x] ") || prefix.starts_with("[X] ") || prefix.starts_with("[ ] ")
+}
+
+fn is_thematic_break(inlines: &Inlines) -> bool {
+    let mut iter = inlines.iter();
+    let dashes = match iter.next() {
+        Some(Inline::Str(text)) if !text.is_empty() && text.bytes().all(|b| b == b'-') => {
+            text.len()
+        }
+        _ => return false,
+    };
+    dashes >= 3 && iter.all(|inline| matches!(inline, Inline::Space))
 }
 
 fn emit_link<S: MarkdownSink>(
@@ -410,7 +625,7 @@ fn emit_link<S: MarkdownSink>(
                 url.to_string()
             };
             out.push("[");
-            render_inlines(inlines, options, out);
+            render_inlines(inlines, options, out, RenderCtx::Inline);
             out.push("](");
             out.push(&final_url);
             out.push(")");
@@ -425,13 +640,21 @@ fn text_to_inlines(text: &str) -> Vec<Inline> {
 }
 
 pub(crate) fn wrap_inlines(inlines: &Inlines, options: &MarkdownOptions, indent: usize) -> String {
+    let top_level = indent == 0;
     let Some(width) = options.formatting.wrap_column() else {
-        return inlines_to_markdown(inlines, options);
+        let mut out = String::new();
+        render_inlines(inlines, options, &mut out, RenderCtx::Block { top_level });
+        return out;
     };
     let effective = width.saturating_sub(indent).max(20);
     let marker = options.formatting.line_break_marker();
     let mut stream = TokenStream::default();
-    render_inlines(inlines, options, &mut stream);
+    render_inlines(
+        inlines,
+        options,
+        &mut stream,
+        RenderCtx::Block { top_level },
+    );
 
     let mut segments: Vec<String> = Vec::new();
     let mut buf: Vec<String> = Vec::new();
@@ -526,7 +749,7 @@ pub fn to_plain_text(content: &Inlines) -> String {
 
 pub fn inlines_to_markdown(content: &Inlines, options: &MarkdownOptions) -> String {
     let mut out = String::new();
-    render_inlines(content, options, &mut out);
+    render_inlines(content, options, &mut out, RenderCtx::Inline);
     out
 }
 
@@ -572,6 +795,18 @@ pub fn to_graph_inlines(
 }
 
 fn split_text_words(text: &str, out: &mut Vec<Inline>) {
+    let mut text = text;
+    if let Some(rest) = text.strip_prefix('[') {
+        let ws_len: usize = rest
+            .chars()
+            .take_while(|c| *c == ' ' || *c == '\t')
+            .map(|c| c.len_utf8())
+            .sum();
+        if ws_len > 0 {
+            out.push(Inline::Str(text[..1 + ws_len].to_string()));
+            text = &text[1 + ws_len..];
+        }
+    }
     let mut word_start: Option<usize> = None;
     let mut in_ws = false;
     let mut ws_has_newline = false;

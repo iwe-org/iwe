@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Normalization now preserves escaped Markdown literals (such as `\*text\*`, a leading `\#`, or `\[label\](url)`) instead of dropping the backslashes and re-interpreting the text as live markup.
+
 ## [0.3.2](https://github.com/iwe-org/iwe/compare/iwe-v0.3.1...iwe-v0.3.2) - 2026-06-05
 
 Workspace version bump — no user-visible changes in this crate.
