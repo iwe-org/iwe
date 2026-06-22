@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/iwe-org/iwe/compare/iwes-v0.3.2...iwes-v0.4.0) - 2026-06-22
+
 ### Fixed
 
 - Documents with Windows line endings are no longer stripped of their frontmatter when edited or saved, and code action ranges no longer drift one column per line on such documents.

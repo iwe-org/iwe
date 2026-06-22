@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/iwe-org/iwe/compare/iwec-v0.3.2...iwec-v0.4.0) - 2026-06-22
+
 ### Added
 
 - `--transport` flag selects how the server is served: `stdio` (default, unchanged) or `http`. With `--transport http` the server listens for Streamable HTTP connections at `http://127.0.0.1:<port>/mcp`, with `--port` setting the port (default `8000`). The server speaks plain HTTP and binds to localhost only; put a reverse proxy in front of it for TLS or remote access.
