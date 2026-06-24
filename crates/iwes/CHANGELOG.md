@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Formatting a djot document no longer collapses nested or multi-paragraph list items into the parent item; the blank line separating them is kept so the list structure survives format-on-save.
+
 ## [0.5.0](https://github.com/iwe-org/iwe/compare/iwes-v0.4.0...iwes-v0.5.0) - 2026-06-23
 
 ### Added

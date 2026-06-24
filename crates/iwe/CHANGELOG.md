@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `normalize` no longer collapses nested or multi-paragraph djot list items onto one line; the blank line that keeps them separate is preserved so the list survives repeated runs.
+
 ## [0.5.0](https://github.com/iwe-org/iwe/compare/iwe-v0.4.0...iwe-v0.5.0) - 2026-06-23
 
 ### Added

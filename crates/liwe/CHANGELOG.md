@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The djot writer now leaves a blank line before a nested list or any second block inside a list item, so list items with sub-lists or extra paragraphs round-trip instead of collapsing into the item's first line.
+
 ## [0.5.0](https://github.com/iwe-org/iwe/compare/liwe-v0.4.0...liwe-v0.5.0) - 2026-06-23
 
 ### Added

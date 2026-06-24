@@ -63,6 +63,30 @@ fn ordered_list() {
 }
 
 #[test]
+fn nested_bullet_list() {
+    let input = indoc! {"
+        - one
+        - two
+
+          - nested a
+          - nested b
+        - three
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn multi_paragraph_list_item() {
+    let input = indoc! {"
+        - first item
+
+          second paragraph of the first item
+        - second item
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
 fn link() {
     let input = indoc! {"
         A [link](https://example.com) here.

@@ -102,7 +102,8 @@ fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool) -> Strin
         let item_text: String = item
             .iter()
             .map(|block| block_to_djot(block, options))
-            .collect();
+            .collect::<Vec<String>>()
+            .join("\n");
         for (n, line) in item_text.lines().enumerate() {
             if n == 0 {
                 out.push_str(&format!("{} {}\n", marker, line));
