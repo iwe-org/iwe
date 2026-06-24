@@ -17,12 +17,12 @@ pub struct AttachAction {
 
     pub key_template: String,
     pub document_template: String,
-    pub markdown_date_format: String,
-    pub markdown_time_format: String,
+    pub content_date_format: String,
+    pub content_time_format: String,
     pub key_date_format: String,
     pub key_time_format: String,
     pub key_locale: Locale,
-    pub markdown_locale: Locale,
+    pub content_locale: Locale,
 }
 
 impl AttachAction {
@@ -50,10 +50,10 @@ impl AttachAction {
     fn format_target_document(&self, now: SystemTime, content: String) -> String {
         let now: DateTime<Local> = now.into();
         let today_formatted = now
-            .format_localized(&self.markdown_date_format, self.markdown_locale)
+            .format_localized(&self.content_date_format, self.content_locale)
             .to_string();
         let now_formatted = now
-            .format_localized(&self.markdown_time_format, self.markdown_locale)
+            .format_localized(&self.content_time_format, self.content_locale)
             .to_string();
         Environment::new()
             .template_from_str(&self.document_template)
@@ -182,7 +182,7 @@ impl ActionProvider for AttachAction {
                     attach_to_key.clone(),
                     updated
                         .iter()
-                        .to_markdown(&attach_to_key.parent(), context.markdown_options()),
+                        .to_text(&attach_to_key.parent(), &context.format_options()),
                 ),
             )
         } else {
@@ -193,7 +193,7 @@ impl ActionProvider for AttachAction {
                         now,
                         reference
                             .iter()
-                            .to_markdown(&attach_to_key.parent(), context.markdown_options()),
+                            .to_text(&attach_to_key.parent(), &context.format_options()),
                     ),
                 ),
             )

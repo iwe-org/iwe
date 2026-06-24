@@ -204,7 +204,7 @@ impl ActionProvider for TransformBlockAction {
             .collect(&key)
             .replace(target_id, &tree)
             .iter()
-            .to_markdown(&key.parent(), context.markdown_options());
+            .to_text(&key.parent(), &context.format_options());
 
         Some(Changes::new().update(key, markdown))
     }

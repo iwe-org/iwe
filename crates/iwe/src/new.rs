@@ -53,7 +53,11 @@ impl<'a> DocumentCreator<'a> {
         let mut candidate_key = base_key.clone();
         let mut counter = 1;
 
-        while self.library_path.join(candidate_key.to_path()).exists() {
+        while self
+            .library_path
+            .join(candidate_key.to_path(self.config.format))
+            .exists()
+        {
             let suffixed_name = format!("{}-{}", base_key, counter);
             candidate_key = Key::name(&suffixed_name);
             counter += 1;
@@ -91,12 +95,12 @@ impl<'a> DocumentCreator<'a> {
             .clone()
             .unwrap_or_else(|| DEFAULT_KEY_DATE_FORMAT.to_string());
 
-        let markdown_date_format = self
-            .config
-            .markdown
-            .date_format
-            .clone()
-            .unwrap_or_else(|| "%b %d, %Y".to_string());
+        let format_options = self.config.format_options();
+
+        let content_date_format = format_options
+            .date_format()
+            .unwrap_or("%b %d, %Y")
+            .to_string();
 
         let key_time_format = self
             .config
@@ -105,28 +109,26 @@ impl<'a> DocumentCreator<'a> {
             .clone()
             .unwrap_or_else(|| key_date_format.clone());
 
-        let markdown_time_format = self
-            .config
-            .markdown
-            .time_format
-            .clone()
-            .unwrap_or_else(|| markdown_date_format.clone());
+        let content_time_format = format_options
+            .time_format()
+            .map(|format| format.to_string())
+            .unwrap_or_else(|| content_date_format.clone());
 
         let key_locale = get_locale(self.config.library.locale.as_deref());
-        let markdown_locale = get_locale(self.config.markdown.locale.as_deref());
+        let content_locale = get_locale(format_options.locale());
 
         let now = Local::now();
         let key_today = now
             .format_localized(&key_date_format, key_locale)
             .to_string();
-        let markdown_today = now
-            .format_localized(&markdown_date_format, markdown_locale)
+        let content_today = now
+            .format_localized(&content_date_format, content_locale)
             .to_string();
         let key_now = now
             .format_localized(&key_time_format, key_locale)
             .to_string();
-        let markdown_now = now
-            .format_localized(&markdown_time_format, markdown_locale)
+        let content_now = now
+            .format_localized(&content_time_format, content_locale)
             .to_string();
 
         let slug = string_to_slug(&options.title);
@@ -146,8 +148,8 @@ impl<'a> DocumentCreator<'a> {
             &template.document_template,
             &options.title,
             &slug,
-            &markdown_today,
-            &markdown_now,
+            &content_today,
+            &content_now,
             &id,
             &content,
         )?;
@@ -156,7 +158,7 @@ impl<'a> DocumentCreator<'a> {
         if base_key.relative_path.is_empty() {
             return Err("Generated key is empty. Use a non-empty title.".to_string());
         }
-        let path_str = base_key.to_path();
+        let path_str = base_key.to_path(self.config.format);
         let filename_len = std::path::Path::new(&path_str)
             .file_name()
             .map(|f| f.len())
@@ -167,7 +169,7 @@ impl<'a> DocumentCreator<'a> {
                 filename_len
             ));
         }
-        let file_path = self.library_path.join(base_key.to_path());
+        let file_path = self.library_path.join(base_key.to_path(self.config.format));
         let file_exists = file_path.exists();
 
         let final_key = match options.if_exists {
@@ -176,7 +178,9 @@ impl<'a> DocumentCreator<'a> {
             IfExists::Override | IfExists::Skip => base_key,
         };
 
-        let file_path = self.library_path.join(final_key.to_path());
+        let file_path = self
+            .library_path
+            .join(final_key.to_path(self.config.format));
 
         if let Some(parent) = file_path.parent() {
             if !parent.exists() {

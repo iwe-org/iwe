@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `format` config option (`markdown` | `djot`, default `markdown`) selects the document format, with a matching `[djot]` options table. With `format = "djot"`, `iwe` reads, normalizes, exports, and creates [djot](https://djot.net/) documents and works with `.dj` files instead of `.md`.
+
 ## [0.4.0](https://github.com/iwe-org/iwe/compare/iwe-v0.3.2...iwe-v0.4.0) - 2026-06-22
 
 ### Fixed

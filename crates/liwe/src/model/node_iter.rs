@@ -1,32 +1,31 @@
 use crate::model::Key;
 
-use super::config::MarkdownOptions;
+use super::config::FormatOptions;
 use super::inline::{Inline, Inlines};
 use super::node::{ColumnAlignment, Node, ReferenceType};
 use super::projector::Projector;
-use super::writer::{blocks_to_markdown_sparce, blocks_to_markdown_sparce_skip_frontmatter};
 
 pub trait NodeIter<'a>: Sized {
     fn next(&self) -> Option<Self>;
     fn child(&self) -> Option<Self>;
     fn node(&self) -> Option<Node>;
 
-    fn to_markdown(self, parent: &str, options: &MarkdownOptions) -> String {
+    fn to_text(self, parent: &str, format: &FormatOptions) -> String {
         let blocks = Projector::project(self, parent);
-        blocks_to_markdown_sparce(&blocks, options)
+        crate::format::write_document(&blocks, format)
     }
 
-    fn to_markdown_skip_frontmatter(self, parent: &str, options: &MarkdownOptions) -> String {
+    fn to_text_skip_frontmatter(self, parent: &str, format: &FormatOptions) -> String {
         let blocks = Projector::project(self, parent);
-        blocks_to_markdown_sparce_skip_frontmatter(&blocks, options)
+        crate::format::write_document_skip_frontmatter(&blocks, format)
     }
 
     fn plain_text(&self) -> String {
         self.inlines().iter().map(|i| i.plain_text()).collect()
     }
 
-    fn to_default_markdown(self) -> String {
-        self.to_markdown("", &MarkdownOptions::default())
+    fn to_default_text(self) -> String {
+        self.to_text("", &FormatOptions::default())
     }
 
     fn ref_type(&self) -> Option<ReferenceType> {

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `FormatOptions` (`Markdown(MarkdownOptions)` | `Djot(DjotOptions)`) bundles the document format with its formatting options; it is what the graph reads and writes through. `Graph::new_with_options`, `from_state`, `from_path`, and `import` accept `impl Into<FormatOptions>`. `DjotReader`/`DjotWriter` parse and serialize [djot](https://djot.net/) documents so the graph round-trips a `.dj` document back to djot, and `Configuration` gains a top-level `format` selector, a `djot: DjotOptions` table, and `Configuration::format_options()`.
+- `Inline` and `DocumentInline` gain `Span`, `Mark`, `Insert`, `Delete`, and `Symbol` variants, and an `inline::Attributes` type, so djot's bracketed attribute spans, highlight/insert/delete marks, and symbols round-trip losslessly through the graph.
+
+### Changed
+- `NodeIter::to_text(parent, &FormatOptions)` replaces the markdown-specific `to_markdown`, serializing to whichever format the `FormatOptions` carries.
+- `Key::to_path` and the `fs` discovery and write helpers (`walk_md_paths`, `new_for_path`, `write_file`, `write_store_at_path`) now take a `Format` so document files use the configured extension (`.md` or `.dj`).
+
+### Fixed
+- Updating or removing a document now reclaims the graph nodes, lines, and reference-index entries that belonged to its previous version, so a long-lived `Graph` no longer grows without bound as the same documents are edited over and over.
+
 ## [0.4.0](https://github.com/iwe-org/iwe/compare/liwe-v0.3.2...liwe-v0.4.0) - 2026-06-22
 
 ### Fixed

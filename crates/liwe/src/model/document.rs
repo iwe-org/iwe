@@ -46,6 +46,11 @@ pub enum DocumentInline {
     Subscript(Subscript),
     Superscript(Superscript),
     Underline(Underline),
+    Mark(Mark),
+    Insert(Insert),
+    Delete(Delete),
+    Symbol(Symbol),
+    Span(Span),
 }
 
 impl Document {
@@ -512,6 +517,11 @@ impl DocumentInline {
             DocumentInline::Superscript(superscript) => superscript.inlines.push(inline),
             DocumentInline::Underline(underline) => underline.inlines.push(inline),
             DocumentInline::SmallCaps(small_caps) => small_caps.inlines.push(inline),
+            DocumentInline::Mark(mark) => mark.inlines.push(inline),
+            DocumentInline::Insert(insert) => insert.inlines.push(inline),
+            DocumentInline::Delete(delete) => delete.inlines.push(inline),
+            DocumentInline::Span(span) => span.inlines.push(inline),
+            DocumentInline::Symbol(_) => panic!("cannot append inline to symbol"),
             DocumentInline::LineBreak(_) => panic!("cannot append inline to line break"),
             DocumentInline::SoftBreak(_) => panic!("cannot append inline to soft break"),
             DocumentInline::Code(_) => panic!("cannot append inline to code"),
@@ -551,6 +561,24 @@ impl DocumentInline {
                 relative_to,
                 key_index,
             )),
+            DocumentInline::Mark(mark) => {
+                Inline::Mark(to_graph_inlines(&mark.inlines, relative_to, key_index))
+            }
+            DocumentInline::Insert(insert) => {
+                Inline::Insert(to_graph_inlines(&insert.inlines, relative_to, key_index))
+            }
+            DocumentInline::Delete(delete) => {
+                Inline::Delete(to_graph_inlines(&delete.inlines, relative_to, key_index))
+            }
+            DocumentInline::Symbol(symbol) => Inline::Symbol(symbol.text.clone()),
+            DocumentInline::Span(span) => Inline::Span(
+                crate::model::inline::Attributes {
+                    id: span.attr.identifier.clone(),
+                    classes: span.attr.classes.clone(),
+                    pairs: span.attr.attributes.clone(),
+                },
+                to_graph_inlines(&span.inlines, relative_to, key_index),
+            ),
             DocumentInline::Code(code) => Inline::Code(None, code.text.clone()),
             DocumentInline::Space(_) => Inline::Space,
             DocumentInline::SoftBreak(_) => Inline::SoftBreak,
@@ -612,6 +640,11 @@ impl DocumentInline {
             DocumentInline::Subscript(subscript) => subscript.inlines.iter().collect(),
             DocumentInline::Superscript(superscript) => superscript.inlines.iter().collect(),
             DocumentInline::Underline(underline) => underline.inlines.iter().collect(),
+            DocumentInline::Mark(mark) => mark.inlines.iter().collect(),
+            DocumentInline::Insert(insert) => insert.inlines.iter().collect(),
+            DocumentInline::Delete(delete) => delete.inlines.iter().collect(),
+            DocumentInline::Span(span) => span.inlines.iter().collect(),
+            DocumentInline::Symbol(_) => vec![],
         }
     }
 
@@ -664,6 +697,11 @@ impl DocumentInline {
             DocumentInline::Link(link) => Self::inlines_to_plain_text(&link.inlines),
             DocumentInline::Image(image) => Self::inlines_to_plain_text(&image.inlines),
             DocumentInline::RawInline(raw_inline) => raw_inline.content.clone(),
+            DocumentInline::Mark(mark) => Self::inlines_to_plain_text(&mark.inlines),
+            DocumentInline::Insert(insert) => Self::inlines_to_plain_text(&insert.inlines),
+            DocumentInline::Delete(delete) => Self::inlines_to_plain_text(&delete.inlines),
+            DocumentInline::Span(span) => Self::inlines_to_plain_text(&span.inlines),
+            DocumentInline::Symbol(symbol) => format!(":{}:", symbol.text),
             _ => "".into(),
         }
     }
@@ -714,6 +752,11 @@ impl DocumentInline {
             DocumentInline::Subscript(subscript) => subscript.inline_range.clone(),
             DocumentInline::Superscript(superscript) => superscript.inline_range.clone(),
             DocumentInline::Underline(underline) => underline.inline_range.clone(),
+            DocumentInline::Mark(mark) => mark.inline_range.clone(),
+            DocumentInline::Insert(insert) => insert.inline_range.clone(),
+            DocumentInline::Delete(delete) => delete.inline_range.clone(),
+            DocumentInline::Symbol(symbol) => symbol.inline_range.clone(),
+            DocumentInline::Span(span) => span.inline_range.clone(),
         }
     }
 
@@ -899,6 +942,30 @@ pub struct Target {
 pub struct Span {
     pub attr: Attributes,
     pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Mark {
+    pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Insert {
+    pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Delete {
+    pub inlines: DocumentInlines,
+    pub inline_range: InlineRange,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Symbol {
+    pub text: String,
     pub inline_range: InlineRange,
 }
 

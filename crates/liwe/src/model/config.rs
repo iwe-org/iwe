@@ -30,6 +30,133 @@ pub struct MarkdownOptions {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
+pub enum Format {
+    #[default]
+    Markdown,
+    Djot,
+}
+
+impl Format {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Format::Markdown => "md",
+            Format::Djot => "dj",
+        }
+    }
+
+    pub fn from_extension(extension: &str) -> Option<Format> {
+        match extension {
+            "md" => Some(Format::Markdown),
+            "dj" => Some(Format::Djot),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct DjotOptions {
+    #[serde(default)]
+    pub refs_extension: String,
+    pub date_format: Option<String>,
+    pub time_format: Option<String>,
+    pub locale: Option<String>,
+    #[serde(default)]
+    pub formatting: FormattingOptions,
+}
+
+impl Default for DjotOptions {
+    fn default() -> Self {
+        Self {
+            refs_extension: String::new(),
+            date_format: Some("%b %d, %Y".into()),
+            time_format: None,
+            locale: None,
+            formatting: FormattingOptions::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FormatOptions {
+    Markdown(MarkdownOptions),
+    Djot(DjotOptions),
+}
+
+impl Default for FormatOptions {
+    fn default() -> Self {
+        FormatOptions::Markdown(MarkdownOptions::default())
+    }
+}
+
+impl From<MarkdownOptions> for FormatOptions {
+    fn from(options: MarkdownOptions) -> Self {
+        FormatOptions::Markdown(options)
+    }
+}
+
+impl From<DjotOptions> for FormatOptions {
+    fn from(options: DjotOptions) -> Self {
+        FormatOptions::Djot(options)
+    }
+}
+
+impl FormatOptions {
+    pub fn format(&self) -> Format {
+        match self {
+            FormatOptions::Markdown(_) => Format::Markdown,
+            FormatOptions::Djot(_) => Format::Djot,
+        }
+    }
+
+    pub fn extension(&self) -> &'static str {
+        self.format().extension()
+    }
+
+    pub fn markdown_options(&self) -> MarkdownOptions {
+        match self {
+            FormatOptions::Markdown(options) => options.clone(),
+            FormatOptions::Djot(_) => MarkdownOptions::default(),
+        }
+    }
+
+    pub fn refs_extension(&self) -> &str {
+        match self {
+            FormatOptions::Markdown(options) => &options.refs_extension,
+            FormatOptions::Djot(options) => &options.refs_extension,
+        }
+    }
+
+    pub fn date_format(&self) -> Option<&str> {
+        match self {
+            FormatOptions::Markdown(options) => options.date_format.as_deref(),
+            FormatOptions::Djot(options) => options.date_format.as_deref(),
+        }
+    }
+
+    pub fn time_format(&self) -> Option<&str> {
+        match self {
+            FormatOptions::Markdown(options) => options.time_format.as_deref(),
+            FormatOptions::Djot(options) => options.time_format.as_deref(),
+        }
+    }
+
+    pub fn locale(&self) -> Option<&str> {
+        match self {
+            FormatOptions::Markdown(options) => options.locale.as_deref(),
+            FormatOptions::Djot(options) => options.locale.as_deref(),
+        }
+    }
+
+    pub fn formatting(&self) -> &FormattingOptions {
+        match self {
+            FormatOptions::Markdown(options) => &options.formatting,
+            FormatOptions::Djot(options) => &options.formatting,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum WikiLinkPath {
     Full,
     Short,
@@ -249,7 +376,11 @@ impl Default for LibraryOptions {
 pub struct Configuration {
     pub version: Option<u32>,
     #[serde(default)]
+    pub format: Format,
+    #[serde(default)]
     pub markdown: MarkdownOptions,
+    #[serde(default)]
+    pub djot: DjotOptions,
     #[serde(default)]
     pub library: LibraryOptions,
     #[serde(default)]
@@ -365,7 +496,9 @@ impl Default for Configuration {
     fn default() -> Self {
         Self {
             version: Some(1),
+            format: Default::default(),
             markdown: Default::default(),
+            djot: Default::default(),
             library: Default::default(),
             completion: Default::default(),
             commands: Default::default(),
@@ -376,6 +509,13 @@ impl Default for Configuration {
 }
 
 impl Configuration {
+    pub fn format_options(&self) -> FormatOptions {
+        match self.format {
+            Format::Markdown => FormatOptions::Markdown(self.markdown.clone()),
+            Format::Djot => FormatOptions::Djot(self.djot.clone()),
+        }
+    }
+
     pub fn template() -> Self {
         let mut template = Self {
             version: Some(3),

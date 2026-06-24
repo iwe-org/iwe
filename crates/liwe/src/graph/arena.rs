@@ -11,11 +11,18 @@ use crate::model::inline::Inlines;
 pub struct Arena {
     nodes: Vec<GraphNode>,
     lines: Vec<Line>,
+    free_nodes: Vec<NodeId>,
+    free_lines: Vec<LineId>,
 }
 
 impl Arena {
     pub fn from_parts(nodes: Vec<GraphNode>, lines: Vec<Line>) -> Self {
-        Arena { nodes, lines }
+        Arena {
+            nodes,
+            lines,
+            free_nodes: Vec::new(),
+            free_lines: Vec::new(),
+        }
     }
 
     pub fn node(&self, id: NodeId) -> GraphNode {
@@ -27,13 +34,21 @@ impl Arena {
     }
 
     pub fn add_line(&mut self, inlines: Inlines) -> LineId {
-        let id = self.new_line_id();
-        self.lines.push(Line::new(id, inlines));
-        id
+        if let Some(id) = self.free_lines.pop() {
+            self.lines[id] = Line::new(id, inlines);
+            id
+        } else {
+            let id = self.new_line_id();
+            self.lines.push(Line::new(id, inlines));
+            id
+        }
     }
 
     pub fn new_node_id(&mut self) -> NodeId {
-        self.nodes.len() as NodeId
+        match self.free_nodes.pop() {
+            Some(id) => id,
+            None => self.nodes.len() as NodeId,
+        }
     }
 
     fn new_line_id(&mut self) -> LineId {
@@ -43,6 +58,7 @@ impl Arena {
     pub fn delete_branch(&mut self, from_id: NodeId) {
         if let Some(line_id) = self.node(from_id).line_id() {
             self.lines[line_id] = Line::new(line_id, Inlines::new());
+            self.free_lines.push(line_id);
         }
 
         if let Some(id) = self.node(from_id).child_id() {
@@ -54,10 +70,16 @@ impl Arena {
         }
 
         self.set_node(from_id, GraphNode::Empty);
+        self.free_nodes.push(from_id);
     }
 
     pub fn nodes(&self) -> &Vec<GraphNode> {
         &self.nodes
+    }
+
+    #[cfg(test)]
+    pub fn lines_len(&self) -> usize {
+        self.lines.len()
     }
 
     pub fn set_node(&mut self, id: NodeId, node: GraphNode) {

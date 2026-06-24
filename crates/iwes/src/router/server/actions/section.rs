@@ -47,7 +47,7 @@ impl ActionProvider for SectionToList {
                         .collect(&key)
                         .wrap_into_list(scope_id)
                         .iter()
-                        .to_markdown(&key.parent(), context.markdown_options()),
+                        .to_text(&key.parent(), &context.format_options()),
                 )
             })
     }

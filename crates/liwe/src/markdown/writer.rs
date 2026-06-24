@@ -7,13 +7,13 @@ use crate::model::node::ColumnAlignment;
 use crate::model::writer::{frontmatter_to_yaml, Block};
 use crate::model::{document, is_ref_url};
 
-pub struct MarkdownWriter {
+pub struct CmarkTableWriter {
     options: MarkdownOptions,
 }
 
-impl MarkdownWriter {
-    pub fn new(options: MarkdownOptions) -> MarkdownWriter {
-        MarkdownWriter { options }
+impl CmarkTableWriter {
+    pub fn new(options: MarkdownOptions) -> CmarkTableWriter {
+        CmarkTableWriter { options }
     }
 
     pub fn write(&self, blocks: Vec<Block>) -> String {
@@ -211,6 +211,15 @@ impl MarkdownWriter {
                 }
                 Inline::Underline(vec) => {
                     events.extend(self.inlines_to_events(vec));
+                }
+                Inline::Mark(vec) | Inline::Insert(vec) | Inline::Delete(vec) => {
+                    events.extend(self.inlines_to_events(vec));
+                }
+                Inline::Span(_, vec) => {
+                    events.extend(self.inlines_to_events(vec));
+                }
+                Inline::Symbol(text) => {
+                    events.push(Event::Text(format!(":{}:", text).into()));
                 }
             }
         }

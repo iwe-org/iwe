@@ -75,7 +75,7 @@ impl Key {
     }
 
     pub fn name(name: &str) -> Self {
-        let key = name.trim_end_matches(".md").to_string();
+        let key = strip_doc_extension(name).to_string();
 
         Key {
             relative_path: Arc::new(key),
@@ -84,7 +84,7 @@ impl Key {
 
     pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
         let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
-        let key = decoded.trim_end_matches(".md").to_string();
+        let key = strip_doc_extension(&decoded).to_string();
         let path = RelativePath::new(relative_to)
             .join_normalized(key)
             .to_string();
@@ -107,15 +107,20 @@ impl Key {
         format!("{}", self.relative_path).to_string()
     }
 
-    pub fn to_path(&self) -> String {
-        format!("{}.md", self.relative_path).to_string()
+    pub fn to_path(&self, format: config::Format) -> String {
+        format!("{}.{}", self.relative_path, format.extension())
     }
 
     pub fn from_path(path: &Path) -> Option<Key> {
         let name = path.file_name()?.to_string_lossy().to_string();
-        let key = name.trim_end_matches(".md").to_string();
-        Some(Key::name(&key))
+        Some(Key::name(&name))
     }
+}
+
+pub fn strip_doc_extension(name: &str) -> &str {
+    name.strip_suffix(".md")
+        .or_else(|| name.strip_suffix(".dj"))
+        .unwrap_or(name)
 }
 
 impl From<&str> for Key {
