@@ -47,14 +47,41 @@ impl RefIndex {
     }
 
     pub fn index_node(&mut self, graph: &Graph, root_id: NodeId) {
+        Self::walk_edges(graph, root_id, |inclusion, key, node_id| {
+            let edges = if inclusion {
+                &mut self.inclusion_edges
+            } else {
+                &mut self.reference_edges
+            };
+            edges.entry(key).or_default().insert(node_id);
+        });
+    }
+
+    pub fn unindex_node(&mut self, graph: &Graph, root_id: NodeId) {
+        Self::walk_edges(graph, root_id, |inclusion, key, node_id| {
+            let edges = if inclusion {
+                &mut self.inclusion_edges
+            } else {
+                &mut self.reference_edges
+            };
+            if let Some(set) = edges.get_mut(&key) {
+                set.remove(&node_id);
+                if set.is_empty() {
+                    edges.remove(&key);
+                }
+            }
+        });
+    }
+
+    fn walk_edges<F>(graph: &Graph, root_id: NodeId, mut visit: F)
+    where
+        F: FnMut(bool, Key, NodeId),
+    {
         let mut stack: Vec<NodeId> = vec![root_id];
         while let Some(node_id) = stack.pop() {
             match graph.graph_node(node_id) {
                 GraphNode::Reference(reference) => {
-                    self.inclusion_edges
-                        .entry(reference.key().clone())
-                        .or_default()
-                        .insert(reference.id());
+                    visit(true, reference.key().clone(), reference.id());
 
                     if let Some(child_id) = reference.next_id() {
                         stack.push(child_id);
@@ -62,10 +89,7 @@ impl RefIndex {
                 }
                 GraphNode::Section(section) => {
                     for key in graph.get_line(section.line_id()).ref_keys() {
-                        self.reference_edges
-                            .entry(key.clone())
-                            .or_default()
-                            .insert(section.id());
+                        visit(false, key.clone(), section.id());
                     }
                     if let Some(child_id) = section.child_id() {
                         stack.push(child_id);
@@ -76,10 +100,7 @@ impl RefIndex {
                 }
                 GraphNode::Leaf(leaf) => {
                     for key in graph.get_line(leaf.line_id()).ref_keys() {
-                        self.reference_edges
-                            .entry(key.clone())
-                            .or_default()
-                            .insert(leaf.id());
+                        visit(false, key.clone(), leaf.id());
                     }
 
                     if let Some(child_id) = leaf.next_id() {
@@ -129,19 +150,13 @@ impl RefIndex {
                 GraphNode::Table(table) => {
                     for line_id in table.header() {
                         for key in graph.get_line(*line_id).ref_keys() {
-                            self.reference_edges
-                                .entry(key.clone())
-                                .or_default()
-                                .insert(table.id());
+                            visit(false, key.clone(), table.id());
                         }
                     }
                     for row in table.rows() {
                         for line_id in row {
                             for key in graph.get_line(*line_id).ref_keys() {
-                                self.reference_edges
-                                    .entry(key.clone())
-                                    .or_default()
-                                    .insert(table.id());
+                                visit(false, key.clone(), table.id());
                             }
                         }
                     }
@@ -151,5 +166,18 @@ impl RefIndex {
                 }
             }
         }
+    }
+
+    #[cfg(test)]
+    pub fn edge_counts(&self) -> (usize, usize) {
+        (
+            self.inclusion_edges.values().map(|set| set.len()).sum(),
+            self.reference_edges.values().map(|set| set.len()).sum(),
+        )
+    }
+
+    #[cfg(test)]
+    pub fn key_counts(&self) -> (usize, usize) {
+        (self.inclusion_edges.len(), self.reference_edges.len())
     }
 }

@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NodeIter::to_text(parent, &FormatOptions)` replaces the markdown-specific `to_markdown`, serializing to whichever format the `FormatOptions` carries.
 - `Key::to_path` and the `fs` discovery and write helpers (`walk_md_paths`, `new_for_path`, `write_file`, `write_store_at_path`) now take a `Format` so document files use the configured extension (`.md` or `.dj`).
 
+### Fixed
+- Updating or removing a document now reclaims the graph nodes, lines, and reference-index entries that belonged to its previous version, so a long-lived `Graph` no longer grows without bound as the same documents are edited over and over.
+
 ## [0.4.0](https://github.com/iwe-org/iwe/compare/liwe-v0.3.2...liwe-v0.4.0) - 2026-06-22
 
 ### Fixed

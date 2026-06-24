@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `format = "djot"` in the configuration makes the server read, write, and watch [djot](https://djot.net/) `.dj` documents (default remains `markdown` with `.md`).
 
+### Fixed
+- The server no longer leaks memory while watching a folder; repeatedly saving documents used to grow memory without bound and could exhaust RAM and swap over a long session.
+
 ## [0.4.0](https://github.com/iwe-org/iwe/compare/iwec-v0.3.2...iwec-v0.4.0) - 2026-06-22
 
 ### Added

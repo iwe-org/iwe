@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `format = "djot"` in the configuration makes the server read, format, and write [djot](https://djot.net/) documents and map file URIs using the `.dj` extension (default remains `markdown` with `.md`).
 
+### Fixed
+- The server no longer leaks memory as documents are edited and saved; each update used to retain the previous version's graph data, growing memory without bound over a long session.
+
 ## [0.4.0](https://github.com/iwe-org/iwe/compare/iwes-v0.3.2...iwes-v0.4.0) - 2026-06-22
 
 ### Fixed
