@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/iwe-org/iwe/compare/liwe-v0.4.0...liwe-v0.5.0) - 2026-06-23
+
 ### Added
 - `FormatOptions` (`Markdown(MarkdownOptions)` | `Djot(DjotOptions)`) bundles the document format with its formatting options; it is what the graph reads and writes through. `Graph::new_with_options`, `from_state`, `from_path`, and `import` accept `impl Into<FormatOptions>`. `DjotReader`/`DjotWriter` parse and serialize [djot](https://djot.net/) documents so the graph round-trips a `.dj` document back to djot, and `Configuration` gains a top-level `format` selector, a `djot: DjotOptions` table, and `Configuration::format_options()`.
 - `Inline` and `DocumentInline` gain `Span`, `Mark`, `Insert`, `Delete`, and `Symbol` variants, and an `inline::Attributes` type, so djot's bracketed attribute spans, highlight/insert/delete marks, and symbols round-trip losslessly through the graph.

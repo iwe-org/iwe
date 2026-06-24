@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/iwe-org/iwe/compare/iwes-v0.4.0...iwes-v0.5.0) - 2026-06-23
+
 ### Added
 - `format = "djot"` in the configuration makes the server read, format, and write [djot](https://djot.net/) documents and map file URIs using the `.dj` extension (default remains `markdown` with `.md`).
 
