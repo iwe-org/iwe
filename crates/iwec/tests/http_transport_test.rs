@@ -37,31 +37,8 @@ async fn wait_until_listening(addr: &str) {
     panic!("server did not start listening on {addr}");
 }
 
-#[tokio::test]
-async fn http_transport_serves_the_graph() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    std::fs::write(
-        dir.path().join("welcome.md"),
-        "# Welcome\n\nFirst document.\n",
-    )
-    .expect("write document");
-
-    let port = free_port();
-    let _server = ServerProcess {
-        child: Command::new(env!("CARGO_BIN_EXE_iwec"))
-            .arg("--transport")
-            .arg("http")
-            .arg("--port")
-            .arg(port.to_string())
-            .current_dir(dir.path())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("spawn iwec"),
-    };
-
-    let addr = format!("127.0.0.1:{port}");
-    wait_until_listening(&addr).await;
+async fn find_welcome_over_http(addr: &str) -> serde_json::Value {
+    wait_until_listening(addr).await;
 
     let transport = StreamableHttpClientTransport::from_uri(format!("http://{addr}/mcp"));
     let client_info = ClientInfo::new(
@@ -95,6 +72,36 @@ async fn http_transport_serves_the_graph() {
         .collect::<String>();
     let json: serde_json::Value = serde_json::from_str(&text).expect("result to be valid JSON");
 
+    client.cancel().await.expect("client to disconnect");
+
+    json
+}
+
+#[tokio::test]
+async fn http_transport_serves_the_graph() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    std::fs::write(
+        dir.path().join("welcome.md"),
+        "# Welcome\n\nFirst document.\n",
+    )
+    .expect("write document");
+
+    let port = free_port();
+    let _server = ServerProcess {
+        child: Command::new(env!("CARGO_BIN_EXE_iwec"))
+            .arg("--transport")
+            .arg("http")
+            .arg("--port")
+            .arg(port.to_string())
+            .current_dir(dir.path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn iwec"),
+    };
+
+    let json = find_welcome_over_http(&format!("127.0.0.1:{port}")).await;
+
     assert_eq!(
         json,
         serde_json::json!([
@@ -108,6 +115,46 @@ async fn http_transport_serves_the_graph() {
             }
         ])
     );
+}
 
-    client.cancel().await.expect("client to disconnect");
+#[tokio::test]
+async fn http_transport_binds_to_the_host_flag() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    std::fs::write(
+        dir.path().join("welcome.md"),
+        "# Welcome\n\nFirst document.\n",
+    )
+    .expect("write document");
+
+    let port = free_port();
+    let _server = ServerProcess {
+        child: Command::new(env!("CARGO_BIN_EXE_iwec"))
+            .arg("--transport")
+            .arg("http")
+            .arg("--host")
+            .arg("127.0.0.1")
+            .arg("--port")
+            .arg(port.to_string())
+            .current_dir(dir.path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn iwec"),
+    };
+
+    let json = find_welcome_over_http(&format!("127.0.0.1:{port}")).await;
+
+    assert_eq!(
+        json,
+        serde_json::json!([
+            {
+                "key": "welcome",
+                "title": "Welcome",
+                "references": [],
+                "includes": [],
+                "referencedBy": [],
+                "includedBy": []
+            }
+        ])
+    );
 }

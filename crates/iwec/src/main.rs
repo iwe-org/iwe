@@ -23,6 +23,9 @@ struct Cli {
     #[arg(long, value_enum, default_value_t = Transport::Stdio)]
     transport: Transport,
 
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
+
     #[arg(long, default_value_t = 8000)]
     port: u16,
 }
@@ -73,7 +76,7 @@ async fn main() -> Result<()> {
             service.waiting().await?;
         }
         Transport::Http => {
-            let bind_address = format!("127.0.0.1:{}", cli.port);
+            let bind_address = format!("{}:{}", cli.host, cli.port);
             let cancellation = CancellationToken::new();
             let service = StreamableHttpService::new(
                 move || Ok(server.clone()),
