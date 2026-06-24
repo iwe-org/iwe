@@ -142,8 +142,9 @@ impl Graph {
     }
 
     pub fn remove_document(&mut self, key: Key) {
-        if let Some(id) = self.keys.get(&key) {
-            self.arena.delete_branch(*id);
+        if let Some(id) = self.keys.get(&key).copied() {
+            self.unindex_key(&key, id);
+            self.arena.delete_branch(id);
         }
 
         self.keys.remove(&key);
@@ -152,6 +153,21 @@ impl Graph {
         self.keys_to_ref_text.remove(&key);
         self.frontmatter.remove(&key);
         self.content.remove(&key);
+    }
+
+    fn unindex_key(&mut self, key: &Key, root_id: NodeId) {
+        let mut index = std::mem::take(&mut self.index);
+        index.unindex_node(self, root_id);
+        self.index = index;
+
+        let old_ids: Vec<NodeId> = self
+            .nodes_map
+            .get(key)
+            .map(|map| map.iter().map(|(id, _)| *id).collect())
+            .unwrap_or_default();
+        for id in old_ids {
+            self.global_nodes_map.remove(&id);
+        }
     }
 
     fn node_key(&self, id: NodeId) -> Key {
@@ -346,8 +362,9 @@ impl Graph {
     }
 
     pub fn update_key(&mut self, key: Key, content: &str) -> &mut Graph {
-        if let Some(id) = self.keys.get(&key) {
-            self.arena.delete_branch(*id);
+        if let Some(id) = self.keys.get(&key).copied() {
+            self.unindex_key(&key, id);
+            self.arena.delete_branch(id);
         }
 
         let document = crate::format::read_document(content, &self.format_options);
@@ -857,5 +874,83 @@ impl GraphContext for &Graph {
 
     fn format_options(&self) -> FormatOptions {
         self.format_options.clone()
+    }
+}
+
+#[cfg(test)]
+mod retention_tests {
+    use super::*;
+
+    fn linking_document() -> String {
+        "# Title\n\nA paragraph linking to [target](target).\n\n## Section\n\nAnother paragraph.\n"
+            .to_string()
+    }
+
+    #[test]
+    fn repeated_updates_keep_graph_bounded() {
+        let mut graph = Graph::new();
+        graph.insert_document("target".into(), "# Target\n".to_string());
+        graph.insert_document("source".into(), linking_document());
+
+        graph.update_document("source".into(), linking_document());
+
+        let nodes_len = graph.nodes().len();
+        let lines_len = graph.arena.lines_len();
+        let global_len = graph.global_nodes_map.len();
+        let edge_counts = graph.index.edge_counts();
+        let key_counts = graph.index.key_counts();
+        let markdown = graph.to_markdown(&"source".into());
+
+        for _ in 0..100 {
+            graph.update_document("source".into(), linking_document());
+        }
+
+        assert_eq!(graph.nodes().len(), nodes_len);
+        assert_eq!(graph.arena.lines_len(), lines_len);
+        assert_eq!(graph.global_nodes_map.len(), global_len);
+        assert_eq!(graph.index.edge_counts(), edge_counts);
+        assert_eq!(graph.index.key_counts(), key_counts);
+        assert_eq!(graph.to_markdown(&"source".into()), markdown);
+        assert_eq!(graph.get_reference_edges_to(&"target".into()).len(), 1);
+    }
+
+    #[test]
+    fn shrink_then_grow_reuses_slots() {
+        let small = "# One\n".to_string();
+        let large = "# One\n\n# Two\n\n# Three\n".to_string();
+
+        let mut graph = Graph::new();
+        graph.insert_document("source".into(), small.clone());
+
+        graph.update_document("source".into(), large.clone());
+        let large_nodes = graph.nodes().len();
+        let large_markdown = graph.to_markdown(&"source".into());
+
+        graph.update_document("source".into(), small.clone());
+        assert_eq!(graph.nodes().len(), large_nodes);
+
+        graph.update_document("source".into(), large.clone());
+        assert_eq!(graph.nodes().len(), large_nodes);
+        assert_eq!(graph.to_markdown(&"source".into()), large_markdown);
+    }
+
+    #[test]
+    fn remove_document_clears_edges() {
+        let mut graph = Graph::new();
+        graph.insert_document("target".into(), "# Target\n".to_string());
+
+        let baseline_global = graph.global_nodes_map.len();
+        let baseline_edges = graph.index.edge_counts();
+        let baseline_keys = graph.index.key_counts();
+
+        graph.insert_document("source".into(), linking_document());
+        assert_eq!(graph.get_reference_edges_to(&"target".into()).len(), 1);
+
+        graph.remove_document("source".into());
+
+        assert_eq!(graph.get_reference_edges_to(&"target".into()).len(), 0);
+        assert_eq!(graph.global_nodes_map.len(), baseline_global);
+        assert_eq!(graph.index.edge_counts(), baseline_edges);
+        assert_eq!(graph.index.key_counts(), baseline_keys);
     }
 }
