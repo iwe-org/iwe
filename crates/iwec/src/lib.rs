@@ -1020,7 +1020,7 @@ impl IweServer {
             .unwrap_or_else(|| source_key_str.to_string());
 
         let mut combined = Changes::new();
-        let markdown_options = graph.markdown_options();
+        let format_options = graph.format_options().clone();
 
         for action_name in &params.to {
             let attach = match self.config.actions.get(action_name) {
@@ -1067,12 +1067,12 @@ impl IweServer {
                     target_key.clone(),
                     updated
                         .iter()
-                        .to_markdown(&target_key.parent(), &markdown_options),
+                        .to_text(&target_key.parent(), &format_options),
                 );
             } else {
                 let content = reference
                     .iter()
-                    .to_markdown(&target_key.parent(), &markdown_options);
+                    .to_text(&target_key.parent(), &format_options);
                 let document = self.render_document_template(&attach.document_template, &content);
                 combined.add_create(target_key.clone(), document);
             }
@@ -1440,11 +1440,11 @@ impl ServerHandler for IweServer {
 impl IweServer {
     pub fn new(base_path: &str, configuration: &Configuration) -> Self {
         let path = PathBuf::from_str(base_path).expect("valid path");
-        let state = new_for_path(&path);
+        let state = new_for_path(&path, configuration.format);
         let graph = Graph::from_state(
             &state,
             false,
-            configuration.markdown.clone().into(),
+            configuration.format_options(),
             configuration.library.frontmatter_document_title.clone(),
         );
         Self {
@@ -1491,7 +1491,8 @@ impl IweServer {
 
     fn write_file(&self, key: &Key, content: &str) {
         if let Some(base_path) = &self.base_path {
-            let file_path = base_path.join(format!("{}.md", key));
+            let extension = self.config.format.extension();
+            let file_path = base_path.join(format!("{}.{}", key, extension));
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent).ok();
             }
@@ -1501,21 +1502,22 @@ impl IweServer {
 
     fn write_changes(&self, changes: &Changes) {
         if let Some(base_path) = &self.base_path {
+            let extension = self.config.format.extension();
             for key in &changes.removes {
-                let file_path = base_path.join(format!("{}.md", key));
+                let file_path = base_path.join(format!("{}.{}", key, extension));
                 if file_path.exists() {
                     std::fs::remove_file(&file_path).ok();
                 }
             }
             for (key, markdown) in &changes.creates {
-                let file_path = base_path.join(format!("{}.md", key));
+                let file_path = base_path.join(format!("{}.{}", key, extension));
                 if let Some(parent) = file_path.parent() {
                     std::fs::create_dir_all(parent).ok();
                 }
                 std::fs::write(&file_path, markdown).ok();
             }
             for (key, markdown) in &changes.updates {
-                let file_path = base_path.join(format!("{}.md", key));
+                let file_path = base_path.join(format!("{}.{}", key, extension));
                 std::fs::write(&file_path, markdown).ok();
             }
         }
@@ -1523,7 +1525,7 @@ impl IweServer {
 
     pub fn start_watching(&self) {
         if let Some(base_path) = &self.base_path {
-            watcher::start(self.graph.clone(), base_path.clone());
+            watcher::start(self.graph.clone(), base_path.clone(), self.config.format);
         }
     }
 

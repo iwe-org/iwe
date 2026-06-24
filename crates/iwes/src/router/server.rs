@@ -4,7 +4,7 @@ use liwe::model::node::Node;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
     model::{
-        config::{Command, Configuration, MarkdownOptions},
+        config::{Command, Configuration, FormatOptions, MarkdownOptions},
         is_ref_url,
         node::NodePointer,
         reference::ReferenceType,
@@ -47,7 +47,7 @@ impl Server {
         let graph = Graph::from_state(
             &config.state,
             config.sequential_ids.unwrap_or(false),
-            config.configuration.markdown.clone(),
+            config.configuration.format_options(),
             config
                 .configuration
                 .library
@@ -58,7 +58,7 @@ impl Server {
         search_index.update(&graph);
 
         Server {
-            base_path: BasePath::from_path(&config.base_path),
+            base_path: BasePath::from_path(&config.base_path, config.configuration.format),
             graph,
             lsp_client: config.lsp_client,
             configuration: config.configuration,
@@ -809,6 +809,10 @@ impl ActionContext for &Server {
 
     fn markdown_options(&self) -> &MarkdownOptions {
         &self.configuration.markdown
+    }
+
+    fn format_options(&self) -> FormatOptions {
+        self.configuration.format_options()
     }
 
     fn get_command(&self, name: &str) -> Option<&Command> {

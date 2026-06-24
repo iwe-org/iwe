@@ -851,7 +851,7 @@ fn retrieve_command(args: Retrieve) {
             }
         }
         RetrieveFormat::Markdown => {
-            let options = graph.markdown_options();
+            let options = graph.format_options().markdown_options();
             let renderer = RetrieveRenderer::new(&output, &options, &graph);
             print!("{}", renderer.render());
         }
@@ -914,7 +914,7 @@ fn find_command(args: Find) {
                     .collect(),
                 None => Vec::new(),
             };
-            let md_options = graph.markdown_options();
+            let md_options = graph.format_options().markdown_options();
             let renderer = FindBlockRenderer::new(&md_options, &graph);
             print!(
                 "{}",
@@ -1276,15 +1276,20 @@ fn squash_command(args: Squash) {
 }
 
 fn write_graph(graph: Graph, configuration: &Configuration) {
-    liwe::fs::write_store_at_path(&graph.export(), &get_library_path(configuration))
-        .expect("Failed to write graph")
+    liwe::fs::write_store_at_path(
+        &graph.export(),
+        &get_library_path(configuration),
+        configuration.format,
+    )
+    .expect("Failed to write graph")
 }
 
 fn apply_changes(changes: &Changes, configuration: &Configuration) {
     let library_path = get_library_path(configuration);
+    let extension = configuration.format.extension();
 
     for key in &changes.removes {
-        let file_path = library_path.join(format!("{}.md", key));
+        let file_path = library_path.join(format!("{}.{}", key, extension));
         if file_path.exists() {
             std::fs::remove_file(&file_path).expect("Failed to delete document file");
         }
@@ -1303,7 +1308,7 @@ fn apply_changes(changes: &Changes, configuration: &Configuration) {
     }
 
     for (key, markdown) in &changes.creates {
-        let file_path = library_path.join(format!("{}.md", key));
+        let file_path = library_path.join(format!("{}.{}", key, extension));
         if let Some(parent) = file_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }
@@ -1311,7 +1316,7 @@ fn apply_changes(changes: &Changes, configuration: &Configuration) {
     }
 
     for (key, markdown) in &changes.updates {
-        let file_path = library_path.join(format!("{}.md", key));
+        let file_path = library_path.join(format!("{}.{}", key, extension));
         std::fs::write(&file_path, markdown).expect("Failed to write document file");
     }
 }
@@ -1320,7 +1325,7 @@ fn load_graph(configuration: &Configuration) -> Graph {
     Graph::from_path(
         &get_library_path(configuration),
         false,
-        configuration.markdown.clone(),
+        configuration.format_options(),
         configuration.library.frontmatter_document_title.clone(),
     )
 }
@@ -2116,7 +2121,7 @@ fn update_body(args: Update) {
     }
 
     let library_path = get_library_path(&config);
-    let file_path = library_path.join(format!("{}.md", key));
+    let file_path = library_path.join(format!("{}.{}", key, config.format.extension()));
     if let Some(parent) = file_path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
@@ -2224,7 +2229,7 @@ fn update_frontmatter(args: Update) {
     let library_path = get_library_path(&config);
     let mut count = 0;
     for key in &keys {
-        let file_path = library_path.join(format!("{}.md", key));
+        let file_path = library_path.join(format!("{}.{}", key, config.format.extension()));
         let raw_content = match std::fs::read_to_string(&file_path) {
             Ok(c) => c,
             Err(_) => continue,
@@ -2308,7 +2313,7 @@ fn attach_command(args: Attach) {
         .unwrap_or_else(|| source_key_str.clone());
 
     let library_path = get_library_path(&config);
-    let markdown_options = graph.markdown_options();
+    let format_options = graph.format_options().clone();
 
     for action_name in &args.to {
         let attach = match config.actions.get(action_name) {
@@ -2349,11 +2354,11 @@ fn attach_command(args: Attach) {
             let tree = (&graph).collect(&target_key);
             tree.attach(reference)
                 .iter()
-                .to_markdown(&target_key.parent(), &markdown_options)
+                .to_text(&target_key.parent(), &format_options)
         } else {
             let rendered_reference = reference
                 .iter()
-                .to_markdown(&target_key.parent(), &markdown_options);
+                .to_text(&target_key.parent(), &format_options);
             render_document_template(&attach.document_template, &rendered_reference, &config)
         };
 
@@ -2364,7 +2369,8 @@ fn attach_command(args: Attach) {
             continue;
         }
 
-        let target_path = library_path.join(format!("{}.md", target_key));
+        let target_path =
+            library_path.join(format!("{}.{}", target_key, config.format.extension()));
         if let Some(parent) = target_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }

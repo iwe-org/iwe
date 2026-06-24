@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use liwe::graph::Graph;
 use liwe::locale::get_locale;
 use liwe::model::config::{
-    ActionDefinition, Command, Configuration, MarkdownOptions, DEFAULT_KEY_DATE_FORMAT,
+    ActionDefinition, Command, Configuration, FormatOptions, MarkdownOptions,
+    DEFAULT_KEY_DATE_FORMAT,
 };
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
@@ -46,6 +47,7 @@ pub trait ActionContext {
     fn random_keys(&self, parent: &str, number: usize) -> Vec<Key>;
     fn unique_ids(&self, parent: &str, number: usize) -> Vec<String>;
     fn markdown_options(&self) -> &MarkdownOptions;
+    fn format_options(&self) -> FormatOptions;
     fn get_command(&self, name: &str) -> Option<&Command>;
     fn graph(&self) -> &Graph;
     fn patch(&self) -> Graph;
@@ -265,8 +267,9 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
         ActionEnum::DeleteAction(DeleteAction {}),
     ];
 
+    let format_options = configuration.format_options();
     let key_locale = get_locale(configuration.library.locale.as_deref());
-    let markdown_locale = get_locale(configuration.markdown.locale.as_deref());
+    let content_locale = get_locale(format_options.locale());
 
     actions.extend(configuration.actions.iter().map(|(identifier, action)| {
         match action {
@@ -279,11 +282,10 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                 })
             }
             ActionDefinition::Attach(attach) => {
-                let md_date_fmt = configuration
-                    .clone()
-                    .markdown
-                    .date_format
-                    .unwrap_or("%b %d, %Y".into());
+                let content_date_fmt = format_options
+                    .date_format()
+                    .unwrap_or("%b %d, %Y")
+                    .to_string();
                 let key_date_fmt = configuration
                     .clone()
                     .library
@@ -294,12 +296,11 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     identifier: identifier.clone(),
                     document_template: attach.document_template.clone(),
                     key_template: attach.key_template.clone(),
-                    markdown_date_format: md_date_fmt.clone(),
-                    markdown_time_format: configuration
-                        .clone()
-                        .markdown
-                        .time_format
-                        .unwrap_or_else(|| md_date_fmt.clone()),
+                    content_date_format: content_date_fmt.clone(),
+                    content_time_format: format_options
+                        .time_format()
+                        .map(|format| format.to_string())
+                        .unwrap_or_else(|| content_date_fmt.clone()),
                     key_date_format: key_date_fmt.clone(),
                     key_time_format: configuration
                         .clone()
@@ -307,7 +308,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                         .time_format
                         .unwrap_or_else(|| key_date_fmt.clone()),
                     key_locale,
-                    markdown_locale,
+                    content_locale,
                 })
             }
             ActionDefinition::Sort(sort) => ActionEnum::SortAction(SortAction {

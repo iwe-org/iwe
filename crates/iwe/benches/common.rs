@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use liwe::graph::Graph;
-use liwe::model::config::MarkdownOptions;
+use liwe::model::config::{Format, MarkdownOptions};
 use liwe::model::State;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -93,7 +93,7 @@ fn pick_other(rng: &mut StdRng, n_docs: usize, exclude: usize) -> usize {
 }
 
 pub fn read_state(dir: &Path) -> State {
-    liwe::fs::new_for_path(&PathBuf::from(dir))
+    liwe::fs::new_for_path(&PathBuf::from(dir), Format::Markdown)
 }
 
 pub fn build_graph(state: &State) -> Graph {

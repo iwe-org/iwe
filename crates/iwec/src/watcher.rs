@@ -2,12 +2,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use liwe::graph::Graph;
+use liwe::model::config::Format;
 use liwe::model::Key;
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use tokio::sync::Mutex;
 
-fn path_to_key(path: &Path, base_path: &Path) -> Option<Key> {
-    if path.extension().is_none_or(|ext| ext != "md") {
+fn path_to_key(path: &Path, base_path: &Path, format: Format) -> Option<Key> {
+    if path.extension().is_none_or(|ext| ext != format.extension()) {
         return None;
     }
 
@@ -25,13 +26,14 @@ fn path_to_key(path: &Path, base_path: &Path) -> Option<Key> {
     Some(Key::name(&key_str))
 }
 
-pub fn start(graph: Arc<Mutex<Graph>>, base_path: PathBuf) {
-    start_with_config(graph, base_path, None);
+pub fn start(graph: Arc<Mutex<Graph>>, base_path: PathBuf, format: Format) {
+    start_with_config(graph, base_path, format, None);
 }
 
 pub fn start_with_config(
     graph: Arc<Mutex<Graph>>,
     base_path: PathBuf,
+    format: Format,
     config: Option<notify::Config>,
 ) {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
@@ -54,12 +56,17 @@ pub fn start_with_config(
     tokio::spawn(async move {
         let _watcher = watcher;
         while let Some(event) = rx.recv().await {
-            handle_event(&graph, &base_path, event).await;
+            handle_event(&graph, &base_path, format, event).await;
         }
     });
 }
 
-pub fn start_polling(graph: Arc<Mutex<Graph>>, base_path: PathBuf, interval: std::time::Duration) {
+pub fn start_polling(
+    graph: Arc<Mutex<Graph>>,
+    base_path: PathBuf,
+    format: Format,
+    interval: std::time::Duration,
+) {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
     let config = notify::Config::default()
@@ -82,14 +89,14 @@ pub fn start_polling(graph: Arc<Mutex<Graph>>, base_path: PathBuf, interval: std
     tokio::spawn(async move {
         let _watcher = watcher;
         while let Some(event) = rx.recv().await {
-            handle_event(&graph, &base_path, event).await;
+            handle_event(&graph, &base_path, format, event).await;
         }
     });
 }
 
-async fn handle_event(graph: &Arc<Mutex<Graph>>, base_path: &Path, event: Event) {
+async fn handle_event(graph: &Arc<Mutex<Graph>>, base_path: &Path, format: Format, event: Event) {
     for path in &event.paths {
-        let Some(key) = path_to_key(path, base_path) else {
+        let Some(key) = path_to_key(path, base_path, format) else {
             continue;
         };
 
@@ -122,7 +129,7 @@ mod tests {
         let base = PathBuf::from("base");
         let path = base.join("sub").join("dir").join("note.md");
 
-        let key = path_to_key(&path, &base).unwrap();
+        let key = path_to_key(&path, &base, Format::Markdown).unwrap();
 
         assert_eq!(key, Key::name("sub/dir/note"));
     }

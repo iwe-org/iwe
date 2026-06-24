@@ -1,6 +1,6 @@
 use serde_yaml::Mapping;
 
-use crate::markdown::writer::MarkdownWriter;
+use crate::markdown::writer::CmarkTableWriter;
 use crate::model::config::{FormattingOptions, MarkdownOptions};
 use crate::model::node::ColumnAlignment;
 use crate::model::{Lang, Level};
@@ -167,7 +167,7 @@ impl Block {
                 format!("{}\n", fmt.rule_token().repeat(fmt.rule_token_count()))
             }
             Block::Table(_, _, _) => {
-                let writer = MarkdownWriter::new(options.clone());
+                let writer = CmarkTableWriter::new(options.clone());
                 writer.write(vec![self.clone()])
             }
         }

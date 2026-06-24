@@ -4,19 +4,28 @@ use std::{collections::HashMap, fs};
 use ignore::WalkBuilder;
 use log::error;
 
+use crate::model::config::Format;
 use crate::model::{Content, State};
 
-pub fn write_file(key: &String, content: &Content, to: &Path) -> std::io::Result<()> {
-    fs::write(to.join(format!("{}.md", key)), content.as_str())
+pub fn write_file(
+    key: &String,
+    content: &Content,
+    to: &Path,
+    format: Format,
+) -> std::io::Result<()> {
+    fs::write(
+        to.join(format!("{}.{}", key, format.extension())),
+        content.as_str(),
+    )
 }
 
-pub fn new_for_path(base_path: &PathBuf) -> State {
+pub fn new_for_path(base_path: &PathBuf, format: Format) -> State {
     if !base_path.exists() {
         error!("path doesn't exist");
         return State::new();
     }
 
-    walk_md_paths(base_path)
+    walk_md_paths(base_path, format)
         .into_iter()
         .filter_map(|(key, path)| {
             fs::read_to_string(&path)
@@ -26,11 +35,13 @@ pub fn new_for_path(base_path: &PathBuf) -> State {
         .collect()
 }
 
-pub fn walk_md_paths(base_path: &Path) -> Vec<(String, PathBuf)> {
+pub fn walk_md_paths(base_path: &Path, format: Format) -> Vec<(String, PathBuf)> {
     if !base_path.exists() {
         error!("path doesn't exist");
         return Vec::new();
     }
+
+    let extension = format.extension();
 
     WalkBuilder::new(base_path)
         .follow_links(false)
@@ -41,7 +52,7 @@ pub fn walk_md_paths(base_path: &Path) -> Vec<(String, PathBuf)> {
             let entry = entry.ok()?;
             let path = entry.path();
 
-            if !path.is_file() || path.extension().is_none_or(|ext| ext != "md") {
+            if !path.is_file() || path.extension().is_none_or(|ext| ext != extension) {
                 return None;
             }
 
@@ -69,9 +80,9 @@ pub fn new_from_hashmap(map: HashMap<String, String>) -> State {
     map.into_iter().collect()
 }
 
-pub fn write_store_at_path(store: &State, to: &Path) -> std::io::Result<()> {
+pub fn write_store_at_path(store: &State, to: &Path, format: Format) -> std::io::Result<()> {
     for (key, content) in store.iter() {
-        write_file(key, content, to)?;
+        write_file(key, content, to, format)?;
     }
     Ok(())
 }
@@ -100,7 +111,7 @@ mod tests {
         std::fs::create_dir_all(&nested).unwrap();
         std::fs::write(nested.join("note.md"), "# note\n").unwrap();
 
-        let keys = walk_md_paths(base.path())
+        let keys = walk_md_paths(base.path(), Format::Markdown)
             .into_iter()
             .map(|(key, _)| key)
             .collect::<Vec<_>>();

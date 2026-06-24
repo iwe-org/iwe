@@ -1,10 +1,7 @@
-use crate::{
-    graph::Reader,
-    model::{
-        config::MarkdownOptions,
-        document::{Document, DocumentInline},
-        Position,
-    },
+use crate::model::{
+    config::FormatOptions,
+    document::{Document, DocumentInline},
+    Position,
 };
 
 pub struct Parser {
@@ -13,8 +10,8 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(content: &str, markdown_options: &MarkdownOptions, reader: impl Reader) -> Parser {
-        let document = reader.document(content, markdown_options);
+    pub fn new(content: &str, format: &FormatOptions) -> Parser {
+        let document = crate::format::read_document(content, format);
         Parser {
             document,
             content: content.to_string(),
@@ -91,8 +88,7 @@ mod tests {
 
                 test
                 "},
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
+            &FormatOptions::default(),
         );
 
         assert_eq!("link1", parser.url_at((2, 8).into()).unwrap());
@@ -106,8 +102,7 @@ mod tests {
     fn bare_https_url() {
         let parser = Parser::new(
             "Check out https://example.com for more info",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
+            &FormatOptions::default(),
         );
 
         assert_eq!(
@@ -128,11 +123,7 @@ mod tests {
 
     #[test]
     fn bare_http_url() {
-        let parser = Parser::new(
-            "Visit http://example.org today",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
-        );
+        let parser = Parser::new("Visit http://example.org today", &FormatOptions::default());
 
         assert_eq!(
             Some("http://example.org".to_string()),
@@ -144,8 +135,7 @@ mod tests {
     fn bare_mailto_url() {
         let parser = Parser::new(
             "Contact mailto:test@example.com for help",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
+            &FormatOptions::default(),
         );
 
         assert_eq!(
@@ -158,8 +148,7 @@ mod tests {
     fn bare_url_with_path() {
         let parser = Parser::new(
             "See https://example.com/path/to/page?query=1#anchor for details",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
+            &FormatOptions::default(),
         );
 
         assert_eq!(
@@ -172,8 +161,7 @@ mod tests {
     fn multiple_bare_urls() {
         let parser = Parser::new(
             "First https://first.com then https://second.com",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
+            &FormatOptions::default(),
         );
 
         assert_eq!(
@@ -188,11 +176,7 @@ mod tests {
 
     #[test]
     fn markdown_link_preferred_over_bare_url() {
-        let parser = Parser::new(
-            "[link](https://example.com)",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
-        );
+        let parser = Parser::new("[link](https://example.com)", &FormatOptions::default());
 
         assert_eq!(
             Some("https://example.com".to_string()),
@@ -204,8 +188,7 @@ mod tests {
     fn wiki_link_after_multibyte_text() {
         let parser = Parser::new(
             "- \u{03B1}\u{03B2}\u{03B3}[[target]]",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
+            &FormatOptions::default(),
         );
 
         assert_eq!(Some("target".to_string()), parser.url_at((0, 5).into()));
@@ -214,11 +197,7 @@ mod tests {
 
     #[test]
     fn wiki_link_after_astral_text() {
-        let parser = Parser::new(
-            "- \u{1F5FA}[[target]]",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
-        );
+        let parser = Parser::new("- \u{1F5FA}[[target]]", &FormatOptions::default());
 
         assert_eq!(Some("target".to_string()), parser.url_at((0, 13).into()));
         assert_eq!(None, parser.url_at((0, 3).into()));
@@ -226,11 +205,7 @@ mod tests {
 
     #[test]
     fn bare_url_after_astral_text() {
-        let parser = Parser::new(
-            "\u{1F5FA} https://example.com",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
-        );
+        let parser = Parser::new("\u{1F5FA} https://example.com", &FormatOptions::default());
 
         assert_eq!(
             Some("https://example.com".to_string()),
@@ -243,8 +218,7 @@ mod tests {
     fn bare_url_after_multibyte_text() {
         let parser = Parser::new(
             "\u{03B1}\u{03B2} https://example.com",
-            &MarkdownOptions::default(),
-            crate::markdown::MarkdownReader::new(),
+            &FormatOptions::default(),
         );
 
         assert_eq!(

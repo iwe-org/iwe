@@ -2,6 +2,7 @@ use std::fs;
 use std::sync::Once;
 
 use liwe::fs::new_for_path;
+use liwe::model::config::Format;
 use tempfile::TempDir;
 
 static INIT: Once = Once::new();
@@ -37,7 +38,7 @@ fn test_gitignore_excludes_files() {
 
     fs::write(base_path.join(".gitignore"), "excluded.md\n").unwrap();
 
-    let state = new_for_path(&base_path);
+    let state = new_for_path(&base_path, Format::Markdown);
 
     assert!(state.contains_key("included"));
     assert!(state.contains_key("also_included"));
@@ -71,7 +72,7 @@ fn test_hidden_files_and_directories_excluded() {
     fs::create_dir(&obsidian_dir).unwrap();
     fs::write(obsidian_dir.join("workspace.md"), "# Workspace").unwrap();
 
-    let state = new_for_path(&base_path);
+    let state = new_for_path(&base_path, Format::Markdown);
 
     assert!(state.contains_key("document"));
     assert!(!state.contains_key(".hidden"));

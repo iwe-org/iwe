@@ -12,10 +12,7 @@ use rand::distr::{Alphanumeric, SampleString};
 use sections_builder::SectionsBuilder;
 use serde_yaml::Mapping;
 
-use crate::{
-    markdown::MarkdownReader,
-    model::{document::Document, tree::Tree},
-};
+use crate::model::{document::Document, tree::Tree};
 use arena::{finalize_build, Arena, BuildArena, BuildIds, NodeStore};
 use builder::GraphBuilder;
 use itertools::Itertools;
@@ -25,7 +22,7 @@ use rayon::prelude::*;
 use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
-use crate::model::config::{MarkdownOptions, WikiLinkPath};
+use crate::model::config::{Format, FormatOptions, MarkdownOptions, WikiLinkPath};
 use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
 use crate::model::node::{NodeIter, NodePointer};
@@ -55,7 +52,7 @@ pub struct Graph {
     global_nodes_map: HashMap<NodeId, LineRange>,
     sequential_keys: bool,
     keys_to_ref_text: HashMap<Key, String>,
-    markdown_options: MarkdownOptions,
+    format_options: FormatOptions,
     frontmatter: HashMap<Key, Mapping>,
     content: Documents,
     frontmatter_document_title: Option<String>,
@@ -75,7 +72,7 @@ impl DatabaseContext for &Graph {
     fn parser(&self, key: &Key) -> Option<Parser> {
         self.content
             .get(key)
-            .map(|content| Parser::new(content, self.markdown_options(), MarkdownReader::new()))
+            .map(|content| Parser::new(content, &self.format_options))
     }
 
     fn lines(&self, key: &Key) -> u32 {
@@ -93,12 +90,16 @@ impl Graph {
         }
     }
 
-    pub fn markdown_options(&self) -> MarkdownOptions {
-        self.markdown_options.clone()
+    pub fn format(&self) -> Format {
+        self.format_options.format()
+    }
+
+    pub fn format_options(&self) -> &FormatOptions {
+        &self.format_options
     }
 
     pub fn wiki_display(&self, key: &Key, original_url: &str) -> String {
-        match self.markdown_options.wiki_link_path {
+        match self.format_options.markdown_options().wiki_link_path {
             WikiLinkPath::Full => key.to_library_url(),
             WikiLinkPath::Short => self.key_index.shorten_wiki(key),
             WikiLinkPath::Preserve => original_url.to_string(),
@@ -107,7 +108,7 @@ impl Graph {
 
     pub fn new_patch(&self) -> Graph {
         Graph {
-            markdown_options: self.markdown_options.clone(),
+            format_options: self.format_options.clone(),
             frontmatter: self.frontmatter.clone(),
             frontmatter_document_title: self.frontmatter_document_title.clone(),
             key_index: self.key_index.clone(),
@@ -115,9 +116,9 @@ impl Graph {
         }
     }
 
-    pub fn new_with_options(markdown_options: MarkdownOptions) -> Graph {
+    pub fn new_with_options(format_options: impl Into<FormatOptions>) -> Graph {
         Graph {
-            markdown_options,
+            format_options: format_options.into(),
             ..Default::default()
         }
     }
@@ -279,8 +280,11 @@ impl Graph {
     }
 
     pub fn from_markdown(&mut self, key: Key, content: &str, reader: impl Reader) {
-        let document = reader.document(content, &self.markdown_options);
+        let document = reader.document(content, &self.format_options.markdown_options());
+        self.ingest_document(key, document);
+    }
 
+    fn ingest_document(&mut self, key: Key, document: Document) {
         if let Some(fm) = document.frontmatter {
             self.frontmatter.insert(key.clone(), fm);
         } else {
@@ -320,7 +324,7 @@ impl Graph {
         let markdown = self
             .collect(key)
             .iter()
-            .to_markdown(&key.parent(), &self.markdown_options);
+            .to_text(&key.parent(), &self.format_options);
 
         markdown
     }
@@ -332,7 +336,7 @@ impl Graph {
         let markdown = self
             .collect(key)
             .iter()
-            .to_markdown_skip_frontmatter(&key.parent(), &self.markdown_options);
+            .to_text_skip_frontmatter(&key.parent(), &self.format_options);
 
         markdown
     }
@@ -346,7 +350,8 @@ impl Graph {
             self.arena.delete_branch(*id);
         }
 
-        self.from_markdown(key, content, MarkdownReader::new());
+        let document = crate::format::read_document(content, &self.format_options);
+        self.ingest_document(key, document);
 
         self
     }
@@ -357,19 +362,20 @@ impl Graph {
 
     pub fn import(
         content: &State,
-        markdown_options: MarkdownOptions,
+        format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
     ) -> Graph {
-        Self::from_state(content, false, markdown_options, frontmatter_document_title)
+        Self::from_state(content, false, format_options, frontmatter_document_title)
     }
 
     pub fn from_state(
         state: &State,
         sequential_ids: bool,
-        markdown_options: MarkdownOptions,
+        format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
     ) -> Self {
-        let mut graph = Graph::new_with_options(markdown_options.clone());
+        let format_options = format_options.into();
+        let mut graph = Graph::new_with_options(format_options.clone());
         graph.set_sequential_keys(sequential_ids);
         graph.frontmatter_document_title = frontmatter_document_title;
 
@@ -380,16 +386,14 @@ impl Graph {
         let outputs: Vec<DocBuildOutput> = if state.len() < PARALLEL_BUILD_THRESHOLD {
             state
                 .iter()
-                .map(|(k, v)| {
-                    build_doc(&ids, Key::name(k), v.clone(), &markdown_options, &key_index)
-                })
+                .map(|(k, v)| build_doc(&ids, Key::name(k), v.clone(), &format_options, &key_index))
                 .collect()
         } else {
             state
                 .par_iter()
                 .map(|(k, v)| {
                     debug!("building doc, key={}", k);
-                    build_doc(&ids, Key::name(k), v.clone(), &markdown_options, &key_index)
+                    build_doc(&ids, Key::name(k), v.clone(), &format_options, &key_index)
                 })
                 .collect()
         };
@@ -403,14 +407,15 @@ impl Graph {
     pub fn from_path(
         base_path: &Path,
         sequential_ids: bool,
-        markdown_options: MarkdownOptions,
+        format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
     ) -> Self {
-        let mut graph = Graph::new_with_options(markdown_options.clone());
+        let format_options = format_options.into();
+        let mut graph = Graph::new_with_options(format_options.clone());
         graph.set_sequential_keys(sequential_ids);
         graph.frontmatter_document_title = frontmatter_document_title;
 
-        let entries = crate::fs::walk_md_paths(base_path);
+        let entries = crate::fs::walk_md_paths(base_path, format_options.format());
 
         let keys: Vec<Key> = entries.iter().map(|(k, _)| Key::name(k)).collect();
         let key_index = KeyIndex::build(keys.iter());
@@ -421,13 +426,7 @@ impl Graph {
                 .into_iter()
                 .filter_map(|(key, path)| {
                     crate::fs::read_md_file(&path).map(|content| {
-                        build_doc(
-                            &ids,
-                            Key::name(&key),
-                            content,
-                            &markdown_options,
-                            &key_index,
-                        )
+                        build_doc(&ids, Key::name(&key), content, &format_options, &key_index)
                     })
                 })
                 .collect()
@@ -437,13 +436,7 @@ impl Graph {
                 .filter_map(|(key, path)| {
                     debug!("building doc, key={}", key);
                     crate::fs::read_md_file(&path).map(|content| {
-                        build_doc(
-                            &ids,
-                            Key::name(&key),
-                            content,
-                            &markdown_options,
-                            &key_index,
-                        )
+                        build_doc(&ids, Key::name(&key), content, &format_options, &key_index)
                     })
                 })
                 .collect()
@@ -466,7 +459,7 @@ impl Graph {
                 let markdown = self
                     .collect(k)
                     .iter()
-                    .to_markdown(&k.parent(), &self.markdown_options);
+                    .to_text(&k.parent(), &self.format_options);
                 (k.to_string(), markdown)
             })
             .collect()
@@ -623,10 +616,10 @@ fn build_doc(
     ids: &BuildIds,
     key: Key,
     content: String,
-    markdown_options: &MarkdownOptions,
+    format_options: &FormatOptions,
     key_index: &KeyIndex,
 ) -> DocBuildOutput {
-    let document = MarkdownReader::new().document(&content, markdown_options);
+    let document = crate::format::read_document(&content, format_options);
 
     let mut arena = BuildArena::new(ids);
     let root_id = arena.new_node_id();
@@ -735,7 +728,8 @@ pub trait GraphContext: Copy {
 
     fn node(&self, id: NodeId) -> impl NodePointer<'_>;
 
-    fn markdown_options(&self) -> &MarkdownOptions;
+    fn markdown_options(&self) -> MarkdownOptions;
+    fn format_options(&self) -> FormatOptions;
 }
 
 pub trait GraphPatch<'a> {
@@ -857,7 +851,11 @@ impl GraphContext for &Graph {
         self.node_key(id)
     }
 
-    fn markdown_options(&self) -> &MarkdownOptions {
-        &self.markdown_options
+    fn markdown_options(&self) -> MarkdownOptions {
+        self.format_options.markdown_options()
+    }
+
+    fn format_options(&self) -> FormatOptions {
+        self.format_options.clone()
     }
 }

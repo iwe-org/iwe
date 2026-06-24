@@ -1,5 +1,7 @@
+pub mod djot;
 pub mod file;
 pub mod find;
+pub mod format;
 pub mod fs;
 pub mod graph;
 pub mod locale;
