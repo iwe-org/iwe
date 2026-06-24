@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `--host` flag sets the address the HTTP transport binds to (default `127.0.0.1`); pass `--host 0.0.0.0` to accept connections from other machines.
 - `format = "djot"` in the configuration makes the server read, write, and watch [djot](https://djot.net/) `.dj` documents (default remains `markdown` with `.md`).
 
 ### Fixed

@@ -10,18 +10,25 @@ You configure the server by pointing your AI tool to the `iwec` binary and setti
 
 `iwec` accepts two flags that control how it serves the protocol:
 
-| Flag                        | Default | Description                                                  |
-| --------------------------- | ------- | ------------------------------------------------------------ |
-| `--transport <stdio\|http>` | `stdio` | Serve over stdio, or over HTTP                               |
-| `--port <PORT>`             | `8000`  | Port to listen on (only used with `--transport http`)        |
+| Flag                        | Default     | Description                                                  |
+| --------------------------- | ----------- | ------------------------------------------------------------ |
+| `--transport <stdio\|http>` | `stdio`     | Serve over stdio, or over HTTP                               |
+| `--host <HOST>`             | `127.0.0.1` | Address to bind to (only used with `--transport http`)       |
+| `--port <PORT>`             | `8000`      | Port to listen on (only used with `--transport http`)        |
 
-With `--transport http` the server listens for Streamable HTTP connections at `http://127.0.0.1:<port>/mcp`:
+With `--transport http` the server listens for Streamable HTTP connections at `http://<host>:<port>/mcp`:
 
 ```bash
 iwec --transport http --port 8000
 ```
 
-The HTTP server binds to localhost and speaks plain HTTP.
+By default the HTTP server binds to `127.0.0.1`, so it only accepts connections from the local machine. To accept connections from other machines, bind to a reachable address:
+
+```bash
+iwec --transport http --host 0.0.0.0 --port 8000
+```
+
+The server speaks plain HTTP, so put a reverse proxy in front of it for TLS or authentication when exposing it beyond localhost.
 
 ## Tools
 
