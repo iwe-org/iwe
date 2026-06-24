@@ -3,12 +3,17 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use liwe::graph::Graph;
-use liwe::model::config::MarkdownOptions;
+use liwe::model::config::{Format, MarkdownOptions};
 use liwe::model::Key;
 use tokio::sync::Mutex;
 
 async fn start_watcher(graph: Arc<Mutex<Graph>>, base_path: &std::path::Path) {
-    iwec::watcher::start_polling(graph, base_path.to_path_buf(), Duration::from_millis(10));
+    iwec::watcher::start_polling(
+        graph,
+        base_path.to_path_buf(),
+        Format::Markdown,
+        Duration::from_millis(10),
+    );
     tokio::time::sleep(Duration::from_millis(20)).await;
 }
 
@@ -59,7 +64,7 @@ async fn watcher_picks_up_modification() {
 
     fs::write(base_path.join("doc.md"), "# Original\n").unwrap();
 
-    let state = liwe::fs::new_for_path(&base_path);
+    let state = liwe::fs::new_for_path(&base_path, Format::Markdown);
     let graph = Arc::new(Mutex::new(Graph::from_state(
         &state,
         false,
@@ -92,7 +97,7 @@ async fn watcher_picks_up_deletion() {
 
     fs::write(base_path.join("to-delete.md"), "# Delete me\n").unwrap();
 
-    let state = liwe::fs::new_for_path(&base_path);
+    let state = liwe::fs::new_for_path(&base_path, Format::Markdown);
     let graph = Arc::new(Mutex::new(Graph::from_state(
         &state,
         false,

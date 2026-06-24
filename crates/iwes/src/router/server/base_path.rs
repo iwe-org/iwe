@@ -4,25 +4,33 @@ use lsp_types::*;
 use percent_encoding::percent_decode_str;
 use url::Url;
 
-use liwe::model::Key;
+use liwe::model::config::Format;
+use liwe::model::{strip_doc_extension, Key};
 
 pub struct BasePath {
     url: Url,
+    format: Format,
 }
 
 impl BasePath {
-    pub fn new(base_path: String) -> Self {
+    pub fn new(base_path: String, format: Format) -> Self {
         let url = Url::parse(&base_path).expect("valid base URL");
         Self {
             url: canonical(url),
+            format,
         }
     }
 
-    pub fn from_path(path: &str) -> Self {
+    pub fn from_path(path: &str, format: Format) -> Self {
         let url = Url::from_directory_path(path).expect("valid base path");
         Self {
             url: canonical(url),
+            format,
         }
+    }
+
+    fn dot_extension(&self) -> String {
+        format!(".{}", self.format.extension())
     }
 
     pub fn key_to_url(&self, key: &Key) -> Uri {
@@ -72,20 +80,20 @@ impl BasePath {
             .path_segments()
             .and_then(|s| s.last())
             .unwrap_or("");
-        if !last.is_empty() && !last.ends_with(".md") {
+        if !last.is_empty() && !last.ends_with(&self.dot_extension()) {
             let decoded = percent_decode_str(last).decode_utf8_lossy().into_owned();
             resolved
                 .path_segments_mut()
                 .expect("path-based URL")
                 .pop()
-                .push(&format!("{}.md", decoded));
+                .push(&format!("{}{}", decoded, self.dot_extension()));
         }
 
         Uri::from_str(resolved.as_str()).expect("valid URI")
     }
 
     fn build_url(&self, key_or_path: &str) -> Uri {
-        let trimmed = key_or_path.trim_end_matches(".md");
+        let trimmed = strip_doc_extension(key_or_path);
         let mut url = self.url.clone();
         {
             let mut segs = url.path_segments_mut().expect("path-based URL");
@@ -93,7 +101,7 @@ impl BasePath {
             let parts: Vec<&str> = trimmed.split('/').filter(|s| !s.is_empty()).collect();
             if let Some((last, rest)) = parts.split_last() {
                 segs.extend(rest);
-                segs.push(&format!("{}.md", last));
+                segs.push(&format!("{}{}", last, self.dot_extension()));
             }
         }
         Uri::from_str(url.as_str()).expect("valid URI")
@@ -148,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_url_to_key_with_danish_characters() {
-        let base_path = BasePath::new(file_url("basepath/"));
+        let base_path = BasePath::new(file_url("basepath/"), Format::Markdown);
         let uri = Uri::from_str(&file_url("basepath/t%C3%B8j.md")).unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "tøj");
@@ -156,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_url_to_key_with_regular_characters() {
-        let base_path = BasePath::new(file_url("basepath/"));
+        let base_path = BasePath::new(file_url("basepath/"), Format::Markdown);
 
         let uri = Uri::from_str(&file_url("basepath/regular.md")).unwrap();
         let key = base_path.url_to_key(&uri);
@@ -165,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_url_to_key_with_spaces_in_base_path() {
-        let base_path = BasePath::from_path(&abs_path("path with spaces/docs"));
+        let base_path = BasePath::from_path(&abs_path("path with spaces/docs"), Format::Markdown);
         let uri = Uri::from_str(&file_url("path%20with%20spaces/docs/test.md")).unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "test");
@@ -173,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_key_to_url_with_spaces_in_base_path() {
-        let base_path = BasePath::from_path(&abs_path("path with spaces/docs"));
+        let base_path = BasePath::from_path(&abs_path("path with spaces/docs"), Format::Markdown);
         let key = liwe::model::Key::name("test.md");
         let url = base_path.key_to_url(&key);
         assert_eq!(
@@ -184,7 +192,7 @@ mod tests {
 
     #[test]
     fn test_url_to_key_with_spaces_in_key() {
-        let base_path = BasePath::from_path(&abs_path("basepath"));
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
         let uri = Uri::from_str(&file_url("basepath/my%20document.md")).unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "my document");
@@ -192,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_key_to_url_with_spaces_in_key() {
-        let base_path = BasePath::from_path(&abs_path("basepath"));
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
         let key = liwe::model::Key::name("my document.md");
         let url = base_path.key_to_url(&key);
         assert_eq!(url.to_string(), file_url("basepath/my%20document.md"));
@@ -206,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_url_to_key_windows_case_and_percent_encoding_mismatch() {
-        let base_path = BasePath::new("file:///C:/base/".to_string());
+        let base_path = BasePath::new("file:///C:/base/".to_string(), Format::Markdown);
         let uri = Uri::from_str("file:///c%3A/base/one.md").unwrap();
         let key = base_path.url_to_key(&uri);
         assert_eq!(key.to_string(), "one");
@@ -214,21 +222,21 @@ mod tests {
 
     #[test]
     fn test_resolve_relative_url_doubles_md_suffix_when_link_has_md_extension() {
-        let base_path = BasePath::from_path(&abs_path("basepath"));
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
         let url = base_path.resolve_relative_url("one.md", "");
         assert_eq!(url.to_string(), file_url("basepath/one.md"));
     }
 
     #[test]
     fn test_name_to_url_with_md_suffix_in_name() {
-        let base_path = BasePath::from_path(&abs_path("basepath"));
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
         let url = base_path.name_to_url("one.md");
         assert_eq!(url.to_string(), file_url("basepath/one.md"));
     }
 
     #[test]
     fn test_resolve_relative_url_with_anchor_fragment() {
-        let base_path = BasePath::from_path(&abs_path("basepath"));
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
         let url = base_path.resolve_relative_url("one#section", "");
         assert_eq!(url.to_string(), file_url("basepath/one.md#section"));
     }
@@ -241,7 +249,7 @@ mod tests {
 
     #[test]
     fn test_url_to_key_matches_parsed_reference_key() {
-        let base_path = BasePath::new("file:///C:/base/".to_string());
+        let base_path = BasePath::new("file:///C:/base/".to_string(), Format::Markdown);
 
         let source_uri = Uri::from_str("file:///c%3A/base/one.md").unwrap();
         let target_uri = Uri::from_str("file:///c%3A/base/two.md").unwrap();

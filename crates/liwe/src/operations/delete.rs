@@ -14,7 +14,7 @@ pub fn delete(graph: &Graph, target_key: &Key) -> Result<Changes, OperationError
     }
 
     let mut result = Changes::default();
-    let options = graph.markdown_options();
+    let format = graph.format_options().clone();
 
     let block_refs = graph.get_inclusion_edges_to(target_key);
     let inline_refs = graph.get_reference_edges_to(target_key);
@@ -30,7 +30,7 @@ pub fn delete(graph: &Graph, target_key: &Key) -> Result<Changes, OperationError
         let updated = tree
             .remove_inclusion_edges_to(target_key)
             .remove_inline_links_to(target_key);
-        let markdown = updated.iter().to_markdown(&affected_key.parent(), &options);
+        let markdown = updated.iter().to_text(&affected_key.parent(), &format);
         result.add_update(affected_key.clone(), markdown);
     }
 

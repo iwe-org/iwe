@@ -69,10 +69,10 @@ pub fn extract(
         now,
     );
 
-    let options = graph.markdown_options();
+    let format = graph.format_options().clone();
 
     let extracted = tree.get(target_id);
-    let new_markdown = extracted.iter().to_markdown(&new_key.parent(), &options);
+    let new_markdown = extracted.iter().to_text(&new_key.parent(), &format);
 
     let reference_type = match &config.link_type {
         Some(LinkType::WikiLink) => ReferenceType::WikiLink,
@@ -88,9 +88,7 @@ pub fn extract(
         reference_type,
     );
 
-    let source_markdown = updated_tree
-        .iter()
-        .to_markdown(&source_key.parent(), &options);
+    let source_markdown = updated_tree.iter().to_text(&source_key.parent(), &format);
 
     let mut result = Changes::default();
     result.add_create(new_key.clone(), new_markdown);
@@ -204,7 +202,7 @@ pub fn extract_all(
 
     let num_sections = subsection_ids.len();
     let ids = graph.unique_ids(&source_key.parent(), num_sections);
-    let options = graph.markdown_options();
+    let format = graph.format_options().clone();
 
     let mut result = Changes::default();
     let mut current_tree = tree.clone();
@@ -240,7 +238,7 @@ pub fn extract_all(
         generated_keys.push(new_key.clone());
 
         let extracted = current_tree.get(*section_id);
-        let new_markdown = extracted.iter().to_markdown(&new_key.parent(), &options);
+        let new_markdown = extracted.iter().to_text(&new_key.parent(), &format);
 
         let reference_type = match &config.link_type {
             Some(LinkType::WikiLink) => ReferenceType::WikiLink,
@@ -259,9 +257,7 @@ pub fn extract_all(
         result.add_create(new_key, new_markdown);
     }
 
-    let source_markdown = current_tree
-        .iter()
-        .to_markdown(&source_key.parent(), &options);
+    let source_markdown = current_tree.iter().to_text(&source_key.parent(), &format);
     result.add_update(source_key.clone(), source_markdown);
 
     Ok(result)

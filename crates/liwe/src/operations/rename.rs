@@ -22,7 +22,7 @@ pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, Op
     }
 
     let mut result = Changes::default();
-    let options = graph.markdown_options();
+    let format = graph.format_options().clone();
 
     let block_refs = graph.get_inclusion_edges_to(old_key);
     let inline_refs = graph.get_reference_edges_to(old_key);
@@ -37,13 +37,13 @@ pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, Op
     for affected_key in affected.iter().sorted() {
         let tree = graph.collect(affected_key);
         let updated = tree.change_key(old_key, new_key);
-        let markdown = updated.iter().to_markdown(&affected_key.parent(), &options);
+        let markdown = updated.iter().to_text(&affected_key.parent(), &format);
         result.add_update(affected_key.clone(), markdown);
     }
 
     let tree = graph.collect(old_key);
     let updated_tree = tree.change_key(old_key, new_key);
-    let markdown = updated_tree.iter().to_markdown(&new_key.parent(), &options);
+    let markdown = updated_tree.iter().to_text(&new_key.parent(), &format);
     result.add_create(new_key.clone(), markdown);
     result.add_remove(old_key.clone());
 

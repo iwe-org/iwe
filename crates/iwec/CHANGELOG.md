@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `format = "djot"` in the configuration makes the server read, write, and watch [djot](https://djot.net/) `.dj` documents (default remains `markdown` with `.md`).
+
 ## [0.4.0](https://github.com/iwe-org/iwe/compare/iwec-v0.3.2...iwec-v0.4.0) - 2026-06-22
 
 ### Added

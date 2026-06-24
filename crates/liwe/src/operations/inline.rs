@@ -35,7 +35,7 @@ pub fn inline(
         return Err(OperationError::TargetNotFound(inline_key));
     }
 
-    let options = graph.markdown_options();
+    let format = graph.format_options().clone();
     let inline_tree = graph.collect(&inline_key);
 
     let mut result = Changes::default();
@@ -60,9 +60,7 @@ pub fn inline(
         }
     };
 
-    let source_markdown = updated_tree
-        .iter()
-        .to_markdown(&source_key.parent(), &options);
+    let source_markdown = updated_tree.iter().to_text(&source_key.parent(), &format);
     result.add_update(source_key.clone(), source_markdown);
 
     if !config.keep_target {
@@ -83,7 +81,7 @@ pub fn inline(
             let updated = tree
                 .remove_inclusion_edges_to(&inline_key)
                 .remove_inline_links_to(&inline_key);
-            let markdown = updated.iter().to_markdown(&ref_key.parent(), &options);
+            let markdown = updated.iter().to_text(&ref_key.parent(), &format);
             result.add_update(ref_key.clone(), markdown);
         }
     }

@@ -1,4 +1,5 @@
 mod config_migration_test;
+mod djot_roundtrip;
 mod formatting_test;
 mod frontmatter_title_test;
 mod gitignore_test;

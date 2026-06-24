@@ -49,6 +49,10 @@ fn transform_action_appears_in_code_action_menu() {
 }
 
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "executes a Unix shell command; unreliable on Windows CI runners"
+)]
 fn transform_action_executes_command_with_cat() {
     let config = Configuration {
         actions: vec![(
@@ -164,6 +168,10 @@ fn transform_action_with_missing_command_shows_in_menu() {
 }
 
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "executes a Unix shell command; unreliable on Windows CI runners"
+)]
 fn transform_action_with_static_output() {
     let config = Configuration {
         actions: vec![(
@@ -252,6 +260,10 @@ fn transform_action_with_multiline_content() {
 }
 
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "executes a Unix shell command; unreliable on Windows CI runners"
+)]
 fn transform_action_processes_input_template() {
     let config = Configuration {
         actions: vec![(
@@ -334,6 +346,10 @@ fn transform_action_with_timeout() {
 }
 
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "executes a command via piped stdio; unreliable on Windows CI runners"
+)]
 fn transform_action_with_shell_false_and_args() {
     let config = Configuration {
         actions: vec![(
@@ -376,6 +392,10 @@ fn transform_action_with_shell_false_and_args() {
 }
 
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "executes a Unix shell command; unreliable on Windows CI runners"
+)]
 fn transform_action_with_env_vars() {
     std::env::set_var("IWE_TEST_VAR", "expanded_value");
 
@@ -424,6 +444,10 @@ fn transform_action_with_env_vars() {
 }
 
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "executes a Unix shell command; unreliable on Windows CI runners"
+)]
 fn transform_action_with_cwd() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let cwd = temp_dir.path().to_string_lossy().to_string();

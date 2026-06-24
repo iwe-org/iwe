@@ -124,6 +124,5 @@ fn render_with_frontmatter(graph: &Graph, key: &Key, mapping: Mapping) -> String
         Some(mapping)
     };
     tree.node = Node::Document(key.clone(), frontmatter);
-    tree.iter()
-        .to_markdown(&key.parent(), &graph.markdown_options())
+    tree.iter().to_text(&key.parent(), graph.format_options())
 }

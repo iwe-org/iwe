@@ -8,6 +8,19 @@ use crate::model::{InlinesContext, Key, Lang, LibraryUrl, Title};
 
 pub type Inlines = Vec<Inline>;
 
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Attributes {
+    pub id: String,
+    pub classes: Vec<String>,
+    pub pairs: Vec<(String, String)>,
+}
+
+impl Attributes {
+    pub fn is_empty(&self) -> bool {
+        self.id.is_empty() && self.classes.is_empty() && self.pairs.is_empty()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Inline {
     Code(Option<Lang>, String),
@@ -27,6 +40,11 @@ pub enum Inline {
     Subscript(Inlines),
     Superscript(Inlines),
     Underline(Inlines),
+    Mark(Inlines),
+    Insert(Inlines),
+    Delete(Inlines),
+    Symbol(String),
+    Span(Attributes, Inlines),
 }
 
 impl From<&str> for Inline {
@@ -67,6 +85,11 @@ impl Inline {
             Inline::Superscript(superscript) => to_plain_text(superscript),
             Inline::Subscript(subscript) => to_plain_text(subscript),
             Inline::SmallCaps(small_caps) => to_plain_text(small_caps),
+            Inline::Mark(inner) | Inline::Insert(inner) | Inline::Delete(inner) => {
+                to_plain_text(inner)
+            }
+            Inline::Span(_, inner) => to_plain_text(inner),
+            Inline::Symbol(text) => format!(":{}:", text),
             Inline::Code(_, text) => text.clone(),
             Inline::Space => " ".into(),
             Inline::SoftBreak => "\n".into(),
@@ -103,6 +126,10 @@ impl Inline {
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
                 .collect(),
+            Inline::Mark(inner) | Inline::Insert(inner) | Inline::Delete(inner) => {
+                inner.iter().flat_map(|inline| inline.ref_keys()).collect()
+            }
+            Inline::Span(_, inner) => inner.iter().flat_map(|inline| inline.ref_keys()).collect(),
             Inline::Link(_, _, _, inlines) => inlines
                 .iter()
                 .flat_map(|inline| inline.ref_keys())
@@ -154,6 +181,19 @@ impl Inline {
                 emph.iter()
                     .map(|inline| inline.normalize(context))
                     .collect(),
+            ),
+            Inline::Mark(inner) => {
+                Inline::Mark(inner.iter().map(|i| i.normalize(context)).collect())
+            }
+            Inline::Insert(inner) => {
+                Inline::Insert(inner.iter().map(|i| i.normalize(context)).collect())
+            }
+            Inline::Delete(inner) => {
+                Inline::Delete(inner.iter().map(|i| i.normalize(context)).collect())
+            }
+            Inline::Span(attr, inner) => Inline::Span(
+                attr.clone(),
+                inner.iter().map(|i| i.normalize(context)).collect(),
             ),
             Inline::Reference(reference) => {
                 let new_text = match reference.reference_type {
@@ -220,6 +260,31 @@ impl Inline {
             Inline::SmallCaps(emph) => Inline::SmallCaps(
                 emph.iter()
                     .map(|inline| inline.change_key(target_key, updated_key))
+                    .collect(),
+            ),
+            Inline::Mark(inner) => Inline::Mark(
+                inner
+                    .iter()
+                    .map(|i| i.change_key(target_key, updated_key))
+                    .collect(),
+            ),
+            Inline::Insert(inner) => Inline::Insert(
+                inner
+                    .iter()
+                    .map(|i| i.change_key(target_key, updated_key))
+                    .collect(),
+            ),
+            Inline::Delete(inner) => Inline::Delete(
+                inner
+                    .iter()
+                    .map(|i| i.change_key(target_key, updated_key))
+                    .collect(),
+            ),
+            Inline::Span(attr, inner) => Inline::Span(
+                attr.clone(),
+                inner
+                    .iter()
+                    .map(|i| i.change_key(target_key, updated_key))
                     .collect(),
             ),
             Inline::Reference(reference) => {
@@ -446,7 +511,21 @@ fn render_inline<S: MarkdownSink>(
             out.push("~");
             LinePos::Mid
         }
-        Inline::SmallCaps(inner) | Inline::Underline(inner) => {
+        Inline::SmallCaps(inner)
+        | Inline::Underline(inner)
+        | Inline::Mark(inner)
+        | Inline::Insert(inner)
+        | Inline::Delete(inner) => {
+            render_inlines(inner, options, out, RenderCtx::Inline);
+            LinePos::Mid
+        }
+        Inline::Symbol(text) => {
+            out.push(":");
+            out.push(text);
+            out.push(":");
+            LinePos::Mid
+        }
+        Inline::Span(_, inner) => {
             render_inlines(inner, options, out, RenderCtx::Inline);
             LinePos::Mid
         }
@@ -753,7 +832,7 @@ pub fn inlines_to_markdown(content: &Inlines, options: &MarkdownOptions) -> Stri
     out
 }
 
-fn append_refs_extension(url: &str, extension: &str) -> String {
+pub(crate) fn append_refs_extension(url: &str, extension: &str) -> String {
     let (path, fragment) = match url.split_once('#') {
         Some((p, f)) => (p, Some(f)),
         None => (url, None),

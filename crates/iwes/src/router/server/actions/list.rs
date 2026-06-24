@@ -49,7 +49,7 @@ impl ActionProvider for ListChangeType {
                         .collect(&key)
                         .change_list_type(scope_id)
                         .iter()
-                        .to_markdown(&key.parent(), context.markdown_options()),
+                        .to_text(&key.parent(), &context.format_options()),
                 )
             })
     }
@@ -97,7 +97,7 @@ impl ActionProvider for ListToSections {
                         .collect(&key)
                         .unwrap_list(scope_id)
                         .iter()
-                        .to_markdown(&key.parent(), context.markdown_options()),
+                        .to_text(&key.parent(), &context.format_options()),
                 )
             })
     }

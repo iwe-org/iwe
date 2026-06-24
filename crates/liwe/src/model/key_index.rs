@@ -4,7 +4,7 @@ use percent_encoding::percent_decode_str;
 
 use crate::model::config::WikiLinkPath;
 use crate::model::reference::ReferenceType;
-use crate::model::Key;
+use crate::model::{strip_doc_extension, Key};
 
 #[derive(Clone, Default)]
 pub struct KeyIndex {
@@ -55,7 +55,7 @@ impl KeyIndex {
 
     pub fn resolve_wiki(&self, url: &str) -> Key {
         let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
-        let target = decoded.trim_end_matches(".md").to_string();
+        let target = strip_doc_extension(&decoded).to_string();
         let segs = segments(&target);
 
         let Some(basename) = segs.last() else {

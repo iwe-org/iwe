@@ -51,7 +51,7 @@ impl ActionProvider for SortAction {
                         .collect(&key)
                         .sort_children(scope_id, self.reverse)
                         .iter()
-                        .to_markdown(&key.parent(), context.markdown_options()),
+                        .to_text(&key.parent(), &context.format_options()),
                 )
             })
     }

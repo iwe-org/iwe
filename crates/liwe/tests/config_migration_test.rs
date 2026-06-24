@@ -1,5 +1,74 @@
 use indoc::indoc;
-use liwe::model::config::{migrate_v2_to_v3, ActionDefinition, Configuration};
+use liwe::model::config::{
+    migrate_v2_to_v3, ActionDefinition, Configuration, DjotOptions, Format, FormatOptions,
+};
+
+#[test]
+fn old_config_without_format_is_backwards_compatible() {
+    let config_str = indoc! {r#"
+        version = 2
+
+        [markdown]
+        refs_extension = ".md"
+        date_format = "%Y-%m-%d"
+
+        [actions.extract]
+        type = "extract"
+        title = "Extract"
+        link_type = "markdown"
+        key_template = "{{id}}"
+    "#};
+
+    let parsed: Configuration = toml::from_str(config_str).expect("old config must still parse");
+
+    assert_eq!(parsed.format, Format::Markdown);
+    assert_eq!(parsed.djot, DjotOptions::default());
+    assert_eq!(parsed.markdown.refs_extension, ".md");
+    assert_eq!(
+        parsed.format_options(),
+        FormatOptions::Markdown(parsed.markdown.clone())
+    );
+}
+
+#[test]
+fn djot_config_parses_format_and_djot_options() {
+    let config_str = indoc! {r#"
+        version = 3
+        format = "djot"
+
+        [markdown]
+        refs_extension = ".md"
+
+        [djot]
+        refs_extension = ".dj"
+        date_format = "%Y-%m-%d"
+        time_format = "%Y-%m-%d %H:%M"
+        locale = "de_DE"
+
+        [djot.formatting]
+        preserve_line_breaks = true
+    "#};
+
+    let parsed: Configuration = toml::from_str(config_str).expect("djot config must parse");
+
+    assert_eq!(parsed.format, Format::Djot);
+    assert_eq!(parsed.djot.refs_extension, ".dj");
+    assert_eq!(parsed.djot.date_format, Some("%Y-%m-%d".to_string()));
+    assert_eq!(parsed.djot.locale, Some("de_DE".to_string()));
+    assert_eq!(parsed.djot.formatting.preserve_line_breaks(), true);
+    assert_eq!(
+        parsed.format_options(),
+        FormatOptions::Djot(parsed.djot.clone())
+    );
+
+    // The format-aware accessors return the active (djot) format's values.
+    let format_options = parsed.format_options();
+    assert_eq!(format_options.extension(), "dj");
+    assert_eq!(format_options.refs_extension(), ".dj");
+    assert_eq!(format_options.date_format(), Some("%Y-%m-%d"));
+    assert_eq!(format_options.time_format(), Some("%Y-%m-%d %H:%M"));
+    assert_eq!(format_options.locale(), Some("de_DE"));
+}
 
 #[test]
 fn test_config_without_version_gets_parsed_correctly() {

@@ -1,4 +1,5 @@
 use chrono::{DateTime, Local, Locale};
+use liwe::model::config::Format;
 use liwe::model::config::LinkType as ConfigLinkType;
 use liwe::model::config::WikiLinkPath;
 use liwe::model::key_index::KeyIndex;
@@ -203,15 +204,20 @@ impl ActionProvider for LinkAction {
                     .chain(std::iter::once(&new_key)),
             );
 
+            let format_options = context.graph().format_options();
+            let link_type = match format_options.format() {
+                Format::Djot => None,
+                Format::Markdown => self.link_type.as_ref(),
+            };
             let updated_line = Self::replace_word_with_link(
                 line_text,
                 &word,
                 start,
                 end,
                 &new_key,
-                self.link_type.as_ref(),
+                link_type,
                 &key_index,
-                context.graph().markdown_options().wiki_link_path,
+                format_options.markdown_options().wiki_link_path,
             );
 
             let updated_markdown = lines

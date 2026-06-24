@@ -48,7 +48,10 @@ pub fn main_loop(connection: Connection, params: ServerParams) -> Result<()> {
             connection.sender,
             ServerConfig {
                 base_path: params.base_path.clone(),
-                state: new_for_path(&PathBuf::from_str(&params.base_path).expect("to work")),
+                state: new_for_path(
+                    &PathBuf::from_str(&params.base_path).expect("to work"),
+                    params.configuration.format,
+                ),
                 sequential_ids: None,
                 lsp_client: client,
                 configuration: params.configuration,
