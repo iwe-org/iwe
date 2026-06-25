@@ -1,7 +1,7 @@
 use super::document::LinkType;
 use crate::model;
 use crate::model::config::MarkdownOptions;
-use crate::model::document::{DocumentInline, DocumentInlines};
+use crate::model::document::{DocumentInline, DocumentInlines, MathType};
 use crate::model::key_index::KeyIndex;
 use crate::model::reference::{Reference, ReferenceType};
 use crate::model::{InlinesContext, Key, Lang, LibraryUrl, Title};
@@ -29,7 +29,7 @@ pub enum Inline {
     LineBreak,
     Link(LibraryUrl, Title, LinkType, Inlines),
     Reference(Reference),
-    Math(String),
+    Math(MathType, String),
     RawInline(Lang, String),
     SmallCaps(Inlines),
     SoftBreak,
@@ -473,10 +473,13 @@ fn render_inline<S: MarkdownSink>(
             render_code_span(body, out);
             LinePos::Mid
         }
-        Inline::Math(body) => {
-            out.push("$");
+        Inline::Math(math_type, body) => {
+            out.push(if *math_type == MathType::DisplayMath {
+                "$$"
+            } else {
+                "$"
+            });
             out.push(body);
-            out.push("$");
             LinePos::Mid
         }
         Inline::Emph(inner) => {

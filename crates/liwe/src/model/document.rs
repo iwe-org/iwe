@@ -614,7 +614,9 @@ impl DocumentInline {
                 image.target.title.clone(),
                 to_graph_inlines(&image.inlines, relative_to, key_index),
             ),
-            DocumentInline::Math(math) => Inline::Math(math.content.clone()),
+            DocumentInline::Math(math) => {
+                Inline::Math(math.math_type.clone(), math.content.clone())
+            }
         }
     }
 

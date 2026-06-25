@@ -2,6 +2,7 @@ use pulldown_cmark::{Event, HeadingLevel, MetadataBlockKind, Tag, TagEnd};
 use pulldown_cmark_to_cmark::cmark_with_options;
 
 use crate::model::config::MarkdownOptions;
+use crate::model::document::MathType;
 use crate::model::inline::{inlines_to_markdown, Inline, Inlines};
 use crate::model::node::ColumnAlignment;
 use crate::model::writer::{frontmatter_to_yaml, Block};
@@ -175,8 +176,13 @@ impl CmarkTableWriter {
                     events.push(Event::Text(reference.text.into()));
                     events.push(Event::End(TagEnd::Link));
                 }
-                Inline::Math(math) => {
-                    events.push(Event::Html(format!("\\({}\\)", math).into()));
+                Inline::Math(math_type, math) => {
+                    let html = if math_type == MathType::DisplayMath {
+                        format!("\\[{}\\]", math)
+                    } else {
+                        format!("\\({}\\)", math)
+                    };
+                    events.push(Event::Html(html.into()));
                 }
                 Inline::RawInline(_, content) => {
                     events.push(Event::Html(content.into()));

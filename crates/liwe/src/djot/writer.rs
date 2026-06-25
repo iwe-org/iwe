@@ -1,5 +1,8 @@
 use crate::model::config::DjotOptions;
-use crate::model::inline::{append_refs_extension, Attributes, Inline, Inlines};
+use crate::model::document::{LinkType, MathType};
+use crate::model::inline::{
+    append_refs_extension, detect_and_strip_checkbox, Attributes, Inline, Inlines,
+};
 use crate::model::is_ref_url;
 use crate::model::node::ColumnAlignment;
 use crate::model::writer::{frontmatter_to_yaml, Block, Blocks};
@@ -98,6 +101,7 @@ fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool) -> Strin
         } else {
             "-".to_string()
         };
+        let (checkbox, item) = strip_item_checkbox(item);
         let pad = marker.chars().count() + 1;
         let item_text: String = item
             .iter()
@@ -106,7 +110,7 @@ fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool) -> Strin
             .join("\n");
         for (n, line) in item_text.lines().enumerate() {
             if n == 0 {
-                out.push_str(&format!("{} {}\n", marker, line));
+                out.push_str(&format!("{} {}{}\n", marker, checkbox, line));
             } else if line.is_empty() {
                 out.push('\n');
             } else {
@@ -115,6 +119,26 @@ fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool) -> Strin
         }
     }
     out
+}
+
+fn strip_item_checkbox(item: &Blocks) -> (&'static str, Blocks) {
+    let inlines = match item.first() {
+        Some(Block::Para(inlines)) | Some(Block::Plain(inlines)) => inlines,
+        _ => return ("", item.clone()),
+    };
+    let (checked, stripped) = detect_and_strip_checkbox(inlines);
+    let prefix = match checked {
+        Some(true) => "[x] ",
+        Some(false) => "[ ] ",
+        None => return ("", item.clone()),
+    };
+    let mut item = item.clone();
+    item[0] = match &item[0] {
+        Block::Para(_) => Block::Para(stripped),
+        Block::Plain(_) => Block::Plain(stripped),
+        other => other.clone(),
+    };
+    (prefix, item)
 }
 
 fn table_to_djot(
@@ -230,19 +254,33 @@ fn render_inline_djot(inline: &Inline, options: &DjotOptions, out: &mut String) 
         }
         Inline::SmallCaps(inner) => out.push_str(&inlines_to_djot(inner, options)),
         Inline::Code(_, body) => render_verbatim(body, out),
-        Inline::Math(body) => {
-            out.push('$');
+        Inline::Math(math_type, body) => {
+            out.push_str(if *math_type == MathType::DisplayMath {
+                "$$"
+            } else {
+                "$"
+            });
             render_verbatim(body, out);
         }
         Inline::RawInline(_, content) => out.push_str(content),
-        Inline::Link(url, _, _, inlines) => {
+        Inline::Link(url, _, link_type, inlines) => {
+            let inner = inlines_to_djot(inlines, options);
+            if *link_type == LinkType::Markdown
+                && !is_ref_url(url)
+                && inner.eq_ignore_ascii_case(url)
+            {
+                out.push('<');
+                out.push_str(url);
+                out.push('>');
+                return;
+            }
             let final_url = if is_ref_url(url) {
                 append_refs_extension(url, &options.refs_extension)
             } else {
                 url.to_string()
             };
             out.push('[');
-            out.push_str(&inlines_to_djot(inlines, options));
+            out.push_str(&inner);
             out.push_str("](");
             out.push_str(&final_url);
             out.push(')');

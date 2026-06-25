@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Formatting a djot document no longer collapses nested or multi-paragraph list items into the parent item; the blank line separating them is kept so the list structure survives format-on-save.
+- The server no longer crashes when parsing a djot document that contains a reference link definition or a definition list.
+- Formatting keeps the word boundary at a hard line break instead of running the surrounding words together.
+- Formatting preserves djot task list checkboxes (`- [ ]` / `- [x]`), display math (`$$`), and autolinks (`<url>`) instead of mangling them.
 
 ## [0.5.0](https://github.com/iwe-org/iwe/compare/iwes-v0.4.0...iwes-v0.5.0) - 2026-06-23
 
