@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `Inline::Math` now carries a `MathType` (`Inline::Math(MathType, String)`), distinguishing inline from display math.
+
 ### Fixed
 - The djot writer now leaves a blank line before a nested list or any second block inside a list item, so list items with sub-lists or extra paragraphs round-trip instead of collapsing into the item's first line.
+- The djot reader no longer panics on a document that contains a reference link definition or a definition list; the orphaned text is dropped instead of crashing the parser.
+- A hard line break now becomes a space when line breaks aren't preserved, instead of running the words on either side together.
+- Djot task list items (`- [ ]` / `- [x]`) round-trip instead of having the checkbox escaped and the item text split onto a separate line.
+- Djot display math (`$$`) is no longer written back as inline math (`$`).
+- Djot autolinks (`<url>`) round-trip instead of being expanded to a full `[url](url)` link.
 
 ## [0.5.0](https://github.com/iwe-org/iwe/compare/liwe-v0.4.0...liwe-v0.5.0) - 2026-06-23
 

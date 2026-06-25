@@ -63,6 +63,31 @@ fn ordered_list() {
 }
 
 #[test]
+fn task_list() {
+    let input = indoc! {"
+        - [ ] todo
+        - [x] done
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn nested_task_list() {
+    let input = indoc! {"
+        - [ ] parent
+
+          - [x] child
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn hard_break_reflows_to_space() {
+    let input = "one\\\ntwo\n";
+    assert_eq!("one two\n", roundtrip(input));
+}
+
+#[test]
 fn nested_bullet_list() {
     let input = indoc! {"
         - one
@@ -90,6 +115,32 @@ fn multi_paragraph_list_item() {
 fn link() {
     let input = indoc! {"
         A [link](https://example.com) here.
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn reference_link_definition_does_not_panic() {
+    let input = indoc! {"
+        See [text][ref] here.
+
+        [ref]: https://example.com
+        "};
+    assert_eq!("See [text](https://example.com) here.\n", roundtrip(input));
+}
+
+#[test]
+fn inline_and_display_math() {
+    let input = indoc! {"
+        Inline $`x^2` and display $$`x^2` here.
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn autolink() {
+    let input = indoc! {"
+        See <https://example.com> here.
         "};
     assert_eq!(input, roundtrip(input));
 }

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `normalize` no longer collapses nested or multi-paragraph djot list items onto one line; the blank line that keeps them separate is preserved so the list survives repeated runs.
+- Commands no longer crash on a djot document that contains a reference link definition or a definition list.
+- `normalize` keeps the word boundary at a hard line break instead of running the surrounding words together.
+- `normalize` preserves djot task list checkboxes (`- [ ]` / `- [x]`), display math (`$$`), and autolinks (`<url>`) instead of mangling them.
 
 ## [0.5.0](https://github.com/iwe-org/iwe/compare/iwe-v0.4.0...iwe-v0.5.0) - 2026-06-23
 

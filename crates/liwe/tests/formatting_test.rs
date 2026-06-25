@@ -443,9 +443,9 @@ fn preserve_line_breaks_emits_two_spaces_when_configured() {
 }
 
 #[test]
-fn hard_breaks_dropped_when_preserve_disabled() {
+fn hard_breaks_reflow_to_space_when_preserve_disabled() {
     compare(
-        "first linesecond line\n",
+        "first line second line\n",
         "first line\\\nsecond line",
         FormattingOptions::default(),
     );
