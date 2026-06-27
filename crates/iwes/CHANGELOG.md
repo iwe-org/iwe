@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `preserve_newlines` config option keeps each line of a paragraph on its own line when formatting instead of joining them with spaces, so documents written with one sentence per line (semantic line breaks) survive format-on-save (default off).
+
 ### Fixed
 - Formatting a djot document no longer collapses nested or multi-paragraph list items into the parent item; the blank line separating them is kept so the list structure survives format-on-save.
 - The server no longer crashes when parsing a djot document that contains a reference link definition or a definition list.

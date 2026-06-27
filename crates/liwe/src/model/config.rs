@@ -200,6 +200,7 @@ pub struct FormattingOptions {
     pub wrap_column: Option<usize>,
     pub preserve_line_breaks: Option<bool>,
     pub line_break_style: Option<LineBreakStyle>,
+    pub preserve_newlines: Option<bool>,
 }
 
 impl FormattingOptions {
@@ -235,6 +236,7 @@ impl FormattingOptions {
             wrap_column: self.wrap_column.filter(|&v| v >= 20),
             preserve_line_breaks: self.preserve_line_breaks,
             line_break_style: self.line_break_style,
+            preserve_newlines: self.preserve_newlines,
         }
     }
 
@@ -300,6 +302,10 @@ impl FormattingOptions {
 
     pub fn preserve_line_breaks(&self) -> bool {
         self.preserve_line_breaks.unwrap_or(false)
+    }
+
+    pub fn preserve_newlines(&self) -> bool {
+        self.preserve_newlines.unwrap_or(false)
     }
 
     pub fn line_break_style(&self) -> LineBreakStyle {

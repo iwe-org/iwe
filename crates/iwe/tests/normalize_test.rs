@@ -386,6 +386,10 @@ fn setup_empty_workspace() -> TempDir {
 }
 
 fn setup_iwe_config(temp_path: &std::path::Path) {
+    setup_iwe_config_with_formatting(temp_path, FormattingOptions::default());
+}
+
+fn setup_iwe_config_with_formatting(temp_path: &std::path::Path, formatting: FormattingOptions) {
     create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
 
     let config = Configuration {
@@ -395,6 +399,7 @@ fn setup_iwe_config(temp_path: &std::path::Path) {
         },
         markdown: MarkdownOptions {
             refs_extension: "".to_string(),
+            formatting,
             ..Default::default()
         },
         ..Default::default()
@@ -546,26 +551,14 @@ fn test_normalize_wraps_paragraph_and_preserves_breaks() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
-    let config = Configuration {
-        library: LibraryOptions {
-            path: "".to_string(),
+    setup_iwe_config_with_formatting(
+        temp_path,
+        FormattingOptions {
+            wrap_column: Some(40),
+            preserve_line_breaks: Some(true),
             ..Default::default()
         },
-        markdown: MarkdownOptions {
-            refs_extension: "".to_string(),
-            formatting: FormattingOptions {
-                wrap_column: Some(40),
-                preserve_line_breaks: Some(true),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let config_content = toml::to_string(&config).expect("Failed to serialize config to TOML");
-    write(temp_path.join(".iwe").join("config.toml"), config_content)
-        .expect("Should write config file");
+    );
 
     write(
         temp_path.join("wrapped.md"),
@@ -584,6 +577,39 @@ fn test_normalize_wraps_paragraph_and_preserves_breaks() {
             theta\\
             iota kappa lambda mu nu xi omicron pi
             rho
+        "},
+    );
+}
+
+#[test]
+fn test_normalize_preserves_newlines() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config_with_formatting(
+        temp_path,
+        FormattingOptions {
+            preserve_newlines: Some(true),
+            ..Default::default()
+        },
+    );
+
+    write(
+        temp_path.join("notes.md"),
+        "first line\nsecond line\nthird line\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize should succeed");
+
+    let content = read_to_string(temp_path.join("notes.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            first line
+            second line
+            third line
         "},
     );
 }

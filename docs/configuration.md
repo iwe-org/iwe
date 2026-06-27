@@ -71,6 +71,7 @@ list_token = "-"
 - `wrap_column`: Wrap paragraphs at this column (default: unset, no wrapping). Minimum effective value is `20`; lower values are ignored. Wrapping splits at word boundaries; inline code, wiki links, math, and link/image URLs stay atomic; inline-link and image text wraps at spaces with the closing `](url)` glued to the last word. List and blockquote indents are subtracted from the effective width so wrapped lines inside `- ` items respect `wrap_column`. Tokens longer than the limit sit on their own line.
 - `preserve_line_breaks`: Keep hard line breaks instead of dropping them (default: `false`). Recognizes two trailing spaces (`  \n`) and backslash (`\\\n`) in the source and emits them in the configured `line_break_style` on output.
 - `line_break_style`: How preserved hard breaks are emitted (default: `"backslash"`). Options: `"backslash"` (`\\\n`, visible and survives whitespace-trimming editors), `"spaces"` (`  \n`, invisible CommonMark default). Only takes effect when `preserve_line_breaks = true`.
+- `preserve_newlines`: Keep soft line breaks inside a paragraph instead of joining the lines (default: `false`). With this on, a paragraph written one sentence per line ([semantic line breaks](https://sembr.org/)) keeps its line layout through normalization instead of being reflowed onto a single line. Independent of `wrap_column`, which reflows and re-wraps paragraph text.
 
 ### Library Settings
 
