@@ -375,6 +375,7 @@ fn valid_values_preserved_after_validation() {
         wrap_column: Some(80),
         preserve_line_breaks: Some(true),
         line_break_style: Some(LineBreakStyle::Spaces),
+        preserve_newlines: Some(true),
     }
     .validated();
 
@@ -392,6 +393,7 @@ fn valid_values_preserved_after_validation() {
     assert_eq!(formatting.wrap_column(), Some(80));
     assert_eq!(formatting.preserve_line_breaks(), true);
     assert_eq!(formatting.line_break_marker(), "  \n");
+    assert_eq!(formatting.preserve_newlines(), true);
 }
 
 #[test]
@@ -440,6 +442,75 @@ fn preserve_line_breaks_emits_two_spaces_when_configured() {
             ..Default::default()
         },
     );
+}
+
+#[test]
+fn soft_breaks_join_with_space_by_default() {
+    compare(
+        "first line second line\n",
+        indoc! {"
+        first line
+        second line
+        "},
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn preserve_newlines_keeps_soft_breaks() {
+    compare(
+        indoc! {"
+        first line
+        second line
+        "},
+        indoc! {"
+        first line
+        second line
+        "},
+        FormattingOptions {
+            preserve_newlines: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn preserve_newlines_collapses_blank_lines_into_paragraphs() {
+    compare(
+        indoc! {"
+        first line
+        second line
+
+        third line
+        "},
+        indoc! {"
+        first line
+        second line
+
+        third line
+        "},
+        FormattingOptions {
+            preserve_newlines: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn preserve_newlines_is_idempotent() {
+    let formatting = FormattingOptions {
+        preserve_newlines: Some(true),
+        ..Default::default()
+    };
+    let input = indoc! {"
+        first line
+        second line
+        third line
+    "};
+    let once = normalize_with(input, formatting.clone());
+    let twice = normalize_with(&once, formatting);
+
+    assert_str_eq!(once, twice);
 }
 
 #[test]

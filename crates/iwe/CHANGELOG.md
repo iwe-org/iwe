@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `preserve_newlines` config option keeps each line of a paragraph on its own line during `normalize` instead of joining them with spaces, so source files written with one sentence per line (semantic line breaks) survive formatting (default off).
+
 ### Fixed
 - `normalize` no longer collapses nested or multi-paragraph djot list items onto one line; the blank line that keeps them separate is preserved so the list survives repeated runs.
 - Commands no longer crash on a djot document that contains a reference link definition or a definition list.

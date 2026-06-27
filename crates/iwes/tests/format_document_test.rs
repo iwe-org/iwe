@@ -1,4 +1,5 @@
 use indoc::indoc;
+use liwe::model::config::{FormattingOptions, MarkdownOptions};
 
 use crate::fixture::*;
 
@@ -198,8 +199,8 @@ fn assert_formatted_after_change(source: &str, change: &str, formatted: &str) {
 fn format_wraps_and_preserves_breaks() {
     Fixture::with_options(
         "alpha beta gamma delta epsilon zeta eta theta\\\niota kappa lambda mu nu xi omicron pi rho\n",
-        liwe::model::config::MarkdownOptions {
-            formatting: liwe::model::config::FormattingOptions {
+        MarkdownOptions {
+            formatting: FormattingOptions {
                 wrap_column: Some(40),
                 preserve_line_breaks: Some(true),
                 ..Default::default()
@@ -214,6 +215,29 @@ fn format_wraps_and_preserves_breaks() {
             theta\\
             iota kappa lambda mu nu xi omicron pi
             rho
+        "}
+        .to_text_edit_full()],
+    );
+}
+
+#[test]
+fn format_preserves_newlines() {
+    Fixture::with_options(
+        "first line\nsecond line\nthird line\n",
+        MarkdownOptions {
+            formatting: FormattingOptions {
+                preserve_newlines: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .format_document(
+        uri(1).to_document_formatting_params(),
+        vec![indoc! {"
+            first line
+            second line
+            third line
         "}
         .to_text_edit_full()],
     );

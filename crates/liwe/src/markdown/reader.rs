@@ -7,6 +7,7 @@ use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
 use serde_yaml::{Mapping, Value};
 
+use crate::model::document::SoftBreak as DocumentSoftBreak;
 use crate::model::document::*;
 use crate::model::*;
 
@@ -153,12 +154,16 @@ impl MarkdownEventsReader {
                 }
                 FootnoteReference(_) => {}
                 SoftBreak => {
-                    self.push_inline(
+                    let inline = if self.markdown_options.formatting.preserve_newlines() {
+                        DocumentInline::SoftBreak(DocumentSoftBreak {
+                            inline_range: InlineRange::default(),
+                        })
+                    } else {
                         DocumentInline::Space(Space {
                             inline_range: InlineRange::default(),
-                        }),
-                        self.to_line_range(range),
-                    );
+                        })
+                    };
+                    self.push_inline(inline, self.to_line_range(range));
                     self.pop_inline();
                 }
                 HardBreak => {

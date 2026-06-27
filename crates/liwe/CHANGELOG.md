@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `FormattingOptions` gains a `preserve_newlines` field (default `false`); when enabled, a soft line break inside a paragraph is read as `DocumentInline::SoftBreak` and written back as a plain newline instead of being collapsed into a space, so the source line layout survives normalization.
+
 ### Changed
 - `Inline::Math` now carries a `MathType` (`Inline::Math(MathType, String)`), distinguishing inline from display math.
 
