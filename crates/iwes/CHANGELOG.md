@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/iwe-org/iwe/compare/iwes-v0.5.0...iwes-v0.6.0) - 2026-06-27
+
 ### Added
 - `preserve_newlines` config option keeps each line of a paragraph on its own line when formatting instead of joining them with spaces, so documents written with one sentence per line (semantic line breaks) survive format-on-save (default off).
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/iwe-org/iwe/compare/iwec-v0.5.0...iwec-v0.6.0) - 2026-06-27
+
+Workspace version bump — no user-visible changes in this crate.
+
 ## [0.5.0](https://github.com/iwe-org/iwe/compare/iwec-v0.4.0...iwec-v0.5.0) - 2026-06-23
 
 ### Added

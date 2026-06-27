@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/iwe-org/iwe/compare/iwe-v0.5.0...iwe-v0.6.0) - 2026-06-27
+
 ### Added
 - `preserve_newlines` config option keeps each line of a paragraph on its own line during `normalize` instead of joining them with spaces, so source files written with one sentence per line (semantic line breaks) survive formatting (default off).
 

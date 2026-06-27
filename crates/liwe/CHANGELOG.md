@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/iwe-org/iwe/compare/liwe-v0.5.0...liwe-v0.6.0) - 2026-06-27
+
 ### Added
 - `FormattingOptions` gains a `preserve_newlines` field (default `false`); when enabled, a soft line break inside a paragraph is read as `DocumentInline::SoftBreak` and written back as a plain newline instead of being collapsed into a space, so the source line layout survives normalization.
 
