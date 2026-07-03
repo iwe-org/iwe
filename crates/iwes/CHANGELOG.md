@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/iwe-org/iwe/compare/iwes-v0.6.0...iwes-v0.6.1) - 2026-07-03
+
 ### Fixed
 
 - Renaming a wiki link (`[[target]]` or `[[target|label]]`) now selects the target for editing instead of an empty spot at the closing brackets.
