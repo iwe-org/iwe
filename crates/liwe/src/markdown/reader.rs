@@ -882,6 +882,86 @@ mod tests {
         );
     }
 
+    fn key_range_of(content: &str) -> InlineRange {
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        actual[0]
+            .child_inlines()
+            .into_iter()
+            .find(|i| i.is_link())
+            .unwrap()
+            .key_range()
+            .unwrap()
+    }
+
+    #[test]
+    fn test_markdown_link_key_range() {
+        assert_eq!(
+            InlineRange {
+                start: Position {
+                    line: 0,
+                    character: 7,
+                },
+                end: Position {
+                    line: 0,
+                    character: 9,
+                },
+            },
+            key_range_of("[link](to)\n")
+        );
+    }
+
+    #[test]
+    fn test_wiki_link_key_range() {
+        assert_eq!(
+            InlineRange {
+                start: Position {
+                    line: 0,
+                    character: 2,
+                },
+                end: Position {
+                    line: 0,
+                    character: 8,
+                },
+            },
+            key_range_of("[[target]]\n")
+        );
+    }
+
+    #[test]
+    fn test_wiki_link_piped_key_range() {
+        assert_eq!(
+            InlineRange {
+                start: Position {
+                    line: 0,
+                    character: 2,
+                },
+                end: Position {
+                    line: 0,
+                    character: 8,
+                },
+            },
+            key_range_of("[[target|display]]\n")
+        );
+    }
+
+    #[test]
+    fn test_wiki_link_key_range_after_multibyte_text() {
+        assert_eq!(
+            InlineRange {
+                start: Position {
+                    line: 0,
+                    character: 5,
+                },
+                end: Position {
+                    line: 0,
+                    character: 11,
+                },
+            },
+            key_range_of("\u{03B1}\u{03B2} [[target]]\n")
+        );
+    }
+
     #[test]
     fn test_link_position_on_late_line() {
         let mut content = String::new();

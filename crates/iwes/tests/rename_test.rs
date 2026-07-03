@@ -13,6 +13,40 @@ fn basic_prepare_rename() {
 }
 
 #[test]
+fn prepare_rename_wiki_link() {
+    Fixture::with(indoc! {"
+        [[key]]
+        "})
+    .prepare_rename(
+        uri(1).to_text_document_position_params(0, 0),
+        prepare_rename_response(
+            lsp_types::Range::new(
+                lsp_types::Position::new(0, 2),
+                lsp_types::Position::new(0, 5),
+            ),
+            "key".to_string(),
+        ),
+    );
+}
+
+#[test]
+fn prepare_rename_wiki_link_piped() {
+    Fixture::with(indoc! {"
+        [[key|link text]]
+        "})
+    .prepare_rename(
+        uri(1).to_text_document_position_params(0, 0),
+        prepare_rename_response(
+            lsp_types::Range::new(
+                lsp_types::Position::new(0, 2),
+                lsp_types::Position::new(0, 5),
+            ),
+            "key".to_string(),
+        ),
+    );
+}
+
+#[test]
 fn basic_rename() {
     assert_rename(
         indoc! {"

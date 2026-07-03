@@ -718,20 +718,24 @@ impl DocumentInline {
 
     pub fn key_range(&self) -> Option<InlineRange> {
         match self {
-            DocumentInline::Link(link) => Some(InlineRange {
-                start: Position {
-                    line: link.inline_range.start.line,
+            DocumentInline::Link(link) => {
+                let (start_offset, end_offset) = match link.link_type {
+                    LinkType::Markdown => (self.to_plain_text().encode_utf16().count() + 3, 1),
+                    LinkType::WikiLink => (2, 2),
+                    LinkType::WikiLinkPiped => (2, self.to_plain_text().encode_utf16().count() + 3),
+                };
 
-                    character: link.inline_range.start.character
-                        + self.to_plain_text().encode_utf16().count()
-                        + 3,
-                },
-                end: Position {
-                    line: link.inline_range.end.line,
-
-                    character: link.inline_range.end.character - 1,
-                },
-            }),
+                Some(InlineRange {
+                    start: Position {
+                        line: link.inline_range.start.line,
+                        character: link.inline_range.start.character + start_offset,
+                    },
+                    end: Position {
+                        line: link.inline_range.end.line,
+                        character: link.inline_range.end.character - end_offset,
+                    },
+                })
+            }
             _ => None,
         }
     }

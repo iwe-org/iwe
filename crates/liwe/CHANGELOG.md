@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `DocumentInline::key_range` now returns the target range for wiki links (`[[target]]` and `[[target|label]]`); it previously assumed `[text](url)` syntax and returned an empty range at the wrong offset.
+
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/liwe-v0.5.0...liwe-v0.6.0) - 2026-06-27
 
 ### Added
