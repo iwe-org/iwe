@@ -2286,7 +2286,13 @@ fn attach_command(args: Attach) {
     if args.list {
         for (name, action) in &config.actions {
             if let ActionDefinition::Attach(a) = action {
-                let target = render_key_template(&a.key_template);
+                let target = match render_key_template(&a.key_template) {
+                    Ok(target) => target,
+                    Err(e) => {
+                        eprintln!("Error: action '{}': {}", name, e);
+                        std::process::exit(1);
+                    }
+                };
                 println!("{}\t{}\t{}", name, a.title, target);
             }
         }
@@ -2329,7 +2335,13 @@ fn attach_command(args: Attach) {
             }
         };
 
-        let target_key_str = render_key_template(&attach.key_template);
+        let target_key_str = match render_key_template(&attach.key_template) {
+            Ok(target) => target,
+            Err(e) => {
+                eprintln!("Error: action '{}': {}", action_name, e);
+                std::process::exit(1);
+            }
+        };
         let target_key = Key::name(&target_key_str);
 
         if (&graph).get_node_id(&target_key).is_some() {
@@ -2360,7 +2372,14 @@ fn attach_command(args: Attach) {
             let rendered_reference = reference
                 .iter()
                 .to_text(&target_key.parent(), &format_options);
-            render_document_template(&attach.document_template, &rendered_reference, &config)
+            match render_document_template(&attach.document_template, &rendered_reference, &config)
+            {
+                Ok(content) => content,
+                Err(e) => {
+                    eprintln!("Error: action '{}': {}", action_name, e);
+                    std::process::exit(1);
+                }
+            }
         };
 
         if args.dry_run {
@@ -2386,22 +2405,26 @@ fn attach_command(args: Attach) {
     }
 }
 
-fn render_key_template(template: &str) -> String {
+fn render_key_template(template: &str) -> Result<String, String> {
     use chrono::Local;
     use minijinja::{context, Environment};
     let now = Local::now();
     let formatted = now.format("%Y-%m-%d").to_string();
     Environment::new()
         .template_from_str(template)
-        .expect("valid key template")
+        .map_err(|e| format!("invalid key template: {}", e))?
         .render(context! {
             today => &formatted,
             now => &formatted,
         })
-        .expect("key template to render")
+        .map_err(|e| format!("key template rendering failed: {}", e))
 }
 
-fn render_document_template(template: &str, content: &str, config: &Configuration) -> String {
+fn render_document_template(
+    template: &str,
+    content: &str,
+    config: &Configuration,
+) -> Result<String, String> {
     use chrono::Local;
     use minijinja::{context, Environment};
     let now = Local::now();
@@ -2413,11 +2436,11 @@ fn render_document_template(template: &str, content: &str, config: &Configuratio
     let formatted = now.format(date_format).to_string();
     Environment::new()
         .template_from_str(template)
-        .expect("valid document template")
+        .map_err(|e| format!("invalid document template: {}", e))?
         .render(context! {
             today => &formatted,
             now => &formatted,
             content => content,
         })
-        .expect("document template to render")
+        .map_err(|e| format!("document template rendering failed: {}", e))
 }

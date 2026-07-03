@@ -430,7 +430,7 @@ struct ActionResourceView {
 }
 
 impl ConfigResource {
-    fn from_config(config: &Configuration, server: &IweServer) -> Self {
+    fn from_config(config: &Configuration, server: &IweServer) -> Result<Self, String> {
         let actions = config
             .actions
             .iter()
@@ -440,7 +440,7 @@ impl ConfigResource {
                     ActionDefinition::Attach(a) => (
                         "attach",
                         a.title.clone(),
-                        Some(server.render_key_template(&a.key_template)),
+                        Some(server.render_key_template(&a.key_template)?),
                     ),
                     ActionDefinition::Sort(a) => ("sort", a.title.clone(), None),
                     ActionDefinition::Inline(a) => ("inline", a.title.clone(), None),
@@ -448,16 +448,16 @@ impl ConfigResource {
                     ActionDefinition::ExtractAll(a) => ("extract_all", a.title.clone(), None),
                     ActionDefinition::Link(a) => ("link", a.title.clone(), None),
                 };
-                ActionResourceView {
+                Ok(ActionResourceView {
                     name: name.clone(),
                     action_type: action_type.to_string(),
                     title,
                     target_key,
-                }
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
 
-        Self {
+        Ok(Self {
             markdown: config.markdown.clone(),
             library: LibraryResourceView {
                 date_format: config.library.date_format.clone(),
@@ -468,7 +468,7 @@ impl ConfigResource {
             completion: config.completion.clone(),
             templates: config.templates.clone(),
             actions,
-        }
+        })
     }
 }
 
@@ -982,22 +982,21 @@ impl IweServer {
         Parameters(params): Parameters<AttachParams>,
     ) -> Result<CallToolResult, McpError> {
         if params.list.unwrap_or(false) {
-            let entries: Vec<AttachActionEntry> = self
-                .config
-                .actions
-                .iter()
-                .filter_map(|(name, action)| {
-                    if let ActionDefinition::Attach(attach) = action {
-                        Some(AttachActionEntry {
-                            name: name.clone(),
-                            title: attach.title.clone(),
-                            target_key: self.render_key_template(&attach.key_template),
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+            let mut entries: Vec<AttachActionEntry> = Vec::new();
+            for (name, action) in &self.config.actions {
+                if let ActionDefinition::Attach(attach) = action {
+                    let target_key =
+                        self.render_key_template(&attach.key_template)
+                            .map_err(|e| {
+                                McpError::invalid_params(format!("action '{}': {}", name, e), None)
+                            })?;
+                    entries.push(AttachActionEntry {
+                        name: name.clone(),
+                        title: attach.title.clone(),
+                        target_key,
+                    });
+                }
+            }
             return to_json_result(&entries);
         }
 
@@ -1046,7 +1045,9 @@ impl IweServer {
                 }
             };
 
-            let target_key = Key::name(&self.render_key_template(&attach.key_template));
+            let target_key = Key::name(&self.render_key_template(&attach.key_template).map_err(
+                |e| McpError::invalid_params(format!("action '{}': {}", action_name, e), None),
+            )?);
 
             if (&*graph).get_node_id(&target_key).is_some() {
                 let tree = (&*graph).collect(&target_key);
@@ -1080,7 +1081,11 @@ impl IweServer {
                 let content = reference
                     .iter()
                     .to_text(&target_key.parent(), &format_options);
-                let document = self.render_document_template(&attach.document_template, &content);
+                let document = self
+                    .render_document_template(&attach.document_template, &content)
+                    .map_err(|e| {
+                        McpError::invalid_params(format!("action '{}': {}", action_name, e), None)
+                    })?;
                 combined.add_create(target_key.clone(), document);
             }
         }
@@ -1397,7 +1402,8 @@ impl ServerHandler for IweServer {
         }
 
         if uri == "iwe://config" {
-            let config_view = ConfigResource::from_config(&self.config, self);
+            let config_view = ConfigResource::from_config(&self.config, self)
+                .map_err(|e| McpError::internal_error(e, None))?;
             let json = serde_json::to_string_pretty(&config_view)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(ReadResourceResult::new(vec![ResourceContents::text(
@@ -1543,7 +1549,7 @@ impl IweServer {
         }
     }
 
-    fn render_key_template(&self, template: &str) -> String {
+    fn render_key_template(&self, template: &str) -> Result<String, String> {
         let now = Local::now();
         let date_format = self
             .config
@@ -1554,15 +1560,15 @@ impl IweServer {
         let formatted = now.format(date_format).to_string();
         Environment::new()
             .template_from_str(template)
-            .expect("valid key template")
+            .map_err(|e| format!("invalid key template: {}", e))?
             .render(context! {
                 today => formatted,
                 now => formatted,
             })
-            .expect("key template to render")
+            .map_err(|e| format!("key template rendering failed: {}", e))
     }
 
-    fn render_document_template(&self, template: &str, content: &str) -> String {
+    fn render_document_template(&self, template: &str, content: &str) -> Result<String, String> {
         let now = Local::now();
         let date_format = self
             .config
@@ -1573,12 +1579,12 @@ impl IweServer {
         let formatted = now.format(date_format).to_string();
         Environment::new()
             .template_from_str(template)
-            .expect("valid document template")
+            .map_err(|e| format!("invalid document template: {}", e))?
             .render(context! {
                 today => formatted,
                 now => formatted,
                 content => content,
             })
-            .expect("document template to render")
+            .map_err(|e| format!("document template rendering failed: {}", e))
     }
 }

@@ -23,4 +23,5 @@ mod rename_test;
 mod sections_to_list_test;
 mod sort_test;
 mod transform_test;
+mod unknown_method_test;
 mod workspace_symbols_test;

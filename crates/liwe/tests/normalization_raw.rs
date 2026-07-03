@@ -195,6 +195,27 @@ fn raw_as_only_block_in_a_list_item() {
     );
 }
 
+#[test]
+fn code_block_with_nested_fence_uses_longer_token() {
+    setup();
+    compare(
+        indoc! {"
+        ````
+        ```
+        nested code
+        ```
+        ````
+        "},
+        indoc! {"
+        ````
+        ```
+        nested code
+        ```
+        ````
+        "},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 

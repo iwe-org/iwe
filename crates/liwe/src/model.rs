@@ -82,6 +82,12 @@ impl Key {
         }
     }
 
+    pub fn from_stripped(key: &str) -> Self {
+        Key {
+            relative_path: Arc::new(key.to_string()),
+        }
+    }
+
     pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
         let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
         let key = strip_doc_extension(&decoded).to_string();

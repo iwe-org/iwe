@@ -74,10 +74,19 @@ impl Block {
                 .collect::<Vec<String>>()
                 .join("\n"),
             Block::CodeBlock(lang, text) => {
-                let fence = options
-                    .formatting
-                    .code_block_token()
-                    .repeat(options.formatting.code_block_token_count());
+                let token = options.formatting.code_block_token_char();
+                let mut max_run = 0;
+                let mut run = 0;
+                for ch in text.chars() {
+                    if ch == token {
+                        run += 1;
+                        max_run = max_run.max(run);
+                    } else {
+                        run = 0;
+                    }
+                }
+                let count = options.formatting.code_block_token_count().max(max_run + 1);
+                let fence = token.to_string().repeat(count);
                 lang.clone()
                     .filter(|lang| !lang.trim().is_empty())
                     .map(|lang| {

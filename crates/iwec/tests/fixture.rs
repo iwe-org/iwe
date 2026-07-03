@@ -115,15 +115,23 @@ impl Fixture {
     }
 
     pub async fn read_resource(&self, uri: &str) -> ReadResourceResult {
+        self.try_read_resource(uri)
+            .await
+            .expect("read resource to succeed")
+    }
+
+    pub async fn try_read_resource(
+        &self,
+        uri: &str,
+    ) -> Result<ReadResourceResult, rmcp::ServiceError> {
         let params = ReadResourceRequestParams::new(uri.to_string());
         let response = self
             .client
             .send_request(ClientRequest::ReadResourceRequest(Request::new(params)))
-            .await
-            .expect("read resource to succeed");
+            .await?;
 
         match response {
-            ServerResult::ReadResourceResult(result) => result,
+            ServerResult::ReadResourceResult(result) => Ok(result),
             other => panic!("expected ReadResourceResult, got: {other:?}"),
         }
     }

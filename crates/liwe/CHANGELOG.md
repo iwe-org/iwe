@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sorting a field that mixes value types (e.g. some documents with `priority: 3` and others with `priority: high`) now produces a stable, deterministic order: values are grouped by type before being compared, so cross-type pairs no longer collapse to "equal" and scramble the result.
 - Numeric filters compare integers exactly instead of routing everything through 64-bit floats, so large whole numbers past 2^53 (like `id: 9007199254740993`) are no longer treated as equal to their neighbours.
 - A `not-a-number` filter target (`.nan`) no longer compares as equal to every number, so range operators like `$gte: .nan` match nothing instead of matching everything.
+- Datetime detection in query filters no longer crashes on a value with multibyte characters in the timezone tail (for example `2026-04-26T10:30:00+0é9`).
+- Code blocks whose content contains a run of the fence token are now written with a longer fence, so the block no longer terminates early and leaks its content into the surrounding text.
+- A paragraph that starts with an escaped `\*` keeps its backslash when written, so it is not re-parsed as a bullet list on the next pass.
+- A document key strips only one file extension, so a file named `note.md.md` maps to the key `note.md` instead of collapsing onto `note` and being duplicated on write.
 
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/liwe-v0.5.0...liwe-v0.6.0) - 2026-06-27
 

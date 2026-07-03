@@ -253,25 +253,20 @@ pub(crate) fn is_iso_datetime(s: &str) -> bool {
     }
     match tail {
         "" | "Z" | "z" => true,
-        _ if tail.len() >= 3 => {
+        _ => {
             let bytes = tail.as_bytes();
+            if bytes.len() < 3 {
+                return false;
+            }
             let sign_ok = bytes[0] == b'+' || bytes[0] == b'-';
             let hh_ok = bytes[1..3].iter().all(|b| b.is_ascii_digit());
-            let mm_part = &tail[3..];
-            let mm_ok = match mm_part {
-                "" => true,
-                ":mm" if mm_part.len() == 3 => {
-                    mm_part[1..].as_bytes().iter().all(|b| b.is_ascii_digit())
-                }
-                _ if mm_part.len() == 2 => mm_part.as_bytes().iter().all(|b| b.is_ascii_digit()),
-                _ if mm_part.len() == 3 && mm_part.as_bytes()[0] == b':' => {
-                    mm_part[1..].as_bytes().iter().all(|b| b.is_ascii_digit())
-                }
+            let mm_ok = match &bytes[3..] {
+                [] => true,
+                [b':', a, b] | [a, b] => a.is_ascii_digit() && b.is_ascii_digit(),
                 _ => false,
             };
             sign_ok && hh_ok && mm_ok
         }
-        _ => false,
     }
 }
 
@@ -713,6 +708,23 @@ mod tests {
             &doc(vec![("d", "2026-04-26".into())]),
             false,
         );
+    }
+
+    #[test]
+    fn is_iso_datetime_multibyte_timezone_tail_does_not_panic() {
+        assert!(!is_iso_datetime("2026-04-26T10:30:00+0é9"));
+        assert!(!is_iso_datetime("2026-04-26T10:30:00+é0:00"));
+        assert!(!is_iso_datetime("2026-04-26T10:30:00.5é"));
+    }
+
+    #[test]
+    fn is_iso_datetime_accepts_offset_variants() {
+        assert!(is_iso_datetime("2026-04-26T10:30:00Z"));
+        assert!(is_iso_datetime("2026-04-26T10:30:00+02"));
+        assert!(is_iso_datetime("2026-04-26T10:30:00+0200"));
+        assert!(is_iso_datetime("2026-04-26T10:30:00+02:00"));
+        assert!(is_iso_datetime("2026-04-26T10:30:00.123+02:00"));
+        assert!(!is_iso_datetime("2026-04-26T10:30:00+2:00"));
     }
 
     #[test]

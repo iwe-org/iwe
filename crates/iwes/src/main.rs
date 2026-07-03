@@ -10,7 +10,6 @@ use liwe::model::config::load_config;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;
-use lsp_types::ExecuteCommandOptions;
 use lsp_types::FoldingRangeProviderCapability;
 use lsp_types::HoverProviderCapability;
 use lsp_types::InitializeParams;
@@ -92,10 +91,6 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
             resolve_provider: Some(true),
             ..Default::default()
         })),
-        execute_command_provider: Some(ExecuteCommandOptions {
-            commands: vec!["generate".to_string()],
-            work_done_progress_options: Default::default(),
-        }),
         workspace: Some(WorkspaceServerCapabilities {
             workspace_folders: None,
             file_operations: Some(WorkspaceFileOperationsServerCapabilities {

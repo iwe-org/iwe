@@ -18,38 +18,46 @@ pub struct TransformBlockAction {
 }
 
 fn expand_env_var(value: &str) -> String {
-    let mut result = value.to_string();
-    let mut i = 0;
-    while i < result.len() {
-        if result[i..].starts_with('$') {
-            let rest = &result[i + 1..];
-            let (var_name, end_offset) = if rest.starts_with('{') {
-                if let Some(close) = rest.find('}') {
-                    (&rest[1..close], close + 2)
+    let mut result = String::with_capacity(value.len());
+    let mut chars = value.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '$' {
+            result.push(c);
+            continue;
+        }
+        match chars.peek() {
+            Some('{') => {
+                chars.next();
+                let mut name = String::new();
+                let mut closed = false;
+                for nc in chars.by_ref() {
+                    if nc == '}' {
+                        closed = true;
+                        break;
+                    }
+                    name.push(nc);
+                }
+                if closed {
+                    result.push_str(&std::env::var(&name).unwrap_or_default());
                 } else {
-                    i += 1;
-                    continue;
+                    result.push('$');
+                    result.push('{');
+                    result.push_str(&name);
                 }
-            } else {
-                let end = rest
-                    .find(|c: char| !c.is_alphanumeric() && c != '_')
-                    .unwrap_or(rest.len());
-                if end == 0 {
-                    i += 1;
-                    continue;
+            }
+            Some(nc) if nc.is_alphanumeric() || *nc == '_' => {
+                let mut name = String::new();
+                while let Some(nc) = chars.peek() {
+                    if nc.is_alphanumeric() || *nc == '_' {
+                        name.push(*nc);
+                        chars.next();
+                    } else {
+                        break;
+                    }
                 }
-                (&rest[..end], end + 1)
-            };
-            let replacement = std::env::var(var_name).unwrap_or_default();
-            result = format!(
-                "{}{}{}",
-                &result[..i],
-                replacement,
-                &result[i + end_offset..]
-            );
-            i += replacement.len();
-        } else {
-            i += 1;
+                result.push_str(&std::env::var(&name).unwrap_or_default());
+            }
+            _ => result.push('$'),
         }
     }
     result
@@ -207,5 +215,31 @@ impl ActionProvider for TransformBlockAction {
             .to_text(&key.parent(), &context.format_options());
 
         Some(Changes::new().update(key, markdown))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::expand_env_var;
+
+    #[test]
+    fn multibyte_value_with_env_var_does_not_panic() {
+        std::env::set_var("IWE_TEST_EXPAND_VALUE", "replaced");
+        assert_eq!(
+            expand_env_var("héllo $IWE_TEST_EXPAND_VALUE"),
+            "héllo replaced"
+        );
+        assert_eq!(
+            expand_env_var("${IWE_TEST_EXPAND_VALUE} café"),
+            "replaced café"
+        );
+        assert_eq!(expand_env_var("café $missing_var €"), "café  €");
+    }
+
+    #[test]
+    fn lone_dollar_and_unclosed_brace_are_kept() {
+        assert_eq!(expand_env_var("price $ 5"), "price $ 5");
+        assert_eq!(expand_env_var("trailing $"), "trailing $");
+        assert_eq!(expand_env_var("open ${brace"), "open ${brace");
     }
 }

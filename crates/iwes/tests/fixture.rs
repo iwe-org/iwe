@@ -756,6 +756,13 @@ impl Fixture {
         self.send_request_(Request::new(id.into(), R::METHOD.to_owned(), params))
     }
 
+    pub fn raw_response(&self, method: &str, params: Value) -> lsp_server::Response {
+        let id = self.req_id.get();
+        self.req_id.set(id.wrapping_add(1));
+
+        self.recv_response_(Request::new(id.into(), method.to_string(), params))
+    }
+
     fn send_request_(&self, r: Request) -> Value {
         let response = self.recv_response_(r);
         if let Some(err) = response.error {

@@ -115,6 +115,45 @@ fn attach_honors_refs_extension() {
     );
 }
 
+#[test]
+fn attach_list_with_malformed_key_template_exits_without_panic() {
+    let temp_dir = setup_workspace(
+        vec![("daily/{{ today", "broken", "# Title\n\n{{content}}\n")],
+        vec![],
+        vec![],
+    );
+
+    let output = run_attach(temp_dir.path(), &["--list"]);
+
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn attach_with_malformed_key_template_exits_without_panic() {
+    let temp_dir = setup_workspace(
+        vec![("daily/{{ today", "broken", "# Title\n\n{{content}}\n")],
+        vec![("note", "# Note\n")],
+        vec![],
+    );
+
+    let output = run_attach(temp_dir.path(), &["--to", "broken", "-k", "note"]);
+
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn attach_with_malformed_document_template_exits_without_panic() {
+    let temp_dir = setup_workspace(
+        vec![("new-target", "broken", "# Title\n\n{{ content")],
+        vec![("note", "# Note\n")],
+        vec![],
+    );
+
+    let output = run_attach(temp_dir.path(), &["--to", "broken", "-k", "note"]);
+
+    assert_eq!(output.status.code(), Some(1));
+}
+
 fn setup_workspace(
     actions: Vec<(&str, &str, &str)>,
     sources: Vec<(&str, &str)>,

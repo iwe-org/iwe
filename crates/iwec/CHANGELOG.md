@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `iwe_normalize` now actually reformats documents on disk: it compares each document's normalized form against the file's current contents and rewrites the ones that differ, reporting an accurate `normalized` count instead of always returning `0`.
 - `iwe_create` rejects a title with no alphanumeric characters (e.g. `"!!!"`) instead of writing an empty-named file.
+- `iwe_attach` and the `iwe://config` resource return an error instead of crashing the server when an attach action's template is malformed.
+- The file watcher maps a file named `note.md.md` to the key `note.md` instead of `note`, matching how the graph loads documents from disk.
 
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/iwec-v0.5.0...iwec-v0.6.0) - 2026-06-27
 

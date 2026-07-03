@@ -165,6 +165,11 @@ fn update_ref_titles_after_new_file_change() {
         "},
     );
 }
+#[test]
+fn format_document_not_in_graph_returns_no_edits() {
+    Fixture::with("# test\n").format_document(uri(999).to_document_formatting_params(), vec![]);
+}
+
 fn assert_formatted(source: &str, formatted: &str) {
     Fixture::with(source).format_document(
         uri(1).to_document_formatting_params(),
