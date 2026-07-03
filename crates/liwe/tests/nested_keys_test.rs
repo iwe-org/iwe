@@ -43,3 +43,19 @@ fn link_into_subdirectory_resolves_when_loaded_from_disk() {
         graph.to_markdown(&"note".into())
     );
 }
+
+#[test]
+fn double_extension_file_strips_only_one_extension() {
+    setup();
+
+    let temp_dir = TempDir::new().unwrap();
+    let base_path = temp_dir.path().to_path_buf();
+
+    fs::write(base_path.join("note.md.md"), "# title\n").unwrap();
+
+    let graph = Graph::from_path(&base_path, false, MarkdownOptions::default(), None);
+
+    let keys: Vec<String> = graph.keys().iter().map(|k| k.to_library_url()).collect();
+
+    assert_eq!(keys, vec!["note.md".to_string()]);
+}

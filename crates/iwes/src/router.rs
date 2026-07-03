@@ -269,7 +269,12 @@ impl Router {
                 .map(|params| self.server.handle_folding_range(params))
                 .map(|response| to_value(response).unwrap()),
             default => {
-                panic!("unhandled request: {}", default)
+                self.respond(Response::new_err(
+                    request.id.clone(),
+                    ErrorCode::MethodNotFound as i32,
+                    format!("unhandled method: {}", default),
+                ));
+                return false;
             }
         };
 

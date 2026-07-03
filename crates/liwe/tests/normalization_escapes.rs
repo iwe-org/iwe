@@ -51,6 +51,11 @@ fn escaped_bullet_marker_stays_literal() {
 }
 
 #[test]
+fn escaped_asterisk_bullet_marker_stays_literal() {
+    compare("\\* not a list\n", "\\* not a list\n");
+}
+
+#[test]
 fn escaped_blockquote_marker_stays_literal() {
     compare("\\> not a quote\n", "\\> not a quote\n");
 }

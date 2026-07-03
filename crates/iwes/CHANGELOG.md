@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A failed rename (for example when the target file name is already taken) is now returned as a proper LSP error response instead of an empty success, so the editor surfaces the message to the user instead of silently doing nothing.
 - Link completion no longer leaves a stray `[` behind when the cursor sits after trailing spaces; the completion is inserted at the cursor instead of overwriting part of an earlier word.
 - Find references invoked on a link now reports references to the linked document (rather than the current document) when the request asks to include the declaration.
+- An unknown LSP request now returns a `MethodNotFound` error instead of panicking the request handler and leaving the client waiting for a response that never arrives.
+- Formatting a document that is not part of the library (a file outside the library path, or a brand-new unsaved file) no longer crashes the server; it returns no edits.
+- A transform action environment value that contains non-ASCII characters no longer crashes code action resolution.
+
+### Removed
+
+- The advertised `workspace/executeCommand` capability, which offered an unimplemented `generate` command that had no handler.
 
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/iwes-v0.5.0...iwes-v0.6.0) - 2026-06-27
 

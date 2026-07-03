@@ -396,21 +396,35 @@ impl Graph {
         graph.set_sequential_keys(sequential_ids);
         graph.frontmatter_document_title = frontmatter_document_title;
 
-        let keys: Vec<Key> = state.iter().map(|(k, _)| Key::name(k)).collect();
+        let keys: Vec<Key> = state.iter().map(|(k, _)| Key::from_stripped(k)).collect();
         let key_index = KeyIndex::build(keys.iter());
 
         let ids = BuildIds::new();
         let outputs: Vec<DocBuildOutput> = if state.len() < PARALLEL_BUILD_THRESHOLD {
             state
                 .iter()
-                .map(|(k, v)| build_doc(&ids, Key::name(k), v.clone(), &format_options, &key_index))
+                .map(|(k, v)| {
+                    build_doc(
+                        &ids,
+                        Key::from_stripped(k),
+                        v.clone(),
+                        &format_options,
+                        &key_index,
+                    )
+                })
                 .collect()
         } else {
             state
                 .par_iter()
                 .map(|(k, v)| {
                     debug!("building doc, key={}", k);
-                    build_doc(&ids, Key::name(k), v.clone(), &format_options, &key_index)
+                    build_doc(
+                        &ids,
+                        Key::from_stripped(k),
+                        v.clone(),
+                        &format_options,
+                        &key_index,
+                    )
                 })
                 .collect()
         };
@@ -434,7 +448,7 @@ impl Graph {
 
         let entries = crate::fs::walk_md_paths(base_path, format_options.format());
 
-        let keys: Vec<Key> = entries.iter().map(|(k, _)| Key::name(k)).collect();
+        let keys: Vec<Key> = entries.iter().map(|(k, _)| Key::from_stripped(k)).collect();
         let key_index = KeyIndex::build(keys.iter());
 
         let ids = BuildIds::new();
@@ -443,7 +457,13 @@ impl Graph {
                 .into_iter()
                 .filter_map(|(key, path)| {
                     crate::fs::read_md_file(&path).map(|content| {
-                        build_doc(&ids, Key::name(&key), content, &format_options, &key_index)
+                        build_doc(
+                            &ids,
+                            Key::from_stripped(&key),
+                            content,
+                            &format_options,
+                            &key_index,
+                        )
                     })
                 })
                 .collect()
@@ -453,7 +473,13 @@ impl Graph {
                 .filter_map(|(key, path)| {
                     debug!("building doc, key={}", key);
                     crate::fs::read_md_file(&path).map(|content| {
-                        build_doc(&ids, Key::name(&key), content, &format_options, &key_index)
+                        build_doc(
+                            &ids,
+                            Key::from_stripped(&key),
+                            content,
+                            &format_options,
+                            &key_index,
+                        )
                     })
                 })
                 .collect()

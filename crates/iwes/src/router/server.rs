@@ -305,6 +305,10 @@ impl Server {
     pub fn handle_document_formatting(&self, params: DocumentFormattingParams) -> Vec<TextEdit> {
         let key = params.text_document.uri.to_key(&self.base_path);
 
+        if self.graph.maybe_key(&key).is_none() {
+            return Vec::new();
+        }
+
         let mut patch = self.graph.new_patch();
         patch
             .build_key(&key)

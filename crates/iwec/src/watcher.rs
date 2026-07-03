@@ -23,7 +23,7 @@ fn path_to_key(path: &Path, base_path: &Path, format: Format) -> Option<Key> {
         .collect::<Vec<_>>()
         .join("/");
 
-    Some(Key::name(&key_str))
+    Some(Key::from_stripped(&key_str))
 }
 
 pub fn start(graph: Arc<Mutex<Graph>>, base_path: PathBuf, format: Format) {

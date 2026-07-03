@@ -103,3 +103,26 @@ async fn read_config_resource() {
     assert_eq!(attach_action["title"], "Add Date");
     assert_eq!(attach_action["target_key"], "daily");
 }
+
+#[tokio::test]
+async fn read_config_resource_with_malformed_key_template_errors_without_panic() {
+    let mut config = Configuration::default();
+    config.actions.insert(
+        "broken".to_string(),
+        ActionDefinition::Attach(Attach {
+            title: "Broken".to_string(),
+            key_template: "daily/{{ today".to_string(),
+            document_template: "# Daily\n\n{{content}}\n".to_string(),
+        }),
+    );
+
+    let f = Fixture::with_documents_and_config(vec![("1", "# Doc\n")], config).await;
+
+    assert!(f.try_read_resource("iwe://config").await.is_err());
+
+    let stats = f.read_resource("iwe://stats").await;
+    assert!(matches!(
+        &stats.contents[0],
+        ResourceContents::TextResourceContents { .. }
+    ));
+}

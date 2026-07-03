@@ -599,7 +599,8 @@ fn escape_str<S: MarkdownSink>(text: &str, pos: LinePos, ctx: EscapeCtx, out: &m
     let block_start = ctx.top_level && line_start;
     let lead = text.as_bytes().first().copied();
     let lead_block_marker = block_start
-        && lead.is_some_and(|b| matches!(b, b'#' | b'>' | b'-' | b'+') || b.is_ascii_digit());
+        && lead
+            .is_some_and(|b| matches!(b, b'#' | b'>' | b'-' | b'+' | b'*') || b.is_ascii_digit());
     let lead_ordered_marker = ctx.top_level
         && pos == LinePos::AfterDigits
         && lead.is_some_and(|b| matches!(b, b'.' | b')'));
@@ -618,6 +619,7 @@ fn escape_str<S: MarkdownSink>(text: &str, pos: LinePos, ctx: EscapeCtx, out: &m
         let trailing_marker_space = next.is_none_or(|c| c == ' ' || c == '\t');
         let escape = match ch {
             '\\' => true,
+            '*' if block_start && i == 0 && trailing_marker_space => true,
             '*' => ctx.asterisk_pair,
             '_' if ctx.underscore_pair => {
                 let between_alnum = prev.is_some_and(|c| c.is_alphanumeric())
