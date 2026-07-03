@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Renaming a wiki link (`[[target]]` or `[[target|label]]`) now selects the target for editing instead of an empty spot at the closing brackets.
 - Positions in a document that starts with an empty frontmatter (`---` / `---`) are no longer shifted up by two lines, so goto-definition, hover, rename, and code actions land on the right line.
 - A failed rename (for example when the target file name is already taken) is now returned as a proper LSP error response instead of an empty success, so the editor surfaces the message to the user instead of silently doing nothing.
 - Link completion no longer leaves a stray `[` behind when the cursor sits after trailing spaces; the completion is inserted at the cursor instead of overwriting part of an earlier word.
