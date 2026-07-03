@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An unknown LSP request now returns a `MethodNotFound` error instead of panicking the request handler and leaving the client waiting for a response that never arrives.
 - Formatting a document that is not part of the library (a file outside the library path, or a brand-new unsaved file) no longer crashes the server; it returns no edits.
 - A transform action environment value that contains non-ASCII characters no longer crashes code action resolution.
+- A long editing session on a document that contains a table no longer grows the server's memory without bound; the table's lines are released each time the document is re-parsed.
 
 ### Removed
 

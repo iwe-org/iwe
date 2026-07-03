@@ -386,6 +386,19 @@ impl GraphNode {
         }
     }
 
+    pub fn line_ids(&self) -> Vec<LineId> {
+        match self {
+            GraphNode::Section(section) => vec![section.line],
+            GraphNode::Leaf(leaf) => vec![leaf.line],
+            GraphNode::Table(table) => {
+                let mut ids = table.header.clone();
+                ids.extend(table.rows.iter().flatten().copied());
+                ids
+            }
+            _ => Vec::new(),
+        }
+    }
+
     pub fn next_id(&self) -> MaybeNodeId {
         match self {
             GraphNode::Section(section) => section.next,

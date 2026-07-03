@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code blocks whose content contains a run of the fence token are now written with a longer fence, so the block no longer terminates early and leaks its content into the surrounding text.
 - A paragraph that starts with an escaped `\*` keeps its backslash when written, so it is not re-parsed as a bullet list on the next pass.
 - A document key strips only one file extension, so a file named `note.md.md` maps to the key `note.md` instead of collapsing onto `note` and being duplicated on write.
+- Deleting a table node now releases its header and row lines back to the arena; repeatedly re-parsing a document that contains a table no longer leaks those line slots and grows memory without bound.
 
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/liwe-v0.5.0...liwe-v0.6.0) - 2026-06-27
 

@@ -56,7 +56,7 @@ impl Arena {
     }
 
     pub fn delete_branch(&mut self, from_id: NodeId) {
-        if let Some(line_id) = self.node(from_id).line_id() {
+        for line_id in self.node(from_id).line_ids() {
             self.lines[line_id] = Line::new(line_id, Inlines::new());
             self.free_lines.push(line_id);
         }

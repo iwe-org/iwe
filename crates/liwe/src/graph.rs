@@ -940,6 +940,26 @@ mod retention_tests {
         assert_eq!(graph.get_reference_edges_to(&"target".into()).len(), 1);
     }
 
+    fn table_document() -> String {
+        "# Title\n\n| a | b |\n| - | - |\n| c | d |\n".to_string()
+    }
+
+    #[test]
+    fn repeated_table_updates_keep_lines_bounded() {
+        let mut graph = Graph::new();
+        graph.insert_document("source".into(), table_document());
+
+        let lines_len = graph.arena.lines_len();
+        let markdown = graph.to_markdown(&"source".into());
+
+        for _ in 0..100 {
+            graph.update_document("source".into(), table_document());
+        }
+
+        assert_eq!(graph.arena.lines_len(), lines_len);
+        assert_eq!(graph.to_markdown(&"source".into()), markdown);
+    }
+
     #[test]
     fn shrink_then_grow_reuses_slots() {
         let small = "# One\n".to_string();
