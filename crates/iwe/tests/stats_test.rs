@@ -415,6 +415,39 @@ fn test_stats_per_doc_default_format_outputs_markdown() {
 }
 
 #[test]
+fn test_stats_per_doc_accepts_key_with_extension() {
+    let temp_dir = setup_test_workspace();
+    let output = run_stats_command(&temp_dir, &["-k", "test.md"]);
+
+    assert!(
+        output.status.success(),
+        "Should accept a key with a .md extension"
+    );
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {"
+        # Test Document
+
+        - **Key:** test
+        - **Sections:** 4
+        - **Paragraphs:** 4
+        - **Lines:** 15
+        - **Words:** 35
+        - **Included by:** 0
+        - **Referenced by:** 1
+        - **Incoming edges:** 1
+        - **Includes:** 0
+        - **References:** 1
+        - **Total edges:** 2
+        - **Bullet lists:** 0
+        - **Ordered lists:** 0
+        - **Code blocks:** 0
+        - **Tables:** 0
+        - **Quotes:** 0
+    "};
+    assert_eq!(stdout, expected);
+}
+
+#[test]
 fn test_stats_per_doc_csv_format() {
     let temp_dir = setup_test_workspace();
     let output = run_stats_command(&temp_dir, &["-k", "test", "-f", "csv"]);

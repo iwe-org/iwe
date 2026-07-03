@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use serde_yaml::{Mapping, Value};
+use serde_yaml::{Mapping, Number, Value};
 
 use crate::query::document::{FieldOp, FieldPath, YamlType};
 use crate::query::frontmatter::is_reserved_segment;
@@ -112,10 +112,7 @@ pub fn deep_eq(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Null, Value::Null) => true,
         (Value::Bool(x), Value::Bool(y)) => x == y,
-        (Value::Number(x), Value::Number(y)) => match (x.as_f64(), y.as_f64()) {
-            (Some(xf), Some(yf)) => xf == yf,
-            _ => false,
-        },
+        (Value::Number(x), Value::Number(y)) => number_eq(x, y),
         (Value::String(x), Value::String(y)) => x == y,
         (Value::Sequence(x), Value::Sequence(y)) => {
             x.len() == y.len() && x.iter().zip(y).all(|(a, b)| deep_eq(a, b))
@@ -145,21 +142,34 @@ pub fn cmp_ordered(a: &Value, b: &Value) -> Option<Ordering> {
     use Value::*;
     match (a, b) {
         (Null, _) | (_, Null) => None,
-        (Number(x), Number(y)) => x.as_f64().and_then(|xf| {
-            y.as_f64().map(|yf| {
-                if xf < yf {
-                    Ordering::Less
-                } else if xf > yf {
-                    Ordering::Greater
-                } else {
-                    Ordering::Equal
-                }
-            })
-        }),
+        (Number(x), Number(y)) => cmp_numbers(x, y),
         (String(x), String(y)) => Some(x.cmp(y)),
         (Bool(x), Bool(y)) => Some(x.cmp(y)),
         (Tagged(x), Tagged(y)) if x.tag == y.tag => cmp_ordered(&x.value, &y.value),
         _ => None,
+    }
+}
+
+fn cmp_numbers(x: &Number, y: &Number) -> Option<Ordering> {
+    if let (Some(xi), Some(yi)) = (x.as_i64(), y.as_i64()) {
+        return Some(xi.cmp(&yi));
+    }
+    if let (Some(xu), Some(yu)) = (x.as_u64(), y.as_u64()) {
+        return Some(xu.cmp(&yu));
+    }
+    x.as_f64()?.partial_cmp(&y.as_f64()?)
+}
+
+fn number_eq(x: &Number, y: &Number) -> bool {
+    if let (Some(xi), Some(yi)) = (x.as_i64(), y.as_i64()) {
+        return xi == yi;
+    }
+    if let (Some(xu), Some(yu)) = (x.as_u64(), y.as_u64()) {
+        return xu == yu;
+    }
+    match (x.as_f64(), y.as_f64()) {
+        (Some(xf), Some(yf)) => xf == yf,
+        _ => false,
     }
 }
 
@@ -718,5 +728,44 @@ mod tests {
         check(&f, &doc(vec![("priority", 3i64.into())]), true);
         check(&f, &doc(vec![("priority", 15i64.into())]), true);
         check(&f, &Mapping::new(), true);
+    }
+
+    #[test]
+    fn large_integers_compared_exactly() {
+        check(
+            &eq("id", 9007199254740993i64),
+            &doc(vec![("id", 9007199254740992i64.into())]),
+            false,
+        );
+        check(
+            &eq("id", 9007199254740993i64),
+            &doc(vec![("id", 9007199254740993i64.into())]),
+            true,
+        );
+        check(
+            &gt("id", 9007199254740992i64),
+            &doc(vec![("id", 9007199254740993i64.into())]),
+            true,
+        );
+    }
+
+    #[test]
+    fn nan_target_matches_no_number() {
+        let nan = Value::Number(Number::from(f64::NAN));
+        let gte_nan = Filter::Field {
+            path: p("x"),
+            op: FieldOp::Gte(nan.clone()),
+        };
+        let lte_nan = Filter::Field {
+            path: p("x"),
+            op: FieldOp::Lte(nan.clone()),
+        };
+        let eq_nan = Filter::Field {
+            path: p("x"),
+            op: FieldOp::Eq(nan),
+        };
+        check(&gte_nan, &doc(vec![("x", 5i64.into())]), false);
+        check(&lte_nan, &doc(vec![("x", 5i64.into())]), false);
+        check(&eq_nan, &doc(vec![("x", 5i64.into())]), false);
     }
 }

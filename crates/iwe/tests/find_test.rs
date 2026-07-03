@@ -414,6 +414,19 @@ fn test_find_keys_format() {
 }
 
 #[test]
+fn test_find_keys_format_with_projection() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("alpha.md"), "# Alpha\n\nContent.").unwrap();
+    write(dir.path().join("beta.md"), "# Beta\n\nContent.").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "keys", "--project", "title"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "alpha\nbeta\n");
+}
+
+#[test]
 fn test_find_markdown_format() {
     let dir = setup_workspace();
 

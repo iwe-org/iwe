@@ -56,6 +56,14 @@ async fn create_duplicate_fails() {
 }
 
 #[tokio::test]
+async fn create_non_alphanumeric_title_fails() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f.try_call_tool("iwe_create", json!({"title": "!!!"})).await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
 async fn update_document() {
     let f = Fixture::with_documents(vec![("1", "# Original\n\nOld content\n")]).await;
 

@@ -207,7 +207,10 @@ impl Server {
                     .min(line.len());
                 let before_cursor = &line[..cursor_byte];
                 let after_cursor = &line[cursor_byte..];
-                let word = before_cursor.split_whitespace().last().unwrap_or("");
+                let word = before_cursor
+                    .split(char::is_whitespace)
+                    .next_back()
+                    .unwrap_or("");
                 let (bracket, query) = if let Some(rest) = word.strip_prefix("[[") {
                     ("[[", rest)
                 } else if let Some(rest) = word.strip_prefix('[') {
@@ -551,7 +554,7 @@ impl Server {
             .iter()
             .chain(
                 self.graph
-                    .get_reference_edges_to(&key.clone())
+                    .get_reference_edges_to(&key_under_cursor.clone())
                     .iter()
                     .filter(|_| params.context.include_declaration),
             )
