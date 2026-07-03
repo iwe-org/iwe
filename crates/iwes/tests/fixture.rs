@@ -602,12 +602,14 @@ impl Fixture {
         let id = self.req_id.get();
         self.req_id.set(id.wrapping_add(1));
 
-        let actual = self.send_request_(Request::new(
+        let response = self.recv_response_(Request::new(
             id.into(),
             "textDocument/rename".to_string(),
             params,
         ));
 
+        assert_eq!(response.result, None);
+        let actual = response.error.expect("expected an error response");
         assert_json_eq!(&expected, &actual);
         self
     }
@@ -755,6 +757,14 @@ impl Fixture {
     }
 
     fn send_request_(&self, r: Request) -> Value {
+        let response = self.recv_response_(r);
+        if let Some(err) = response.error {
+            panic!("error response: {err:#?}");
+        }
+        response.result.unwrap()
+    }
+
+    fn recv_response_(&self, r: Request) -> lsp_server::Response {
         let id = r.id.clone();
         self.client.sender.send(r.clone().into()).unwrap();
         while let Some(msg) = self
@@ -783,10 +793,7 @@ impl Fixture {
                 Message::Notification(_) => (),
                 Message::Response(response) => {
                     assert_eq!(response.id, id);
-                    if let Some(err) = response.error {
-                        panic!("error response: {err:#?}");
-                    }
-                    return response.result.unwrap();
+                    return response;
                 }
             }
         }

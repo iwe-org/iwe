@@ -26,6 +26,22 @@ fn definition() {
 }
 
 #[test]
+fn definition_with_empty_frontmatter() {
+    Fixture::with(indoc! {"
+            ---
+            ---
+            # test
+
+            [test](link)
+
+            "})
+    .go_to_definition(
+        uri(1).to_goto_definition_params(4, 0),
+        goto_definition_response_single(file_uri("link.md")),
+    );
+}
+
+#[test]
 fn definition_in_paragraph() {
     Fixture::with(indoc! {"
             # test

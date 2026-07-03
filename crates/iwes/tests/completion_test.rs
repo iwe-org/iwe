@@ -809,6 +809,28 @@ fn completion_with_double_bracket_auto_pair_consumes_trailing_brackets() {
 }
 
 #[test]
+fn completion_with_trailing_whitespace_after_bracket_inserts_at_cursor() {
+    Fixture::with_options_and_client(
+        vec![("doc".to_string(), "# Header\n[a \n".to_string())]
+            .into_iter()
+            .collect(),
+        no_min_prefix(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 3),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[Header](doc)",
+            "header",
+            "Header",
+            empty_range(1, 3),
+        )]),
+    );
+}
+
+#[test]
 fn completion_bracket_prefix_min_length_applies_to_query_only() {
     let config = Configuration {
         completion: CompletionOptions {

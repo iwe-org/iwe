@@ -18,6 +18,7 @@ pub struct MarkdownEventsReader {
     blocks_stack: Vec<DocumentBlock>,
     blocks: DocumentBlocks,
     line_starts: Vec<usize>,
+    line_offset: usize,
     metadata_block: bool,
     frontmatter: Option<Mapping>,
     content: Option<String>,
@@ -38,6 +39,7 @@ impl MarkdownEventsReader {
             blocks_stack: Vec::new(),
             blocks: Vec::new(),
             line_starts: Vec::new(),
+            line_offset: 0,
             metadata_block: false,
             frontmatter: None,
             content: None,
@@ -52,6 +54,7 @@ impl MarkdownEventsReader {
             blocks_stack: Vec::new(),
             blocks: Vec::new(),
             line_starts: Vec::new(),
+            line_offset: 0,
             metadata_block: false,
             frontmatter: None,
             content: None,
@@ -77,8 +80,9 @@ impl MarkdownEventsReader {
 
     pub fn read(&mut self, content: &str) -> DocumentBlocks {
         let normalized = normalize_line_endings(content);
-        let (mut content, has_empty_frontmatter) = strip_empty_frontmatter(&normalized);
-        if has_empty_frontmatter {
+        let (mut content, stripped_lines) = strip_empty_frontmatter(&normalized);
+        self.line_offset = stripped_lines;
+        if stripped_lines > 0 {
             self.frontmatter = Some(Mapping::new());
         }
         if !content.is_empty() && !content.ends_with('\n') {
@@ -435,10 +439,10 @@ impl MarkdownEventsReader {
             .count();
 
         Position {
-            line: start_line,
+            line: start_line + self.line_offset,
             character: start_char,
         }..Position {
-            line: end_line,
+            line: end_line + self.line_offset,
             character: end_char,
         }
     }
@@ -457,7 +461,7 @@ impl MarkdownEventsReader {
             end += 1;
         }
 
-        start..end
+        (start + self.line_offset)..(end + self.line_offset)
     }
 }
 
@@ -482,13 +486,13 @@ fn normalize_line_endings(content: &str) -> String {
     content.replace("\r\n", "\n").replace('\r', "\n")
 }
 
-fn strip_empty_frontmatter(content: &str) -> (String, bool) {
+fn strip_empty_frontmatter(content: &str) -> (String, usize) {
     if content.starts_with("---\n---\n") {
-        (content["---\n---\n".len()..].to_string(), true)
+        (content["---\n---\n".len()..].to_string(), 2)
     } else if content == "---\n---" {
-        (String::new(), true)
+        (String::new(), 2)
     } else {
-        (content.to_string(), false)
+        (content.to_string(), 0)
     }
 }
 
@@ -754,6 +758,55 @@ mod tests {
             inlines: vec![DocumentInline::Str("test".to_string())],
             level: 1,
         })];
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_positions_with_empty_frontmatter() {
+        let content = indoc! {"
+        ---
+        ---
+        # line1
+
+        text [link](to) text
+        "};
+        let mut reader = MarkdownEventsReader::new();
+        let actual = reader.read(content);
+        let expected = vec![
+            DocumentBlock::Header(Header {
+                line_range: 2..3,
+                inlines: vec![DocumentInline::Str("line1".to_string())],
+                level: 1,
+            }),
+            DocumentBlock::Para(Para {
+                line_range: 4..5,
+                inlines: vec![
+                    DocumentInline::Str("text ".to_string()),
+                    DocumentInline::Link(Link {
+                        inlines: vec![DocumentInline::Str("link".to_string())],
+                        target: Target {
+                            url: "to".to_string(),
+                            title: String::default(),
+                        },
+                        attr: Default::default(),
+                        title: String::default(),
+                        inline_range: InlineRange {
+                            start: Position {
+                                line: 4,
+                                character: 5,
+                            },
+                            end: Position {
+                                line: 4,
+                                character: 15,
+                            },
+                        },
+                        link_type: LinkType::Markdown,
+                    }),
+                    DocumentInline::Str(" text".to_string()),
+                ],
+            }),
+        ];
 
         assert_eq!(expected, actual);
     }
