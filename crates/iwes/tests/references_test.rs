@@ -57,6 +57,20 @@ fn link() {
 }
 
 #[test]
+fn references_on_link_with_declaration_uses_link_target() {
+    Fixture::with_documents(vec![
+        ("1", "# doc1\n\ntext [b](2) more\n"),
+        ("2", "# target b\n"),
+        ("3", "# doc3\n\ntext [a](1) more\n"),
+        ("4", "# doc4\n\ntext [b](2) more\n"),
+    ])
+    .references(
+        uri_from("1").to_reference_params(2, 6, true),
+        vec![uri_from("4").to_location(2, 3)],
+    );
+}
+
+#[test]
 fn wiki_link_reference_resolves_target_in_another_directory() {
     Fixture::with_documents(vec![
         ("first/note", "[[target]]\n"),

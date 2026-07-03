@@ -39,11 +39,40 @@ fn compare_values(a: Option<&Value>, b: Option<&Value>, dir: SortDir) -> Orderin
         (true, true) => Ordering::Equal,
         (true, false) => Ordering::Less,
         (false, true) => Ordering::Greater,
-        (false, false) => cmp_ordered(a.unwrap(), b.unwrap()).unwrap_or(Ordering::Equal),
+        (false, false) => total_cmp(a.unwrap(), b.unwrap()),
     };
     match dir {
         SortDir::Asc => raw,
         SortDir::Desc => raw.reverse(),
+    }
+}
+
+fn total_cmp(a: &Value, b: &Value) -> Ordering {
+    if let Some(ord) = cmp_ordered(a, b) {
+        return ord;
+    }
+    let (ra, rb) = (type_rank(a), type_rank(b));
+    if ra != rb {
+        return ra.cmp(&rb);
+    }
+    match (a, b) {
+        (Value::Number(x), Value::Number(y)) => x
+            .as_f64()
+            .unwrap_or(f64::NAN)
+            .total_cmp(&y.as_f64().unwrap_or(f64::NAN)),
+        _ => Ordering::Equal,
+    }
+}
+
+fn type_rank(v: &Value) -> u8 {
+    match v {
+        Value::Null => 0,
+        Value::Bool(_) => 1,
+        Value::Number(_) => 2,
+        Value::String(_) => 3,
+        Value::Sequence(_) => 4,
+        Value::Mapping(_) => 5,
+        Value::Tagged(t) => type_rank(&t.value),
     }
 }
 
@@ -124,6 +153,24 @@ mod tests {
         assert_eq!(order[0], "a");
         assert!(order[1..3].contains(&"b".to_string()));
         assert!(order[1..3].contains(&"c".to_string()));
+    }
+
+    #[test]
+    fn mixed_type_field_is_total_order() {
+        let a = doc(vec![("priority", 3i64.into())]);
+        let b = doc(vec![("priority", "high".into())]);
+        let c = doc(vec![("priority", 5i64.into())]);
+        let d = doc(vec![("priority", "low".into())]);
+        let e = doc(vec![("priority", 1i64.into())]);
+        let mut rows = vec![
+            (k("a"), a),
+            (k("b"), b),
+            (k("c"), c),
+            (k("d"), d),
+            (k("e"), e),
+        ];
+        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc));
+        assert_eq!(key_order(&rows), vec!["e", "a", "c", "b", "d"]);
     }
 
     #[test]

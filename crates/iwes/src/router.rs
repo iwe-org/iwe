@@ -251,12 +251,20 @@ impl Router {
             "textDocument/prepareRename" => TextDocumentPositionParams::deserialize(request.params)
                 .map(|params| self.server.handle_prepare_rename(params))
                 .map(|response| to_value(response).unwrap()),
-            "textDocument/rename" => RenameParams::deserialize(request.params).map(|params| {
-                match self.server.handle_rename(params) {
-                    Ok(response) => to_value(response).unwrap(),
-                    Err(err) => to_value(err).unwrap(),
-                }
-            }),
+            "textDocument/rename" => match RenameParams::deserialize(request.params) {
+                Ok(params) => match self.server.handle_rename(params) {
+                    Ok(response) => Ok(to_value(response).unwrap()),
+                    Err(err) => {
+                        self.respond(Response {
+                            id: request.id.clone(),
+                            result: None,
+                            error: Some(err),
+                        });
+                        return false;
+                    }
+                },
+                Err(e) => Err(e),
+            },
             "textDocument/foldingRange" => FoldingRangeParams::deserialize(request.params)
                 .map(|params| self.server.handle_folding_range(params))
                 .map(|response| to_value(response).unwrap()),

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `retrieve --backlinks` can now be turned off: `--backlinks false` disables incoming references, while a bare `--backlinks` (and the default) still includes them. Previously the flag was stuck on and `--backlinks false` was rejected outright.
+- `stats -k <key>` accepts a key written with a `.md`/`.dj` extension (`stats -k note.md`) instead of reporting the document as not found.
+- `find --format keys` combined with `--project` now prints the matched keys instead of nothing.
+
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/iwe-v0.5.0...iwe-v0.6.0) - 2026-06-27
 
 ### Added

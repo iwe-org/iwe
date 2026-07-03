@@ -25,6 +25,15 @@ impl Fixture {
         config: Configuration,
     ) -> Self {
         let server = IweServer::from_documents_with_config(documents, config);
+        Self::serve(server).await
+    }
+
+    pub async fn with_path(base_path: &str, config: Configuration) -> Self {
+        let server = IweServer::new(base_path, &config);
+        Self::serve(server).await
+    }
+
+    async fn serve(server: IweServer) -> Self {
         let (server_transport, client_transport) = tokio::io::duplex(65536);
 
         let server_handle = tokio::spawn(async move {

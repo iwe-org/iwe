@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Sorting a field that mixes value types (e.g. some documents with `priority: 3` and others with `priority: high`) now produces a stable, deterministic order: values are grouped by type before being compared, so cross-type pairs no longer collapse to "equal" and scramble the result.
+- Numeric filters compare integers exactly instead of routing everything through 64-bit floats, so large whole numbers past 2^53 (like `id: 9007199254740993`) are no longer treated as equal to their neighbours.
+- A `not-a-number` filter target (`.nan`) no longer compares as equal to every number, so range operators like `$gte: .nan` match nothing instead of matching everything.
+
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/liwe-v0.5.0...liwe-v0.6.0) - 2026-06-27
 
 ### Added

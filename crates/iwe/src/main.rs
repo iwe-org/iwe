@@ -127,8 +127,10 @@ struct Retrieve {
     #[clap(
         long,
         short = 'b',
+        num_args = 0..=1,
         default_value_t = true,
-        help = "Include incoming references"
+        default_missing_value = "true",
+        help = "Include incoming references (--backlinks false to disable)"
     )]
     backlinks: bool,
 
@@ -898,10 +900,8 @@ fn find_command(args: Find) {
             print!("{}", yaml);
         }
         FindFormat::Keys => {
-            for result in &output.results {
-                if let Some(key) = result.get("key").and_then(|v| v.as_str()) {
-                    println!("{}", key);
-                }
+            for key in &output.keys {
+                println!("{}", key);
             }
         }
         FindFormat::Markdown => {
@@ -1443,8 +1443,9 @@ fn stats_command(args: Stats) {
     let graph = load_graph(&config);
 
     if let Some(key_str) = args.key {
+        let normalized_key = Key::name(&key_str).to_string();
         let key_stats = liwe::stats::KeyStatistics::from_graph(&graph);
-        let entry = key_stats.into_iter().find(|s| s.key == key_str);
+        let entry = key_stats.into_iter().find(|s| s.key == normalized_key);
         match entry {
             Some(s) => match args.format {
                 StatsFormat::Markdown => {
