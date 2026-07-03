@@ -648,6 +648,13 @@ impl IweServer {
             .collect::<Vec<_>>()
             .join("-");
 
+        if slug.is_empty() {
+            return Err(McpError::invalid_params(
+                "Title must contain at least one alphanumeric character".to_string(),
+                None,
+            ));
+        }
+
         let content_body = params.content.unwrap_or_default();
         let markdown = if content_body.is_empty() {
             format!("# {}\n", params.title)
@@ -941,18 +948,18 @@ impl IweServer {
         description = "Normalize all document formatting across the knowledge graph. Re-parses and re-writes all documents to ensure consistent formatting"
     )]
     async fn iwe_normalize(&self) -> Result<CallToolResult, McpError> {
-        let mut graph = self.graph.lock().await;
+        let graph = self.graph.lock().await;
         let state = graph.export();
         let original_count = state.len();
 
         let mut changed = 0usize;
-        for (key_str, original_content) in &state {
-            let key = Key::name(key_str);
-            let new_content = graph.to_markdown(&key);
-            if new_content != *original_content {
-                graph.update_document(key.clone(), new_content.clone());
-                self.write_file(&key, &new_content);
-                changed += 1;
+        if self.base_path.is_some() {
+            for (key_str, normalized_content) in &state {
+                let key = Key::name(key_str);
+                if self.read_file(&key).as_deref() != Some(normalized_content.as_str()) {
+                    self.write_file(&key, normalized_content);
+                    changed += 1;
+                }
             }
         }
 
@@ -1498,6 +1505,13 @@ impl IweServer {
             }
             std::fs::write(&file_path, content).ok();
         }
+    }
+
+    fn read_file(&self, key: &Key) -> Option<String> {
+        let base_path = self.base_path.as_ref()?;
+        let extension = self.config.format.extension();
+        let file_path = base_path.join(format!("{}.{}", key, extension));
+        std::fs::read_to_string(&file_path).ok()
     }
 
     fn write_changes(&self, changes: &Changes) {

@@ -258,6 +258,52 @@ fn test_retrieve_with_backlinks() {
 }
 
 #[test]
+fn test_retrieve_backlinks_false_excludes_incoming_references() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("referrer.md"),
+        indoc! {"
+            # Referrer Document
+
+            This text mentions [target](target) inline.
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("target.md"),
+        indoc! {"
+            # Target Document
+
+            Target content.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "target", "-d", "0", "--backlinks", "false"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #target
+        ---
+        title: Target Document
+        ---
+
+        # Target Document
+
+        Target content.
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
 fn test_retrieve_with_both_parent_and_backlinks() {
     let dir = setup_workspace();
 
