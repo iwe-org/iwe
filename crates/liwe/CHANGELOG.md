@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The markdown reader now offsets line positions by the stripped empty frontmatter (`---` / `---`), so block and inline ranges point at the original document lines instead of being two lines too low.
+
 ## [0.6.0](https://github.com/iwe-org/iwe/compare/liwe-v0.5.0...liwe-v0.6.0) - 2026-06-27
 
 ### Added
