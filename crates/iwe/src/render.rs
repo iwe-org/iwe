@@ -31,14 +31,21 @@ pub struct RetrieveRenderer<'a> {
     output: &'a RetrieveOutput,
     options: &'a MarkdownOptions,
     graph: &'a Graph,
+    max_document_tokens: Option<usize>,
 }
 
 impl<'a> RetrieveRenderer<'a> {
-    pub fn new(output: &'a RetrieveOutput, options: &'a MarkdownOptions, graph: &'a Graph) -> Self {
+    pub fn new(
+        output: &'a RetrieveOutput,
+        options: &'a MarkdownOptions,
+        graph: &'a Graph,
+        max_document_tokens: Option<usize>,
+    ) -> Self {
         Self {
             output,
             options,
             graph,
+            max_document_tokens,
         }
     }
 
@@ -53,10 +60,12 @@ impl<'a> RetrieveRenderer<'a> {
 
     fn render_document(&self, doc: &DocumentOutput) -> String {
         let frontmatter = build_retrieve_frontmatter(doc);
+        let clipped = self.output.truncation.clipped.iter().any(|k| k == &doc.key);
         let body = if doc.content.is_empty() {
             String::new()
         } else {
-            render_body(self.graph, self.options, &doc.key)
+            let rendered = render_body(self.graph, self.options, &doc.key);
+            truncate_rendered_body(rendered, self.max_document_tokens, clipped)
         };
         render_block(&doc.key, &frontmatter, &[], &body)
     }
@@ -65,11 +74,23 @@ impl<'a> RetrieveRenderer<'a> {
 pub struct FindBlockRenderer<'a> {
     options: &'a MarkdownOptions,
     graph: &'a Graph,
+    max_document_tokens: Option<usize>,
+    clipped: &'a [String],
 }
 
 impl<'a> FindBlockRenderer<'a> {
-    pub fn new(options: &'a MarkdownOptions, graph: &'a Graph) -> Self {
-        Self { options, graph }
+    pub fn new(
+        options: &'a MarkdownOptions,
+        graph: &'a Graph,
+        max_document_tokens: Option<usize>,
+        clipped: &'a [String],
+    ) -> Self {
+        Self {
+            options,
+            graph,
+            max_document_tokens,
+            clipped,
+        }
     }
 
     pub fn render(
@@ -78,14 +99,161 @@ impl<'a> FindBlockRenderer<'a> {
         results: &[Mapping],
         content_output_names: &[String],
     ) -> String {
-        keys.iter()
-            .zip(results.iter())
-            .map(|(key, fm)| {
-                let body = render_body(self.graph, self.options, &key.to_string());
-                render_block(&key.to_string(), fm, content_output_names, &body)
-            })
+        if content_output_names.is_empty() {
+            keys.iter()
+                .zip(results.iter())
+                .map(|(key, fm)| render_index_line(key, fm))
+                .collect::<String>()
+        } else {
+            keys.iter()
+                .zip(results.iter())
+                .map(|(key, fm)| {
+                    let key_str = key.to_string();
+                    let clipped = self.clipped.iter().any(|k| k == &key_str);
+                    let rendered = render_body(self.graph, self.options, &key_str);
+                    let body = truncate_rendered_body(rendered, self.max_document_tokens, clipped);
+                    render_block(&key_str, fm, content_output_names, &body)
+                })
+                .collect::<Vec<String>>()
+                .join("\n")
+        }
+    }
+}
+
+fn truncate_rendered_body(
+    body: String,
+    max_document_tokens: Option<usize>,
+    clipped: bool,
+) -> String {
+    if !clipped {
+        return body;
+    }
+    match max_document_tokens.filter(|&m| m > 0) {
+        Some(max) => {
+            let (head, omitted) = liwe::tokens::truncate_to_tokens(&body, max);
+            if omitted > 0 {
+                format!(
+                    "{}{}",
+                    head.trim_end_matches('\n'),
+                    liwe::tokens::truncation_marker(omitted)
+                )
+            } else {
+                body
+            }
+        }
+        None => body,
+    }
+}
+
+fn render_index_line(key: &Key, fm: &Mapping) -> String {
+    let title = fm
+        .get(Value::String("title".to_string()))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| key.to_string());
+
+    let mut edges = String::new();
+    let mut annotations = String::new();
+
+    for (k, v) in fm {
+        let name = match k.as_str() {
+            Some(s) => s,
+            None => continue,
+        };
+        if name == "key" || name == "title" {
+            continue;
+        }
+        match edge_direction(name) {
+            Some(dir) => {
+                if let Some(rendered) = render_edge_field(dir, v) {
+                    edges.push(' ');
+                    edges.push_str(&rendered);
+                }
+            }
+            None => {
+                annotations.push_str(" · ");
+                annotations.push_str(name);
+                annotations.push_str(": ");
+                annotations.push_str(&render_annotation_value(v));
+            }
+        }
+    }
+
+    format!("- [{}]({}){}{}\n", title, key, edges, annotations)
+}
+
+fn edge_direction(name: &str) -> Option<&'static str> {
+    match name {
+        "includedBy" | "referencedBy" => Some("<-"),
+        "includes" | "references" => Some("->"),
+        _ => None,
+    }
+}
+
+fn render_edge_field(dir: &str, v: &Value) -> Option<String> {
+    let seq = v.as_sequence()?;
+    let targets: Vec<String> = seq
+        .iter()
+        .filter_map(|item| {
+            let m = item.as_mapping()?;
+            let key = m.get(Value::String("key".to_string()))?.as_str()?;
+            let title = m
+                .get(Value::String("title".to_string()))
+                .and_then(|t| t.as_str())
+                .unwrap_or(key);
+            Some(format!("[{}]({})", title, key))
+        })
+        .collect();
+    if targets.is_empty() {
+        return None;
+    }
+    Some(format!("{} {}", dir, targets.join(", ")))
+}
+
+fn is_scalar(v: &Value) -> bool {
+    matches!(
+        v,
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)
+    )
+}
+
+fn render_annotation_value(v: &Value) -> String {
+    match v {
+        Value::Sequence(items) if items.iter().all(is_scalar) => items
+            .iter()
+            .map(inline_value)
             .collect::<Vec<String>>()
-            .join("\n")
+            .join(", "),
+        _ => inline_value(v),
+    }
+}
+
+fn inline_value(v: &Value) -> String {
+    match v {
+        Value::Null => "null".to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::String(s) => s.clone(),
+        Value::Sequence(items) => {
+            let inner = items
+                .iter()
+                .map(inline_value)
+                .collect::<Vec<String>>()
+                .join(", ");
+            format!("[{}]", inner)
+        }
+        Value::Mapping(m) => {
+            let inner = m
+                .iter()
+                .filter_map(|(k, val)| {
+                    k.as_str()
+                        .map(|name| format!("{}: {}", name, inline_value(val)))
+                })
+                .collect::<Vec<String>>()
+                .join(", ");
+            format!("{{{}}}", inner)
+        }
+        Value::Tagged(t) => inline_value(&t.value),
     }
 }
 

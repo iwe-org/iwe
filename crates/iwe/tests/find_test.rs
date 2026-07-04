@@ -373,25 +373,8 @@ fn test_find_limit_in_markdown() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #a
-        ---
-        title: A
-        ---
-
-        # A
-
-        A body.
-        ````
-
-        ````markdown #b
-        ---
-        title: B
-        ---
-
-        # B
-
-        B body.
-        ````
+        - [A](a)
+        - [B](b)
     "};
 
     assert_eq!(stdout, expected);
@@ -443,15 +426,7 @@ fn test_find_markdown_format() {
     assert_eq!(
         stdout,
         indoc! {"
-            ````markdown #test-doc
-            ---
-            title: Test Document
-            ---
-
-            # Test Document
-
-            Content.
-            ````
+            - [Test Document](test-doc)
         "}
     );
 }
@@ -769,15 +744,7 @@ fn test_find_markdown_with_query() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #match
-        ---
-        title: Match
-        ---
-
-        # Match
-
-        Matching content.
-        ````
+        - [Match](match)
     "};
 
     assert_eq!(stdout, expected);
@@ -837,25 +804,8 @@ fn test_find_markdown_multi_doc_stream() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #alpha
-        ---
-        title: Alpha
-        ---
-
-        # Alpha
-
-        Alpha body.
-        ````
-
-        ````markdown #beta
-        ---
-        title: Beta
-        ---
-
-        # Beta
-
-        Beta body.
-        ````
+        - [Alpha](alpha)
+        - [Beta](beta)
     "};
 
     assert_eq!(stdout, expected);
@@ -882,18 +832,7 @@ fn test_find_markdown_includes_parent_edges() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #child
-        ---
-        title: Child
-        includedBy:
-        - key: parent
-          title: Parent
-        ---
-
-        # Child
-
-        Child body.
-        ````
+        - [Child](child) <- [Parent](parent)
     "};
 
     assert_eq!(stdout, expected);
@@ -1113,7 +1052,7 @@ fn test_find_project_unknown_pseudo_rejected() {
 }
 
 #[test]
-fn test_find_project_frontmatter_fields_trimmed_block() {
+fn test_find_project_frontmatter_fields_render_as_annotations() {
     let dir = setup_workspace();
 
     write(
@@ -1136,14 +1075,7 @@ fn test_find_project_frontmatter_fields_trimmed_block() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #doc1
-        ---
-        status: draft
-        priority: 5
-        ---
-
-        # Doc One
-        ````
+        - [doc1](doc1) · status: draft · priority: 5
     "};
 
     assert_eq!(stdout, expected);
@@ -1182,7 +1114,7 @@ fn test_find_project_content_renders_body_only() {
 }
 
 #[test]
-fn test_find_project_key_only_emits_no_frontmatter() {
+fn test_find_project_key_only_renders_link() {
     let dir = setup_workspace();
 
     write(
@@ -1200,11 +1132,7 @@ fn test_find_project_key_only_emits_no_frontmatter() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #doc1
-        # Doc One
-
-        Body.
-        ````
+        - [doc1](doc1)
     "};
 
     assert_eq!(stdout, expected);
@@ -1227,13 +1155,7 @@ fn test_find_project_missing_frontmatter_field_emits_null() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #doc1
-        ---
-        pillar: null
-        ---
-
-        # Doc One
-        ````
+        - [doc1](doc1) · pillar: null
     "};
 
     assert_eq!(stdout, expected);
@@ -1258,15 +1180,7 @@ fn test_find_default_projection_omits_empty_edges() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #doc1
-        ---
-        title: Doc One
-        ---
-
-        # Doc One
-
-        Body.
-        ````
+        - [Doc One](doc1)
     "};
 
     assert_eq!(stdout, expected);
@@ -1301,18 +1215,83 @@ fn test_find_default_projection_renders_inclusion_edges() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #doc1
-        ---
-        title: Doc One
-        includedBy:
-        - key: parent
-          title: Parent
-        ---
+        - [Doc One](doc1) <- [Parent](parent)
+    "};
 
-        # Doc One
+    assert_eq!(stdout, expected);
+}
 
-        Body.
-        ````
+#[test]
+fn test_find_index_line_with_scalar_annotation() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Doc One](doc1)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            status: review
+            ---
+            # Doc One
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--key", "doc1", "--add-fields", "status", "-f", "markdown"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - [Doc One](doc1) <- [Parent](parent) · status: review
+    "};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_index_line_with_outgoing_edge() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Child](child)
+        "},
+    )
+    .unwrap();
+
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+
+            Body.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--key", "parent", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        - [Parent](parent) -> [Child](child)
     "};
 
     assert_eq!(stdout, expected);
@@ -1468,7 +1447,7 @@ fn test_find_yaml_output_no_trailing_double_newline() {
 }
 
 #[test]
-fn test_find_project_edges_only_renders_as_markdown_block() {
+fn test_find_project_renamed_edge_renders_inline() {
     let dir = setup_workspace();
 
     write(
@@ -1504,15 +1483,7 @@ fn test_find_project_edges_only_renders_as_markdown_block() {
     assert!(success, "stderr: {}", stderr);
 
     let expected = indoc! {"
-        ````markdown #child
-        ---
-        parents:
-        - key: parent
-          title: Parent
-        ---
-
-        # Child
-        ````
+        - [child](child) · parents: [{key: parent, title: Parent, sectionPath: []}]
     "};
 
     assert_eq!(stdout, expected);
@@ -1797,4 +1768,111 @@ fn test_find_roots_combined_with_filter() {
     );
     assert!(success);
     assert_eq!(stdout, "root-a\n");
+}
+
+#[test]
+fn test_find_max_document_tokens_truncates_content_field() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("apple.md"),
+        "# Apple\n\nred green yellow orange purple\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "apple",
+            "--project",
+            "body=$content",
+            "--max-document-tokens",
+            "3",
+            "-f",
+            "json",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "body": "# Apple\n\n\n\n⋯ truncated (6 tokens omitted)"
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+    assert_eq!(
+        stderr,
+        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~11 tokens. Narrow with --filter/--limit or raise --max-tokens.\n"
+    );
+}
+
+#[test]
+fn test_find_max_tokens_drops_rows() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("apple.md"),
+        "# Apple\n\nred green yellow orange purple\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("berry.md"),
+        "# Berry\n\nsweet tart juicy ripe fresh\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("cherry.md"),
+        "# Cherry\n\ndark bright bold rich deep\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "--project",
+            "body=$content",
+            "--max-tokens",
+            "12",
+            "-f",
+            "keys",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "apple\n");
+    assert_eq!(
+        stderr,
+        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter/--limit or raise --max-tokens.\n"
+    );
+}
+
+#[test]
+fn test_find_metadata_index_ignores_token_budgets() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("apple.md"),
+        "# Apple\n\nred green yellow orange purple\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("berry.md"),
+        "# Berry\n\nsweet tart juicy ripe fresh\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("cherry.md"),
+        "# Cherry\n\ndark bright bold rich deep\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "keys", "--max-tokens", "1"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "apple\nberry\ncherry\n");
+    assert_eq!(stderr, "");
 }

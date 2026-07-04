@@ -1763,122 +1763,6 @@ fn test_retrieve_context_only_direct_sub_document_parents() {
 }
 
 #[test]
-fn test_retrieve_dry_run_basic() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("doc.md"),
-        indoc! {"
-            # Test Document
-
-            Line one.
-            Line two.
-            Line three.
-        "},
-    )
-    .unwrap();
-
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "doc", "-d", "0", "--dry-run"]);
-
-    assert!(success, "stderr: {}", stderr);
-
-    let expected = indoc! {"
-        documents: 1
-        lines: 3
-    "};
-
-    assert_eq!(stdout, expected);
-}
-
-#[test]
-fn test_retrieve_dry_run_multiple_documents() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("parent.md"),
-        indoc! {"
-            # Parent
-
-            [child](child)
-        "},
-    )
-    .unwrap();
-
-    write(
-        dir.path().join("child.md"),
-        indoc! {"
-            # Child
-
-            Child content.
-        "},
-    )
-    .unwrap();
-
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "1", "--dry-run"]);
-
-    assert!(success, "stderr: {}", stderr);
-
-    let expected = indoc! {"
-        documents: 2
-        lines: 6
-    "};
-
-    assert_eq!(stdout, expected);
-}
-
-#[test]
-fn test_retrieve_dry_run_json_format() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("doc.md"),
-        indoc! {"
-            # Test Document
-
-            Line one.
-            Line two.
-        "},
-    )
-    .unwrap();
-
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["-k", "doc", "-d", "0", "--dry-run", "-f", "json"],
-    );
-
-    assert!(success, "stderr: {}", stderr);
-
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
-    assert_eq!(parsed["documents"], 1);
-    assert!(parsed["lines"].as_u64().unwrap() > 0);
-}
-
-#[test]
-fn test_retrieve_dry_run_yaml_format() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("doc.md"),
-        indoc! {"
-            # Test Document
-
-            Line one.
-        "},
-    )
-    .unwrap();
-
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["-k", "doc", "-d", "0", "--dry-run", "-f", "yaml"],
-    );
-
-    assert!(success, "stderr: {}", stderr);
-
-    assert!(stdout.contains("documents: 1"), "got: {}", stdout);
-    assert!(stdout.contains("lines: "), "got: {}", stdout);
-}
-
-#[test]
 fn test_retrieve_children_flag_populates_includes() {
     let dir = setup_workspace();
 
@@ -1908,12 +1792,11 @@ fn test_retrieve_children_flag_populates_includes() {
     assert_eq!(includes.len(), 1);
     assert_eq!(includes[0]["key"], "child");
     assert_eq!(includes[0]["title"], "Child");
-    // content is NOT blanked because --no-content was not passed
     assert!(parent["content"].as_str().unwrap().contains("# Parent"));
 }
 
 #[test]
-fn test_retrieve_no_content_does_not_populate_includes() {
+fn test_retrieve_without_children_does_not_populate_includes() {
     let dir = setup_workspace();
 
     write(
@@ -1928,16 +1811,13 @@ fn test_retrieve_no_content_does_not_populate_includes() {
 
     write(dir.path().join("child.md"), "# Child\n\nChild content.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["-k", "parent", "-d", "0", "--no-content", "-f", "json"],
-    );
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "parent", "-d", "0", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
     let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON output");
     let parent = &parsed[0];
-    assert_eq!(parent["content"], "");
+    assert!(parent["content"].as_str().unwrap().contains("# Parent"));
     let includes = parent["includes"].as_array().expect("includes is array");
     assert!(includes.is_empty());
 }
@@ -2246,238 +2126,6 @@ fn test_retrieve_exclude_main_document() {
     let expected = indoc! {r#"
         []
     "#};
-
-    assert_eq!(stdout, expected);
-}
-
-#[test]
-fn test_retrieve_no_content_flag() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("doc.md"),
-        indoc! {"
-            # Document
-
-            This is the content that should be excluded.
-        "},
-    )
-    .unwrap();
-
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &[
-            "-k",
-            "doc",
-            "-d",
-            "0",
-            "-c",
-            "0",
-            "--no-content",
-            "-f",
-            "json",
-        ],
-    );
-
-    assert!(success, "stderr: {}", stderr);
-
-    let expected = indoc! {r#"
-        [
-          {
-            "key": "doc",
-            "title": "Document",
-            "content": "",
-            "references": [],
-            "includes": [],
-            "referencedBy": [],
-            "includedBy": []
-          }
-        ]
-    "#};
-
-    assert_eq!(stdout, expected);
-}
-
-#[test]
-fn test_retrieve_no_content_with_multiple_documents() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("parent.md"),
-        indoc! {"
-            # Parent
-
-            [child](child)
-        "},
-    )
-    .unwrap();
-
-    write(
-        dir.path().join("child.md"),
-        indoc! {"
-            # Child
-
-            Child content.
-        "},
-    )
-    .unwrap();
-
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &[
-            "-k",
-            "parent",
-            "-d",
-            "1",
-            "-c",
-            "0",
-            "--no-content",
-            "--children",
-            "-f",
-            "json",
-        ],
-    );
-
-    assert!(success, "stderr: {}", stderr);
-
-    let expected = indoc! {r#"
-        [
-          {
-            "key": "parent",
-            "title": "Parent",
-            "content": "",
-            "references": [],
-            "includes": [
-              {
-                "key": "child",
-                "title": "Child",
-                "sectionPath": []
-              }
-            ],
-            "referencedBy": [],
-            "includedBy": []
-          },
-          {
-            "key": "child",
-            "title": "Child",
-            "content": "",
-            "references": [],
-            "includes": [],
-            "referencedBy": [],
-            "includedBy": [
-              {
-                "key": "parent",
-                "title": "Parent",
-                "sectionPath": []
-              }
-            ]
-          }
-        ]
-    "#};
-
-    assert_eq!(stdout, expected);
-}
-
-#[test]
-fn test_retrieve_no_content_preserves_parent_documents() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("parent.md"),
-        indoc! {"
-            # Parent
-
-            [child](child)
-        "},
-    )
-    .unwrap();
-
-    write(
-        dir.path().join("child.md"),
-        indoc! {"
-            # Child
-
-            Child content.
-        "},
-    )
-    .unwrap();
-
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &[
-            "-k",
-            "child",
-            "-d",
-            "0",
-            "-c",
-            "0",
-            "--no-content",
-            "-f",
-            "json",
-        ],
-    );
-
-    assert!(success, "stderr: {}", stderr);
-
-    let expected = indoc! {r#"
-        [
-          {
-            "key": "child",
-            "title": "Child",
-            "content": "",
-            "references": [],
-            "includes": [],
-            "referencedBy": [],
-            "includedBy": [
-              {
-                "key": "parent",
-                "title": "Parent",
-                "sectionPath": []
-              }
-            ]
-          }
-        ]
-    "#};
-
-    assert_eq!(stdout, expected);
-}
-
-#[test]
-fn test_retrieve_no_content_multiple_children() {
-    let dir = setup_workspace();
-
-    write(
-        dir.path().join("parent.md"),
-        indoc! {"
-            # Parent
-
-            [child1](child1)
-
-            [child2](child2)
-
-            [child3](child3)
-        "},
-    )
-    .unwrap();
-
-    write(dir.path().join("child1.md"), "# Child One\n\nContent 1.").unwrap();
-    write(dir.path().join("child2.md"), "# Child Two\n\nContent 2.").unwrap();
-    write(dir.path().join("child3.md"), "# Child Three\n\nContent 3.").unwrap();
-
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["-k", "parent", "-d", "0", "-c", "0", "--no-content"],
-    );
-
-    assert!(success, "stderr: {}", stderr);
-
-    let expected = indoc! {"
-        ````markdown #parent
-        ---
-        title: Parent
-        ---
-        ````
-    "};
 
     assert_eq!(stdout, expected);
 }
@@ -2892,4 +2540,227 @@ fn test_retrieve_markdown_children_populates_includes() {
     "};
 
     assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_retrieve_limit_caps_document_count() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        "# Doc One\n\nfirst body content here\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc2.md"),
+        "# Doc Two\n\nsecond body content here\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc3.md"),
+        "# Doc Three\n\nthird body content here\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k", "doc1", "-k", "doc2", "-k", "doc3", "-d", "0", "-f", "keys", "--limit", "2",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "doc1\ndoc2\n");
+    assert_eq!(
+        stderr,
+        "warning: output truncated — returned 2/3 documents; ~18 tokens. Narrow with --filter/--limit or raise --max-tokens.\n"
+    );
+}
+
+#[test]
+fn test_retrieve_max_document_tokens_truncates_body() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("notes.md"),
+        "# Notes\n\nalpha beta gamma delta epsilon zeta eta theta\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "notes", "-d", "0", "--max-document-tokens", "4"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {"
+        ````markdown #notes
+        ---
+        title: Notes
+        ---
+
+        # Notes
+
+        alpha
+
+        ⋯ truncated (9 tokens omitted)
+        ````
+    "};
+
+    assert_eq!(stdout, expected);
+    assert_eq!(
+        stderr,
+        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~13 tokens. Narrow with --filter/--limit or raise --max-tokens.\n"
+    );
+}
+
+#[test]
+fn test_retrieve_max_tokens_drops_trailing_documents() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        "# Doc One\n\nfirst body content here\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc2.md"),
+        "# Doc Two\n\nsecond body content here\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc3.md"),
+        "# Doc Three\n\nthird body content here\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "doc1",
+            "-k",
+            "doc2",
+            "-k",
+            "doc3",
+            "-d",
+            "0",
+            "-f",
+            "keys",
+            "--max-tokens",
+            "12",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "doc1\n");
+    assert_eq!(
+        stderr,
+        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter/--limit or raise --max-tokens.\n"
+    );
+}
+
+#[test]
+fn test_retrieve_max_tokens_zero_disables_budget() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        "# Doc One\n\nfirst body content here\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc2.md"),
+        "# Doc Two\n\nsecond body content here\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc3.md"),
+        "# Doc Three\n\nthird body content here\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "doc1",
+            "-k",
+            "doc2",
+            "-k",
+            "doc3",
+            "-d",
+            "0",
+            "-f",
+            "keys",
+            "--max-tokens",
+            "0",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "doc1\ndoc2\ndoc3\n");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_retrieve_max_tokens_counts_edges() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("hub1.md"), "# Hub One\n\nx\n").unwrap();
+    write(dir.path().join("hub2.md"), "# Hub Two\n\ny\n").unwrap();
+    write(
+        dir.path().join("refa.md"),
+        "# Referencing Document Alpha With A Fairly Long Title\n\n[Hub One](hub1) [Hub Two](hub2)\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("refb.md"),
+        "# Referencing Document Beta With A Fairly Long Title\n\n[Hub One](hub1) [Hub Two](hub2)\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "hub1",
+            "-k",
+            "hub2",
+            "-d",
+            "0",
+            "-f",
+            "keys",
+            "--max-tokens",
+            "40",
+        ],
+    );
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "hub1\n");
+    assert_eq!(
+        stderr,
+        "warning: output truncated — returned 1/2 documents; ~56 tokens (budget 40). Narrow with --filter/--limit or raise --max-tokens.\n"
+    );
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "hub1",
+            "-k",
+            "hub2",
+            "-d",
+            "0",
+            "--backlinks",
+            "false",
+            "-f",
+            "keys",
+            "--max-tokens",
+            "40",
+        ],
+    );
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "hub1\nhub2\n");
+    assert_eq!(stderr, "");
 }

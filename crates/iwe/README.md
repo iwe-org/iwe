@@ -92,8 +92,7 @@ iwe retrieve -k doc -c 0           # no parent context
 iwe retrieve -k doc --links        # include inline references
 iwe retrieve -k doc -e other-doc   # exclude specific documents
 iwe retrieve -k doc -f json        # JSON output
-iwe retrieve -k doc --dry-run      # show document count and lines only
-iwe retrieve -k doc --no-content   # metadata only
+iwe retrieve -k doc --children     # populate the includes edge array
 ```
 
 Options:
@@ -104,8 +103,7 @@ Options:
 - `-b, --backlinks` - include incoming references (default: true)
 - `-e, --exclude <KEY>` - exclude document key(s) (repeatable)
 - `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`, `json`
-- `--dry-run` - show document count and total lines without content
-- `--no-content` - exclude document content from results (metadata only)
+- `--children` - populate the `includes` array with child document edges
 
 ### `tree`
 Display the document hierarchy.

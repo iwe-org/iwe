@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `tokens` module (`count_tokens`, `truncate_to_tokens`) backed by `tiktoken-rs`.
+- `RetrieveOptions` gains `limit`, `max_tokens`, `max_document_tokens`; `FindOptions` gains `max_tokens`, `max_document_tokens`; `RetrieveOutput` / `FindOutput` gain a `truncation` summary.
+
+### Removed
+- `RetrieveOptions::no_content` field — removed; `DocumentReader` always populates `content`.
+
 ## [0.6.1](https://github.com/iwe-org/iwe/compare/liwe-v0.6.0...liwe-v0.6.1) - 2026-07-03
 
 ### Fixed

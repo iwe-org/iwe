@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `retrieve --limit`, and `--max-tokens` / `--max-document-tokens` on `retrieve` and `find`, to bound output for context-limited callers. `0` disables a limit. A `warning:` line is printed to stderr when output is truncated.
+
+### Changed
+- `find` markdown output is now a compact index (one line per document) instead of full document blocks; a document body is rendered only when the projection includes `$content` (via `--project` / `--add-fields`). Use `retrieve` for full content.
+
+### Removed
+- `retrieve --no-content` — removed; `retrieve` always returns content. Use `find` for a metadata-only index.
+- `retrieve --dry-run` — removed.
+
 ## [0.6.1](https://github.com/iwe-org/iwe/compare/iwe-v0.6.0...iwe-v0.6.1) - 2026-07-03
 
 ### Fixed

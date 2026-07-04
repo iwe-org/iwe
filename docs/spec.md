@@ -1096,10 +1096,9 @@ heading: Doc One
 
 Some pseudo-field sources require auxiliary graph computation. On `find` (the supported path), projecting any of `$content`, `$includes`, `$includedBy`, `$references`, `$referencedBy` *implies* the corresponding compute — no flags needed. The implied depth for `$includes` is 1 (immediate children only); deeper traversal is currently only available on `retrieve`.
 
-On `retrieve`, the legacy flag set (`-b`, `-c`, `-l`, `-d`, `--no-content`) still gates these computations. When the projection asks for a source whose backing flag is not set, the field is emitted with its empty value (`[]`, `""`):
+On `retrieve`, the legacy flag set (`-b`, `-c`, `-l`, `-d`) still gates these computations. When the projection asks for a source whose backing flag is not set, the field is emitted with its empty value (`[]`, `""`):
 
 - `parents: $referencedBy` without `-b` → `parents: []`.
-- `body: $content` with `--no-content` → `body: ""`.
 - `kids: $includes` with `-d 0` → `kids: []`.
 
 The empty form preserves stable schema (§13.1.3).
@@ -1178,7 +1177,7 @@ A `find` invocation with `--project 'body=$content,parents=$includedBy'` produce
 
 With explicit projection:
 
-- **`find` markdown:** always emits one four-backtick fenced `markdown #<key>` block per result. The frontmatter inside the block contains only the projected fields under their **output names**, with two omissions: `key` is hoisted to the fence info string (never duplicated inside frontmatter), and any field whose source is `$content` is rendered as the body rather than inside frontmatter. The document body is always rendered below the frontmatter, regardless of whether `$content` is projected. If, after the two omissions, no fields remain, the `---` markers are dropped and the block is fence + body + closing fence.
+- **`find` markdown:** emits a compact index — one `- [title](key)` line per result — unless the projection includes a `$content`-shaped field. When `$content` is projected, the whole invocation switches to one four-backtick fenced `markdown #<key>` block per result: the frontmatter inside the block contains the projected fields under their **output names**, with two omissions — `key` is hoisted to the fence info string (never duplicated inside frontmatter), and the `$content` field is rendered as the body rather than inside frontmatter. In index mode, edge fields render as `<-`/`->` arrows and other non-edge fields as ` · name: value` annotations.
 - **`retrieve` markdown:** the frontmatter block contains only the fields the projection requested, under their **output names**. Omitting a `$content` projection emits the frontmatter block with no body.
 
 The cross-format invariant in §13.1.1 still applies — markdown MUST NOT contradict JSON/YAML, but MAY abbreviate or omit fields for readability.
@@ -1511,8 +1510,6 @@ The flags below configure the `retrieve` walker directly and are not lowered int
 | `-b, --backlinks` | Populate `$referencedBy` on each `DocumentOutput`. |
 | `--children` | Populate `$includes` on each `DocumentOutput`. |
 | `-e, --exclude KEY` | Repeatable. Skip these keys when assembling the result. |
-| `--no-content` | Emit metadata only — `content` field is the empty string. |
-| `--dry-run` | Print `documents: N\nlines: N` (or the equivalent JSON/YAML) and exit without rendering bodies. |
 | `--filter`, `-k`, `--includes`, `--included-by`, `--references`, `--referenced-by`, `--max-depth`, `--max-distance` | Same selection-side filter flags documented in §12.2; constrain which keys are pulled. |
 
 ### 12.4 Update flags (`iwe update` mutation mode)
@@ -1725,9 +1722,11 @@ User frontmatter inside markdown documents has reserved-prefix entries already s
 
 #### 13.3.3 `iwe find` (markdown / keys)
 
-**Markdown:** `find` markdown is byte-identical to `retrieve` markdown for the matched key set: each result is emitted as a four-backtick fenced block with info string `markdown #<key>`, body and frontmatter as defined in §13.3.4. No header line. No `(showing M)` / `for "Q"` annotation — counts and query metadata live in `-f json|yaml`. Result order matches the find result order (filter / sort / limit applied upstream).
+**Markdown:** `find` markdown is a compact index — one `- [title](key)` line per result, meant to be scanned. No header line. No `(showing M)` / `for "Q"` annotation — counts and query metadata live in `-f json|yaml`. Result order matches the find result order (filter / sort / limit applied upstream).
 
-Under the default projection, frontmatter carries `title` plus the four edge fields (`includedBy`, `includes`, `referencedBy`, `references`) when non-empty. Under explicit projection, frontmatter carries only the projected fields — see §6.5.
+Each line is `- [title](key)`, where the link text falls back to the key string when `title` is not projected. Non-empty edge fields render after the link as arrows keyed on direction — incoming (`includedBy`, `referencedBy`) as `<- [Title](key)`, outgoing (`includes`, `references`) as `-> [Title](key)`, multiple targets comma-joined after one arrow, empty edges omitted. Other non-edge fields render as ` · name: value`; arrays of scalars join with `, `, and richer values fall back to compact inline YAML.
+
+Projecting a `$content`-shaped field switches the whole invocation to the fenced-block form that `retrieve` emits (byte-identical for the matched key set): each result is a four-backtick fenced block with info string `markdown #<key>`, body and frontmatter as defined in §13.3.4. This is the only way `find` markdown emits document bodies — see §6.5.
 
 When the result set is empty, stdout is empty.
 
@@ -1754,7 +1753,7 @@ Frontmatter fields (rendered in this order):
 | frontmatter | `referencedBy` | omit when empty | `EdgeRef` list |
 | frontmatter | `includedBy` | omit when empty | `EdgeRef` list |
 
-The order matches the unified default projection (§6.2.2). Under that default, `find -f markdown` and `retrieve -f markdown` produce byte-identical frontmatter for the same key.
+The order matches the unified default projection (§6.2.2). When `find` markdown is in fenced-block form (a `$content`-shaped field is projected), it produces byte-identical frontmatter to `retrieve -f markdown` for the same key; otherwise `find` renders the compact index (§13.3.3).
 
 `EdgeRef` inside frontmatter omits `sectionPath` when empty. There is no `document:` wrapper map; the frontmatter is always flat. Field naming matches JSON (no `parents` / `back-links` aliases).
 
@@ -1936,7 +1935,7 @@ The top-level value is an **array** of `DocumentOutput` — no envelope.
 DocumentOutput:
   key:           string
   title:         string
-  content:       string         # rendered markdown body only — source-file YAML frontmatter is always stripped; "" when --no-content
+  content:       string         # rendered markdown body only — source-file YAML frontmatter is always stripped
   references:    [EdgeRef]      # always present; populated when --links; [] otherwise
   includes:      [EdgeRef]      # always present; populated when --children; [] otherwise
   referencedBy:  [EdgeRef]      # always present; populated when --backlinks; [] otherwise
@@ -2067,7 +2066,7 @@ Flags that change the *shape* (not just the selection) of output. Selection-only
 
 | Flag | Effect on shape |
 |---|---|
-| `--project f1,f2,...` | `markdown` always emits one fenced block per result; the frontmatter block contains only the projected fields (under their projection output names), with `key` lifted to the fence info string and any `$content`-shaped field rendered as the body rather than inside frontmatter. The body is always rendered. `keys` is unaffected. JSON/YAML: each `FindResult` carries only the listed fields, in the listed order. |
+| `--project f1,f2,...` | `markdown` renders the compact index (one `- [title](key)` line per result) unless a `$content`-shaped field is projected, in which case it switches to one fenced block per result — the frontmatter carries the projected fields under their output names, with `key` lifted to the fence info string and the `$content` field rendered as the body. `keys` is unaffected. JSON/YAML: each `FindResult` carries only the listed fields, in the listed order. |
 | `--add-fields f1,f2,...` | Same as `--project` — additive over the default projection in structured output (§6.3); `keys` ignores it. JSON/YAML: each `FindResult` carries the default projection plus the listed fields. |
 
 #### 13.6.2 `iwe retrieve`
@@ -2076,13 +2075,11 @@ The flags below gate which structural sources are populated (per the conditional
 
 | Flag | Effect on shape |
 |---|---|
-| `--no-content` | Document body is empty (markdown) / `content` becomes `""` (JSON/YAML). Does **not** populate `includes`. |
-| `--children` | `includes` populated with `EdgeRef` entries for child documents. Independent of `--no-content`. |
+| `--children` | `includes` populated with `EdgeRef` entries for child documents. |
 | `-b`, `--backlinks` | `referencedBy` populated with `EdgeRef` entries for inbound reference edges. |
 | `-l`, `--links` | `references` populated with `EdgeRef` entries for outbound reference targets, and the targets are added to the result set. |
 | `-d N` | Adds N levels of descendants to the top-level array (selection, not shape). |
 | `-c N` | Same, for ancestors. |
-| `--dry-run` | Replaces normal output. Markdown: prose form `documents: N\nlines: N`. JSON/YAML: `{ documents: N, lines: N }`. |
 
 #### 13.6.3 `iwe tree`
 

@@ -24,6 +24,7 @@ use liwe::query::cli::parse_projection;
 use liwe::query::{self, Filter, InclusionAnchor, ProjectionMode};
 use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use liwe::stats::{GraphStatistics, KeyStatistics};
+use liwe::tokens::Truncation;
 use minijinja::{context, Environment};
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
@@ -40,6 +41,44 @@ fn to_json_result<T: Serialize>(output: &T) -> Result<CallToolResult, McpError> 
     let json =
         serde_json::to_string(output).map_err(|e| McpError::internal_error(e.to_string(), None))?;
     Ok(CallToolResult::success(vec![Content::text(json)]))
+}
+
+#[derive(Serialize)]
+struct TruncationNote<'a> {
+    truncated: bool,
+    emitted: usize,
+    matched: usize,
+    clipped: &'a [String],
+    tokens: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    budget: Option<usize>,
+    hint: &'static str,
+}
+
+fn to_json_result_with_truncation<T: Serialize>(
+    output: &T,
+    truncation: &Truncation,
+) -> Result<CallToolResult, McpError> {
+    let json =
+        serde_json::to_string(output).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+    let mut blocks = vec![Content::text(json)];
+    if truncation.is_truncated() {
+        blocks.push(Content::text(truncation_note(truncation)));
+    }
+    Ok(CallToolResult::success(blocks))
+}
+
+fn truncation_note(truncation: &Truncation) -> String {
+    let note = TruncationNote {
+        truncated: true,
+        emitted: truncation.emitted,
+        matched: truncation.matched,
+        clipped: &truncation.clipped,
+        tokens: truncation.tokens,
+        budget: truncation.budget,
+        hint: "Output was bounded. To see more, narrow the query, raise max_tokens/limit/max_document_tokens, or re-run excluding the returned keys.",
+    };
+    serde_json::to_string(&note).unwrap_or_else(|_| "{\"truncated\":true}".to_string())
 }
 
 fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
@@ -132,8 +171,18 @@ pub struct FindParams {
     pub refs_to: Option<String>,
     #[schemars(description = "Only return documents referenced by this key")]
     pub refs_from: Option<String>,
-    #[schemars(description = "Maximum number of results to return")]
+    #[schemars(
+        description = "Maximum number of results to return. Unlimited if omitted (0 also = unlimited)."
+    )]
     pub limit: Option<usize>,
+    #[schemars(
+        description = "Cap total projected `$content` tokens across all results. Unlimited if omitted (0 also = unlimited)."
+    )]
+    pub max_tokens: Option<usize>,
+    #[schemars(
+        description = "Cap projected `$content` tokens per result. Unlimited if omitted (0 also = unlimited)."
+    )]
+    pub max_document_tokens: Option<usize>,
     #[schemars(
         description = "Replacement projection (e.g. 'title,priority' or 'body=$content,parents=$includedBy'). Mutually exclusive with add_fields."
     )]
@@ -175,6 +224,8 @@ impl TryFrom<FindParams> for FindOptions {
             limit: p.limit,
             sort: None,
             project,
+            max_tokens: p.max_tokens,
+            max_document_tokens: p.max_document_tokens,
         })
     }
 }
@@ -198,12 +249,22 @@ pub struct RetrieveParams {
     pub backlinks: Option<bool>,
     #[schemars(description = "Document keys to exclude from results")]
     pub exclude: Option<Vec<String>>,
-    #[schemars(description = "Return metadata only without document content. Default: false")]
-    pub no_content: Option<bool>,
     #[schemars(
         description = "Populate the `includes` array with child document edges. Default: false"
     )]
     pub children: Option<bool>,
+    #[schemars(
+        description = "Maximum number of documents to return. Unlimited if omitted (0 also = unlimited)."
+    )]
+    pub limit: Option<usize>,
+    #[schemars(
+        description = "Cap total content tokens across all documents. Unlimited if omitted (0 also = unlimited)."
+    )]
+    pub max_tokens: Option<usize>,
+    #[schemars(
+        description = "Cap content tokens per document. Unlimited if omitted (0 also = unlimited)."
+    )]
+    pub max_document_tokens: Option<usize>,
     #[serde(flatten)]
     pub selector: SelectorParams,
 }
@@ -221,9 +282,11 @@ impl From<RetrieveParams> for RetrieveOptions {
                 .into_iter()
                 .map(|k| Key::name(&k))
                 .collect::<HashSet<_>>(),
-            no_content: p.no_content.unwrap_or(false),
             children: p.children.unwrap_or(false),
             filter: p.selector.to_filter(),
+            limit: p.limit,
+            max_tokens: p.max_tokens,
+            max_document_tokens: p.max_document_tokens,
         }
     }
 }
@@ -510,7 +573,7 @@ impl IweServer {
         let graph = self.graph.lock().await;
         let finder = DocumentFinder::new(&graph);
         let output: FindOutput = finder.find(&options);
-        to_json_result(&output.results)
+        to_json_result_with_truncation(&output.results, &output.truncation)
     }
 
     #[tool(
@@ -525,7 +588,7 @@ impl IweServer {
         let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
         let options: RetrieveOptions = params.into();
         let output: RetrieveOutput = reader.retrieve_many(&keys, &options);
-        to_json_result(&output.documents)
+        to_json_result_with_truncation(&output.documents, &output.truncation)
     }
 
     #[tool(

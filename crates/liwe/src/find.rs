@@ -1,11 +1,15 @@
 use crate::graph::Graph;
 use crate::model::Key;
+use crate::query::document::{ProjectionSource, PseudoField};
 use crate::query::project::{apply_projection_or_default, ProjectionContext};
 use crate::query::sort::sort_in_place;
 use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
+use crate::tokens::{
+    apply_budget, count_tokens, truncate_to_tokens, truncation_marker, Budget, Truncation,
+};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::Serialize;
-use serde_yaml::Mapping;
+use serde_yaml::{Mapping, Value};
 
 pub type FindResult = Mapping;
 
@@ -20,6 +24,8 @@ pub struct FindOutput {
     pub keys: Vec<Key>,
     #[serde(skip)]
     pub titles: Vec<String>,
+    #[serde(skip)]
+    pub truncation: Truncation,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -31,6 +37,14 @@ pub struct FindOptions {
     pub limit: Option<usize>,
     pub sort: Option<Sort>,
     pub project: Option<Projection>,
+    pub max_tokens: Option<usize>,
+    pub max_document_tokens: Option<usize>,
+}
+
+struct FindRow {
+    key: Key,
+    title: String,
+    result: FindResult,
 }
 
 pub struct DocumentFinder<'a> {
@@ -73,23 +87,47 @@ impl<'a> DocumentFinder<'a> {
         let total = ordered.len();
         let take = options.limit.filter(|&l| l > 0).unwrap_or(total);
         let kept: Vec<Key> = ordered.into_iter().take(take).collect();
-        let titles: Vec<String> = kept
-            .iter()
-            .map(|k| self.graph.get_key_title(k).unwrap_or_else(|| k.to_string()))
+
+        let content_names = content_field_names(options.project.as_ref());
+        let mut rows: Vec<FindRow> = kept
+            .into_iter()
+            .map(|key| {
+                let title = self
+                    .graph
+                    .get_key_title(&key)
+                    .unwrap_or_else(|| key.to_string());
+                let result = self.build_result(&key, options.project.as_ref());
+                FindRow { key, title, result }
+            })
             .collect();
-        let results: Vec<FindResult> = kept
-            .iter()
-            .map(|key| self.build_result(key, options.project.as_ref()))
-            .collect();
+
+        let budget = Budget {
+            limit: None,
+            max_tokens: options.max_tokens,
+            max_document_tokens: options.max_document_tokens,
+        };
+        let truncation = apply_budget(
+            &mut rows,
+            &budget,
+            total,
+            |row| row.key.to_string(),
+            |row| content_tokens_of(&row.result, &content_names),
+            |row, max| cap_content_fields(&mut row.result, &content_names, max),
+        );
+
         let limit = options.limit.filter(|&l| l > 0 && l < total);
+        let titles: Vec<String> = rows.iter().map(|r| r.title.clone()).collect();
+        let keys: Vec<Key> = rows.iter().map(|r| r.key.clone()).collect();
+        let results: Vec<FindResult> = rows.into_iter().map(|r| r.result).collect();
 
         FindOutput {
             query: options.query.clone(),
             limit,
             total,
             results,
-            keys: kept,
+            keys,
             titles,
+            truncation,
         }
     }
 
@@ -164,6 +202,49 @@ impl<'a> DocumentFinder<'a> {
     fn node_rank(&self, key: &Key) -> usize {
         self.graph.get_reference_edges_to(key).len() + self.graph.get_inclusion_edges_to(key).len()
     }
+}
+
+/// Output names of the projected fields sourced from `$content`.
+///
+/// The token budget (`max_tokens` / `max_document_tokens`) only counts and caps these fields,
+/// so a metadata-only index (no `$content` projected) carries ~0 content tokens and is bounded
+/// solely by `limit`. `find` never counts the metadata columns — its index rows are ~1 line.
+fn content_field_names(project: Option<&Projection>) -> Vec<String> {
+    match project {
+        Some(p) => p
+            .fields
+            .iter()
+            .filter(|f| matches!(&f.source, ProjectionSource::Pseudo(PseudoField::Content)))
+            .map(|f| f.output.clone())
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+fn content_tokens_of(result: &FindResult, names: &[String]) -> usize {
+    names
+        .iter()
+        .filter_map(|name| result.get(Value::String(name.clone())))
+        .filter_map(|v| v.as_str())
+        .map(count_tokens)
+        .sum()
+}
+
+fn cap_content_fields(result: &mut FindResult, names: &[String], max: usize) -> Option<usize> {
+    let mut omitted_total = 0usize;
+    for name in names {
+        let key = Value::String(name.clone());
+        let Some(text) = result.get(&key).and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let (head, omitted) = truncate_to_tokens(text, max);
+        if omitted > 0 {
+            let capped = format!("{}{}", head, truncation_marker(omitted));
+            result.insert(key, Value::String(capped));
+            omitted_total += omitted;
+        }
+    }
+    (omitted_total > 0).then_some(omitted_total)
 }
 
 fn build_filter(options: &FindOptions) -> Option<Filter> {

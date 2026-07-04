@@ -37,6 +37,7 @@ sanitize-filename.workspace = true
 fuzzy-matcher.workspace = true
 csv.workspace = true
 percent-encoding.workspace = true
+tiktoken-rs.workspace = true
 
 [[test]]
 name = "integration"

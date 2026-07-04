@@ -32,6 +32,7 @@ use liwe::query::{
     FieldPath, Filter, Projection as QueryProjection, ProjectionSource, PseudoField,
     Sort as QuerySort, SortDir,
 };
+use liwe::tokens::Truncation;
 
 use log::{debug, error, info};
 
@@ -137,14 +138,20 @@ struct Retrieve {
     #[clap(long, short = 'f', value_enum, default_value = "markdown")]
     format: RetrieveFormat,
 
-    #[clap(long, help = "Show document count and total lines without content")]
-    dry_run: bool,
-
-    #[clap(long, help = "Exclude document content from results (metadata only)")]
-    no_content: bool,
-
     #[clap(long, help = "Populate the `includes` array with child document edges")]
     children: bool,
+
+    #[clap(long, help = "Maximum number of documents to return (0 = unlimited)")]
+    limit: Option<usize>,
+
+    #[clap(
+        long,
+        help = "Cap total content tokens across all documents (0 = unlimited)"
+    )]
+    max_tokens: Option<usize>,
+
+    #[clap(long, help = "Cap content tokens per document (0 = unlimited)")]
+    max_document_tokens: Option<usize>,
 
     #[clap(flatten)]
     selector: FilterArgs,
@@ -176,6 +183,18 @@ struct Find {
 
     #[clap(long, short = 'l', help = "Maximum results (0 = unlimited)")]
     limit: Option<usize>,
+
+    #[clap(
+        long,
+        help = "Cap total content tokens across all results (0 = unlimited)"
+    )]
+    max_tokens: Option<usize>,
+
+    #[clap(
+        long,
+        help = "Cap projected `$content` tokens per result (0 = unlimited)"
+    )]
+    max_document_tokens: Option<usize>,
 
     #[clap(
         long,
@@ -753,6 +772,31 @@ fn completions_command(args: Completions) {
     }
 }
 
+fn print_truncation_warning(noun: &str, truncation: &Truncation) {
+    if !truncation.is_truncated() {
+        return;
+    }
+    let mut msg = format!(
+        "warning: output truncated — returned {}/{} {}",
+        truncation.emitted, truncation.matched, noun
+    );
+    if !truncation.clipped.is_empty() {
+        msg.push_str(&format!(
+            ", {} clipped to --max-document-tokens",
+            truncation.clipped.len()
+        ));
+    }
+    match truncation.budget {
+        Some(budget) => msg.push_str(&format!(
+            "; ~{} tokens (budget {})",
+            truncation.tokens, budget
+        )),
+        None => msg.push_str(&format!("; ~{} tokens", truncation.tokens)),
+    }
+    msg.push_str(". Narrow with --filter/--limit or raise --max-tokens.");
+    eprintln!("{}", msg);
+}
+
 #[tracing::instrument(level = "debug")]
 fn retrieve_command(args: Retrieve) {
     let config = get_configuration();
@@ -798,43 +842,14 @@ fn retrieve_command(args: Retrieve) {
         links: args.links,
         backlinks: args.backlinks,
         exclude,
-        no_content: args.no_content,
         children: args.children,
         filter: resolve_filter(&args.selector, &graph),
+        limit: args.limit,
+        max_tokens: args.max_tokens,
+        max_document_tokens: args.max_document_tokens,
     };
 
     let output = reader.retrieve_many(&keys, &options);
-
-    if args.dry_run {
-        let doc_count = output.documents.len();
-        let total_lines: usize = output
-            .documents
-            .iter()
-            .map(|doc| doc.content.lines().count())
-            .sum();
-        match args.format {
-            RetrieveFormat::Json => {
-                let json = serde_json::to_string_pretty(&serde_json::json!({
-                    "documents": doc_count,
-                    "lines": total_lines,
-                }))
-                .expect("Failed to serialize to JSON");
-                println!("{}", json);
-            }
-            RetrieveFormat::Yaml => {
-                let mut map = serde_yaml::Mapping::new();
-                map.insert("documents".into(), (doc_count as u64).into());
-                map.insert("lines".into(), (total_lines as u64).into());
-                let yaml = serde_yaml::to_string(&map).expect("Failed to serialize to YAML");
-                print!("{}", yaml);
-            }
-            _ => {
-                println!("documents: {}", doc_count);
-                println!("lines: {}", total_lines);
-            }
-        }
-        return;
-    }
 
     match args.format {
         RetrieveFormat::Json => {
@@ -853,11 +868,14 @@ fn retrieve_command(args: Retrieve) {
             }
         }
         RetrieveFormat::Markdown => {
-            let options = graph.format_options().markdown_options();
-            let renderer = RetrieveRenderer::new(&output, &options, &graph);
+            let md_options = graph.format_options().markdown_options();
+            let renderer =
+                RetrieveRenderer::new(&output, &md_options, &graph, args.max_document_tokens);
             print!("{}", renderer.render());
         }
     }
+
+    print_truncation_warning("documents", &output.truncation);
 }
 
 #[tracing::instrument(level = "debug")]
@@ -885,6 +903,8 @@ fn find_command(args: Find) {
         limit: args.limit,
         sort,
         project: project.clone(),
+        max_tokens: args.max_tokens,
+        max_document_tokens: args.max_document_tokens,
     };
 
     let output = finder.find(&options);
@@ -915,13 +935,20 @@ fn find_command(args: Find) {
                 None => Vec::new(),
             };
             let md_options = graph.format_options().markdown_options();
-            let renderer = FindBlockRenderer::new(&md_options, &graph);
+            let renderer = FindBlockRenderer::new(
+                &md_options,
+                &graph,
+                args.max_document_tokens,
+                &output.truncation.clipped,
+            );
             print!(
                 "{}",
                 renderer.render(&output.keys, &output.results, &content_output_names)
             );
         }
     }
+
+    print_truncation_warning("documents", &output.truncation);
 }
 
 #[tracing::instrument(level = "debug")]
