@@ -39,23 +39,6 @@ async fn retrieve_with_depth_expansion() {
 }
 
 #[tokio::test]
-async fn retrieve_no_content() {
-    let f = Fixture::with_documents(vec![("1", "# Title\n\nLots of text here\n")]).await;
-
-    let result = f
-        .call_tool(
-            "iwe_retrieve",
-            json!({"keys": ["1"], "no_content": true, "depth": 0}),
-        )
-        .await;
-    let output = Fixture::result_json(&result);
-
-    assert_eq!(output[0]["key"], "1");
-    assert_eq!(output[0]["title"], "Title");
-    assert_eq!(output[0]["content"], "");
-}
-
-#[tokio::test]
 async fn retrieve_multiple_keys() {
     let f = Fixture::with_documents(vec![
         ("1", "# First\n"),
@@ -169,4 +152,88 @@ async fn retrieve_empty_intersection_yields_empty() {
         .await;
     let output = Fixture::result_json(&result);
     assert!(output.as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn retrieve_has_no_default_limit() {
+    let docs: Vec<(String, String)> = (1..=51)
+        .map(|i| (i.to_string(), format!("# Doc {i}\n")))
+        .collect();
+    let doc_refs: Vec<(&str, &str)> = docs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let keys: Vec<String> = (1..=51).map(|i| i.to_string()).collect();
+    let f = Fixture::with_documents(doc_refs).await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": keys, "depth": 0, "context": 0, "backlinks": false}),
+        )
+        .await;
+
+    let output = Fixture::result_json(&result);
+    assert_eq!(output.as_array().unwrap().len(), 51);
+
+    let blocks = Fixture::result_text_blocks(&result);
+    assert_eq!(blocks.len(), 1);
+}
+
+#[tokio::test]
+async fn retrieve_explicit_limit_bounds_and_notes() {
+    let docs: Vec<(String, String)> = (1..=51)
+        .map(|i| (i.to_string(), format!("# Doc {i}\n")))
+        .collect();
+    let doc_refs: Vec<(&str, &str)> = docs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let keys: Vec<String> = (1..=51).map(|i| i.to_string()).collect();
+    let f = Fixture::with_documents(doc_refs).await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": keys, "depth": 0, "context": 0, "backlinks": false, "limit": 2}),
+        )
+        .await;
+
+    let output = Fixture::result_json(&result);
+    assert_eq!(output.as_array().unwrap().len(), 2);
+
+    let blocks = Fixture::result_text_blocks(&result);
+    assert_eq!(blocks.len(), 2);
+    let note: serde_json::Value = serde_json::from_str(&blocks[1]).expect("note is JSON");
+    assert_eq!(note["truncated"], json!(true));
+    assert_eq!(note["emitted"], json!(2));
+    assert_eq!(note["matched"], json!(51));
+    assert_eq!(note["clipped"], json!([]));
+    assert_eq!(note.get("budget"), None);
+}
+
+#[tokio::test]
+async fn retrieve_max_document_tokens_clips_content_and_notes() {
+    let f = Fixture::with_documents(vec![(
+        "notes",
+        "# Notes\n\nalpha beta gamma delta epsilon zeta eta theta\n",
+    )])
+    .await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["notes"], "depth": 0, "context": 0, "backlinks": false, "max_document_tokens": 4}),
+        )
+        .await;
+
+    let output = Fixture::result_json(&result);
+    assert_eq!(
+        output[0]["content"].as_str().unwrap(),
+        "# Notes\n\nalpha\n\n⋯ truncated (9 tokens omitted)"
+    );
+
+    let blocks = Fixture::result_text_blocks(&result);
+    assert_eq!(blocks.len(), 2);
+    let note: serde_json::Value = serde_json::from_str(&blocks[1]).expect("note is JSON");
+    assert_eq!(note["truncated"], json!(true));
+    assert_eq!(note["emitted"], json!(1));
+    assert_eq!(note["matched"], json!(1));
+    assert_eq!(note["clipped"], json!(["notes"]));
+    assert_eq!(note["tokens"], json!(13));
+    assert_eq!(note.get("budget"), None);
 }

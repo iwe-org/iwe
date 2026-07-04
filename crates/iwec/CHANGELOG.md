@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe_retrieve` and `iwe_find` accept `max_tokens` / `max_document_tokens` (and `iwe_retrieve` a `limit`) to bound output; all are unlimited unless set. When a limit trims the output, the tool appends a second content block with a JSON truncation summary (`truncated`, `emitted`, `matched`, `clipped`, `tokens`, `budget`, `hint`) alongside the unchanged primary JSON.
+
+### Removed
+- `iwe_retrieve` tool `no_content` parameter — removed; the tool always returns content.
+
 ## [0.6.1](https://github.com/iwe-org/iwe/compare/iwec-v0.6.0...iwec-v0.6.1) - 2026-07-03
 
 ### Fixed

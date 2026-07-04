@@ -95,8 +95,26 @@ impl Fixture {
     }
 
     pub fn result_json(result: &CallToolResult) -> serde_json::Value {
-        let text = Self::result_text(result);
+        let text = result
+            .content
+            .iter()
+            .find_map(|c| match &c.raw {
+                RawContent::Text(t) => Some(t.text.clone()),
+                _ => None,
+            })
+            .expect("result to have a text block");
         serde_json::from_str(&text).expect("result to be valid JSON")
+    }
+
+    pub fn result_text_blocks(result: &CallToolResult) -> Vec<String> {
+        result
+            .content
+            .iter()
+            .filter_map(|c| match &c.raw {
+                RawContent::Text(t) => Some(t.text.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     pub async fn list_resources(&self) -> ListResourcesResult {

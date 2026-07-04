@@ -21,8 +21,6 @@ Without `-k`, reads the document key from stdin (for piping).
 | `-l, --links`                  | Include inline referenced documents.                                                  | false      |
 | `-b, --backlinks`              | Include incoming references in output.                                                | true       |
 | `-f, --format <FMT>`           | Output format: `markdown`, `keys`, `json`, `yaml`.                                    | `markdown` |
-| `--no-content`                 | Exclude content, show child documents instead (metadata only).                        | false      |
-| `--dry-run`                    | Show document count and total lines without content.                                  | false      |
 | `--filter <EXPR>`              | Inline YAML filter expression. See [Query Language](query-language.md).               | none       |
 | `--includes <KEY[:DEPTH]>`     | `$includes` anchor. Repeatable; anchors are ANDed.                                    | none       |
 | `--included-by <KEY[:DEPTH]>`  | `$includedBy` anchor. Repeatable; anchors are ANDed.                                  | none       |
@@ -30,6 +28,17 @@ Without `-k`, reads the document key from stdin (for piping).
 | `--referenced-by <KEY[:DIST]>` | `$referencedBy` anchor. Repeatable; anchors are ANDed.                                | none       |
 | `--max-depth <N>`              | Session default for inclusion anchor flags without a colon-suffix. `0` = unbounded.   | 1          |
 | `--max-distance <N>`           | Session default for reference anchor flags without a colon-suffix. `0` = unbounded.   | 1          |
+| `--limit <N>`                  | Maximum number of documents to return. `0` = unlimited.                               | unlimited  |
+| `--max-tokens <N>`             | Cap total content tokens across all documents (whole documents are dropped). `0` = unlimited. | unlimited  |
+| `--max-document-tokens <N>`         | Cap content tokens per document (body is head-truncated with a marker). `0` = unlimited. | unlimited  |
+
+### Output limits
+
+`--limit`, `--max-tokens`, and `--max-document-tokens` bound output for context-limited callers and are **off by default**.
+
+- **What is counted.** Each document's body plus its serialized edge lists. JSON/YAML structural overhead (field names, escaping) is not counted, and the counts are an approximate (OpenAI-BPE) proxy — so treat the budget as a soft bound with headroom, not an exact byte cap. The `⋯ truncated` marker appended to a clipped body is itself uncounted, so a clipped document lands slightly over `--max-document-tokens`.
+- **What survives.** The requested document(s) are collected first, so they always survive; `--max-tokens` trims from the periphery (deepest expansion and parent context) inward. A clipped result set is therefore **not relationally closed** — a kept child may lose the parent-context document it appeared under.
+- **Signal.** When any limit trims the output, a `warning:` line is printed to **stderr** while stdout stays a clean array/markdown. Page through a large result set by combining `--exclude` with the truncation signal: fetch, note the returned keys, re-run excluding them.
 
 ### Filter and structural anchors
 
@@ -224,29 +233,7 @@ One key per line, suitable for piping to other commands or building exclude list
 
 The top-level value is a bare array of document objects. Each carries `key`, `title`, `content`, and three edge arrays — `includedBy`, `includes`, `referencedBy` — using the same `EdgeRef { key, title, sectionPath }` shape. Empty arrays are emitted explicitly.
 
-`includes` is populated only when `--children` is passed; `--no-content` blanks `content` independently.
-
-### Dry Run (`--dry-run`)
-
-Default (markdown / no `-f`): two-line prose summary.
-
-``` bash
-$ iwe retrieve -k my-document --dry-run
-documents: 5
-lines: 234
-```
-
-With `-f json` or `-f yaml`, dry-run emits a structured summary instead:
-
-``` bash
-$ iwe retrieve -k my-document --dry-run -f json
-{
-  "documents": 5,
-  "lines": 234
-}
-```
-
-Useful for checking how much content would be retrieved before fetching it.
+`includes` is populated only when `--children` is passed.
 
 ## Examples
 
@@ -272,14 +259,8 @@ iwe retrieve -k my-document -l
 # Exclude documents which you don't need
 iwe retrieve -k my-document -e already-loaded -e another-loaded
 
-# Get metadata only, no content
-iwe retrieve -k my-document --no-content
-
-# Populate the `includes` edge array (independent of --no-content)
+# Populate the `includes` edge array with child document edges
 iwe retrieve -k my-document --children
-
-# Check size before retrieving
-iwe retrieve -k my-document -d 2 -c 1 --dry-run
 
 # Get JSON output for programmatic processing
 iwe retrieve -k my-document -f json
@@ -303,9 +284,6 @@ Build rich context for AI agents navigating the knowledge base:
 ``` bash
 # Get document with immediate context
 iwe retrieve -k authentication
-
-# Check context size first
-iwe retrieve -k authentication -d 2 --dry-run
 
 # Get broader context if needed
 iwe retrieve -k authentication -d 2 -c 2

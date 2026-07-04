@@ -53,19 +53,32 @@ FILTER FLAGS (narrow the result set):
 SHAPE FLAGS:
 
   --children                  Populate the includes array with child document edges.
-  --no-content                Exclude document content (metadata only).
   -b, --backlinks             Include incoming references (referencedBy). On by default.
   -e, --exclude KEY           Exclude document key(s) from results. Repeatable.
   -d N                        Follow block refs down N levels (default 1).
   -c N                        Include N levels of parent context (default 1).
   -l, --links                 Include inline references.
 
+LIMITS (bound output for context-limited callers; off by default):
+
+  --limit N                   Maximum number of documents to return.
+  --max-tokens N              Cap total tokens across all documents. Whole documents are
+                              dropped from the periphery once the budget is reached.
+  --max-document-tokens N     Cap body tokens per document. A longer body is head-truncated
+                              with a "⋯ truncated (N tokens omitted)" marker.
+  0 = unlimited for every knob. Tokens count each document's body plus its edge lists
+  (JSON/YAML structural overhead is not counted); the count is an approximate proxy and the
+  truncation marker itself is uncounted, so a clipped body lands slightly over the cap. The
+  main document(s) come first and survive; budgets trim the deepest expansion / context, so a
+  clipped result set is not relationally closed (a kept child may lose its parent-context
+  doc). When output is truncated a warning is printed to stderr; stdout stays clean. Page
+  with --exclude: fetch, note the returned keys, then re-run excluding them.
+
 EXAMPLES:
 
   iwe retrieve -k doc-a                               # single document
   iwe retrieve -k doc-a -d 2                           # two levels of children
   iwe retrieve -k doc-a --children -f json             # includes array populated
-  iwe retrieve -k doc-a --no-content -f json           # metadata only
   iwe retrieve -k x -k y -k z                          # multiple specific keys
   iwe retrieve --included-by projects/alpha -f keys    # keys inside alpha
-  iwe retrieve -k doc-a --dry-run                      # preview: doc count and lines
+  iwe retrieve -k doc-a -d 3 --max-tokens 8000          # bound total output size

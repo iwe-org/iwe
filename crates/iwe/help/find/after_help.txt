@@ -19,9 +19,20 @@ SHAPE FLAGS:
   --sort field:1|-1           Sort by frontmatter field (1=asc, -1=desc).
   -l, --limit N               Cap results (0 = unlimited).
 
+LIMITS (bound output for context-limited callers; off by default):
+
+  --max-tokens N              Cap total projected `$content` tokens across all results.
+                              Rows are dropped whole once the budget is reached.
+  --max-document-tokens N          Cap projected `$content` tokens per result, head-truncating
+                              with a "⋯ truncated (N tokens omitted)" marker.
+  0 = unlimited. Token budgets only act when `$content` is projected; a metadata index
+  carries no content tokens, so use --limit to bound it. A truncation warning is printed
+  to stderr when output is clipped.
+
 OUTPUT FORMATS:
 
-  -f markdown (default)       Four-backtick fenced blocks (same format as retrieve).
+  -f markdown (default)       Compact index, one line per document; body only when
+                              $content is projected.
   -f keys                     One key per line.
   -f json                     Structured array of result objects.
   -f yaml                     Same shape as JSON, rendered as YAML.

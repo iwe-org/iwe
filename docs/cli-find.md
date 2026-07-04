@@ -24,9 +24,13 @@ iwe find [QUERY] [OPTIONS]
 | `--project <f1,f2,...>`         | Frontmatter fields to include in JSON / YAML output (comma-separated).                       | none       |
 | `--sort <field:DIR>`            | Sort by frontmatter field. `DIR` is `1` (asc) or `-1` (desc).                                | none       |
 | `-l, --limit <N>`               | Maximum number of results (`0` = unlimited).                                                 | unlimited  |
+| `--max-tokens <N>`              | Cap total projected `$content` tokens across all results (`0` = unlimited).                  | unlimited  |
+| `--max-document-tokens <N>`          | Cap projected `$content` tokens per result, head-truncating with a marker (`0` = unlimited). | unlimited  |
 | `-f, --format <FMT>`            | Output format: `markdown`, `keys`, `json`, `yaml`.                                           | `markdown` |
 
 All filter clauses (positional `QUERY` plus every flag above) are AND-composed at the top level. For OR or NOT, write it inside `--filter`. See [Query Language](query-language.md).
+
+`--max-tokens` and `--max-document-tokens` only act when the projection includes `$content`; a metadata index carries no content tokens, so bound it with `--limit`. Token budgets are off by default, count body text only, and print a `warning:` to stderr when they trim the output.
 
 ## Filter language
 
@@ -104,15 +108,36 @@ Without a query, results are sorted by incoming-reference popularity. With a que
 
 ### Markdown (default)
 
+A compact index — one line per document, meant to be scanned:
+
 ``` markdown
-## Documents
-
-Found 3 results:
-
-- [User Authentication](authentication) (root)
+- [User Authentication](authentication)
 - [Login Flow](login-flow) <- [User Authentication](authentication)
 - [Session Management](session-management) <- [User Authentication](authentication)
 ```
+
+Each line is `- [title](key)`, followed by any projected edge and scalar fields:
+
+- **Link text** is the `title`. When `title` is not projected (e.g. `--project key`), the key string is used instead.
+- **Edge fields** render as arrows after the link, by direction: incoming (`includedBy`, `referencedBy`) as `<- [Title](key)`, outgoing (`includes`, `references`) as `-> [Title](key)`. Multiple targets in one field are comma-joined after a single arrow. Empty edges are omitted.
+- **Scalar fields** render as ` · name: value`. Arrays of scalars join with `, `; richer values fall back to compact inline YAML (use `-f json`/`yaml` for those).
+
+The index never prints document bodies. Projecting `$content` (via `--project` or `--add-fields`) switches the whole invocation to the fenced document block that [`iwe retrieve`](cli-retrieve.md) emits, with content as the body and other projected fields as frontmatter:
+
+``` markdown
+$ iwe find auth --add-fields '$content'
+````markdown #authentication
+---
+title: User Authentication
+---
+
+# User Authentication
+
+…body…
+````
+```
+
+To read full documents, use [`iwe retrieve`](cli-retrieve.md).
 
 ### Keys (`-f keys`)
 

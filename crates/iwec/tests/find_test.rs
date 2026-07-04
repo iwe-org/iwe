@@ -218,3 +218,41 @@ async fn find_selector_combines_with_query() {
     let output = Fixture::result_json(&result);
     assert_eq!(keys(&output), vec!["design"]);
 }
+
+#[tokio::test]
+async fn find_has_no_default_limit() {
+    let docs: Vec<(String, String)> = (1..=51)
+        .map(|i| (i.to_string(), format!("# Doc {i}\n")))
+        .collect();
+    let doc_refs: Vec<(&str, &str)> = docs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let f = Fixture::with_documents(doc_refs).await;
+
+    let result = f.call_tool("iwe_find", json!({})).await;
+
+    let output = Fixture::result_json(&result);
+    assert_eq!(output.as_array().unwrap().len(), 51);
+
+    let blocks = Fixture::result_text_blocks(&result);
+    assert_eq!(blocks.len(), 1);
+}
+
+#[tokio::test]
+async fn find_explicit_limit_bounds_and_notes() {
+    let docs: Vec<(String, String)> = (1..=51)
+        .map(|i| (i.to_string(), format!("# Doc {i}\n")))
+        .collect();
+    let doc_refs: Vec<(&str, &str)> = docs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let f = Fixture::with_documents(doc_refs).await;
+
+    let result = f.call_tool("iwe_find", json!({"limit": 2})).await;
+
+    let output = Fixture::result_json(&result);
+    assert_eq!(output.as_array().unwrap().len(), 2);
+
+    let blocks = Fixture::result_text_blocks(&result);
+    assert_eq!(blocks.len(), 2);
+    let note: serde_json::Value = serde_json::from_str(&blocks[1]).expect("note is JSON");
+    assert_eq!(note["truncated"], json!(true));
+    assert_eq!(note["emitted"], json!(2));
+    assert_eq!(note["matched"], json!(51));
+}

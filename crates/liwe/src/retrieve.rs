@@ -5,6 +5,9 @@ use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
 use crate::query::{self, Filter};
+use crate::tokens::{
+    apply_budget, count_tokens, truncate_to_tokens, truncation_marker, Budget, Truncation,
+};
 use itertools::Itertools;
 use serde::Serialize;
 
@@ -32,6 +35,8 @@ pub struct DocumentOutput {
 #[serde(rename_all = "camelCase")]
 pub struct RetrieveOutput {
     pub documents: Vec<DocumentOutput>,
+    #[serde(skip)]
+    pub truncation: Truncation,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -41,9 +46,11 @@ pub struct RetrieveOptions {
     pub links: bool,
     pub backlinks: bool,
     pub exclude: HashSet<Key>,
-    pub no_content: bool,
     pub children: bool,
     pub filter: Option<Filter>,
+    pub limit: Option<usize>,
+    pub max_tokens: Option<usize>,
+    pub max_document_tokens: Option<usize>,
 }
 
 pub struct DocumentReader<'a> {
@@ -71,7 +78,11 @@ impl<'a> DocumentReader<'a> {
             documents.push(doc_output);
         }
 
-        RetrieveOutput { documents }
+        let truncation = apply_document_budget(&mut documents, options);
+        RetrieveOutput {
+            documents,
+            truncation,
+        }
     }
 
     pub fn retrieve_many(&self, keys: &[Key], options: &RetrieveOptions) -> RetrieveOutput {
@@ -101,7 +112,11 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
-        RetrieveOutput { documents }
+        let truncation = apply_document_budget(&mut documents, options);
+        RetrieveOutput {
+            documents,
+            truncation,
+        }
     }
 
     fn collect_document_keys(&self, key: &Key, options: &RetrieveOptions) -> Vec<Key> {
@@ -171,11 +186,7 @@ impl<'a> DocumentReader<'a> {
             .get_key_title(key)
             .unwrap_or_else(|| key.to_string());
 
-        let content = if options.no_content {
-            String::new()
-        } else {
-            self.get_document_content(key)
-        };
+        let content = self.get_document_content(key);
         let included_by = self.get_parent_documents(key);
 
         let includes = if options.children {
@@ -326,4 +337,51 @@ impl<'a> DocumentReader<'a> {
         path.reverse();
         path
     }
+}
+
+fn apply_document_budget(
+    documents: &mut Vec<DocumentOutput>,
+    options: &RetrieveOptions,
+) -> Truncation {
+    let matched = documents.len();
+    let budget = Budget {
+        limit: options.limit,
+        max_tokens: options.max_tokens,
+        max_document_tokens: options.max_document_tokens,
+    };
+
+    apply_budget(
+        documents,
+        &budget,
+        matched,
+        |doc| doc.key.clone(),
+        document_payload_tokens,
+        |doc, max| {
+            let (head, omitted) = truncate_to_tokens(&doc.content, max);
+            if omitted > 0 {
+                doc.content = format!("{}{}", head, truncation_marker(omitted));
+                Some(omitted)
+            } else {
+                None
+            }
+        },
+    )
+}
+
+fn document_payload_tokens(doc: &DocumentOutput) -> usize {
+    count_tokens(&doc.content) + edge_tokens(doc)
+}
+
+fn edge_tokens(doc: &DocumentOutput) -> usize {
+    [
+        &doc.references,
+        &doc.includes,
+        &doc.referenced_by,
+        &doc.included_by,
+    ]
+    .into_iter()
+    .filter(|edges| !edges.is_empty())
+    .filter_map(|edges| serde_yaml::to_string(edges).ok())
+    .map(|s| count_tokens(&s))
+    .sum()
 }

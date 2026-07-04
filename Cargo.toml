@@ -61,3 +61,4 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 ignore = "0.4"
 csv = "1.4"
 serde_yaml = "0.9"
+tiktoken-rs = "=0.12.0"
