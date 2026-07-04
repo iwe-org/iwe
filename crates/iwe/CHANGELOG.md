@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/iwe-org/iwe/compare/iwe-v0.6.1...iwe-v0.7.0) - 2026-07-03
+
 ### Added
 - `retrieve --limit`, and `--max-tokens` / `--max-document-tokens` on `retrieve` and `find`, to bound output for context-limited callers. `0` disables a limit. A `warning:` line is printed to stderr when output is truncated.
 
