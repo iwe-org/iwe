@@ -149,6 +149,8 @@ IWE is open source and community-driven. Join the [discussions](https://github.c
 
 **Agentic skills:** [iwe-org/skills](https://github.com/iwe-org/skills) — agentic AI skills for knowledge graph management. Contributors welcome.
 
+[![Listed on BundleDex](https://bundledex.net/badge.svg)](https://bundledex.net) — Discovered via [BundleDex](https://bundledex.net), a directory of OKF bundles.
+
 ## License
 
 [Apache License 2.0](LICENSE-APACHE)
