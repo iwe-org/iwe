@@ -56,6 +56,8 @@
 
 [Notes Search](feature-search.md)
 
+[Search Ranking](search-ranking.md)
+
 [Extract Actions](feature-extract.md)
 
 [Inline Notes](feature-inline.md)

@@ -38,6 +38,22 @@ async fn find_by_query() {
 }
 
 #[tokio::test]
+async fn find_by_body_term() {
+    let f = Fixture::with_documents(vec![
+        ("1", "# First\n\nThe deployment relies on kubernetes.\n"),
+        ("2", "# Second\n\nA plain note with no infrastructure.\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"query": "kubernetes"}))
+        .await;
+    let output = Fixture::result_json(&result);
+
+    assert_eq!(keys(&output), vec!["1"]);
+}
+
+#[tokio::test]
 async fn find_with_limit() {
     let f = Fixture::with_documents(vec![
         ("1", "# Doc one\n"),

@@ -30,6 +30,7 @@ impl Node {
             Node::Item(_, inlines) => inlines.iter().map(|i| i.plain_text()).collect(),
             Node::Reference(reference) => reference.text.clone(),
             Node::Raw(_, content) => content.clone(),
+            Node::Table(table) => table.plain_text(),
             _ => "".to_string(),
         }
     }
@@ -60,10 +61,52 @@ pub struct Table {
     pub rows: Vec<Vec<Inlines>>,
 }
 
+impl Table {
+    fn plain_text(&self) -> String {
+        let cells = self.header.iter().chain(self.rows.iter().flatten());
+        cells
+            .map(|inlines| {
+                inlines
+                    .iter()
+                    .map(|inline| inline.plain_text())
+                    .collect::<String>()
+            })
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum ColumnAlignment {
     None,
     Left,
     Center,
     Right,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::inline::Inline;
+
+    #[test]
+    fn table_plain_text_concatenates_header_and_cells() {
+        let node = Node::Table(Table {
+            header: vec![
+                vec![Inline::Str("Name".to_string())],
+                vec![Inline::Str("Value".to_string())],
+            ],
+            alignment: vec![ColumnAlignment::None, ColumnAlignment::None],
+            rows: vec![
+                vec![
+                    vec![Inline::Str("foo".to_string())],
+                    vec![Inline::Str("bar".to_string())],
+                ],
+                vec![vec![], vec![Inline::Str("baz".to_string())]],
+            ],
+        });
+
+        assert_eq!(node.plain_text(), "Name Value foo bar baz");
+    }
 }

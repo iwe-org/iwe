@@ -12,6 +12,7 @@ pub mod parser;
 pub mod query;
 pub mod retrieve;
 pub mod schema;
+pub mod search;
 pub mod state;
 pub mod stats;
 pub mod tokens;

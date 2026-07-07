@@ -38,6 +38,7 @@ fuzzy-matcher.workspace = true
 csv.workspace = true
 percent-encoding.workspace = true
 tiktoken-rs.workspace = true
+bm25.workspace = true
 
 [[test]]
 name = "integration"

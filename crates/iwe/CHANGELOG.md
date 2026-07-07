@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `find` ranks results with BM25 full-text scoring over document title and body (previously a fuzzy subsequence match on key and title only). Set the stemming language with `[search] language` in `.iwe/config.toml`.
+
 ## [0.7.0](https://github.com/iwe-org/iwe/compare/iwe-v0.6.1...iwe-v0.7.0) - 2026-07-03
 
 ### Added

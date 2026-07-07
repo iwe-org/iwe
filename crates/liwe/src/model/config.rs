@@ -365,6 +365,24 @@ pub struct CompletionOptions {
     pub trigger_characters: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct SearchOptions {
+    #[serde(default = "default_search_language")]
+    pub language: String,
+}
+
+fn default_search_language() -> String {
+    "english".to_string()
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            language: default_search_language(),
+        }
+    }
+}
+
 impl Default for LibraryOptions {
     fn default() -> Self {
         Self {
@@ -391,6 +409,8 @@ pub struct Configuration {
     pub library: LibraryOptions,
     #[serde(default)]
     pub completion: CompletionOptions,
+    #[serde(default)]
+    pub search: SearchOptions,
     #[serde(default)]
     pub commands: HashMap<String, Command>,
     #[serde(default)]
@@ -507,6 +527,7 @@ impl Default for Configuration {
             djot: Default::default(),
             library: Default::default(),
             completion: Default::default(),
+            search: Default::default(),
             commands: Default::default(),
             actions: Default::default(),
             templates: Default::default(),
@@ -520,6 +541,10 @@ impl Configuration {
             Format::Markdown => FormatOptions::Markdown(self.markdown.clone()),
             Format::Djot => FormatOptions::Djot(self.djot.clone()),
         }
+    }
+
+    pub fn search_language(&self) -> crate::search::Language {
+        crate::search::parse_language(&self.search.language)
     }
 
     pub fn template() -> Self {

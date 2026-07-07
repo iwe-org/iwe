@@ -162,7 +162,12 @@ async fn rename_document() {
         .call_tool("iwe_find", json!({"query": "child-renamed"}))
         .await;
     let find_output = Fixture::result_json(&find);
-    assert_eq!(find_output.as_array().unwrap().len(), 1);
+    let has_renamed = find_output
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["key"] == "child-renamed");
+    assert!(has_renamed);
 
     let old = f.call_tool("iwe_find", json!({"query": "2"})).await;
     let old_output = Fixture::result_json(&old);

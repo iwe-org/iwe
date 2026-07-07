@@ -145,7 +145,7 @@ fn test_find_yaml_format() {
 }
 
 #[test]
-fn test_find_fuzzy_search() {
+fn test_find_bm25_matches_title_and_body() {
     let dir = setup_workspace();
 
     write(
@@ -160,7 +160,7 @@ fn test_find_fuzzy_search() {
     .unwrap();
     write(dir.path().join("api.md"), "# API Endpoints\n\nAPI content.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["auth", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["authentication", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -178,6 +178,27 @@ fn test_find_fuzzy_search() {
     "#};
 
     assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_bm25_ranks_by_body_term() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("first.md"),
+        "# First Note\n\nThe migration guide explains postgres in detail.",
+    )
+    .unwrap();
+    write(
+        dir.path().join("second.md"),
+        "# Second Note\n\nA general overview of the project.",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["postgres", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "first\n");
 }
 
 #[test]

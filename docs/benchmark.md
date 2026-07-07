@@ -12,7 +12,9 @@ separately:
 1. **Load** — walk the project directory, read every `.md` file, parse it,
    build the in-memory `Graph` (arena + indexes). Paid once per invocation.
    The LSP server (`iwes`) and MCP server (`iwec`) pay this cost only once
-   at startup and reuse the graph for the lifetime of the session.
+   at startup and reuse the graph for the lifetime of the session. The load
+   bench measures this both without (`plain`) and with (`indexed`) the BM25
+   search index — see [Search Ranking](search-ranking.md).
 2. **Query** — evaluate filters / structural anchors / projections against
    an already-loaded `Graph`. Paid per query inside an LSP session, or
    amortized in CLI commands that fan out (find, count, tree, retrieve,
@@ -95,9 +97,9 @@ cargo bench -p iwe --bench load
 cargo bench -p iwe --bench query
 
 # Filter to specific benches (substring match)
-cargo bench -p iwe --bench load  -- 'load/10000'
+cargo bench -p iwe --bench load  -- 'load/indexed/10000'
 cargo bench -p iwe --bench query -- 'query/filter/included_by_unbounded'
-cargo bench -p iwe -- '/20000$'                # all 20k variants
+cargo bench -p iwe -- '/20000$'                # all 20k variants (plain + indexed)
 
 # Quick mode (~10 samples, no statistical inference — for iteration)
 cargo bench -p iwe -- --quick
@@ -116,7 +118,7 @@ Criterion writes HTML reports + JSON to `target/criterion/`. Open
 Each bench prints:
 
 ```
-load/10000  time:  [low_95%  median  high_95%]
+load/indexed/10000  time:  [low_95%  median  high_95%]
                  change: [low% median% high%]  (p = 0.NN < 0.05)
                  Performance has improved.
 ```
@@ -127,7 +129,7 @@ intervals (low ≈ high, e.g. ±1%) mean the measurement is stable. Wide
 intervals (±20%+) mean noise — re-run the affected benches in isolation:
 
 ```bash
-cargo bench -p iwe --bench load -- 'load/20000$'
+cargo bench -p iwe --bench load -- '/20000$'
 ```
 
 The `change:` line compares to the previous run criterion has saved to
@@ -140,15 +142,43 @@ re-running for a clean signal.
 
 ## Numbers
 
-All times are per-iteration, measured in May 2026 on an Apple M3 Pro laptop.
+All times are per-iteration on an Apple M3 Pro laptop. Stage 2 (query) was
+measured in May 2026; Stage 1 (load) was re-measured in July 2026 when the BM25
+search index landed.
 
 ### Stage 1 — load
 
-| Bench              | Time   |
-| ------------------ | ------ |
-| `load/5000`   | 128 ms |
-| `load/10000`  | 285 ms |
-| `load/20000`  | 631 ms |
+The load bench runs two variants per corpus size: `plain` builds the graph
+without the search index; `indexed` builds it with BM25 full-text indexing
+enabled — what `iwe find` and the LSP / MCP servers use.
+
+| Bench                | Time   |
+| -------------------- | ------ |
+| `load/plain/5000`    | 144 ms |
+| `load/indexed/5000`  | 204 ms |
+| `load/plain/10000`   | 329 ms |
+| `load/indexed/10000` | 435 ms |
+| `load/plain/20000`   | 705 ms |
+| `load/indexed/20000` | 958 ms |
+
+**Search index overhead.** Building the BM25 index adds roughly a third to a
+cold load, scaling linearly at ~12 µs per document:
+
+| Corpus | plain  | indexed | added   | overhead |
+| ------ | ------ | ------- | ------- | -------- |
+| 5,000  | 144 ms | 204 ms  | +60 ms  | +42%     |
+| 10,000 | 329 ms | 435 ms  | +106 ms | +32%     |
+| 20,000 | 705 ms | 958 ms  | +253 ms | +36%     |
+
+The cost is dominated by **tokenization and Snowball stemming**: the default
+tokenizer normalizes, lowercases, splits on unicode word boundaries, drops stop
+words, and stems every remaining token — and stemming is CPU-bound. Corpus
+extraction (walking each document to plain text) and embedding both run in
+parallel across documents above a 128-document threshold; only the final scorer
+population is serial, because it writes a shared inverted index. The CLI pays
+this once per `find` run; the LSP and MCP servers pay it once at startup, then
+only the per-edit cost of re-indexing a single changed document. See
+[Search Ranking](search-ranking.md) for the indexing logic.
 
 ### Stage 2 — query
 
@@ -183,13 +213,16 @@ Criterion runs each bench `(measurement_time / per_iter)` times, organized
 into 10 samples for the bootstrap. Concrete iteration counts from the
 current load run:
 
-| Bench              | per-iter | iters/sample | total iters |
-| ------------------ | -------- | ------------ | ----------- |
-| `load/5000`   | 128 ms   | 28           | 280         |
-| `load/10000`  | 285 ms   | 11           | 110         |
-| `load/20000`  | 631 ms   | 5            | 50          |
+| Bench                | per-iter | iters/sample | total iters |
+| -------------------- | -------- | ------------ | ----------- |
+| `load/plain/5000`    | 144 ms   | 22           | 220         |
+| `load/indexed/5000`  | 204 ms   | 16           | 165         |
+| `load/plain/10000`   | 329 ms   | 11           | 110         |
+| `load/indexed/10000` | 435 ms   | 11           | 110         |
+| `load/plain/20000`   | 705 ms   | 5            | 55          |
+| `load/indexed/20000` | 958 ms   | 5            | 55          |
 
-At n=20 k the bench runs ~50 iterations per measurement — solid signal.
+At n=20 k the bench runs ~55 iterations per measurement — solid signal.
 For tighter intervals at scale bump `sample_size(20)` and
 `measurement_time(60s)`, accepting roughly 2× wall-clock.
 
@@ -210,7 +243,7 @@ ls target/release/deps/load-*
 xctrace record --template "Time Profiler" \
   --output /tmp/load.trace \
   --launch -- target/release/deps/load-XXXXX \
-  --profile-time 20 'load/20000'
+  --profile-time 20 'load/indexed/20000'
 
 # Open in Instruments
 open /tmp/load.trace
@@ -225,7 +258,7 @@ because `dtrace` is restricted by SIP on macOS:
 
 ```bash
 # cache sudo credentials, then:
-sudo cargo flamegraph --bench load -- --profile-time 20 'load/20000'
+sudo cargo flamegraph --bench load -- --profile-time 20 'load/indexed/20000'
 ```
 
 ## Out of scope

@@ -1522,6 +1522,7 @@ impl IweServer {
             false,
             configuration.format_options(),
             configuration.library.frontmatter_document_title.clone(),
+            Some(configuration.search_language()),
         );
         Self {
             graph: Arc::new(Mutex::new(graph)),
@@ -1543,7 +1544,13 @@ impl IweServer {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<HashMap<String, String>>(),
         );
-        let graph = Graph::from_state(&state, true, MarkdownOptions::default(), None);
+        let graph = Graph::from_state(
+            &state,
+            true,
+            MarkdownOptions::default(),
+            None,
+            Some(config.search_language()),
+        );
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,

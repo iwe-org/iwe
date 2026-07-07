@@ -7,9 +7,9 @@ use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, S
 use crate::tokens::{
     apply_budget, count_tokens, truncate_to_tokens, truncation_marker, Budget, Truncation,
 };
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use serde::Serialize;
 use serde_yaml::{Mapping, Value};
+use std::collections::HashSet;
 
 pub type FindResult = Mapping;
 
@@ -52,14 +52,14 @@ pub struct DocumentFinder<'a> {
 }
 
 enum Order<'a> {
-    Fuzzy(&'a str),
+    Bm25(&'a str),
     Rank,
 }
 
 impl<'a> Order<'a> {
     fn from_options(options: &'a FindOptions) -> Order<'a> {
         match &options.query {
-            Some(q) => Order::Fuzzy(q),
+            Some(q) => Order::Bm25(q),
             None => Order::Rank,
         }
     }
@@ -74,7 +74,7 @@ impl<'a> DocumentFinder<'a> {
         let candidates = self.candidates(options);
 
         let candidates = match (&options.sort, &options.query) {
-            (Some(_), _) => self.fuzzy_filter_only(candidates, options.query.as_deref()),
+            (Some(_), _) => self.filter_by_query(candidates, options.query.as_deref()),
             (None, _) => candidates,
         };
 
@@ -131,18 +131,14 @@ impl<'a> DocumentFinder<'a> {
         }
     }
 
-    fn fuzzy_filter_only(&self, candidates: Vec<Key>, query: Option<&str>) -> Vec<Key> {
+    fn filter_by_query(&self, candidates: Vec<Key>, query: Option<&str>) -> Vec<Key> {
         let Some(q) = query else {
             return candidates;
         };
-        let matcher = SkimMatcherV2::default();
+        let matched: HashSet<Key> = self.graph.search(q).into_iter().map(|sd| sd.id).collect();
         candidates
             .into_iter()
-            .filter(|key| {
-                let title = self.graph.get_key_title(key).unwrap_or_default();
-                let text = format!("{} {}", key, title);
-                matcher.fuzzy_match(&text, q).unwrap_or(0) > 0
-            })
+            .filter(|key| matched.contains(key))
             .collect()
     }
 
@@ -166,29 +162,28 @@ impl<'a> DocumentFinder<'a> {
     }
 
     fn order(&self, candidates: Vec<Key>, order: Order<'_>) -> Vec<Key> {
-        let mut scored: Vec<(Key, i64)> = match order {
-            Order::Fuzzy(q) => {
-                let matcher = SkimMatcherV2::default();
-                candidates
+        match order {
+            Order::Bm25(q) => {
+                let candidate_set: HashSet<&Key> = candidates.iter().collect();
+                self.graph
+                    .search(q)
                     .into_iter()
-                    .filter_map(|key| {
-                        let title = self.graph.get_key_title(&key).unwrap_or_default();
-                        let text = format!("{} {}", key, title);
-                        let score = matcher.fuzzy_match(&text, q).unwrap_or(0);
-                        (score > 0).then_some((key, score))
-                    })
+                    .filter(|scored| candidate_set.contains(&scored.id))
+                    .map(|scored| scored.id)
                     .collect()
             }
-            Order::Rank => candidates
-                .into_iter()
-                .map(|key| {
-                    let rank = self.node_rank(&key) as i64;
-                    (key, rank)
-                })
-                .collect(),
-        };
-        scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        scored.into_iter().map(|(k, _)| k).collect()
+            Order::Rank => {
+                let mut scored: Vec<(Key, i64)> = candidates
+                    .into_iter()
+                    .map(|key| {
+                        let rank = self.node_rank(&key) as i64;
+                        (key, rank)
+                    })
+                    .collect();
+                scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                scored.into_iter().map(|(k, _)| k).collect()
+            }
+        }
     }
 
     fn build_result(&self, key: &Key, project: Option<&Projection>) -> FindResult {

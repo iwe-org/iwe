@@ -28,6 +28,7 @@ use crate::model::key_index::KeyIndex;
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::InlinesContext;
 use crate::model::{Content, Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
+use crate::search::{Bm25Index, Language, ScoredDocument};
 
 mod arena;
 pub mod basic_iter;
@@ -57,6 +58,7 @@ pub struct Graph {
     content: Documents,
     frontmatter_document_title: Option<String>,
     key_index: KeyIndex,
+    bm25: Option<Bm25Index>,
 }
 
 pub trait Reader {
@@ -134,11 +136,13 @@ impl Graph {
     pub fn insert_document(&mut self, key: Key, content: Content) {
         self.update_key(key.clone(), &content);
         self.content.insert(key.clone(), content);
+        self.reindex_search(&key);
     }
 
     pub fn update_document(&mut self, key: Key, content: Content) {
         self.update_key(key.clone(), &content);
         self.content.insert(key.clone(), content);
+        self.reindex_search(&key);
     }
 
     pub fn remove_document(&mut self, key: Key) {
@@ -153,6 +157,39 @@ impl Graph {
         self.keys_to_ref_text.remove(&key);
         self.frontmatter.remove(&key);
         self.content.remove(&key);
+
+        if let Some(index) = self.bm25.as_mut() {
+            index.remove(&key);
+        }
+    }
+
+    fn reindex_search(&mut self, key: &Key) {
+        if self.bm25.is_none() {
+            return;
+        }
+        let text = self.corpus_text(key);
+        if let Some(index) = self.bm25.as_mut() {
+            index.upsert(key.clone(), text);
+        }
+    }
+
+    fn corpus_text(&self, key: &Key) -> String {
+        let title = self.get_key_title(key).unwrap_or_default();
+        format!("{}\n{}", title, self.to_plain_text(key))
+    }
+
+    pub fn search(&self, query: &str) -> Vec<ScoredDocument<Key>> {
+        self.bm25
+            .as_ref()
+            .map(|index| index.search(query))
+            .unwrap_or_default()
+    }
+
+    pub fn search_scores(&self, query: &str) -> HashMap<Key, f32> {
+        self.bm25
+            .as_ref()
+            .map(|index| index.scores(query))
+            .unwrap_or_default()
     }
 
     fn unindex_key(&mut self, key: &Key, root_id: NodeId) {
@@ -357,6 +394,15 @@ impl Graph {
         markdown
     }
 
+    pub fn to_plain_text(&self, key: &Key) -> String {
+        if !self.keys.contains_key(key) {
+            return String::new();
+        }
+        let mut lines = Vec::new();
+        collect_plain_text(&self.collect(key), &mut lines);
+        lines.join("\n")
+    }
+
     pub fn paths(&self) -> Vec<NodePath> {
         graph_to_paths(self)
     }
@@ -382,7 +428,13 @@ impl Graph {
         format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
     ) -> Graph {
-        Self::from_state(content, false, format_options, frontmatter_document_title)
+        Self::from_state(
+            content,
+            false,
+            format_options,
+            frontmatter_document_title,
+            None,
+        )
     }
 
     pub fn from_state(
@@ -390,6 +442,7 @@ impl Graph {
         sequential_ids: bool,
         format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
+        search_language: Option<Language>,
     ) -> Self {
         let format_options = format_options.into();
         let mut graph = Graph::new_with_options(format_options.clone());
@@ -432,6 +485,7 @@ impl Graph {
         merge_outputs(&mut graph, outputs, &ids);
         graph.key_index = key_index;
         build_index_and_titles(&mut graph);
+        graph.build_search_index(search_language);
         graph
     }
 
@@ -440,6 +494,7 @@ impl Graph {
         sequential_ids: bool,
         format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
+        search_language: Option<Language>,
     ) -> Self {
         let format_options = format_options.into();
         let mut graph = Graph::new_with_options(format_options.clone());
@@ -488,7 +543,29 @@ impl Graph {
         merge_outputs(&mut graph, outputs, &ids);
         graph.key_index = key_index;
         build_index_and_titles(&mut graph);
+        graph.build_search_index(search_language);
         graph
+    }
+
+    fn build_search_index(&mut self, search_language: Option<Language>) {
+        let Some(language) = search_language else {
+            return;
+        };
+        let graph = &*self;
+        let docs: Vec<(Key, String)> = if graph.keys.len() < PARALLEL_BUILD_THRESHOLD {
+            graph
+                .keys
+                .keys()
+                .map(|key| (key.clone(), graph.corpus_text(key)))
+                .collect()
+        } else {
+            graph
+                .keys
+                .par_iter()
+                .map(|(key, _)| (key.clone(), graph.corpus_text(key)))
+                .collect()
+        };
+        self.bm25 = Some(Bm25Index::build(docs, language));
     }
 
     pub fn export_key(&self, key: &Key) -> Option<String> {
@@ -708,6 +785,16 @@ fn merge_outputs(graph: &mut Graph, outputs: Vec<DocBuildOutput>, ids: &BuildIds
     graph.arena = finalize_build(ids, all_parts);
 }
 
+fn collect_plain_text(tree: &Tree, lines: &mut Vec<String>) {
+    let text = tree.node.plain_text();
+    if !text.is_empty() {
+        lines.push(text);
+    }
+    for child in &tree.children {
+        collect_plain_text(child, lines);
+    }
+}
+
 fn build_index_and_titles(graph: &mut Graph) {
     let nodes = graph.arena.nodes();
     graph.index = if nodes.len() < PARALLEL_BUILD_THRESHOLD {
@@ -900,6 +987,49 @@ impl GraphContext for &Graph {
 
     fn format_options(&self) -> FormatOptions {
         self.format_options.clone()
+    }
+}
+
+#[cfg(test)]
+mod plain_text_tests {
+    use super::*;
+
+    fn plain_text_of(content: &str) -> String {
+        let mut graph = Graph::new();
+        graph.insert_document("doc".into(), content.to_string());
+        graph.to_plain_text(&"doc".into())
+    }
+
+    #[test]
+    fn strips_markup_keeps_link_text_and_code_drops_frontmatter() {
+        let content = "---\ntitle: Front Title\n---\n\n# Heading One\n\nA paragraph with a [display text](http://example.com/page) link.\n\n```rust\nlet answer = 42;\n```\n";
+        assert_eq!(
+            plain_text_of(content),
+            "Heading One\nA paragraph with a display text link.\nlet answer = 42;\n"
+        );
+    }
+
+    #[test]
+    fn includes_table_header_and_cell_text() {
+        let content = "# Numbers\n\n| Name | Value |\n| ---- | ----- |\n| foo | bar |\n";
+        assert_eq!(plain_text_of(content), "Numbers\nName Value foo bar");
+    }
+
+    #[test]
+    fn block_reference_is_not_expanded() {
+        let mut graph = Graph::new();
+        graph.insert_document(
+            "target".into(),
+            "# Target Title\n\nSecret target body.\n".to_string(),
+        );
+        graph.insert_document(
+            "source".into(),
+            "# Source\n\n[Target Title](target)\n".to_string(),
+        );
+        assert_eq!(
+            graph.to_plain_text(&"source".into()),
+            "Source\nTarget Title"
+        );
     }
 }
 

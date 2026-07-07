@@ -225,7 +225,7 @@ fn discovers_and_reads_dj_files_only() {
     std::fs::write(dir.path().join("note.dj"), "# Title\n\ntext\n").unwrap();
     std::fs::write(dir.path().join("ignored.md"), "# Md\n").unwrap();
 
-    let graph = Graph::from_path(dir.path(), false, djot_options(), None);
+    let graph = Graph::from_path(dir.path(), false, djot_options(), None, None);
 
     assert_eq!("# Title\n\ntext\n", graph.to_markdown(&"note".into()));
     assert_eq!("", graph.to_markdown(&"ignored".into()));

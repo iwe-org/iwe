@@ -53,6 +53,7 @@ impl Server {
                 .library
                 .frontmatter_document_title
                 .clone(),
+            Some(config.configuration.search_language()),
         );
         let mut search_index = SearchIndex::new();
         search_index.update(&graph);
@@ -260,7 +261,7 @@ impl Server {
         params: WorkspaceSymbolParams,
     ) -> WorkspaceSymbolResponse {
         self.search_index
-            .search(&params.query)
+            .search(&params.query, &self.graph)
             .iter()
             .map(|p| p.path_to_symbol(&self.base_path))
             .filter(|p| !p.name.is_empty())

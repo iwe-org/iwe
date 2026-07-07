@@ -881,7 +881,7 @@ fn retrieve_command(args: Retrieve) {
 #[tracing::instrument(level = "debug")]
 fn find_command(args: Find) {
     let config = get_configuration();
-    let graph = load_graph(&config);
+    let graph = load_search_graph(&config);
 
     let sort = args
         .sort
@@ -1354,6 +1354,17 @@ fn load_graph(configuration: &Configuration) -> Graph {
         false,
         configuration.format_options(),
         configuration.library.frontmatter_document_title.clone(),
+        None,
+    )
+}
+
+fn load_search_graph(configuration: &Configuration) -> Graph {
+    Graph::from_path(
+        &get_library_path(configuration),
+        false,
+        configuration.format_options(),
+        configuration.library.frontmatter_document_title.clone(),
+        Some(configuration.search_language()),
     )
 }
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `search::Bm25Index` plus `Graph::search` and `Graph::search_scores` provide BM25 full-text ranking over document title and body; the index is built and kept in sync by the ingestion pipeline (`insert_document` / `update_document` / `remove_document`).
+- `Graph::to_plain_text` renders a document to plain text (markup stripped, link display text kept, code and table cells included); `Node::plain_text` now also covers table cells.
+- `[search]` configuration table with a `language` field (one of 17 stemming languages, default `english`), exposed through `Configuration::search_language`.
+
+### Changed
+- `Graph::from_state` and `Graph::from_path` take an extra `Option<Language>` argument that enables search indexing when set (`None` skips it); `Graph::import` is unchanged and keeps indexing off.
+
 ## [0.7.0](https://github.com/iwe-org/iwe/compare/liwe-v0.6.1...liwe-v0.7.0) - 2026-07-03
 
 ### Added
