@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/iwe-org/iwe/compare/iwec-v0.7.0...iwec-v0.8.0) - 2026-07-07
+
 ### Changed
 - `iwe_find` replaces its `query` parameter with explicit `fuzzy` (match on document title and key) and `lexical` (BM25 full-text over title and body) parameters; supplying both fuses the results with Reciprocal Rank Fusion. Set the stemming language for lexical search with `[search] language` in the configuration.
 

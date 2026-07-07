@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/iwe-org/iwe/compare/iwe-v0.7.0...iwe-v0.8.0) - 2026-07-07
+
 ### Added
 - `find` gains explicit `--fuzzy` (subsequence match on document title and key) and `--lexical` (BM25 full-text scoring over title and body) query flags; supplying both fuses the two result sets with Reciprocal Rank Fusion. Set the stemming language for lexical search with `[search] language` in `.iwe/config.toml`.
 - `find --lexical` prints a warning when the query reduces to only stop words after stemming, so an empty result set is explained instead of looking like an empty index.
