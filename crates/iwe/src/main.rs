@@ -802,7 +802,21 @@ fn print_truncation_warning(noun: &str, truncation: &Truncation) {
         )),
         None => msg.push_str(&format!("; ~{} tokens", truncation.tokens)),
     }
-    msg.push_str(". Narrow with --filter/--limit or raise --max-tokens.");
+    let mut knobs: Vec<&str> = Vec::new();
+    if truncation.emitted < truncation.matched {
+        knobs.push("--limit");
+    }
+    if truncation.budget.is_some() {
+        knobs.push("--max-tokens");
+    }
+    if !truncation.clipped.is_empty() {
+        knobs.push("--max-document-tokens");
+    }
+    msg.push_str(". Narrow with --filter");
+    if !knobs.is_empty() {
+        msg.push_str(&format!(" or raise {}", knobs.join("/")));
+    }
+    msg.push('.');
     eprintln!("{}", msg);
 }
 
@@ -929,6 +943,15 @@ fn find_command(args: Find) {
     };
 
     let output = finder.find(&options);
+
+    if let Some(q) = options.lexical.as_deref() {
+        if !graph.lexical_query_has_terms(q) {
+            eprintln!(
+                "warning: --lexical query '{}' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.",
+                q
+            );
+        }
+    }
 
     match args.format {
         FindFormat::Json => {

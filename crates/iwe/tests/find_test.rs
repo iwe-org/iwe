@@ -248,6 +248,26 @@ fn test_find_fuzzy_matches_partial_lexical_does_not() {
 }
 
 #[test]
+fn test_find_lexical_all_stopwords_warns() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("document.md"),
+        "# My Document\n\nThe content is here.",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "the", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "");
+    assert_eq!(
+        stderr,
+        "warning: --lexical query 'the' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.\n"
+    );
+}
+
+#[test]
 fn test_find_fuzzy_and_lexical_conflict() {
     let dir = setup_workspace();
 
@@ -1910,7 +1930,7 @@ fn test_find_max_document_tokens_truncates_content_field() {
     assert_eq!(stdout, expected);
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~11 tokens. Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~11 tokens. Narrow with --filter or raise --max-document-tokens.\n"
     );
 }
 
@@ -1950,7 +1970,7 @@ fn test_find_max_tokens_drops_rows() {
     assert_eq!(stdout, "apple\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter or raise --limit/--max-tokens.\n"
     );
 }
 

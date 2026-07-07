@@ -109,6 +109,10 @@ impl Bm25Index {
         self.scorer.matches(&embedding)
     }
 
+    pub fn has_query_terms(&self, query: &str) -> bool {
+        !self.embedder.embed(query).is_empty()
+    }
+
     pub fn scores(&self, query: &str) -> HashMap<Key, f32> {
         self.search(query)
             .into_iter()
@@ -217,6 +221,14 @@ mod tests {
     fn empty_index_returns_no_results() {
         let index = Bm25Index::empty(Language::English);
         assert_eq!(keys(&index, "anything"), Vec::<Key>::new());
+    }
+
+    #[test]
+    fn has_query_terms_detects_stop_words() {
+        let index = sample_index();
+        assert!(index.has_query_terms("apples"));
+        assert!(!index.has_query_terms("the"));
+        assert!(!index.has_query_terms(""));
     }
 
     #[test]

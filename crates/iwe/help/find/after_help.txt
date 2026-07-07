@@ -1,4 +1,12 @@
-FILTER FLAGS (compose via AND with positional QUERY):
+QUERY FLAGS (rank the results; compose via AND with the filter flags):
+
+  --fuzzy QUERY               Subsequence match on title and key (typo/partial tolerant).
+  --lexical QUERY             BM25 full-text match on title and body (stemmed exact tokens).
+  QUERY (positional)          DEPRECATED alias for --fuzzy; prints a warning.
+  Setting both --fuzzy and --lexical fuses the two with Reciprocal Rank Fusion.
+  Queries are bag-of-words (word order ignored, no quoted-phrase matching).
+
+FILTER FLAGS (compose via AND with the query):
 
   --filter "EXPR"             Inline filter expression (YAML).
                               Example: --filter 'status: draft'
@@ -39,9 +47,11 @@ OUTPUT FORMATS:
 
 EXAMPLES:
 
-  iwe find rust                                        # fuzzy on "rust"
+  iwe find --fuzzy rust                                # subsequence on title/key
+  iwe find --lexical rust                              # BM25 on title/body
+  iwe find --fuzzy rust --lexical rust                 # both, fused with RRF
   iwe find --filter 'status: draft'                    # all drafts
-  iwe find rust --filter 'status: draft'               # fuzzy AND status==draft
+  iwe find --lexical rust --filter 'status: draft'     # BM25 AND status==draft
   iwe find --included-by projects/alpha:5              # descendants within 5 levels
   iwe find --included-by projects/alpha:0              # all descendants (unbounded)
   iwe find --references people/dmytro                  # docs that reference dmytro

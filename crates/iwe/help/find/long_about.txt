@@ -1,9 +1,26 @@
 Search and discover documents in your knowledge base.
 
-Combines fuzzy text matching (positional QUERY on title and key) with
-filter operators. Without a query, documents are sorted by popularity
-(incoming references count); with --sort, frontmatter sort wins.
+Ranks results with two independent rankers, selected explicitly:
+
+  --fuzzy QUERY    Subsequence match on title and key. Tolerant of partial
+                   words and dropped characters (auth matches Authentication);
+                   it matches a subsequence of characters, not substitutions.
+  --lexical QUERY  BM25 full-text match on title and body. Stemmed exact
+                   tokens, ranked by term frequency, rarity, and length.
+
+Supplying both fuses the two rankings with Reciprocal Rank Fusion. A bare
+positional QUERY still works but is deprecated (defaults to --fuzzy and prints
+a warning); use --fuzzy or --lexical instead.
+
+Text queries are bag-of-words: word order is ignored and quoted phrases are
+not matched as phrases (find "a b" and find "b a" are identical). --lexical
+also drops stop words, so a query of only common words (e.g. "the") matches
+nothing.
+
+Without a query, documents are sorted by popularity (incoming reference and
+inclusion count); with --sort, frontmatter sort wins and the query acts as a
+membership filter.
 
 Filter shorthand flags map onto the query operators (--key, --included-by,
---references, --referenced-by, etc.). Use --filter for inline YAML
-predicates such as --filter 'status: draft'.
+--references, --referenced-by, etc.). Use --filter for inline YAML predicates
+such as --filter 'status: draft'.

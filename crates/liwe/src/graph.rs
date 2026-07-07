@@ -192,6 +192,13 @@ impl Graph {
             .unwrap_or_default()
     }
 
+    pub fn lexical_query_has_terms(&self, query: &str) -> bool {
+        self.bm25
+            .as_ref()
+            .map(|index| index.has_query_terms(query))
+            .unwrap_or(true)
+    }
+
     fn unindex_key(&mut self, key: &Key, root_id: NodeId) {
         let mut index = std::mem::take(&mut self.index);
         index.unindex_node(self, root_id);
