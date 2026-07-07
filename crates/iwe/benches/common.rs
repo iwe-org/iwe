@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use liwe::graph::Graph;
 use liwe::model::config::{Format, MarkdownOptions};
 use liwe::model::State;
+use liwe::search::Language;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -98,6 +99,16 @@ pub fn read_state(dir: &Path) -> State {
 
 pub fn build_graph(state: &State) -> Graph {
     Graph::import(state, MarkdownOptions::default(), Some("title".into()))
+}
+
+pub fn build_graph_with_search(state: &State) -> Graph {
+    Graph::from_state(
+        state,
+        false,
+        MarkdownOptions::default(),
+        Some("title".into()),
+        Some(Language::English),
+    )
 }
 
 pub fn load_graph(dir: &Path) -> Graph {

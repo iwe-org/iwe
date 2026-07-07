@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Workspace-symbol search fuses fuzzy matching with BM25 full-text relevance (over document title and body) using Reciprocal Rank Fusion, so a query term in a document's body can lift it above an equally-fuzzy result.
+
 ## [0.7.0](https://github.com/iwe-org/iwe/compare/iwes-v0.6.1...iwes-v0.7.0) - 2026-07-03
 
 Workspace version bump — no user-visible changes in this crate.

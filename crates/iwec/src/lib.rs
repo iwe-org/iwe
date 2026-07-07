@@ -165,8 +165,10 @@ impl SelectorParams {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct FindParams {
-    #[schemars(description = "Fuzzy search query matching against document title and key")]
-    pub query: Option<String>,
+    #[schemars(description = "Fuzzy match on document title and key")]
+    pub fuzzy: Option<String>,
+    #[schemars(description = "Lexical (BM25) full-text match on title and body")]
+    pub lexical: Option<String>,
     #[schemars(description = "Only return documents that reference this key")]
     pub refs_to: Option<String>,
     #[schemars(description = "Only return documents referenced by this key")]
@@ -217,7 +219,8 @@ impl TryFrom<FindParams> for FindOptions {
             (None, None) => None,
         };
         Ok(FindOptions {
-            query: p.query,
+            fuzzy: p.fuzzy,
+            lexical: p.lexical,
             refs_to: p.refs_to.map(|k| Key::name(&k)),
             refs_from: p.refs_from.map(|k| Key::name(&k)),
             filter: p.selector.to_filter(),
@@ -1522,6 +1525,7 @@ impl IweServer {
             false,
             configuration.format_options(),
             configuration.library.frontmatter_document_title.clone(),
+            Some(configuration.search_language()),
         );
         Self {
             graph: Arc::new(Mutex::new(graph)),
@@ -1543,7 +1547,13 @@ impl IweServer {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<HashMap<String, String>>(),
         );
-        let graph = Graph::from_state(&state, true, MarkdownOptions::default(), None);
+        let graph = Graph::from_state(
+            &state,
+            true,
+            MarkdownOptions::default(),
+            None,
+            Some(config.search_language()),
+        );
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,

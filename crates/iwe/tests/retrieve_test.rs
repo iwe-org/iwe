@@ -2573,7 +2573,7 @@ fn test_retrieve_limit_caps_document_count() {
     assert_eq!(stdout, "doc1\ndoc2\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 2/3 documents; ~18 tokens. Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 2/3 documents; ~18 tokens. Narrow with --filter or raise --limit.\n"
     );
 }
 
@@ -2611,7 +2611,7 @@ fn test_retrieve_max_document_tokens_truncates_body() {
     assert_eq!(stdout, expected);
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~13 tokens. Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~13 tokens. Narrow with --filter or raise --max-document-tokens.\n"
     );
 }
 
@@ -2657,7 +2657,7 @@ fn test_retrieve_max_tokens_drops_trailing_documents() {
     assert_eq!(stdout, "doc1\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter or raise --limit/--max-tokens.\n"
     );
 }
 
@@ -2740,7 +2740,7 @@ fn test_retrieve_max_tokens_counts_edges() {
     assert_eq!(stdout, "hub1\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/2 documents; ~56 tokens (budget 40). Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 1/2 documents; ~56 tokens (budget 40). Narrow with --filter or raise --limit/--max-tokens.\n"
     );
 
     let (stdout, stderr, success) = run_iwe(

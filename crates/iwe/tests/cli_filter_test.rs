@@ -34,6 +34,8 @@ fn setup() -> TempDir {
             priority: 3
             ---
             # Doc A
+
+            Discusses windmills at length.
         "},
     )
     .unwrap();
@@ -132,12 +134,19 @@ fn find_filter_status_draft_returns_two_keys() {
 }
 
 #[test]
-fn find_combined_fuzzy_and_filter() {
+fn find_combined_query_and_filter() {
     let dir = setup();
     let (stdout, _, ok) = run(
         dir.path(),
         "find",
-        &["A", "--filter", "status: draft", "-f", "keys"],
+        &[
+            "--lexical",
+            "windmills",
+            "--filter",
+            "status: draft",
+            "-f",
+            "keys",
+        ],
     );
     assert!(ok);
     let keys: Vec<&str> = stdout.lines().collect();
@@ -476,6 +485,8 @@ fn update_set_preserves_body_exactly() {
             reviewed: true
             ---
             # Doc A
+
+            Discusses windmills at length.
         "}
     );
 }

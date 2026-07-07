@@ -70,6 +70,7 @@ async fn watcher_picks_up_modification() {
         false,
         MarkdownOptions::default(),
         None,
+        None,
     )));
     start_watcher(graph.clone(), &base_path).await;
 
@@ -102,6 +103,7 @@ async fn watcher_picks_up_deletion() {
         &state,
         false,
         MarkdownOptions::default(),
+        None,
         None,
     )));
 

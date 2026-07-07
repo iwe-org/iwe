@@ -160,6 +160,51 @@ fn page_rank_applied_after_fuzzy_score() {
 
 #[test]
 #[allow(deprecated)]
+fn bm25_body_relevance_reorders_equal_fuzzy_results() {
+    Fixture::with(indoc! {"
+            # Apple Report
+
+            apple
+            _
+            # Apple Report
+
+            apple apple apple
+            "})
+    .workspace_symbols(
+        workspace_symbol_params("apple"),
+        workspace_symbol_response(vec![
+            uri(2).to_symbol_info("Apple Report", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(1).to_symbol_info("Apple Report", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+        ]),
+    );
+}
+
+#[test]
+#[allow(deprecated)]
+fn blend_ranks_document_strong_in_both_signals_first() {
+    Fixture::with(indoc! {"
+            # signal
+            _
+            # signal report
+
+            signal signal signal signal
+            _
+            # unrelated topic
+
+            signal signal signal signal signal signal signal signal
+            "})
+    .workspace_symbols(
+        workspace_symbol_params("signal"),
+        workspace_symbol_response(vec![
+            uri(2).to_symbol_info("signal report", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(1).to_symbol_info("signal", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+            uri(3).to_symbol_info("unrelated topic", lsp_types::SymbolKind::NAMESPACE, 0, 1),
+        ]),
+    );
+}
+
+#[test]
+#[allow(deprecated)]
 fn dual_nested_files() {
     Fixture::with(indoc! {"
             # test 1

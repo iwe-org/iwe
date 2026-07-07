@@ -145,7 +145,7 @@ fn test_find_yaml_format() {
 }
 
 #[test]
-fn test_find_fuzzy_search() {
+fn test_find_lexical_matches_title_and_body() {
     let dir = setup_workspace();
 
     write(
@@ -160,7 +160,8 @@ fn test_find_fuzzy_search() {
     .unwrap();
     write(dir.path().join("api.md"), "# API Endpoints\n\nAPI content.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["auth", "-f", "json"]);
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--lexical", "authentication", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -178,6 +179,127 @@ fn test_find_fuzzy_search() {
     "#};
 
     assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_lexical_ranks_by_body_term() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("first.md"),
+        "# First Note\n\nThe migration guide explains postgres in detail.",
+    )
+    .unwrap();
+    write(
+        dir.path().join("second.md"),
+        "# Second Note\n\nA general overview of the project.",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "postgres", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "first\n");
+}
+
+#[test]
+fn test_find_positional_is_fuzzy_and_warns() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("authentication.md"),
+        "# User Authentication\n\nAuth content.",
+    )
+    .unwrap();
+    write(
+        dir.path().join("database.md"),
+        "# Database Config\n\nDB content.",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["authentication", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "authentication\n");
+    assert_eq!(
+        stderr,
+        "warning: the bare `find <query>` form is deprecated and defaults to fuzzy matching; it will be removed. Use `find --fuzzy <query>` or `find --lexical <query>`.\n"
+    );
+}
+
+#[test]
+fn test_find_fuzzy_matches_partial_lexical_does_not() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("authentication.md"),
+        "# Authentication\n\nLogin flow.",
+    )
+    .unwrap();
+    write(dir.path().join("storage.md"), "# Storage\n\nDisk notes.").unwrap();
+
+    let (fuzzy_out, stderr, success) = run_iwe(dir.path(), &["--fuzzy", "auth", "-f", "keys"]);
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(fuzzy_out, "authentication\n");
+
+    let (lexical_out, stderr, success) = run_iwe(dir.path(), &["--lexical", "auth", "-f", "keys"]);
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(lexical_out, "");
+}
+
+#[test]
+fn test_find_lexical_all_stopwords_warns() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("document.md"),
+        "# My Document\n\nThe content is here.",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "the", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "");
+    assert_eq!(
+        stderr,
+        "warning: --lexical query 'the' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.\n"
+    );
+}
+
+#[test]
+fn test_find_fuzzy_and_lexical_conflict() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("doc.md"), "# Doc\n\nContent.").unwrap();
+
+    let (_, _, success) = run_iwe(dir.path(), &["term", "--fuzzy", "term", "-f", "keys"]);
+    assert!(!success);
+}
+
+#[test]
+fn test_find_fuzzy_lexical_fusion_ranks_both_signals_first() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("signal.md"), "# signal\n\nBody.").unwrap();
+    write(
+        dir.path().join("report.md"),
+        "# signal report\n\nsignal signal signal signal",
+    )
+    .unwrap();
+    write(
+        dir.path().join("topic.md"),
+        "# unrelated topic\n\nsignal signal signal signal signal signal",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--fuzzy", "signal", "--lexical", "signal", "-f", "keys"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "report\nsignal\ntopic\n");
 }
 
 #[test]
@@ -678,7 +800,8 @@ fn test_find_query_with_no_match() {
 
     write(dir.path().join("document.md"), "# My Document\n\nContent.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["zzzznonexistent", "-f", "json"]);
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--fuzzy", "zzzznonexistent", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -695,7 +818,7 @@ fn test_find_search_query_in_output() {
 
     write(dir.path().join("test.md"), "# Test\n\nContent.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["myquery", "-f", "json"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--fuzzy", "myquery", "-f", "json"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -739,7 +862,7 @@ fn test_find_markdown_with_query() {
     write(dir.path().join("match.md"), "# Match\n\nMatching content.").unwrap();
     write(dir.path().join("other.md"), "# Other\n\nOther content.").unwrap();
 
-    let (stdout, stderr, success) = run_iwe(dir.path(), &["match", "-f", "markdown"]);
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--fuzzy", "match", "-f", "markdown"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -1783,6 +1906,7 @@ fn test_find_max_document_tokens_truncates_content_field() {
     let (stdout, stderr, success) = run_iwe(
         dir.path(),
         &[
+            "--lexical",
             "apple",
             "--project",
             "body=$content",
@@ -1806,7 +1930,7 @@ fn test_find_max_document_tokens_truncates_content_field() {
     assert_eq!(stdout, expected);
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~11 tokens. Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 1/1 documents, 1 clipped to --max-document-tokens; ~11 tokens. Narrow with --filter or raise --max-document-tokens.\n"
     );
 }
 
@@ -1846,7 +1970,7 @@ fn test_find_max_tokens_drops_rows() {
     assert_eq!(stdout, "apple\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter/--limit or raise --max-tokens.\n"
+        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter or raise --limit/--max-tokens.\n"
     );
 }
 

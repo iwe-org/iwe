@@ -40,6 +40,7 @@ fn wiki_link_resolves_across_directories_from_windows_disk() {
             ..Default::default()
         },
         None,
+        None,
     );
 
     assert_str_eq!(
@@ -59,7 +60,7 @@ fn nested_windows_directories_produce_forward_slash_keys() {
     fs::create_dir_all(&nested).unwrap();
     fs::write(nested.join("deep.md"), "# Deep\r\n").unwrap();
 
-    let graph = Graph::from_path(&base_path, false, MarkdownOptions::default(), None);
+    let graph = Graph::from_path(&base_path, false, MarkdownOptions::default(), None, None);
 
     assert_str_eq!(
         "a/b/c/deep",
@@ -87,6 +88,7 @@ fn markdown_link_resolves_relative_across_windows_directories_from_disk() {
             refs_extension: String::default(),
             ..Default::default()
         },
+        None,
         None,
     );
 

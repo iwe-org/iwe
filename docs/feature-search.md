@@ -4,7 +4,7 @@ Notes search is a key feature in IWE. IWE allows you to organize documents hiera
 
 Search can be used via the LSP `Workspace Symbols` command.
 
-For every note, IWE will generate full paths. And allow you to do a fuzzy matching to filter the search results. So you can find both entries just by typing `cappu`.
+For every note, IWE will generate full paths. And allow you to do a fuzzy matching to filter the search results. So you can find both entries just by typing `cappu`. The workspace-symbol ranking also blends in BM25 full-text relevance, so a term that appears in a note's body helps surface it even when the header does not match — see [Search Ranking](search-ranking.md) for the details.
 
 ```
 Journal, 2025      ⇒  Week 3 - Coffee week  ⇒  Jan 26, 2025 - Cappuccino
@@ -22,4 +22,4 @@ By default, IWE uses the first header of each document as its title in search re
 
 ## Structured search via the CLI
 
-The CLI [`iwe find`](cli-find.md) command pairs the same fuzzy matcher used by the LSP with a YAML-based filter language. Use `--filter` for frontmatter predicates (`status: draft`, `priority: { $gt: 3 }`), and the structural anchor flags (`--includes`, `--included-by`, `--references`, `--referenced-by`) to scope the search to a subtree or set of references. See the [Query Language](query-language.md) reference for the full syntax. [`iwe count`](cli-count.md) returns the integer count for the same filter shape.
+The CLI [`iwe find`](cli-find.md) command pairs BM25 full-text ranking over document title and body with a YAML-based filter language. Use `--filter` for frontmatter predicates (`status: draft`, `priority: { $gt: 3 }`), and the structural anchor flags (`--includes`, `--included-by`, `--references`, `--referenced-by`) to scope the search to a subtree or set of references. A text query then ranks the scoped documents by relevance. See the [Query Language](query-language.md) reference for the filter syntax and [Search Ranking](search-ranking.md) for how relevance is scored. [`iwe count`](cli-count.md) returns the integer count for the same filter shape.

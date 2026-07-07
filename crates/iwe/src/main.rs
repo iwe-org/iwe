@@ -178,8 +178,17 @@ struct Search {
     after_help = help::find::AFTER_HELP
 )]
 struct Find {
-    #[clap(help = "Search query (fuzzy match on title and key)")]
-    query: Option<String>,
+    #[clap(
+        help = "DEPRECATED: bare query defaults to fuzzy; use --fuzzy or --lexical",
+        conflicts_with = "fuzzy"
+    )]
+    pattern: Option<String>,
+
+    #[clap(long, help = "Fuzzy match on document title and key")]
+    fuzzy: Option<String>,
+
+    #[clap(long, help = "Lexical (BM25) full-text match on title and body")]
+    lexical: Option<String>,
 
     #[clap(long, short = 'l', help = "Maximum results (0 = unlimited)")]
     limit: Option<usize>,
@@ -793,7 +802,21 @@ fn print_truncation_warning(noun: &str, truncation: &Truncation) {
         )),
         None => msg.push_str(&format!("; ~{} tokens", truncation.tokens)),
     }
-    msg.push_str(". Narrow with --filter/--limit or raise --max-tokens.");
+    let mut knobs: Vec<&str> = Vec::new();
+    if truncation.emitted < truncation.matched {
+        knobs.push("--limit");
+    }
+    if truncation.budget.is_some() {
+        knobs.push("--max-tokens");
+    }
+    if !truncation.clipped.is_empty() {
+        knobs.push("--max-document-tokens");
+    }
+    msg.push_str(". Narrow with --filter");
+    if !knobs.is_empty() {
+        msg.push_str(&format!(" or raise {}", knobs.join("/")));
+    }
+    msg.push('.');
     eprintln!("{}", msg);
 }
 
@@ -881,7 +904,7 @@ fn retrieve_command(args: Retrieve) {
 #[tracing::instrument(level = "debug")]
 fn find_command(args: Find) {
     let config = get_configuration();
-    let graph = load_graph(&config);
+    let graph = load_search_graph(&config);
 
     let sort = args
         .sort
@@ -894,9 +917,21 @@ fn find_command(args: Find) {
         });
     let project = args.project.clone().or_else(|| args.add_fields.clone());
 
+    let fuzzy = match args.pattern {
+        Some(p) => {
+            eprintln!(
+                "warning: the bare `find <query>` form is deprecated and defaults to fuzzy \
+                 matching; it will be removed. Use `find --fuzzy <query>` or `find --lexical <query>`."
+            );
+            Some(p)
+        }
+        None => args.fuzzy,
+    };
+
     let finder = DocumentFinder::new(&graph);
     let options = FindOptions {
-        query: args.query,
+        fuzzy,
+        lexical: args.lexical,
         refs_to: None,
         refs_from: None,
         filter: resolve_filter(&args.selector, &graph),
@@ -908,6 +943,15 @@ fn find_command(args: Find) {
     };
 
     let output = finder.find(&options);
+
+    if let Some(q) = options.lexical.as_deref() {
+        if !graph.lexical_query_has_terms(q) {
+            eprintln!(
+                "warning: --lexical query '{}' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.",
+                q
+            );
+        }
+    }
 
     match args.format {
         FindFormat::Json => {
@@ -1354,6 +1398,17 @@ fn load_graph(configuration: &Configuration) -> Graph {
         false,
         configuration.format_options(),
         configuration.library.frontmatter_document_title.clone(),
+        None,
+    )
+}
+
+fn load_search_graph(configuration: &Configuration) -> Graph {
+    Graph::from_path(
+        &get_library_path(configuration),
+        false,
+        configuration.format_options(),
+        configuration.library.frontmatter_document_title.clone(),
+        Some(configuration.search_language()),
     )
 }
 
