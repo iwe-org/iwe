@@ -68,6 +68,43 @@ async fn find_with_limit() {
     assert_eq!(output.as_array().unwrap().len(), 2);
 }
 
+#[tokio::test]
+async fn find_reflects_document_update() {
+    let f = Fixture::with_documents(vec![("1", "# Note\n\napricot\n")]).await;
+
+    let before = f.call_tool("iwe_find", json!({"query": "apricot"})).await;
+    assert_eq!(keys(&Fixture::result_json(&before)), vec!["1"]);
+
+    f.call_tool(
+        "iwe_update",
+        json!({"key": "1", "content": "# Note\n\nblueberry\n"}),
+    )
+    .await;
+
+    let gone = f.call_tool("iwe_find", json!({"query": "apricot"})).await;
+    assert!(Fixture::result_json(&gone).as_array().unwrap().is_empty());
+
+    let fresh = f.call_tool("iwe_find", json!({"query": "blueberry"})).await;
+    assert_eq!(keys(&Fixture::result_json(&fresh)), vec!["1"]);
+}
+
+#[tokio::test]
+async fn find_reflects_document_delete() {
+    let f = Fixture::with_documents(vec![
+        ("1", "# Keeper\n\napricot\n"),
+        ("2", "# Doomed\n\nblueberry\n"),
+    ])
+    .await;
+
+    let before = f.call_tool("iwe_find", json!({"query": "blueberry"})).await;
+    assert_eq!(keys(&Fixture::result_json(&before)), vec!["2"]);
+
+    f.call_tool("iwe_delete", json!({"key": "2"})).await;
+
+    let gone = f.call_tool("iwe_find", json!({"query": "blueberry"})).await;
+    assert!(Fixture::result_json(&gone).as_array().unwrap().is_empty());
+}
+
 fn keys(output: &serde_json::Value) -> Vec<String> {
     let mut v: Vec<String> = output
         .as_array()
