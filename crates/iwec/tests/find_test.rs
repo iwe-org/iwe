@@ -16,7 +16,7 @@ async fn find_all_documents() {
 }
 
 #[tokio::test]
-async fn find_by_query() {
+async fn find_by_lexical() {
     let f = Fixture::with_documents(vec![
         ("1", "# Rust programming\n"),
         ("2", "# Python scripting\n"),
@@ -24,7 +24,7 @@ async fn find_by_query() {
     ])
     .await;
 
-    let result = f.call_tool("iwe_find", json!({"query": "rust"})).await;
+    let result = f.call_tool("iwe_find", json!({"lexical": "rust"})).await;
     let output = Fixture::result_json(&result);
 
     assert_eq!(output.as_array().unwrap().len(), 2);
@@ -38,6 +38,46 @@ async fn find_by_query() {
 }
 
 #[tokio::test]
+async fn find_by_fuzzy() {
+    let f = Fixture::with_documents(vec![
+        ("authentication", "# Authentication\n\nLogin flow.\n"),
+        ("storage", "# Storage\n\nDisk notes.\n"),
+    ])
+    .await;
+
+    let result = f.call_tool("iwe_find", json!({"fuzzy": "auth"})).await;
+    let output = Fixture::result_json(&result);
+
+    assert_eq!(keys(&output), vec!["authentication"]);
+}
+
+#[tokio::test]
+async fn find_fuzzy_lexical_fusion() {
+    let f = Fixture::with_documents(vec![
+        ("signal", "# signal\n\nBody.\n"),
+        ("report", "# signal report\n\nsignal signal signal signal\n"),
+        (
+            "topic",
+            "# unrelated topic\n\nsignal signal signal signal signal signal\n",
+        ),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"fuzzy": "signal", "lexical": "signal"}))
+        .await;
+    let output = Fixture::result_json(&result);
+
+    let ordered: Vec<&str> = output
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["key"].as_str().unwrap())
+        .collect();
+    assert_eq!(ordered, vec!["report", "signal", "topic"]);
+}
+
+#[tokio::test]
 async fn find_by_body_term() {
     let f = Fixture::with_documents(vec![
         ("1", "# First\n\nThe deployment relies on kubernetes.\n"),
@@ -46,7 +86,7 @@ async fn find_by_body_term() {
     .await;
 
     let result = f
-        .call_tool("iwe_find", json!({"query": "kubernetes"}))
+        .call_tool("iwe_find", json!({"lexical": "kubernetes"}))
         .await;
     let output = Fixture::result_json(&result);
 
@@ -72,7 +112,7 @@ async fn find_with_limit() {
 async fn find_reflects_document_update() {
     let f = Fixture::with_documents(vec![("1", "# Note\n\napricot\n")]).await;
 
-    let before = f.call_tool("iwe_find", json!({"query": "apricot"})).await;
+    let before = f.call_tool("iwe_find", json!({"lexical": "apricot"})).await;
     assert_eq!(keys(&Fixture::result_json(&before)), vec!["1"]);
 
     f.call_tool(
@@ -81,10 +121,12 @@ async fn find_reflects_document_update() {
     )
     .await;
 
-    let gone = f.call_tool("iwe_find", json!({"query": "apricot"})).await;
+    let gone = f.call_tool("iwe_find", json!({"lexical": "apricot"})).await;
     assert!(Fixture::result_json(&gone).as_array().unwrap().is_empty());
 
-    let fresh = f.call_tool("iwe_find", json!({"query": "blueberry"})).await;
+    let fresh = f
+        .call_tool("iwe_find", json!({"lexical": "blueberry"}))
+        .await;
     assert_eq!(keys(&Fixture::result_json(&fresh)), vec!["1"]);
 }
 
@@ -96,12 +138,16 @@ async fn find_reflects_document_delete() {
     ])
     .await;
 
-    let before = f.call_tool("iwe_find", json!({"query": "blueberry"})).await;
+    let before = f
+        .call_tool("iwe_find", json!({"lexical": "blueberry"}))
+        .await;
     assert_eq!(keys(&Fixture::result_json(&before)), vec!["2"]);
 
     f.call_tool("iwe_delete", json!({"key": "2"})).await;
 
-    let gone = f.call_tool("iwe_find", json!({"query": "blueberry"})).await;
+    let gone = f
+        .call_tool("iwe_find", json!({"lexical": "blueberry"}))
+        .await;
     assert!(Fixture::result_json(&gone).as_array().unwrap().is_empty());
 }
 
@@ -266,7 +312,7 @@ async fn find_selector_combines_with_query() {
 
     // Selector limits to A's subtree; query further filters to "design".
     let result = f
-        .call_tool("iwe_find", json!({"in": ["a"], "query": "design"}))
+        .call_tool("iwe_find", json!({"in": ["a"], "lexical": "design"}))
         .await;
     let output = Fixture::result_json(&result);
     assert_eq!(keys(&output), vec!["design"]);

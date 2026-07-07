@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- `find` ranks results with BM25 full-text scoring over document title and body (previously a fuzzy subsequence match on key and title only). Set the stemming language with `[search] language` in `.iwe/config.toml`.
+### Added
+- `find` gains explicit `--fuzzy` (subsequence match on document title and key) and `--lexical` (BM25 full-text scoring over title and body) query flags; supplying both fuses the two result sets with Reciprocal Rank Fusion. Set the stemming language for lexical search with `[search] language` in `.iwe/config.toml`.
+
+### Deprecated
+- `find`'s bare positional query defaults to fuzzy matching and now prints a warning on stderr; it will be removed in a future release. Use `--fuzzy` or `--lexical` instead.
 
 ## [0.7.0](https://github.com/iwe-org/iwe/compare/iwe-v0.6.1...iwe-v0.7.0) - 2026-07-03
 

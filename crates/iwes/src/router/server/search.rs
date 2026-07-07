@@ -6,6 +6,7 @@ use liwe::{
         node::{NodeIter, NodePointer},
         Key, NodeId,
     },
+    search::rrf_weight,
 };
 use rayon::prelude::*;
 
@@ -108,40 +109,59 @@ impl SearchIndex {
         let matcher = SkimMatcherV2::default();
         let bm25_scores = graph.search_scores(query);
 
-        let scored: Vec<(&SearchPath, f64, f64)> = self
+        let fuzzy: Vec<i64> = self
             .paths
             .par_iter()
-            .map(|path| {
-                let fuzzy = matcher.fuzzy_match(&path.search_text, query).unwrap_or(0) as f64;
-                let bm25 = bm25_scores.get(&path.key).copied().unwrap_or(0.0) as f64;
-                (path, fuzzy, bm25)
-            })
+            .map(|path| matcher.fuzzy_match(&path.search_text, query).unwrap_or(0))
+            .collect();
+        let lexical: Vec<f32> = self
+            .paths
+            .iter()
+            .map(|path| bm25_scores.get(&path.key).copied().unwrap_or(0.0))
             .collect();
 
-        let fuzzy_range = min_max(scored.iter().map(|(_, fuzzy, _)| *fuzzy));
-        let bm25_range = min_max(scored.iter().map(|(_, _, bm25)| *bm25));
+        let n = self.paths.len();
+        let tie = |a: usize, b: usize| {
+            self.paths[a]
+                .key
+                .cmp(&self.paths[b].key)
+                .then_with(|| self.paths[a].line.cmp(&self.paths[b].line))
+        };
 
-        scored
+        let mut fuzzy_order: Vec<usize> = (0..n).filter(|&i| fuzzy[i] > 0).collect();
+        fuzzy_order.sort_by(|&a, &b| fuzzy[b].cmp(&fuzzy[a]).then_with(|| tie(a, b)));
+        let mut lexical_order: Vec<usize> = (0..n).filter(|&i| lexical[i] > 0.0).collect();
+        lexical_order.sort_by(|&a, &b| {
+            lexical[b]
+                .partial_cmp(&lexical[a])
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| tie(a, b))
+        });
+
+        let mut rrf = vec![0.0f64; n];
+        accumulate_rrf(&mut rrf, &fuzzy_order, |a, b| fuzzy[a] == fuzzy[b]);
+        accumulate_rrf(&mut rrf, &lexical_order, |a, b| lexical[a] == lexical[b]);
+
+        let mut order: Vec<usize> = (0..n).collect();
+        order.sort_by(|&a, &b| {
+            rrf[b]
+                .partial_cmp(&rrf[a])
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    self.paths[a]
+                        .search_text
+                        .len()
+                        .cmp(&self.paths[b].search_text.len())
+                })
+                .then_with(|| self.paths[b].node_rank.cmp(&self.paths[a].node_rank))
+                .then_with(|| self.paths[a].key.cmp(&self.paths[b].key))
+                .then_with(|| self.paths[a].line.cmp(&self.paths[b].line))
+        });
+        order
             .into_iter()
-            .map(|(path, fuzzy, bm25)| {
-                let fuzzy_n = normalize(fuzzy, fuzzy_range);
-                let bm25_n = normalize(bm25, bm25_range);
-                let combined = BM25_BLEND_WEIGHT * bm25_n + (1.0 - BM25_BLEND_WEIGHT) * fuzzy_n;
-                (path, combined)
-            })
-            .sorted_by(|(path_a, combined_a), (path_b, combined_b)| {
-                combined_b
-                    .partial_cmp(combined_a)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| path_a.search_text.len().cmp(&path_b.search_text.len()))
-                    .then_with(|| path_b.node_rank.cmp(&path_a.node_rank))
-                    .then_with(|| path_a.key.cmp(&path_b.key))
-                    .then_with(|| path_a.line.cmp(&path_b.line))
-            })
-            .map(|(path, _)| path)
             .take(100)
-            .cloned()
-            .collect_vec()
+            .map(|i| self.paths[i].clone())
+            .collect()
     }
 
     pub fn paths(&self) -> Vec<SearchPath> {
@@ -149,19 +169,13 @@ impl SearchIndex {
     }
 }
 
-const BM25_BLEND_WEIGHT: f64 = 0.5;
-
-fn min_max(values: impl Iterator<Item = f64>) -> (f64, f64) {
-    values.fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), value| {
-        (min.min(value), max.max(value))
-    })
-}
-
-fn normalize(value: f64, (min, max): (f64, f64)) -> f64 {
-    if max > min {
-        (value - min) / (max - min)
-    } else {
-        0.0
+fn accumulate_rrf(rrf: &mut [f64], order: &[usize], same_score: impl Fn(usize, usize) -> bool) {
+    let mut rank = 0;
+    for (pos, &i) in order.iter().enumerate() {
+        if pos > 0 && !same_score(i, order[pos - 1]) {
+            rank = pos;
+        }
+        rrf[i] += rrf_weight(rank);
     }
 }
 

@@ -10,6 +10,12 @@ pub use bm25::{Language, ScoredDocument};
 const DEFAULT_AVGDL: f32 = 256.0;
 const PARALLEL_EMBED_THRESHOLD: usize = 128;
 
+pub const RRF_K: f64 = 60.0;
+
+pub fn rrf_weight(rank: usize) -> f64 {
+    1.0 / (RRF_K + rank as f64 + 1.0)
+}
+
 type Scorer = bm25::Scorer<Key, u32>;
 
 pub fn parse_language(name: &str) -> Language {

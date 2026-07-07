@@ -178,8 +178,17 @@ struct Search {
     after_help = help::find::AFTER_HELP
 )]
 struct Find {
-    #[clap(help = "Search query (fuzzy match on title and key)")]
-    query: Option<String>,
+    #[clap(
+        help = "DEPRECATED: bare query defaults to fuzzy; use --fuzzy or --lexical",
+        conflicts_with = "fuzzy"
+    )]
+    pattern: Option<String>,
+
+    #[clap(long, help = "Fuzzy match on document title and key")]
+    fuzzy: Option<String>,
+
+    #[clap(long, help = "Lexical (BM25) full-text match on title and body")]
+    lexical: Option<String>,
 
     #[clap(long, short = 'l', help = "Maximum results (0 = unlimited)")]
     limit: Option<usize>,
@@ -894,9 +903,21 @@ fn find_command(args: Find) {
         });
     let project = args.project.clone().or_else(|| args.add_fields.clone());
 
+    let fuzzy = match args.pattern {
+        Some(p) => {
+            eprintln!(
+                "warning: the bare `find <query>` form is deprecated and defaults to fuzzy \
+                 matching; it will be removed. Use `find --fuzzy <query>` or `find --lexical <query>`."
+            );
+            Some(p)
+        }
+        None => args.fuzzy,
+    };
+
     let finder = DocumentFinder::new(&graph);
     let options = FindOptions {
-        query: args.query,
+        fuzzy,
+        lexical: args.lexical,
         refs_to: None,
         refs_from: None,
         filter: resolve_filter(&args.selector, &graph),

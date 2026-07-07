@@ -139,7 +139,14 @@ fn find_combined_query_and_filter() {
     let (stdout, _, ok) = run(
         dir.path(),
         "find",
-        &["windmills", "--filter", "status: draft", "-f", "keys"],
+        &[
+            "--lexical",
+            "windmills",
+            "--filter",
+            "status: draft",
+            "-f",
+            "keys",
+        ],
     );
     assert!(ok);
     let keys: Vec<&str> = stdout.lines().collect();

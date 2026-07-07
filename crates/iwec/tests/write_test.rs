@@ -159,7 +159,7 @@ async fn rename_document() {
     assert!(!output["removes"].as_array().unwrap().is_empty());
 
     let find = f
-        .call_tool("iwe_find", json!({"query": "child-renamed"}))
+        .call_tool("iwe_find", json!({"fuzzy": "child-renamed"}))
         .await;
     let find_output = Fixture::result_json(&find);
     let has_renamed = find_output
@@ -169,7 +169,7 @@ async fn rename_document() {
         .any(|r| r["key"] == "child-renamed");
     assert!(has_renamed);
 
-    let old = f.call_tool("iwe_find", json!({"query": "2"})).await;
+    let old = f.call_tool("iwe_find", json!({"fuzzy": "2"})).await;
     let old_output = Fixture::result_json(&old);
     let has_old = old_output
         .as_array()

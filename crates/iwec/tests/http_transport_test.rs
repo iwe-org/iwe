@@ -53,7 +53,7 @@ async fn find_welcome_over_http(addr: &str) -> serde_json::Value {
     let result = client
         .call_tool(
             CallToolRequestParams::new("iwe_find").with_arguments(
-                serde_json::json!({ "query": "welcome" })
+                serde_json::json!({ "lexical": "welcome" })
                     .as_object()
                     .cloned()
                     .unwrap(),

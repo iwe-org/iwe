@@ -2,22 +2,43 @@
 
 How IWE ranks search results. This document covers the internals: what gets
 indexed, how relevance is scored, how the index stays in sync with edits, and
-how the three search surfaces differ.
+how the search surfaces differ.
 
-For the user-facing overview see [Notes Search](feature-search.md).
+For the user-facing overview see [Notes Search](feature-search.md). The
+fuzzy/lexical split and RRF fusion described here are implemented across the CLI,
+MCP, and LSP surfaces; see [the find fuzzy/lexical/RRF plan](plans/find-fuzzy-lexical-rrf.md)
+for the design rationale.
 
-## Surfaces and rankers
+## Two rankers
 
-IWE exposes search through three surfaces backed by two ranking behaviors:
+IWE ranks with **two independent rankers**:
 
-| Surface | Ranker | Corpus |
+- **Fuzzy** — skim subsequence matching over a document's short `title + key`
+  text. Tolerant of partial words and dropped characters (`auth` matches
+  `Authentication`); it matches a subsequence of characters, not substitutions,
+  so it does not correct a mistyped letter. Ranks by skim's match score.
+- **Lexical** — [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) full-text
+  relevance over `title + body`. Stemmed exact tokens, ranked by term frequency,
+  rarity, and length normalization.
+
+When both are used for the same search, results are combined with **Reciprocal
+Rank Fusion (RRF)** — see [Fusion](#fusion-rrf). The BM25 index is built and
+maintained inside the document ingestion pipeline, so every surface reads the
+same, always-current relevance data.
+
+## Surfaces
+
+| Surface | Query inputs | Default |
 | --- | --- | --- |
-| CLI [`iwe find`](cli-find.md) | BM25 | title + body |
-| MCP `iwe_find` | BM25 | title + body |
-| LSP workspace symbols | fuzzy **blended with** BM25 | title + body (BM25), section path (fuzzy) |
+| CLI [`iwe find`](cli-find.md) | positional (fuzzy) · `--fuzzy` · `--lexical` | fuzzy (positional is **deprecated** — use the flags) |
+| MCP `iwe_find` | `fuzzy` · `lexical` | none — the caller picks a ranker explicitly |
+| LSP workspace symbols | one query string | always fuzzy **and** lexical, fused |
 
-The BM25 index is built and maintained inside the document ingestion pipeline,
-so every surface reads the same, always-current relevance data.
+On the CLI, supplying both `--fuzzy` and `--lexical` fuses the two; the bare
+positional query stays fuzzy for now but prints a deprecation warning and will be
+removed. The MCP tool exposes only the explicit `fuzzy` / `lexical` parameters (an
+agent issues precise queries; there is no implicit default). The LSP always runs
+both rankers and fuses them.
 
 ## The BM25 index
 
@@ -83,40 +104,58 @@ index and its mutators do nothing search-related, so commands that never search
 pay nothing. The CLI enables the index only for `find`; the long-running MCP and
 LSP servers always enable it.
 
+## Fusion (RRF)
+
+When a search runs both rankers, their results are combined with **Reciprocal
+Rank Fusion**. Each ranker produces its own ordered list; a document's fused score
+sums a rank-based contribution from every list it appears in:
+
+```
+RRF(d) = Σ over each ranker where d appears:  1 / (k + rank_d)     rank is 1-based, k = 60
+```
+
+RRF fuses on **rank position only**, never on the raw scores. This is deliberate:
+skim's fuzzy scores (arbitrary positive integers) and BM25's tf·idf floats live on
+incomparable scales, so normalizing and averaging them is fragile. Rank-based
+fusion sidesteps that and is the standard method for hybrid lexical retrieval.
+
+The match set is the **union** — a document surfaced by either ranker appears;
+documents ranked high in *both* float to the top, so a doc strong in title-fuzzy
+*and* body-lexical outranks docs strong in only one. Ties break deterministically
+(by key on the CLI/MCP; by path length, page rank, key, line on the LSP).
+
 ## CLI and MCP ranking
 
-[`iwe find`](cli-find.md) and the MCP `iwe_find` tool share one code path. A
-query first narrows the corpus to candidates via the structural filter
-(`--filter`, `--includes`, `--references`, …), then BM25 ranks those candidates
-by relevance, most relevant first. A no-query browse (filter only) falls back to
-the previous popularity ordering (inbound reference + inclusion edge count).
+[`iwe find`](cli-find.md) and the MCP `iwe_find` tool share one code path. A query
+first narrows the corpus to candidates via the structural filter (`--filter`,
+`--includes`, `--references`, …). Then, within those candidates:
 
-With `--sort`, BM25 acts as a membership filter — non-matching documents are
-dropped — and the surviving documents are ordered by the requested frontmatter
-field instead of by score.
+- one ranker set (`--fuzzy` only, or `--lexical` only) ranks by that ranker;
+- both set (`--fuzzy` *and* `--lexical`) ranks by RRF fusion of the two.
 
-## LSP blend
+A text query is a **filter** here (unlike the LSP): only matching documents are
+returned — the union of the fuzzy and lexical matches. A no-query browse (filter
+only) falls back to the popularity ordering (inbound reference + inclusion edge
+count).
+
+With `--sort`, the query acts purely as a membership filter (the same union) and
+the survivors are ordered by the requested frontmatter field instead of by score.
+
+## LSP fusion
 
 The LSP workspace-symbol index is **section-grain** (one entry per header,
 carrying the section's fuzzy-matchable path text), while the BM25 index is
-**document-grain**. At query time each section is blended with **its document's**
-BM25 score:
+**document-grain**. The LSP always runs both rankers and fuses with RRF:
 
-1. Compute the fuzzy score of the query against the section's path text.
-2. Look up the document's BM25 score for the query.
-3. Min-max normalize both signals to `[0, 1]` across the candidate set (a
-   zero-range signal — all-equal — contributes `0`).
-4. Combine: `0.5 × bm25_norm + 0.5 × fuzzy_norm`. The weight is a single tunable
-   constant.
+1. Rank sections by fuzzy score against each section's path text.
+2. Rank sections by **their document's** BM25 score for the query.
+3. Fuse the two rankings with RRF and sort; sections matching neither ranker fall
+   to the tail (still returned, up to 100). An empty query keeps the page-rank
+   ordering unchanged.
 
-Ties fall back to the existing order (path length, page rank, key, line). An
-empty query keeps the page-rank ordering unchanged.
-
-The blend means a section can rank on either signal: a query term in a
-document's body lifts it even when the header text does not fuzzy-match, while
-fuzzy matching still surfaces near-miss header text that BM25's exact-token
-matching would not. A document strong in **both** signals outranks documents
-that are strongest in only one.
+So a section can rank on either signal — a body term lifts a document even when
+the header does not fuzzy-match, and fuzzy matching still surfaces near-miss
+header text that BM25's exact-token matching would miss.
 
 Link completion is unaffected — it stays alphabetical and client-filtered.
 
@@ -149,13 +188,14 @@ at startup and then only the per-edit cost of re-indexing a single document. See
 
 ## Caveats
 
-- **Typo tolerance** — BM25 matches stemmed exact tokens, so the CLI and MCP
-  `find` lose the fuzzy subsequence matching of the old ranker (`find fizz` will
-  not match `fuzz`). The LSP keeps fuzzy in its blend, so its typo tolerance is
-  retained.
+- **Lexical is exact-token** — BM25 matches stemmed exact tokens, so `--lexical
+  auth` will not match `authentication` (their stems differ). Reach for the fuzzy
+  ranker (the CLI default, `--fuzzy`, or the LSP) when you want partial-word and
+  subsequence tolerance; fuse both when you want relevance *and* tolerance.
 - **avgdl drift** — the average document length used for length normalization is
   fixed when the index is built. Over a very long editing session the
   incrementally-maintained index (LSP, MCP) drifts slightly from the true
   average, mildly degrading scores. The CLI rebuilds per run and never drifts.
 - **CJK** — languages without whitespace word boundaries are not tokenized by the
-  default tokenizer; a custom tokenizer would be required.
+  default tokenizer; a custom (script-aware) tokenizer would be required. Tracked
+  separately.
