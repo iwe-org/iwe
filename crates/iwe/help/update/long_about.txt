@@ -6,9 +6,15 @@ Two modes, selected by which flags are present:
     Rewrites the full markdown body of one document. Use '-' as --content
     to read from stdin.
 
-  Frontmatter-mutation mode (--filter EXPR | -k KEY) + --set / --unset
-    Applies $set / $unset operators to every document matched by the
-    filter. -k KEY is sugar for
-    '$key: K'; combine with --filter to AND further constraints.
+  Mutation mode (--filter EXPR | -k KEY) + one or more operators
+    Applies frontmatter operators (--set / --unset) and block operators
+    (--replace, --replace-text, --insert-before, --insert-after, --append,
+    --delete) to every document matched by the filter, as one atomic
+    update. -k KEY is sugar for '$key: K'; combine with --filter to AND
+    further constraints. Each block operator takes '{ <selector>, payload }'
+    where the $-keys are the block predicate and the bare keys are the
+    payload (content, from/to) plus an optional expect guard. The whole
+    update validates before anything is written; on failure it prints the
+    offending blocks and exits non-zero.
 
 Body and mutation flags cannot be combined; pass exactly one mode.

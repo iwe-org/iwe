@@ -1,22 +1,20 @@
 use serde_yaml::Value;
 
+use crate::query::block::BlockPredicate;
 use crate::query::wire::RawProjection;
 use crate::query::{
-    build_projection, FieldPath, Projection, ProjectionField, ProjectionMode, ProjectionSource,
+    build_projection, FieldPath, Projection, ProjectionBase, ProjectionField, ProjectionSource,
     PseudoField,
 };
 
-pub fn parse_projection(s: &str, mode: ProjectionMode) -> Result<Projection, String> {
+pub fn parse_projection(s: &str, base: ProjectionBase) -> Result<Projection, String> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
         return Err("projection argument cannot be empty".to_string());
     }
 
-    if let Ok(value) = serde_yaml::from_str::<Value>(trimmed) {
-        if let Value::Mapping(map) = value {
-            let raw = RawProjection(map);
-            return build_projection(raw, mode).map_err(|e| format!("invalid projection: {}", e));
-        }
+    if trimmed.contains(':') || trimmed.contains('{') || trimmed.contains('}') {
+        return parse_mapping(trimmed, base);
     }
 
     let mut fields: Vec<ProjectionField> = Vec::new();
@@ -30,7 +28,23 @@ pub fn parse_projection(s: &str, mode: ProjectionMode) -> Result<Projection, Str
     if fields.is_empty() {
         return Err("projection argument cannot be empty".to_string());
     }
-    Ok(Projection { fields, mode })
+    Ok(Projection { fields, base })
+}
+
+fn parse_mapping(trimmed: &str, base: ProjectionBase) -> Result<Projection, String> {
+    let value: Value = serde_yaml::from_str(trimmed).map_err(|_| invalid_mapping(trimmed))?;
+    let Value::Mapping(map) = value else {
+        return Err(invalid_mapping(trimmed));
+    };
+    build_projection(RawProjection(map), base).map_err(|e| format!("invalid projection: {}", e))
+}
+
+fn invalid_mapping(input: &str) -> String {
+    format!(
+        "projection '{}' is not a valid YAML mapping; to rename a field or select blocks, \
+         wrap the whole projection in braces, e.g. '{{ body: $content }}'",
+        input
+    )
 }
 
 fn parse_item(item: &str) -> Result<ProjectionField, String> {
@@ -45,14 +59,10 @@ fn parse_item(item: &str) -> Result<ProjectionField, String> {
         });
     }
 
-    if let Some((name, src)) = item.split_once(':') {
-        let name = name.trim();
-        let src = src.trim();
-        check_output_name(name)?;
-        let source = parse_source(src)?;
+    if item == "$blocks" {
         return Ok(ProjectionField {
-            output: name.to_string(),
-            source,
+            output: "blocks".to_string(),
+            source: ProjectionSource::Blocks(BlockPredicate::empty()),
         });
     }
 
@@ -74,6 +84,9 @@ fn parse_item(item: &str) -> Result<ProjectionField, String> {
 }
 
 fn parse_source(src: &str) -> Result<ProjectionSource, String> {
+    if src == "$blocks" {
+        return Ok(ProjectionSource::Blocks(BlockPredicate::empty()));
+    }
     if let Some(stripped) = src.strip_prefix('$') {
         let selector = format!("${}", stripped);
         let pf = PseudoField::from_selector(&selector)
@@ -132,7 +145,7 @@ mod tests {
     use super::*;
 
     fn parse_projection_replace(s: &str) -> Result<Projection, String> {
-        parse_projection(s, ProjectionMode::Replace)
+        parse_projection(s, ProjectionBase::Empty)
     }
 
     #[test]
@@ -147,14 +160,26 @@ mod tests {
     }
 
     #[test]
-    fn comma_list_aliased_pseudo() {
-        let p = parse_projection_replace("body=$content,parents=$includedBy").unwrap();
+    fn comma_list_bare_pseudos() {
+        let p = parse_projection_replace("$content,$includedBy").unwrap();
         assert_eq!(p.fields.len(), 2);
-        assert_eq!(p.fields[0].output, "body");
+        assert_eq!(p.fields[0].output, "content");
         assert!(matches!(
             p.fields[0].source,
             ProjectionSource::Pseudo(PseudoField::Content)
         ));
+        assert_eq!(p.fields[1].output, "includedBy");
+        assert!(matches!(
+            p.fields[1].source,
+            ProjectionSource::Pseudo(PseudoField::IncludedBy)
+        ));
+    }
+
+    #[test]
+    fn comma_list_bare_blocks() {
+        let p = parse_projection_replace("$blocks").unwrap();
+        assert_eq!(p.fields[0].output, "blocks");
+        assert!(matches!(p.fields[0].source, ProjectionSource::Blocks(_)));
     }
 
     #[test]
@@ -184,7 +209,46 @@ mod tests {
     }
 
     #[test]
-    fn dotted_path_source() {
+    fn braced_multi_pair_renames() {
+        let p = parse_projection_replace("{ test: $key, test2: $key }").unwrap();
+        assert_eq!(p.fields.len(), 2);
+        assert_eq!(p.fields[0].output, "test");
+        assert!(matches!(
+            p.fields[0].source,
+            ProjectionSource::Pseudo(PseudoField::Key)
+        ));
+        assert_eq!(p.fields[1].output, "test2");
+    }
+
+    #[test]
+    fn mapping_dotted_path_source() {
+        let p = parse_projection_replace("{ priority: meta.priority }").unwrap();
+        match &p.fields[0].source {
+            ProjectionSource::Frontmatter(fp) => {
+                assert_eq!(fp.0, vec!["meta".to_string(), "priority".to_string()]);
+            }
+            _ => panic!("expected frontmatter"),
+        }
+    }
+
+    #[test]
+    fn comma_list_aliased_pseudo() {
+        let p = parse_projection_replace("body=$content,parents=$includedBy").unwrap();
+        assert_eq!(p.fields.len(), 2);
+        assert_eq!(p.fields[0].output, "body");
+        assert!(matches!(
+            p.fields[0].source,
+            ProjectionSource::Pseudo(PseudoField::Content)
+        ));
+        assert_eq!(p.fields[1].output, "parents");
+        assert!(matches!(
+            p.fields[1].source,
+            ProjectionSource::Pseudo(PseudoField::IncludedBy)
+        ));
+    }
+
+    #[test]
+    fn comma_list_dotted_path_source() {
         let p = parse_projection_replace("priority=meta.priority").unwrap();
         match &p.fields[0].source {
             ProjectionSource::Frontmatter(fp) => {
@@ -195,39 +259,57 @@ mod tests {
     }
 
     #[test]
-    fn unbraced_multi_pair_colon_form() {
-        let p = parse_projection_replace("test: $key, test2: $key").unwrap();
-        assert_eq!(p.fields.len(), 2);
-        assert_eq!(p.fields[0].output, "test");
-        assert!(matches!(
-            p.fields[0].source,
-            ProjectionSource::Pseudo(PseudoField::Key)
-        ));
-        assert_eq!(p.fields[1].output, "test2");
-        assert!(matches!(
-            p.fields[1].source,
-            ProjectionSource::Pseudo(PseudoField::Key)
-        ));
+    fn unbraced_multi_pair_is_invalid_mapping() {
+        let err = parse_projection_replace("test: $key, test2: $key").unwrap_err();
+        assert_eq!(
+            err,
+            "projection 'test: $key, test2: $key' is not a valid YAML mapping; to rename a field \
+             or select blocks, wrap the whole projection in braces, e.g. '{ body: $content }'"
+        );
+    }
+
+    #[test]
+    fn multi_field_mapping_without_braces_errors() {
+        let err =
+            parse_projection_replace("goals: { $content: x }, usage: { $content: y }").unwrap_err();
+        assert_eq!(
+            err,
+            "projection 'goals: { $content: x }, usage: { $content: y }' is not a valid YAML \
+             mapping; to rename a field or select blocks, wrap the whole projection in braces, \
+             e.g. '{ body: $content }'"
+        );
+    }
+
+    #[test]
+    fn nested_colon_source_without_braces_errors() {
+        let err = parse_projection_replace("a: b: c").unwrap_err();
+        assert_eq!(
+            err,
+            "projection 'a: b: c' is not a valid YAML mapping; to rename a field or select \
+             blocks, wrap the whole projection in braces, e.g. '{ body: $content }'"
+        );
     }
 
     #[test]
     fn output_name_with_whitespace_rejected() {
         let err = parse_projection_replace("bad name=$key").unwrap_err();
-        assert!(
-            err.contains("whitespace"),
-            "error should mention whitespace: {}",
-            err
+        assert_eq!(
+            err,
+            "projection output name 'bad name' must not contain whitespace"
         );
     }
 
     #[test]
     fn unknown_pseudo_rejected() {
-        assert!(parse_projection_replace("$bogus").is_err());
-        assert!(parse_projection_replace("x=$bogus").is_err());
+        let bare = parse_projection_replace("$bogus").unwrap_err();
+        assert_eq!(bare, "unknown projection source '$bogus'");
+        let aliased = parse_projection_replace("x=$bogus").unwrap_err();
+        assert_eq!(aliased, "unknown projection source '$bogus'");
     }
 
     #[test]
     fn reserved_output_rejected() {
-        assert!(parse_projection_replace("$key=$key").is_err());
+        let err = parse_projection_replace("$key=$key").unwrap_err();
+        assert_eq!(err, "projection output name '$key' must not start with '$'");
     }
 }

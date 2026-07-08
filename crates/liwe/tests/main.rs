@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+mod blocks;
 mod config_migration_test;
 mod djot_roundtrip;
 mod formatting_test;
@@ -12,6 +14,11 @@ mod normalization_lists;
 mod normalization_metadata;
 mod normalization_misc;
 mod normalization_raw;
+#[allow(dead_code)]
+mod queries;
+mod query_block_update;
+mod query_blocks;
+mod query_content_filter;
 mod query_count;
 mod query_delete;
 mod query_deserialize;

@@ -1,46 +1,26 @@
 use serde_yaml::Value;
 
-use crate::query::document::{
+use liwe::query::block::{BlockPredicate, BlockRegex, MatchesSource};
+use liwe::query::document::{
     CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp, Operation,
-    ReferenceAnchor, Update, UpdateOp, YamlType,
+    Projection, ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, Update,
+    UpdateOp, YamlType,
 };
 
-pub trait WithFilter: Sized {
-    fn with_filter(filter: Filter) -> Self;
-}
-
-impl WithFilter for FindOp {
-    fn with_filter(f: Filter) -> Self {
-        FindOp::new().filter(f)
-    }
-}
-
-impl WithFilter for CountOp {
-    fn with_filter(f: Filter) -> Self {
-        CountOp::new().filter(f)
-    }
-}
-
-impl WithFilter for DeleteOp {
-    fn with_filter(f: Filter) -> Self {
-        DeleteOp::new(f)
-    }
-}
-
-pub fn filter<T: WithFilter>(f: Filter) -> T {
-    T::with_filter(f)
+pub fn filter(f: Filter) -> FindOp {
+    FindOp::new().filter(f)
 }
 
 pub fn find(op: FindOp) -> Operation {
     Operation::Find(op)
 }
 
-pub fn count(op: CountOp) -> Operation {
-    Operation::Count(op)
+pub fn count(op: impl Into<CountOp>) -> Operation {
+    Operation::Count(op.into())
 }
 
-pub fn delete(op: DeleteOp) -> Operation {
-    Operation::Delete(op)
+pub fn delete(op: impl Into<DeleteOp>) -> Operation {
+    Operation::Delete(op.into())
 }
 
 pub fn update(op: UpdateOp) -> Operation {
@@ -131,6 +111,10 @@ pub fn key(op: KeyOp) -> Filter {
     Filter::Key(op)
 }
 
+pub fn content_filter(pred: BlockPredicate) -> Filter {
+    Filter::Content(pred)
+}
+
 pub fn key_eq(k: impl Into<String>) -> Filter {
     Filter::Key(KeyOp::eq(k))
 }
@@ -181,4 +165,42 @@ pub fn reference_range(
     max_distance: u32,
 ) -> ReferenceAnchor {
     ReferenceAnchor::new(key, min_distance, max_distance)
+}
+
+pub fn blocks(pred: BlockPredicate) -> ProjectionSource {
+    ProjectionSource::Blocks(pred)
+}
+
+pub fn content(pred: BlockPredicate) -> ProjectionSource {
+    if pred.is_empty() {
+        ProjectionSource::Pseudo(PseudoField::Content)
+    } else {
+        ProjectionSource::ContentBlocks(pred)
+    }
+}
+
+pub fn grep(pattern: &str, scope: BlockPredicate) -> ProjectionSource {
+    ProjectionSource::Matches(MatchesSource {
+        pattern: BlockRegex::compile(pattern).expect("valid regex"),
+        scope,
+    })
+}
+
+pub fn field(output: &str, source: ProjectionSource) -> ProjectionField {
+    ProjectionField {
+        output: output.to_string(),
+        source,
+    }
+}
+
+pub fn fields(names: &[&str]) -> Projection {
+    Projection::fields(names)
+}
+
+pub fn asc(path: &str) -> Sort {
+    Sort::asc(path)
+}
+
+pub fn desc(path: &str) -> Sort {
+    Sort::desc(path)
 }

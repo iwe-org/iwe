@@ -28,8 +28,11 @@ use liwe::operations::{
     delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename, Changes,
     ExtractConfig, InlineConfig,
 };
+use liwe::query::block::{
+    parse_block_predicate, BlockOp, BlockPredicate, BlockRegex, MatchesSource,
+};
 use liwe::query::{
-    FieldPath, Filter, Projection as QueryProjection, ProjectionSource, PseudoField,
+    FieldPath, Filter, Projection as QueryProjection, ProjectionField, ProjectionSource,
     Sort as QuerySort, SortDir,
 };
 use liwe::tokens::Truncation;
@@ -219,6 +222,20 @@ struct Find {
         help = "Additive projection: same grammar as --project, extends defaults rather than replacing."
     )]
     add_fields: Option<QueryProjection>,
+
+    #[clap(
+        long,
+        value_name = "PRED",
+        help = "Locate blocks: adds a `blocks` field listing each block matching the predicate. PRED is an inline block predicate, e.g. '{ $within: Goals, $text: Q3 }'."
+    )]
+    blocks: Option<String>,
+
+    #[clap(
+        long,
+        value_name = "PATTERN",
+        help = "Grep over blocks: restricts results to documents whose content matches PATTERN and adds a `matches` field with the matching lines. PATTERN is a Rust regex."
+    )]
+    matches: Option<String>,
 
     #[clap(
         long,
@@ -531,6 +548,19 @@ struct Delete {
     )]
     filter: Option<String>,
 
+    #[clap(
+        long,
+        value_name = "ARG",
+        help = "Document-level expect guard: assert the number of matched documents. ARG is N or '{ min: M, max: N }'."
+    )]
+    expect: Option<String>,
+
+    #[clap(
+        long,
+        help = "Require the document-level --expect guard. Aborts before deleting if it is missing. Exempt under --dry-run."
+    )]
+    strict: bool,
+
     #[clap(long, help = "Preview changes without writing to disk")]
     dry_run: bool,
 
@@ -609,9 +639,9 @@ struct Update {
     #[clap(
         long,
         short = 'k',
-        help = "Document key. Required for body-overwrite mode; optional in frontmatter mutation mode."
+        help = "Match by document key. Repeatable: 1 key uses $eq, 2+ uses $in. Body-overwrite mode requires exactly one."
     )]
-    key: Option<String>,
+    key: Vec<String>,
 
     #[clap(
         long,
@@ -634,6 +664,61 @@ struct Update {
 
     #[clap(long, help = "Frontmatter $unset field name.")]
     unset: Vec<String>,
+
+    #[clap(
+        long = "replace",
+        value_name = "ARG",
+        help = "$replace: replace each selected block. ARG is '{ <selector>, content: <markdown> }'."
+    )]
+    replace: Option<String>,
+
+    #[clap(
+        long = "replace-text",
+        value_name = "ARG",
+        help = "$replaceText: rewrite own text of each selected block. ARG is '{ <selector>, from: X, to: Y }'; omit 'from' and 'to' replaces the entire own text."
+    )]
+    replace_text: Option<String>,
+
+    #[clap(
+        long = "insert-before",
+        value_name = "ARG",
+        help = "$insertBefore: insert sibling content before each selected block. ARG is '{ <selector>, content: <markdown> }'."
+    )]
+    insert_before: Option<String>,
+
+    #[clap(
+        long = "insert-after",
+        value_name = "ARG",
+        help = "$insertAfter: insert sibling content after each selected block. ARG is '{ <selector>, content: <markdown> }'."
+    )]
+    insert_after: Option<String>,
+
+    #[clap(
+        long = "append",
+        value_name = "ARG",
+        help = "$append: append child content to each selected container. ARG is '{ <selector>, content: <markdown> }'."
+    )]
+    append: Option<String>,
+
+    #[clap(
+        long = "delete",
+        value_name = "ARG",
+        help = "$delete: remove each selected block. ARG is the '{ <selector> }' mapping ('{}' selects every block)."
+    )]
+    delete: Option<String>,
+
+    #[clap(
+        long,
+        value_name = "ARG",
+        help = "Document-level expect guard: assert the number of matched documents. ARG is N or '{ min: M, max: N }'."
+    )]
+    expect: Option<String>,
+
+    #[clap(
+        long,
+        help = "Require an expect guard on every mutating application (document-level --expect and each block operator's expect). Aborts before writing if any is missing. Exempt under --dry-run."
+    )]
+    strict: bool,
 
     #[clap(long, help = "Preview without writing")]
     dry_run: bool,
@@ -902,6 +987,39 @@ fn retrieve_command(args: Retrieve) {
 }
 
 #[tracing::instrument(level = "debug")]
+fn lower_block_flags(args: &Find) -> Result<(Vec<ProjectionField>, Option<Filter>), String> {
+    let mut fields: Vec<ProjectionField> = Vec::new();
+    let mut filter: Option<Filter> = None;
+
+    if let Some(arg) = &args.blocks {
+        let value: serde_yaml::Value =
+            serde_yaml::from_str(arg).map_err(|e| format!("invalid --blocks predicate: {}", e))?;
+        let pred = parse_block_predicate(&value, "$blocks")
+            .map_err(|e| format!("invalid --blocks predicate: {}", e))?;
+        fields.push(ProjectionField {
+            output: "blocks".to_string(),
+            source: ProjectionSource::Blocks(pred),
+        });
+    }
+
+    if let Some(pattern) = &args.matches {
+        let regex = BlockRegex::compile(pattern)
+            .map_err(|e| format!("invalid --matches pattern: {}", e))?;
+        fields.push(ProjectionField {
+            output: "matches".to_string(),
+            source: ProjectionSource::Matches(MatchesSource {
+                pattern: regex.clone(),
+                scope: BlockPredicate::empty(),
+            }),
+        });
+        filter = Some(Filter::Content(BlockPredicate(vec![BlockOp::Matches(
+            regex,
+        )])));
+    }
+
+    Ok((fields, filter))
+}
+
 fn find_command(args: Find) {
     let config = get_configuration();
     let graph = load_search_graph(&config);
@@ -915,7 +1033,19 @@ fn find_command(args: Find) {
             eprintln!("error: {}", e);
             std::process::exit(2);
         });
-    let project = args.project.clone().or_else(|| args.add_fields.clone());
+    let (extra_fields, matches_filter) = lower_block_flags(&args).unwrap_or_else(|e| {
+        eprintln!("error: {}", e);
+        std::process::exit(2);
+    });
+    let base_project = args.project.clone().or_else(|| args.add_fields.clone());
+    let project = match base_project {
+        Some(mut p) => {
+            p.fields.extend(extra_fields);
+            Some(p)
+        }
+        None if !extra_fields.is_empty() => Some(QueryProjection::extend(extra_fields)),
+        None => None,
+    };
 
     let fuzzy = match args.pattern {
         Some(p) => {
@@ -928,13 +1058,20 @@ fn find_command(args: Find) {
         None => args.fuzzy,
     };
 
+    let filter = match (resolve_filter(&args.selector, &graph), matches_filter) {
+        (Some(f), Some(mf)) => Some(Filter::And(vec![f, mf])),
+        (Some(f), None) => Some(f),
+        (None, Some(mf)) => Some(mf),
+        (None, None) => None,
+    };
+
     let finder = DocumentFinder::new(&graph);
     let options = FindOptions {
         fuzzy,
         lexical: args.lexical,
         refs_to: None,
         refs_from: None,
-        filter: resolve_filter(&args.selector, &graph),
+        filter,
         limit: args.limit,
         sort,
         project: project.clone(),
@@ -973,7 +1110,24 @@ fn find_command(args: Find) {
                 Some(p) => p
                     .fields
                     .iter()
-                    .filter(|f| matches!(&f.source, ProjectionSource::Pseudo(PseudoField::Content)))
+                    .filter(|f| f.source.is_content_shaped())
+                    .map(|f| f.output.clone())
+                    .collect(),
+                None => Vec::new(),
+            };
+            let narrowed_content = project
+                .as_ref()
+                .map(|p| {
+                    p.fields
+                        .iter()
+                        .any(|f| matches!(&f.source, ProjectionSource::ContentBlocks(_)))
+                })
+                .unwrap_or(false);
+            let grep_output_names: Vec<String> = match &project {
+                Some(p) => p
+                    .fields
+                    .iter()
+                    .filter(|f| f.source.is_block_lines())
                     .map(|f| f.output.clone())
                     .collect(),
                 None => Vec::new(),
@@ -987,7 +1141,13 @@ fn find_command(args: Find) {
             );
             print!(
                 "{}",
-                renderer.render(&output.keys, &output.results, &content_output_names)
+                renderer.render(
+                    &output.keys,
+                    &output.results,
+                    &content_output_names,
+                    narrowed_content,
+                    &grep_output_names
+                )
             );
         }
     }
@@ -1012,7 +1172,7 @@ fn count_command(args: Count) {
         }
     }
 
-    match execute(&Operation::Count(op), &graph) {
+    match execute(&Operation::Count(op), &graph).expect("count query does not fail") {
         Outcome::Count(n) => println!("{}", n),
         _ => unreachable!(),
     }
@@ -1245,7 +1405,7 @@ fn build_tree_node(
     );
 
     if let Some(p) = project {
-        let ctx = ProjectionContext { graph, key };
+        let ctx = ProjectionContext::new(graph, key);
         let projected = apply_projection(&ctx, p);
         for (k, v) in projected {
             if let Some(s) = k.as_str() {
@@ -1693,10 +1853,32 @@ fn rename_command(args: Rename) {
 
 #[tracing::instrument(level = "debug")]
 fn delete_command(args: Delete) {
+    use liwe::query::block_update::check_document_expect;
+
     let config = get_configuration();
     let graph = load_graph(&config);
 
+    let doc_expect = args.expect.as_deref().map(parse_cli_expect);
+    if args.strict && !args.dry_run && doc_expect.is_none() {
+        eprintln!(
+            "error: --strict requires the document-level --expect guard; missing: document-level --expect"
+        );
+        eprintln!(
+            "hint: state the expected count — 1 for a precision edit, '{{ min: 1 }}' for a bulk delete that must match, '{{ min: 0 }}' when zero is acceptable"
+        );
+        std::process::exit(2);
+    }
+
     let targets = resolve_delete_targets(&args, &graph);
+
+    if !args.dry_run {
+        let doc_refs = build_doc_refs(&graph, &targets);
+        check_document_expect("delete", doc_expect, &doc_refs).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
+    }
+
     if targets.is_empty() {
         if !args.quiet {
             eprintln!("No documents matched");
@@ -2125,24 +2307,44 @@ fn inline_command(args: Inline) {
     }
 }
 
+impl Update {
+    fn block_edits(&self) -> Vec<(&'static str, &str)> {
+        [
+            ("$replace", &self.replace),
+            ("$replaceText", &self.replace_text),
+            ("$insertBefore", &self.insert_before),
+            ("$insertAfter", &self.insert_after),
+            ("$append", &self.append),
+            ("$delete", &self.delete),
+        ]
+        .into_iter()
+        .filter_map(|(op, value)| value.as_deref().map(|arg| (op, arg)))
+        .collect()
+    }
+}
+
 #[tracing::instrument(level = "debug")]
 fn update_command(args: Update) {
     let body_mode = args.content.is_some();
-    let mutation_mode = !args.set.is_empty() || !args.unset.is_empty();
+    let mutation_mode =
+        !args.set.is_empty() || !args.unset.is_empty() || !args.block_edits().is_empty();
 
     if body_mode && mutation_mode {
-        eprintln!("Error: --content cannot be combined with --set or --unset");
+        eprintln!("error: --content cannot be combined with mutation flags");
         std::process::exit(1);
     }
     if !body_mode && !mutation_mode {
-        eprintln!("Error: provide either --content (body overwrite) or --set/--unset (frontmatter mutation)");
+        eprintln!(
+            "error: provide either --content (body overwrite) or a mutation flag \
+             (--set/--unset/--replace/--replace-text/--insert-before/--insert-after/--append/--delete)"
+        );
         std::process::exit(1);
     }
 
     if body_mode {
         update_body(args);
     } else {
-        update_frontmatter(args);
+        update_mutation(args);
     }
 }
 
@@ -2174,13 +2376,20 @@ fn update_body(args: Update) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let key_str = args.key.clone().unwrap_or_else(|| {
-        eprintln!("Error: -k/--key is required for body-overwrite mode");
-        std::process::exit(1);
-    });
+    let key_str = match args.key.as_slice() {
+        [single] => single.clone(),
+        [] => {
+            eprintln!("error: -k/--key is required for body-overwrite mode");
+            std::process::exit(1);
+        }
+        _ => {
+            eprintln!("error: body-overwrite mode takes exactly one -k/--key");
+            std::process::exit(1);
+        }
+    };
     let key = Key::name(&key_str);
     if (&graph).get_node_id(&key).is_none() {
-        eprintln!("Error: Document '{}' not found", key_str);
+        eprintln!("error: document '{}' not found", key_str);
         std::process::exit(1);
     }
 
@@ -2188,7 +2397,7 @@ fn update_body(args: Update) {
     let content = if raw == "-" {
         let stdin_content = read_stdin_if_available();
         if stdin_content.is_empty() {
-            eprintln!("Error: '--content -' requires content piped via stdin");
+            eprintln!("error: '--content -' requires content piped via stdin");
             std::process::exit(1);
         }
         stdin_content
@@ -2215,6 +2424,12 @@ fn update_body(args: Update) {
         Some(fm) => format!("{}{}", fm, content),
         None => content,
     };
+    if output == existing {
+        if !args.quiet {
+            println!("'{}' unchanged", key_str);
+        }
+        return;
+    }
     std::fs::write(&file_path, &output).expect("Failed to write document file");
 
     if !args.quiet {
@@ -2222,10 +2437,10 @@ fn update_body(args: Update) {
     }
 }
 
-fn update_frontmatter(args: Update) {
-    use liwe::query::prelude::find;
+fn update_mutation(args: Update) {
+    use liwe::query::block_update::check_document_expect;
     use liwe::query::wire::RawUpdate;
-    use liwe::query::{build_update_doc, execute as run_op, FindOp, Outcome};
+    use liwe::query::{build_update_doc, execute as run_op, FindOp, Operation, Outcome, UpdateOp};
     use serde_yaml::{Mapping, Value};
 
     let config = get_configuration();
@@ -2238,23 +2453,29 @@ fn update_frontmatter(args: Update) {
             std::process::exit(2);
         })
     });
-    if let (Some(parsed), Some(_)) = (parsed_filter.as_ref(), args.key.as_ref()) {
-        if filter_has_top_level_key_predicate(parsed) {
-            eprintln!(
-                "error: -k / --key conflicts with a $key predicate at the top level of --filter; \
-                 use --filter '$or: [{{$key: a}}, {{$key: b}}]' for OR-of-keys, or pick one source"
-            );
-            std::process::exit(2);
+    if !args.key.is_empty() {
+        if let Some(parsed) = parsed_filter.as_ref() {
+            if filter_has_top_level_key_predicate(parsed) {
+                eprintln!(
+                    "error: -k / --key conflicts with a $key predicate at the top level of --filter; \
+                     use --filter '$or: [{{$key: a}}, {{$key: b}}]' for OR-of-keys, or pick one source"
+                );
+                std::process::exit(2);
+            }
         }
     }
     if let Some(parsed) = parsed_filter {
         conjuncts.push(parsed);
     }
-    if let Some(k) = &args.key {
-        conjuncts.push(Filter::Key(liwe::query::KeyOp::Eq(Key::name(k))));
+    match args.key.len() {
+        0 => {}
+        1 => conjuncts.push(Filter::Key(liwe::query::KeyOp::Eq(Key::name(&args.key[0])))),
+        _ => conjuncts.push(Filter::Key(liwe::query::KeyOp::In(
+            args.key.iter().map(|k| Key::name(k)).collect(),
+        ))),
     }
     if conjuncts.is_empty() {
-        eprintln!("Error: --filter or -k/--key required for frontmatter mutation mode");
+        eprintln!("error: --filter or -k/--key required for mutation mode");
         std::process::exit(1);
     }
     let filter = if conjuncts.len() == 1 {
@@ -2262,6 +2483,15 @@ fn update_frontmatter(args: Update) {
     } else {
         Filter::And(conjuncts)
     };
+
+    let mut update_map = Mapping::new();
+    for (op, arg) in args.block_edits() {
+        let value: Value = serde_yaml::from_str(arg).unwrap_or_else(|e| {
+            eprintln!("error: invalid {} argument: {}", op, e);
+            std::process::exit(2);
+        });
+        update_map.insert(Value::String(op.to_string()), value);
+    }
 
     let mut set_map = Mapping::new();
     for assign in &args.set {
@@ -2271,73 +2501,179 @@ fn update_frontmatter(args: Update) {
         });
         set_map.insert(Value::String(field), value);
     }
+    merge_update_operator(&mut update_map, "$set", set_map);
+
     let mut unset_map = Mapping::new();
     for field in &args.unset {
         unset_map.insert(Value::String(field.clone()), Value::String(String::new()));
     }
-    let raw_update = RawUpdate {
-        set: if set_map.is_empty() {
-            None
-        } else {
-            Some(set_map)
-        },
-        unset: if unset_map.is_empty() {
-            None
-        } else {
-            Some(unset_map)
-        },
-    };
-    let update_doc = build_update_doc(raw_update).unwrap_or_else(|e| {
+    merge_update_operator(&mut update_map, "$unset", unset_map);
+
+    let update_doc = build_update_doc(RawUpdate(update_map)).unwrap_or_else(|e| {
         eprintln!("error: invalid update: {}", e);
         std::process::exit(2);
     });
 
-    let find_op = FindOp::new().filter(filter);
-    let outcome = run_op(&find(find_op), &graph);
-    let keys: Vec<Key> = match outcome {
-        Outcome::Find { matches } => matches.into_iter().map(|m| m.key).collect(),
-        _ => unreachable!(),
-    };
+    let doc_expect = args.expect.as_deref().map(parse_cli_expect);
 
-    if args.dry_run {
-        if !args.quiet {
-            println!("Would update {} document(s)", keys.len());
-            for key in &keys {
-                println!("  {}", key);
-            }
-        }
-        return;
+    if args.strict && !args.dry_run {
+        enforce_strict_update(doc_expect.is_some(), &update_doc);
     }
 
     let library_path = get_library_path(&config);
-    let mut count = 0;
-    for key in &keys {
-        let file_path = library_path.join(format!("{}.{}", key, config.format.extension()));
-        let raw_content = match std::fs::read_to_string(&file_path) {
-            Ok(c) => c,
-            Err(_) => continue,
+    let ext = config.format.extension();
+
+    let docs: Vec<(Key, String)> = if update_doc.block_ops.is_empty() {
+        let find_op = FindOp::new().filter(filter);
+        let outcome = run_op(&Operation::Find(find_op), &graph).expect("find query does not fail");
+        let keys: Vec<Key> = match outcome {
+            Outcome::Find { matches } => matches.into_iter().map(|m| m.key).collect(),
+            _ => unreachable!(),
         };
+        if !args.dry_run {
+            let doc_refs = build_doc_refs(&graph, &keys);
+            check_document_expect("update", doc_expect, &doc_refs).unwrap_or_else(|e| {
+                eprintln!("error: {}", e);
+                std::process::exit(2);
+            });
+        }
+        keys.into_iter()
+            .filter_map(|key| {
+                let file_path = library_path.join(format!("{}.{}", key, ext));
+                let raw_content = std::fs::read_to_string(&file_path).ok()?;
+                let (_, body) = split_raw_frontmatter(&raw_content);
+                let mut mapping = graph.frontmatter(&key).cloned().unwrap_or_default();
+                liwe::query::update::apply(&update_doc, &mut mapping);
+                liwe::query::frontmatter::strip_reserved(&mut mapping);
+                let yaml = if mapping.is_empty() {
+                    String::new()
+                } else {
+                    let serialized = serde_yaml::to_string(&mapping).unwrap_or_default();
+                    format!("---\n{}---\n", serialized)
+                };
+                Some((key, format!("{}{}", yaml, body)))
+            })
+            .collect()
+    } else {
+        let mut op = UpdateOp::new(filter, update_doc);
+        if !args.dry_run {
+            if let Some(expect) = doc_expect {
+                op = op.expect(expect);
+            }
+        }
+        let outcome = run_op(&Operation::Update(op), &graph).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
+        match outcome {
+            Outcome::Update { changes } => changes,
+            _ => unreachable!(),
+        }
+    };
 
-        let (_, body) = split_raw_frontmatter(&raw_content);
+    let (matched, changed) = write_changed_documents(&library_path, ext, &docs, args.dry_run);
+    report_mutation(args.quiet, args.dry_run, matched, changed);
+}
 
-        let mut mapping = graph.frontmatter(key).cloned().unwrap_or_default();
-        liwe::query::update::apply(&update_doc, &mut mapping);
-        liwe::query::frontmatter::strip_reserved(&mut mapping);
+fn parse_cli_expect(arg: &str) -> liwe::query::Expect {
+    let value: serde_yaml::Value = serde_yaml::from_str(arg).unwrap_or_else(|e| {
+        eprintln!("error: invalid --expect: {}", e);
+        std::process::exit(2);
+    });
+    liwe::query::parse_expect(&value).unwrap_or_else(|e| {
+        eprintln!("error: invalid --expect: {}", e);
+        std::process::exit(2);
+    })
+}
 
-        let yaml = if mapping.is_empty() {
-            String::new()
-        } else {
-            let serialized = serde_yaml::to_string(&mapping).unwrap_or_default();
-            format!("---\n{}---\n", serialized)
-        };
-        let output = format!("{}{}", yaml, body);
+fn build_doc_refs(graph: &Graph, keys: &[Key]) -> Vec<liwe::query::block_update::DocRef> {
+    keys.iter()
+        .map(|key| liwe::query::block_update::DocRef {
+            key: key.to_string(),
+            title: graph.get_key_title(key).unwrap_or_else(|| key.to_string()),
+        })
+        .collect()
+}
 
-        std::fs::write(&file_path, &output).expect("Failed to write document file");
-        count += 1;
+fn enforce_strict_update(has_doc_expect: bool, update_doc: &liwe::query::Update) {
+    let mut missing: Vec<String> = Vec::new();
+    if !has_doc_expect {
+        missing.push("document-level --expect".to_string());
     }
+    for block_op in &update_doc.block_ops {
+        if block_op.expect.is_none() {
+            missing.push(format!("{} expect", block_op.op.name()));
+        }
+    }
+    if !missing.is_empty() {
+        eprintln!(
+            "error: --strict requires an expect guard on every mutating application; missing: {}",
+            missing.join(", ")
+        );
+        eprintln!(
+            "hint: state the expected count — 1 for a precision edit, '{{ min: 1 }}' for a bulk edit that must match, '{{ min: 0 }}' when zero is acceptable"
+        );
+        std::process::exit(2);
+    }
+}
 
-    if !args.quiet {
-        println!("Updated {} document(s)", count);
+fn write_changed_documents(
+    library_path: &std::path::Path,
+    ext: &str,
+    docs: &[(Key, String)],
+    dry_run: bool,
+) -> (usize, usize) {
+    let mut changed = 0;
+    for (key, content) in docs {
+        let file_path = library_path.join(format!("{}.{}", key, ext));
+        let existing = std::fs::read_to_string(&file_path).unwrap_or_default();
+        if *content == existing {
+            continue;
+        }
+        if !dry_run {
+            if let Some(parent) = file_path.parent() {
+                std::fs::create_dir_all(parent).ok();
+            }
+            std::fs::write(&file_path, content).expect("Failed to write document file");
+        }
+        changed += 1;
+    }
+    (docs.len(), changed)
+}
+
+fn report_mutation(quiet: bool, dry_run: bool, matched: usize, changed: usize) {
+    if quiet {
+        return;
+    }
+    if matched == 0 {
+        println!("No documents matched");
+        return;
+    }
+    if changed == matched {
+        let verb = if dry_run { "Would update" } else { "Updated" };
+        println!("{} {} document(s)", verb, changed);
+    } else {
+        let tail = if dry_run { "would change" } else { "changed" };
+        println!("Matched {} document(s), {} {}", matched, changed, tail);
+    }
+}
+
+fn merge_update_operator(
+    update_map: &mut serde_yaml::Mapping,
+    key: &str,
+    fields: serde_yaml::Mapping,
+) {
+    use serde_yaml::Value;
+    if fields.is_empty() {
+        return;
+    }
+    let entry = update_map
+        .entry(Value::String(key.to_string()))
+        .or_insert_with(|| Value::Mapping(serde_yaml::Mapping::new()));
+    if let Value::Mapping(existing) = entry {
+        for (k, v) in fields {
+            existing.insert(k, v);
+        }
     }
 }
 

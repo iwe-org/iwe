@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `query::block` module with the `BlockPredicate` grammar for addressing blocks inside a document: text and regex predicates, `$within` / `$contains` axes, per-type operators (`$section`, `$header`, `$paragraph`, `$item`, `$list`, `$quote`, `$code`, `$table`, `$ref`, `$hr`), `$references`, and `$and` / `$or` / `$nor` composition.
+- Block-addressed projection sources: `{ $content: PREDICATE }` renders the selected blocks, `$blocks` reports each selected block as `type` / `path` / `text`, and `{ $matches: REGEX }` greps matching lines with their section paths — all evaluated through the new `query::block_eval::BlockIndex`.
+- `IntoBlockPredicate` trait accepting scalar shorthands wherever a block predicate is expected.
+- `FindOp::add_fields` sets an additive (`addFields`) projection; `CountOp` and `DeleteOp` implement `From<FindOp>`, reinterpreting a built find with its projection dropped.
+- `project` accepts a `$`-prefixed block predicate mapping (`project: { $header: {} }`), lowering it to a `key` field and a `content` field carrying the narrowed body.
+- Block update operators in the `update` document — `$replace`, `$replaceText`, `$insertBefore`, `$insertAfter`, `$append`, `$delete` — each pairing a block predicate selector with its payload and an optional `expect` guard, validated and applied atomically; represented by `BlockUpdate`, `BlockUpdateOp`, and `Expect` on `Update::block_ops`.
+- Unit block operators act on their target as selected: a `$header` node covers its heading line alone (`$delete` dissolves the section, a heading `$replace` retitles it) while a `$section` covers the whole tree.
+- `UpdateOp` and `DeleteOp` carry an optional `expect` guard asserting the number of matched documents; on violation nothing is written and the error lists each matched document.
+- `$content` filter operator (`Filter::Content`) matches documents holding at least one block satisfying a block predicate; it composes with every other filter clause.
+- `query::strict_guard_violations` names the mutating applications that lack an `expect` guard.
+
+### Changed
+- `query::execute` returns `Result<Outcome, block_update::EvalError>` (was `Outcome`) so a failed block update reports its validation error instead of writing; `find`, `count`, and `delete` always return `Ok`.
+- `Update` carries `block_ops: Vec<BlockUpdate>` alongside the frontmatter `operators`.
+- `Projection` carries a `base: ProjectionBase` (`Empty` / `Frontmatter` / `Document`) in place of `mode: ProjectionMode`, so `FindOp::project` is a plain `Projection` (was `Option<Projection>`); `Projection::document_fields()` replaces `Projection::default_for_find()`.
+- `ProjectionContext` is constructed with `ProjectionContext::new(graph, key)` (was a public struct literal).
+
+### Fixed
+- A mis-typed `project` mapping now reports a parse error instead of being silently read as a comma list of frontmatter field names and yielding `null`.
+
+### Removed
+- `query::prelude` module (with its `WithFilter` trait) — the Rust builder functions moved into the test suite; construct `Operation`, `FindOp`, and `Filter` directly.
+- `query::project::apply_projection_or_default` — `apply_projection` covers the no-projection case.
+
 ## [0.8.0](https://github.com/iwe-org/iwe/compare/liwe-v0.7.0...liwe-v0.8.0) - 2026-07-07
 
 ### Added

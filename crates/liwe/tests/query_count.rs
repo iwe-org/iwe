@@ -1,14 +1,14 @@
+use crate::queries::{count, eq, filter};
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::execute;
-use liwe::query::prelude::{count, eq, filter};
 use liwe::query::{CountOp, Outcome};
 use liwe::state::from_indoc;
 
-fn assert_count(docs: &str, op: CountOp, expected: usize) {
+fn assert_count(docs: &str, op: impl Into<CountOp>, expected: usize) {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&count(op), &graph) {
+    match execute(&count(op), &graph).expect("query succeeds") {
         Outcome::Count(n) => assert_eq!(n, expected),
         other => panic!("expected Count, got {:?}", other),
     }
@@ -72,7 +72,7 @@ fn count_respects_limit() {
             ---
             # C
         "},
-        filter::<CountOp>(eq("status", "draft")).limit(2),
+        filter(eq("status", "draft")).limit(2),
         2,
     );
 }
@@ -91,7 +91,7 @@ fn count_zero_limit_unbounded() {
             ---
             # B
         "},
-        filter::<CountOp>(eq("status", "draft")).limit(0),
+        filter(eq("status", "draft")).limit(0),
         2,
     );
 }

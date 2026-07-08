@@ -3,7 +3,9 @@ use serde_yaml::Mapping;
 
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{Node, NodeIter};
+use crate::model::tree::Tree;
 use crate::model::Key;
+use crate::query::block_update::{self, DocRef, EvalError};
 use crate::query::document::{CountOp, DeleteOp, Filter, FindOp, Limit, Operation, Sort, UpdateOp};
 use crate::query::eval;
 use crate::query::frontmatter::strip_reserved;
@@ -25,13 +27,42 @@ pub struct FindMatch {
     pub document: Mapping,
 }
 
-pub fn execute(op: &Operation, graph: &Graph) -> Outcome {
+pub fn execute(op: &Operation, graph: &Graph) -> Result<Outcome, EvalError> {
     match op {
-        Operation::Find(find) => execute_find(find, graph),
-        Operation::Count(count) => execute_count(count, graph),
+        Operation::Find(find) => Ok(execute_find(find, graph)),
+        Operation::Count(count) => Ok(execute_count(count, graph)),
         Operation::Update(upd) => execute_update(upd, graph),
         Operation::Delete(del) => execute_delete(del, graph),
     }
+}
+
+/// Names the mutating applications in `op` that lack an `expect` guard.
+///
+/// Strict surfaces (the `--strict` CLI flag, the always-strict MCP tool, §9.4) refuse to run a
+/// mutation while this returns anything: every mutating application — the operation's document-level
+/// `expect` and each block operator's `expect` — must carry a guard. Reads (`find` / `count`) never
+/// have anything to guard, so they always return empty.
+pub fn strict_guard_violations(op: &Operation) -> Vec<String> {
+    let mut missing = Vec::new();
+    match op {
+        Operation::Update(upd) => {
+            if upd.expect.is_none() {
+                missing.push("document-level expect".to_string());
+            }
+            for block_op in &upd.update.block_ops {
+                if block_op.expect.is_none() {
+                    missing.push(format!("{} expect", block_op.op.name()));
+                }
+            }
+        }
+        Operation::Delete(del) => {
+            if del.expect.is_none() {
+                missing.push("document-level expect".to_string());
+            }
+        }
+        Operation::Find(_) | Operation::Count(_) => {}
+    }
+    missing
 }
 
 fn select(filter: Option<&Filter>, graph: &Graph) -> Vec<(Key, Mapping)> {
@@ -73,17 +104,9 @@ fn execute_find(op: &FindOp, graph: &Graph) -> Outcome {
     let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
     let matches: Vec<FindMatch> = rows
         .into_iter()
-        .map(|(key, mut m)| {
-            let document = match &op.project {
-                Some(p) => {
-                    let ctx = ProjectionContext { graph, key: &key };
-                    apply_projection(&ctx, p)
-                }
-                None => {
-                    strip_reserved(&mut m);
-                    m
-                }
-            };
+        .map(|(key, _)| {
+            let ctx = ProjectionContext::new(graph, &key);
+            let document = apply_projection(&ctx, &op.project);
             FindMatch { key, document }
         })
         .collect();
@@ -96,28 +119,55 @@ fn execute_count(op: &CountOp, graph: &Graph) -> Outcome {
     Outcome::Count(rows.len())
 }
 
-fn execute_update(op: &UpdateOp, graph: &Graph) -> Outcome {
+fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
     let rows = select(Some(&op.filter), graph);
     let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
+    let mut bodies = if op.update.block_ops.is_empty() {
+        None
+    } else {
+        let keys: Vec<Key> = rows.iter().map(|(key, _)| key.clone()).collect();
+        Some(block_update::plan_and_apply(
+            graph,
+            &keys,
+            &op.update.block_ops,
+        )?)
+    };
+    let documents: Vec<DocRef> = rows.iter().map(|(key, _)| doc_ref(graph, key)).collect();
+    block_update::check_document_expect("update", op.expect, &documents)?;
     let mut changes = Vec::new();
     for (key, mut mapping) in rows {
         update::apply(&op.update, &mut mapping);
         strip_reserved(&mut mapping);
-        let markdown = render_with_frontmatter(graph, &key, mapping);
+        let body = bodies.as_mut().and_then(|map| map.remove(&key));
+        let markdown = render_with_frontmatter(graph, &key, body, mapping);
         changes.push((key, markdown));
     }
-    Outcome::Update { changes }
+    Ok(Outcome::Update { changes })
 }
 
-fn execute_delete(op: &DeleteOp, graph: &Graph) -> Outcome {
+fn execute_delete(op: &DeleteOp, graph: &Graph) -> Result<Outcome, EvalError> {
     let rows = select(Some(&op.filter), graph);
     let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
+    let documents: Vec<DocRef> = rows.iter().map(|(key, _)| doc_ref(graph, key)).collect();
+    block_update::check_document_expect("delete", op.expect, &documents)?;
     let removed = rows.into_iter().map(|(k, _)| k).collect();
-    Outcome::Delete { removed }
+    Ok(Outcome::Delete { removed })
 }
 
-fn render_with_frontmatter(graph: &Graph, key: &Key, mapping: Mapping) -> String {
-    let mut tree = graph.collect(key);
+fn doc_ref(graph: &Graph, key: &Key) -> DocRef {
+    DocRef {
+        key: key.to_string(),
+        title: graph.get_key_title(key).unwrap_or_else(|| key.to_string()),
+    }
+}
+
+fn render_with_frontmatter(
+    graph: &Graph,
+    key: &Key,
+    body: Option<Tree>,
+    mapping: Mapping,
+) -> String {
+    let mut tree = body.unwrap_or_else(|| graph.collect(key));
     let frontmatter = if mapping.is_empty() {
         None
     } else {

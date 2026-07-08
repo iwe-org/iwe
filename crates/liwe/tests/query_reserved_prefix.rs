@@ -1,8 +1,8 @@
+use crate::queries::{filter, find, update, update_op};
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::execute;
-use liwe::query::prelude::{filter, find, update, update_op};
 use liwe::query::{Filter, FindOp, Outcome, Update, UpdateOp, UpdateOperator};
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
@@ -10,7 +10,7 @@ use serde_yaml::{Mapping, Value};
 
 fn run_find(docs: &str, op: FindOp) -> Vec<Mapping> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&find(op), &graph) {
+    match execute(&find(op), &graph).expect("query succeeds") {
         Outcome::Find { matches } => matches.into_iter().map(|m| m.document).collect(),
         other => panic!("expected Find, got {:?}", other),
     }
@@ -19,7 +19,7 @@ fn run_find(docs: &str, op: FindOp) -> Vec<Mapping> {
 fn assert_update(docs: &str, op: UpdateOp, expected: &str) {
     let state = from_indoc(docs);
     let graph = Graph::import(&state, MarkdownOptions::default(), None);
-    match execute(&update(op), &graph) {
+    match execute(&update(op), &graph).expect("update succeeds") {
         Outcome::Update { changes } => {
             let mut new_state = graph.export();
             for (key, markdown) in changes {

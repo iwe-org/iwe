@@ -52,6 +52,10 @@ iwe count -k projects/alpha -k projects/beta
 # OR-composition via --filter
 iwe count --filter '$or: [{ status: draft }, { status: review }]'
 
+# Content membership — documents holding a block matching a predicate
+iwe count --filter '$content: { $matches: "(?i)todo|fixme" }'
+iwe count --filter '$nor: [{ $content: { $header: Status } }]'
+
 # Cap the count for very large corpuses
 iwe count --filter 'tags: rust' -l 1000
 ```

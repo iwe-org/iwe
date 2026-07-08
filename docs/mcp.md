@@ -32,7 +32,7 @@ The server speaks plain HTTP, so put a reverse proxy in front of it for TLS or a
 
 ## Tools
 
-The MCP server exposes 13 tools for reading, writing, and refactoring documents.
+The MCP server exposes 14 tools for reading, writing, querying, and refactoring documents.
 
 ### Reading
 
@@ -52,6 +52,16 @@ The MCP server exposes 13 tools for reading, writing, and refactoring documents.
 | `iwe_update`   | Replace the full content of an existing document   |
 | `iwe_delete`   | Delete a document and clean up all references      |
 
+### Query
+
+| Tool        | Description                                                          |
+| ----------- | -------------------------------------------------------------------- |
+| `iwe_query` | Run a [Query Language](query-language.md) operation document verbatim |
+
+`iwe_query` takes an `operation` kind (`find`, `count`, `update`, or `delete`) and the operation `document` as a YAML string, plus an optional `dry_run` for the mutating kinds. It exposes the full query surface: frontmatter and graph filters, the `$content` block-membership operator, the `$content` / `$blocks` / `$matches` projection sources, and the block update operators (`$replace`, `$replaceText`, `$insertBefore`, `$insertAfter`, `$append`, `$delete`). `find` and `count` read; `update` applies frontmatter and block edits atomically per document; `delete` removes documents with reference cleanup.
+
+The tool is **always strict**: every mutating application must carry an `expect` guard — the document-level `expect` on `update` / `delete`, plus one per block operator — or the operation is refused with the missing guards named. Use `find` with `$blocks` / `$matches` to locate targets and learn the counts before mutating. See [Strict mode](query-language.md#strict-mode).
+
 ### Refactoring
 
 | Tool             | Description                                                |
@@ -66,7 +76,7 @@ All write and refactoring tools support a `dry_run` parameter to preview changes
 
 ### Selector parameters
 
-`iwe_find`, `iwe_retrieve`, and `iwe_tree` accept a structural selector embedded in their tool input: `in`, `in_any`, `not_in`, and `max_depth`. Each entry is either a bare key or `{ key, depth }`. The CLI exposes a richer surface — `--filter`, `$`-prefixed graph operators, frontmatter mutation — documented in the [Query Language](query-language.md) reference. The MCP tool input may grow to match in a future revision; for now, treat the CLI as the canonical query surface and the MCP tools as a convenience for the most common selection patterns.
+`iwe_find`, `iwe_retrieve`, and `iwe_tree` accept a structural selector embedded in their tool input: `in`, `in_any`, `not_in`, and `max_depth`. Each entry is either a bare key or `{ key, depth }`. These are a convenience for the most common selection patterns; the full query surface — `--filter`-style documents, `$`-prefixed graph operators, block predicates, frontmatter and block mutation — is `iwe_query`, documented in the [Query Language](query-language.md) reference.
 
 ## Prompts
 

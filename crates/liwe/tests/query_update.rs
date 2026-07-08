@@ -1,8 +1,8 @@
+use crate::queries::{eq, included_by, inclusion, update, update_op};
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::execute;
-use liwe::query::prelude::{eq, included_by, inclusion, update, update_op};
 use liwe::query::{Filter, Outcome, Update, UpdateOp, UpdateOperator};
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
@@ -10,7 +10,7 @@ use pretty_assertions::assert_str_eq;
 fn assert_update(docs: &str, op: UpdateOp, expected: &str) {
     let state = from_indoc(docs);
     let graph = Graph::import(&state, MarkdownOptions::default(), None);
-    let outcome = execute(&update(op), &graph);
+    let outcome = execute(&update(op), &graph).expect("update succeeds");
     match outcome {
         Outcome::Update { changes } => {
             let mut new_state = graph.export();

@@ -1,11 +1,13 @@
-use indoc::indoc;
-use liwe::query::prelude::{
-    all, and, count, delete, eq, exists, filter, find, gt, gte, in_, included_by, includes, key_eq,
-    key_in, lt, lte, ne, nin, nor, or, referenced_by, references, size, type_of, update, update_op,
+use crate::blocks as blk;
+use crate::queries::{
+    all, and, asc, blocks, content, content_filter, count, delete, desc, eq, exists, field, fields,
+    filter, find, grep, gt, gte, in_, included_by, includes, key_eq, key_in, lt, lte, ne, nin, nor,
+    or, referenced_by, references, size, type_of, update, update_op,
 };
+use indoc::indoc;
 use liwe::query::{
-    parse_operation, CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, Limit,
-    Operation, OperationKind, Projection, ReferenceAnchor, Sort, Update, UpdateOperator, YamlType,
+    parse_operation, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, Limit, Operation,
+    OperationKind, ReferenceAnchor, Update, UpdateOperator, YamlType,
 };
 use serde_yaml::Value;
 
@@ -34,9 +36,10 @@ fn find_round_trips_filter_project_sort_limit() {
         "},
         OperationKind::Find,
         find(
-            filter::<FindOp>(eq("status", "draft"))
-                .project(Projection::fields(&["title"]))
-                .sort(Sort::desc("modified"))
+            FindOp::new()
+                .filter(eq("status", "draft"))
+                .project(fields(&["title"]))
+                .sort(desc("modified"))
                 .limit(5),
         ),
     );
@@ -51,7 +54,7 @@ fn count_round_trips_filter_and_limit() {
             limit: 0
         "},
         OperationKind::Count,
-        count(filter::<CountOp>(eq("status", "draft")).limit(0)),
+        count(filter(eq("status", "draft")).limit(0)),
     );
 }
 
@@ -103,7 +106,7 @@ fn sort_positive_one_means_ascending() {
               modified: 1
         "},
         OperationKind::Find,
-        find(FindOp::new().sort(Sort::asc("modified"))),
+        find(FindOp::new().sort(asc("modified"))),
     );
 }
 
@@ -299,6 +302,36 @@ fn filter_or() {
         "},
         OperationKind::Find,
         find(filter(or(vec![eq("x", 1i64), eq("y", 2i64)]))),
+    );
+}
+
+#[test]
+fn filter_content_membership_round_trips() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $content:
+                $text: TODO
+        "},
+        OperationKind::Find,
+        find(filter(content_filter(blk::text("TODO")))),
+    );
+}
+
+#[test]
+fn filter_content_composes_under_or() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $or:
+                - { status: draft }
+                - $content: { $header: Status }
+        "},
+        OperationKind::Find,
+        find(filter(or(vec![
+            eq("status", "draft"),
+            content_filter(blk::header("Status")),
+        ]))),
     );
 }
 
@@ -639,7 +672,7 @@ fn delete_zero_limit_unbounded() {
             limit: 0
         "},
         OperationKind::Delete,
-        delete(filter::<DeleteOp>(eq("status", "archived")).limit(0)),
+        delete(filter(eq("status", "archived")).limit(0)),
     );
     assert!(Limit(0).is_unbounded());
 }
@@ -984,5 +1017,101 @@ fn references_zero_distance_rejected() {
         "},
         OperationKind::Find,
         "InvalidDepthValue",
+    );
+}
+
+#[test]
+fn project_bare_blocks_selector_round_trips() {
+    assert_parse(
+        indoc! {"
+            project:
+              hits: $blocks
+        "},
+        OperationKind::Find,
+        find(FindOp::new().project(vec![field("hits", blocks(blk::any()))])),
+    );
+}
+
+#[test]
+fn project_empty_content_lowers_to_whole_body() {
+    assert_parse(
+        indoc! {"
+            project:
+              body: { $content: {} }
+        "},
+        OperationKind::Find,
+        find(FindOp::new().project(vec![field("body", content(blk::any()))])),
+    );
+}
+
+#[test]
+fn project_within_scalar_lowers_to_exact_section_text() {
+    assert_parse(
+        indoc! {"
+            project:
+              hits: { $blocks: { $within: header1 } }
+        "},
+        OperationKind::Find,
+        find(FindOp::new().project(vec![field(
+            "hits",
+            blocks(blk::within(blk::section(blk::text_eq("header1")))),
+        )])),
+    );
+}
+
+#[test]
+fn project_type_scalar_lowers_to_exact_text() {
+    assert_parse(
+        indoc! {"
+            project:
+              hits: { $blocks: { $header: header1 } }
+        "},
+        OperationKind::Find,
+        find(FindOp::new().project(vec![field(
+            "hits",
+            blocks(blk::header(blk::text_eq("header1"))),
+        )])),
+    );
+}
+
+#[test]
+fn project_block_predicate_operators_round_trip() {
+    assert_parse(
+        indoc! {"
+            project:
+              hits:
+                $blocks:
+                  $or:
+                    - { $paragraph: { $references: '2' } }
+                    - { $quote: {} }
+                    - { $item: { $matches: 'mark[0-9]' } }
+        "},
+        OperationKind::Find,
+        find(FindOp::new().project(vec![field(
+            "hits",
+            blocks(blk::or(vec![
+                blk::paragraph(blk::references("2")),
+                blk::quote(blk::any()),
+                blk::item(blk::matches("mark[0-9]")),
+            ])),
+        )])),
+    );
+}
+
+#[test]
+fn add_fields_scoped_matches_round_trips() {
+    assert_parse(
+        indoc! {"
+            addFields:
+              found:
+                $matches:
+                  pattern: 'mark[0-9]'
+                  $within: header1
+        "},
+        OperationKind::Find,
+        find(FindOp::new().add_fields(vec![field(
+            "found",
+            grep("mark[0-9]", blk::within_section("header1")),
+        )])),
     );
 }

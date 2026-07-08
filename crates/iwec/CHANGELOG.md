@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe_query` tool runs an IWE query/block-selection operation document — `operation` is `find` / `count` / `update` / `delete` and `document` is the operation as a YAML string. It exposes the `$content` membership filter, the `$content` / `$blocks` / `$matches` projection sources, and the block update operators (`$replace`, `$replaceText`, `$insertBefore`, `$insertAfter`, `$append`, `$delete`). `find` and `count` read; `update` applies frontmatter and block edits; `delete` removes documents with reference cleanup. The tool is always strict: every mutating application must carry an `expect` guard or the operation is refused with the missing guards named. `update` / `delete` accept `dry_run` to preview without writing.
+
 ## [0.8.0](https://github.com/iwe-org/iwe/compare/iwec-v0.7.0...iwec-v0.8.0) - 2026-07-07
 
 ### Changed

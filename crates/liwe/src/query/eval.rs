@@ -7,6 +7,8 @@ use crate::graph::walk::{
 };
 use crate::graph::Graph;
 use crate::model::Key;
+use crate::query::block::BlockPredicate;
+use crate::query::block_eval::BlockIndex;
 use crate::query::document::{FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, ReferenceAnchor};
 use crate::query::filter::{match_field_op, resolve_path, Resolution};
 use crate::query::graph_match::match_key_op;
@@ -31,6 +33,7 @@ fn eval(filter: &Filter, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet
         Filter::Nor(children) => eval_nor(children, graph, scope),
         Filter::Field { path, op } => eval_field(path, op, graph, scope),
         Filter::Key(op) => eval_key(op, graph, scope),
+        Filter::Content(pred) => eval_content(pred, graph, scope),
         Filter::Includes(anchor) => eval_inclusion(anchor, graph, scope, true),
         Filter::IncludedBy(anchor) => eval_inclusion(anchor, graph, scope, false),
         Filter::References(anchor) => eval_reference(anchor, graph, scope, true),
@@ -39,7 +42,10 @@ fn eval(filter: &Filter, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet
 }
 
 fn is_predicate(filter: &Filter) -> bool {
-    matches!(filter, Filter::Field { .. } | Filter::Key(_))
+    matches!(
+        filter,
+        Filter::Field { .. } | Filter::Key(_) | Filter::Content(_)
+    )
 }
 
 fn eval_and(children: &[Filter], graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<Key> {
@@ -111,6 +117,28 @@ fn eval_key(op: &KeyOp, graph: &Graph, scope: Option<&HashSet<Key>>) -> HashSet<
         .into_iter()
         .filter(|k| match_key_op(op, k))
         .collect()
+}
+
+fn eval_content(
+    pred: &BlockPredicate,
+    graph: &Graph,
+    scope: Option<&HashSet<Key>>,
+) -> HashSet<Key> {
+    let candidate = scope.cloned().unwrap_or_else(|| all_keys(graph));
+    let keys: Vec<Key> = candidate.into_iter().collect();
+    if keys.len() >= PARALLEL_THRESHOLD {
+        keys.into_par_iter()
+            .filter(|k| match_content_at(graph, k, pred))
+            .collect()
+    } else {
+        keys.into_iter()
+            .filter(|k| match_content_at(graph, k, pred))
+            .collect()
+    }
+}
+
+fn match_content_at(graph: &Graph, key: &Key, pred: &BlockPredicate) -> bool {
+    BlockIndex::build(graph, key).has_match(pred)
 }
 
 fn eval_inclusion(
@@ -205,6 +233,7 @@ fn run_predicate(filter: &Filter, key: &Key, graph: &Graph) -> bool {
     match filter {
         Filter::Field { path, op } => match_field_at(graph, key, path, op),
         Filter::Key(op) => match_key_op(op, key),
+        Filter::Content(pred) => match_content_at(graph, key, pred),
         _ => unreachable!("non-predicate filter passed to run_predicate"),
     }
 }

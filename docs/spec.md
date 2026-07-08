@@ -71,8 +71,8 @@ The "anchor" is one of the documents selected by the operator's argument. Relati
 |---|---|
 | `find` | Returns matched documents (subject to `project`, §6). |
 | `count` | Returns the integer count of matched documents. |
-| `update` | Mutates each matched document by applying an update document (§9). |
-| `delete` | Removes each matched note. |
+| `update` | Mutates each matched document by applying an update document (§9) — frontmatter operators, and the block operators of the block surface (§9.5). |
+| `delete` | Removes each matched document. |
 
 ### 3.2 Operation-document structure
 
@@ -86,6 +86,7 @@ Every operation document is one YAML mapping. Top-level fields:
 | `sort` | all | §7. On `update` / `delete`, bounds iteration order before mutation. |
 | `limit` | all | §8. On `update` / `delete`, bounds the number of mutated / removed docs. |
 | `update` | update | Update document (§9). Required on `update`. |
+| `expect` | update, delete | Document-level guard: asserts the number of matched documents the operation will write (post-`limit`), refusing the whole operation on violation. Grammar: §A.7. Semantics: [`expect` guards](query-language.md#expect-guards). |
 
 Operation-inappropriate fields are an error. The valid field set per operation:
 
@@ -93,10 +94,10 @@ Operation-inappropriate fields are an error. The valid field set per operation:
 |---|---|
 | `find` | `filter`, `project`, `addFields`, `sort`, `limit` |
 | `count` | `filter`, `sort`, `limit` |
-| `update` | `filter` (required), `sort`, `limit`, `update` (required) |
-| `delete` | `filter` (required), `sort`, `limit` |
+| `update` | `filter` (required), `sort`, `limit`, `update` (required), `expect` |
+| `delete` | `filter` (required), `sort`, `limit`, `expect` |
 
-E.g. `project` in a `count` / `update` / `delete` operation, or `update` in a `find` / `count` / `delete` operation, are parse-time errors.
+E.g. `project` in a `count` / `update` / `delete` operation, `update` in a `find` / `count` / `delete` operation, or `expect` in a `find` / `count` operation, are parse-time errors.
 
 `filter` is required on both `update` and `delete` to prevent accidental whole-corpus mutation. The empty filter `{}` matches all documents and must be passed explicitly.
 
@@ -150,7 +151,7 @@ limit: 500
 
 A filter document is a predicate evaluated against each document in the corpus. A document matches when every top-level key matches.
 
-Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the document-level logical operators (`$and`, `$or`, `$nor`; §4.6) and the **graph operators** (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`) defined in §5. Both kinds compose freely with frontmatter predicates under the same algebra. `$not` exists only as a **field-level** operator (§4.6); document-level negation is expressed via `$nor`.
+Filter top-level keys are either user frontmatter field names (e.g. `status`, `priority`, `tags`) or `$`-prefixed operator names. The operator family includes the document-level logical operators (`$and`, `$or`, `$nor`; §4.6), the **graph operators** (`$key`, `$includes`, `$includedBy`, `$references`, `$referencedBy`) defined in §5, and the block-membership operator **`$content`** (grammar: §A.3; semantics: [Content membership](query-language.md#content--content-membership)). All of these compose freely with frontmatter predicates under the same algebra. `$not` exists only as a **field-level** operator (§4.6); document-level negation is expressed via `$nor`.
 
 ### 4.1 Implicit equality (bare values)
 
@@ -594,6 +595,7 @@ Graph operators live inside filter documents alongside frontmatter predicates. T
 | Relational (§5.2) | `$includedBy` | the document's inbound inclusion relation to an anchor set |
 | Relational (§5.2) | `$references` | the document's outbound reference relation to an anchor set |
 | Relational (§5.2) | `$referencedBy` | the document's inbound reference relation to an anchor set |
+| Membership | `$content` | the document's blocks — at least one matching the block predicate (grammar: §A.3; semantics: [Content membership](query-language.md#content--content-membership)) |
 
 Unknown `$`-prefixed operator names inside a filter are parse-time errors.
 
@@ -964,7 +966,7 @@ The motivation: `find` returns metadata and `retrieve` returns content. MongoDB-
 
 ### 6.1 Structural pseudo-field sources
 
-§2.3 reserves field names whose first character is `$`, `_`, `.`, `#`, or `@`. This section defines a concrete set of `$`-prefixed **pseudo-field source selectors** that are addressable as projection sources (and only as projection sources — they are not addressable in `filter`, `sort`, or `update`).
+§2.3 reserves field names whose first character is `$`, `_`, `.`, `#`, or `@`. This section defines a concrete set of `$`-prefixed **pseudo-field source selectors** that are addressable as projection sources. They are not addressable in `sort` or `update`. On the filter side the single exception is `$content`, which doubles as the block-membership operator — it takes a block predicate and matches documents containing at least one matching block (grammar: §A.3; semantics: [Content membership](query-language.md#content--content-membership)).
 
 The `$`-prefix is a **source-side marker**, not an output-side marker. It says "this name resolves against the engine, not against user frontmatter." Output names are always bare.
 
@@ -1010,7 +1012,7 @@ Where:
 | `1` | Include a frontmatter field whose name equals `outputName`. Shorthand for `<outputName>: <outputName>`. `true` and YAML `null` are accepted as aliases of `1`. |
 | `$<selector>` | Include the named structural pseudo-field source. |
 | `path.to.fm.field` | Include a frontmatter value at a dotted path (per §4.4). |
-| `{ $<selector>: { <options> } }` | Reserved syntax for selectors that take options (no selector currently uses this form). |
+| `{ $<selector>: { <options> } }` | Options form, used by the block surface: `{ $content: P }` narrows the body to blocks matching the predicate `P`, and the `$blocks` / `$matches` sources take their predicate or pattern this way (grammar: §A.4; semantics: [Block projection](query-language.md#block-projection)). |
 
 Examples:
 
@@ -1096,10 +1098,10 @@ heading: Doc One
 
 Some pseudo-field sources require auxiliary graph computation. On `find` (the supported path), projecting any of `$content`, `$includes`, `$includedBy`, `$references`, `$referencedBy` *implies* the corresponding compute — no flags needed. The implied depth for `$includes` is 1 (immediate children only); deeper traversal is currently only available on `retrieve`.
 
-On `retrieve`, the legacy flag set (`-b`, `-c`, `-l`, `-d`) still gates these computations. When the projection asks for a source whose backing flag is not set, the field is emitted with its empty value (`[]`, `""`):
+`retrieve` exposes no projection flags (§6.4.1); its output follows the default projection, and the flag set (`-b`, `-l`, `--children`) gates which of these sources are computed. When a field's backing flag is not set, the field is still emitted, with its empty value (`[]`):
 
-- `parents: $referencedBy` without `-b` → `parents: []`.
-- `kids: $includes` with `-d 0` → `kids: []`.
+- `referencedBy` without `-b` → `[]`.
+- `includes` without `--children` → `[]`.
 
 The empty form preserves stable schema (§13.1.3).
 
@@ -1169,9 +1171,9 @@ Each element is a projected document per §6.2.1. The shapes `FindResult` and `D
 
 #### 6.4.1 Cross-command convergence
 
-Once projection is unified, `find` and `retrieve` differ only in **selection vocabulary**: `find` accepts a positional fuzzy `QUERY`; `retrieve` accepts `-k KEY` (and graph-walk flags like `-d`, `-c`, `-l`). Default projection is the same on both (§6.2.2), and the wire shape is the same flat array.
+Once projection is unified, `find` and `retrieve` differ only in **selection vocabulary**: `find` accepts text queries (`--fuzzy`, `--lexical`); `retrieve` accepts `-k KEY` (and graph-walk flags like `-d`, `-c`, `-l`). Default projection is the same on both (§6.2.2), and the wire shape is the same flat array.
 
-A `find` invocation with `--project 'body=$content,parents=$includedBy'` produces the same per-document shape — and the same outer shape — as `retrieve --project 'body=$content,parents=$includedBy'`.
+`retrieve` deliberately exposes no projection flags — every shaped read is `find`'s (`find -k KEY --project ...`). Under the shared default projection, `find` and `retrieve` produce the same per-document shape — and the same outer shape — for the same key set.
 
 ### 6.5 Markdown rendering under projection
 
@@ -1317,11 +1319,15 @@ The language MUST express the following mutations directly:
 | Mark all drafts reviewed | `$set: {reviewed: true}` |
 | Promote drafts to published | `$set: {status: published, published_at: 2026-04-26}, $unset: {draft_notes: ""}` |
 
+### 9.5 Block operators
+
+The update document also accepts six **block operators** — `$replace`, `$replaceText`, `$insertBefore`, `$insertAfter`, `$append`, `$delete` — as siblings of `$set` / `$unset`. Each addresses blocks inside the matched documents through a block predicate carried in its argument: the `$`-prefixed keys select, the bare keys are the payload and the optional `expect` guard. Block operators are valid only in `update` operations, combine freely with the frontmatter operators, apply atomically with them per matched document (§10.1), and never conflict with `$set` / `$unset` paths — they mutate different data. Grammar: §A.7 (operators) and §A.9 (block predicates). Semantics — targets and coalescing, header splice behavior, `$replaceText` anchor rules, extent disjointness, guards — are specified in [Block update operators](query-language.md#block-update-operators).
+
 ## 10. Atomicity
 
 ### 10.1 Per-document
 
-All operators in one update document apply atomically per matched document: either every operator succeeds and the engine emits a single rewritten frontmatter for that document, or no replacement is emitted for that document. There is no half-applied frontmatter. `$set` and `$unset` have no runtime failure modes — invalid update documents are rejected at parse time (`$set` / `$unset` conflict, reserved-prefix paths, etc.) before any matching runs.
+All operators in one update document apply atomically per matched document: either every operator succeeds and the engine emits a single rewritten document — frontmatter and body — for that document, or no replacement is emitted for it. There is no half-applied rewrite. `$set` and `$unset` have no evaluation-time failure modes — their invalid forms are rejected at parse time (`$set` / `$unset` conflict, reserved-prefix paths, etc.) before any matching runs. The block operators (§9.5) do have evaluation-time failure modes — type compatibility, `$replaceText` anchors, extent disjointness, `expect` guards; the operation validates fully against the original documents before anything is emitted, so a failure in any matched document means no document is rewritten and the frontmatter operators write nothing (semantics: [Validation and atomicity](query-language.md#validation-and-atomicity)).
 
 ### 10.2 Across-document
 
@@ -1349,9 +1355,9 @@ This section specifies the `iwe` CLI surface for the four query operations. It c
 
 | Subcommand | Spec operation | Notes |
 |---|---|---|
-| `iwe find [QUERY]` | `find` | Combines fuzzy `QUERY` (positional, on title/key) with filter flags via AND. Supports `--project`, `--sort`, `--limit`. |
+| `iwe find [QUERY]` | `find` | Combines a text query — `--fuzzy` (title/key) or `--lexical` (BM25 on title and body); the bare positional `QUERY` is a deprecated alias of `--fuzzy` (§12.6) — with filter flags via AND. Supports `--project`, `--sort`, `--limit`, `--blocks`, `--matches`. |
 | `iwe count` | `count` | Prints integer matches to stdout. Supports `--limit`. |
-| `iwe update` | `update` (mutation mode) | Two modes: body overwrite (`-k -c`) or frontmatter mutation (`--filter`/`-k` + `--set`/`--unset`). Modes are mutually exclusive. |
+| `iwe update` | `update` (mutation mode) | Two modes: body overwrite (`-k -c`) or mutation (`--filter`/`-k` + `--set`/`--unset` and the block-operator flags, §12.4). Modes are mutually exclusive. |
 | `iwe delete [KEY]` | `delete` | Positional `KEY` is sugar for `$key: K`. Combine with `--filter` to widen. Either `KEY` or `--filter` is required. |
 | `iwe tree`, `retrieve`, `export` | (selection only) | Reuse the same filter flag set to narrow what they operate on. They are not spec operations. |
 
@@ -1459,28 +1465,30 @@ For range bounds (`minDepth` / `maxDepth`, `minDistance` / `maxDistance`), ancho
 | `iwe find` | `markdown`, `keys`, `json`, `yaml` | `markdown` |
 | `iwe retrieve` | `markdown`, `keys`, `json`, `yaml` | `markdown` |
 | `iwe tree` | `markdown`, `keys`, `json`, `yaml` | `markdown` |
-| `iwe export` | `dot`, `markdown`, `keys`, `json`, `yaml` | `dot` |
+| `iwe export` | `dot` | `dot` |
 | `iwe count` | (no format flag — output is always a single integer) | n/a |
 | `iwe delete` | `markdown`, `keys` | `markdown` |
 | `iwe rename`, `extract`, `inline` | `markdown`, `keys` | `markdown` |
 
-Read-side commands (`find`, `retrieve`, `tree`, `export`) share one format set so a query written for one renders the same way under another. Mutation commands return a status report and only need `markdown` (human) or `keys` (machine) modes. `count`'s output is the integer match count and admits no format choice.
+Read-side commands (`find`, `retrieve`, `tree`) share one format set so a query written for one renders the same way under another; `iwe export` emits DOT only (§13.5.2). Mutation commands return a status report and only need `markdown` (human) or `keys` (machine) modes. `count`'s output is the integer match count and admits no format choice.
 
 #### 12.3.2 Projection and sort flags
 
 | Flag | Lowers to | Operations |
 |---|---|---|
-| `--project f1,f2[,f3]` | `project: { f1: 1, f2: 1, f3: 1 }` | `find` only |
-| `--add-fields f1,f2[,f3]` | `addFields: { f1: 1, f2: 1, f3: 1 }` | `find` only |
+| `--project f1,f2[,f3]` | `project: { f1: 1, f2: 1, f3: 1 }` | `find`, `tree` |
+| `--add-fields f1,f2[,f3]` | `addFields: { f1: 1, f2: 1, f3: 1 }` | `find`, `tree` |
 | `--sort field:1`, `--sort field:-1` | `sort: { field: 1 }` / `sort: { field: -1 }` | `find` only |
 | `-l, --limit N` | `limit: N` (0 = unlimited, matching §8) | `find`, `count` |
+| `--blocks "PRED"` | `addFields: { blocks: { $blocks: PRED } }` | `find` only |
+| `--matches PATTERN` | `filter: { $content: { $matches: PATTERN } }` **and** `addFields: { matches: { $matches: PATTERN } }` — a composite lowering: one-flag grep | `find` only |
 
 `--project` and `--add-fields` accept two argument forms:
 
 - **Comma list:** `--add-fields body=$content,parents=$includedBy`
 - **Inline YAML mapping:** `--add-fields 'body: $content'` or `--add-fields '{body: $content, parents: $includedBy}'`
 
-The argument is parsed as YAML first; if it is a mapping, it is used as the projection document directly. Otherwise it is treated as a comma list. This mirrors the `--filter` lowering in §12.2.1.
+The argument is parsed as YAML first; if it is a mapping, it is used as the projection document directly — this form carries the full §6 grammar, including the block sources and, on `--project`, the top-level block-predicate form (§A.4). Otherwise it is treated as a comma list. This mirrors the `--filter` lowering in §12.2.1.
 
 **Comma-list form.** Each `ITEM` lowers to a single `<outputName>: <source>` entry:
 
@@ -1490,6 +1498,7 @@ The argument is parsed as YAML first; if it is a mapping, it is used as the proj
 | `name=path.to.fm` | `name: path.to.fm` | Frontmatter at dotted path, output as `name`. |
 | `name=$selector` | `name: $selector` | Pseudo-field source, output as `name`. |
 | `$selector` | `selector: $selector` | Pseudo-field, output name = selector minus `$`. Convenience form. |
+| `$blocks` / `name=$blocks` | `blocks: { $blocks: {} }` / `name: { $blocks: {} }` | Block source with the empty predicate — every block. A parameterized predicate (or the `$content` / `$matches` block sources) requires the mapping form. |
 
 `--project` and `--add-fields` are mutually exclusive on a single invocation. Passing both is a CLI parse error, mirroring the document-level rule in §6.3.
 
@@ -1512,14 +1521,29 @@ The flags below configure the `retrieve` walker directly and are not lowered int
 | `-e, --exclude KEY` | Repeatable. Skip these keys when assembling the result. |
 | `--filter`, `-k`, `--includes`, `--included-by`, `--references`, `--referenced-by`, `--max-depth`, `--max-distance` | Same selection-side filter flags documented in §12.2; constrain which keys are pulled. |
 
+#### 12.3.4 Token budgets (`iwe find`, `iwe retrieve`)
+
+Two output-budget flags cap how much rendered content the command emits. They are host-side output shaping, not part of the operation document: they do not affect which documents match, only how much of each body is printed.
+
+| Flag | Effect |
+|---|---|
+| `--max-tokens N` | Cap total content tokens across all results (`0` = unlimited). |
+| `--max-document-tokens N` | Cap content tokens per document (`0` = unlimited). |
+
+When a budget clips output, the command prints a truncation warning to stderr naming the limits that apply. `$blocks` / `$matches` entries are exempt from both budgets; a narrowed `$content` field is counted and capped like a full body (§13.6.1).
+
 ### 12.4 Update flags (`iwe update` mutation mode)
 
 | Flag | Lowers to |
 |---|---|
 | `--set FIELD=VALUE` | `$set: { FIELD: VALUE }` (repeatable) |
 | `--unset FIELD` | `$unset: { FIELD: "" }` (repeatable) |
+| `--replace "ARG"`, `--replace-text "ARG"`, `--insert-before "ARG"`, `--insert-after "ARG"`, `--append "ARG"`, `--delete "ARG"` | one block-operator entry (`$replace`, `$replaceText`, `$insertBefore`, `$insertAfter`, `$append`, `$delete`) in the update document; `ARG` is the operator's `{ <selector>, <payload> }` mapping (§A.7), the operator-name wrapper dropped. Each flag appears at most once. |
+| `--expect VAL` | the document-level `expect` clause (§3.2) |
+| `--strict` | surface policy, not grammar: refuses to run unless every mutating application carries its `expect` guard (document-level `--expect` plus each block operator's `expect`); exempt under `--dry-run` |
 | `--filter "EXPR"` | required if `-k` is omitted |
 | `--dry-run` | preview only; print the would-be changes per doc and exit |
+| `--quiet` | suppress progress output |
 
 `--set FIELD=VALUE` parses VALUE as a YAML scalar. `5` is an integer, `true` is a bool, `draft` is a string, `[a, b]` is a list. To force a string, quote it as YAML: `--set 'count="5"'`.
 
@@ -1533,6 +1557,8 @@ Body-overwrite mode (`-k KEY -c CONTENT`) is the existing single-doc body rewrit
 |---|---|
 | Positional `KEY` | `$key: K` (sugar) |
 | `--filter "EXPR"` | inline filter |
+| `--expect VAL` | the document-level `expect` clause (§3.2) |
+| `--strict` | requires `--expect`; refuses to run without it; exempt under `--dry-run` |
 | `--dry-run` | preview |
 | `-f, --format markdown\|keys` | output format (default `markdown`); `keys` prints affected document keys, suppresses progress |
 | `--quiet` | suppress progress |
@@ -1549,6 +1575,7 @@ These flags predate the language and remain accepted on the commands they origin
 
 | Deprecated | Lowers to |
 |---|---|
+| bare positional `QUERY` (on `find`) | `--fuzzy QUERY` (prints a deprecation warning; use `--lexical QUERY` for BM25 full-text) |
 | `--in KEY[:N]` | `--included-by KEY[:N]` |
 | `--in-any K1 --in-any K2` | `$or: [{ $includedBy: K1 }, { $includedBy: K2 }]` (scalar shorthand for each) |
 | `--not-in KEY` | `$nor: [{ $includedBy: KEY }]` (scalar shorthand) |
@@ -1564,7 +1591,7 @@ The mixed-edge lowering of `--refs-to` / `--refs-from` preserves their pre-spec 
 
 Within a single command:
 
-1. All filter flags at the top level are AND-composed. The fuzzy positional `QUERY` (on `iwe find`) is also ANDed: the result is the **set intersection** of the fuzzy-match set and the filter-match set. Order of evaluation is implementation-defined (typically the more selective predicate is applied first for performance), but the result set is order-independent.
+1. All filter flags at the top level are AND-composed. The text query (`--fuzzy` / `--lexical` on `iwe find`, or the deprecated bare positional) is also ANDed: the result is the **set intersection** of the text-match set and the filter-match set. Order of evaluation is implementation-defined (typically the more selective predicate is applied first for performance), but the result set is order-independent.
 2. `--filter "EXPR"` contributes its top-level filter document to the same AND.
 3. `-k` / positional `KEY` participate in the AND like any other clause.
 4. `--sort`, `--limit`, `--project` apply after filtering, in the order defined by §11.
@@ -1583,9 +1610,10 @@ For OR or NOR compositions, write the filter inside `--filter`:
 #### 12.8.1 Find
 
 ```
-iwe find rust                                       # fuzzy on "rust"
+iwe find --fuzzy rust                               # fuzzy on "rust" (title/key)
+iwe find --lexical "borrow checker"                 # BM25 full-text on title and body
 iwe find --filter 'status: draft'                   # all drafts
-iwe find rust --filter 'status: draft'              # fuzzy AND status==draft
+iwe find --fuzzy rust --filter 'status: draft'      # fuzzy AND status==draft
 iwe find --included-by projects/alpha:5             # descendants within 5 levels
 iwe find --included-by projects/alpha:0             # all descendants of alpha (unbounded)
 iwe find --references people/alice                  # docs that reference alice
@@ -1626,6 +1654,12 @@ iwe update --filter 'status: archived' --unset draft_notes
 
 # Preview only — no writeback
 iwe update --filter 'status: draft' --set status=published --dry-run
+
+# Block mutation — retitle one section, guarded to a single target
+iwe update -k projects/roadmap --replace '{ $header: Goals, content: "## Goals 2026", expect: 1 }'
+
+# Strict bulk edit: every mutating application must carry its guard
+iwe update --filter 'status: draft' --strict --expect 3 --set status=published
 ```
 
 #### 12.8.4 Delete
@@ -1633,6 +1667,7 @@ iwe update --filter 'status: draft' --set status=published --dry-run
 ```
 iwe delete document-key                             # single doc
 iwe delete --filter 'status: archived'              # bulk delete by filter
+iwe delete --filter 'status: draft' --strict --expect '{ max: 5 }'   # guarded bulk delete
 iwe delete --filter '$key: drafts/scratch' --dry-run # preview a deletion by filter
 ```
 
@@ -2068,6 +2103,10 @@ Flags that change the *shape* (not just the selection) of output. Selection-only
 |---|---|
 | `--project f1,f2,...` | `markdown` renders the compact index (one `- [title](key)` line per result) unless a `$content`-shaped field is projected, in which case it switches to one fenced block per result — the frontmatter carries the projected fields under their output names, with `key` lifted to the fence info string and the `$content` field rendered as the body. `keys` is unaffected. JSON/YAML: each `FindResult` carries only the listed fields, in the listed order. |
 | `--add-fields f1,f2,...` | Same as `--project` — additive over the default projection in structured output (§6.3); `keys` ignores it. JSON/YAML: each `FindResult` carries the default projection plus the listed fields. |
+| `--blocks "PRED"` / a projected `$blocks` field | `markdown`: one grep line per entry — `key › section path › text` — under the result's index line; never a ` · name: value` annotation. JSON/YAML: an array of entry mappings — `type`, `path`, and `text` on every entry (`""` when the block has no own text), plus `target` on every `ref` entry — per the stable-schema rule (§13.1.3). Entries are exempt from `--max-tokens` / `--max-document-tokens`. |
+| `--matches PATTERN` / a projected `$matches` field | Same rendering, one entry per matching line (`path`, `text`). |
+
+A narrowed `{ $content: PREDICATE }` field is `$content`-shaped for the fenced-block rule in the `--project` row: it switches the invocation to the fenced-block form with the narrowed rendering as the body, and it is counted and capped by the token budgets like a full body.
 
 #### 13.6.2 `iwe retrieve`
 
@@ -2085,7 +2124,8 @@ The flags below gate which structural sources are populated (per the conditional
 
 | Flag | Effect on shape |
 |---|---|
-| `--project f1,f2,...` | Each `TreeNode` carries the listed user frontmatter fields, in the listed order, alongside the system fields (`key`, `title`, `children`). `children` is always present regardless of projection. With no `--project`: only system fields. |
+| `--project EXPR` | JSON/YAML only: each `TreeNode` carries the projected fields alongside the system fields (`key`, `title`, `children`). `EXPR` takes the full `--project` grammar (§12.3.2) — frontmatter fields, `$`-selectors, block sources. `children` is always present regardless of projection. With no `--project`: only system fields. `markdown` and `keys` ignore projection. |
+| `--add-fields EXPR` | Same grammar; extends each node's default fields instead of replacing. Mutually exclusive with `--project`. |
 
 #### 13.6.4 Mutation commands
 
@@ -2137,16 +2177,18 @@ update_op ::= {
     sort:   sort                                    (optional)
     limit:  limit                                   (optional)
     update: update_doc                              (required)
+    expect: expect_val                              (optional; matched-document guard, §3.2; production in §A.7)
 }
 
 delete_op ::= {
     filter: filter                                  (required)
     sort:   sort                                    (optional)
     limit:  limit                                   (optional)
+    expect: expect_val                              (optional; matched-document guard, §3.2; production in §A.7)
 }
 ```
 
-Operation-inappropriate fields are parse-time errors (e.g. `project` outside `find`, `update` outside `update`). `project` and `addFields` cannot both be set in a single `find_op` (§6.3).
+Operation-inappropriate fields are parse-time errors (e.g. `project` outside `find`, `update` outside `update`, `expect` outside `update` / `delete`). `project` and `addFields` cannot both be set in a single `find_op` (§6.3).
 
 ### A.2 Filter
 
@@ -2238,6 +2280,7 @@ graph_op ::=
   | $includedBy   : relational_arg
   | $references   : relational_arg
   | $referencedBy : relational_arg
+  | $content      : block_predicate                 # block membership: at least one matching block (§A.9)
 ```
 
 The `filter` production used inside relational operators (`match` field, §A.3.2) is the same `filter` production from §A.2 — the grammar is mutually recursive.
@@ -2294,7 +2337,8 @@ relational_obj ::= {
 ### A.4 Projection
 
 ```
-projection ::= { (project_entry)+ }
+projection ::= { (project_entry)* }               # empty mapping = explicit empty projection:
+                                                   #   each result carries no fields
 
 project_entry ::= field_path : source
 
@@ -2302,6 +2346,7 @@ source ::=
     include_marker                                 # include frontmatter[outputName]
   | "$" pseudo_field                               # include the named structural pseudo-field source
   | dotted_path                                    # include frontmatter at the dotted path
+  | block_source                                   # block surface (§A.9 for block_predicate)
 
 include_marker  ::= 1 | true | null                # all three mean "include frontmatter[outputName]";
                                                    # type-strict: integer 1, bool true, or YAML null
@@ -2311,7 +2356,24 @@ pseudo_field    ::= "key" | "title" | "titleSlug" | "content" | "frontmatter"
                   | "includedBy" | "includes" | "referencedBy" | "references"
                                                    # closed set; see §6.1
 
+block_source ::=
+    { $content: block_predicate }                  # body narrowed to matching blocks — a string
+  | $blocks | { $blocks: block_predicate }         # located blocks as entries; bare form = { $blocks: {} }
+  | { $matches: regex }                            # grep — one entry per matching line
+  | { $matches: { pattern: regex, (block_pred_entry)* } }
+                                                   # scoped grep: bare `pattern` is the payload, $-keys select
+
 dotted_path     ::= segment ("." segment)*         # §A.2.3 segment rules
+```
+
+The `project` clause of a `find_op` (not `addFields`) additionally accepts a **block predicate** in place of the field map — any `$`-key at the top level of `project` selects this reading:
+
+```
+project_clause ::= projection                      # v1 field map (bare output names)
+                 | block_predicate                 # §A.9; lowers to
+                                                   #   { key: $key, content: { $content: P } };
+                                                   #   mixing bare and $ keys = parse-time error;
+                                                   #   {} keeps its v1 empty-projection meaning
 ```
 
 ### A.5 Sort
@@ -2336,7 +2398,31 @@ update_doc ::= { (update_op_entry)+ }              # at least one operator
 update_op_entry ::=
     $set:   { (field_path : value)+ }              # body must be non-empty
   | $unset: { (field_path : any_value)+ }          # body must be non-empty; values ignored
+  | $replace:      replace_arg                     # block operators (§9.5); block_pred_entry in §A.9
+  | $replaceText:  replace_text_arg
+  | $insertBefore: insert_arg
+  | $insertAfter:  insert_arg
+  | $append:       insert_arg
+  | $delete:       delete_arg
 
+replace_arg      ::= { (block_pred_entry)*, content: markdown, expect?: expect_val }
+replace_text_arg ::= { (block_pred_entry)*, from?: string, to: string, expect?: expect_val }
+                                                   # from omitted: to replaces the entire own text
+insert_arg       ::= { (block_pred_entry)*, content: markdown, expect?: expect_val }
+delete_arg       ::= { (block_pred_entry)*, expect?: expect_val }
+
+expect_val       ::= non_neg_int | { min?: non_neg_int, max?: non_neg_int }
+                                                   # also the document-level expect of update_op / delete_op (§A.1)
+
+# Within a block operator's argument, $-prefixed keys form the block predicate
+#   and bare keys are the payload. The bare-key set per operator is closed;
+#   unknown bare keys are parse-time errors.
+# An argument with no $-keys carries the empty predicate and selects all blocks.
+# Block operators are valid only in update documents; appearing in a find /
+#   count / delete operation is a parse-time error.
+# Unit operators act on the selection's coalesced roots; their expect counts
+#   targets. $replaceText applies per selected block, un-coalesced; its expect
+#   counts blocks. Semantics: query-language.md#block-update-operators.
 # Empty $set: {} / $unset: {} is a parse-time error (grammar requires +).
 # Targeting a reserved-prefix segment (_, $, ., #, @ as first character of any segment in
 #   any path — top-level, dotted, or nested mapping key, recursively) is a parse-time error.
@@ -2364,4 +2450,46 @@ bool        ::= true | false
 non_neg_int ::= integer ≥ 0
 pos_int     ::= integer ≥ 1
 any_value   ::= value                              # placeholder; ignored by $unset
+regex       ::= string                             # Rust regex syntax; compile failure = parse-time error
+markdown    ::= string                             # parsed and normalized on write
 ```
+
+### A.9 Block predicates
+
+One grammar, consumed at three sites: `$content` in filter (§A.3), the block projection sources and the top-level `project` form (§A.4), and the block operators' selectors (§A.7). Semantics — selection forests, own text, normalized-form matching — are specified in the [Query Language reference](query-language.md#block-predicates).
+
+```
+block_predicate ::= { (block_pred_entry)* }        # empty mapping matches every block
+
+block_pred_entry ::=
+    $text:       string | { $eq: string }          # case-insensitive; bare = substring, $eq = whole own text
+  | $matches:    regex                             # case-sensitive; (?i) for case-insensitive
+  | $within:     string | block_predicate          # interior of the argument's forest;
+                                                   # scalar T = { $section: { $text: { $eq: T } } };
+                                                   # {} = the interior of the document;
+                                                   # a mapping argument must select content:
+                                                   #   hold a tree_selector ($and: some branch,
+                                                   #   $or: every branch) — else parse-time error
+  | $contains:   block_predicate                   # descendant axis: has such a block below it
+  | tree_selector                                  # in block position: all blocks of the trees
+  | type_op                                        # per-type operators
+  | $references: key                               # own content links to the key
+  | $and:        [block_predicate, ...]            # non-empty
+  | $or:         [block_predicate, ...]            # non-empty
+  | $nor:        [block_predicate, ...]            # non-empty
+
+type_op ::=
+    $header: type_arg | $paragraph: type_arg | $item: type_arg
+  | $code:   type_arg | $table:     type_arg
+  | $ref:    block_predicate                       # scalar = parse-time error; own text = authored (piped) link text
+  | $hr:     block_predicate                       # no own text: scalar or direct $text / $matches = parse-time error
+
+type_arg ::= string | block_predicate              # scalar T = { $text: { $eq: T } }; {} = any block of the type
+
+tree_selector ::= { $section: string | block_predicate }
+                                                   # trees rooted at headers matching the argument
+                | { $quote: block_predicate }      # empty head; scalar or direct $text / $matches = parse-time error
+                | { $list:  block_predicate }      # empty head; scalar or direct $text / $matches = parse-time error
+```
+
+Every key in a block predicate is a `$`-prefixed operator; unknown `$`-names and bare keys are parse-time errors. Top-level keys AND together, as everywhere in the language.

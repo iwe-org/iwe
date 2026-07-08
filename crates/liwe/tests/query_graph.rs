@@ -1,16 +1,16 @@
-use indoc::indoc;
-use liwe::graph::Graph;
-use liwe::model::config::MarkdownOptions;
-use liwe::query::prelude::{
+use crate::queries::{
     and, eq, filter, find, included_by, includes, key_eq, key_in, key_ne, key_nin, nor, or,
     referenced_by, references,
 };
+use indoc::indoc;
+use liwe::graph::Graph;
+use liwe::model::config::MarkdownOptions;
 use liwe::query::{execute, FindOp, InclusionAnchor, Outcome, ReferenceAnchor};
 use liwe::state::from_indoc;
 
 fn run_find_keys(docs: &str, op: FindOp) -> Vec<String> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&find(op), &graph) {
+    match execute(&find(op), &graph).expect("query succeeds") {
         Outcome::Find { matches } => matches.into_iter().map(|m| m.key.to_string()).collect(),
         other => panic!("expected Find, got {:?}", other),
     }
@@ -211,7 +211,7 @@ fn empty_corpus_returns_empty() {
         None,
     );
     let op = filter(key_eq("anything"));
-    match execute(&find(op), &graph) {
+    match execute(&find(op), &graph).expect("query succeeds") {
         Outcome::Find { matches } => assert!(matches.is_empty()),
         other => panic!("{:?}", other),
     }
@@ -514,7 +514,7 @@ fn disconnected_components() {
 
 #[test]
 fn sort_after_graph_filter() {
-    use liwe::query::prelude::exists;
+    use crate::queries::exists;
     use liwe::query::Sort;
     assert_keys(
         indoc! {"

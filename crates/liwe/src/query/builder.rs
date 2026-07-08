@@ -1,10 +1,12 @@
 use serde_yaml::{Mapping, Value};
 
 use crate::model::Key;
+use crate::query::block::{parse_block_predicate, parse_matches_source, BlockPredicate};
 use crate::query::document::{
-    CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp, Limit,
-    Operation, OperationKind, Projection, ProjectionField, ProjectionMode, ProjectionSource,
-    PseudoField, ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
+    BlockUpdate, BlockUpdateOp, CountOp, DeleteOp, Expect, FieldOp, FieldPath, Filter, FindOp,
+    InclusionAnchor, KeyOp, Limit, Operation, OperationKind, Projection, ProjectionBase,
+    ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir, Update,
+    UpdateOp, UpdateOperator, YamlType,
 };
 use crate::query::wire::{
     self, RawFilter, RawKeyOpMap, RawOperation, RawProjection, RawRelationalObj, RawSort, RawUpdate,
@@ -125,6 +127,37 @@ pub enum ParseError {
         op: &'static str,
         modifier: &'static str,
     },
+    UnknownBlockOperator {
+        op: String,
+    },
+    BareKeyInBlockPredicate {
+        key: String,
+    },
+    BlockScalarNotAllowed {
+        op: &'static str,
+    },
+    BlockTextPredicateNotAllowed {
+        op: &'static str,
+    },
+    WithinArgumentWithoutContents,
+    InvalidRegex {
+        pattern: String,
+        message: String,
+    },
+    MatchesPatternMissing,
+    UnknownBlockPayloadKey {
+        op: &'static str,
+        key: String,
+    },
+    MissingBlockPayload {
+        op: &'static str,
+        key: &'static str,
+    },
+    BlockPayloadExpectedString {
+        op: &'static str,
+        key: &'static str,
+    },
+    InvalidExpect,
 }
 
 fn fmt_path(path: &[String]) -> String {
@@ -165,7 +198,11 @@ impl std::fmt::Display for ParseError {
                 fmt_path(path)
             ),
             Self::UnknownOperator { op, path } => {
-                write!(f, "unknown operator '{}' at '{}'", op, fmt_path(path))
+                if path.is_empty() {
+                    write!(f, "unknown operator '{}'", op)
+                } else {
+                    write!(f, "unknown operator '{}' at '{}'", op, fmt_path(path))
+                }
             }
             Self::EmptyOperatorList { op } => write!(f, "'{}' requires a non-empty list", op),
             Self::OperatorExpectedList { op } => write!(f, "'{}' expects a list", op),
@@ -246,6 +283,43 @@ impl std::fmt::Display for ParseError {
             Self::InvalidDepthValue { op, modifier } => {
                 write!(f, "'{}' has an invalid '{}' value; expected a non-negative integer", op, modifier)
             }
+            Self::UnknownBlockOperator { op } => {
+                write!(f, "unknown block operator '{}'", op)
+            }
+            Self::BareKeyInBlockPredicate { key } => {
+                write!(f, "bare key '{}' is not allowed in a block predicate", key)
+            }
+            Self::BlockScalarNotAllowed { op } => {
+                write!(f, "'{}' does not accept a scalar shorthand", op)
+            }
+            Self::BlockTextPredicateNotAllowed { op } => {
+                write!(f, "'{}' argument does not accept text predicates ($text, $matches)", op)
+            }
+            Self::WithinArgumentWithoutContents => {
+                write!(
+                    f,
+                    "'$within' expects a content-carrying argument: {{}}, or a predicate containing $section, $quote, or $list"
+                )
+            }
+            Self::InvalidRegex { pattern, message } => {
+                write!(f, "invalid regex '{}': {}", pattern, message)
+            }
+            Self::MatchesPatternMissing => {
+                write!(f, "'$matches' mapping requires a 'pattern' key")
+            }
+            Self::UnknownBlockPayloadKey { op, key } => {
+                write!(f, "unknown key '{}' in '{}'", key, op)
+            }
+            Self::MissingBlockPayload { op, key } => {
+                write!(f, "'{}' requires the '{}' key", op, key)
+            }
+            Self::BlockPayloadExpectedString { op, key } => {
+                write!(f, "'{}' key '{}' expects a string", op, key)
+            }
+            Self::InvalidExpect => write!(
+                f,
+                "'expect' must be a non-negative integer or a mapping of 'min' / 'max'"
+            ),
         }
     }
 }
@@ -289,15 +363,21 @@ fn build_find(raw: RawOperation) -> Result<FindOp, ParseError> {
             field: "update",
         });
     }
+    if raw.expect.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Find,
+            field: "expect",
+        });
+    }
     if raw.project.is_some() && raw.add_fields.is_some() {
         return Err(ParseError::ProjectAddFieldsConflict);
     }
     let project = if let Some(p) = raw.project {
-        Some(build_projection(p, ProjectionMode::Replace)?)
+        build_projection(p, ProjectionBase::Empty)?
     } else if let Some(a) = raw.add_fields {
-        Some(build_projection(a, ProjectionMode::Extend)?)
+        build_projection(a, ProjectionBase::Document)?
     } else {
-        None
+        Projection::default()
     };
     Ok(FindOp {
         filter: raw.filter.map(build_filter).transpose()?,
@@ -324,6 +404,12 @@ fn build_count(raw: RawOperation) -> Result<CountOp, ParseError> {
         return Err(ParseError::OperationFieldNotAllowed {
             kind: OperationKind::Count,
             field: "update",
+        });
+    }
+    if raw.expect.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Count,
+            field: "expect",
         });
     }
     Ok(CountOp {
@@ -364,6 +450,7 @@ fn build_update(raw: RawOperation) -> Result<UpdateOp, ParseError> {
         filter,
         sort: raw.sort.map(build_sort).transpose()?,
         limit: raw.limit.map(build_limit).transpose()?,
+        expect: raw.expect.as_ref().map(parse_expect).transpose()?,
         update,
     })
 }
@@ -398,6 +485,7 @@ fn build_delete(raw: RawOperation) -> Result<DeleteOp, ParseError> {
         filter,
         sort: raw.sort.map(build_sort).transpose()?,
         limit: raw.limit.map(build_limit).transpose()?,
+        expect: raw.expect.as_ref().map(parse_expect).transpose()?,
     })
 }
 
@@ -462,6 +550,7 @@ fn build_filter_op(op: &str, value: &Value, path: &[String]) -> Result<Filter, P
             path: path.to_vec(),
         }),
         "$key" => Ok(Filter::Key(parse_key_op(value, "$key")?)),
+        "$content" => Ok(Filter::Content(parse_block_predicate(value, "$content")?)),
         "$includes" => Ok(Filter::Includes(Box::new(parse_inclusion_arg(
             value,
             "$includes",
@@ -726,8 +815,24 @@ fn parse_type_name(name: &str) -> Result<YamlType, ParseError> {
 
 pub fn build_projection(
     raw: RawProjection,
-    mode: ProjectionMode,
+    base: ProjectionBase,
 ) -> Result<Projection, ParseError> {
+    if base == ProjectionBase::Empty && has_block_predicate_key(&raw.0) {
+        let pred = parse_block_predicate(&Value::Mapping(raw.0), "project")?;
+        return Ok(Projection {
+            fields: vec![
+                ProjectionField {
+                    output: "key".to_string(),
+                    source: ProjectionSource::Pseudo(PseudoField::Key),
+                },
+                ProjectionField {
+                    output: "content".to_string(),
+                    source: ProjectionSource::ContentBlocks(pred),
+                },
+            ],
+            base,
+        });
+    }
     let mut fields: Vec<ProjectionField> = Vec::new();
     for (k, v) in &raw.0 {
         let output = k.as_str().ok_or(ParseError::NonStringKey)?.to_string();
@@ -735,7 +840,12 @@ pub fn build_projection(
         let source = build_projection_source(&output, v)?;
         fields.push(ProjectionField { output, source });
     }
-    Ok(Projection { fields, mode })
+    Ok(Projection { fields, base })
+}
+
+fn has_block_predicate_key(map: &Mapping) -> bool {
+    map.iter()
+        .any(|(k, _)| matches!(k.as_str(), Some(s) if s.starts_with('$')))
 }
 
 fn check_output_name(name: &str) -> Result<(), ParseError> {
@@ -786,6 +896,9 @@ fn build_projection_source(output: &str, v: &Value) -> Result<ProjectionSource, 
             output.to_string()
         ]))),
         Value::String(s) => {
+            if s == "$blocks" {
+                return Ok(ProjectionSource::Blocks(BlockPredicate::empty()));
+            }
             if let Some(stripped) = s.strip_prefix('$') {
                 let selector = format!("${}", stripped);
                 if let Some(pf) = PseudoField::from_selector(&selector) {
@@ -797,6 +910,35 @@ fn build_projection_source(output: &str, v: &Value) -> Result<ProjectionSource, 
                 let segments: Vec<String> = s.split('.').map(|p| p.to_string()).collect();
                 check_path_segments(&segments)?;
                 Ok(ProjectionSource::Frontmatter(FieldPath(segments)))
+            }
+        }
+        Value::Mapping(m) => {
+            if m.len() != 1 {
+                return Err(ParseError::InvalidProjectionValue {
+                    path: vec![output.to_string()],
+                });
+            }
+            let (k, v) = m.iter().next().unwrap();
+            let selector = k.as_str().ok_or(ParseError::NonStringKey)?;
+            match selector {
+                "$content" => {
+                    let pred = parse_block_predicate(v, "$content")?;
+                    if pred.is_empty() {
+                        Ok(ProjectionSource::Pseudo(PseudoField::Content))
+                    } else {
+                        Ok(ProjectionSource::ContentBlocks(pred))
+                    }
+                }
+                "$blocks" => Ok(ProjectionSource::Blocks(parse_block_predicate(
+                    v, "$blocks",
+                )?)),
+                "$matches" => Ok(ProjectionSource::Matches(parse_matches_source(v)?)),
+                s if s.starts_with('$') => Err(ParseError::UnknownProjectionSource {
+                    selector: s.to_string(),
+                }),
+                _ => Err(ParseError::InvalidProjectionValue {
+                    path: vec![output.to_string()],
+                }),
             }
         }
         _ => Err(ParseError::InvalidProjectionValue {
@@ -855,24 +997,193 @@ fn build_limit(raw: i64) -> Result<Limit, ParseError> {
 }
 
 pub fn build_update_doc(raw: RawUpdate) -> Result<Update, ParseError> {
-    if raw.set.is_none() && raw.unset.is_none() {
+    let map = raw.0;
+    if map.is_empty() {
         return Err(ParseError::EmptyUpdate);
     }
     let mut operators: Vec<UpdateOperator> = Vec::new();
-    if let Some(set) = raw.set {
-        if set.is_empty() {
-            return Err(ParseError::EmptyUpdateOperator { op: "$set" });
+    let mut block_ops: Vec<BlockUpdate> = Vec::new();
+    for (k, v) in &map {
+        let key = k.as_str().ok_or(ParseError::NonStringKey)?;
+        match key {
+            "$set" => {
+                let set = v
+                    .as_mapping()
+                    .ok_or(ParseError::UpdateOperatorExpectedMapping { op: "$set" })?;
+                if set.is_empty() {
+                    return Err(ParseError::EmptyUpdateOperator { op: "$set" });
+                }
+                walk_update_set(set, &[], &mut operators)?;
+            }
+            "$unset" => {
+                let unset = v
+                    .as_mapping()
+                    .ok_or(ParseError::UpdateOperatorExpectedMapping { op: "$unset" })?;
+                if unset.is_empty() {
+                    return Err(ParseError::EmptyUpdateOperator { op: "$unset" });
+                }
+                walk_update_unset(unset, &[], &mut operators)?;
+            }
+            "$replace" | "$replaceText" | "$insertBefore" | "$insertAfter" | "$append"
+            | "$delete" => {
+                block_ops.push(build_block_update(key, v)?);
+            }
+            other => {
+                return Err(ParseError::UnknownUpdateOperator {
+                    op: other.to_string(),
+                })
+            }
         }
-        walk_update_set(&set, &[], &mut operators)?;
     }
-    if let Some(unset) = raw.unset {
-        if unset.is_empty() {
-            return Err(ParseError::EmptyUpdateOperator { op: "$unset" });
-        }
-        walk_update_unset(&unset, &[], &mut operators)?;
+    if operators.is_empty() && block_ops.is_empty() {
+        return Err(ParseError::EmptyUpdate);
     }
     check_update_conflicts(&operators)?;
-    Ok(Update { operators })
+    Ok(Update {
+        operators,
+        block_ops,
+    })
+}
+
+fn block_op_static_name(key: &str) -> &'static str {
+    match key {
+        "$replace" => "$replace",
+        "$replaceText" => "$replaceText",
+        "$insertBefore" => "$insertBefore",
+        "$insertAfter" => "$insertAfter",
+        "$append" => "$append",
+        "$delete" => "$delete",
+        _ => unreachable!("only block operator keys reach here"),
+    }
+}
+
+fn build_block_update(key: &str, value: &Value) -> Result<BlockUpdate, ParseError> {
+    let op = block_op_static_name(key);
+    let map = value
+        .as_mapping()
+        .ok_or(ParseError::UpdateOperatorExpectedMapping { op })?;
+
+    let mut pred_map = Mapping::new();
+    let mut content: Option<String> = None;
+    let mut from: Option<String> = None;
+    let mut to: Option<String> = None;
+    let mut expect: Option<Expect> = None;
+
+    for (k, v) in map {
+        let field = k.as_str().ok_or(ParseError::NonStringKey)?;
+        if let Some(stripped) = field.strip_prefix('$') {
+            let _ = stripped;
+            pred_map.insert(k.clone(), v.clone());
+            continue;
+        }
+        match field {
+            "content"
+                if matches!(
+                    op,
+                    "$replace" | "$insertBefore" | "$insertAfter" | "$append"
+                ) =>
+            {
+                content = Some(payload_string(v, op, "content")?);
+            }
+            "from" if op == "$replaceText" => {
+                from = Some(payload_string(v, op, "from")?);
+            }
+            "to" if op == "$replaceText" => {
+                to = Some(payload_string(v, op, "to")?);
+            }
+            "expect" => {
+                expect = Some(parse_expect(v)?);
+            }
+            other => {
+                return Err(ParseError::UnknownBlockPayloadKey {
+                    op,
+                    key: other.to_string(),
+                })
+            }
+        }
+    }
+
+    let selector = parse_block_predicate(&Value::Mapping(pred_map), op)?;
+
+    let block_op = match op {
+        "$replace" => BlockUpdateOp::Replace {
+            content: require_payload(content, op, "content")?,
+        },
+        "$replaceText" => BlockUpdateOp::ReplaceText {
+            from,
+            to: require_payload(to, op, "to")?,
+        },
+        "$insertBefore" => BlockUpdateOp::InsertBefore {
+            content: require_payload(content, op, "content")?,
+        },
+        "$insertAfter" => BlockUpdateOp::InsertAfter {
+            content: require_payload(content, op, "content")?,
+        },
+        "$append" => BlockUpdateOp::Append {
+            content: require_payload(content, op, "content")?,
+        },
+        "$delete" => BlockUpdateOp::Delete,
+        _ => unreachable!(),
+    };
+
+    Ok(BlockUpdate {
+        selector,
+        op: block_op,
+        expect,
+    })
+}
+
+fn payload_string(
+    value: &Value,
+    op: &'static str,
+    key: &'static str,
+) -> Result<String, ParseError> {
+    match value {
+        Value::String(s) => Ok(s.clone()),
+        _ => Err(ParseError::BlockPayloadExpectedString { op, key }),
+    }
+}
+
+fn require_payload(
+    value: Option<String>,
+    op: &'static str,
+    key: &'static str,
+) -> Result<String, ParseError> {
+    value.ok_or(ParseError::MissingBlockPayload { op, key })
+}
+
+pub fn parse_expect(value: &Value) -> Result<Expect, ParseError> {
+    match value {
+        Value::Number(n) => n
+            .as_u64()
+            .map(Expect::Exactly)
+            .ok_or(ParseError::InvalidExpect),
+        Value::Mapping(m) => {
+            let mut min: Option<u64> = None;
+            let mut max: Option<u64> = None;
+            for (k, v) in m {
+                match k.as_str() {
+                    Some("min") => min = Some(expect_bound(v)?),
+                    Some("max") => max = Some(expect_bound(v)?),
+                    _ => return Err(ParseError::InvalidExpect),
+                }
+            }
+            if min.is_none() && max.is_none() {
+                return Err(ParseError::InvalidExpect);
+            }
+            if let (Some(a), Some(b)) = (min, max) {
+                if a > b {
+                    return Err(ParseError::InvalidExpect);
+                }
+            }
+            Ok(Expect::Range { min, max })
+        }
+        _ => Err(ParseError::InvalidExpect),
+    }
+}
+
+fn expect_bound(value: &Value) -> Result<u64, ParseError> {
+    value.as_u64().ok_or(ParseError::InvalidExpect)
 }
 
 fn walk_update_set(
@@ -1363,7 +1674,7 @@ mod tests {
     fn project_accepts_one_true_null() {
         let op = parse("project:\n  a: 1\n  b: true\n  c: ~\n", OperationKind::Find).unwrap();
         if let Operation::Find(find) = op {
-            let p = find.project.unwrap();
+            let p = find.project;
             assert_eq!(p.fields.len(), 3);
             assert_eq!(p.fields[0].output, "a");
         } else {
@@ -1387,7 +1698,7 @@ mod tests {
     fn project_string_source_resolves_to_path() {
         let op = parse("project:\n  name: author.name\n", OperationKind::Find).unwrap();
         if let Operation::Find(find) = op {
-            let p = find.project.unwrap();
+            let p = find.project;
             assert_eq!(p.fields[0].output, "name");
             match &p.fields[0].source {
                 ProjectionSource::Frontmatter(fp) => {
@@ -1408,7 +1719,7 @@ mod tests {
         )
         .unwrap();
         if let Operation::Find(find) = op {
-            let p = find.project.unwrap();
+            let p = find.project;
             assert_eq!(p.fields.len(), 2);
             assert_eq!(p.fields[0].output, "body");
             assert!(matches!(
@@ -1431,8 +1742,45 @@ mod tests {
     }
 
     #[test]
-    fn project_reserved_output_rejected() {
+    fn project_top_level_predicate_lowers_to_content() {
+        let op = parse("project:\n  $header: {}\n", OperationKind::Find).unwrap();
+        if let Operation::Find(find) = op {
+            let p = find.project;
+            assert_eq!(p.base, ProjectionBase::Empty);
+            assert_eq!(p.fields.len(), 2);
+            assert_eq!(p.fields[0].output, "key");
+            assert!(matches!(
+                p.fields[0].source,
+                ProjectionSource::Pseudo(PseudoField::Key)
+            ));
+            assert_eq!(p.fields[1].output, "content");
+            assert!(matches!(
+                p.fields[1].source,
+                ProjectionSource::ContentBlocks(_)
+            ));
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn project_top_level_unknown_operator_rejected() {
         let err = parse_err("project:\n  $x: 1\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::UnknownBlockOperator { .. }));
+    }
+
+    #[test]
+    fn project_top_level_mixed_keys_rejected() {
+        let err = parse_err(
+            "project:\n  key: $key\n  $header: {}\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::BareKeyInBlockPredicate { .. }));
+    }
+
+    #[test]
+    fn add_fields_reserved_output_rejected() {
+        let err = parse_err("addFields:\n  $header: {}\n", OperationKind::Find);
         assert!(matches!(err, ParseError::ReservedOutputName { .. }));
     }
 
@@ -1455,8 +1803,8 @@ mod tests {
     fn add_fields_extend_mode() {
         let op = parse("addFields:\n  body: $content\n", OperationKind::Find).unwrap();
         if let Operation::Find(find) = op {
-            let p = find.project.unwrap();
-            assert_eq!(p.mode, ProjectionMode::Extend);
+            let p = find.project;
+            assert_eq!(p.base, ProjectionBase::Document);
             assert_eq!(p.fields.len(), 1);
             assert_eq!(p.fields[0].output, "body");
         } else {

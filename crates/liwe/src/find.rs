@@ -1,7 +1,6 @@
 use crate::graph::Graph;
 use crate::model::Key;
-use crate::query::document::{ProjectionSource, PseudoField};
-use crate::query::project::{apply_projection_or_default, ProjectionContext};
+use crate::query::project::{apply_projection, ProjectionContext};
 use crate::query::sort::sort_in_place;
 use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
 use crate::search::rrf_weight;
@@ -102,7 +101,8 @@ impl<'a> DocumentFinder<'a> {
         let take = options.limit.filter(|&l| l > 0).unwrap_or(total);
         let kept: Vec<Key> = ordered.into_iter().take(take).collect();
 
-        let content_names = content_field_names(options.project.as_ref());
+        let projection = options.project.clone().unwrap_or_else(Projection::document);
+        let content_names = content_field_names(&projection);
         let mut rows: Vec<FindRow> = kept
             .into_iter()
             .map(|key| {
@@ -110,7 +110,7 @@ impl<'a> DocumentFinder<'a> {
                     .graph
                     .get_key_title(&key)
                     .unwrap_or_else(|| key.to_string());
-                let result = self.build_result(&key, options.project.as_ref());
+                let result = self.build_result(&key, &projection);
                 FindRow { key, title, result }
             })
             .collect();
@@ -247,12 +247,9 @@ impl<'a> DocumentFinder<'a> {
         }
     }
 
-    fn build_result(&self, key: &Key, project: Option<&Projection>) -> FindResult {
-        let ctx = ProjectionContext {
-            graph: self.graph,
-            key,
-        };
-        apply_projection_or_default(&ctx, project)
+    fn build_result(&self, key: &Key, project: &Projection) -> FindResult {
+        let ctx = ProjectionContext::new(self.graph, key);
+        apply_projection(&ctx, project)
     }
 
     fn node_rank(&self, key: &Key) -> usize {
@@ -265,16 +262,13 @@ impl<'a> DocumentFinder<'a> {
 /// The token budget (`max_tokens` / `max_document_tokens`) only counts and caps these fields,
 /// so a metadata-only index (no `$content` projected) carries ~0 content tokens and is bounded
 /// solely by `limit`. `find` never counts the metadata columns — its index rows are ~1 line.
-fn content_field_names(project: Option<&Projection>) -> Vec<String> {
-    match project {
-        Some(p) => p
-            .fields
-            .iter()
-            .filter(|f| matches!(&f.source, ProjectionSource::Pseudo(PseudoField::Content)))
-            .map(|f| f.output.clone())
-            .collect(),
-        None => Vec::new(),
-    }
+fn content_field_names(project: &Projection) -> Vec<String> {
+    project
+        .fields
+        .iter()
+        .filter(|f| f.source.is_content_shaped())
+        .map(|f| f.output.clone())
+        .collect()
 }
 
 fn content_tokens_of(result: &FindResult, names: &[String]) -> usize {

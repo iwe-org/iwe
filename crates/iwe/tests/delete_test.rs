@@ -234,6 +234,59 @@ fn test_delete_preserves_other_content() {
     );
 }
 
+#[test]
+fn document_expect_violation_aborts_without_deleting() {
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Alpha"), ("b", "# Beta")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["--filter", "{}", "--expect", "1"]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        stderr,
+        indoc! {"
+            error: delete expects 1 document, matched 2
+              a › Alpha
+              b › Beta
+            hint: adjust the filter or raise expect
+        "}
+    );
+    assert!(temp_path.join("a.md").exists());
+    assert!(temp_path.join("b.md").exists());
+}
+
+#[test]
+fn strict_without_expect_aborts_without_deleting() {
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Alpha")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["--filter", "{}", "--strict"]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        stderr,
+        indoc! {"
+            error: --strict requires the document-level --expect guard; missing: document-level --expect
+            hint: state the expected count — 1 for a precision edit, '{ min: 1 }' for a bulk delete that must match, '{ min: 0 }' when zero is acceptable
+        "}
+    );
+    assert!(temp_path.join("a.md").exists());
+}
+
+#[test]
+fn strict_with_expect_deletes() {
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Alpha"), ("b", "# Beta")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(
+        temp_path,
+        &["--filter", "{}", "--strict", "--expect", "{ max: 5 }"],
+    );
+    assert!(output.status.success());
+    assert!(!temp_path.join("a.md").exists());
+    assert!(!temp_path.join("b.md").exists());
+}
+
 fn setup_workspace_with_docs(docs: Vec<(&str, &str)>) -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

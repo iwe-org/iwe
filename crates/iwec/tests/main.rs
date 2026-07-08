@@ -7,6 +7,7 @@ mod http_transport_test;
 mod inline_test;
 mod normalize_test;
 mod prompt_test;
+mod query_test;
 mod resource_test;
 mod retrieve_test;
 mod squash_test;
