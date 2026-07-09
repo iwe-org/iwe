@@ -7,7 +7,7 @@ use lsp_types::*;
 use liwe::graph::GraphContext;
 
 use super::search::SearchPath;
-use liwe::model::config::{CompletionOptions, Format, LinkType};
+use liwe::model::config::{CompletionOptions, Format, LinkType, RefsPath};
 use liwe::model::key_index::KeyIndex;
 use liwe::model::{self, Content, InlineRange, Key};
 
@@ -386,11 +386,17 @@ pub impl Key {
         base_path.key_to_url(&self.clone())
     }
 
-    fn to_link(&self, text: String, relative_to: &str, refs_extension: &str) -> String {
+    fn to_link(
+        &self,
+        text: String,
+        relative_to: &str,
+        refs_extension: &str,
+        refs_path: RefsPath,
+    ) -> String {
         format!(
             "[{}]({}{})",
             text,
-            self.to_rel_link_url(relative_to),
+            self.link_url(relative_to, refs_path),
             refs_extension
         )
     }
@@ -407,17 +413,18 @@ pub impl Key {
         let format_options = context.format_options();
         let ref_text = context.get_ref_text(self).unwrap_or_default();
         let refs_extension = format_options.refs_extension();
+        let refs_path = format_options.refs_path();
         let wiki_link_path = format_options.markdown_options().wiki_link_path;
         let wiki_links = format_options.format() == Format::Markdown;
 
         let new_text = match completion_context.bracket_prefix.as_str() {
             "[[" if wiki_links => format!("[[{}]]", key_index.wiki_target(self, wiki_link_path)),
-            "[" => self.to_link(ref_text.clone(), relative_to, refs_extension),
+            "[" => self.to_link(ref_text.clone(), relative_to, refs_extension, refs_path),
             _ => match completion_options.link_format {
                 Some(LinkType::WikiLink) if wiki_links => {
                     format!("[[{}]]", key_index.wiki_target(self, wiki_link_path))
                 }
-                _ => self.to_link(ref_text.clone(), relative_to, refs_extension),
+                _ => self.to_link(ref_text.clone(), relative_to, refs_extension, refs_path),
             },
         };
 

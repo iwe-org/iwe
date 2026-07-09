@@ -1,25 +1,30 @@
+use crate::model::config::RefsPath;
 use crate::model::inline::{prepend_checkbox, Inline, Inlines};
 use crate::model::node::{Node, NodeIter, ReferenceType};
 use crate::model::writer::Block;
+use crate::model::Key;
 
 pub struct Projector {
     header_level: usize,
     parent: String,
+    refs_path: RefsPath,
 }
 
 impl Projector {
-    pub fn project<'a>(iter: impl NodeIter<'a>, parent: &str) -> Vec<Block> {
+    pub fn project<'a>(iter: impl NodeIter<'a>, parent: &str, refs_path: RefsPath) -> Vec<Block> {
         Projector {
             header_level: 0,
             parent: parent.to_string(),
+            refs_path,
         }
         .project_node(iter)
     }
 
-    pub fn resolve(parent: &str, inlines: Inlines) -> Inlines {
+    pub fn resolve(parent: &str, refs_path: RefsPath, inlines: Inlines) -> Inlines {
         Projector {
             header_level: 0,
             parent: parent.to_string(),
+            refs_path,
         }
         .resolve_inlines(inlines)
     }
@@ -28,6 +33,15 @@ impl Projector {
         Projector {
             header_level,
             parent: self.parent.clone(),
+            refs_path: self.refs_path,
+        }
+    }
+
+    fn regular_url(&self, key: &Key, original_url: &str) -> String {
+        let base = key.link_url(&self.parent, self.refs_path);
+        match original_url.split_once('#') {
+            Some((_, fragment)) => format!("{base}#{fragment}"),
+            None => base,
         }
     }
 
@@ -42,7 +56,7 @@ impl Projector {
         match inline {
             Inline::Reference(reference) => {
                 let url = match reference.reference_type {
-                    ReferenceType::Regular => reference.key.to_rel_link_url(&self.parent),
+                    ReferenceType::Regular => self.regular_url(&reference.key, &reference.url),
                     ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => reference
                         .display_url
                         .clone()
@@ -146,7 +160,7 @@ impl Projector {
                 };
 
                 let url = match reference_type {
-                    ReferenceType::Regular => reference.key.to_rel_link_url(&self.parent),
+                    ReferenceType::Regular => self.regular_url(&reference.key, &reference.url),
                     ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => reference
                         .display_url
                         .clone()

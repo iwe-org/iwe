@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `refs_path` markdown option — set it to `absolute` to write links as root-absolute paths (`/dir/note.md`) on normalize, instead of the default paths relative to the linking document.
+
+### Fixed
+- Root-absolute links (a leading `/`, such as `/dir/note.md`) and links carrying a `#fragment` now resolve from any directory. Previously such links were dropped from the graph unless the linking file sat at the library root, so `tree`, `stats`, `retrieve`, and backlinks under-reported references.
+
 ## [0.9.0](https://github.com/iwe-org/iwe/compare/iwe-v0.8.0...iwe-v0.9.0) - 2026-07-09
 
 ### Added

@@ -28,6 +28,7 @@ version = 3
 
 [markdown]
 refs_extension = ""
+refs_path = "relative"
 date_format = "%b %d, %Y"
 wiki_link_path = "preserve"
 
@@ -82,6 +83,7 @@ document_template = "# {{title}}\n\n{{content}}"
 | Option               | Default     | Description                                                       |
 | -------------------- | ----------- | ----------------------------------------------------------------- |
 | `refs_extension`     | `""`        | File extension to append to references (e.g., `.md`)              |
+| `refs_path`          | `relative`  | How markdown link paths are written: `relative` or `absolute`     |
 | `date_format`        | `%b %d, %Y` | Format for dates displayed in documents                           |
 | `wiki_link_path`     | `preserve`  | How wiki link paths are written: `preserve`, `full`, or `short`   |
 

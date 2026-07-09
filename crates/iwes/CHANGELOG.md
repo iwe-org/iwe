@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `refs_path` markdown option — `absolute` makes document formatting and link completion write links as root-absolute paths (`/dir/note.md`) instead of paths relative to the linking document.
+
+### Fixed
+- Root-absolute links (a leading `/`) and links carrying a `#fragment` now resolve from any directory, so backlinks, go-to-definition, and completions see references that were previously dropped unless the linking file sat at the library root.
+- The link code action writes the new link relative to the current document and honors the `refs_path` setting — previously it wrote the target's full library path, producing a broken link when invoked from a document in a subdirectory.
+
 ## [0.9.0](https://github.com/iwe-org/iwe/compare/iwes-v0.8.0...iwes-v0.9.0) - 2026-07-09
 
 Workspace version bump — no user-visible changes in this crate.

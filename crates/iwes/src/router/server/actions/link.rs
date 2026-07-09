@@ -1,6 +1,7 @@
 use chrono::{DateTime, Local, Locale};
 use liwe::model::config::Format;
 use liwe::model::config::LinkType as ConfigLinkType;
+use liwe::model::config::RefsPath;
 use liwe::model::config::WikiLinkPath;
 use liwe::model::key_index::KeyIndex;
 use liwe::model::Key;
@@ -101,6 +102,7 @@ impl LinkAction {
         c.is_ascii_alphanumeric() || c == b'_' || c == b'-' || (c >= 128)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn replace_word_with_link(
         line_text: &str,
         word: &str,
@@ -110,12 +112,22 @@ impl LinkAction {
         link_type: Option<&ConfigLinkType>,
         key_index: &KeyIndex,
         wiki_link_path: WikiLinkPath,
+        relative_to: &str,
+        refs_extension: &str,
+        refs_path: RefsPath,
     ) -> String {
         let link_text = match link_type {
             Some(ConfigLinkType::WikiLink) => {
                 format!("[[{}]]", key_index.wiki_target(new_key, wiki_link_path))
             }
-            Some(ConfigLinkType::Markdown) | None => format!("[{}]({})", word, new_key),
+            Some(ConfigLinkType::Markdown) | None => {
+                format!(
+                    "[{}]({}{})",
+                    word,
+                    new_key.link_url(relative_to, refs_path),
+                    refs_extension
+                )
+            }
         };
 
         format!(
@@ -218,6 +230,9 @@ impl ActionProvider for LinkAction {
                 link_type,
                 &key_index,
                 format_options.markdown_options().wiki_link_path,
+                &key.parent(),
+                format_options.refs_extension(),
+                format_options.refs_path(),
             );
 
             let updated_markdown = lines

@@ -268,7 +268,7 @@ impl BlockIndex {
         match node {
             Node::Section(inlines) | Node::Leaf(inlines) | Node::Item(_, inlines) => {
                 Some(inlines_to_markdown(
-                    &Projector::resolve(&self.parent_dir, inlines.clone()),
+                    &Projector::resolve(&self.parent_dir, self.options.refs_path, inlines.clone()),
                     &self.options,
                 ))
             }
@@ -278,7 +278,13 @@ impl BlockIndex {
                     table
                         .header
                         .iter()
-                        .map(|cell| Projector::resolve(&self.parent_dir, cell.clone()))
+                        .map(|cell| {
+                            Projector::resolve(
+                                &self.parent_dir,
+                                self.options.refs_path,
+                                cell.clone(),
+                            )
+                        })
                         .collect(),
                     table.alignment.clone(),
                     table
@@ -286,7 +292,13 @@ impl BlockIndex {
                         .iter()
                         .map(|row| {
                             row.iter()
-                                .map(|cell| Projector::resolve(&self.parent_dir, cell.clone()))
+                                .map(|cell| {
+                                    Projector::resolve(
+                                        &self.parent_dir,
+                                        self.options.refs_path,
+                                        cell.clone(),
+                                    )
+                                })
                                 .collect()
                         })
                         .collect(),
@@ -465,7 +477,11 @@ impl BlockIndex {
                 if let Node::Section(inlines) = &info.node {
                     out.push(Block::Header(
                         info.header_level,
-                        Projector::resolve(&self.parent_dir, inlines.clone()),
+                        Projector::resolve(
+                            &self.parent_dir,
+                            self.options.refs_path,
+                            inlines.clone(),
+                        ),
                     ));
                 }
                 out.extend(self.render_forest(&nodes[i].children));
@@ -476,7 +492,11 @@ impl BlockIndex {
                     j += 1;
                 }
                 for tree in self.prune_children(&nodes[i..j], usize::MAX) {
-                    out.extend(Projector::project(TreeIter::new(&tree), &self.parent_dir));
+                    out.extend(Projector::project(
+                        TreeIter::new(&tree),
+                        &self.parent_dir,
+                        self.options.refs_path,
+                    ));
                 }
                 i = j;
             }
