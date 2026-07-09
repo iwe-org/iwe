@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/iwe-org/iwe/compare/iwe-v0.8.0...iwe-v0.9.0) - 2026-07-09
+
 ### Added
 - `--project` / `--add-fields` accept block-addressed sources: `{ $content: PREDICATE }` narrows a document's body to the selected blocks (rendered at their original depth), `$blocks` / `{ $blocks: PREDICATE }` lists each selected block as `type` / `path` / `text` data, and `{ $matches: REGEX }` greps matching lines with their section paths.
 - `find` markdown output renders `$blocks` and `$matches` entries one line each as `key › section path › text`, and switches to the fenced-block form with the narrowed body when a parameterized `$content` field is projected.

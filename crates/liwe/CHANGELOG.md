@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/iwe-org/iwe/compare/liwe-v0.8.0...liwe-v0.9.0) - 2026-07-09
+
 ### Added
 - `query::block` module with the `BlockPredicate` grammar for addressing blocks inside a document: text and regex predicates, `$within` / `$contains` axes, per-type operators (`$section`, `$header`, `$paragraph`, `$item`, `$list`, `$quote`, `$code`, `$table`, `$ref`, `$hr`), `$references`, and `$and` / `$or` / `$nor` composition.
 - Block-addressed projection sources: `{ $content: PREDICATE }` renders the selected blocks, `$blocks` reports each selected block as `type` / `path` / `text`, and `{ $matches: REGEX }` greps matching lines with their section paths — all evaluated through the new `query::block_eval::BlockIndex`.
