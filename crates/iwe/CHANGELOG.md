@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--project` / `--add-fields` accept block-addressed sources: `{ $content: PREDICATE }` narrows a document's body to the selected blocks (rendered at their original depth), `$blocks` / `{ $blocks: PREDICATE }` lists each selected block as `type` / `path` / `text` data, and `{ $matches: REGEX }` greps matching lines with their section paths.
+- `find` markdown output renders `$blocks` and `$matches` entries one line each as `key › section path › text`, and switches to the fenced-block form with the narrowed body when a parameterized `$content` field is projected.
+- `--project` accepts a bare block predicate — `--project '$header: {}'` renders each document's body narrowed to the selected blocks (the headers-only form) under `key` and `content` fields, so `--format json`/`yaml` output keeps the document identity that the markdown fence already carries.
+- `update` gains a block-edit flag per operator — `--replace`, `--replace-text`, `--insert-before`, `--insert-after`, `--append`, `--delete` — each taking a `{ <selector>, payload }` mapping and composing with `--set` / `--unset` into one atomic update. A validation failure (unmet `expect`, overlapping selections, incompatible target) prints the offending blocks and exits non-zero without writing. `--replace-text` accepts a `from`-less argument (`{ $header: Goals, to: Aims }`) that rewrites the block's entire own text — the clean way to rename a header or restate a line.
+- A block edit targeting a `$header` acts on the heading line alone: `--delete '{ $header: Goals }'` dissolves the section (contents re-attach to the parent and re-level) and `--replace '{ $header: Goals, content: "## Aims" }'` retitles it (contents kept), while `--delete '{ $section: Goals }'` removes the whole tree. `--insert-after '{ $header: Goals, content: ... }'` adds content at the top of the section, below the heading line.
+- `update` and `delete` gain `--expect` — a document-level guard asserting the number of matched documents (`N` or `{ min, max }`); on a mismatch the command lists the matched documents as `key › title` and exits non-zero without writing. Both also gain `--strict`, which requires an `expect` guard on every mutating application (the document-level `--expect` and each block operator's `expect`) and aborts before writing if any is missing; `--dry-run` is exempt so counts can be learned.
+- `find --blocks PRED` adds a `blocks` field listing each block matching the predicate (lowers to `addFields: { blocks: { $blocks: PRED } }`), and `find --matches PATTERN` restricts results to documents whose content matches PATTERN and adds a `matches` grep field (lowers to a `$content` membership filter plus `addFields: { matches: { $matches: PATTERN } }`).
+- `find --filter` accepts the `$content` block-membership operator — `--filter '$content: { $header: Status }'` selects documents that contain at least one block satisfying the predicate.
+
+### Changed
+- `update -k` / `--key` is repeatable, matching `find`: one key lowers to `$eq`, two or more to `$in` (body-overwrite mode still takes exactly one). Previously it accepted a single key only.
+- `update` writes only documents whose rendered content actually changes and reports honestly — `Updated N document(s)` when every matched document changed, `Matched N document(s), M changed` otherwise (`No documents matched` when none) — so a no-op edit (e.g. `expect: 0`) leaves the file, and its mtime, untouched.
+
+### Fixed
+- `--project` / `--add-fields` now parse the argument as a YAML mapping whenever it contains a `:` or `{`, and report a parse error on malformed input instead of silently falling back to the comma list. Previously an unbraced multi-field mapping like `--project 'a: { $content: ... }, b: { $content: ... }'` failed the YAML parse, degraded to the comma list, and emitted `a: null, b: null` with no error. The comma list keeps the `name`, `name=source`, and bare `$selector` forms; write multi-field or block projections as a braced mapping.
+
 ## [0.8.0](https://github.com/iwe-org/iwe/compare/iwe-v0.7.0...iwe-v0.8.0) - 2026-07-07
 
 ### Added

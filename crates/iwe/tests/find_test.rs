@@ -2000,3 +2000,148 @@ fn test_find_metadata_index_ignores_token_budgets() {
     assert_eq!(stdout, "apple\nberry\ncherry\n");
     assert_eq!(stderr, "");
 }
+
+#[test]
+fn test_find_blocks_flag_locates_blocks() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            alpha TODO beta
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--blocks", "{ $text: TODO }", "-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "blocks": [
+              {
+                "type": "paragraph",
+                "path": [],
+                "text": "alpha TODO beta"
+              }
+            ]
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_matches_flag_filters_membership_and_greps() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            alpha TODO beta
+        "},
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc2.md"),
+        indoc! {"
+            # Doc Two
+
+            nothing here
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--matches", "TODO", "-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "matches": [
+              {
+                "path": [],
+                "text": "alpha TODO beta"
+              }
+            ]
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_matches_flag_markdown_grep_lines() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            alpha TODO beta
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--matches", "TODO", "-f", "markdown"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "- [Doc One](doc1)\ndoc1 › alpha TODO beta\n");
+}
+
+#[test]
+fn test_find_content_filter_membership() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            # Doc One
+
+            ## Status
+
+            active
+        "},
+    )
+    .unwrap();
+    write(
+        dir.path().join("doc2.md"),
+        indoc! {"
+            # Doc Two
+
+            no section here
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--filter", "$content: { $header: Status }", "-f", "keys"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "doc1\n");
+}

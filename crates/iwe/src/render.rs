@@ -98,20 +98,36 @@ impl<'a> FindBlockRenderer<'a> {
         keys: &[Key],
         results: &[Mapping],
         content_output_names: &[String],
+        narrowed_content: bool,
+        grep_output_names: &[String],
     ) -> String {
         if content_output_names.is_empty() {
             keys.iter()
                 .zip(results.iter())
-                .map(|(key, fm)| render_index_line(key, fm))
+                .map(|(key, fm)| {
+                    let mut line = render_index_line(key, fm, grep_output_names);
+                    line.push_str(&render_grep_lines(key, fm, grep_output_names));
+                    line
+                })
                 .collect::<String>()
         } else {
             keys.iter()
                 .zip(results.iter())
                 .map(|(key, fm)| {
                     let key_str = key.to_string();
-                    let clipped = self.clipped.iter().any(|k| k == &key_str);
-                    let rendered = render_body(self.graph, self.options, &key_str);
-                    let body = truncate_rendered_body(rendered, self.max_document_tokens, clipped);
+                    let body = if narrowed_content {
+                        content_output_names
+                            .iter()
+                            .filter_map(|n| fm.get(Value::String(n.clone())))
+                            .filter_map(|v| v.as_str())
+                            .filter(|s| !s.is_empty())
+                            .collect::<Vec<&str>>()
+                            .join("\n")
+                    } else {
+                        let clipped = self.clipped.iter().any(|k| k == &key_str);
+                        let rendered = render_body(self.graph, self.options, &key_str);
+                        truncate_rendered_body(rendered, self.max_document_tokens, clipped)
+                    };
                     render_block(&key_str, fm, content_output_names, &body)
                 })
                 .collect::<Vec<String>>()
@@ -145,7 +161,7 @@ fn truncate_rendered_body(
     }
 }
 
-fn render_index_line(key: &Key, fm: &Mapping) -> String {
+fn render_index_line(key: &Key, fm: &Mapping, skip: &[String]) -> String {
     let title = fm
         .get(Value::String("title".to_string()))
         .and_then(|v| v.as_str())
@@ -161,6 +177,9 @@ fn render_index_line(key: &Key, fm: &Mapping) -> String {
             None => continue,
         };
         if name == "key" || name == "title" {
+            continue;
+        }
+        if skip.iter().any(|s| s == name) {
             continue;
         }
         match edge_direction(name) {
@@ -180,6 +199,46 @@ fn render_index_line(key: &Key, fm: &Mapping) -> String {
     }
 
     format!("- [{}]({}){}{}\n", title, key, edges, annotations)
+}
+
+fn render_grep_lines(key: &Key, fm: &Mapping, names: &[String]) -> String {
+    let mut out = String::new();
+    for name in names {
+        let Some(Value::Sequence(entries)) = fm.get(Value::String(name.clone())) else {
+            continue;
+        };
+        for entry in entries {
+            let Some(m) = entry.as_mapping() else {
+                continue;
+            };
+            let mut parts = vec![key.to_string()];
+            if let Some(Value::Sequence(path)) = m.get(Value::String("path".to_string())) {
+                for p in path {
+                    if let Some(s) = p.as_str() {
+                        parts.push(s.to_string());
+                    }
+                }
+            }
+            let tail = m
+                .get(Value::String("text".to_string()))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.lines().next())
+                .or_else(|| {
+                    m.get(Value::String("target".to_string()))
+                        .and_then(|v| v.as_str())
+                })
+                .or_else(|| {
+                    m.get(Value::String("type".to_string()))
+                        .and_then(|v| v.as_str())
+                });
+            if let Some(t) = tail {
+                parts.push(t.to_string());
+            }
+            out.push_str(&parts.join(" › "));
+            out.push('\n');
+        }
+    }
+    out
 }
 
 fn edge_direction(name: &str) -> Option<&'static str> {

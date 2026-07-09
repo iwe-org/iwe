@@ -11,6 +11,23 @@ EXAMPLES:
   iwe update --filter 'status: draft' --set 'reviewed=true'
   iwe update --filter 'status: archived' --unset draft_notes
 
+  # Precision text edit of one located block
+  iwe update -k projects/roadmap \
+    --replace-text '{ $within: Goals, $text: "Q3 Milestones", from: "Q3 Milestones", to: "Q3 2026 Milestones", expect: 1 }'
+
+  # Rename a header (whole-text rewrite: omit 'from')
+  iwe update -k projects/roadmap \
+    --replace-text '{ $header: Goals, to: Aims, expect: 1 }'
+
+  # Append a line under a section, and stamp frontmatter, atomically
+  iwe update --filter 'type: project' \
+    --set reviewed=true \
+    --append '{ $header: Status, content: "Reviewed 2026-07-08." }'
+
+  # Delete every paragraph linking to a retired doc, refusing a runaway match
+  iwe update --filter '{}' \
+    --delete '{ $paragraph: { $references: archive/old-plan }, expect: { max: 20 } }'
+
   # Preview without writing
   iwe update --filter 'status: draft' --set status=published --dry-run
 
@@ -25,9 +42,13 @@ VALUE PARSING:
 
 NOTES:
 
-  - The --content mode does not touch frontmatter; the --set/--unset mode
-    does not touch the document content. Use both in two passes if needed.
+  - The --content mode overwrites the whole body and does not touch
+    frontmatter. Mutation mode combines frontmatter (--set/--unset) and
+    block operators in one atomic update; frontmatter-only edits preserve
+    the body verbatim, while any block edit re-normalizes the body.
   - Frontmatter is re-serialized as YAML 1.2 after mutation, so quote
     styles may change on untouched fields.
   - Mutation mode protects reserved frontmatter fields (names starting
     with _, $, ., #, or @) from being set or unset.
+  - Block operator selections must be disjoint; each operator appears at
+    most once per invocation.

@@ -1,18 +1,22 @@
 # IWE Find
 
-Search and discover documents in your knowledge base. Combines a fuzzy `QUERY` (matched against title and key) with a YAML-based filter language.
+Search and discover documents in your knowledge base. Combines a text query — `--fuzzy` (title and key) or `--lexical` (BM25 full-text) — with a YAML-based filter language.
 
 ## Usage
 
 ``` bash
-iwe find [QUERY] [OPTIONS]
+iwe find [OPTIONS]
+iwe find --fuzzy <QUERY> [OPTIONS]
+iwe find --lexical <QUERY> [OPTIONS]
 ```
 
 ## Options
 
 | Flag                            | Description                                                                                  | Default    |
 | ------------------------------- | -------------------------------------------------------------------------------------------- | ---------- |
-| `[QUERY]`                       | Fuzzy search on document title and key                                                       | none       |
+| `--fuzzy <QUERY>`               | Fuzzy match on document title and key.                                                       | none       |
+| `--lexical <QUERY>`             | Lexical (BM25) full-text match on title and body.                                            | none       |
+| `[QUERY]`                       | Deprecated: bare positional query. Behaves as `--fuzzy` and prints a warning.                | none       |
 | `--filter <EXPR>`               | Inline YAML filter expression. See [Query Language](query-language.md).                      | none       |
 | `-k, --key <KEY>`               | Match by document key. Repeatable: 1 key uses `$eq`, 2+ uses `$in`.                          | none       |
 | `--includes <KEY[:DEPTH]>`      | `$includes` anchor. Repeatable; anchors are ANDed.                                           | none       |
@@ -21,16 +25,21 @@ iwe find [QUERY] [OPTIONS]
 | `--referenced-by <KEY[:DIST]>`  | `$referencedBy` anchor. Repeatable; anchors are ANDed.                                       | none       |
 | `--max-depth <N>`               | Session default for inclusion anchor flags without a colon-suffix. `0` = unbounded.          | 1          |
 | `--max-distance <N>`            | Session default for reference anchor flags without a colon-suffix. `0` = unbounded.          | 1          |
-| `--project <f1,f2,...>`         | Frontmatter fields to include in JSON / YAML output (comma-separated).                       | none       |
+| `--project <EXPR>`              | Projection: comma-list (`name`, `name=path`, `name=$selector`, `$selector`) or inline YAML mapping. Replaces the default fields. | none       |
+| `--add-fields <EXPR>`           | Additive projection: same grammar as `--project`, extends the defaults instead of replacing. | none       |
+| `--blocks <PRED>`               | Locate blocks: adds a `blocks` field listing each block matching the inline block predicate. | none       |
+| `--matches <PATTERN>`           | Grep over blocks: restricts results to documents whose content matches the Rust regex `PATTERN` and adds a `matches` field with the matching lines. | none       |
 | `--sort <field:DIR>`            | Sort by frontmatter field. `DIR` is `1` (asc) or `-1` (desc).                                | none       |
 | `-l, --limit <N>`               | Maximum number of results (`0` = unlimited).                                                 | unlimited  |
 | `--max-tokens <N>`              | Cap total projected `$content` tokens across all results (`0` = unlimited).                  | unlimited  |
 | `--max-document-tokens <N>`          | Cap projected `$content` tokens per result, head-truncating with a marker (`0` = unlimited). | unlimited  |
 | `-f, --format <FMT>`            | Output format: `markdown`, `keys`, `json`, `yaml`.                                           | `markdown` |
 
-All filter clauses (positional `QUERY` plus every flag above) are AND-composed at the top level. For OR or NOT, write it inside `--filter`. See [Query Language](query-language.md).
+All filter clauses (the text query plus every flag above) are AND-composed at the top level. For OR or NOT, write it inside `--filter`. See [Query Language](query-language.md).
 
-`--max-tokens` and `--max-document-tokens` only act when the projection includes `$content`; a metadata index carries no content tokens, so bound it with `--limit`. Token budgets are off by default, count body text only, and print a `warning:` to stderr when they trim the output.
+`--lexical` stems its terms and drops stop words; a query with no searchable terms left matches nothing (a warning suggests `--fuzzy` for common or partial words).
+
+`--max-tokens` and `--max-document-tokens` only act when the projection includes a `$content`-shaped field — bare `$content` or a narrowed `{ $content: PREDICATE }`; a narrowed body is counted and capped like a full one, while `$blocks` / `$matches` entries cost nothing. A metadata index carries no content tokens, so bound it with `--limit`. Token budgets are off by default, count body text only, and print a `warning:` to stderr when they trim the output.
 
 ## Filter language
 
@@ -94,15 +103,57 @@ iwe find --filter '$or: [{ $includedBy: projects/alpha }, { $includedBy: project
 
 The same selector flags are accepted by [`iwe count`](cli-count.md), [`iwe retrieve`](cli-retrieve.md), [`iwe tree`](cli-tree.md), [`iwe export`](cli-export.md), [`iwe schema`](cli-schema.md), [`iwe update`](cli-update.md), and [`iwe delete`](cli-delete.md).
 
+## Block projection
+
+`--project` and `--add-fields` can address blocks — the structural nodes inside each matched document — through three sources, each taking a block predicate. See [Query Language](query-language.md#block-projection) for the predicate grammar. A block predicate is structured, so these forms are written as an inline YAML mapping (the comma list reaches only bare `$blocks` and `$content`):
+
+``` bash
+# Body narrowed to one section, header included
+iwe find -k projects/roadmap --project 'notes: { $content: { $section: Unreleased } }'
+
+# Table of contents: the whole argument is a block predicate (--project only)
+iwe find -k guides/handbook --project '{ $header: {} }'
+
+# Located blocks as data: type, section path, own text
+iwe find --add-fields 'hits: { $blocks: { $within: Goals, $text: "Q3" } }'
+
+# Grep: matching lines with their locations
+iwe find --add-fields 'found: { $matches: "(?i)todo|fixme" }'
+```
+
+Two dedicated flags shortcut the common reads:
+
+``` bash
+# --blocks PRED lowers to: addFields: { blocks: { $blocks: PRED } }
+iwe find --blocks '{ $within: Goals, $text: "Q3" }'
+
+# --matches PATTERN lowers to BOTH a membership clause and a projection entry:
+#   filter: { $content: { $matches: PATTERN } }
+#   addFields: { matches: { $matches: PATTERN } }
+# — one-flag grep: only matching documents return, each carrying its lines
+iwe find --matches '(?i)todo|fixme'
+```
+
+`--blocks` adds the located blocks without restricting membership; combine it with `--filter '$content: …'` (usually the same predicate) to drop non-matching documents. `--matches` restricts membership on its own.
+
+In markdown output, `$blocks` and `$matches` entries print one grep line each — `key › section path › text` — under the result's index line:
+
+```
+- [Roadmap](projects/roadmap)
+projects/roadmap › Goals › Q3 Milestones › Ship the editor integration TODO confirm date
+```
+
+In JSON / YAML, a narrowed `$content` field is a string (empty when no block matches) and `$blocks` / `$matches` fields are arrays of entries carrying `path` (enclosing section titles), `text` (own text), and — for `$blocks` — `type`.
+
 ## How it works
 
-1. **Fuzzy matching** — `QUERY` is matched against both the key and the title using SkimMatcherV2.
+1. **Text matching** — `--fuzzy` matches the key and the title using SkimMatcherV2; `--lexical` runs a BM25 full-text query over title and body.
 2. **Filter** — `--filter` and the structural-anchor flags evaluate per document; results are intersected.
 3. **Sort** — `--sort field:DIR` orders the matched set; ties are broken by document key.
 4. **Limit** — applied last.
-5. **Project** — for `json` / `yaml` output, `--project` selects which frontmatter fields appear in each result.
+5. **Project** — `--project` / `--add-fields` shape each result: frontmatter fields, system fields (`$key`, `$content`, edge selectors), or block-addressed sources.
 
-Without a query, results are sorted by incoming-reference popularity. With a query, they are sorted by fuzzy match score.
+Without a text query, results are sorted by incoming-reference popularity. With `--fuzzy`, they are sorted by fuzzy match score; with `--lexical`, by BM25 relevance.
 
 ## Output formats
 
@@ -122,10 +173,10 @@ Each line is `- [title](key)`, followed by any projected edge and scalar fields:
 - **Edge fields** render as arrows after the link, by direction: incoming (`includedBy`, `referencedBy`) as `<- [Title](key)`, outgoing (`includes`, `references`) as `-> [Title](key)`. Multiple targets in one field are comma-joined after a single arrow. Empty edges are omitted.
 - **Scalar fields** render as ` · name: value`. Arrays of scalars join with `, `; richer values fall back to compact inline YAML (use `-f json`/`yaml` for those).
 
-The index never prints document bodies. Projecting `$content` (via `--project` or `--add-fields`) switches the whole invocation to the fenced document block that [`iwe retrieve`](cli-retrieve.md) emits, with content as the body and other projected fields as frontmatter:
+The index never prints document bodies. Projecting a `$content`-shaped field (via `--project` or `--add-fields`, bare or narrowed) switches the whole invocation to the fenced document block that [`iwe retrieve`](cli-retrieve.md) emits, with content as the body and other projected fields as frontmatter. A narrowed `{ $content: PREDICATE }` puts the narrowed rendering in the body; several `$content`-shaped fields concatenate in projection order. `$blocks` / `$matches` fields render as grep lines instead (see [Block projection](#block-projection)).
 
 ``` markdown
-$ iwe find auth --add-fields '$content'
+$ iwe find --fuzzy auth --add-fields '$content'
 ````markdown #authentication
 ---
 title: User Authentication
@@ -175,11 +226,14 @@ Same shape as JSON, rendered as YAML.
 # All documents, default markdown
 iwe find
 
-# Fuzzy search
-iwe find authentication
+# Fuzzy search on title and key
+iwe find --fuzzy authentication
 
-# Fuzzy search AND a frontmatter filter
-iwe find auth --filter 'status: draft'
+# Full-text search on title and body
+iwe find --lexical "session token"
+
+# Text query AND a frontmatter filter
+iwe find --fuzzy auth --filter 'status: draft'
 
 # Roots — documents with no incoming inclusion edges
 iwe find --filter '$nor: [{ $includedBy: { match: {} } }]'
@@ -189,6 +243,15 @@ iwe find --limit 10
 
 # JSON for programmatic use, project two fields
 iwe find --project title,modified_at -f json
+
+# Corpus-wide grep with locations
+iwe find --matches '(?i)todo|fixme'
+
+# Locate blocks before mutating them with iwe update
+iwe find --blocks '{ $within: Goals, $text: "Q3" }'
+
+# One section of one document
+iwe find -k projects/roadmap --project 'notes: { $content: { $section: Goals } }'
 
 # Pipe keys to retrieve
 iwe find --filter 'status: draft' -f keys | xargs -I {} iwe retrieve -k {}
@@ -200,6 +263,7 @@ The following flags pre-date the query language and remain accepted for backward
 
 | Deprecated         | Use instead                                                                 |
 | ------------------ | --------------------------------------------------------------------------- |
+| bare positional `QUERY` | `--fuzzy QUERY` (or `--lexical QUERY` for full-text)                   |
 | `--in KEY[:N]`     | `--included-by KEY[:N]`                                                     |
 | `--in-any K1 K2`   | `--filter '$or: [{ $includedBy: K1 }, { $includedBy: K2 }]'`                |
 | `--not-in KEY`     | `--filter '$nor: [{ $includedBy: KEY }]'`                                   |

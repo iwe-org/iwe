@@ -1,6 +1,7 @@
 use serde_yaml::Value;
 
 use crate::model::Key;
+use crate::query::block::{BlockPredicate, MatchesSource};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OperationKind {
@@ -21,7 +22,7 @@ pub enum Operation {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FindOp {
     pub filter: Option<Filter>,
-    pub project: Option<Projection>,
+    pub project: Projection,
     pub sort: Option<Sort>,
     pub limit: Option<Limit>,
 }
@@ -36,8 +37,13 @@ impl FindOp {
         self
     }
 
-    pub fn project(mut self, project: Projection) -> Self {
-        self.project = Some(project);
+    pub fn project(mut self, project: impl Into<Projection>) -> Self {
+        self.project = project.into();
+        self
+    }
+
+    pub fn add_fields(mut self, fields: Vec<ProjectionField>) -> Self {
+        self.project = Projection::extend(fields);
         self
     }
 
@@ -80,11 +86,22 @@ impl CountOp {
     }
 }
 
+impl From<FindOp> for CountOp {
+    fn from(op: FindOp) -> Self {
+        CountOp {
+            filter: op.filter,
+            sort: op.sort,
+            limit: op.limit,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpdateOp {
     pub filter: Filter,
     pub sort: Option<Sort>,
     pub limit: Option<Limit>,
+    pub expect: Option<Expect>,
     pub update: Update,
 }
 
@@ -94,6 +111,7 @@ impl UpdateOp {
             filter,
             sort: None,
             limit: None,
+            expect: None,
             update,
         }
     }
@@ -107,6 +125,11 @@ impl UpdateOp {
         self.limit = Some(Limit(limit));
         self
     }
+
+    pub fn expect(mut self, expect: Expect) -> Self {
+        self.expect = Some(expect);
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -114,6 +137,7 @@ pub struct DeleteOp {
     pub filter: Filter,
     pub sort: Option<Sort>,
     pub limit: Option<Limit>,
+    pub expect: Option<Expect>,
 }
 
 impl DeleteOp {
@@ -122,6 +146,7 @@ impl DeleteOp {
             filter,
             sort: None,
             limit: None,
+            expect: None,
         }
     }
 
@@ -134,6 +159,22 @@ impl DeleteOp {
         self.limit = Some(Limit(limit));
         self
     }
+
+    pub fn expect(mut self, expect: Expect) -> Self {
+        self.expect = Some(expect);
+        self
+    }
+}
+
+impl From<FindOp> for DeleteOp {
+    fn from(op: FindOp) -> Self {
+        DeleteOp {
+            filter: op.filter.unwrap_or_else(Filter::all),
+            sort: op.sort,
+            limit: op.limit,
+            expect: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -143,6 +184,7 @@ pub enum Filter {
     Nor(Vec<Filter>),
     Field { path: FieldPath, op: FieldOp },
     Key(KeyOp),
+    Content(BlockPredicate),
     Includes(Box<InclusionAnchor>),
     IncludedBy(Box<InclusionAnchor>),
     References(Box<ReferenceAnchor>),
@@ -271,6 +313,10 @@ impl Filter {
         Filter::Key(op)
     }
 
+    pub fn content(pred: BlockPredicate) -> Self {
+        Filter::Content(pred)
+    }
+
     fn field(path: &str, op: FieldOp) -> Self {
         Filter::Field {
             path: FieldPath::from_dotted(path),
@@ -349,9 +395,10 @@ impl std::fmt::Display for YamlType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProjectionMode {
-    Replace,
-    Extend,
+pub enum ProjectionBase {
+    Empty,
+    Frontmatter,
+    Document,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -413,6 +460,25 @@ impl PseudoField {
 pub enum ProjectionSource {
     Frontmatter(FieldPath),
     Pseudo(PseudoField),
+    ContentBlocks(BlockPredicate),
+    Blocks(BlockPredicate),
+    Matches(MatchesSource),
+}
+
+impl ProjectionSource {
+    pub fn is_content_shaped(&self) -> bool {
+        matches!(
+            self,
+            ProjectionSource::Pseudo(PseudoField::Content) | ProjectionSource::ContentBlocks(_)
+        )
+    }
+
+    pub fn is_block_lines(&self) -> bool {
+        matches!(
+            self,
+            ProjectionSource::Blocks(_) | ProjectionSource::Matches(_)
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -424,61 +490,81 @@ pub struct ProjectionField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Projection {
     pub fields: Vec<ProjectionField>,
-    pub mode: ProjectionMode,
+    pub base: ProjectionBase,
+}
+
+impl Default for Projection {
+    fn default() -> Self {
+        Projection {
+            fields: Vec::new(),
+            base: ProjectionBase::Frontmatter,
+        }
+    }
+}
+
+impl From<Vec<ProjectionField>> for Projection {
+    fn from(fields: Vec<ProjectionField>) -> Self {
+        Projection::replace(fields)
+    }
 }
 
 impl Projection {
     pub fn replace(fields: Vec<ProjectionField>) -> Self {
         Projection {
             fields,
-            mode: ProjectionMode::Replace,
+            base: ProjectionBase::Empty,
         }
     }
 
     pub fn extend(fields: Vec<ProjectionField>) -> Self {
         Projection {
             fields,
-            mode: ProjectionMode::Extend,
+            base: ProjectionBase::Document,
+        }
+    }
+
+    pub fn document() -> Self {
+        Projection {
+            fields: Vec::new(),
+            base: ProjectionBase::Document,
         }
     }
 
     pub fn fields(fields: &[&str]) -> Self {
-        Projection {
-            fields: fields
+        Projection::replace(
+            fields
                 .iter()
                 .map(|name| ProjectionField {
                     output: (*name).to_string(),
                     source: ProjectionSource::Frontmatter(FieldPath::from_dotted(name)),
                 })
                 .collect(),
-            mode: ProjectionMode::Replace,
-        }
+        )
     }
 
-    pub fn default_for_find() -> Self {
-        let entries = [
+    pub fn document_fields() -> Vec<ProjectionField> {
+        [
             ("key", PseudoField::Key),
             ("title", PseudoField::Title),
             ("references", PseudoField::References),
             ("includes", PseudoField::Includes),
             ("referencedBy", PseudoField::ReferencedBy),
             ("includedBy", PseudoField::IncludedBy),
-        ];
-        Projection {
-            fields: entries
-                .iter()
-                .map(|(name, p)| ProjectionField {
-                    output: (*name).to_string(),
-                    source: ProjectionSource::Pseudo(*p),
-                })
-                .collect(),
-            mode: ProjectionMode::Replace,
-        }
+        ]
+        .iter()
+        .map(|(name, p)| ProjectionField {
+            output: (*name).to_string(),
+            source: ProjectionSource::Pseudo(*p),
+        })
+        .collect()
     }
 
     pub fn has_content_or_edge_source(&self) -> bool {
         self.fields.iter().any(|f| match &f.source {
             ProjectionSource::Pseudo(p) => p.is_content_or_edge(),
+            ProjectionSource::ContentBlocks(_)
+            | ProjectionSource::Blocks(_)
+            | ProjectionSource::Matches(_) => true,
             _ => false,
         })
     }
@@ -521,14 +607,29 @@ impl Limit {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Update {
     pub operators: Vec<UpdateOperator>,
+    pub block_ops: Vec<BlockUpdate>,
 }
 
 impl Update {
     pub fn new(operators: Vec<UpdateOperator>) -> Self {
-        Update { operators }
+        Update {
+            operators,
+            block_ops: Vec::new(),
+        }
+    }
+
+    pub fn blocks(block_ops: Vec<BlockUpdate>) -> Self {
+        Update {
+            operators: Vec::new(),
+            block_ops,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.operators.is_empty() && self.block_ops.is_empty()
     }
 }
 
@@ -536,6 +637,53 @@ impl Update {
 pub enum UpdateOperator {
     Set { path: FieldPath, value: Value },
     Unset { path: FieldPath },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockUpdate {
+    pub selector: BlockPredicate,
+    pub op: BlockUpdateOp,
+    pub expect: Option<Expect>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BlockUpdateOp {
+    Replace { content: String },
+    ReplaceText { from: Option<String>, to: String },
+    InsertBefore { content: String },
+    InsertAfter { content: String },
+    Append { content: String },
+    Delete,
+}
+
+impl BlockUpdateOp {
+    pub fn name(&self) -> &'static str {
+        match self {
+            BlockUpdateOp::Replace { .. } => "$replace",
+            BlockUpdateOp::ReplaceText { .. } => "$replaceText",
+            BlockUpdateOp::InsertBefore { .. } => "$insertBefore",
+            BlockUpdateOp::InsertAfter { .. } => "$insertAfter",
+            BlockUpdateOp::Append { .. } => "$append",
+            BlockUpdateOp::Delete => "$delete",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Expect {
+    Exactly(u64),
+    Range { min: Option<u64>, max: Option<u64> },
+}
+
+impl Expect {
+    pub fn satisfied_by(&self, count: u64) -> bool {
+        match self {
+            Expect::Exactly(n) => count == *n,
+            Expect::Range { min, max } => {
+                min.map(|m| count >= m).unwrap_or(true) && max.map(|m| count <= m).unwrap_or(true)
+            }
+        }
+    }
 }
 
 impl UpdateOperator {

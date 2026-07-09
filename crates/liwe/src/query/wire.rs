@@ -15,6 +15,8 @@ pub struct RawOperation {
     #[serde(default)]
     pub limit: Option<i64>,
     #[serde(default)]
+    pub expect: Option<Value>,
+    #[serde(default)]
     pub update: Option<RawUpdate>,
 }
 
@@ -31,13 +33,8 @@ pub struct RawProjection(pub Mapping);
 pub struct RawSort(pub Mapping);
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RawUpdate {
-    #[serde(rename = "$set", default)]
-    pub set: Option<Mapping>,
-    #[serde(rename = "$unset", default)]
-    pub unset: Option<Mapping>,
-}
+#[serde(transparent)]
+pub struct RawUpdate(pub Mapping);
 
 pub fn parse(yaml: &str) -> Result<RawOperation, serde_yaml::Error> {
     if yaml.trim().is_empty() {

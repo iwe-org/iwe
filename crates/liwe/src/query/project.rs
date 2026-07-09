@@ -1,9 +1,12 @@
+use std::cell::OnceCell;
+
 use serde_yaml::{Mapping, Value};
 
 use crate::graph::Graph;
 use crate::model::Key;
+use crate::query::block_eval::BlockIndex;
 use crate::query::document::{
-    FieldPath, Projection, ProjectionField, ProjectionMode, ProjectionSource, PseudoField,
+    FieldPath, Projection, ProjectionBase, ProjectionField, ProjectionSource, PseudoField,
 };
 use crate::query::frontmatter::{is_reserved_segment, strip_reserved};
 use crate::retrieve::EdgeRef;
@@ -11,74 +14,69 @@ use crate::retrieve::EdgeRef;
 pub struct ProjectionContext<'a> {
     pub graph: &'a Graph,
     pub key: &'a Key,
+    blocks: OnceCell<BlockIndex>,
+}
+
+impl<'a> ProjectionContext<'a> {
+    pub fn new(graph: &'a Graph, key: &'a Key) -> Self {
+        ProjectionContext {
+            graph,
+            key,
+            blocks: OnceCell::new(),
+        }
+    }
+
+    fn block_index(&self) -> &BlockIndex {
+        self.blocks
+            .get_or_init(|| BlockIndex::build(self.graph, self.key))
+    }
 }
 
 pub fn apply_projection(ctx: &ProjectionContext<'_>, projection: &Projection) -> Mapping {
-    let mut out = Mapping::new();
-    let effective: Vec<&ProjectionField> = match projection.mode {
-        ProjectionMode::Replace => projection.fields.iter().collect(),
-        ProjectionMode::Extend => {
-            let default = Projection::default_for_find();
-            let mut by_name: Vec<ProjectionField> = default.fields.clone();
-            for f in &projection.fields {
-                if let Some(existing) = by_name.iter_mut().find(|d| d.output == f.output) {
-                    *existing = f.clone();
-                } else {
-                    by_name.push(f.clone());
-                }
-            }
-            return write_with_user_fm(ctx, &by_name);
+    let over_defaults;
+    let fields: &[ProjectionField] = match projection.base {
+        ProjectionBase::Document => {
+            over_defaults = merge_over_defaults(&projection.fields);
+            &over_defaults
         }
+        _ => &projection.fields,
     };
-    for field in &effective {
-        let v = resolve_field(ctx, field);
-        out.insert(Value::String(field.output.clone()), v);
-    }
-    if projection.mode == ProjectionMode::Replace
-        && projection.fields.iter().any(|f| {
-            matches!(
-                &f.source,
-                ProjectionSource::Pseudo(PseudoField::Frontmatter)
-            )
-        })
-    {
-        return out;
-    }
-    if projection.mode == ProjectionMode::Replace {
-        return out;
-    }
-    out
-}
 
-fn write_with_user_fm(ctx: &ProjectionContext<'_>, fields: &[ProjectionField]) -> Mapping {
     let mut out = Mapping::new();
     for field in fields {
         let v = resolve_field(ctx, field);
         out.insert(Value::String(field.output.clone()), v);
     }
-    if let Some(mut fm) = ctx.graph.frontmatter(ctx.key).cloned() {
-        strip_reserved(&mut fm);
-        for (k, v) in fm {
-            if !out.contains_key(&k) {
-                out.insert(k, v);
-            } else if let Some(s) = k.as_str() {
-                if matches!(s, "key" | "title") {
-                    out.insert(k, v);
-                }
-            }
+    if projection.base != ProjectionBase::Empty {
+        merge_user_frontmatter(ctx, &mut out);
+    }
+    out
+}
+
+fn merge_over_defaults(fields: &[ProjectionField]) -> Vec<ProjectionField> {
+    let mut out = Projection::document_fields();
+    for f in fields {
+        match out.iter_mut().find(|d| d.output == f.output) {
+            Some(existing) => *existing = f.clone(),
+            None => out.push(f.clone()),
         }
     }
     out
 }
 
-pub fn apply_projection_or_default(
-    ctx: &ProjectionContext<'_>,
-    projection: Option<&Projection>,
-) -> Mapping {
-    match projection {
-        None => write_with_user_fm(ctx, &Projection::default_for_find().fields),
-        Some(p) if matches!(p.mode, ProjectionMode::Extend) => apply_projection(ctx, p),
-        Some(p) => apply_projection(ctx, p),
+fn merge_user_frontmatter(ctx: &ProjectionContext<'_>, out: &mut Mapping) {
+    let Some(mut fm) = ctx.graph.frontmatter(ctx.key).cloned() else {
+        return;
+    };
+    strip_reserved(&mut fm);
+    for (k, v) in fm {
+        if !out.contains_key(&k) {
+            out.insert(k, v);
+        } else if let Some(s) = k.as_str() {
+            if matches!(s, "key" | "title") {
+                out.insert(k, v);
+            }
+        }
     }
 }
 
@@ -86,6 +84,23 @@ fn resolve_field(ctx: &ProjectionContext<'_>, field: &ProjectionField) -> Value 
     match &field.source {
         ProjectionSource::Pseudo(p) => resolve_pseudo(ctx, *p),
         ProjectionSource::Frontmatter(path) => resolve_frontmatter(ctx, path),
+        ProjectionSource::ContentBlocks(pred) => {
+            Value::String(ctx.block_index().render_content(pred))
+        }
+        ProjectionSource::Blocks(pred) => Value::Sequence(
+            ctx.block_index()
+                .blocks_entries(pred)
+                .into_iter()
+                .map(Value::Mapping)
+                .collect(),
+        ),
+        ProjectionSource::Matches(source) => Value::Sequence(
+            ctx.block_index()
+                .matches_entries(source)
+                .into_iter()
+                .map(Value::Mapping)
+                .collect(),
+        ),
     }
 }
 

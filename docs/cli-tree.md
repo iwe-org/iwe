@@ -14,6 +14,8 @@ iwe tree [OPTIONS]
 | ------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
 | `-f, --format <FORMAT>`         | `markdown` | Output format: `markdown`, `keys`, `json`, `yaml`.                                   |
 | `-d, --depth <DEPTH>`           | `4`        | Maximum depth to traverse.                                                           |
+| `--project <EXPR>`              | -          | Projection for `json` / `yaml` nodes: same grammar as [`iwe find`](cli-find.md).     |
+| `--add-fields <EXPR>`           | -          | Additive projection: extends each node's default fields. Same grammar as `--project`. |
 | `--filter <EXPR>`               | -          | Inline YAML filter expression. See [Query Language](query-language.md).              |
 | `-k, --key <KEY>`               | -          | Start tree from specific document(s); repeatable.                                    |
 | `--includes <KEY[:DEPTH]>`      | -          | `$includes` anchor. Repeatable; anchors are ANDed.                                   |
@@ -71,10 +73,11 @@ Nested JSON array structure:
 ]
 ```
 
-`children` is always present (empty array on leaves). With `--project f1,f2`, the listed user-frontmatter fields are emitted alongside `key`, `title`, `children` per node:
+`children` is always present (empty array on leaves). `--project` / `--add-fields` accept the same grammar as [`iwe find`](cli-find.md) — frontmatter fields, `$`-selectors, and block-addressed sources — and the projected fields are emitted alongside `key`, `title`, `children` per node. Markdown and keys output ignore projection.
 
 ``` bash
 iwe tree --project pillar,status -f json
+iwe tree --add-fields 'found: { $matches: "(?i)todo" }' -f yaml
 ```
 
 ## Starting from Specific Documents

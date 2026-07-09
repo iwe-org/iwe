@@ -16,6 +16,14 @@ impl Projector {
         .project_node(iter)
     }
 
+    pub fn resolve(parent: &str, inlines: Inlines) -> Inlines {
+        Projector {
+            header_level: 0,
+            parent: parent.to_string(),
+        }
+        .resolve_inlines(inlines)
+    }
+
     fn with(&self, header_level: usize) -> Projector {
         Projector {
             header_level,

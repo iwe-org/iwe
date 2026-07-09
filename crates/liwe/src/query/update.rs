@@ -86,9 +86,7 @@ mod tests {
     #[test]
     fn set_top_level_field() {
         let mut d = doc(vec![("status", "draft".into())]);
-        let u = Update {
-            operators: vec![build_set(&["reviewed"], Value::Bool(true))],
-        };
+        let u = Update::new(vec![build_set(&["reviewed"], Value::Bool(true))]);
         apply(&u, &mut d);
         assert_eq!(d.get(key("reviewed")), Some(&Value::Bool(true)));
     }
@@ -96,12 +94,10 @@ mod tests {
     #[test]
     fn set_replaces_existing_field() {
         let mut d = doc(vec![("status", "draft".into())]);
-        let u = Update {
-            operators: vec![build_set(
-                &["status"],
-                Value::String("published".to_string()),
-            )],
-        };
+        let u = Update::new(vec![build_set(
+            &["status"],
+            Value::String("published".to_string()),
+        )]);
         apply(&u, &mut d);
         assert_eq!(
             d.get(key("status")),
@@ -112,9 +108,7 @@ mod tests {
     #[test]
     fn set_dotted_path_auto_creates_intermediates() {
         let mut d = Mapping::new();
-        let u = Update {
-            operators: vec![build_set(&["a", "b", "c"], Value::Number(1.into()))],
-        };
+        let u = Update::new(vec![build_set(&["a", "b", "c"], Value::Number(1.into()))]);
         apply(&u, &mut d);
         let a = d.get(key("a")).expect("a present").as_mapping().unwrap();
         let b = a.get(key("b")).expect("b present").as_mapping().unwrap();
@@ -124,9 +118,7 @@ mod tests {
     #[test]
     fn set_dotted_path_extends_existing_mapping() {
         let mut d = doc(vec![("a", nested(vec![("x", 1i64.into())]))]);
-        let u = Update {
-            operators: vec![build_set(&["a", "y"], Value::Number(2.into()))],
-        };
+        let u = Update::new(vec![build_set(&["a", "y"], Value::Number(2.into()))]);
         apply(&u, &mut d);
         let a = d.get(key("a")).unwrap().as_mapping().unwrap();
         assert_eq!(a.get(key("x")), Some(&Value::Number(1.into())));
@@ -136,9 +128,7 @@ mod tests {
     #[test]
     fn set_through_scalar_replaces_with_mapping() {
         let mut d = doc(vec![("a", "scalar".into())]);
-        let u = Update {
-            operators: vec![build_set(&["a", "b"], Value::Number(1.into()))],
-        };
+        let u = Update::new(vec![build_set(&["a", "b"], Value::Number(1.into()))]);
         apply(&u, &mut d);
         let a = d.get(key("a")).expect("a present").as_mapping().unwrap();
         assert_eq!(a.get(key("b")), Some(&Value::Number(1.into())));
@@ -147,9 +137,7 @@ mod tests {
     #[test]
     fn unset_existing_field() {
         let mut d = doc(vec![("status", "draft".into()), ("reviewed", true.into())]);
-        let u = Update {
-            operators: vec![build_unset(&["reviewed"])],
-        };
+        let u = Update::new(vec![build_unset(&["reviewed"])]);
         apply(&u, &mut d);
         assert!(!d.contains_key(key("reviewed")));
     }
@@ -157,9 +145,7 @@ mod tests {
     #[test]
     fn unset_missing_is_noop() {
         let mut d = doc(vec![("status", "draft".into())]);
-        let u = Update {
-            operators: vec![build_unset(&["never_existed"])],
-        };
+        let u = Update::new(vec![build_unset(&["never_existed"])]);
         apply(&u, &mut d);
         assert_eq!(d.get(key("status")), Some(&Value::String("draft".into())));
     }
@@ -167,9 +153,7 @@ mod tests {
     #[test]
     fn unset_through_non_mapping_is_noop() {
         let mut d = doc(vec![("a", "scalar".into())]);
-        let u = Update {
-            operators: vec![build_unset(&["a", "b"])],
-        };
+        let u = Update::new(vec![build_unset(&["a", "b"])]);
         apply(&u, &mut d);
         assert_eq!(d.get(key("a")), Some(&Value::String("scalar".into())));
     }
@@ -177,12 +161,10 @@ mod tests {
     #[test]
     fn multiple_operators_apply_in_order() {
         let mut d = doc(vec![("a", 1i64.into()), ("b", 2i64.into())]);
-        let u = Update {
-            operators: vec![
-                build_set(&["c"], Value::Number(3.into())),
-                build_unset(&["a"]),
-            ],
-        };
+        let u = Update::new(vec![
+            build_set(&["c"], Value::Number(3.into())),
+            build_unset(&["a"]),
+        ]);
         apply(&u, &mut d);
         assert!(!d.contains_key(key("a")));
         assert_eq!(d.get(key("c")), Some(&Value::Number(3.into())));

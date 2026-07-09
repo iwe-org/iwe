@@ -1,10 +1,10 @@
+use crate::queries::{and, eq, exists, filter, find, gte, or};
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::execute;
-use liwe::query::prelude::{and, eq, exists, filter, find, gte, or};
 use liwe::query::{
-    Filter, FindOp, Outcome, Projection, ProjectionField, ProjectionMode, ProjectionSource,
+    Filter, FindOp, Outcome, Projection, ProjectionBase, ProjectionField, ProjectionSource,
     PseudoField, Sort,
 };
 use liwe::state::from_indoc;
@@ -12,7 +12,7 @@ use serde_yaml::{Mapping, Value};
 
 fn run_find(docs: &str, op: FindOp) -> Vec<(String, Mapping)> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&find(op), &graph) {
+    match execute(&find(op), &graph).expect("query succeeds") {
         Outcome::Find { matches } => matches
             .into_iter()
             .map(|m| (m.key.to_string(), m.document))
@@ -104,6 +104,23 @@ fn find_filter_with_or_and_nested() {
 }
 
 #[test]
+fn find_without_projection_emits_frontmatter_only() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            status: draft
+            priority: 5
+            ---
+            # A
+        "},
+        FindOp::new(),
+    );
+    let expected: Mapping = serde_yaml::from_str("status: draft\npriority: 5\n").expect("parses");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].1, expected);
+}
+
+#[test]
 fn find_projection_drops_unprojected_fields() {
     let matches = run_find(
         indoc! {"
@@ -114,7 +131,7 @@ fn find_projection_drops_unprojected_fields() {
             ---
             # A
         "},
-        filter::<FindOp>(Filter::all()).project(Projection::fields(&["title", "status"])),
+        filter(Filter::all()).project(Projection::fields(&["title", "status"])),
     );
     assert_eq!(matches.len(), 1);
     let doc = &matches[0].1;
@@ -123,7 +140,7 @@ fn find_projection_drops_unprojected_fields() {
     assert!(!doc.contains_key(Value::String("author".into())));
 }
 
-fn projection(fields: &[(&str, ProjectionSource)], mode: ProjectionMode) -> Projection {
+fn projection(fields: &[(&str, ProjectionSource)], base: ProjectionBase) -> Projection {
     Projection {
         fields: fields
             .iter()
@@ -132,7 +149,7 @@ fn projection(fields: &[(&str, ProjectionSource)], mode: ProjectionMode) -> Proj
                 source: src.clone(),
             })
             .collect(),
-        mode,
+        base,
     }
 }
 
@@ -145,12 +162,12 @@ fn find_projection_pseudo_key_and_title() {
             ---
             # Doc One
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[
                 ("k", ProjectionSource::Pseudo(PseudoField::Key)),
                 ("t", ProjectionSource::Pseudo(PseudoField::Title)),
             ],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     assert_eq!(matches.len(), 1);
@@ -172,9 +189,9 @@ fn find_projection_title_slug() {
         indoc! {"
             # My Cool Doc!
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[("slug", ProjectionSource::Pseudo(PseudoField::TitleSlug))],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let doc = &matches[0].1;
@@ -196,9 +213,9 @@ fn find_projection_content_returns_body() {
 
             Hello.
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[("body", ProjectionSource::Pseudo(PseudoField::Content))],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let doc = &matches[0].1;
@@ -220,9 +237,9 @@ fn find_projection_extend_keeps_defaults_and_appends() {
             ---
             # A
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[("body", ProjectionSource::Pseudo(PseudoField::Content))],
-            ProjectionMode::Extend,
+            ProjectionBase::Document,
         )),
     );
     let doc = &matches[0].1;
@@ -239,12 +256,12 @@ fn find_projection_alias_with_user_chosen_name() {
         indoc! {"
             # Alpha
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[
                 ("heading", ProjectionSource::Pseudo(PseudoField::Title)),
                 ("ident", ProjectionSource::Pseudo(PseudoField::Key)),
             ],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let doc = &matches[0].1;
@@ -276,9 +293,7 @@ fn find_sort_and_limit() {
             ---
             # C
         "},
-        filter::<FindOp>(Filter::all())
-            .sort(Sort::desc("modified"))
-            .limit(2),
+        filter(Filter::all()).sort(Sort::desc("modified")).limit(2),
         &["2", "3"],
     );
 }
@@ -302,7 +317,7 @@ fn find_ties_broken_by_key_ascending() {
             ---
             # Third
         "},
-        filter::<FindOp>(eq("priority", 1i64)).sort(Sort::asc("priority")),
+        filter(eq("priority", 1i64)).sort(Sort::asc("priority")),
         &["1", "2", "3"],
     );
 }
@@ -338,7 +353,7 @@ fn find_empty_corpus_returns_empty() {
         MarkdownOptions::default(),
         None,
     );
-    match execute(&find(FindOp::new()), &graph) {
+    match execute(&find(FindOp::new()), &graph).expect("query succeeds") {
         Outcome::Find { matches } => assert!(matches.is_empty()),
         other => panic!("{:?}", other),
     }
@@ -370,14 +385,14 @@ fn find_projection_dotted_path_resolves_nested_fm() {
             ---
             # Doc One
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[(
                 "p",
                 ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted(
                     "metadata.priority",
                 )),
             )],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let doc = &matches[0].1;
@@ -396,14 +411,14 @@ fn find_projection_dotted_path_missing_intermediate_emits_null() {
             ---
             # Doc One
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[(
                 "p",
                 ProjectionSource::Frontmatter(liwe::query::FieldPath::from_dotted(
                     "metadata.priority",
                 )),
             )],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let doc = &matches[0].1;
@@ -418,12 +433,12 @@ fn find_projection_pseudo_includes_emits_edge_refs() {
             _
             # B
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[
                 ("k", ProjectionSource::Pseudo(PseudoField::Key)),
                 ("inc", ProjectionSource::Pseudo(PseudoField::Includes)),
             ],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let parent = matches
@@ -461,12 +476,12 @@ fn find_projection_pseudo_referenced_by_emits_edge_refs() {
             _
             # B
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[
                 ("k", ProjectionSource::Pseudo(PseudoField::Key)),
                 ("rb", ProjectionSource::Pseudo(PseudoField::ReferencedBy)),
             ],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let target = matches
@@ -501,9 +516,9 @@ fn find_projection_pseudo_frontmatter_emits_full_object() {
             ---
             # Doc One
         "},
-        filter::<FindOp>(Filter::all()).project(projection(
+        filter(Filter::all()).project(projection(
             &[("fm", ProjectionSource::Pseudo(PseudoField::Frontmatter))],
-            ProjectionMode::Replace,
+            ProjectionBase::Empty,
         )),
     );
     let doc = &matches[0].1;
@@ -533,7 +548,7 @@ fn find_extend_user_fm_references_does_not_override_system() {
             ---
             # Doc One
         "},
-        filter::<FindOp>(Filter::all()).project(Projection::extend(vec![ProjectionField {
+        filter(Filter::all()).project(Projection::extend(vec![ProjectionField {
             output: "note".to_string(),
             source: ProjectionSource::Pseudo(PseudoField::Key),
         }])),
@@ -559,7 +574,7 @@ fn find_user_frontmatter_title_overrides_pseudo_title() {
             ---
             # H1 Heading
         "},
-        filter::<FindOp>(Filter::all()).project(Projection::extend(vec![ProjectionField {
+        filter(Filter::all()).project(Projection::extend(vec![ProjectionField {
             output: "note".to_string(),
             source: ProjectionSource::Pseudo(PseudoField::Key),
         }])),
@@ -582,7 +597,7 @@ fn find_user_frontmatter_key_overrides_pseudo_key() {
             ---
             # Heading
         "},
-        filter::<FindOp>(Filter::all()).project(Projection::extend(vec![ProjectionField {
+        filter(Filter::all()).project(Projection::extend(vec![ProjectionField {
             output: "note".to_string(),
             source: ProjectionSource::Pseudo(PseudoField::Title),
         }])),

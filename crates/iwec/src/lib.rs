@@ -21,7 +21,10 @@ use liwe::operations::{
     ExtractConfig, InlineConfig, OperationError,
 };
 use liwe::query::cli::parse_projection;
-use liwe::query::{self, Filter, InclusionAnchor, ProjectionMode};
+use liwe::query::{
+    self, execute, parse_operation, strict_guard_violations, Filter, InclusionAnchor, Operation,
+    OperationKind, Outcome, ProjectionBase,
+};
 use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use liwe::stats::{GraphStatistics, KeyStatistics};
 use liwe::tokens::Truncation;
@@ -209,11 +212,11 @@ impl TryFrom<FindParams> for FindOptions {
                 ))
             }
             (Some(s), None) => Some(
-                parse_projection(s, ProjectionMode::Replace)
+                parse_projection(s, ProjectionBase::Empty)
                     .map_err(|e| McpError::invalid_params(e, None))?,
             ),
             (None, Some(s)) => Some(
-                parse_projection(s, ProjectionMode::Extend)
+                parse_projection(s, ProjectionBase::Document)
                     .map_err(|e| McpError::invalid_params(e, None))?,
             ),
             (None, None) => None,
@@ -351,6 +354,54 @@ pub struct DeleteParams {
     pub key: String,
     #[schemars(description = "Preview changes without applying. Default: false")]
     pub dry_run: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum QueryKind {
+    Find,
+    Count,
+    Update,
+    Delete,
+}
+
+impl From<QueryKind> for OperationKind {
+    fn from(kind: QueryKind) -> Self {
+        match kind {
+            QueryKind::Find => OperationKind::Find,
+            QueryKind::Count => OperationKind::Count,
+            QueryKind::Update => OperationKind::Update,
+            QueryKind::Delete => OperationKind::Delete,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct QueryParams {
+    #[schemars(
+        description = "Operation kind: find (read documents), count (count documents), update (mutate frontmatter and/or blocks), or delete (remove documents)."
+    )]
+    pub operation: QueryKind,
+    #[schemars(
+        description = "The operation document as YAML. Uses the IWE query + block-selection language: `filter` (with $content block membership), `project`/`addFields` ($content narrowing, $blocks, $matches), `sort`, `limit` for reads; `filter` + `update` (with block operators $replace, $replaceText, $insertBefore, $insertAfter, $append, $delete) for update; `filter` + `expect` for delete. This surface is always strict: every mutating application must carry an `expect` guard (document-level `expect`, and one per block operator)."
+    )]
+    pub document: String,
+    #[schemars(
+        description = "Preview mutations without writing to disk (update/delete only). Default: false."
+    )]
+    #[serde(default)]
+    pub dry_run: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+struct QueryUpdateOutput {
+    dry_run: bool,
+    changed: Vec<ChangeEntry>,
+}
+
+#[derive(Debug, Serialize)]
+struct QueryCountOutput {
+    count: usize,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -540,6 +591,30 @@ impl ConfigResource {
 
 fn op_error_to_mcp(e: OperationError) -> McpError {
     McpError::invalid_params(e.to_string(), None)
+}
+
+fn merge_changes(into: &mut Changes, other: Changes) {
+    for key in other.removes {
+        if !into.removes.contains(&key) {
+            into.removes.push(key);
+        }
+    }
+    for (key, value) in other.creates {
+        if !into.creates.iter().any(|(existing, _)| existing == &key) {
+            into.creates.push((key, value));
+        }
+    }
+    for (key, value) in other.updates {
+        if let Some(slot) = into
+            .updates
+            .iter_mut()
+            .find(|(existing, _)| existing == &key)
+        {
+            slot.1 = value;
+        } else {
+            into.updates.push((key, value));
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -804,6 +879,91 @@ impl IweServer {
         }
 
         to_json_result(&ChangesOutput::from(&changes))
+    }
+
+    #[tool(
+        description = "Run an IWE query/block-selection operation document. `find` and `count` read; `update` mutates frontmatter and blocks (operators $replace, $replaceText, $insertBefore, $insertAfter, $append, $delete); `delete` removes documents. Membership uses the `$content` filter operator; reads project `$content` narrowing, `$blocks`, and `$matches`. Always strict: every mutating application must carry an `expect` guard (document-level `expect` plus one per block operator). Use `find` with `$blocks`/`$matches` to locate targets and learn counts before mutating."
+    )]
+    async fn iwe_query(
+        &self,
+        Parameters(params): Parameters<QueryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let kind: OperationKind = params.operation.into();
+        let op = parse_operation(&params.document, kind)
+            .map_err(|e| McpError::invalid_params(format!("invalid operation: {}", e), None))?;
+
+        let violations = strict_guard_violations(&op);
+        if !violations.is_empty() {
+            return Err(McpError::invalid_params(
+                format!(
+                    "MCP block operations run strict: every mutating application must carry an `expect` guard; missing: {}. \
+                     State the expected count — 1 for a precision edit, {{ min: 1 }} for a bulk edit that must match, {{ min: 0 }} when zero is acceptable.",
+                    violations.join(", ")
+                ),
+                None,
+            ));
+        }
+
+        let dry_run = params.dry_run.unwrap_or(false);
+        let mut graph = self.graph.lock().await;
+
+        match &op {
+            Operation::Find(_) => {
+                let outcome = execute(&op, &graph)
+                    .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+                let Outcome::Find { matches } = outcome else {
+                    unreachable!("find operation yields a find outcome")
+                };
+                let documents: Vec<_> = matches.into_iter().map(|m| m.document).collect();
+                to_json_result(&documents)
+            }
+            Operation::Count(_) => {
+                let outcome = execute(&op, &graph)
+                    .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+                let Outcome::Count(count) = outcome else {
+                    unreachable!("count operation yields a count outcome")
+                };
+                to_json_result(&QueryCountOutput { count })
+            }
+            Operation::Update(_) => {
+                let outcome = execute(&op, &graph)
+                    .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+                let Outcome::Update { changes } = outcome else {
+                    unreachable!("update operation yields an update outcome")
+                };
+                let changed: Vec<ChangeEntry> = changes
+                    .iter()
+                    .map(|(key, content)| ChangeEntry {
+                        key: key.to_string(),
+                        content: content.clone(),
+                    })
+                    .collect();
+                if !dry_run {
+                    for (key, content) in &changes {
+                        graph.update_document(key.clone(), content.clone());
+                        self.write_file(key, content);
+                    }
+                }
+                to_json_result(&QueryUpdateOutput { dry_run, changed })
+            }
+            Operation::Delete(_) => {
+                let outcome = execute(&op, &graph)
+                    .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+                let Outcome::Delete { removed } = outcome else {
+                    unreachable!("delete operation yields a delete outcome")
+                };
+                let mut combined = Changes::default();
+                for key in &removed {
+                    let changes = op_delete(&graph, key).map_err(op_error_to_mcp)?;
+                    merge_changes(&mut combined, changes);
+                }
+                if !dry_run {
+                    Self::apply_changes(&mut graph, &combined);
+                    self.write_changes(&combined);
+                }
+                to_json_result(&ChangesOutput::from(&combined))
+            }
+        }
     }
 
     #[tool(
