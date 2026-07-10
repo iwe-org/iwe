@@ -541,3 +541,237 @@ fn test_new_empty_title_error() {
         stderr
     );
 }
+
+#[test]
+fn test_new_key_creates_at_exact_key() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Some Title")
+        .arg("--key")
+        .arg("custom-key")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("custom-key.md")).expect("Read created file");
+    assert_eq!(content, "# Some Title\n\n");
+
+    assert!(
+        !temp_path.join("some-title.md").exists(),
+        "Should not create a title-derived slug file"
+    );
+}
+
+#[test]
+fn test_new_key_subdirectory_creates_parent() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Ada Lovelace")
+        .arg("--key")
+        .arg("people/ada")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("people/ada.md")).expect("Read created file");
+    assert_eq!(content, "# Ada Lovelace\n\n");
+}
+
+#[test]
+fn test_new_key_with_extension_fails() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Note Title")
+        .arg("--key")
+        .arg("note.md")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(
+        !output.status.success(),
+        "Should fail for a key with a file extension"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(
+        stderr,
+        "Error: Key 'note.md' must not include a file extension\n"
+    );
+
+    assert!(
+        !temp_path.join("note.md").exists(),
+        "Should not create any file"
+    );
+}
+
+#[test]
+fn test_new_key_collision_fails_by_default() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let first = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("First")
+        .arg("--key")
+        .arg("shared")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+    assert!(first.status.success());
+
+    let second = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Second")
+        .arg("--key")
+        .arg("shared")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(
+        !second.status.success(),
+        "Second creation at the same key should fail"
+    );
+
+    let stderr = String::from_utf8(second.stderr).expect("Valid UTF-8");
+    assert_eq!(stderr, "Error: Document 'shared' already exists\n");
+
+    let content = read_to_string(temp_path.join("shared.md")).expect("Read file");
+    assert_eq!(content, "# First\n\n");
+}
+
+#[test]
+fn test_new_key_if_exists_skip_does_nothing() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let first = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("First")
+        .arg("--key")
+        .arg("shared")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+    assert!(first.status.success());
+
+    let second = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Second")
+        .arg("--key")
+        .arg("shared")
+        .arg("--if-exists")
+        .arg("skip")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(second.status.success(), "Skip should succeed");
+    let stdout = String::from_utf8(second.stdout).expect("Valid UTF-8");
+    assert_eq!(stdout, "");
+
+    let content = read_to_string(temp_path.join("shared.md")).expect("Read file");
+    assert_eq!(content, "# First\n\n");
+}
+
+#[test]
+fn test_new_key_if_exists_override_replaces() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let first = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("First")
+        .arg("--key")
+        .arg("shared")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+    assert!(first.status.success());
+
+    let second = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Second")
+        .arg("--key")
+        .arg("shared")
+        .arg("--if-exists")
+        .arg("override")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(second.status.success(), "Override should succeed");
+
+    let content = read_to_string(temp_path.join("shared.md")).expect("Read file");
+    assert_eq!(content, "# Second\n\n");
+}
+
+#[test]
+fn test_new_key_empty_error() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(!output.status.success(), "Should fail for empty key");
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(stderr, "Error: Provided key is empty.\n");
+}
+
+#[test]
+fn test_new_key_with_template_renders_body() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    add_template(
+        &temp_dir,
+        "custom_body",
+        NoteTemplate {
+            key_template: "notes/{{slug}}".to_string(),
+            document_template: "Body: {{title}}\n".to_string(),
+        },
+    );
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Hello There")
+        .arg("--key")
+        .arg("my-key")
+        .arg("--template")
+        .arg("custom_body")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("my-key.md")).expect("Read created file");
+    assert_eq!(content, "Body: Hello There");
+
+    assert!(
+        !temp_path.join("notes/hello-there.md").exists(),
+        "Should bypass the template's key derivation"
+    );
+}

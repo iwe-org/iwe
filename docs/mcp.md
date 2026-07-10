@@ -46,11 +46,13 @@ The MCP server exposes 14 tools for reading, writing, querying, and refactoring 
 
 ### Writing
 
-| Tool           | Description                                        |
-| -------------- | -------------------------------------------------- |
-| `iwe_create`   | Create a new document from title and content       |
-| `iwe_update`   | Replace the full content of an existing document   |
-| `iwe_delete`   | Delete a document and clean up all references      |
+| Tool           | Description                                                 |
+| -------------- | ---------------------------------------------------------- |
+| `iwe_create`   | Create a new document from title and content, or an explicit key |
+| `iwe_update`   | Replace the full content of an existing document           |
+| `iwe_delete`   | Delete a document and clean up all references              |
+
+`iwe_create` derives the document key from the title (slugified) unless you pass an explicit `key`. Give a `key` when the identity is a stable value drawn from metadata (an entity name, a session date) rather than the title wording; subdirectory keys such as `people/ada` are allowed; omit the file extension. Creation always fails if the key already exists.
 
 ### Query
 

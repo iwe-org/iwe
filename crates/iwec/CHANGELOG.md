@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `iwe_create` gains an optional `key` parameter — create a document at an explicit key instead of a title-derived slug. Derive it from stable metadata (entity name, session date); subdirectory keys (e.g. `people/ada`) are allowed; omit the file extension. Creation fails if a document with that key already exists.
 - `iwe_query` `find` operations accept a `search` clause (`search: { lexical, fuzzy }`) — relevance selection that restricts and orders results; a `lexical` query with no searchable terms returns an empty array plus a warning content block.
 - `iwe_retrieve` gains `search` / `fuzzy` (seed queries), `expand` (object over `includes` / `includedBy` / `references` / `referencedBy` → integer depths, `0` = unbounded), and `max_documents` (cap the documents returned after expansion). With a search query the tool finds seed documents within the candidate set (`keys` + selector) and expands the graph around the ordered seeds.
 

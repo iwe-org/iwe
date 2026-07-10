@@ -8,7 +8,7 @@ use rand::Rng;
 
 use diwe::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
 use liwe::locale::get_locale;
-use liwe::model::Key;
+use liwe::model::{strip_doc_extension, Key};
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
 pub enum IfExists {
@@ -16,6 +16,7 @@ pub enum IfExists {
     Suffix,
     Override,
     Skip,
+    Fail,
 }
 
 fn get_default_template() -> NoteTemplate {
@@ -34,6 +35,7 @@ pub struct CreateOptions {
     pub title: String,
     pub template_name: Option<String>,
     pub content: Option<String>,
+    pub key: Option<String>,
     pub if_exists: IfExists,
 }
 
@@ -134,15 +136,23 @@ impl<'a> DocumentCreator<'a> {
         let slug = string_to_slug(&options.title);
         let id = generate_random_id();
 
-        let relative_key = render_template(
-            &template.key_template,
-            &options.title,
-            &slug,
-            &key_today,
-            &key_now,
-            &id,
-            &content,
-        )?;
+        let relative_key = match &options.key {
+            Some(key) => {
+                if strip_doc_extension(key) != key.as_str() {
+                    return Err(format!("Key '{}' must not include a file extension", key));
+                }
+                key.clone()
+            }
+            None => render_template(
+                &template.key_template,
+                &options.title,
+                &slug,
+                &key_today,
+                &key_now,
+                &id,
+                &content,
+            )?,
+        };
 
         let document_content = render_template(
             &template.document_template,
@@ -156,7 +166,11 @@ impl<'a> DocumentCreator<'a> {
 
         let base_key = Key::name(&relative_key);
         if base_key.relative_path.is_empty() {
-            return Err("Generated key is empty. Use a non-empty title.".to_string());
+            return Err(if options.key.is_some() {
+                "Provided key is empty.".to_string()
+            } else {
+                "Generated key is empty. Use a non-empty title.".to_string()
+            });
         }
         let path_str = base_key.to_path(self.config.format);
         let filename_len = std::path::Path::new(&path_str)
@@ -174,8 +188,11 @@ impl<'a> DocumentCreator<'a> {
 
         let final_key = match options.if_exists {
             IfExists::Skip if file_exists => return Ok(None),
+            IfExists::Fail if file_exists => {
+                return Err(format!("Document '{}' already exists", base_key))
+            }
             IfExists::Suffix => self.find_available_key(&base_key),
-            IfExists::Override | IfExists::Skip => base_key,
+            IfExists::Override | IfExists::Skip | IfExists::Fail => base_key,
         };
 
         let file_path = self

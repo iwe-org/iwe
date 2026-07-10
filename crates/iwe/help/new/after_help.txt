@@ -19,6 +19,10 @@ EXAMPLES:
   iwe new "Existing" --if-exists override  # Overwrite
   iwe new "Existing" --if-exists skip      # Do nothing
   iwe new "Existing" --if-exists suffix    # Create with -1, -2, etc.
+  iwe new "Existing" --if-exists fail      # Error and exit non-zero
+
+  # Create at an explicit key (bypasses key_template; fails if it exists)
+  iwe new "Ada Lovelace" --key people/ada
 
 TEMPLATE VARIABLES:
 

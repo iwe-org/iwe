@@ -356,12 +356,18 @@ struct New {
 
     #[clap(
         long,
+        short = 'k',
+        help = "Explicit document key, bypassing the template's key derivation. Subdirectory keys allowed (e.g. people/ada); omit the file extension. Defaults --if-exists to fail."
+    )]
+    key: Option<String>,
+
+    #[clap(
+        long,
         short = 'i',
         value_enum,
-        default_value = "suffix",
-        help = "Behavior when file already exists: suffix (append -1, -2, etc.), override (overwrite), skip (do nothing)"
+        help = "Behavior when file already exists: suffix (append -1, -2, etc.), override (overwrite), skip (do nothing), fail (error). Default: suffix, or fail when --key is given."
     )]
-    if_exists: IfExists,
+    if_exists: Option<IfExists>,
 
     #[clap(long, short = 'e', help = "Open created file in $EDITOR")]
     edit: bool,
@@ -1318,12 +1324,19 @@ fn new_command(args: New) {
         }
     });
 
+    let if_exists = args.if_exists.unwrap_or(if args.key.is_some() {
+        IfExists::Fail
+    } else {
+        IfExists::Suffix
+    });
+
     let creator = DocumentCreator::new(&config, library_path);
     let options = CreateOptions {
         title: args.title,
         template_name: args.template,
         content,
-        if_exists: args.if_exists,
+        key: args.key,
+        if_exists,
     };
 
     match creator.create(options) {
