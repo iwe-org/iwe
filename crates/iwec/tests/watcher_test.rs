@@ -2,8 +2,8 @@ use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
 
+use diwe::config::{Format, MarkdownOptions};
 use liwe::graph::Graph;
-use liwe::model::config::{Format, MarkdownOptions};
 use liwe::model::Key;
 use tokio::sync::Mutex;
 
@@ -64,12 +64,11 @@ async fn watcher_picks_up_modification() {
 
     fs::write(base_path.join("doc.md"), "# Original\n").unwrap();
 
-    let state = liwe::fs::new_for_path(&base_path, Format::Markdown);
+    let state = diwe::fs::new_for_path(&base_path, Format::Markdown);
     let graph = Arc::new(Mutex::new(Graph::from_state(
         &state,
         false,
         MarkdownOptions::default(),
-        None,
         None,
     )));
     start_watcher(graph.clone(), &base_path).await;
@@ -98,12 +97,11 @@ async fn watcher_picks_up_deletion() {
 
     fs::write(base_path.join("to-delete.md"), "# Delete me\n").unwrap();
 
-    let state = liwe::fs::new_for_path(&base_path, Format::Markdown);
+    let state = diwe::fs::new_for_path(&base_path, Format::Markdown);
     let graph = Arc::new(Mutex::new(Graph::from_state(
         &state,
         false,
         MarkdownOptions::default(),
-        None,
         None,
     )));
 

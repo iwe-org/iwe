@@ -1,7 +1,7 @@
-use indoc::indoc;
-use liwe::model::config::{
+use diwe::config::{
     migrate_v2_to_v3, ActionDefinition, Configuration, DjotOptions, Format, FormatOptions,
 };
+use indoc::indoc;
 
 #[test]
 fn old_config_without_format_is_backwards_compatible() {
@@ -141,8 +141,7 @@ fn test_config_with_extract_action_parses_correctly() {
     assert_eq!(parsed.actions.len(), 1);
     assert!(parsed.actions.contains_key("my_extract"));
 
-    if let Some(liwe::model::config::ActionDefinition::Extract(extract)) =
-        parsed.actions.get("my_extract")
+    if let Some(diwe::config::ActionDefinition::Extract(extract)) = parsed.actions.get("my_extract")
     {
         assert_eq!(extract.title, "My Extract");
         assert_eq!(extract.key_template, "{{id}}");

@@ -1,5 +1,5 @@
+use diwe::config::{Configuration, LibraryOptions, MarkdownOptions};
 use indoc::indoc;
-use liwe::model::config::{Configuration, LibraryOptions, MarkdownOptions};
 use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
 use tempfile::TempDir;

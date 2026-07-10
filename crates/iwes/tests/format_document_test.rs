@@ -1,5 +1,5 @@
+use diwe::config::{FormattingOptions, MarkdownOptions};
 use indoc::indoc;
-use liwe::model::config::{FormattingOptions, MarkdownOptions};
 
 use crate::fixture::*;
 
@@ -180,7 +180,7 @@ fn assert_formatted(source: &str, formatted: &str) {
 fn assert_formatted_with_extension(source: &str, formatted: &str) {
     Fixture::with_options(
         source,
-        liwe::model::config::MarkdownOptions {
+        diwe::config::MarkdownOptions {
             refs_extension: ".md".to_string(),
             ..Default::default()
         },

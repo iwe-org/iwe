@@ -3,7 +3,7 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 use tempfile::TempDir;
 
-use liwe::model::config::{Configuration, NoteTemplate};
+use diwe::config::{Configuration, NoteTemplate};
 
 fn setup_iwe_project() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");

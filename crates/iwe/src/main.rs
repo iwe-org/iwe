@@ -10,6 +10,8 @@ use clap_complete_nushell::Nushell;
 mod help;
 use itertools::Itertools;
 
+use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
+use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
@@ -20,7 +22,6 @@ use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::stats::{render_stats, GraphStatistics};
 use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
-use liwe::model::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
 use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
 use liwe::model::tree::{Tree as ModelTree, TreeIter};
 use liwe::model::Key;
@@ -35,7 +36,6 @@ use liwe::query::{
     FieldPath, Filter, Projection as QueryProjection, ProjectionField, ProjectionSource,
     Sort as QuerySort, SortDir,
 };
-use liwe::tokens::Truncation;
 
 use log::{debug, error, info};
 
@@ -959,7 +959,7 @@ struct Expansion {
 
 fn expand_direction(new: Option<u64>, legacy: Option<u32>) -> u32 {
     match new {
-        Some(n) => liwe::retrieve::expand_depth(n),
+        Some(n) => diwe::retrieve::expand_depth(n),
         None => legacy.unwrap_or(0),
     }
 }
@@ -971,7 +971,7 @@ fn resolve_expansion(args: &Retrieve) -> Expansion {
         references: expand_direction(args.expand_references, args.links.then_some(1)),
         referenced_by: args
             .expand_referenced_by
-            .map(liwe::retrieve::expand_depth)
+            .map(diwe::retrieve::expand_depth)
             .unwrap_or(0),
     }
 }
@@ -981,10 +981,11 @@ fn retrieve_command(args: Retrieve) {
     let config = get_configuration();
     let searching = args.lexical.is_some() || args.fuzzy.is_some();
 
-    let graph = if searching {
-        load_search_graph(&config)
+    let (graph, index) = if searching {
+        let (g, i) = load_search_graph(&config);
+        (g, Some(i))
     } else {
-        load_graph(&config)
+        (load_graph(&config), None)
     };
 
     let expansion = resolve_expansion(&args);
@@ -1013,8 +1014,9 @@ fn retrieve_command(args: Retrieve) {
             None => graph.keys(),
             Some(f) => liwe::query::evaluate(f, &graph),
         };
+        let index = index.as_ref().expect("search graph carries an index");
         if let Some(q) = args.lexical.as_deref() {
-            if !graph.lexical_query_has_terms(q) {
+            if !index.has_query_terms(q) {
                 eprintln!(
                     "warning: --lexical query '{}' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.",
                     q
@@ -1022,7 +1024,7 @@ fn retrieve_command(args: Retrieve) {
             }
         }
         let spec = liwe::query::SearchSpec::new(args.lexical.clone(), args.fuzzy.clone());
-        let seeds = liwe::query::search::ranked(&graph, &candidates, &spec);
+        let seeds = diwe::search_query::ranked(&graph, index, &candidates, &spec);
         reader.retrieve_many(&seeds, &options)
     } else {
         let explicit_keys = args.selector.key.clone();
@@ -1123,7 +1125,7 @@ fn lower_block_flags(args: &Find) -> Result<(Vec<ProjectionField>, Option<Filter
 
 fn find_command(args: Find) {
     let config = get_configuration();
-    let graph = load_search_graph(&config);
+    let (graph, index) = load_search_graph(&config);
 
     let sort = args
         .sort
@@ -1166,7 +1168,7 @@ fn find_command(args: Find) {
         (None, None) => None,
     };
 
-    let finder = DocumentFinder::new(&graph);
+    let finder = DocumentFinder::with_index(&graph, &index);
     let options = FindOptions {
         fuzzy,
         lexical: args.lexical,
@@ -1183,7 +1185,7 @@ fn find_command(args: Find) {
     let output = finder.find(&options);
 
     if let Some(q) = options.lexical.as_deref() {
-        if !graph.lexical_query_has_terms(q) {
+        if !index.has_query_terms(q) {
             eprintln!(
                 "warning: --lexical query '{}' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.",
                 q
@@ -1608,7 +1610,7 @@ fn squash_command(args: Squash) {
 }
 
 fn write_graph(graph: Graph, configuration: &Configuration) {
-    liwe::fs::write_store_at_path(
+    diwe::fs::write_store_at_path(
         &graph.export(),
         &get_library_path(configuration),
         configuration.format,
@@ -1654,23 +1656,18 @@ fn apply_changes(changes: &Changes, configuration: &Configuration) {
 }
 
 fn load_graph(configuration: &Configuration) -> Graph {
-    Graph::from_path(
+    diwe::loader::from_path(
         &get_library_path(configuration),
         false,
         configuration.format_options(),
         configuration.library.frontmatter_document_title.clone(),
-        None,
     )
 }
 
-fn load_search_graph(configuration: &Configuration) -> Graph {
-    Graph::from_path(
-        &get_library_path(configuration),
-        false,
-        configuration.format_options(),
-        configuration.library.frontmatter_document_title.clone(),
-        Some(configuration.search_language()),
-    )
+fn load_search_graph(configuration: &Configuration) -> (Graph, diwe::search::Bm25Index) {
+    let graph = load_graph(configuration);
+    let index = diwe::search_query::build_index(&graph, configuration.search_language());
+    (graph, index)
 }
 
 fn get_library_path(configuration: &Configuration) -> PathBuf {
@@ -1787,7 +1784,7 @@ fn stats_command(args: Stats) {
 
     if let Some(key_str) = args.key {
         let normalized_key = Key::name(&key_str).to_string();
-        let key_stats = liwe::stats::KeyStatistics::from_graph(&graph);
+        let key_stats = diwe::stats::KeyStatistics::from_graph(&graph);
         let entry = key_stats.into_iter().find(|s| s.key == normalized_key);
         match entry {
             Some(s) => match args.format {

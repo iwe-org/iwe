@@ -2,8 +2,8 @@ use std::io::Write;
 use std::process::{Command as ProcessCommand, Stdio};
 use std::time::Duration;
 
+use diwe::config::Command;
 use liwe::markdown::MarkdownReader;
-use liwe::model::config::Command;
 use liwe::model::node::{NodeIter, NodePointer};
 use liwe::operations::Changes;
 

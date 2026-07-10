@@ -7,7 +7,7 @@ use lsp_types::*;
 use liwe::graph::GraphContext;
 
 use super::search::SearchPath;
-use liwe::model::config::{CompletionOptions, Format, LinkType, RefsPath};
+use diwe::config::{CompletionOptions, Format, LinkType, RefsPath};
 use liwe::model::key_index::KeyIndex;
 use liwe::model::{self, Content, InlineRange, Key};
 

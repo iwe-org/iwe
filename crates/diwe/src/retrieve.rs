@@ -1,25 +1,19 @@
 use std::collections::HashSet;
 
-use crate::graph::walk::{
-    ancestors_inclusion, descendants_inclusion, inbound_reference, outbound_reference,
-};
-use crate::graph::{Graph, GraphContext};
-use crate::model::node::{NodeIter, NodePointer};
-use crate::model::{Key, NodeId};
-use crate::query::{self, Filter};
 use crate::tokens::{
     apply_budget, count_tokens, truncate_to_tokens, truncation_marker, Budget, Truncation,
 };
 use itertools::Itertools;
+use liwe::graph::walk::{
+    ancestors_inclusion, descendants_inclusion, inbound_reference, outbound_reference,
+};
+use liwe::graph::{Graph, GraphContext};
+use liwe::model::node::{NodeIter, NodePointer};
+use liwe::model::{Key, NodeId};
+use liwe::query::{self, Filter};
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EdgeRef {
-    pub key: String,
-    pub title: String,
-    pub section_path: Vec<String>,
-}
+pub use liwe::query::edges::EdgeRef;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -245,7 +239,7 @@ impl<'a> DocumentReader<'a> {
         };
 
         let references = if options.references > 0 {
-            crate::query::edges::references(self.graph, key)
+            liwe::query::edges::references(self.graph, key)
         } else {
             Vec::new()
         };

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use liwe::graph::Graph;
-use liwe::locale::get_locale;
-use liwe::model::config::{
+use diwe::config::{
     ActionDefinition, Command, Configuration, FormatOptions, MarkdownOptions,
     DEFAULT_KEY_DATE_FORMAT,
 };
+use liwe::graph::Graph;
+use liwe::locale::get_locale;
 use liwe::model::tree::Tree;
 use liwe::model::{Key, Markdown, NodeId};
 

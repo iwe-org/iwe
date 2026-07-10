@@ -1,0 +1,37 @@
+[package]
+name = "diwe"
+description = "IWE engine library"
+include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
+
+version.workspace = true
+repository.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "diwe"
+path = "src/lib.rs"
+
+[dependencies]
+liwe = { workspace = true, features = ["djot"] }
+indoc.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+itertools.workspace = true
+log.workspace = true
+rayon.workspace = true
+relative-path.workspace = true
+toml.workspace = true
+toml_edit.workspace = true
+ignore.workspace = true
+csv.workspace = true
+tiktoken-rs.workspace = true
+bm25.workspace = true
+fuzzy-matcher.workspace = true
+
+[dev-dependencies]
+env_logger.workspace = true
+pretty_assertions.workspace = true
+tempfile.workspace = true

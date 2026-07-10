@@ -11,9 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search` clause on `FindOp` (`SearchSpec { lexical, fuzzy }`) — a relevance stage that restricts membership to documents matching the query and supplies the default ordering, jointly with `filter`; `search` + `sort` keeps membership from search while `sort` supplies the order. The ranking logic (`query::search::ranked` / `matched`, RRF fusion) is now a shared stage used by both `DocumentFinder` and the query engine.
 - `RetrieveOptions` expansion generalized to four edge-named depths — `includes`, `included_by`, `references`, `referenced_by` (`u32`, `0` = off, `UNBOUNDED` = no limit) — replacing the `depth` / `context` / `links` fields. Inbound-reference expansion (`referenced_by`) and transitive outbound-reference expansion (`references` > 1) are now expressible; `retrieve::expand_depth` maps an `--expand` value (`0` = unbounded) to a depth.
 
+### Added
+- `format::DocumentFormat` trait (`read` / `write` / `write_skip_frontmatter`) as the format boundary, with the built-in `MarkdownFormat` and (feature-gated) `DjotFormat` implementations and a `format::format_for` constructor.
+- `query::QueryScores` and `query::execute_with_scores` — the query engine now ranks a `search` clause from caller-injected per-key relevance scores instead of computing them itself, keeping the kernel free of any search index.
+
 ### Changed
+- Djot support is now behind an opt-in `djot` cargo feature; `jotdown` is an optional dependency and the `djot` module compiles only when the feature is enabled. Markdown remains built in. Enable `features = ["djot"]` to read and write `.dj` documents.
+- The BM25 search index left the kernel: `Graph` no longer builds or holds one, so `Graph::search`, `has_search_index`, `search_scores`, and `lexical_query_has_terms` are removed, and `Graph::from_state` / `Graph::import` no longer take a `search_language` argument. The BM25 index and the `search` scoring (`ranked` / `matched`) moved to the `diwe` crate; `query::SearchSpec` stays as the DSL type.
 - `Graph::has_search_index()` reports whether the graph carries a BM25 index; running a `find` with a `search` clause against a graph without one is an execution-time error (`EvalError::SearchIndexMissing`).
 - `RetrieveOptions.limit` now caps the seed set before `DocumentReader::retrieve_many` expands (it was a post-expansion cap on the number of documents returned); the post-expansion cap moves to the new `RetrieveOptions.max_documents` field. Both are `Option<usize>`, `None` / `Some(0)` = unlimited.
+- `EdgeRef` moved from `retrieve` to `query::edges`.
+
+### Removed
+- The engine modules (`find`, `retrieve`, `stats`, `tokens`, `fs`, `file`) and the `.iwe/config.toml` mapping (`Configuration`, `LibraryOptions`, `CompletionOptions`, `SearchOptions`, `Command`, `ActionDefinition` and its variants, `NoteTemplate`, `load_config`) moved to the new `diwe` crate; `liwe` keeps the document kernel and the format/option types (`Format`, `FormatOptions`, `MarkdownOptions`, `DjotOptions`, `FormattingOptions`, `LinkType`, `InlineType`, `TargetType`, `Operation`) in `liwe::model::config`.
+- `Graph::from_path` — the filesystem-loading constructor moved to `diwe`; build a `State` from disk and call `Graph::from_state`.
 
 ## [0.10.0](https://github.com/iwe-org/iwe/compare/liwe-v0.9.0...liwe-v0.10.0) - 2026-07-09
 

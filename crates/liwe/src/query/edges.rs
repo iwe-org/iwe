@@ -1,11 +1,19 @@
 use std::collections::HashSet;
 
 use itertools::Itertools;
+use serde::Serialize;
 
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
-use crate::retrieve::EdgeRef;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EdgeRef {
+    pub key: String,
+    pub title: String,
+    pub section_path: Vec<String>,
+}
 
 pub fn included_by(graph: &Graph, key: &Key) -> Vec<EdgeRef> {
     let refs = graph.get_inclusion_edges_to(key);

@@ -1,8 +1,8 @@
-use indoc::indoc;
-use liwe::model::config::{
+use diwe::config::{
     CompletionOptions, Configuration, LibraryOptions, LinkType, MarkdownOptions, RefsPath,
     WikiLinkPath,
 };
+use indoc::indoc;
 
 use crate::fixture::*;
 
@@ -275,7 +275,7 @@ fn completion_after_file_deleted() {
 
 #[test]
 fn completion_with_wikilink_format() {
-    let config = liwe::model::config::Configuration {
+    let config = diwe::config::Configuration {
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),
             min_prefix_length: Some(0),
@@ -304,7 +304,7 @@ fn completion_with_wikilink_format() {
 
 #[test]
 fn completion_with_wikilink_format_multiple_documents() {
-    let config = liwe::model::config::Configuration {
+    let config = diwe::config::Configuration {
         completion: CompletionOptions {
             link_format: Some(LinkType::WikiLink),
             min_prefix_length: Some(0),
@@ -359,7 +359,7 @@ fn completion_with_wikilink_format_multiple_documents() {
 
 #[test]
 fn completion_with_wikilink_format_shortens_nested_key_to_bare_name() {
-    let config = liwe::model::config::Configuration {
+    let config = diwe::config::Configuration {
         markdown: MarkdownOptions {
             wiki_link_path: WikiLinkPath::Short,
             ..Default::default()
@@ -409,7 +409,7 @@ fn completion_with_wikilink_format_shortens_nested_key_to_bare_name() {
 
 #[test]
 fn completion_with_markdown_format_explicit() {
-    let config = liwe::model::config::Configuration {
+    let config = diwe::config::Configuration {
         completion: CompletionOptions {
             link_format: Some(LinkType::Markdown),
             min_prefix_length: Some(0),
@@ -438,7 +438,7 @@ fn completion_with_markdown_format_explicit() {
 
 #[test]
 fn completion_with_wikilink_and_refs_extension() {
-    let config = liwe::model::config::Configuration {
+    let config = diwe::config::Configuration {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
             refs_path: Default::default(),
@@ -476,7 +476,7 @@ fn completion_with_wikilink_and_refs_extension() {
 
 #[test]
 fn completion_uses_frontmatter_title() {
-    let config = liwe::model::config::Configuration {
+    let config = diwe::config::Configuration {
         library: LibraryOptions {
             frontmatter_document_title: Some("title".to_string()),
             ..Default::default()
@@ -520,7 +520,7 @@ fn completion_uses_frontmatter_title() {
 
 #[test]
 fn completion_fallback_to_header_when_frontmatter_missing() {
-    let config = liwe::model::config::Configuration {
+    let config = diwe::config::Configuration {
         library: LibraryOptions {
             frontmatter_document_title: Some("title".to_string()),
             ..Default::default()

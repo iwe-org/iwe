@@ -1,12 +1,9 @@
 #[allow(dead_code)]
 mod blocks;
-mod config_migration_test;
 mod djot_roundtrip;
 mod formatting_test;
 mod frontmatter_title_test;
-mod gitignore_test;
 mod links_test;
-mod nested_keys_test;
 mod normalization_escapes;
 mod normalization_headers;
 mod normalization_html;
@@ -26,10 +23,8 @@ mod query_filter_expression;
 mod query_find;
 mod query_graph;
 mod query_reserved_prefix;
-mod query_search;
+mod query_scores;
 mod query_update;
-mod search_test;
 mod squash_test;
 mod task_items_test;
 mod toc_test;
-mod windows_paths_test;

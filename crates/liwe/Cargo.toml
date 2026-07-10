@@ -15,6 +15,9 @@ rust-version.workspace = true
 name = "liwe"
 path = "src/lib.rs"
 
+[features]
+djot = ["dep:jotdown"]
+
 [dependencies]
 indoc.workspace = true
 serde.workspace = true
@@ -25,25 +28,19 @@ regex.workspace = true
 rand.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
-jotdown.workspace = true
+jotdown = { workspace = true, optional = true }
 relative-path.workspace = true
-toml.workspace = true
-toml_edit.workspace = true
 chrono.workspace = true
 sys-locale.workspace = true
-ignore.workspace = true
 serde_yaml.workspace = true
 minijinja.workspace = true
 sanitize-filename.workspace = true
-fuzzy-matcher.workspace = true
-csv.workspace = true
 percent-encoding.workspace = true
-tiktoken-rs.workspace = true
-bm25.workspace = true
 
 [[test]]
 name = "integration"
 path = "tests/main.rs"
+required-features = ["djot"]
 
 [dev-dependencies]
 env_logger.workspace = true

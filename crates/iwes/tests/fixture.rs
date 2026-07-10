@@ -12,7 +12,8 @@ use extend::ext;
 
 use assert_json_diff::assert_json_eq;
 use crossbeam_channel::{after, select, Receiver};
-use liwe::{model::config::Configuration, state::from_indoc};
+use diwe::config::Configuration;
+use liwe::state::from_indoc;
 use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{notification::*, request::*, *};
 use serde::{Deserialize, Serialize};
@@ -20,8 +21,8 @@ use serde_json::Value;
 
 use std::time::SystemTime;
 
+use diwe::config::MarkdownOptions;
 use iwes::{main_loop, ServerParams};
-use liwe::model::config::MarkdownOptions;
 
 pub struct Fixture {
     req_id: Cell<i32>,

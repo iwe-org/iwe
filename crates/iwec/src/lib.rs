@@ -6,13 +6,16 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use chrono::Local;
-use liwe::find::{DocumentFinder, FindOptions, FindOutput};
-use liwe::fs::{new_for_path, new_from_hashmap};
-use liwe::graph::{Graph, GraphContext};
-use liwe::model::config::{
+use diwe::config::{
     ActionDefinition, CompletionOptions, Configuration, MarkdownOptions, NoteTemplate,
     DEFAULT_KEY_DATE_FORMAT,
 };
+use diwe::find::{DocumentFinder, FindOptions, FindOutput};
+use diwe::fs::{new_for_path, new_from_hashmap};
+use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
+use diwe::stats::{GraphStatistics, KeyStatistics};
+use diwe::tokens::Truncation;
+use liwe::graph::{Graph, GraphContext};
 use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
 use liwe::model::tree::{Tree, TreeIter};
 use liwe::model::Key;
@@ -25,9 +28,6 @@ use liwe::query::{
     self, execute, parse_operation, strict_guard_violations, Filter, InclusionAnchor, Operation,
     OperationKind, Outcome, ProjectionBase,
 };
-use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
-use liwe::stats::{GraphStatistics, KeyStatistics};
-use liwe::tokens::Truncation;
 use minijinja::{context, Environment};
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
@@ -334,7 +334,7 @@ impl RetrieveParams {
     }
 
     fn expansion(&self) -> (u32, u32, u32, u32) {
-        use liwe::retrieve::expand_depth;
+        use diwe::retrieve::expand_depth;
         if let Some(e) = &self.expand {
             return (
                 e.includes.map(expand_depth).unwrap_or(0),
@@ -728,7 +728,12 @@ impl IweServer {
     ) -> Result<CallToolResult, McpError> {
         let options: FindOptions = params.try_into()?;
         let graph = self.graph.lock().await;
-        let finder = DocumentFinder::new(&graph);
+        let index = (options.lexical.is_some() || options.fuzzy.is_some())
+            .then(|| diwe::search_query::build_index(&graph, self.config.search_language()));
+        let finder = match &index {
+            Some(index) => DocumentFinder::with_index(&graph, index),
+            None => DocumentFinder::new(&graph),
+        };
         let output: FindOutput = finder.find(&options);
         to_json_result_with_truncation(&output.results, &output.truncation)
     }
@@ -764,7 +769,8 @@ impl IweServer {
                 Some(f) => query::evaluate(f, &graph),
             };
             let spec = query::SearchSpec::new(params.search.clone(), params.fuzzy.clone());
-            let seeds = query::search::ranked(&graph, &candidates, &spec);
+            let index = diwe::search_query::build_index(&graph, self.config.search_language());
+            let seeds = diwe::search_query::ranked(&graph, &index, &candidates, &spec);
             reader.retrieve_many(&seeds, &options)
         } else {
             options.filter = params.selector.to_filter();
@@ -1012,9 +1018,16 @@ impl IweServer {
         let dry_run = params.dry_run.unwrap_or(false);
         let mut graph = self.graph.lock().await;
 
+        let index = match &op {
+            Operation::Find(find) if find.search.is_some() => Some(
+                diwe::search_query::build_index(&graph, self.config.search_language()),
+            ),
+            _ => None,
+        };
+
         match &op {
             Operation::Find(find) => {
-                let outcome = execute(&op, &graph)
+                let outcome = diwe::search_query::execute(&op, &graph, index.as_ref())
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let Outcome::Find { matches } = outcome else {
                     unreachable!("find operation yields a find outcome")
@@ -1022,8 +1035,12 @@ impl IweServer {
                 let documents: Vec<_> = matches.into_iter().map(|m| m.document).collect();
                 let mut warnings = Vec::new();
                 if let Some(spec) = &find.search {
-                    if query::search::lexical_has_no_terms(&graph, spec) {
-                        warnings.push(query::search::no_terms_warning(spec));
+                    if index
+                        .as_ref()
+                        .map(|idx| diwe::search_query::lexical_has_no_terms(idx, spec))
+                        .unwrap_or(false)
+                    {
+                        warnings.push(diwe::search_query::no_terms_warning(spec));
                     }
                 }
                 to_json_result_with_warnings(&documents, &warnings)
@@ -1261,9 +1278,9 @@ impl IweServer {
             .ok_or_else(|| McpError::invalid_params("Reference not found", None))?;
 
         let inline_type = if params.as_quote.unwrap_or(false) {
-            liwe::model::config::InlineType::Quote
+            diwe::config::InlineType::Quote
         } else {
-            liwe::model::config::InlineType::Section
+            diwe::config::InlineType::Section
         };
 
         let config = InlineConfig {
@@ -1796,7 +1813,6 @@ impl IweServer {
             false,
             configuration.format_options(),
             configuration.library.frontmatter_document_title.clone(),
-            Some(configuration.search_language()),
         );
         Self {
             graph: Arc::new(Mutex::new(graph)),
@@ -1818,13 +1834,7 @@ impl IweServer {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<HashMap<String, String>>(),
         );
-        let graph = Graph::from_state(
-            &state,
-            true,
-            MarkdownOptions::default(),
-            None,
-            Some(config.search_language()),
-        );
+        let graph = Graph::from_state(&state, true, MarkdownOptions::default(), None);
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,

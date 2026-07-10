@@ -4,7 +4,7 @@ use lsp_types::*;
 use percent_encoding::percent_decode_str;
 use url::Url;
 
-use liwe::model::config::Format;
+use diwe::config::Format;
 use liwe::model::{strip_doc_extension, Key};
 
 pub struct BasePath {

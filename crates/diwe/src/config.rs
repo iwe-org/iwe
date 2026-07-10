@@ -1,0 +1,670 @@
+use indoc::indoc;
+use log::debug;
+use std::{collections::HashMap, env, fs::read_to_string};
+use toml_edit::{value, DocumentMut, Item};
+
+use serde::{Deserialize, Serialize};
+
+use crate::search::{parse_language, Language};
+pub use liwe::model::config::{
+    DjotOptions, Format, FormatOptions, FormattingOptions, InlineType, LineBreakStyle, LinkType,
+    MarkdownOptions, Operation, RefsPath, TargetType, WikiLinkPath, DEFAULT_KEY_DATE_FORMAT,
+};
+
+const CONFIG_FILE_NAME: &str = "config.toml";
+const IWE_MARKER: &str = ".iwe";
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct LibraryOptions {
+    #[serde(default)]
+    pub path: String,
+    pub date_format: Option<String>,
+    pub time_format: Option<String>,
+    pub default_template: Option<String>,
+    pub frontmatter_document_title: Option<String>,
+    pub locale: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+pub struct CompletionOptions {
+    pub link_format: Option<LinkType>,
+    pub min_prefix_length: Option<usize>,
+    pub trigger_characters: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct SearchOptions {
+    #[serde(default = "default_search_language")]
+    pub language: String,
+}
+
+fn default_search_language() -> String {
+    "english".to_string()
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            language: default_search_language(),
+        }
+    }
+}
+
+impl Default for LibraryOptions {
+    fn default() -> Self {
+        Self {
+            path: String::new(),
+            date_format: Some(DEFAULT_KEY_DATE_FORMAT.into()),
+            time_format: None,
+            default_template: None,
+            frontmatter_document_title: None,
+            locale: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Configuration {
+    pub version: Option<u32>,
+    #[serde(default)]
+    pub format: Format,
+    #[serde(default)]
+    pub markdown: MarkdownOptions,
+    #[serde(default)]
+    pub djot: DjotOptions,
+    #[serde(default)]
+    pub library: LibraryOptions,
+    #[serde(default)]
+    pub completion: CompletionOptions,
+    #[serde(default)]
+    pub search: SearchOptions,
+    #[serde(default)]
+    pub commands: HashMap<String, Command>,
+    #[serde(default)]
+    pub actions: HashMap<String, ActionDefinition>,
+    #[serde(default)]
+    pub templates: HashMap<String, NoteTemplate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+pub struct Command {
+    pub run: String,
+    pub args: Option<Vec<String>>,
+    pub cwd: Option<String>,
+    pub env: Option<HashMap<String, String>>,
+    pub shell: Option<bool>,
+    pub timeout_seconds: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "type")]
+pub enum ActionDefinition {
+    #[serde(rename = "transform")]
+    Transform(Transform),
+    #[serde(rename = "attach")]
+    Attach(Attach),
+    #[serde(rename = "sort")]
+    Sort(Sort),
+    #[serde(rename = "inline")]
+    Inline(Inline),
+    #[serde(rename = "extract")]
+    Extract(Extract),
+    #[serde(rename = "extract_all")]
+    ExtractAll(ExtractAll),
+    #[serde(rename = "link")]
+    Link(Link),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Transform {
+    pub title: String,
+    pub command: String,
+    pub input_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Attach {
+    pub title: String,
+    pub key_template: String,
+    pub document_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Sort {
+    pub title: String,
+    pub reverse: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Inline {
+    pub title: String,
+    pub inline_type: InlineType,
+    pub keep_target: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Extract {
+    pub title: String,
+    pub link_type: Option<LinkType>,
+    pub key_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ExtractAll {
+    pub title: String,
+    pub link_type: Option<LinkType>,
+    pub key_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Link {
+    pub title: String,
+    pub link_type: Option<LinkType>,
+    pub key_template: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct NoteTemplate {
+    pub key_template: String,
+    pub document_template: String,
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        Self {
+            version: Some(1),
+            format: Default::default(),
+            markdown: Default::default(),
+            djot: Default::default(),
+            library: Default::default(),
+            completion: Default::default(),
+            search: Default::default(),
+            commands: Default::default(),
+            actions: Default::default(),
+            templates: Default::default(),
+        }
+    }
+}
+
+impl Configuration {
+    pub fn format_options(&self) -> FormatOptions {
+        match self.format {
+            Format::Markdown => FormatOptions::Markdown(self.markdown.clone()),
+            Format::Djot => FormatOptions::Djot(self.djot.clone()),
+        }
+    }
+
+    pub fn search_language(&self) -> Language {
+        parse_language(&self.search.language)
+    }
+
+    pub fn template() -> Self {
+        let mut template = Self {
+            version: Some(3),
+            ..Default::default()
+        };
+
+        template.commands.insert(
+            "default".into(),
+            Command {
+                run: "claude -p".to_string(),
+                timeout_seconds: Some(120),
+                ..Default::default()
+            },
+        );
+
+        template.actions.insert(
+            "today".into(),
+            ActionDefinition::Attach(Attach {
+                title: "Add Date".into(),
+                key_template: "{{today}}".into(),
+                document_template: "# {{today}}\n\n{{content}}\n".into(),
+            }),
+        );
+
+        template.actions.insert(
+            "rewrite".into(),
+            ActionDefinition::Transform(
+                Transform {
+                    title: "Rewrite".into(),
+                    command: "default".into(),
+                    input_template: indoc! {r##"
+                        Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
+
+                        The part you'll need to update is marked with {{update_start}}{{update_end}}.
+
+                        {{context_start}}
+
+                        {{context}}
+
+                        {{context_end}}
+
+                        - You can't replace entire text, your answer will be inserted in place of the {{update_start}}{{update_end}}. Don't include the {{context_start}}{{context_end}} and {{context_start}}{{context_end}} tags in your output.
+                        - Preserve the links in the text. Do not return list item "-" or header "#" prefix
+
+                        Your goal is to rewrite a given text to improve its clarity and readability. Ensure the language remains personable and not overly formal. Focus on simplifying language, organizing sentences logically, and removing ambiguity while maintaining a conversational tone.
+                        "##}.to_string(),
+                }
+            ),
+        );
+
+        template.actions.insert (
+            "expand".to_string(),
+            ActionDefinition::Transform(
+                Transform {
+                    title: "Expand".to_string(),
+                    command: "default".to_string(),
+                    input_template: indoc! {r##"
+                        Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
+
+                        The part you'll need to update is marked with {{update_start}}{{update_end}}.
+
+                        {{context_start}}
+
+                        {{context}}
+
+                        {{context_end}}
+
+                        - You can't replace entire text, your answer will be inserted in place of the {{update_start}}{{update_end}}. Don't include the {{context_start}}{{context_end}} and {{context_start}}{{context_end}} tags in your output.
+                        - Preserve the links in the text. Do not return list item "-" or header "#" prefix
+
+                        Expand the text you need to update, generate a couple paragraphs.
+                        "##}.to_string(),
+                }
+            ),
+        );
+
+        template.actions.insert (
+            "keywords".into(),
+            ActionDefinition::Transform(
+                Transform {
+                    title: "Keywords".to_string(),
+                    command: "default".to_string(),
+                    input_template: indoc! {r##"
+                        Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}}{{context_end}} tag.
+
+                        The part you'll need to update is marked with {{update_start}}{{update_end}}.
+
+                        {{context_start}}
+
+                        {{context}}
+
+                        {{context_end}}
+
+                        - You can't replace entire text, your answer will be inserted in place of the {{update_start}}{{update_end}}. Don't include the {{context_start}}{{context_end}} and {{context_start}}{{context_end}} tags in your output.
+
+                        Mark most important keywords with bold using ** markdown syntax. Keep the text unchanged!
+                        "##}.to_string(),
+                }
+            ),
+        );
+
+        template.actions.insert(
+            "emoji".into(),
+            ActionDefinition::Transform(
+                Transform {
+                    title: "Emojify".to_string(),
+                    command: "default".to_string(),
+                    input_template: indoc! {r##"
+                        Here's a text that I'm going to ask you to edit. The text is marked with {{context_start}} {{context_end}} tags.
+
+                        - The part you'll need to update is marked with {{update_start}} {{update_end}} tags.
+                        - You can't replace entire text, your answer will be inserted in between {{update_start}} {{update_end}} tags.
+                        - Add a relevant emoji one per list item (prior to list item text), header (prior to header text) or paragraph. Keep the text otherwise unchanged.
+                        - Don't include the {{update_start}} {{update_end}} tags in your answer.
+
+                        {{context_start}}
+
+                        {{context}}
+
+                        {{context_end}}
+                        "##}.to_string(),
+                }
+            )
+        );
+
+        template.actions.insert(
+            "sort".into(),
+            ActionDefinition::Sort(Sort {
+                title: "Sort A-Z".into(),
+                reverse: Some(false),
+            }),
+        );
+
+        template.actions.insert(
+            "sort_desc".into(),
+            ActionDefinition::Sort(Sort {
+                title: "Sort Z-A".into(),
+                reverse: Some(true),
+            }),
+        );
+
+        template.actions.insert(
+            "inline_section".into(),
+            ActionDefinition::Inline(Inline {
+                title: "Inline section".into(),
+                inline_type: InlineType::Section,
+                keep_target: Some(false),
+            }),
+        );
+
+        template.actions.insert(
+            "inline_quote".into(),
+            ActionDefinition::Inline(Inline {
+                title: "Inline quote".into(),
+                inline_type: InlineType::Quote,
+                keep_target: Some(false),
+            }),
+        );
+
+        template.actions.insert(
+            "extract".into(),
+            ActionDefinition::Extract(Extract {
+                title: "Extract".into(),
+                link_type: Some(LinkType::Markdown),
+                key_template: "{{id}}".into(),
+            }),
+        );
+
+        template.actions.insert(
+            "extract_all".into(),
+            ActionDefinition::ExtractAll(ExtractAll {
+                title: "Extract all subsections".into(),
+                link_type: Some(LinkType::Markdown),
+                key_template: "{{id}}".into(),
+            }),
+        );
+
+        template.actions.insert(
+            "link".into(),
+            ActionDefinition::Link(Link {
+                title: "Link".into(),
+                link_type: Some(LinkType::Markdown),
+                key_template: "{{id}}".into(),
+            }),
+        );
+
+        template.templates.insert(
+            "default".into(),
+            NoteTemplate {
+                key_template: "{{slug}}".into(),
+                document_template: "# {{title}}\n\n{{content}}".into(),
+            },
+        );
+
+        template
+    }
+}
+
+pub fn load_config() -> Result<Configuration, String> {
+    let current_dir =
+        env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let mut config_path = current_dir.clone();
+    config_path.push(IWE_MARKER);
+    config_path.push(CONFIG_FILE_NAME);
+
+    if config_path.exists() {
+        debug!("reading config from path: {:?}", config_path);
+
+        let raw = read_to_string(&config_path).map_err(|e| {
+            format!(
+                "Failed to read config file '{}': {}",
+                config_path.display(),
+                e
+            )
+        })?;
+        let configuration = migrate(&raw)?;
+
+        let mut config = toml::from_str::<Configuration>(&configuration).map_err(|e| {
+            format!(
+                "Failed to parse config file '{}': {}",
+                config_path.display(),
+                e
+            )
+        })?;
+        config.markdown.formatting = config.markdown.formatting.validated();
+        Ok(config)
+    } else {
+        debug!("using default configuration");
+        Ok(Configuration::template())
+    }
+}
+
+fn migrate(config: &str) -> Result<String, String> {
+    let doc = config
+        .parse::<DocumentMut>()
+        .map_err(|e| format!("Config file is not valid TOML: {}", e))?;
+    let current_version = doc
+        .get("version")
+        .and_then(|v| v.as_value())
+        .and_then(|v| v.as_integer())
+        .unwrap_or(0);
+
+    let mut updated = config.to_string();
+    let mut needs_update = false;
+
+    // Migrate from version 0 to version 1
+    if current_version < 1 {
+        debug!("applying migrations from version 0 to 1");
+        updated = add_default_type_to_actions(&updated);
+        updated = add_default_code_actions(&updated);
+        updated = set_config_version(&updated, 1);
+        needs_update = true;
+    }
+
+    // Migrate from version 1 to version 2
+    if current_version < 2 {
+        debug!("applying migrations from version 1 to 2");
+        updated = add_refs_extension_field(&updated);
+        updated = add_link_action(&updated);
+        updated = set_config_version(&updated, 2);
+        needs_update = true;
+    }
+
+    // Migrate from version 2 to version 3
+    if current_version < 3 {
+        debug!("applying migrations from version 2 to 3");
+        updated = migrate_v2_to_v3(&updated);
+        updated = set_config_version(&updated, 3);
+        needs_update = true;
+    }
+
+    if needs_update {
+        debug!("configuration file migration applied");
+        let current_dir =
+            env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let mut config_path = current_dir.clone();
+        config_path.push(IWE_MARKER);
+        config_path.push(CONFIG_FILE_NAME);
+
+        debug!("updating configuration file");
+        std::fs::write(&config_path, &updated).map_err(|e| {
+            format!(
+                "Failed to write config file '{}': {}",
+                config_path.display(),
+                e
+            )
+        })?;
+    }
+
+    Ok(updated)
+}
+
+fn add_default_type_to_actions(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        for (_, action) in actions.iter_mut() {
+            if let Item::Table(action_table) = action {
+                action_table.entry("type").or_insert(value("transform"));
+            }
+        }
+    }
+
+    doc.to_string()
+}
+
+fn add_refs_extension_field(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if doc.get("markdown").is_none() {
+        doc["markdown"] = Item::Table(toml_edit::Table::new());
+    }
+
+    if let Some(Item::Table(markdown)) = doc.get_mut("markdown") {
+        if markdown.get("refs_extension").is_none() {
+            markdown.insert("refs_extension", value(""));
+        }
+    }
+
+    doc.to_string()
+}
+
+fn add_link_action(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if doc.get("actions").is_none() {
+        doc["actions"] = Item::Table(toml_edit::Table::new());
+    }
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        // Check if link action already exists
+        let has_link = actions.iter().any(|(_, action)| {
+            if let Item::Table(action_table) = action {
+                if let Some(Item::Value(action_type)) = action_table.get("type") {
+                    if let Some(type_str) = action_type.as_str() {
+                        return type_str == "link";
+                    }
+                }
+            }
+            false
+        });
+
+        if !has_link {
+            let mut link_table = toml_edit::Table::new();
+            link_table.insert("type", value("link"));
+            link_table.insert("title", value("Link word"));
+            link_table.insert("link_type", value("markdown"));
+            link_table.insert("key_template", value("{{id}}"));
+            actions.insert("link", Item::Table(link_table));
+        }
+    }
+
+    doc.to_string()
+}
+
+fn set_config_version(input: &str, version: i64) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    doc.insert("version", value(version));
+
+    doc.to_string()
+}
+
+fn add_default_code_actions(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if doc.get("actions").is_none() {
+        doc["actions"] = Item::Table(toml_edit::Table::new());
+    }
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        let mut has_extract = false;
+        let mut has_extract_all = false;
+        let mut has_inline = false;
+
+        for (_, action) in actions.iter() {
+            if let Item::Table(action_table) = action {
+                if let Some(Item::Value(action_type)) = action_table.get("type") {
+                    if let Some(type_str) = action_type.as_str() {
+                        match type_str {
+                            "extract" => has_extract = true,
+                            "extract_all" => has_extract_all = true,
+                            "inline" => has_inline = true,
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        if !has_extract {
+            let mut extract_table = toml_edit::Table::new();
+            extract_table.insert("type", value("extract"));
+            extract_table.insert("title", value("Extract"));
+            extract_table.insert("link_type", value("markdown"));
+            extract_table.insert("key_template", value("{{id}}"));
+            actions.insert("extract", Item::Table(extract_table));
+        }
+
+        if !has_extract_all {
+            let mut extract_all_table = toml_edit::Table::new();
+            extract_all_table.insert("type", value("extract_all"));
+            extract_all_table.insert("title", value("Extract all subsections"));
+            extract_all_table.insert("link_type", value("markdown"));
+            extract_all_table.insert("key_template", value("{{id}}"));
+            actions.insert("extract_all", Item::Table(extract_all_table));
+        }
+
+        if !has_inline {
+            let mut inline_section_table = toml_edit::Table::new();
+            inline_section_table.insert("type", value("inline"));
+            inline_section_table.insert("title", value("Inline section"));
+            inline_section_table.insert("inline_type", value("section"));
+            inline_section_table.insert("keep_target", value(false));
+            actions.insert("inline_section", Item::Table(inline_section_table));
+
+            let mut inline_quote_table = toml_edit::Table::new();
+            inline_quote_table.insert("type", value("inline"));
+            inline_quote_table.insert("title", value("Inline quote"));
+            inline_quote_table.insert("inline_type", value("quote"));
+            inline_quote_table.insert("keep_target", value(false));
+            actions.insert("inline_quote", Item::Table(inline_quote_table));
+        }
+    }
+
+    doc.to_string()
+}
+
+pub fn migrate_v2_to_v3(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if let Some(Item::Table(models)) = doc.remove("models") {
+        let mut commands = toml_edit::Table::new();
+        for (name, model) in models.iter() {
+            if let Item::Table(_) = model {
+                let mut cmd = toml_edit::Table::new();
+                cmd.insert("run", value(""));
+                commands.insert(name, Item::Table(cmd));
+            }
+        }
+        doc.insert("commands", Item::Table(commands));
+    }
+
+    if let Some(Item::Table(actions)) = doc.get_mut("actions") {
+        for (_, action) in actions.iter_mut() {
+            if let Item::Table(action_table) = action {
+                let is_transform = action_table
+                    .get("type")
+                    .and_then(|v| v.as_value())
+                    .and_then(|v| v.as_str())
+                    .map(|s| s == "transform")
+                    .unwrap_or(false);
+
+                if is_transform {
+                    if let Some(model_val) = action_table.remove("model") {
+                        action_table.insert("command", model_val);
+                    }
+
+                    if let Some(prompt_val) = action_table.remove("prompt_template") {
+                        action_table.insert("input_template", prompt_val);
+                    }
+
+                    action_table.remove("context");
+                }
+            }
+        }
+    }
+
+    doc.to_string()
+}

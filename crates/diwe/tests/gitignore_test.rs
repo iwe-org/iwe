@@ -1,8 +1,8 @@
 use std::fs;
 use std::sync::Once;
 
-use liwe::fs::new_for_path;
-use liwe::model::config::Format;
+use diwe::config::Format;
+use diwe::fs::new_for_path;
 use tempfile::TempDir;
 
 static INIT: Once = Once::new();

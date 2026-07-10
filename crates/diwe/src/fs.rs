@@ -4,8 +4,8 @@ use std::{collections::HashMap, fs};
 use ignore::WalkBuilder;
 use log::error;
 
-use crate::model::config::Format;
-use crate::model::{Content, State};
+use liwe::model::config::Format;
+use liwe::model::{Content, State};
 
 pub fn write_file(
     key: &String,

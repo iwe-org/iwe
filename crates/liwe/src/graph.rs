@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::Path,
 };
 
 use basic_iter::GraphNodePointer;
@@ -28,7 +27,6 @@ use crate::model::key_index::KeyIndex;
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::InlinesContext;
 use crate::model::{Content, Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
-use crate::search::{Bm25Index, Language, ScoredDocument};
 
 mod arena;
 pub mod basic_iter;
@@ -58,7 +56,6 @@ pub struct Graph {
     content: Documents,
     frontmatter_document_title: Option<String>,
     key_index: KeyIndex,
-    bm25: Option<Bm25Index>,
 }
 
 pub trait Reader {
@@ -136,13 +133,11 @@ impl Graph {
     pub fn insert_document(&mut self, key: Key, content: Content) {
         self.update_key(key.clone(), &content);
         self.content.insert(key.clone(), content);
-        self.reindex_search(&key);
     }
 
     pub fn update_document(&mut self, key: Key, content: Content) {
         self.update_key(key.clone(), &content);
         self.content.insert(key.clone(), content);
-        self.reindex_search(&key);
     }
 
     pub fn remove_document(&mut self, key: Key) {
@@ -157,50 +152,6 @@ impl Graph {
         self.keys_to_ref_text.remove(&key);
         self.frontmatter.remove(&key);
         self.content.remove(&key);
-
-        if let Some(index) = self.bm25.as_mut() {
-            index.remove(&key);
-        }
-    }
-
-    fn reindex_search(&mut self, key: &Key) {
-        if self.bm25.is_none() {
-            return;
-        }
-        let text = self.corpus_text(key);
-        if let Some(index) = self.bm25.as_mut() {
-            index.upsert(key.clone(), text);
-        }
-    }
-
-    fn corpus_text(&self, key: &Key) -> String {
-        let title = self.get_key_title(key).unwrap_or_default();
-        format!("{}\n{}", title, self.to_plain_text(key))
-    }
-
-    pub fn search(&self, query: &str) -> Vec<ScoredDocument<Key>> {
-        self.bm25
-            .as_ref()
-            .map(|index| index.search(query))
-            .unwrap_or_default()
-    }
-
-    pub fn has_search_index(&self) -> bool {
-        self.bm25.is_some()
-    }
-
-    pub fn search_scores(&self, query: &str) -> HashMap<Key, f32> {
-        self.bm25
-            .as_ref()
-            .map(|index| index.scores(query))
-            .unwrap_or_default()
-    }
-
-    pub fn lexical_query_has_terms(&self, query: &str) -> bool {
-        self.bm25
-            .as_ref()
-            .map(|index| index.has_query_terms(query))
-            .unwrap_or(true)
     }
 
     fn unindex_key(&mut self, key: &Key, root_id: NodeId) {
@@ -439,13 +390,7 @@ impl Graph {
         format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
     ) -> Graph {
-        Self::from_state(
-            content,
-            false,
-            format_options,
-            frontmatter_document_title,
-            None,
-        )
+        Self::from_state(content, false, format_options, frontmatter_document_title)
     }
 
     pub fn from_state(
@@ -453,7 +398,6 @@ impl Graph {
         sequential_ids: bool,
         format_options: impl Into<FormatOptions>,
         frontmatter_document_title: Option<String>,
-        search_language: Option<Language>,
     ) -> Self {
         let format_options = format_options.into();
         let mut graph = Graph::new_with_options(format_options.clone());
@@ -496,87 +440,7 @@ impl Graph {
         merge_outputs(&mut graph, outputs, &ids);
         graph.key_index = key_index;
         build_index_and_titles(&mut graph);
-        graph.build_search_index(search_language);
         graph
-    }
-
-    pub fn from_path(
-        base_path: &Path,
-        sequential_ids: bool,
-        format_options: impl Into<FormatOptions>,
-        frontmatter_document_title: Option<String>,
-        search_language: Option<Language>,
-    ) -> Self {
-        let format_options = format_options.into();
-        let mut graph = Graph::new_with_options(format_options.clone());
-        graph.set_sequential_keys(sequential_ids);
-        graph.frontmatter_document_title = frontmatter_document_title;
-
-        let entries = crate::fs::walk_md_paths(base_path, format_options.format());
-
-        let keys: Vec<Key> = entries.iter().map(|(k, _)| Key::from_stripped(k)).collect();
-        let key_index = KeyIndex::build(keys.iter());
-
-        let ids = BuildIds::new();
-        let outputs: Vec<DocBuildOutput> = if entries.len() < PARALLEL_BUILD_THRESHOLD {
-            entries
-                .into_iter()
-                .filter_map(|(key, path)| {
-                    crate::fs::read_md_file(&path).map(|content| {
-                        build_doc(
-                            &ids,
-                            Key::from_stripped(&key),
-                            content,
-                            &format_options,
-                            &key_index,
-                        )
-                    })
-                })
-                .collect()
-        } else {
-            entries
-                .into_par_iter()
-                .filter_map(|(key, path)| {
-                    debug!("building doc, key={}", key);
-                    crate::fs::read_md_file(&path).map(|content| {
-                        build_doc(
-                            &ids,
-                            Key::from_stripped(&key),
-                            content,
-                            &format_options,
-                            &key_index,
-                        )
-                    })
-                })
-                .collect()
-        };
-
-        merge_outputs(&mut graph, outputs, &ids);
-        graph.key_index = key_index;
-        build_index_and_titles(&mut graph);
-        graph.build_search_index(search_language);
-        graph
-    }
-
-    fn build_search_index(&mut self, search_language: Option<Language>) {
-        let Some(language) = search_language else {
-            return;
-        };
-        let graph = &*self;
-        let docs: Vec<(Key, String)> = if graph.keys.len() < PARALLEL_BUILD_THRESHOLD {
-            graph
-                .keys
-                .keys()
-                .map(|key| (key.clone(), graph.corpus_text(key)))
-                .collect()
-        } else {
-            graph
-                .keys
-                .par_iter()
-                .map(|(key, _)| (key.clone(), graph.corpus_text(key)))
-                .collect()
-        };
-        self.bm25 = Some(Bm25Index::build(docs, language));
     }
 
     pub fn export_key(&self, key: &Key) -> Option<String> {

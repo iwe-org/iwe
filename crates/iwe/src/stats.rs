@@ -1,4 +1,4 @@
-pub use liwe::stats::{BrokenLink, GraphStatistics, KeyStatistics};
+pub use diwe::stats::{BrokenLink, GraphStatistics, KeyStatistics};
 
 use minijinja::Environment;
 

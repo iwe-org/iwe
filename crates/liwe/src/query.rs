@@ -11,6 +11,7 @@ pub mod filter;
 pub mod frontmatter;
 mod graph_match;
 pub mod project;
+pub mod scores;
 pub mod search;
 pub mod sort;
 pub mod update;
@@ -27,5 +28,6 @@ pub use document::{
     UpdateOp, UpdateOperator, YamlType,
 };
 pub use eval::evaluate;
-pub use execute::{execute, strict_guard_violations, FindMatch, Outcome};
+pub use execute::{execute, execute_with_scores, strict_guard_violations, FindMatch, Outcome};
+pub use scores::QueryScores;
 pub use search::SearchSpec;

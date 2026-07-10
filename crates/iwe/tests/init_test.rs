@@ -1,4 +1,4 @@
-use liwe::model::config::{Configuration, LibraryOptions, MarkdownOptions};
+use diwe::config::{Configuration, LibraryOptions, MarkdownOptions};
 use std::fs::{create_dir_all, read_to_string, File};
 use std::process::Command;
 use tempfile::TempDir;

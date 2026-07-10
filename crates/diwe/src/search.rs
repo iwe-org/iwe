@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bm25::{Embedder, EmbedderBuilder, Embedding};
 use rayon::prelude::*;
 
-use crate::model::Key;
+use liwe::model::Key;
 
 pub use bm25::{Language, ScoredDocument};
 

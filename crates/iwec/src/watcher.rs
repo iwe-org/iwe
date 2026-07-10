@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use diwe::config::Format;
 use liwe::graph::Graph;
-use liwe::model::config::Format;
 use liwe::model::Key;
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use tokio::sync::Mutex;

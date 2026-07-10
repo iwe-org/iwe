@@ -1,5 +1,5 @@
+use diwe::config::{ActionDefinition, Configuration, Sort};
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Configuration, Sort};
 
 use crate::fixture::*;
 

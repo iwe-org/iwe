@@ -1,8 +1,6 @@
+#[cfg(feature = "djot")]
 pub mod djot;
-pub mod file;
-pub mod find;
 pub mod format;
-pub mod fs;
 pub mod graph;
 pub mod locale;
 pub mod markdown;
@@ -10,9 +8,5 @@ pub mod model;
 pub mod operations;
 pub mod parser;
 pub mod query;
-pub mod retrieve;
 pub mod schema;
-pub mod search;
 pub mod state;
-pub mod stats;
-pub mod tokens;

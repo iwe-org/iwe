@@ -2,8 +2,8 @@ use std::env;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
+use diwe::config::load_config;
 use iwec::IweServer;
-use liwe::model::config::load_config;
 use rmcp::transport::stdio;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};

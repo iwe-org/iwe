@@ -18,6 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 liwe.workspace = true
+diwe.workspace = true
 indoc.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
