@@ -1,17 +1,14 @@
 use crate::graph::Graph;
 use crate::model::Key;
 use crate::query::project::{apply_projection, ProjectionContext};
+use crate::query::search::{self, SearchSpec};
 use crate::query::sort::sort_in_place;
 use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
-use crate::search::rrf_weight;
 use crate::tokens::{
     apply_budget, count_tokens, truncate_to_tokens, truncation_marker, Budget, Truncation,
 };
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use serde::Serialize;
 use serde_yaml::{Mapping, Value};
-use std::collections::{HashMap, HashSet};
 
 pub type FindResult = Mapping;
 
@@ -54,26 +51,6 @@ pub struct DocumentFinder<'a> {
     graph: &'a Graph,
 }
 
-enum Order<'a> {
-    Query {
-        fuzzy: Option<&'a str>,
-        lexical: Option<&'a str>,
-    },
-    Rank,
-}
-
-impl<'a> Order<'a> {
-    fn from_options(options: &'a FindOptions) -> Order<'a> {
-        match (&options.fuzzy, &options.lexical) {
-            (None, None) => Order::Rank,
-            (fuzzy, lexical) => Order::Query {
-                fuzzy: fuzzy.as_deref(),
-                lexical: lexical.as_deref(),
-            },
-        }
-    }
-}
-
 impl<'a> DocumentFinder<'a> {
     pub fn new(graph: &'a Graph) -> Self {
         Self { graph }
@@ -81,20 +58,21 @@ impl<'a> DocumentFinder<'a> {
 
     pub fn find(&self, options: &FindOptions) -> FindOutput {
         let candidates = self.candidates(options);
+        let spec = SearchSpec::new(options.lexical.clone(), options.fuzzy.clone());
+        let searching = !spec.is_empty();
 
-        let candidates = match &options.sort {
-            Some(_) => self.matched_keys(
-                candidates,
-                options.fuzzy.as_deref(),
-                options.lexical.as_deref(),
-            ),
-            None => candidates,
+        let candidates = if searching && options.sort.is_some() {
+            search::matched(self.graph, candidates, &spec)
+        } else {
+            candidates
         };
 
         let ordered = if let Some(s) = &options.sort {
             self.sort_by_frontmatter(candidates, s)
+        } else if searching {
+            search::ranked(self.graph, &candidates, &spec)
         } else {
-            self.order(candidates, Order::from_options(options))
+            self.order_by_rank(candidates)
         };
 
         let total = ordered.len();
@@ -145,62 +123,6 @@ impl<'a> DocumentFinder<'a> {
         }
     }
 
-    fn matched_keys(
-        &self,
-        candidates: Vec<Key>,
-        fuzzy: Option<&str>,
-        lexical: Option<&str>,
-    ) -> Vec<Key> {
-        if fuzzy.is_none() && lexical.is_none() {
-            return candidates;
-        }
-        let mut matched: HashSet<Key> = HashSet::new();
-        if let Some(q) = lexical {
-            matched.extend(self.graph.search(q).into_iter().map(|sd| sd.id));
-        }
-        if let Some(q) = fuzzy {
-            let matcher = SkimMatcherV2::default();
-            for key in &candidates {
-                if matcher.fuzzy_match(&self.fuzzy_text(key), q).unwrap_or(0) > 0 {
-                    matched.insert(key.clone());
-                }
-            }
-        }
-        candidates
-            .into_iter()
-            .filter(|key| matched.contains(key))
-            .collect()
-    }
-
-    fn fuzzy_text(&self, key: &Key) -> String {
-        let title = self.graph.get_key_title(key).unwrap_or_default();
-        format!("{} {}", key, title)
-    }
-
-    fn fuzzy_ranked(&self, candidates: &[Key], query: &str) -> Vec<Key> {
-        let matcher = SkimMatcherV2::default();
-        let mut scored: Vec<(Key, i64)> = candidates
-            .iter()
-            .filter_map(|key| {
-                let score = matcher
-                    .fuzzy_match(&self.fuzzy_text(key), query)
-                    .unwrap_or(0);
-                (score > 0).then_some((key.clone(), score))
-            })
-            .collect();
-        scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        scored.into_iter().map(|(k, _)| k).collect()
-    }
-
-    fn lexical_ranked(&self, candidates: &HashSet<&Key>, query: &str) -> Vec<Key> {
-        self.graph
-            .search(query)
-            .into_iter()
-            .filter(|scored| candidates.contains(&scored.id))
-            .map(|scored| scored.id)
-            .collect()
-    }
-
     fn sort_by_frontmatter(&self, candidates: Vec<Key>, sort: &Sort) -> Vec<Key> {
         let mut rows: Vec<(Key, Mapping)> = candidates
             .into_iter()
@@ -220,31 +142,16 @@ impl<'a> DocumentFinder<'a> {
         }
     }
 
-    fn order(&self, candidates: Vec<Key>, order: Order<'_>) -> Vec<Key> {
-        match order {
-            Order::Query { fuzzy, lexical } => {
-                let candidate_set: HashSet<&Key> = candidates.iter().collect();
-                let mut lists: Vec<Vec<Key>> = Vec::new();
-                if let Some(q) = fuzzy {
-                    lists.push(self.fuzzy_ranked(&candidates, q));
-                }
-                if let Some(q) = lexical {
-                    lists.push(self.lexical_ranked(&candidate_set, q));
-                }
-                rrf_fuse(lists)
-            }
-            Order::Rank => {
-                let mut scored: Vec<(Key, i64)> = candidates
-                    .into_iter()
-                    .map(|key| {
-                        let rank = self.node_rank(&key) as i64;
-                        (key, rank)
-                    })
-                    .collect();
-                scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-                scored.into_iter().map(|(k, _)| k).collect()
-            }
-        }
+    fn order_by_rank(&self, candidates: Vec<Key>) -> Vec<Key> {
+        let mut scored: Vec<(Key, i64)> = candidates
+            .into_iter()
+            .map(|key| {
+                let rank = self.node_rank(&key) as i64;
+                (key, rank)
+            })
+            .collect();
+        scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        scored.into_iter().map(|(k, _)| k).collect()
     }
 
     fn build_result(&self, key: &Key, project: &Projection) -> FindResult {
@@ -295,22 +202,6 @@ fn cap_content_fields(result: &mut FindResult, names: &[String], max: usize) -> 
         }
     }
     (omitted_total > 0).then_some(omitted_total)
-}
-
-fn rrf_fuse(lists: Vec<Vec<Key>>) -> Vec<Key> {
-    let mut scores: HashMap<Key, f64> = HashMap::new();
-    for list in &lists {
-        for (rank, key) in list.iter().enumerate() {
-            *scores.entry(key.clone()).or_insert(0.0) += rrf_weight(rank);
-        }
-    }
-    let mut fused: Vec<(Key, f64)> = scores.into_iter().collect();
-    fused.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.0.cmp(&b.0))
-    });
-    fused.into_iter().map(|(key, _)| key).collect()
 }
 
 fn build_filter(options: &FindOptions) -> Option<Filter> {

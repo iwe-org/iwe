@@ -104,21 +104,56 @@ enum CompletionShell {
 struct Retrieve {
     #[clap(
         long,
-        short = 'd',
-        default_value = "1",
-        help = "Follow block refs down N levels"
+        value_name = "N",
+        num_args = 0..=1,
+        default_missing_value = "1",
+        conflicts_with = "depth",
+        help = "Expand into child documents to depth N (bare = 1, 0 = unbounded, omitted = not followed)."
     )]
-    depth: u8,
+    expand_includes: Option<u64>,
 
     #[clap(
         long,
-        short = 'c',
-        default_value = "1",
-        help = "Include N levels of parent context"
+        value_name = "N",
+        num_args = 0..=1,
+        default_missing_value = "1",
+        conflicts_with = "context",
+        help = "Expand into parent documents to depth N (bare = 1, 0 = unbounded, omitted = not followed)."
     )]
-    context: u8,
+    expand_included_by: Option<u64>,
 
-    #[clap(long, short = 'l', help = "Include inline references")]
+    #[clap(
+        long,
+        value_name = "N",
+        num_args = 0..=1,
+        default_missing_value = "1",
+        conflicts_with = "links",
+        help = "Expand along outbound reference links to depth N (bare = 1, 0 = unbounded, omitted = not followed)."
+    )]
+    expand_references: Option<u64>,
+
+    #[clap(
+        long,
+        value_name = "N",
+        num_args = 0..=1,
+        default_missing_value = "1",
+        help = "Expand along inbound reference links to depth N (bare = 1, 0 = unbounded, omitted = not followed)."
+    )]
+    expand_referenced_by: Option<u64>,
+
+    #[clap(long, help = "Seed search: BM25 full-text query on title and body.")]
+    lexical: Option<String>,
+
+    #[clap(long, help = "Seed search: fuzzy query on title and key.")]
+    fuzzy: Option<String>,
+
+    #[clap(long, short = 'd', hide = true)]
+    depth: Option<u8>,
+
+    #[clap(long, short = 'c', hide = true)]
+    context: Option<u8>,
+
+    #[clap(long, short = 'l', hide = true)]
     links: bool,
 
     #[clap(
@@ -144,8 +179,17 @@ struct Retrieve {
     #[clap(long, help = "Populate the `includes` array with child document edges")]
     children: bool,
 
-    #[clap(long, help = "Maximum number of documents to return (0 = unlimited)")]
+    #[clap(
+        long,
+        help = "Cap the number of seed documents kept before expansion — top-N by relevance when searching, the first N of the selection otherwise (0 = unlimited)"
+    )]
     limit: Option<usize>,
+
+    #[clap(
+        long,
+        help = "Cap the number of documents returned after expansion, trimming periphery first (0 = unlimited)"
+    )]
+    max_documents: Option<usize>,
 
     #[clap(
         long,
@@ -866,7 +910,7 @@ fn completions_command(args: Completions) {
     }
 }
 
-fn print_truncation_warning(noun: &str, truncation: &Truncation) {
+fn print_truncation_warning(noun: &str, count_knob: &str, truncation: &Truncation) {
     if !truncation.is_truncated() {
         return;
     }
@@ -889,7 +933,7 @@ fn print_truncation_warning(noun: &str, truncation: &Truncation) {
     }
     let mut knobs: Vec<&str> = Vec::new();
     if truncation.emitted < truncation.matched {
-        knobs.push("--limit");
+        knobs.push(count_knob);
     }
     if truncation.budget.is_some() {
         knobs.push("--max-tokens");
@@ -905,59 +949,116 @@ fn print_truncation_warning(noun: &str, truncation: &Truncation) {
     eprintln!("{}", msg);
 }
 
+#[derive(Debug, Clone, Default)]
+struct Expansion {
+    includes: u32,
+    included_by: u32,
+    references: u32,
+    referenced_by: u32,
+}
+
+fn expand_direction(new: Option<u64>, legacy: Option<u32>) -> u32 {
+    match new {
+        Some(n) => liwe::retrieve::expand_depth(n),
+        None => legacy.unwrap_or(0),
+    }
+}
+
+fn resolve_expansion(args: &Retrieve) -> Expansion {
+    Expansion {
+        includes: expand_direction(args.expand_includes, args.depth.map(u32::from)),
+        included_by: expand_direction(args.expand_included_by, args.context.map(u32::from)),
+        references: expand_direction(args.expand_references, args.links.then_some(1)),
+        referenced_by: args
+            .expand_referenced_by
+            .map(liwe::retrieve::expand_depth)
+            .unwrap_or(0),
+    }
+}
+
 #[tracing::instrument(level = "debug")]
 fn retrieve_command(args: Retrieve) {
     let config = get_configuration();
-    let graph = load_graph(&config);
+    let searching = args.lexical.is_some() || args.fuzzy.is_some();
 
-    let explicit_keys = args.selector.key.clone();
-    let other_selectors_present = args.selector.has_non_key_clauses();
-
-    let key_strings: Vec<String> = if explicit_keys.is_empty() {
-        let stdin_content = read_stdin_if_available();
-        let keys: Vec<String> = stdin_content
-            .lines()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        if keys.is_empty() && !other_selectors_present {
-            eprintln!(
-                "Error: No document key provided. Use -k <key>, --filter, or pipe keys via stdin."
-            );
-            std::process::exit(1);
-        }
-        keys
+    let graph = if searching {
+        load_search_graph(&config)
     } else {
-        explicit_keys
+        load_graph(&config)
     };
 
-    let mut keys = Vec::new();
-    for key_str in &key_strings {
-        let key = Key::name(key_str);
-        if (&graph).get_node_id(&key).is_none() {
-            eprintln!("Error: Document '{}' not found", key_str);
-            std::process::exit(1);
-        }
-        keys.push(key);
-    }
-
-    let reader = DocumentReader::new(&graph);
+    let expansion = resolve_expansion(&args);
     let exclude: std::collections::HashSet<Key> =
         args.exclude.iter().map(|s| Key::name(s)).collect();
-    let options = RetrieveOptions {
-        depth: args.depth,
-        context: args.context,
-        links: args.links,
+    let mut options = RetrieveOptions {
+        includes: expansion.includes,
+        included_by: expansion.included_by,
+        references: expansion.references,
+        referenced_by: expansion.referenced_by,
         backlinks: args.backlinks,
         exclude,
         children: args.children,
-        filter: resolve_filter(&args.selector, &graph),
+        filter: None,
         limit: args.limit,
+        max_documents: args.max_documents,
         max_tokens: args.max_tokens,
         max_document_tokens: args.max_document_tokens,
     };
 
-    let output = reader.retrieve_many(&keys, &options);
+    let reader = DocumentReader::new(&graph);
+
+    let output = if searching {
+        let candidate_filter = resolve_filter(&args.selector, &graph);
+        let candidates: Vec<Key> = match &candidate_filter {
+            None => graph.keys(),
+            Some(f) => liwe::query::evaluate(f, &graph),
+        };
+        if let Some(q) = args.lexical.as_deref() {
+            if !graph.lexical_query_has_terms(q) {
+                eprintln!(
+                    "warning: --lexical query '{}' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.",
+                    q
+                );
+            }
+        }
+        let spec = liwe::query::SearchSpec::new(args.lexical.clone(), args.fuzzy.clone());
+        let seeds = liwe::query::search::ranked(&graph, &candidates, &spec);
+        reader.retrieve_many(&seeds, &options)
+    } else {
+        let explicit_keys = args.selector.key.clone();
+        let other_selectors_present = args.selector.has_non_key_clauses();
+
+        let key_strings: Vec<String> = if explicit_keys.is_empty() {
+            let stdin_content = read_stdin_if_available();
+            let keys: Vec<String> = stdin_content
+                .lines()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if keys.is_empty() && !other_selectors_present {
+                eprintln!(
+                    "Error: No document key provided. Use -k <key>, --filter, --lexical, or pipe keys via stdin."
+                );
+                std::process::exit(1);
+            }
+            keys
+        } else {
+            explicit_keys
+        };
+
+        let mut keys = Vec::new();
+        for key_str in &key_strings {
+            let key = Key::name(key_str);
+            if (&graph).get_node_id(&key).is_none() {
+                eprintln!("Error: Document '{}' not found", key_str);
+                std::process::exit(1);
+            }
+            keys.push(key);
+        }
+
+        options.filter = resolve_filter(&args.selector, &graph);
+        reader.retrieve_many(&keys, &options)
+    };
 
     match args.format {
         RetrieveFormat::Json => {
@@ -983,7 +1084,7 @@ fn retrieve_command(args: Retrieve) {
         }
     }
 
-    print_truncation_warning("documents", &output.truncation);
+    print_truncation_warning("documents", "--max-documents", &output.truncation);
 }
 
 #[tracing::instrument(level = "debug")]
@@ -1152,7 +1253,7 @@ fn find_command(args: Find) {
         }
     }
 
-    print_truncation_warning("documents", &output.truncation);
+    print_truncation_warning("documents", "--limit", &output.truncation);
 }
 
 #[tracing::instrument(level = "debug")]
@@ -2527,7 +2628,7 @@ fn update_mutation(args: Update) {
         let find_op = FindOp::new().filter(filter);
         let outcome = run_op(&Operation::Find(find_op), &graph).expect("find query does not fail");
         let keys: Vec<Key> = match outcome {
-            Outcome::Find { matches } => matches.into_iter().map(|m| m.key).collect(),
+            Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.key).collect(),
             _ => unreachable!(),
         };
         if !args.dry_run {

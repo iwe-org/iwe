@@ -1,13 +1,17 @@
-Retrieve documents from the knowledge graph with configurable depth and context expansion.
+Retrieve documents from the knowledge graph and expand the graph around them.
 
-Documents are collected in order:
-1. Main document (-k)
-2. Children (-d N levels deep)
-3. Parent context (-c N levels up)
-4. Parents of sub-documents (when -d > 0 and -c > 0)
-5. Inline linked documents (-l)
+By default only the requested document(s) are returned. Each --expand-* flag
+follows one edge kind out from every seed and pulls the reached documents in:
 
-Without -k, --filter, or stdin, the command exits with an error. -k accepts
-repeats and resolves to $key (1 key = $eq, 2+ = $in). Use --filter / --included-by
-/ --references / etc. to narrow the result set; explicit keys are intersected
-with the filter. Empty intersection produces an empty result.
+1. Seed documents (-k, search, or stdin)
+2. Children (--expand-includes N levels down)
+3. Parent context (--expand-included-by N levels up)
+4. Outbound reference links (--expand-references N levels)
+5. Inbound reference links (--expand-referenced-by N levels)
+
+Without -k, --filter, --lexical/--fuzzy, or stdin, the command exits with an
+error. -k accepts repeats and resolves to $key (1 key = $eq, 2+ = $in). Use
+--filter / --included-by / --references / etc. to narrow the seed set; explicit
+keys are intersected with the filter. Empty intersection produces an empty result.
+With --lexical/--fuzzy the seeds are found by relevance within that set; --limit
+caps the seeds before expansion.

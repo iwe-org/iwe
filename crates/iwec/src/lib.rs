@@ -84,6 +84,19 @@ fn truncation_note(truncation: &Truncation) -> String {
     serde_json::to_string(&note).unwrap_or_else(|_| "{\"truncated\":true}".to_string())
 }
 
+fn to_json_result_with_warnings<T: Serialize>(
+    output: &T,
+    warnings: &[String],
+) -> Result<CallToolResult, McpError> {
+    let json =
+        serde_json::to_string(output).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+    let mut blocks = vec![Content::text(json)];
+    for warning in warnings {
+        blocks.push(Content::text(format!("warning: {}", warning)));
+    }
+    Ok(CallToolResult::success(blocks))
+}
+
 fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::success(vec![Content::text(text)]))
 }
@@ -236,20 +249,44 @@ impl TryFrom<FindParams> for FindOptions {
     }
 }
 
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+pub struct ExpandParams {
+    #[schemars(description = "Levels of inclusion descendants to pull in (0 = unbounded).")]
+    pub includes: Option<u64>,
+    #[schemars(description = "Levels of inclusion ancestors to pull in (0 = unbounded).")]
+    #[serde(rename = "includedBy")]
+    pub included_by: Option<u64>,
+    #[schemars(description = "Hops of outbound reference links to follow (0 = unbounded).")]
+    pub references: Option<u64>,
+    #[schemars(description = "Hops of inbound reference links to follow (0 = unbounded).")]
+    #[serde(rename = "referencedBy")]
+    pub referenced_by: Option<u64>,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RetrieveParams {
     #[schemars(
-        description = "Document keys to retrieve. Can be empty when a structural selector is provided."
+        description = "Document keys to retrieve, or the candidate set searched within when `search`/`fuzzy` is present. Can be empty when a structural selector is provided."
     )]
     #[serde(default)]
     pub keys: Vec<String>,
     #[schemars(
-        description = "Levels of block references to expand (0 = document only, 1 = include direct sub-documents). Default: 1"
+        description = "Seed search: BM25 full-text query over title and body. Present → the tool searches the candidate set and reads the ordered seeds."
     )]
+    pub search: Option<String>,
+    #[schemars(
+        description = "Seed search: fuzzy query over title and key. Fuses with `search` (RRF)."
+    )]
+    pub fuzzy: Option<String>,
+    #[schemars(
+        description = "Expansion directions to follow out from each seed: object over includes / includedBy / references / referencedBy → integer depths (0 = unbounded, omitted = not followed). Expansion is doc-only when omitted."
+    )]
+    pub expand: Option<ExpandParams>,
+    #[schemars(description = "DEPRECATED: use `expand: { includes: N }`.")]
     pub depth: Option<u8>,
-    #[schemars(description = "Levels of parent documents to include. Default: 1")]
+    #[schemars(description = "DEPRECATED: use `expand: { includedBy: N }`.")]
     pub context: Option<u8>,
-    #[schemars(description = "Include inline-linked documents. Default: false")]
+    #[schemars(description = "DEPRECATED: use `expand: { references: 1 }`.")]
     pub links: Option<bool>,
     #[schemars(description = "Include incoming inline references. Default: true")]
     pub backlinks: Option<bool>,
@@ -260,9 +297,13 @@ pub struct RetrieveParams {
     )]
     pub children: Option<bool>,
     #[schemars(
-        description = "Maximum number of documents to return. Unlimited if omitted (0 also = unlimited)."
+        description = "Cap the number of seed documents kept before expansion — top-N by relevance when searching, the first N of the selection otherwise. Unlimited if omitted (0 also = unlimited)."
     )]
     pub limit: Option<usize>,
+    #[schemars(
+        description = "Cap the number of documents returned after expansion, trimming periphery documents first. Unlimited if omitted (0 also = unlimited)."
+    )]
+    pub max_documents: Option<usize>,
     #[schemars(
         description = "Cap total content tokens across all documents. Unlimited if omitted (0 also = unlimited)."
     )]
@@ -275,24 +316,62 @@ pub struct RetrieveParams {
     pub selector: SelectorParams,
 }
 
-impl From<RetrieveParams> for RetrieveOptions {
-    fn from(p: RetrieveParams) -> Self {
+impl RetrieveParams {
+    fn searching(&self) -> bool {
+        self.search.is_some() || self.fuzzy.is_some()
+    }
+
+    fn validate_expand(&self) -> Result<(), String> {
+        if self.expand.is_some()
+            && (self.depth.is_some() || self.context.is_some() || self.links.unwrap_or(false))
+        {
+            return Err(
+                "`expand` cannot be combined with the deprecated `depth` / `context` / `links` aliases"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+
+    fn expansion(&self) -> (u32, u32, u32, u32) {
+        use liwe::retrieve::expand_depth;
+        if let Some(e) = &self.expand {
+            return (
+                e.includes.map(expand_depth).unwrap_or(0),
+                e.included_by.map(expand_depth).unwrap_or(0),
+                e.references.map(expand_depth).unwrap_or(0),
+                e.referenced_by.map(expand_depth).unwrap_or(0),
+            );
+        }
+        (
+            self.depth.map(u32::from).unwrap_or(0),
+            self.context.map(u32::from).unwrap_or(0),
+            if self.links.unwrap_or(false) { 1 } else { 0 },
+            0,
+        )
+    }
+
+    fn base_options(&self) -> RetrieveOptions {
+        let (includes, included_by, references, referenced_by) = self.expansion();
         RetrieveOptions {
-            depth: p.depth.unwrap_or(1),
-            context: p.context.unwrap_or(1),
-            links: p.links.unwrap_or(false),
-            backlinks: p.backlinks.unwrap_or(true),
-            exclude: p
+            includes,
+            included_by,
+            references,
+            referenced_by,
+            backlinks: self.backlinks.unwrap_or(true),
+            exclude: self
                 .exclude
+                .clone()
                 .unwrap_or_default()
                 .into_iter()
                 .map(|k| Key::name(&k))
                 .collect::<HashSet<_>>(),
-            children: p.children.unwrap_or(false),
-            filter: p.selector.to_filter(),
-            limit: p.limit,
-            max_tokens: p.max_tokens,
-            max_document_tokens: p.max_document_tokens,
+            children: self.children.unwrap_or(false),
+            filter: None,
+            limit: self.limit,
+            max_documents: self.max_documents,
+            max_tokens: self.max_tokens,
+            max_document_tokens: self.max_document_tokens,
         }
     }
 }
@@ -655,17 +734,43 @@ impl IweServer {
     }
 
     #[tool(
-        description = "Retrieve documents from the knowledge graph with configurable depth expansion, parent context, backlinks, and linked documents"
+        description = "Retrieve documents from the knowledge graph. Reads the given `keys` (or search seeds) and expands the graph around them via `expand` (includes / includedBy / references / referencedBy). With `search`/`fuzzy`, seeds are found by relevance within the candidate set (keys + selector); `limit` caps the seeds before expansion and `max_documents` caps the documents returned after expansion."
     )]
     async fn iwe_retrieve(
         &self,
         Parameters(params): Parameters<RetrieveParams>,
     ) -> Result<CallToolResult, McpError> {
+        params
+            .validate_expand()
+            .map_err(|e| McpError::invalid_params(e, None))?;
         let graph = self.graph.lock().await;
         let reader = DocumentReader::new(&graph);
-        let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
-        let options: RetrieveOptions = params.into();
-        let output: RetrieveOutput = reader.retrieve_many(&keys, &options);
+        let mut options = params.base_options();
+
+        let output: RetrieveOutput = if params.searching() {
+            let key_filter = (!params.keys.is_empty()).then(|| {
+                Filter::Key(query::KeyOp::In(
+                    params.keys.iter().map(|k| Key::name(k)).collect(),
+                ))
+            });
+            let selector_filter = params.selector.to_filter();
+            let candidate_filter = match (selector_filter, key_filter) {
+                (Some(a), Some(b)) => Some(Filter::And(vec![a, b])),
+                (Some(f), None) | (None, Some(f)) => Some(f),
+                (None, None) => None,
+            };
+            let candidates: Vec<Key> = match &candidate_filter {
+                None => graph.keys(),
+                Some(f) => query::evaluate(f, &graph),
+            };
+            let spec = query::SearchSpec::new(params.search.clone(), params.fuzzy.clone());
+            let seeds = query::search::ranked(&graph, &candidates, &spec);
+            reader.retrieve_many(&seeds, &options)
+        } else {
+            options.filter = params.selector.to_filter();
+            let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
+            reader.retrieve_many(&keys, &options)
+        };
         to_json_result_with_truncation(&output.documents, &output.truncation)
     }
 
@@ -908,14 +1013,20 @@ impl IweServer {
         let mut graph = self.graph.lock().await;
 
         match &op {
-            Operation::Find(_) => {
+            Operation::Find(find) => {
                 let outcome = execute(&op, &graph)
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let Outcome::Find { matches } = outcome else {
                     unreachable!("find operation yields a find outcome")
                 };
                 let documents: Vec<_> = matches.into_iter().map(|m| m.document).collect();
-                to_json_result(&documents)
+                let mut warnings = Vec::new();
+                if let Some(spec) = &find.search {
+                    if query::search::lexical_has_no_terms(&graph, spec) {
+                        warnings.push(query::search::no_terms_warning(spec));
+                    }
+                }
+                to_json_result_with_warnings(&documents, &warnings)
             }
             Operation::Count(_) => {
                 let outcome = execute(&op, &graph)
@@ -1469,8 +1580,8 @@ impl IweServer {
         let output = reader.retrieve(
             &key,
             &RetrieveOptions {
-                depth: 2,
-                context: 2,
+                includes: 2,
+                included_by: 2,
                 backlinks: true,
                 ..Default::default()
             },
@@ -1504,8 +1615,8 @@ impl IweServer {
         let output = reader.retrieve(
             &key,
             &RetrieveOptions {
-                depth: 3,
-                context: 1,
+                includes: 3,
+                included_by: 1,
                 backlinks: true,
                 ..Default::default()
             },

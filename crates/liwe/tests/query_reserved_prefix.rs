@@ -11,7 +11,7 @@ use serde_yaml::{Mapping, Value};
 fn run_find(docs: &str, op: FindOp) -> Vec<Mapping> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
     match execute(&find(op), &graph).expect("query succeeds") {
-        Outcome::Find { matches } => matches.into_iter().map(|m| m.document).collect(),
+        Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.document).collect(),
         other => panic!("expected Find, got {:?}", other),
     }
 }

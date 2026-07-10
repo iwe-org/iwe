@@ -13,7 +13,7 @@ use serde_yaml::{Mapping, Value};
 fn run_find(docs: &str, op: FindOp) -> Vec<(String, Mapping)> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
     match execute(&find(op), &graph).expect("query succeeds") {
-        Outcome::Find { matches } => matches
+        Outcome::Find { matches, .. } => matches
             .into_iter()
             .map(|m| (m.key.to_string(), m.document))
             .collect(),
@@ -354,7 +354,7 @@ fn find_empty_corpus_returns_empty() {
         None,
     );
     match execute(&find(FindOp::new()), &graph).expect("query succeeds") {
-        Outcome::Find { matches } => assert!(matches.is_empty()),
+        Outcome::Find { matches, .. } => assert!(matches.is_empty()),
         other => panic!("{:?}", other),
     }
 }

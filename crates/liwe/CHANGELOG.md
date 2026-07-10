@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `search` clause on `FindOp` (`SearchSpec { lexical, fuzzy }`) — a relevance stage that restricts membership to documents matching the query and supplies the default ordering, jointly with `filter`; `search` + `sort` keeps membership from search while `sort` supplies the order. The ranking logic (`query::search::ranked` / `matched`, RRF fusion) is now a shared stage used by both `DocumentFinder` and the query engine.
+- `RetrieveOptions` expansion generalized to four edge-named depths — `includes`, `included_by`, `references`, `referenced_by` (`u32`, `0` = off, `UNBOUNDED` = no limit) — replacing the `depth` / `context` / `links` fields. Inbound-reference expansion (`referenced_by`) and transitive outbound-reference expansion (`references` > 1) are now expressible; `retrieve::expand_depth` maps an `--expand` value (`0` = unbounded) to a depth.
+
+### Changed
+- `Graph::has_search_index()` reports whether the graph carries a BM25 index; running a `find` with a `search` clause against a graph without one is an execution-time error (`EvalError::SearchIndexMissing`).
+- `RetrieveOptions.limit` now caps the seed set before `DocumentReader::retrieve_many` expands (it was a post-expansion cap on the number of documents returned); the post-expansion cap moves to the new `RetrieveOptions.max_documents` field. Both are `Option<usize>`, `None` / `Some(0)` = unlimited.
+
 ## [0.10.0](https://github.com/iwe-org/iwe/compare/liwe-v0.9.0...liwe-v0.10.0) - 2026-07-09
 
 ### Added

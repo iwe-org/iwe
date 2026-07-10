@@ -7,6 +7,8 @@ pub struct RawOperation {
     #[serde(default)]
     pub filter: Option<RawFilter>,
     #[serde(default)]
+    pub search: Option<RawSearch>,
+    #[serde(default)]
     pub project: Option<RawProjection>,
     #[serde(default, rename = "addFields")]
     pub add_fields: Option<RawProjection>,
@@ -23,6 +25,15 @@ pub struct RawOperation {
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
 pub struct RawFilter(pub Mapping);
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawSearch {
+    #[serde(default)]
+    pub lexical: Option<String>,
+    #[serde(default)]
+    pub fuzzy: Option<String>,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]

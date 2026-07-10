@@ -26,6 +26,7 @@ mod query_filter_expression;
 mod query_find;
 mod query_graph;
 mod query_reserved_prefix;
+mod query_search;
 mod query_update;
 mod search_test;
 mod squash_test;

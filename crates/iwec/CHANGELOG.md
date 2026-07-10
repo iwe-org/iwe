@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe_query` `find` operations accept a `search` clause (`search: { lexical, fuzzy }`) — relevance selection that restricts and orders results; a `lexical` query with no searchable terms returns an empty array plus a warning content block.
+- `iwe_retrieve` gains `search` / `fuzzy` (seed queries), `expand` (object over `includes` / `includedBy` / `references` / `referencedBy` → integer depths, `0` = unbounded), and `max_documents` (cap the documents returned after expansion). With a search query the tool finds seed documents within the candidate set (`keys` + selector) and expands the graph around the ordered seeds.
+
+### Changed
+- `iwe_retrieve` `limit` now caps the seed documents before expansion (top-N by relevance when searching, the first N of the selection otherwise); use `max_documents` for the post-expansion document cap.
+- `iwe_retrieve` no longer expands by default — omit `expand` and it returns the requested document(s) only (previously the implicit behavior was one level of children and parents).
+
+### Deprecated
+- `iwe_retrieve` `depth` / `context` / `links` — retained as aliases for `expand`'s `includes` / `includedBy` / `references`; passing `expand` together with any of them is an error.
+
 ## [0.10.0](https://github.com/iwe-org/iwe/compare/iwec-v0.9.0...iwec-v0.10.0) - 2026-07-09
 
 Workspace version bump — no user-visible changes in this crate.

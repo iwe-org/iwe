@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `retrieve --expand-includes` / `--expand-included-by` / `--expand-references` / `--expand-referenced-by` — one flag per expansion direction, each taking an optional depth (bare flag = one level, `0` = unbounded, omitted = not followed). `--expand-referenced-by` (pull documents that reference a seed) and transitive `--expand-references` are new directions.
+- `retrieve --lexical` / `--fuzzy` — a one-shot form that searches for seed documents within the candidate set (`-k` / `--filter` / anchors) and then expands the graph around the ordered seeds.
+- `retrieve --max-documents N` — cap the number of documents returned after expansion, trimming periphery documents first (`0` = unlimited).
+
+### Changed
+- `retrieve --limit` now caps the selected seed documents **before** expansion — top-N by relevance when searching, the first N of the selection otherwise (previously it capped the number of documents returned after expansion; use `--max-documents` for that).
+- `retrieve` no longer expands by default: with no `--expand-*` flag (and no deprecated flag) it returns the requested document(s) only. The previous implicit `-d 1 -c 1` is now written explicitly as `--expand-includes 1 --expand-included-by 1`.
+
+### Deprecated
+- `retrieve -d` / `--depth`, `-c` / `--context`, `-l` / `--links` — retained as hidden aliases for `--expand-includes N` / `--expand-included-by N` / `--expand-references 1` (keeping their legacy `0` = off meaning). Passing one together with its `--expand-*` counterpart is an error.
+
 ## [0.10.0](https://github.com/iwe-org/iwe/compare/iwe-v0.9.0...iwe-v0.10.0) - 2026-07-09
 
 ### Added

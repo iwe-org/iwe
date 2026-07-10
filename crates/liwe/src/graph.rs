@@ -185,6 +185,10 @@ impl Graph {
             .unwrap_or_default()
     }
 
+    pub fn has_search_index(&self) -> bool {
+        self.bm25.is_some()
+    }
+
     pub fn search_scores(&self, query: &str) -> HashMap<Key, f32> {
         self.bm25
             .as_ref()

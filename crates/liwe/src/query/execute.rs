@@ -10,6 +10,7 @@ use crate::query::document::{CountOp, DeleteOp, Filter, FindOp, Limit, Operation
 use crate::query::eval;
 use crate::query::frontmatter::strip_reserved;
 use crate::query::project::{apply_projection, ProjectionContext};
+use crate::query::search;
 use crate::query::sort::sort_in_place;
 use crate::query::update;
 
@@ -29,7 +30,7 @@ pub struct FindMatch {
 
 pub fn execute(op: &Operation, graph: &Graph) -> Result<Outcome, EvalError> {
     match op {
-        Operation::Find(find) => Ok(execute_find(find, graph)),
+        Operation::Find(find) => execute_find(find, graph),
         Operation::Count(count) => Ok(execute_count(count, graph)),
         Operation::Update(upd) => execute_update(upd, graph),
         Operation::Delete(del) => execute_delete(del, graph),
@@ -65,15 +66,18 @@ pub fn strict_guard_violations(op: &Operation) -> Vec<String> {
     missing
 }
 
-fn select(filter: Option<&Filter>, graph: &Graph) -> Vec<(Key, Mapping)> {
-    let keys: Vec<Key> = match filter {
+fn select_keys(filter: Option<&Filter>, graph: &Graph) -> Vec<Key> {
+    match filter {
         None => {
             let mut k = graph.keys();
             k.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
             k
         }
         Some(f) => eval::evaluate(f, graph),
-    };
+    }
+}
+
+fn rows_for(keys: Vec<Key>, graph: &Graph) -> Vec<(Key, Mapping)> {
     keys.into_par_iter()
         .map(|key| {
             let mapping = graph.frontmatter(&key).cloned().unwrap_or_default();
@@ -82,12 +86,22 @@ fn select(filter: Option<&Filter>, graph: &Graph) -> Vec<(Key, Mapping)> {
         .collect()
 }
 
+fn select(filter: Option<&Filter>, graph: &Graph) -> Vec<(Key, Mapping)> {
+    rows_for(select_keys(filter, graph), graph)
+}
+
+/// Order and cap `rows`. With `preserve_order`, the incoming order is kept (the search stage already
+/// ranked by relevance); otherwise rows sort by key ascending first. An explicit `sort` then reorders
+/// with a stable algorithm, so key order remains the tie-break.
 fn apply_sort_and_limit(
     mut rows: Vec<(Key, Mapping)>,
     sort: Option<&Sort>,
     limit: Option<&Limit>,
+    preserve_order: bool,
 ) -> Vec<(Key, Mapping)> {
-    rows.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+    if !preserve_order {
+        rows.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+    }
     if let Some(s) = sort {
         sort_in_place(&mut rows, s);
     }
@@ -99,9 +113,25 @@ fn apply_sort_and_limit(
     rows
 }
 
-fn execute_find(op: &FindOp, graph: &Graph) -> Outcome {
-    let rows = select(op.filter.as_ref(), graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
+fn execute_find(op: &FindOp, graph: &Graph) -> Result<Outcome, EvalError> {
+    let candidates = select_keys(op.filter.as_ref(), graph);
+
+    let (keys, preserve_order) = match &op.search {
+        None => (candidates, false),
+        Some(spec) => {
+            if !graph.has_search_index() {
+                return Err(EvalError::SearchIndexMissing);
+            }
+            if op.sort.is_some() {
+                (search::matched(graph, candidates, spec), false)
+            } else {
+                (search::ranked(graph, &candidates, spec), true)
+            }
+        }
+    };
+
+    let rows = rows_for(keys, graph);
+    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), preserve_order);
     let matches: Vec<FindMatch> = rows
         .into_iter()
         .map(|(key, _)| {
@@ -110,18 +140,18 @@ fn execute_find(op: &FindOp, graph: &Graph) -> Outcome {
             FindMatch { key, document }
         })
         .collect();
-    Outcome::Find { matches }
+    Ok(Outcome::Find { matches })
 }
 
 fn execute_count(op: &CountOp, graph: &Graph) -> Outcome {
     let rows = select(op.filter.as_ref(), graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
+    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), false);
     Outcome::Count(rows.len())
 }
 
 fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
     let rows = select(Some(&op.filter), graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
+    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), false);
     let mut bodies = if op.update.block_ops.is_empty() {
         None
     } else {
@@ -147,7 +177,7 @@ fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
 
 fn execute_delete(op: &DeleteOp, graph: &Graph) -> Result<Outcome, EvalError> {
     let rows = select(Some(&op.filter), graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref());
+    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), false);
     let documents: Vec<DocRef> = rows.iter().map(|(key, _)| doc_ref(graph, key)).collect();
     block_update::check_document_expect("delete", op.expect, &documents)?;
     let removed = rows.into_iter().map(|(k, _)| k).collect();

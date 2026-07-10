@@ -8,8 +8,10 @@ use crate::query::document::{
     ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir, Update,
     UpdateOp, UpdateOperator, YamlType,
 };
+use crate::query::search::SearchSpec;
 use crate::query::wire::{
-    self, RawFilter, RawKeyOpMap, RawOperation, RawProjection, RawRelationalObj, RawSort, RawUpdate,
+    self, RawFilter, RawKeyOpMap, RawOperation, RawProjection, RawRelationalObj, RawSearch,
+    RawSort, RawUpdate,
 };
 
 #[derive(Debug)]
@@ -158,6 +160,7 @@ pub enum ParseError {
         key: &'static str,
     },
     InvalidExpect,
+    EmptySearch,
 }
 
 fn fmt_path(path: &[String]) -> String {
@@ -320,6 +323,10 @@ impl std::fmt::Display for ParseError {
                 f,
                 "'expect' must be a non-negative integer or a mapping of 'min' / 'max'"
             ),
+            Self::EmptySearch => write!(
+                f,
+                "'search' requires at least one of 'lexical' / 'fuzzy'"
+            ),
         }
     }
 }
@@ -381,10 +388,18 @@ fn build_find(raw: RawOperation) -> Result<FindOp, ParseError> {
     };
     Ok(FindOp {
         filter: raw.filter.map(build_filter).transpose()?,
+        search: raw.search.map(build_search).transpose()?,
         project,
         sort: raw.sort.map(build_sort).transpose()?,
         limit: raw.limit.map(build_limit).transpose()?,
     })
+}
+
+fn build_search(raw: RawSearch) -> Result<SearchSpec, ParseError> {
+    if raw.lexical.is_none() && raw.fuzzy.is_none() {
+        return Err(ParseError::EmptySearch);
+    }
+    Ok(SearchSpec::new(raw.lexical, raw.fuzzy))
 }
 
 fn build_count(raw: RawOperation) -> Result<CountOp, ParseError> {
@@ -404,6 +419,12 @@ fn build_count(raw: RawOperation) -> Result<CountOp, ParseError> {
         return Err(ParseError::OperationFieldNotAllowed {
             kind: OperationKind::Count,
             field: "update",
+        });
+    }
+    if raw.search.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Count,
+            field: "search",
         });
     }
     if raw.expect.is_some() {
@@ -430,6 +451,12 @@ fn build_update(raw: RawOperation) -> Result<UpdateOp, ParseError> {
         return Err(ParseError::OperationFieldNotAllowed {
             kind: OperationKind::Update,
             field: "addFields",
+        });
+    }
+    if raw.search.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Update,
+            field: "search",
         });
     }
     let filter = raw
@@ -472,6 +499,12 @@ fn build_delete(raw: RawOperation) -> Result<DeleteOp, ParseError> {
         return Err(ParseError::OperationFieldNotAllowed {
             kind: OperationKind::Delete,
             field: "update",
+        });
+    }
+    if raw.search.is_some() {
+        return Err(ParseError::OperationFieldNotAllowed {
+            kind: OperationKind::Delete,
+            field: "search",
         });
     }
     let filter = raw
@@ -1513,6 +1546,57 @@ mod tests {
             ParseError::OperationFieldNotAllowed {
                 kind: OperationKind::Find,
                 field: "update"
+            }
+        ));
+    }
+
+    #[test]
+    fn find_parses_search() {
+        let op = parse("search:\n  lexical: broken links\n", OperationKind::Find).unwrap();
+        let Operation::Find(find) = op else {
+            panic!("expected Find")
+        };
+        assert_eq!(
+            find.search,
+            Some(SearchSpec::new(Some("broken links".to_string()), None))
+        );
+    }
+
+    #[test]
+    fn find_parses_search_with_both_rankers() {
+        let op = parse("search:\n  lexical: q1\n  fuzzy: q2\n", OperationKind::Find).unwrap();
+        let Operation::Find(find) = op else {
+            panic!("expected Find")
+        };
+        assert_eq!(
+            find.search,
+            Some(SearchSpec::new(
+                Some("q1".to_string()),
+                Some("q2".to_string())
+            ))
+        );
+    }
+
+    #[test]
+    fn empty_search_rejected() {
+        let err = parse_err("search: {}\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::EmptySearch));
+    }
+
+    #[test]
+    fn search_unknown_key_rejected() {
+        let err = parse_err("search:\n  bogus: x\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::Wire(_)));
+    }
+
+    #[test]
+    fn count_rejects_search() {
+        let err = parse_err("search:\n  lexical: q\n", OperationKind::Count);
+        assert!(matches!(
+            err,
+            ParseError::OperationFieldNotAllowed {
+                kind: OperationKind::Count,
+                field: "search"
             }
         ));
     }

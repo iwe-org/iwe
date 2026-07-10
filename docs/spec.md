@@ -81,6 +81,7 @@ Every operation document is one YAML mapping. Top-level fields:
 | Field | Operations | Purpose |
 |---|---|---|
 | `filter` | all | Predicate document (§4). Required on `update` / `delete`. Graph operators that extend filter with cross-document selection are defined in §5. |
+| `search` | find | Relevance selection stage (§5A). Restricts membership to documents matching a `lexical` / `fuzzy` text query and supplies the default ordering. Semantics: [Search](query-language.md#search). |
 | `project` | find | Projection (§6). Mutually exclusive with `addFields`. |
 | `addFields` | find | Additive projection (§6.3). Mutually exclusive with `project`. |
 | `sort` | all | §7. On `update` / `delete`, bounds iteration order before mutation. |
@@ -92,12 +93,12 @@ Operation-inappropriate fields are an error. The valid field set per operation:
 
 | Operation | Allowed fields |
 |---|---|
-| `find` | `filter`, `project`, `addFields`, `sort`, `limit` |
+| `find` | `filter`, `search`, `project`, `addFields`, `sort`, `limit` |
 | `count` | `filter`, `sort`, `limit` |
 | `update` | `filter` (required), `sort`, `limit`, `update` (required), `expect` |
 | `delete` | `filter` (required), `sort`, `limit`, `expect` |
 
-E.g. `project` in a `count` / `update` / `delete` operation, `update` in a `find` / `count` / `delete` operation, or `expect` in a `find` / `count` operation, are parse-time errors.
+E.g. `project` in a `count` / `update` / `delete` operation, `update` in a `find` / `count` / `delete` operation, `search` in a `count` / `update` / `delete` operation, or `expect` in a `find` / `count` operation, are parse-time errors.
 
 `filter` is required on both `update` and `delete` to prevent accidental whole-corpus mutation. The empty filter `{}` matches all documents and must be passed explicitly.
 
@@ -958,6 +959,38 @@ Implementation requirements:
 - **Default walk depth** — scalar-key shorthand fixes `maxDepth: 1` / `maxDistance: 1` (direct edges only). The full mapping form treats omitted `maxDepth` / `maxDistance` as unbounded; omitted `minDepth` / `minDistance` always default to 1.
 - **Operators inside `$nor`** — `$nor: [{ $includedBy: { match: { $key: K }, maxDepth: 5 } }]` matches documents that are *not* descendants of K within 5 levels.
 
+## 5A. Search stage (find only)
+
+`search` is a top-level clause of a `find` operation (§3.2). It selects documents by relevance to a full-text query and, unless overridden by `sort`, supplies the result ordering. It is **not** a filter operator and **not** a sort variant: it both restricts membership and orders, jointly with `filter`.
+
+```yaml
+search:
+  lexical: "broken links cleanup"
+filter: { type: note }
+limit: 5
+```
+
+The `search` document is a mapping with two optional keys:
+
+| Key | Ranker |
+|---|---|
+| `lexical` | BM25 full-text over title + body (§ [Search Ranking](search-ranking.md)). |
+| `fuzzy` | Skim subsequence match over title + key. |
+
+At least one of `lexical` / `fuzzy` must be present; the empty mapping `search: {}` is a parse-time error. When both are present, their rankings are fused with Reciprocal Rank Fusion, exactly as `iwe find --fuzzy --lexical`.
+
+**Selection contract.** The result is defined set-theoretically, with no evaluation order implied: a document is in the result **iff** it matches the search **and** passes the `filter` (search matches ∩ filter matches). Candidates with no BM25 hit / no skim score are dropped — a text query is a filter here, not merely a sort. Over that joint set the default ordering is by relevance (ties by key ascending). No implementation may apply a top-K cutoff before the filter mask: `limit: 5` always means the 5 best documents that pass the filter, never the filtered survivors of a globally-truncated top list.
+
+**Scores use corpus-global statistics.** The BM25 index is fit to the whole workspace; IDF does not change under a filter (standard Lucene-style behavior, never re-fit per query). "Search within a filter" is therefore not identical to searching a corpus containing only the filtered documents.
+
+**`search` + `sort`.** Legal, and not redundant: `search` contributes membership and the default ordering; an explicit `sort` overrides the ordering only. This keeps "the 5 newest documents matching Q" expressible (`search` + `sort: { date: -1 }` + `limit: 5`).
+
+**No searchable terms.** A `lexical` query that reduces to nothing after stop-word removal and stemming matches nothing; the result carries a structured warning (surfaced in-band, like the truncation signal) so callers see why the result is empty.
+
+**Requires the index.** `search` requires the search-indexed graph; running it against a graph built without a search language is an execution-time error naming the missing index.
+
+Grammar: §A.4A. Full semantics: [Search](query-language.md#search).
+
 ## 6. Projection
 
 Projection shapes *which fields* a `find` (or, by extension, `retrieve`) result carries, *under which output names*. It uses MongoDB-style `$project` semantics: the **left-hand side is the output field name**, the **right-hand side is the source**.
@@ -1098,10 +1131,12 @@ heading: Doc One
 
 Some pseudo-field sources require auxiliary graph computation. On `find` (the supported path), projecting any of `$content`, `$includes`, `$includedBy`, `$references`, `$referencedBy` *implies* the corresponding compute — no flags needed. The implied depth for `$includes` is 1 (immediate children only); deeper traversal is currently only available on `retrieve`.
 
-`retrieve` exposes no projection flags (§6.4.1); its output follows the default projection, and the flag set (`-b`, `-l`, `--children`) gates which of these sources are computed. When a field's backing flag is not set, the field is still emitted, with its empty value (`[]`):
+`retrieve` exposes no projection flags (§6.4.1); its output follows the default projection, and the flag set gates which of these sources are computed. When a source's backing flag is not set, the field is still emitted, with its empty value (`[]`):
 
-- `referencedBy` without `-b` → `[]`.
+- `includedBy` is always populated.
+- `referencedBy` without `-b` (default on) → `[]`.
 - `includes` without `--children` → `[]`.
+- `references` without a `references` expansion (`--expand-references N`, or the deprecated `-l`) → `[]`.
 
 The empty form preserves stable schema (§13.1.3).
 
@@ -1171,7 +1206,7 @@ Each element is a projected document per §6.2.1. The shapes `FindResult` and `D
 
 #### 6.4.1 Cross-command convergence
 
-Once projection is unified, `find` and `retrieve` differ only in **selection vocabulary**: `find` accepts text queries (`--fuzzy`, `--lexical`); `retrieve` accepts `-k KEY` (and graph-walk flags like `-d`, `-c`, `-l`). Default projection is the same on both (§6.2.2), and the wire shape is the same flat array.
+Once projection is unified, `find` and `retrieve` differ only in **selection vocabulary**: `find` accepts text queries (`--fuzzy`, `--lexical`); `retrieve` accepts `-k KEY` (and graph-walk flags like `--expand-includes`, `--expand-included-by`, `--expand-references`). Default projection is the same on both (§6.2.2), and the wire shape is the same flat array.
 
 `retrieve` deliberately exposes no projection flags — every shaped read is `find`'s (`find -k KEY --project ...`). Under the shared default projection, `find` and `retrieve` produce the same per-document shape — and the same outer shape — for the same key set.
 
@@ -1340,12 +1375,13 @@ Because the engine never writes itself, a "preview-only mode" requires no specia
 Within one operation, predicates compose in this order — each step intersects with the previous:
 
 1. **Filter** (`filter`) — narrows by per-document predicate. Includes both frontmatter predicates (§4) and graph operators (§5). *(all four operations)*
+2. **Search** (`search`, §5A) — on `find` only: intersects the filter survivors with the search matches and supplies the default ordering. Selection is joint with step 1 (defined set-theoretically, no order implied). Skipped when `search` is absent.
 
 After selection:
 
-2. **Sort** (§7) orders the matched set.
-3. **Limit** (§8) caps the matched set.
-4. **Action**: `find` projects (§6) and returns matches; `count` returns the integer; `update` applies the update operators (§9) atomically per document and returns the rendered patch (§10); `delete` returns the keys to remove. For mutating actions the host applies the returned effects to its storage.
+3. **Sort** (§7) orders the matched set. On `find` with `search` but no `sort`, the relevance order from step 2 is the ordering; an explicit `sort` overrides it.
+4. **Limit** (§8) caps the matched set.
+5. **Action**: `find` projects (§6) and returns matches; `count` returns the integer; `update` applies the update operators (§9) atomically per document and returns the rendered patch (§10); `delete` returns the keys to remove. For mutating actions the host applies the returned effects to its storage.
 
 ## 12. CLI surface
 
@@ -1508,18 +1544,34 @@ The argument is parsed as YAML first; if it is a mapping, it is used as the proj
 
 #### 12.3.3 `iwe retrieve` flags
 
-The flags below configure the `retrieve` walker directly and are not lowered into spec operation documents. Per §6.2.4, they gate which structural sources are populated in the result (`-b` → `$referencedBy`, `-l` → `$references`, `--children` → `$includes`); when a flag is omitted, the corresponding field is still emitted but with its empty value.
+`retrieve` assembles reading context around a set of documents. It runs as **two internal queries** when a search flag is present: a **seed query** (a `find` with `search` and `limit` over the resolved candidate set) followed by the **expansion read** over the ordered seeds. Without a search flag, the seed set is `-k` / `--filter` / anchors directly.
+
+**Expansion (`--expand-*`).** Expansion directions use the standard edge vocabulary — `includes`, `includedBy`, `references`, `referencedBy` — one direct flag each: `--expand-includes`, `--expand-included-by`, `--expand-references`, `--expand-referenced-by`. Each takes an optional depth:
+
+```
+--expand-references 1 --expand-included-by 1
+--expand-includes 2
+--expand-includes            # bare flag = 1 level
+```
+
+A bare flag means depth `1`; an explicit value is an integer depth with **`0` = unbounded**; an omitted flag is not followed. A negative or non-integer value is an error. Each direction pulls documents into the result set: `includes` = inclusion descendants, `includedBy` = inclusion ancestors, `references` = outbound reference walk, `referencedBy` = inbound reference walk. **Expansion is doc-only by default** — with no `--expand-*` flag and no legacy alias, `retrieve` returns the requested document(s) with no expansion.
+
+**Edge-list output toggles.** Separate from expansion; they populate the output edge arrays and never add documents. `includedBy` is always populated; the others follow their flag (§6.2.4). When a flag is omitted the field is still emitted with its empty value (`[]`).
 
 | Flag | Effect |
 |---|---|
-| `-k, --key KEY` | Repeatable. The set of root keys to retrieve. |
-| `-d, --depth N` | Levels of inclusion descendants to expand into the result set (default 1; 0 = root only). |
-| `-c, --context N` | Levels of inclusion ancestors to include alongside each root (default 1). |
-| `-l, --links` | Include outbound-referenced docs in the result set, and populate `$references` on each `DocumentOutput`. |
-| `-b, --backlinks` | Populate `$referencedBy` on each `DocumentOutput`. |
-| `--children` | Populate `$includes` on each `DocumentOutput`. |
+| `-k, --key KEY` | Repeatable. The set of root keys to retrieve (candidate restriction when a search flag is present). |
+| `--expand-includes [N]` / `--expand-included-by [N]` / `--expand-references [N]` / `--expand-referenced-by [N]` | Expansion depth per direction (bare = `1`, `0` = unbounded, omitted = not followed). |
+| `--lexical Q` | Seed search: BM25 full-text query. Switches `retrieve` to the search-indexed loader and runs the seed query. |
+| `--fuzzy Q` | Seed search: fuzzy query on title + key. `--lexical` + `--fuzzy` fuse with RRF. |
+| `--limit N` | Cap the seed count **before** expansion — top-N by relevance when searching, the first N of the selection otherwise (`0` = unlimited). |
+| `--max-documents N` | Cap the document count **after** expansion, trimming periphery documents first (`0` = unlimited). |
+| `-b, --backlinks` | Populate `referencedBy` on each `DocumentOutput` (default true). Edge-list toggle, not expansion. |
+| `--children` | Populate `includes` on each `DocumentOutput`. Edge-list toggle, not expansion. |
 | `-e, --exclude KEY` | Repeatable. Skip these keys when assembling the result. |
-| `--filter`, `-k`, `--includes`, `--included-by`, `--references`, `--referenced-by`, `--max-depth`, `--max-distance` | Same selection-side filter flags documented in §12.2; constrain which keys are pulled. |
+| `--filter`, `--includes`, `--included-by`, `--references`, `--referenced-by`, `--max-depth`, `--max-distance` | Same selection-side filter flags documented in §12.2; restrict the candidate set. With a search flag, search runs **within** these candidates, so listed `-k` keys that do not match the query drop from the output. |
+
+**Output order.** Seeds first, in relevance order, then expansion; seeds survive token-budget trimming first (§12.3.4). Because search restricts, `-k a -k b -k c --lexical Q` searches within those keys — `-k` is candidate restriction, not a guaranteed read.
 
 #### 12.3.4 Token budgets (`iwe find`, `iwe retrieve`)
 
@@ -1582,8 +1634,13 @@ These flags predate the language and remain accepted on the commands they origin
 | `--refs-to KEY` | `$or: [{ $includes: KEY }, { $references: KEY }]` (scalar shorthand; legacy mixed-edge) |
 | `--refs-from KEY` | `$or: [{ $includedBy: KEY }, { $referencedBy: KEY }]` (scalar shorthand; legacy mixed-edge) |
 | `--keys` (on `delete`, `rename`, `extract`, `inline`) | `-f keys` |
+| `-d, --depth N` (on `retrieve`) | `--expand-includes N` (legacy `0` = off, not unbounded) |
+| `-c, --context N` (on `retrieve`) | `--expand-included-by N` (legacy `0` = off) |
+| `-l, --links` (on `retrieve`) | `--expand-references 1` |
 
 The mixed-edge lowering of `--refs-to` / `--refs-from` preserves their pre-spec semantics (matching either inclusion or reference edges to the target). New code should pick the spec operators directly.
+
+On `retrieve`, `-d` / `-c` / `-l` keep their legacy **`0` = off** meaning (they never expressed unbounded), whereas the `--expand-*` flags treat `0` as the unbounded sentinel. Passing a legacy alias together with the `--expand-*` flag for the same direction is an error.
 
 `--in`, `--in-any`, and `--not-in` defaulted to depth 1 before the spec, matching the new `--included-by` default (§12.2.2); the lowering above is behavior-preserving. Use `--max-depth N` or a per-flag colon-suffix to widen.
 
@@ -2115,10 +2172,11 @@ The flags below gate which structural sources are populated (per the conditional
 | Flag | Effect on shape |
 |---|---|
 | `--children` | `includes` populated with `EdgeRef` entries for child documents. |
-| `-b`, `--backlinks` | `referencedBy` populated with `EdgeRef` entries for inbound reference edges. |
-| `-l`, `--links` | `references` populated with `EdgeRef` entries for outbound reference targets, and the targets are added to the result set. |
-| `-d N` | Adds N levels of descendants to the top-level array (selection, not shape). |
-| `-c N` | Same, for ancestors. |
+| `-b`, `--backlinks` | `referencedBy` populated with `EdgeRef` entries for inbound reference edges (default on). |
+| `--expand-includes N` | Adds N levels of inclusion descendants to the top-level array (selection, not shape). |
+| `--expand-included-by N` | Same, for inclusion ancestors. |
+| `--expand-references N` | Adds outbound reference targets within N hops, and populates `references` with their `EdgeRef` entries. |
+| `--expand-referenced-by N` | Adds inbound reference sources within N hops (selection, not shape). |
 
 #### 13.6.3 `iwe tree`
 
@@ -2160,6 +2218,7 @@ operation ::= find_op | count_op | update_op | delete_op
 
 find_op ::= {
     filter:    filter                               (optional, default {})
+    search:    search_spec                          (optional; §A.4A)
     project:   projection                           (optional, mutually exclusive with addFields)
     addFields: projection                           (optional, mutually exclusive with project)
     sort:      sort                                 (optional)
@@ -2374,6 +2433,22 @@ project_clause ::= projection                      # v1 field map (bare output n
                                                    #   { key: $key, content: { $content: P } };
                                                    #   mixing bare and $ keys = parse-time error;
                                                    #   {} keeps its v1 empty-projection meaning
+```
+
+### A.4A Search (find only)
+
+```
+search_spec ::= {
+    lexical: string                                (optional)
+    fuzzy:   string                                (optional)
+}
+
+# At least one of lexical / fuzzy is required; the empty mapping {} is a parse-time error.
+# Both present → RRF fusion of the two rankings.
+# The recognized key set is closed: any key other than lexical / fuzzy is a parse-time error.
+# search is valid only in a find operation; appearing in count / update / delete is a parse-time error.
+# search selects and orders (§5A): membership = filter ∩ search-matches, default order = relevance.
+# A lexical query with no searchable terms (stop words only) matches nothing and carries a warning.
 ```
 
 ### A.5 Sort

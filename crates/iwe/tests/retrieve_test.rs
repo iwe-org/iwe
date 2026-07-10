@@ -2217,7 +2217,7 @@ fn test_retrieve_keys_format_with_context() {
 }
 
 #[test]
-fn test_retrieve_default_depth() {
+fn test_retrieve_default_is_doc_only() {
     let dir = setup_workspace();
 
     write(
@@ -2254,21 +2254,6 @@ fn test_retrieve_default_depth() {
             "includes": [],
             "referencedBy": [],
             "includedBy": []
-          },
-          {
-            "key": "child",
-            "title": "Child",
-            "content": "# Child\n\nChild content.\n",
-            "references": [],
-            "includes": [],
-            "referencedBy": [],
-            "includedBy": [
-              {
-                "key": "root",
-                "title": "Root",
-                "sectionPath": []
-              }
-            ]
           }
         ]
     "##};
@@ -2543,7 +2528,7 @@ fn test_retrieve_markdown_children_populates_includes() {
 }
 
 #[test]
-fn test_retrieve_limit_caps_document_count() {
+fn test_retrieve_max_documents_warns_when_truncating() {
     let dir = setup_workspace();
 
     write(
@@ -2565,7 +2550,16 @@ fn test_retrieve_limit_caps_document_count() {
     let (stdout, stderr, success) = run_iwe(
         dir.path(),
         &[
-            "-k", "doc1", "-k", "doc2", "-k", "doc3", "-d", "0", "-f", "keys", "--limit", "2",
+            "-k",
+            "doc1",
+            "-k",
+            "doc2",
+            "-k",
+            "doc3",
+            "-f",
+            "keys",
+            "--max-documents",
+            "2",
         ],
     );
 
@@ -2573,7 +2567,7 @@ fn test_retrieve_limit_caps_document_count() {
     assert_eq!(stdout, "doc1\ndoc2\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 2/3 documents; ~18 tokens. Narrow with --filter or raise --limit.\n"
+        "warning: output truncated — returned 2/3 documents; ~18 tokens. Narrow with --filter or raise --max-documents.\n"
     );
 }
 
@@ -2587,10 +2581,8 @@ fn test_retrieve_max_document_tokens_truncates_body() {
     )
     .unwrap();
 
-    let (stdout, stderr, success) = run_iwe(
-        dir.path(),
-        &["-k", "notes", "-d", "0", "--max-document-tokens", "4"],
-    );
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "notes", "--max-document-tokens", "4"]);
 
     assert!(success, "stderr: {}", stderr);
 
@@ -2644,8 +2636,6 @@ fn test_retrieve_max_tokens_drops_trailing_documents() {
             "doc2",
             "-k",
             "doc3",
-            "-d",
-            "0",
             "-f",
             "keys",
             "--max-tokens",
@@ -2657,7 +2647,7 @@ fn test_retrieve_max_tokens_drops_trailing_documents() {
     assert_eq!(stdout, "doc1\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter or raise --limit/--max-tokens.\n"
+        "warning: output truncated — returned 1/3 documents; ~9 tokens (budget 12). Narrow with --filter or raise --max-documents/--max-tokens.\n"
     );
 }
 
@@ -2690,8 +2680,6 @@ fn test_retrieve_max_tokens_zero_disables_budget() {
             "doc2",
             "-k",
             "doc3",
-            "-d",
-            "0",
             "-f",
             "keys",
             "--max-tokens",
@@ -2728,8 +2716,6 @@ fn test_retrieve_max_tokens_counts_edges() {
             "hub1",
             "-k",
             "hub2",
-            "-d",
-            "0",
             "-f",
             "keys",
             "--max-tokens",
@@ -2740,7 +2726,7 @@ fn test_retrieve_max_tokens_counts_edges() {
     assert_eq!(stdout, "hub1\n");
     assert_eq!(
         stderr,
-        "warning: output truncated — returned 1/2 documents; ~56 tokens (budget 40). Narrow with --filter or raise --limit/--max-tokens.\n"
+        "warning: output truncated — returned 1/2 documents; ~56 tokens (budget 40). Narrow with --filter or raise --max-documents/--max-tokens.\n"
     );
 
     let (stdout, stderr, success) = run_iwe(
@@ -2750,8 +2736,6 @@ fn test_retrieve_max_tokens_counts_edges() {
             "hub1",
             "-k",
             "hub2",
-            "-d",
-            "0",
             "--backlinks",
             "false",
             "-f",
@@ -2763,4 +2747,205 @@ fn test_retrieve_max_tokens_counts_edges() {
     assert!(success, "stderr: {}", stderr);
     assert_eq!(stdout, "hub1\nhub2\n");
     assert_eq!(stderr, "");
+}
+
+#[test]
+fn test_retrieve_expand_matches_legacy_depth_context() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [child](child)
+        "},
+    )
+    .unwrap();
+    write(
+        dir.path().join("child.md"),
+        indoc! {"
+            # Child
+
+            Child content.
+        "},
+    )
+    .unwrap();
+
+    let (expand_out, _, expand_ok) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "child",
+            "--expand-includes",
+            "1",
+            "--expand-included-by",
+            "1",
+            "-f",
+            "json",
+        ],
+    );
+    let (legacy_out, _, legacy_ok) = run_iwe(
+        dir.path(),
+        &["-k", "child", "-d", "1", "-c", "1", "-f", "json"],
+    );
+
+    assert!(expand_ok);
+    assert!(legacy_ok);
+    assert_eq!(expand_out, legacy_out);
+}
+
+#[test]
+fn test_retrieve_expand_referenced_by_pulls_referencing_docs() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("source.md"),
+        indoc! {"
+            # Source
+
+            This mentions [target](target) inline.
+        "},
+    )
+    .unwrap();
+    write(
+        dir.path().join("target.md"),
+        indoc! {"
+            # Target
+
+            Target content.
+        "},
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "target", "--expand-referenced-by", "1", "-f", "keys"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "target\nsource\n");
+}
+
+#[test]
+fn test_retrieve_expand_references_transitive() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("a.md"), "# A\n\nSee [b](b) next.\n").unwrap();
+    write(dir.path().join("b.md"), "# B\n\nSee [c](c) next.\n").unwrap();
+    write(dir.path().join("c.md"), "# C\n\nThe end.\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "a", "--expand-references", "2", "-f", "keys"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "a\nb\nc\n");
+}
+
+#[test]
+fn test_retrieve_expand_unbounded_zero() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("l0.md"), "# L0\n\n[l1](l1)\n").unwrap();
+    write(dir.path().join("l1.md"), "# L1\n\n[l2](l2)\n").unwrap();
+    write(dir.path().join("l2.md"), "# L2\n\nLeaf.\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["-k", "l0", "--expand-includes", "0", "-f", "keys"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "l0\nl1\nl2\n");
+}
+
+#[test]
+fn test_retrieve_expand_non_integer_errors() {
+    let dir = setup_workspace();
+    write(dir.path().join("doc.md"), "# Doc\n\nBody.\n").unwrap();
+
+    let (stdout, _, success) = run_iwe(dir.path(), &["-k", "doc", "--expand-includes", "x"]);
+
+    assert!(!success);
+    assert_eq!(stdout, "");
+}
+
+#[test]
+fn test_retrieve_expand_conflicts_with_deprecated_alias() {
+    let dir = setup_workspace();
+    write(dir.path().join("doc.md"), "# Doc\n\nBody.\n").unwrap();
+
+    let (stdout, _, success) = run_iwe(
+        dir.path(),
+        &["-k", "doc", "-d", "1", "--expand-includes", "1"],
+    );
+
+    assert!(!success);
+    assert_eq!(stdout, "");
+}
+
+#[test]
+fn test_retrieve_limit_caps_seeds_before_expansion() {
+    let dir = setup_workspace();
+    write(dir.path().join("a.md"), "# A\n").unwrap();
+    write(dir.path().join("b.md"), "# B\n").unwrap();
+    write(dir.path().join("c.md"), "# C\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k", "a", "-k", "b", "-k", "c", "--limit", "2", "-f", "keys",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "a\nb\n");
+}
+
+#[test]
+fn test_retrieve_max_documents_caps_after_expansion() {
+    let dir = setup_workspace();
+    write(dir.path().join("l0.md"), "# L0\n\n[l1](l1)\n").unwrap();
+    write(dir.path().join("l1.md"), "# L1\n\n[l2](l2)\n").unwrap();
+    write(dir.path().join("l2.md"), "# L2\n\nLeaf.\n").unwrap();
+
+    let (stdout, _, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "l0",
+            "--expand-includes",
+            "0",
+            "--max-documents",
+            "2",
+            "-f",
+            "keys",
+        ],
+    );
+
+    assert!(success);
+    assert_eq!(stdout, "l0\nl1\n");
+}
+
+#[test]
+fn test_retrieve_lexical_seeds() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("ownership.md"),
+        "# Ownership\n\nThe borrow checker enforces ownership rules.\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("pasta.md"),
+        "# Pasta\n\nBoil water and add salt.\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "borrow", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "ownership\n");
 }
