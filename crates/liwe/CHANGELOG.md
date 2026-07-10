@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/iwe-org/iwe/compare/liwe-v0.9.0...liwe-v0.10.0) - 2026-07-09
+
 ### Added
 - `RefsPath` enum and a `refs_path` field on `MarkdownOptions` / `DjotOptions` (default `RefsPath::Relative`), surfaced through `FormatOptions::refs_path()`; `RefsPath::Absolute` renders regular links as root-absolute paths (`/dir/note.md`) instead of paths relative to the linking document.
 - `Key::link_url(relative_to, refs_path)` builds a regular link's path for the given `RefsPath`, so every link-writing path shares one implementation.
