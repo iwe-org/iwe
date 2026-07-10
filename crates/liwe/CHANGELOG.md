@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/iwe-org/iwe/compare/liwe-v0.10.0...liwe-v0.11.0) - 2026-07-10
+
 ### Added
 - `Changes::merge` — fold another `Changes` into this one, deduplicating by key so a later update replaces an earlier one for the same document.
 - `operations` gains the section/reference selection helpers (`sections`, `select_section`, `references`, `select_reference`, `SelectError`, `SectionRef`, `InclusionRef`) and `attach_reference` / `AttachTarget`, so all operations live in `liwe::operations` alongside `extract`, `inline`, `delete`, and `rename`.
 - `search` clause on `FindOp` (`SearchSpec { lexical, fuzzy }`) — a relevance stage that restricts membership to documents matching the query and supplies the default ordering, jointly with `filter`; `search` + `sort` keeps membership from search while `sort` supplies the order. The ranking logic (`query::search::ranked` / `matched`, RRF fusion) is now a shared stage used by both `DocumentFinder` and the query engine.
 - `RetrieveOptions` expansion generalized to four edge-named depths — `includes`, `included_by`, `references`, `referenced_by` (`u32`, `0` = off, `UNBOUNDED` = no limit) — replacing the `depth` / `context` / `links` fields. Inbound-reference expansion (`referenced_by`) and transitive outbound-reference expansion (`references` > 1) are now expressible; `retrieve::expand_depth` maps an `--expand` value (`0` = unbounded) to a depth.
-
-### Added
 - `format::DocumentFormat` trait (`read` / `write` / `write_skip_frontmatter`) as the format boundary, with the built-in `MarkdownFormat` and (feature-gated) `DjotFormat` implementations and a `format::format_for` constructor.
 - `query::QueryScores` and `query::execute_with_scores` — the query engine now ranks a `search` clause from caller-injected per-key relevance scores instead of computing them itself, keeping the kernel free of any search index.
 

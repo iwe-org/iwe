@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/iwe-org/iwe/compare/iwec-v0.10.0...iwec-v0.11.0) - 2026-07-10
+
 ### Added
 - `iwe_create` gains an optional `key` parameter — create a document at an explicit key instead of a title-derived slug. Derive it from stable metadata (entity name, session date); subdirectory keys (e.g. `people/ada`) are allowed; omit the file extension. Creation fails if a document with that key already exists.
 - `iwe_query` `find` operations accept a `search` clause (`search: { lexical, fuzzy }`) — relevance selection that restricts and orders results; a `lexical` query with no searchable terms returns an empty array plus a warning content block.

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/iwe-org/iwe/compare/iwe-v0.10.0...iwe-v0.11.0) - 2026-07-10
+
 ### Added
 - `new --key <KEY>` — create a document at an explicit key, bypassing the template's key derivation. Subdirectory keys (e.g. `people/ada`) are allowed; omit the file extension.
 - `new --if-exists fail` — report an error and exit non-zero when the document already exists. It is the default when `--key` is given (an explicit key asserts an identity), where previously an existing key silently gained a `-1` suffix.
