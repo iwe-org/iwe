@@ -3,6 +3,7 @@ pub mod file;
 pub mod find;
 pub mod fs;
 pub mod loader;
+pub mod operations;
 pub mod retrieve;
 pub mod search;
 pub mod search_query;
