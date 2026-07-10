@@ -2,6 +2,8 @@
 
 Search and discover documents in your knowledge base. Combines a text query — `--fuzzy` (title and key) or `--lexical` (BM25 full-text) — with a YAML-based filter language.
 
+`--fuzzy` / `--lexical` are the CLI surface of the query language's [`search`](query-language.md#search-find-only) stage: they select (a document must match to appear) and order by relevance, jointly with the filter. The same stage is available in an operation document via `search: { lexical, fuzzy }` and through the MCP `iwe_query` tool.
+
 ## Usage
 
 ``` bash

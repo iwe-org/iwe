@@ -32,7 +32,11 @@ same, always-current relevance data.
 | --- | --- | --- |
 | CLI [`iwe find`](cli-find.md) | positional (fuzzy) · `--fuzzy` · `--lexical` | fuzzy (positional is **deprecated** — use the flags) |
 | MCP `iwe_find` | `fuzzy` · `lexical` | none — the caller picks a ranker explicitly |
+| Query [`search`](query-language.md#search-find-only) stage on `find` (CLI `iwe find`, MCP `iwe_query`) | `lexical` · `fuzzy` | none — a `search` clause names its rankers |
+| [`iwe retrieve`](cli-retrieve.md) seed query | `--lexical` · `--fuzzy` (`--limit` caps the seeds) | none — search runs only when a flag is given |
 | LSP workspace symbols | one query string | always fuzzy **and** lexical, fused |
+
+The query-language `search` stage and the `retrieve` seed query reuse this same ranking machinery — the `search` stage restricts membership and orders by relevance (see [Search](query-language.md#search-find-only)), and `retrieve` runs `search` over its candidate set to pick seeds before expanding the graph around them.
 
 On the CLI, supplying both `--fuzzy` and `--lexical` fuses the two; the bare
 positional query stays fuzzy for now but prints a deprecation warning and will be

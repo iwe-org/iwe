@@ -155,6 +155,24 @@ filter:
 
 Like `$key`, it is a noun operator testing the document itself, so it composes with every other filter clause under `$and` / `$or` / `$nor` and inside the `match` of any relational operator. Like any filter clause, `$content` decides membership only — it selects nothing; which blocks an operation reads or mutates is designated at the projection or update site.
 
+## Search (`find` only)
+
+`search` is a top-level clause of a `find` operation, beside `filter`. It selects documents by relevance to a full-text query and supplies the default ordering. Search leads, filter refines:
+
+```yaml
+search:
+  lexical: "broken links cleanup"
+filter: { type: note }
+limit: 5
+```
+
+- `lexical: <string>` — BM25 full-text over title + body. `fuzzy: <string>` — skim subsequence match over title + key. Both present → RRF fusion, exactly as `iwe find --fuzzy --lexical`. At least one is required; `search: {}` is a parse-time error, as is any key other than `lexical` / `fuzzy`.
+- **Search selects and orders.** A document is in the result **iff** it matches the search **and** passes the `filter` (search matches ∩ filter matches), ordered by relevance, ties by key ascending. Candidates with no BM25 hit / no skim score are dropped — a text query is a filter here, not a sort variant. The two selections are joint; no evaluation order is implied, and `limit: 5` always means the 5 best documents that pass the filter (never the filtered survivors of a globally-truncated top list).
+- **`search` + `sort` is legal.** Search contributes membership and the default ordering; an explicit `sort` overrides the ordering only. "The 5 newest documents matching Q" is `search` + `sort: { modified_at: -1 }` + `limit: 5`.
+- **Corpus-global scores.** The BM25 index is fit to the whole workspace; IDF is not re-fit per filter (standard Lucene-style behavior). Searching within a filter is therefore not identical to searching a corpus of only the filtered documents.
+- **No searchable terms.** A `lexical` query that stems away to nothing (stop words only) matches nothing; the result carries a structured warning so callers see why it is empty.
+- **`find` only** — not `count` / `update` / `delete` — and it requires the search-indexed graph. The `iwe find --fuzzy` / `--lexical` flags and the [MCP](mcp.md) `iwe_query` `search` clause are the two surfaces.
+
 ## Projection (`find` only)
 
 `project` shapes each result to exactly the listed fields; `addFields` keeps the default fields and adds to them. The two are mutually exclusive. Each entry maps an output name to a source: `1`, `true`, and YAML null project the frontmatter field of the same name, a dotted path projects a nested frontmatter field, and a `$`-selector projects a system field.

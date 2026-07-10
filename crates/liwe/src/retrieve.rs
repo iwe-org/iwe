@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
-use crate::graph::walk::{ancestors_inclusion, descendants_inclusion, outbound_reference};
+use crate::graph::walk::{
+    ancestors_inclusion, descendants_inclusion, inbound_reference, outbound_reference,
+};
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
@@ -39,18 +41,42 @@ pub struct RetrieveOutput {
     pub truncation: Truncation,
 }
 
+/// Depths for the four expansion directions. Each follows one edge kind out from every seed and
+/// pulls the reached documents into the result set. `0` = do not follow; [`UNBOUNDED`] = follow to
+/// the graph's edge; any other `N` = follow `N` levels. The edge-list output toggles (`backlinks`,
+/// `children`) are independent — they populate output arrays without adding documents.
+///
+/// `limit` caps the seed set before expansion (the first `N` resolved seeds, `None`/`Some(0)` =
+/// unlimited); `max_documents` caps the document count after expansion, trimming periphery
+/// documents first (`None`/`Some(0)` = unlimited).
 #[derive(Debug, Clone, Default)]
 pub struct RetrieveOptions {
-    pub depth: u8,
-    pub context: u8,
-    pub links: bool,
+    pub includes: u32,
+    pub included_by: u32,
+    pub references: u32,
+    pub referenced_by: u32,
     pub backlinks: bool,
     pub exclude: HashSet<Key>,
     pub children: bool,
     pub filter: Option<Filter>,
     pub limit: Option<usize>,
+    pub max_documents: Option<usize>,
     pub max_tokens: Option<usize>,
     pub max_document_tokens: Option<usize>,
+}
+
+/// Sentinel expansion depth meaning "follow this direction with no depth limit".
+pub const UNBOUNDED: u32 = u32::MAX;
+
+/// Map an `--expand` / `expand` depth value to an internal expansion depth: `0` is the unbounded
+/// sentinel, any other value is that many levels. (The deprecated `-d` / `-c` / `-l` aliases keep
+/// their legacy `0` = off meaning and do not go through this mapping.)
+pub fn expand_depth(value: u64) -> u32 {
+    if value == 0 {
+        UNBOUNDED
+    } else {
+        value.min(u32::MAX as u64) as u32
+    }
 }
 
 pub struct DocumentReader<'a> {
@@ -86,7 +112,7 @@ impl<'a> DocumentReader<'a> {
     }
 
     pub fn retrieve_many(&self, keys: &[Key], options: &RetrieveOptions) -> RetrieveOutput {
-        let effective_keys: Vec<Key> = match (&options.filter, keys.is_empty()) {
+        let mut effective_keys: Vec<Key> = match (&options.filter, keys.is_empty()) {
             (Some(f), true) => query::evaluate(f, self.graph),
             (Some(f), false) => {
                 let set: HashSet<Key> = query::evaluate(f, self.graph).into_iter().collect();
@@ -94,6 +120,10 @@ impl<'a> DocumentReader<'a> {
             }
             (None, _) => keys.to_vec(),
         };
+
+        if let Some(cap) = options.limit.filter(|&n| n > 0) {
+            effective_keys.truncate(cap);
+        }
 
         let mut documents = Vec::new();
         let mut seen_keys = HashSet::new();
@@ -129,9 +159,9 @@ impl<'a> DocumentReader<'a> {
             }
         };
 
-        if options.depth > 0 {
+        if options.includes > 0 {
             let mut desc: Vec<(Key, u32)> =
-                descendants_inclusion(self.graph, key, options.depth as u32)
+                descendants_inclusion(self.graph, key, options.includes)
                     .into_iter()
                     .collect();
             desc.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
@@ -140,9 +170,9 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
-        if options.context > 0 {
+        if options.included_by > 0 {
             let mut anc: Vec<(Key, u32)> =
-                ancestors_inclusion(self.graph, key, options.context as u32)
+                ancestors_inclusion(self.graph, key, options.included_by)
                     .into_iter()
                     .collect();
             anc.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
@@ -150,14 +180,14 @@ impl<'a> DocumentReader<'a> {
                 push(k, &mut result, &mut seen);
             }
 
-            if options.depth > 0 {
+            if options.includes > 0 {
                 let mut sub_doc_keys: Vec<Key> = descendants_inclusion(self.graph, key, 1)
                     .into_keys()
                     .collect();
                 sub_doc_keys.sort();
                 for sub_key in sub_doc_keys {
                     let mut sub_anc: Vec<(Key, u32)> =
-                        ancestors_inclusion(self.graph, &sub_key, options.context as u32)
+                        ancestors_inclusion(self.graph, &sub_key, options.included_by)
                             .into_iter()
                             .collect();
                     sub_anc.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
@@ -168,11 +198,24 @@ impl<'a> DocumentReader<'a> {
             }
         }
 
-        if options.links {
+        if options.references > 0 {
             let mut links: Vec<(Key, u32)> =
-                outbound_reference(self.graph, key, 1).into_iter().collect();
+                outbound_reference(self.graph, key, options.references)
+                    .into_iter()
+                    .collect();
             links.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
             for (k, _) in links {
+                push(k, &mut result, &mut seen);
+            }
+        }
+
+        if options.referenced_by > 0 {
+            let mut back: Vec<(Key, u32)> =
+                inbound_reference(self.graph, key, options.referenced_by)
+                    .into_iter()
+                    .collect();
+            back.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+            for (k, _) in back {
                 push(k, &mut result, &mut seen);
             }
         }
@@ -201,7 +244,7 @@ impl<'a> DocumentReader<'a> {
             Vec::new()
         };
 
-        let references = if options.links {
+        let references = if options.references > 0 {
             crate::query::edges::references(self.graph, key)
         } else {
             Vec::new()
@@ -345,7 +388,7 @@ fn apply_document_budget(
 ) -> Truncation {
     let matched = documents.len();
     let budget = Budget {
-        limit: options.limit,
+        limit: options.max_documents,
         max_tokens: options.max_tokens,
         max_document_tokens: options.max_document_tokens,
     };

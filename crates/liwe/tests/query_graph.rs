@@ -11,7 +11,7 @@ use liwe::state::from_indoc;
 fn run_find_keys(docs: &str, op: FindOp) -> Vec<String> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
     match execute(&find(op), &graph).expect("query succeeds") {
-        Outcome::Find { matches } => matches.into_iter().map(|m| m.key.to_string()).collect(),
+        Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.key.to_string()).collect(),
         other => panic!("expected Find, got {:?}", other),
     }
 }
@@ -212,7 +212,7 @@ fn empty_corpus_returns_empty() {
     );
     let op = filter(key_eq("anything"));
     match execute(&find(op), &graph).expect("query succeeds") {
-        Outcome::Find { matches } => assert!(matches.is_empty()),
+        Outcome::Find { matches, .. } => assert!(matches.is_empty()),
         other => panic!("{:?}", other),
     }
 }

@@ -178,7 +178,7 @@ async fn retrieve_has_no_default_limit() {
 }
 
 #[tokio::test]
-async fn retrieve_explicit_limit_bounds_and_notes() {
+async fn retrieve_max_documents_bounds_and_notes() {
     let docs: Vec<(String, String)> = (1..=51)
         .map(|i| (i.to_string(), format!("# Doc {i}\n")))
         .collect();
@@ -189,7 +189,7 @@ async fn retrieve_explicit_limit_bounds_and_notes() {
     let result = f
         .call_tool(
             "iwe_retrieve",
-            json!({"keys": keys, "depth": 0, "context": 0, "backlinks": false, "limit": 2}),
+            json!({"keys": keys, "backlinks": false, "max_documents": 2}),
         )
         .await;
 
@@ -204,6 +204,43 @@ async fn retrieve_explicit_limit_bounds_and_notes() {
     assert_eq!(note["matched"], json!(51));
     assert_eq!(note["clipped"], json!([]));
     assert_eq!(note.get("budget"), None);
+}
+
+#[tokio::test]
+async fn retrieve_limit_caps_seeds_without_a_note() {
+    let docs: Vec<(String, String)> = (1..=51)
+        .map(|i| (i.to_string(), format!("# Doc {i}\n")))
+        .collect();
+    let doc_refs: Vec<(&str, &str)> = docs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let keys: Vec<String> = (1..=51).map(|i| i.to_string()).collect();
+    let f = Fixture::with_documents(doc_refs).await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": keys, "backlinks": false, "limit": 2}),
+        )
+        .await;
+
+    let output = Fixture::result_json(&result);
+    assert_eq!(output.as_array().unwrap().len(), 2);
+
+    let blocks = Fixture::result_text_blocks(&result);
+    assert_eq!(blocks.len(), 1);
+}
+
+#[tokio::test]
+async fn retrieve_expand_conflicts_with_deprecated_alias() {
+    let f = Fixture::with_documents(vec![("notes", "# Notes\n")]).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["notes"], "expand": {"includes": 1}, "depth": 1}),
+        )
+        .await;
+
+    assert!(result.is_err());
 }
 
 #[tokio::test]

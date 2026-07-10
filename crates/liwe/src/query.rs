@@ -11,6 +11,7 @@ pub mod filter;
 pub mod frontmatter;
 mod graph_match;
 pub mod project;
+pub mod search;
 pub mod sort;
 pub mod update;
 pub mod wire;
@@ -27,3 +28,4 @@ pub use document::{
 };
 pub use eval::evaluate;
 pub use execute::{execute, strict_guard_violations, FindMatch, Outcome};
+pub use search::SearchSpec;

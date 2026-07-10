@@ -7,7 +7,7 @@ use liwe::query::{
 
 pub fn all_keys(graph: &Graph) -> Vec<FindMatch> {
     match run(&Operation::Find(FindOp::new()), graph) {
-        Outcome::Find { matches } => matches,
+        Outcome::Find { matches, .. } => matches,
         _ => unreachable!("Find returns Find"),
     }
 }
@@ -63,7 +63,7 @@ fn references_direct(key: &Key) -> Filter {
 
 fn keys_of(outcome: Outcome) -> Vec<Key> {
     match outcome {
-        Outcome::Find { matches } => matches.into_iter().map(|m| m.key).collect(),
+        Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.key).collect(),
         _ => unreachable!("Find returns Find"),
     }
 }

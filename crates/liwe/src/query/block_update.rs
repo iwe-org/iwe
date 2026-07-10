@@ -72,6 +72,7 @@ pub enum EvalError {
         actual: usize,
         documents: Vec<DocRef>,
     },
+    SearchIndexMissing,
 }
 
 fn blocks_str(blocks: &[BlockRef]) -> String {
@@ -176,6 +177,10 @@ impl std::fmt::Display for EvalError {
                 fmt_expect(expected, "document"),
                 actual,
                 docs_str(documents)
+            ),
+            EvalError::SearchIndexMissing => write!(
+                f,
+                "'search' requires the search-indexed graph, which is not built for this command"
             ),
         }
     }

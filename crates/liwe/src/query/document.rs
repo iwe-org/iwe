@@ -2,6 +2,7 @@ use serde_yaml::Value;
 
 use crate::model::Key;
 use crate::query::block::{BlockPredicate, MatchesSource};
+use crate::query::search::SearchSpec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OperationKind {
@@ -22,6 +23,7 @@ pub enum Operation {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FindOp {
     pub filter: Option<Filter>,
+    pub search: Option<SearchSpec>,
     pub project: Projection,
     pub sort: Option<Sort>,
     pub limit: Option<Limit>,
@@ -34,6 +36,11 @@ impl FindOp {
 
     pub fn filter(mut self, filter: Filter) -> Self {
         self.filter = Some(filter);
+        self
+    }
+
+    pub fn search(mut self, search: SearchSpec) -> Self {
+        self.search = Some(search);
         self
     }
 

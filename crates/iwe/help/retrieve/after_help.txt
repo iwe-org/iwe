@@ -50,18 +50,31 @@ FILTER FLAGS (narrow the result set):
   --max-depth N               Default maxDepth for inclusion anchors. Default 1.
   --max-distance N            Default maxDistance for reference anchors. Default 1.
 
+EXPANSION (pull related documents into the result; nothing is followed by default):
+
+  --expand-includes [N]       Follow child (block-ref) documents down N levels.
+  --expand-included-by [N]    Pull N levels of parent context.
+  --expand-references [N]     Follow outbound reference links N levels.
+  --expand-referenced-by [N]  Pull documents that reference a seed, N levels.
+  Bare flag = 1 level; N = 0 = unbounded; omitted = not followed.
+
+SEED SEARCH (find seeds by relevance instead of naming keys):
+
+  --lexical QUERY             BM25 full-text query over title and body.
+  --fuzzy QUERY               Fuzzy query over title and key. Fuses with --lexical (RRF).
+
 SHAPE FLAGS:
 
   --children                  Populate the includes array with child document edges.
   -b, --backlinks             Include incoming references (referencedBy). On by default.
   -e, --exclude KEY           Exclude document key(s) from results. Repeatable.
-  -d N                        Follow block refs down N levels (default 1).
-  -c N                        Include N levels of parent context (default 1).
-  -l, --links                 Include inline references.
 
 LIMITS (bound output for context-limited callers; off by default):
 
-  --limit N                   Maximum number of documents to return.
+  --limit N                   Cap the seed documents kept before expansion — top-N by
+                              relevance when searching, first-N of the selection otherwise.
+  --max-documents N           Cap the documents returned after expansion; the periphery is
+                              trimmed first.
   --max-tokens N              Cap total tokens across all documents. Whole documents are
                               dropped from the periphery once the budget is reached.
   --max-document-tokens N     Cap body tokens per document. A longer body is head-truncated
@@ -76,9 +89,10 @@ LIMITS (bound output for context-limited callers; off by default):
 
 EXAMPLES:
 
-  iwe retrieve -k doc-a                               # single document
-  iwe retrieve -k doc-a -d 2                           # two levels of children
+  iwe retrieve -k doc-a                                # single document (doc-only)
+  iwe retrieve -k doc-a --expand-includes 2            # two levels of children
   iwe retrieve -k doc-a --children -f json             # includes array populated
   iwe retrieve -k x -k y -k z                          # multiple specific keys
   iwe retrieve --included-by projects/alpha -f keys    # keys inside alpha
-  iwe retrieve -k doc-a -d 3 --max-tokens 8000          # bound total output size
+  iwe retrieve --lexical "topic" --limit 5 --expand-included-by   # top-5 seeds + parents
+  iwe retrieve -k doc-a --expand-includes 3 --max-tokens 8000     # bound total output size
