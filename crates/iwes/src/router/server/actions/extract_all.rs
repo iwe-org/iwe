@@ -1,5 +1,5 @@
 use chrono::Locale;
-use liwe::model::config::LinkType;
+use diwe::config::LinkType;
 use liwe::operations::{extract_all, Changes, ExtractConfig};
 
 use super::{Action, ActionContext, ActionProvider};

@@ -4,10 +4,10 @@ use std::{collections::HashMap, path::PathBuf};
 use anyhow::Result;
 use std::time::SystemTime;
 
-use liwe::model::config::Configuration;
+use diwe::config::Configuration;
 use lsp_server::Connection;
 
-use liwe::fs::{new_for_path, new_from_hashmap};
+use diwe::fs::{new_for_path, new_from_hashmap};
 use router::{LspClient, Router, ServerConfig};
 
 pub mod router;

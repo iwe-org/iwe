@@ -1,16 +1,10 @@
 use actions::{all_action_types, ActionContext, ActionProvider};
+use diwe::config::{Command, Configuration, FormatOptions, MarkdownOptions};
 use itertools::Itertools;
 use liwe::model::node::Node;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
-    model::{
-        config::{Command, Configuration, FormatOptions, MarkdownOptions},
-        is_ref_url,
-        node::NodePointer,
-        reference::ReferenceType,
-        tree::Tree,
-        Key, NodeId,
-    },
+    model::{is_ref_url, node::NodePointer, reference::ReferenceType, tree::Tree, Key, NodeId},
 };
 use lsp_server::ResponseError;
 use lsp_types::*;
@@ -53,10 +47,9 @@ impl Server {
                 .library
                 .frontmatter_document_title
                 .clone(),
-            Some(config.configuration.search_language()),
         );
         let mut search_index = SearchIndex::new();
-        search_index.update(&graph);
+        search_index.update(&graph, config.configuration.search_language());
 
         Server {
             base_path: BasePath::from_path(&config.base_path, config.configuration.format),
@@ -129,7 +122,8 @@ impl Server {
                 self.base_path.url_to_key(&params.text_document.uri.clone()),
                 text,
             );
-            self.search_index.update(&self.graph);
+            self.search_index
+                .update(&self.graph, self.configuration.search_language());
         }
     }
 
@@ -141,7 +135,8 @@ impl Server {
             self.base_path.url_to_key(&params.text_document.uri.clone()),
             content.text.clone(),
         );
-        self.search_index.update(&self.graph);
+        self.search_index
+            .update(&self.graph, self.configuration.search_language());
     }
 
     pub fn handle_did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
@@ -150,7 +145,8 @@ impl Server {
                 FileChangeType::DELETED => {
                     let key = self.base_path.url_to_key(&change.uri);
                     self.graph.remove_document(key);
-                    self.search_index.update(&self.graph);
+                    self.search_index
+                        .update(&self.graph, self.configuration.search_language());
                 }
                 FileChangeType::CREATED => {}
                 FileChangeType::CHANGED => {}
@@ -261,7 +257,7 @@ impl Server {
         params: WorkspaceSymbolParams,
     ) -> WorkspaceSymbolResponse {
         self.search_index
-            .search(&params.query, &self.graph)
+            .search(&params.query)
             .iter()
             .map(|p| p.path_to_symbol(&self.base_path))
             .filter(|p| !p.name.is_empty())

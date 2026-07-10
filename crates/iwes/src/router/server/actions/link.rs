@@ -1,8 +1,8 @@
 use chrono::{DateTime, Local, Locale};
-use liwe::model::config::Format;
-use liwe::model::config::LinkType as ConfigLinkType;
-use liwe::model::config::RefsPath;
-use liwe::model::config::WikiLinkPath;
+use diwe::config::Format;
+use diwe::config::LinkType as ConfigLinkType;
+use diwe::config::RefsPath;
+use diwe::config::WikiLinkPath;
 use liwe::model::key_index::KeyIndex;
 use liwe::model::Key;
 use liwe::operations::Changes;

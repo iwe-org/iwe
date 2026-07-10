@@ -1,12 +1,13 @@
-use crate::graph::Graph;
-use crate::model::Key;
-use crate::query::project::{apply_projection, ProjectionContext};
-use crate::query::search::{self, SearchSpec};
-use crate::query::sort::sort_in_place;
-use crate::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, Sort};
+use crate::search::Bm25Index;
+use crate::search_query;
 use crate::tokens::{
     apply_budget, count_tokens, truncate_to_tokens, truncation_marker, Budget, Truncation,
 };
+use liwe::graph::Graph;
+use liwe::model::Key;
+use liwe::query::project::{apply_projection, ProjectionContext};
+use liwe::query::sort::sort_in_place;
+use liwe::query::{self, Filter, InclusionAnchor, Projection, ReferenceAnchor, SearchSpec, Sort};
 use serde::Serialize;
 use serde_yaml::{Mapping, Value};
 
@@ -49,11 +50,19 @@ struct FindRow {
 
 pub struct DocumentFinder<'a> {
     graph: &'a Graph,
+    index: Option<&'a Bm25Index>,
 }
 
 impl<'a> DocumentFinder<'a> {
     pub fn new(graph: &'a Graph) -> Self {
-        Self { graph }
+        Self { graph, index: None }
+    }
+
+    pub fn with_index(graph: &'a Graph, index: &'a Bm25Index) -> Self {
+        Self {
+            graph,
+            index: Some(index),
+        }
     }
 
     pub fn find(&self, options: &FindOptions) -> FindOutput {
@@ -62,7 +71,10 @@ impl<'a> DocumentFinder<'a> {
         let searching = !spec.is_empty();
 
         let candidates = if searching && options.sort.is_some() {
-            search::matched(self.graph, candidates, &spec)
+            match self.index {
+                Some(index) => search_query::matched(self.graph, index, candidates, &spec),
+                None => Vec::new(),
+            }
         } else {
             candidates
         };
@@ -70,7 +82,10 @@ impl<'a> DocumentFinder<'a> {
         let ordered = if let Some(s) = &options.sort {
             self.sort_by_frontmatter(candidates, s)
         } else if searching {
-            search::ranked(self.graph, &candidates, &spec)
+            match self.index {
+                Some(index) => search_query::ranked(self.graph, index, &candidates, &spec),
+                None => Vec::new(),
+            }
         } else {
             self.order_by_rank(candidates)
         };

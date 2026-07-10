@@ -4,8 +4,9 @@ use std::{collections::HashMap, fs};
 use ignore::WalkBuilder;
 use log::error;
 
-use crate::model::config::Format;
-use crate::model::{Content, State};
+use liwe::model::config::Format;
+use liwe::model::{Content, State};
+use liwe::operations::Changes;
 
 pub fn write_file(
     key: &String,
@@ -85,6 +86,48 @@ pub fn write_store_at_path(store: &State, to: &Path, format: Format) -> std::io:
         write_file(key, content, to, format)?;
     }
     Ok(())
+}
+
+pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std::io::Result<()> {
+    let extension = format.extension();
+
+    for key in &changes.removes {
+        let file_path = base_path.join(format!("{}.{}", key, extension));
+        if file_path.exists() {
+            fs::remove_file(&file_path)?;
+        }
+        prune_empty_dirs(file_path.parent(), base_path);
+    }
+
+    for (key, markdown) in &changes.creates {
+        let file_path = base_path.join(format!("{}.{}", key, extension));
+        if let Some(parent) = file_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&file_path, markdown)?;
+    }
+
+    for (key, markdown) in &changes.updates {
+        let file_path = base_path.join(format!("{}.{}", key, extension));
+        fs::write(&file_path, markdown)?;
+    }
+
+    Ok(())
+}
+
+fn prune_empty_dirs(start: Option<&Path>, base_path: &Path) {
+    let mut dir = start.map(|p| p.to_path_buf());
+    while let Some(parent) = dir {
+        if parent == base_path || !parent.starts_with(base_path) {
+            break;
+        }
+        if parent.read_dir().map_or(false, |mut d| d.next().is_none()) {
+            let _ = fs::remove_dir(&parent);
+            dir = parent.parent().map(|p| p.to_path_buf());
+        } else {
+            break;
+        }
+    }
 }
 
 fn sanitize_content(content: String) -> String {

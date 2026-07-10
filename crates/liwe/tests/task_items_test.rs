@@ -4,7 +4,6 @@ use liwe::markdown::MarkdownReader;
 use liwe::model::config::{FormattingOptions, MarkdownOptions};
 use liwe::model::inline::Inline;
 use liwe::model::node::Node;
-use liwe::stats::KeyStatistics;
 use pretty_assertions::assert_str_eq;
 
 fn compare(expected: &str, input: &str) {
@@ -110,24 +109,6 @@ fn bracketed_text_is_not_a_checkbox() {
         - [a] one
         "},
     );
-}
-
-#[test]
-fn list_items_are_not_counted_as_sections() {
-    let mut graph = Graph::new();
-    graph.from_markdown(
-        "key".into(),
-        indoc! {"
-        # Header
-
-        - item one
-        - item two
-        "},
-        MarkdownReader::new(),
-    );
-    let stats = KeyStatistics::from_graph(&graph);
-    assert_eq!(1, stats[0].sections);
-    assert_eq!(1, stats[0].bullet_lists);
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use liwe::model::config::{ActionDefinition, Attach, Configuration};
+use diwe::config::{ActionDefinition, Attach, Configuration};
 
 fn config_with_attach() -> Configuration {
     let mut config = Configuration::default();

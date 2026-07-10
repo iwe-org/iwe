@@ -6,5 +6,5 @@ pub mod render;
 pub mod schema;
 pub mod stats;
 
-pub use liwe::find;
-pub use liwe::retrieve;
+pub use diwe::find;
+pub use diwe::retrieve;

@@ -1,5 +1,5 @@
+use diwe::config::{ActionDefinition, Configuration, Link, LinkType, RefsPath};
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Configuration, Link, LinkType, RefsPath};
 
 use crate::fixture::*;
 

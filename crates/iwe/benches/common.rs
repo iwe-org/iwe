@@ -3,10 +3,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use diwe::config::{Format, MarkdownOptions};
+use diwe::search::{Bm25Index, Language};
 use liwe::graph::Graph;
-use liwe::model::config::{Format, MarkdownOptions};
 use liwe::model::State;
-use liwe::search::Language;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -94,21 +94,17 @@ fn pick_other(rng: &mut StdRng, n_docs: usize, exclude: usize) -> usize {
 }
 
 pub fn read_state(dir: &Path) -> State {
-    liwe::fs::new_for_path(&PathBuf::from(dir), Format::Markdown)
+    diwe::fs::new_for_path(&PathBuf::from(dir), Format::Markdown)
 }
 
 pub fn build_graph(state: &State) -> Graph {
     Graph::import(state, MarkdownOptions::default(), Some("title".into()))
 }
 
-pub fn build_graph_with_search(state: &State) -> Graph {
-    Graph::from_state(
-        state,
-        false,
-        MarkdownOptions::default(),
-        Some("title".into()),
-        Some(Language::English),
-    )
+pub fn build_graph_with_search(state: &State) -> (Graph, Bm25Index) {
+    let graph = Graph::import(state, MarkdownOptions::default(), Some("title".into()));
+    let index = diwe::search_query::build_index(&graph, Language::English);
+    (graph, index)
 }
 
 pub fn load_graph(dir: &Path) -> Graph {

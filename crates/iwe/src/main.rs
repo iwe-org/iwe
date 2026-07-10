@@ -10,6 +10,9 @@ use clap_complete_nushell::Nushell;
 mod help;
 use itertools::Itertools;
 
+use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
+use diwe::graph_from_path;
+use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
@@ -20,13 +23,13 @@ use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::stats::{render_stats, GraphStatistics};
 use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
-use liwe::model::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
-use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
-use liwe::model::tree::{Tree as ModelTree, TreeIter};
+use liwe::model::node::NodePointer;
+use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use liwe::operations::{
-    delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename, Changes,
-    ExtractConfig, InlineConfig,
+    attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
+    rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
+    ExtractConfig, InlineConfig, SelectError,
 };
 use liwe::query::block::{
     parse_block_predicate, BlockOp, BlockPredicate, BlockRegex, MatchesSource,
@@ -35,7 +38,6 @@ use liwe::query::{
     FieldPath, Filter, Projection as QueryProjection, ProjectionField, ProjectionSource,
     Sort as QuerySort, SortDir,
 };
-use liwe::tokens::Truncation;
 
 use log::{debug, error, info};
 
@@ -959,7 +961,7 @@ struct Expansion {
 
 fn expand_direction(new: Option<u64>, legacy: Option<u32>) -> u32 {
     match new {
-        Some(n) => liwe::retrieve::expand_depth(n),
+        Some(n) => diwe::retrieve::expand_depth(n),
         None => legacy.unwrap_or(0),
     }
 }
@@ -971,7 +973,7 @@ fn resolve_expansion(args: &Retrieve) -> Expansion {
         references: expand_direction(args.expand_references, args.links.then_some(1)),
         referenced_by: args
             .expand_referenced_by
-            .map(liwe::retrieve::expand_depth)
+            .map(diwe::retrieve::expand_depth)
             .unwrap_or(0),
     }
 }
@@ -981,10 +983,11 @@ fn retrieve_command(args: Retrieve) {
     let config = get_configuration();
     let searching = args.lexical.is_some() || args.fuzzy.is_some();
 
-    let graph = if searching {
-        load_search_graph(&config)
+    let (graph, index) = if searching {
+        let (g, i) = load_search_graph(&config);
+        (g, Some(i))
     } else {
-        load_graph(&config)
+        (load_graph(&config), None)
     };
 
     let expansion = resolve_expansion(&args);
@@ -1013,8 +1016,9 @@ fn retrieve_command(args: Retrieve) {
             None => graph.keys(),
             Some(f) => liwe::query::evaluate(f, &graph),
         };
+        let index = index.as_ref().expect("search graph carries an index");
         if let Some(q) = args.lexical.as_deref() {
-            if !graph.lexical_query_has_terms(q) {
+            if !index.has_query_terms(q) {
                 eprintln!(
                     "warning: --lexical query '{}' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.",
                     q
@@ -1022,7 +1026,7 @@ fn retrieve_command(args: Retrieve) {
             }
         }
         let spec = liwe::query::SearchSpec::new(args.lexical.clone(), args.fuzzy.clone());
-        let seeds = liwe::query::search::ranked(&graph, &candidates, &spec);
+        let seeds = diwe::search_query::ranked(&graph, index, &candidates, &spec);
         reader.retrieve_many(&seeds, &options)
     } else {
         let explicit_keys = args.selector.key.clone();
@@ -1123,7 +1127,7 @@ fn lower_block_flags(args: &Find) -> Result<(Vec<ProjectionField>, Option<Filter
 
 fn find_command(args: Find) {
     let config = get_configuration();
-    let graph = load_search_graph(&config);
+    let (graph, index) = load_search_graph(&config);
 
     let sort = args
         .sort
@@ -1166,7 +1170,7 @@ fn find_command(args: Find) {
         (None, None) => None,
     };
 
-    let finder = DocumentFinder::new(&graph);
+    let finder = DocumentFinder::with_index(&graph, &index);
     let options = FindOptions {
         fuzzy,
         lexical: args.lexical,
@@ -1183,7 +1187,7 @@ fn find_command(args: Find) {
     let output = finder.find(&options);
 
     if let Some(q) = options.lexical.as_deref() {
-        if !graph.lexical_query_has_terms(q) {
+        if !index.has_query_terms(q) {
             eprintln!(
                 "warning: --lexical query '{}' has no searchable terms after stop-word removal and stemming; it matches nothing. Try --fuzzy for common or partial words.",
                 q
@@ -1608,7 +1612,7 @@ fn squash_command(args: Squash) {
 }
 
 fn write_graph(graph: Graph, configuration: &Configuration) {
-    liwe::fs::write_store_at_path(
+    diwe::fs::write_store_at_path(
         &graph.export(),
         &get_library_path(configuration),
         configuration.format,
@@ -1617,60 +1621,27 @@ fn write_graph(graph: Graph, configuration: &Configuration) {
 }
 
 fn apply_changes(changes: &Changes, configuration: &Configuration) {
-    let library_path = get_library_path(configuration);
-    let extension = configuration.format.extension();
-
-    for key in &changes.removes {
-        let file_path = library_path.join(format!("{}.{}", key, extension));
-        if file_path.exists() {
-            std::fs::remove_file(&file_path).expect("Failed to delete document file");
-        }
-        let mut dir = file_path.parent().map(|p| p.to_path_buf());
-        while let Some(parent) = dir {
-            if parent == library_path || !parent.starts_with(&library_path) {
-                break;
-            }
-            if parent.read_dir().map_or(false, |mut d| d.next().is_none()) {
-                let _ = std::fs::remove_dir(&parent);
-                dir = parent.parent().map(|p| p.to_path_buf());
-            } else {
-                break;
-            }
-        }
-    }
-
-    for (key, markdown) in &changes.creates {
-        let file_path = library_path.join(format!("{}.{}", key, extension));
-        if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent).ok();
-        }
-        std::fs::write(&file_path, markdown).expect("Failed to write document file");
-    }
-
-    for (key, markdown) in &changes.updates {
-        let file_path = library_path.join(format!("{}.{}", key, extension));
-        std::fs::write(&file_path, markdown).expect("Failed to write document file");
-    }
+    diwe::fs::apply_changes(
+        changes,
+        &get_library_path(configuration),
+        configuration.format,
+    )
+    .expect("Failed to write document file");
 }
 
 fn load_graph(configuration: &Configuration) -> Graph {
-    Graph::from_path(
+    graph_from_path(
         &get_library_path(configuration),
         false,
         configuration.format_options(),
         configuration.library.frontmatter_document_title.clone(),
-        None,
     )
 }
 
-fn load_search_graph(configuration: &Configuration) -> Graph {
-    Graph::from_path(
-        &get_library_path(configuration),
-        false,
-        configuration.format_options(),
-        configuration.library.frontmatter_document_title.clone(),
-        Some(configuration.search_language()),
-    )
+fn load_search_graph(configuration: &Configuration) -> (Graph, diwe::search::Bm25Index) {
+    let graph = load_graph(configuration);
+    let index = diwe::search_query::build_index(&graph, configuration.search_language());
+    (graph, index)
 }
 
 fn get_library_path(configuration: &Configuration) -> PathBuf {
@@ -1787,7 +1758,7 @@ fn stats_command(args: Stats) {
 
     if let Some(key_str) = args.key {
         let normalized_key = Key::name(&key_str).to_string();
-        let key_stats = liwe::stats::KeyStatistics::from_graph(&graph);
+        let key_stats = diwe::stats::KeyStatistics::from_graph(&graph);
         let entry = key_stats.into_iter().find(|s| s.key == normalized_key);
         match entry {
             Some(s) => match args.format {
@@ -1987,10 +1958,10 @@ fn delete_command(args: Delete) {
         return;
     }
 
-    let mut combined = liwe::operations::Changes::default();
+    let mut combined = Changes::default();
     for target in &targets {
         match op_delete(&graph, target) {
-            Ok(changes) => merge_changes(&mut combined, changes),
+            Ok(changes) => combined.merge(changes),
             Err(e) => {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
@@ -2054,56 +2025,6 @@ fn resolve_delete_targets(args: &Delete, graph: &Graph) -> Vec<Key> {
     targets.sort();
     targets.dedup();
     targets
-}
-
-fn merge_changes(into: &mut liwe::operations::Changes, other: liwe::operations::Changes) {
-    for k in other.removes {
-        if !into.removes.contains(&k) {
-            into.removes.push(k);
-        }
-    }
-    for (k, v) in other.creates {
-        if !into.creates.iter().any(|(kk, _)| kk == &k) {
-            into.creates.push((k, v));
-        }
-    }
-    for (k, v) in other.updates {
-        if let Some(slot) = into.updates.iter_mut().find(|(kk, _)| kk == &k) {
-            slot.1 = v;
-        } else {
-            into.updates.push((k, v));
-        }
-    }
-}
-
-fn collect_sections(
-    tree: &ModelTree,
-    sections: &mut Vec<(usize, String, Option<liwe::model::NodeId>)>,
-) {
-    if let Node::Section(inlines) = &tree.node {
-        let title = inlines.iter().map(|i| i.plain_text()).collect::<String>();
-        sections.push((sections.len() + 1, title, tree.id));
-    }
-    for child in &tree.children {
-        collect_sections(child, sections);
-    }
-}
-
-fn collect_inclusion_edges(
-    tree: &ModelTree,
-    refs: &mut Vec<(usize, String, Key, Option<liwe::model::NodeId>)>,
-) {
-    if let Node::Reference(reference) = &tree.node {
-        refs.push((
-            refs.len() + 1,
-            reference.text.clone(),
-            reference.key.clone(),
-            tree.id,
-        ));
-    }
-    for child in &tree.children {
-        collect_inclusion_edges(child, refs);
-    }
 }
 
 fn get_extract_config(
@@ -2172,52 +2093,40 @@ fn extract_command(args: Extract) {
     }
 
     let tree = (&graph).collect(&source_key);
-    let mut sections: Vec<(usize, String, Option<liwe::model::NodeId>)> = Vec::new();
-    collect_sections(&tree, &mut sections);
 
     if args.list {
-        for (num, title, _) in &sections {
-            println!("{}: {}", num, title);
+        for section in sections(&tree) {
+            println!("{}: {}", section.number, section.title);
         }
         return;
     }
 
-    let selected_section = if let Some(ref section_title) = args.section {
-        let matches: Vec<_> = sections
-            .iter()
-            .filter(|(_, title, _)| title.to_lowercase().contains(&section_title.to_lowercase()))
-            .collect();
-
-        if matches.is_empty() {
-            eprintln!("Error: No section matches '{}'", section_title);
+    let selected = match select_section(&tree, args.section.as_deref(), args.block) {
+        Ok(section) => section,
+        Err(SelectError::NotFound(query)) => {
+            eprintln!("Error: No section matches '{}'", query);
             std::process::exit(1);
-        } else if matches.len() > 1 {
-            eprintln!("Error: Multiple sections match '{}':", section_title);
-            for (num, title, _) in &matches {
-                eprintln!("  {}: {}", num, title);
+        }
+        Err(SelectError::Ambiguous(query, matches)) => {
+            eprintln!("Error: Multiple sections match '{}':", query);
+            for section in &matches {
+                eprintln!("  {}: {}", section.number, section.title);
             }
             eprintln!("Use --block <n> to select a specific section.");
             std::process::exit(1);
         }
-
-        matches[0].clone()
-    } else if let Some(block_num) = args.block {
-        if block_num == 0 || block_num > sections.len() {
-            eprintln!(
-                "Error: Block number {} out of range (1-{})",
-                block_num,
-                sections.len()
-            );
+        Err(SelectError::OutOfRange(block, len)) => {
+            eprintln!("Error: Block number {} out of range (1-{})", block, len);
             std::process::exit(1);
         }
-        sections[block_num - 1].clone()
-    } else {
-        eprintln!("Error: Must specify --section, --block, or --list");
-        std::process::exit(1);
+        Err(SelectError::NoSelector) => {
+            eprintln!("Error: Must specify --section, --block, or --list");
+            std::process::exit(1);
+        }
     };
 
-    let (_, section_title, section_node_id) = selected_section;
-    let section_id = section_node_id.expect("Section must have an ID");
+    let section_title = selected.title;
+    let section_id = selected.id;
 
     let (key_template, link_type) = get_extract_config(&config, args.action.as_deref());
     let locale = get_locale(config.library.locale.as_deref());
@@ -2293,58 +2202,47 @@ fn inline_command(args: Inline) {
     }
 
     let tree = (&graph).collect(&source_key);
-    let mut refs: Vec<(usize, String, Key, Option<liwe::model::NodeId>)> = Vec::new();
-    collect_inclusion_edges(&tree, &mut refs);
 
     if args.list {
-        for (num, text, key, _) in &refs {
-            println!("{}: [{}]({})", num, text, key);
+        for reference in references(&tree) {
+            println!(
+                "{}: [{}]({})",
+                reference.number, reference.title, reference.key
+            );
         }
         return;
     }
 
-    let selected_ref = if let Some(ref reference) = args.reference {
-        let matches: Vec<_> = refs
-            .iter()
-            .filter(|(_, text, key, _)| {
-                text.to_lowercase().contains(&reference.to_lowercase())
-                    || key
-                        .to_string()
-                        .to_lowercase()
-                        .contains(&reference.to_lowercase())
-            })
-            .collect();
-
-        if matches.is_empty() {
-            eprintln!("Error: No reference matches '{}'", reference);
+    let selected = match select_reference(&tree, args.reference.as_deref(), args.block) {
+        Ok(reference) => reference,
+        Err(SelectError::NotFound(query)) => {
+            eprintln!("Error: No reference matches '{}'", query);
             std::process::exit(1);
-        } else if matches.len() > 1 {
-            eprintln!("Error: Multiple references match '{}':", reference);
-            for (num, text, key, _) in &matches {
-                eprintln!("  {}: [{}]({})", num, text, key);
+        }
+        Err(SelectError::Ambiguous(query, matches)) => {
+            eprintln!("Error: Multiple references match '{}':", query);
+            for reference in &matches {
+                eprintln!(
+                    "  {}: [{}]({})",
+                    reference.number, reference.title, reference.key
+                );
             }
             eprintln!("Use --block <n> to select a specific reference.");
             std::process::exit(1);
         }
-
-        matches[0].clone()
-    } else if let Some(block_num) = args.block {
-        if block_num == 0 || block_num > refs.len() {
-            eprintln!(
-                "Error: Block number {} out of range (1-{})",
-                block_num,
-                refs.len()
-            );
+        Err(SelectError::OutOfRange(block, len)) => {
+            eprintln!("Error: Block number {} out of range (1-{})", block, len);
             std::process::exit(1);
         }
-        refs[block_num - 1].clone()
-    } else {
-        eprintln!("Error: Must specify --reference, --block, or --list");
-        std::process::exit(1);
+        Err(SelectError::NoSelector) => {
+            eprintln!("Error: Must specify --reference, --block, or --list");
+            std::process::exit(1);
+        }
     };
 
-    let (_, ref_text, inline_key, ref_node_id) = selected_ref;
-    let ref_id = ref_node_id.expect("Reference must have an ID");
+    let ref_text = selected.title;
+    let inline_key = selected.key;
+    let ref_id = selected.id;
 
     let (inline_type, should_keep_target) = get_inline_config(
         &config,
@@ -2839,7 +2737,6 @@ fn attach_command(args: Attach) {
         .unwrap_or_else(|| source_key_str.clone());
 
     let library_path = get_library_path(&config);
-    let format_options = graph.format_options().clone();
 
     for action_name in &args.to {
         let attach = match config.actions.get(action_name) {
@@ -2863,40 +2760,17 @@ fn attach_command(args: Attach) {
         };
         let target_key = Key::name(&target_key_str);
 
-        if (&graph).get_node_id(&target_key).is_some() {
-            let tree = (&graph).collect(&target_key);
-            if tree.get_all_inclusion_edge_keys().contains(&source_key) {
-                continue;
-            }
-        }
-
-        let reference = ModelTree {
-            id: None,
-            node: Node::Reference(Reference {
-                key: source_key.clone(),
-                text: reference_text.clone(),
-                reference_type: ReferenceType::Regular,
-                url: String::new(),
-                display_url: None,
-            }),
-            children: vec![],
-        };
-
-        let new_content = if (&graph).get_node_id(&target_key).is_some() {
-            let tree = (&graph).collect(&target_key);
-            tree.attach(reference)
-                .iter()
-                .to_text(&target_key.parent(), &format_options)
-        } else {
-            let rendered_reference = reference
-                .iter()
-                .to_text(&target_key.parent(), &format_options);
-            match render_document_template(&attach.document_template, &rendered_reference, &config)
-            {
-                Ok(content) => content,
-                Err(e) => {
-                    eprintln!("Error: action '{}': {}", action_name, e);
-                    std::process::exit(1);
+        let new_content = match attach_reference(&graph, &target_key, &source_key, &reference_text)
+        {
+            AttachTarget::AlreadyAttached => continue,
+            AttachTarget::Update(content) => content,
+            AttachTarget::Create(body) => {
+                match render_document_template(&attach.document_template, &body, &config) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        eprintln!("Error: action '{}': {}", action_name, e);
+                        std::process::exit(1);
+                    }
                 }
             }
         };

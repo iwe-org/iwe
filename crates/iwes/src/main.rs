@@ -2,11 +2,11 @@ use std::env;
 use std::error::Error;
 use std::fs::OpenOptions;
 
+use diwe::config::load_config;
 use iwes::main_loop;
 use iwes::router::server::actions::all_action_types;
 use iwes::router::server::actions::ActionProvider;
 use iwes::ServerParams;
-use liwe::model::config::load_config;
 use lsp_types::CodeActionOptions;
 use lsp_types::CodeActionProviderCapability;
 use lsp_types::CompletionOptions;

@@ -1,11 +1,9 @@
 use std::time::SystemTime;
 
 use chrono::{Local, TimeZone};
+use diwe::config::{ActionDefinition, Configuration, Extract, LinkType};
 use indoc::indoc;
-use liwe::{
-    model::config::{ActionDefinition, Configuration, Extract, LinkType},
-    state::from_indoc,
-};
+use liwe::state::from_indoc;
 
 use crate::fixture::*;
 

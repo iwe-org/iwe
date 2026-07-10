@@ -1,5 +1,5 @@
+use diwe::config::{ActionDefinition, Configuration, Inline, InlineType};
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Configuration, Inline, InlineType};
 
 use crate::fixture::*;
 

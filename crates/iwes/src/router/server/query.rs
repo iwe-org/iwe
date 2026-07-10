@@ -78,10 +78,10 @@ fn count_of(outcome: Outcome) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use diwe::config::MarkdownOptions;
     use indoc::indoc;
     use itertools::Itertools;
     use liwe::graph::{Graph, GraphContext};
-    use liwe::model::config::MarkdownOptions;
     use liwe::model::node::NodePointer;
     use liwe::state::from_indoc;
 

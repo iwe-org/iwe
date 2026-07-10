@@ -1,8 +1,8 @@
 use std::time::SystemTime;
 
 use chrono::{Local, TimeZone};
+use diwe::config::{ActionDefinition, Attach, Configuration};
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Attach, Configuration};
 
 fn fixed_now() -> SystemTime {
     Local

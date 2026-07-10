@@ -693,6 +693,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "diwe"
+version = "0.10.0"
+dependencies = [
+ "bm25",
+ "csv",
+ "env_logger",
+ "fuzzy-matcher",
+ "ignore",
+ "indoc",
+ "itertools 0.14.0",
+ "liwe",
+ "log",
+ "pretty_assertions",
+ "rayon",
+ "relative-path",
+ "serde",
+ "serde_yaml",
+ "tempfile",
+ "tiktoken-rs",
+ "toml",
+ "toml_edit",
+]
+
+[[package]]
 name = "dot-generator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1415,6 +1439,7 @@ dependencies = [
  "clap_complete_nushell",
  "criterion",
  "csv",
+ "diwe",
  "graphviz-rust",
  "indoc",
  "itertools 0.14.0",
@@ -1442,6 +1467,7 @@ dependencies = [
  "axum",
  "chrono",
  "clap",
+ "diwe",
  "indoc",
  "liwe",
  "minijinja",
@@ -1467,6 +1493,7 @@ dependencies = [
  "clap",
  "crossbeam-channel",
  "difference",
+ "diwe",
  "extend",
  "fuzzy-matcher",
  "indoc",
@@ -1588,12 +1615,8 @@ checksum = "92daf443525c4cce67b150400bc2316076100ce0b3686209eb8cf3c31612e6f0"
 name = "liwe"
 version = "0.10.0"
 dependencies = [
- "bm25",
  "chrono",
- "csv",
  "env_logger",
- "fuzzy-matcher",
- "ignore",
  "indoc",
  "itertools 0.14.0",
  "jotdown",
@@ -1612,9 +1635,6 @@ dependencies = [
  "serde_yaml",
  "sys-locale",
  "tempfile",
- "tiktoken-rs",
- "toml",
- "toml_edit",
 ]
 
 [[package]]

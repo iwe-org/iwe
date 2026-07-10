@@ -8,8 +8,8 @@ use crate::query::block_eval::BlockIndex;
 use crate::query::document::{
     FieldPath, Projection, ProjectionBase, ProjectionField, ProjectionSource, PseudoField,
 };
+use crate::query::edges::EdgeRef;
 use crate::query::frontmatter::{is_reserved_segment, strip_reserved};
-use crate::retrieve::EdgeRef;
 
 pub struct ProjectionContext<'a> {
     pub graph: &'a Graph,

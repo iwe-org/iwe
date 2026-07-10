@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
+use diwe::config::Configuration;
 use iwec::IweServer;
-use liwe::model::config::Configuration;
 use rmcp::model::*;
 use rmcp::{service::RunningService, ClientHandler, RoleClient, ServiceExt};
 

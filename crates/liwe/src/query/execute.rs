@@ -10,7 +10,7 @@ use crate::query::document::{CountOp, DeleteOp, Filter, FindOp, Limit, Operation
 use crate::query::eval;
 use crate::query::frontmatter::strip_reserved;
 use crate::query::project::{apply_projection, ProjectionContext};
-use crate::query::search;
+use crate::query::scores::QueryScores;
 use crate::query::sort::sort_in_place;
 use crate::query::update;
 
@@ -29,8 +29,19 @@ pub struct FindMatch {
 }
 
 pub fn execute(op: &Operation, graph: &Graph) -> Result<Outcome, EvalError> {
+    execute_with_scores(op, graph, &QueryScores::default())
+}
+
+/// Execute `op` with caller-resolved relevance `scores`. A `find` query's `search` clause draws
+/// its match set and relevance order from `scores` (the engine computes no scores itself); non-search
+/// queries ignore `scores`.
+pub fn execute_with_scores(
+    op: &Operation,
+    graph: &Graph,
+    scores: &QueryScores,
+) -> Result<Outcome, EvalError> {
     match op {
-        Operation::Find(find) => execute_find(find, graph),
+        Operation::Find(find) => execute_find(find, graph, scores),
         Operation::Count(count) => Ok(execute_count(count, graph)),
         Operation::Update(upd) => execute_update(upd, graph),
         Operation::Delete(del) => execute_delete(del, graph),
@@ -113,19 +124,28 @@ fn apply_sort_and_limit(
     rows
 }
 
-fn execute_find(op: &FindOp, graph: &Graph) -> Result<Outcome, EvalError> {
+fn execute_find(op: &FindOp, graph: &Graph, scores: &QueryScores) -> Result<Outcome, EvalError> {
     let candidates = select_keys(op.filter.as_ref(), graph);
 
     let (keys, preserve_order) = match &op.search {
         None => (candidates, false),
-        Some(spec) => {
-            if !graph.has_search_index() {
-                return Err(EvalError::SearchIndexMissing);
-            }
+        Some(_spec) => {
+            let matched: Vec<Key> = candidates
+                .into_iter()
+                .filter(|k| scores.fused.contains_key(k))
+                .collect();
             if op.sort.is_some() {
-                (search::matched(graph, candidates, spec), false)
+                (matched, false)
             } else {
-                (search::ranked(graph, &candidates, spec), true)
+                let mut ordered = matched;
+                ordered.sort_by(|a, b| {
+                    let sa = scores.fused_score(a).unwrap_or(f64::NEG_INFINITY);
+                    let sb = scores.fused_score(b).unwrap_or(f64::NEG_INFINITY);
+                    sb.partial_cmp(&sa)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then_with(|| a.cmp(b))
+                });
+                (ordered, true)
             }
         }
     };

@@ -1,5 +1,5 @@
 use crate::fixture::Fixture;
-use liwe::model::config::{ActionDefinition, Attach, Configuration};
+use diwe::config::{ActionDefinition, Attach, Configuration};
 use rmcp::model::ResourceContents;
 
 #[tokio::test]

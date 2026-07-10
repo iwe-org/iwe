@@ -1,3 +1,4 @@
+use diwe::search::{rrf_weight, Bm25Index, Language};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use itertools::Itertools;
 use liwe::{
@@ -6,7 +7,6 @@ use liwe::{
         node::{NodeIter, NodePointer},
         Key, NodeId,
     },
-    search::rrf_weight,
 };
 use rayon::prelude::*;
 
@@ -24,6 +24,7 @@ pub struct SearchPath {
 #[derive(Clone, Default)]
 pub struct SearchIndex {
     paths: Vec<SearchPath>,
+    bm25: Option<Bm25Index>,
 }
 
 impl SearchIndex {
@@ -31,7 +32,8 @@ impl SearchIndex {
         Self::default()
     }
 
-    pub fn update(&mut self, graph: &Graph) {
+    pub fn update(&mut self, graph: &Graph, language: Language) {
+        self.bm25 = Some(diwe::search_query::build_index(graph, language));
         let graph_ctx: &Graph = graph;
         self.paths = graph
             .nodes()
@@ -88,7 +90,7 @@ impl SearchIndex {
             .collect::<Vec<_>>();
     }
 
-    pub fn search(&self, query: &str, graph: &Graph) -> Vec<SearchPath> {
+    pub fn search(&self, query: &str) -> Vec<SearchPath> {
         if query.is_empty() {
             return self
                 .paths
@@ -107,7 +109,11 @@ impl SearchIndex {
         }
 
         let matcher = SkimMatcherV2::default();
-        let bm25_scores = graph.search_scores(query);
+        let bm25_scores = self
+            .bm25
+            .as_ref()
+            .map(|index| index.scores(query))
+            .unwrap_or_default();
 
         let fuzzy: Vec<i64> = self
             .paths

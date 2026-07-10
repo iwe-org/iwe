@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `iwe_retrieve` `limit` now caps the seed documents before expansion (top-N by relevance when searching, the first N of the selection otherwise); use `max_documents` for the post-expansion document cap.
 - `iwe_retrieve` no longer expands by default — omit `expand` and it returns the requested document(s) only (previously the implicit behavior was one level of children and parents).
+- `iwe_delete` and `iwe_query` deletes now also remove any parent directory left empty by a removed document, matching the CLI (previously empty directories were kept).
 
 ### Deprecated
 - `iwe_retrieve` `depth` / `context` / `links` — retained as aliases for `expand`'s `includes` / `includedBy` / `references`; passing `expand` together with any of them is an error.

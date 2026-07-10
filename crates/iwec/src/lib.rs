@@ -6,28 +6,29 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use chrono::Local;
-use liwe::find::{DocumentFinder, FindOptions, FindOutput};
-use liwe::fs::{new_for_path, new_from_hashmap};
-use liwe::graph::{Graph, GraphContext};
-use liwe::model::config::{
+use diwe::config::{
     ActionDefinition, CompletionOptions, Configuration, MarkdownOptions, NoteTemplate,
     DEFAULT_KEY_DATE_FORMAT,
 };
-use liwe::model::node::{Node, NodeIter, NodePointer, Reference, ReferenceType};
+use diwe::find::{DocumentFinder, FindOptions, FindOutput};
+use diwe::fs::{new_for_path, new_from_hashmap};
+use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
+use diwe::stats::{GraphStatistics, KeyStatistics};
+use diwe::tokens::Truncation;
+use liwe::graph::{Graph, GraphContext};
+use liwe::model::node::NodePointer;
 use liwe::model::tree::{Tree, TreeIter};
 use liwe::model::Key;
 use liwe::operations::{
-    delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename, Changes,
-    ExtractConfig, InlineConfig, OperationError,
+    attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
+    rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
+    ExtractConfig, InlineConfig, OperationError, SelectError,
 };
 use liwe::query::cli::parse_projection;
 use liwe::query::{
     self, execute, parse_operation, strict_guard_violations, Filter, InclusionAnchor, Operation,
     OperationKind, Outcome, ProjectionBase,
 };
-use liwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
-use liwe::stats::{GraphStatistics, KeyStatistics};
-use liwe::tokens::Truncation;
 use minijinja::{context, Environment};
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
@@ -334,7 +335,7 @@ impl RetrieveParams {
     }
 
     fn expansion(&self) -> (u32, u32, u32, u32) {
-        use liwe::retrieve::expand_depth;
+        use diwe::retrieve::expand_depth;
         if let Some(e) = &self.expand {
             return (
                 e.includes.map(expand_depth).unwrap_or(0),
@@ -672,30 +673,6 @@ fn op_error_to_mcp(e: OperationError) -> McpError {
     McpError::invalid_params(e.to_string(), None)
 }
 
-fn merge_changes(into: &mut Changes, other: Changes) {
-    for key in other.removes {
-        if !into.removes.contains(&key) {
-            into.removes.push(key);
-        }
-    }
-    for (key, value) in other.creates {
-        if !into.creates.iter().any(|(existing, _)| existing == &key) {
-            into.creates.push((key, value));
-        }
-    }
-    for (key, value) in other.updates {
-        if let Some(slot) = into
-            .updates
-            .iter_mut()
-            .find(|(existing, _)| existing == &key)
-        {
-            slot.1 = value;
-        } else {
-            into.updates.push((key, value));
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ReviewPromptArgs {
     #[schemars(description = "Document key to review")]
@@ -728,7 +705,12 @@ impl IweServer {
     ) -> Result<CallToolResult, McpError> {
         let options: FindOptions = params.try_into()?;
         let graph = self.graph.lock().await;
-        let finder = DocumentFinder::new(&graph);
+        let index = (options.lexical.is_some() || options.fuzzy.is_some())
+            .then(|| diwe::search_query::build_index(&graph, self.config.search_language()));
+        let finder = match &index {
+            Some(index) => DocumentFinder::with_index(&graph, index),
+            None => DocumentFinder::new(&graph),
+        };
         let output: FindOutput = finder.find(&options);
         to_json_result_with_truncation(&output.results, &output.truncation)
     }
@@ -764,7 +746,8 @@ impl IweServer {
                 Some(f) => query::evaluate(f, &graph),
             };
             let spec = query::SearchSpec::new(params.search.clone(), params.fuzzy.clone());
-            let seeds = query::search::ranked(&graph, &candidates, &spec);
+            let index = diwe::search_query::build_index(&graph, self.config.search_language());
+            let seeds = diwe::search_query::ranked(&graph, &index, &candidates, &spec);
             reader.retrieve_many(&seeds, &options)
         } else {
             options.filter = params.selector.to_filter();
@@ -1012,9 +995,16 @@ impl IweServer {
         let dry_run = params.dry_run.unwrap_or(false);
         let mut graph = self.graph.lock().await;
 
+        let index = match &op {
+            Operation::Find(find) if find.search.is_some() => Some(
+                diwe::search_query::build_index(&graph, self.config.search_language()),
+            ),
+            _ => None,
+        };
+
         match &op {
             Operation::Find(find) => {
-                let outcome = execute(&op, &graph)
+                let outcome = diwe::search_query::execute(&op, &graph, index.as_ref())
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let Outcome::Find { matches } = outcome else {
                     unreachable!("find operation yields a find outcome")
@@ -1022,8 +1012,12 @@ impl IweServer {
                 let documents: Vec<_> = matches.into_iter().map(|m| m.document).collect();
                 let mut warnings = Vec::new();
                 if let Some(spec) = &find.search {
-                    if query::search::lexical_has_no_terms(&graph, spec) {
-                        warnings.push(query::search::no_terms_warning(spec));
+                    if index
+                        .as_ref()
+                        .map(|idx| diwe::search_query::lexical_has_no_terms(idx, spec))
+                        .unwrap_or(false)
+                    {
+                        warnings.push(diwe::search_query::no_terms_warning(spec));
                     }
                 }
                 to_json_result_with_warnings(&documents, &warnings)
@@ -1066,7 +1060,7 @@ impl IweServer {
                 let mut combined = Changes::default();
                 for key in &removed {
                     let changes = op_delete(&graph, key).map_err(op_error_to_mcp)?;
-                    merge_changes(&mut combined, changes);
+                    combined.merge(changes);
                 }
                 if !dry_run {
                     Self::apply_changes(&mut graph, &combined);
@@ -1115,59 +1109,55 @@ impl IweServer {
         }
 
         let tree = (&*graph).collect(&source_key);
-        let sections = collect_sections(&tree);
 
         if params.list.unwrap_or(false) {
+            let sections: Vec<SectionEntry> = sections(&tree)
+                .into_iter()
+                .map(|section| SectionEntry {
+                    block_number: section.number,
+                    title: section.title,
+                })
+                .collect();
             return to_json_result(&sections);
         }
 
-        let selected = if let Some(ref title) = params.section {
-            let matches: Vec<_> = sections
-                .iter()
-                .filter(|s| s.title.to_lowercase().contains(&title.to_lowercase()))
-                .collect();
-            if matches.is_empty() {
+        let section = match select_section(&tree, params.section.as_deref(), params.block) {
+            Ok(section) => section,
+            Err(SelectError::NotFound(query)) => {
                 return Err(McpError::invalid_params(
-                    format!("No section matches '{}'", title),
+                    format!("No section matches '{}'", query),
                     None,
-                ));
+                ))
             }
-            if matches.len() > 1 {
+            Err(SelectError::Ambiguous(query, matches)) => {
                 return Err(McpError::invalid_params(
                     format!(
                         "Multiple sections match '{}': {}",
-                        title,
+                        query,
                         matches
                             .iter()
-                            .map(|s| s.title.as_str())
+                            .map(|section| section.title.as_str())
                             .collect::<Vec<_>>()
                             .join(", ")
                     ),
                     None,
-                ));
+                ))
             }
-            matches[0].block_number
-        } else if let Some(block) = params.block {
-            if block == 0 || block > sections.len() {
+            Err(SelectError::OutOfRange(block, len)) => {
                 return Err(McpError::invalid_params(
-                    format!("Block number {} out of range (1-{})", block, sections.len()),
+                    format!("Block number {} out of range (1-{})", block, len),
                     None,
-                ));
+                ))
             }
-            block
-        } else {
-            return Err(McpError::invalid_params(
-                "Must specify section, block, or list",
-                None,
-            ));
+            Err(SelectError::NoSelector) => {
+                return Err(McpError::invalid_params(
+                    "Must specify section, block, or list",
+                    None,
+                ))
+            }
         };
 
-        let section_id = tree
-            .children
-            .iter()
-            .flat_map(|c| collect_section_ids(c))
-            .nth(selected - 1)
-            .ok_or_else(|| McpError::invalid_params("Section not found", None))?;
+        let section_id = section.id;
 
         let config = ExtractConfig::default();
         let changes = op_extract(
@@ -1205,65 +1195,61 @@ impl IweServer {
         }
 
         let tree = (&*graph).collect(&source_key);
-        let refs = collect_block_refs(&tree);
 
         if params.list.unwrap_or(false) {
+            let refs: Vec<ReferenceEntry> = references(&tree)
+                .into_iter()
+                .map(|reference| ReferenceEntry {
+                    block_number: reference.number,
+                    key: reference.key.to_string(),
+                    title: reference.title,
+                })
+                .collect();
             return to_json_result(&refs);
         }
 
-        let selected = if let Some(ref reference) = params.reference {
-            let matches: Vec<_> = refs
-                .iter()
-                .filter(|r| {
-                    r.title.to_lowercase().contains(&reference.to_lowercase())
-                        || r.key.to_lowercase().contains(&reference.to_lowercase())
-                })
-                .collect();
-            if matches.is_empty() {
+        let reference = match select_reference(&tree, params.reference.as_deref(), params.block) {
+            Ok(reference) => reference,
+            Err(SelectError::NotFound(query)) => {
                 return Err(McpError::invalid_params(
-                    format!("No reference matches '{}'", reference),
+                    format!("No reference matches '{}'", query),
                     None,
-                ));
+                ))
             }
-            if matches.len() > 1 {
+            Err(SelectError::Ambiguous(query, matches)) => {
                 return Err(McpError::invalid_params(
                     format!(
                         "Multiple references match '{}': {}",
-                        reference,
+                        query,
                         matches
                             .iter()
-                            .map(|r| r.key.as_str())
+                            .map(|reference| reference.key.to_string())
                             .collect::<Vec<_>>()
                             .join(", ")
                     ),
                     None,
-                ));
+                ))
             }
-            matches[0].block_number
-        } else if let Some(block) = params.block {
-            if block == 0 || block > refs.len() {
+            Err(SelectError::OutOfRange(block, len)) => {
                 return Err(McpError::invalid_params(
-                    format!("Block number {} out of range (1-{})", block, refs.len()),
+                    format!("Block number {} out of range (1-{})", block, len),
                     None,
-                ));
+                ))
             }
-            block
-        } else {
-            return Err(McpError::invalid_params(
-                "Must specify reference, block, or list",
-                None,
-            ));
+            Err(SelectError::NoSelector) => {
+                return Err(McpError::invalid_params(
+                    "Must specify reference, block, or list",
+                    None,
+                ))
+            }
         };
 
-        let ref_id = collect_ref_ids(&tree)
-            .into_iter()
-            .nth(selected - 1)
-            .ok_or_else(|| McpError::invalid_params("Reference not found", None))?;
+        let ref_id = reference.id;
 
         let inline_type = if params.as_quote.unwrap_or(false) {
-            liwe::model::config::InlineType::Quote
+            diwe::config::InlineType::Quote
         } else {
-            liwe::model::config::InlineType::Section
+            diwe::config::InlineType::Section
         };
 
         let config = InlineConfig {
@@ -1363,7 +1349,6 @@ impl IweServer {
             .unwrap_or_else(|| source_key_str.to_string());
 
         let mut combined = Changes::new();
-        let format_options = graph.format_options().clone();
 
         for action_name in &params.to {
             let attach = match self.config.actions.get(action_name) {
@@ -1386,44 +1371,22 @@ impl IweServer {
                 |e| McpError::invalid_params(format!("action '{}': {}", action_name, e), None),
             )?);
 
-            if (&*graph).get_node_id(&target_key).is_some() {
-                let tree = (&*graph).collect(&target_key);
-                if tree.get_all_inclusion_edge_keys().contains(&source_key) {
-                    continue;
+            match attach_reference(&graph, &target_key, &source_key, &reference_text) {
+                AttachTarget::AlreadyAttached => continue,
+                AttachTarget::Update(content) => {
+                    combined.add_update(target_key.clone(), content);
                 }
-            }
-
-            let reference = Tree {
-                id: None,
-                node: Node::Reference(Reference {
-                    key: source_key.clone(),
-                    text: reference_text.clone(),
-                    reference_type: ReferenceType::Regular,
-                    url: String::new(),
-                    display_url: None,
-                }),
-                children: vec![],
-            };
-
-            if (&*graph).get_node_id(&target_key).is_some() {
-                let tree = (&*graph).collect(&target_key);
-                let updated = tree.attach(reference);
-                combined.add_update(
-                    target_key.clone(),
-                    updated
-                        .iter()
-                        .to_text(&target_key.parent(), &format_options),
-                );
-            } else {
-                let content = reference
-                    .iter()
-                    .to_text(&target_key.parent(), &format_options);
-                let document = self
-                    .render_document_template(&attach.document_template, &content)
-                    .map_err(|e| {
-                        McpError::invalid_params(format!("action '{}': {}", action_name, e), None)
-                    })?;
-                combined.add_create(target_key.clone(), document);
+                AttachTarget::Create(body) => {
+                    let document = self
+                        .render_document_template(&attach.document_template, &body)
+                        .map_err(|e| {
+                            McpError::invalid_params(
+                                format!("action '{}': {}", action_name, e),
+                                None,
+                            )
+                        })?;
+                    combined.add_create(target_key.clone(), document);
+                }
             }
         }
 
@@ -1475,73 +1438,6 @@ fn build_tree_node(
         title,
         children,
     })
-}
-
-use liwe::model::tree::Tree as ModelTree;
-use liwe::model::NodeId;
-
-fn collect_sections(tree: &ModelTree) -> Vec<SectionEntry> {
-    let mut result = Vec::new();
-    collect_sections_rec(tree, &mut result);
-    result
-}
-
-fn collect_sections_rec(tree: &ModelTree, sections: &mut Vec<SectionEntry>) {
-    if let Node::Section(inlines) = &tree.node {
-        let title = inlines.iter().map(|i| i.plain_text()).collect::<String>();
-        sections.push(SectionEntry {
-            block_number: sections.len() + 1,
-            title,
-        });
-    }
-    for child in &tree.children {
-        collect_sections_rec(child, sections);
-    }
-}
-
-fn collect_section_ids(tree: &ModelTree) -> Vec<NodeId> {
-    let mut ids = Vec::new();
-    if tree.is_section() {
-        if let Some(id) = tree.id {
-            ids.push(id);
-        }
-    }
-    for child in &tree.children {
-        ids.extend(collect_section_ids(child));
-    }
-    ids
-}
-
-fn collect_block_refs(tree: &ModelTree) -> Vec<ReferenceEntry> {
-    let mut result = Vec::new();
-    collect_block_refs_rec(tree, &mut result);
-    result
-}
-
-fn collect_block_refs_rec(tree: &ModelTree, refs: &mut Vec<ReferenceEntry>) {
-    if let Node::Reference(reference) = &tree.node {
-        refs.push(ReferenceEntry {
-            block_number: refs.len() + 1,
-            key: reference.key.to_string(),
-            title: reference.text.clone(),
-        });
-    }
-    for child in &tree.children {
-        collect_block_refs_rec(child, refs);
-    }
-}
-
-fn collect_ref_ids(tree: &ModelTree) -> Vec<NodeId> {
-    let mut ids = Vec::new();
-    if let Node::Reference(_) = &tree.node {
-        if let Some(id) = tree.id {
-            ids.push(id);
-        }
-    }
-    for child in &tree.children {
-        ids.extend(collect_ref_ids(child));
-    }
-    ids
 }
 
 #[prompt_router]
@@ -1796,7 +1692,6 @@ impl IweServer {
             false,
             configuration.format_options(),
             configuration.library.frontmatter_document_title.clone(),
-            Some(configuration.search_language()),
         );
         Self {
             graph: Arc::new(Mutex::new(graph)),
@@ -1818,13 +1713,7 @@ impl IweServer {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<HashMap<String, String>>(),
         );
-        let graph = Graph::from_state(
-            &state,
-            true,
-            MarkdownOptions::default(),
-            None,
-            Some(config.search_language()),
-        );
+        let graph = Graph::from_state(&state, true, MarkdownOptions::default(), None);
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,
@@ -1866,24 +1755,7 @@ impl IweServer {
 
     fn write_changes(&self, changes: &Changes) {
         if let Some(base_path) = &self.base_path {
-            let extension = self.config.format.extension();
-            for key in &changes.removes {
-                let file_path = base_path.join(format!("{}.{}", key, extension));
-                if file_path.exists() {
-                    std::fs::remove_file(&file_path).ok();
-                }
-            }
-            for (key, markdown) in &changes.creates {
-                let file_path = base_path.join(format!("{}.{}", key, extension));
-                if let Some(parent) = file_path.parent() {
-                    std::fs::create_dir_all(parent).ok();
-                }
-                std::fs::write(&file_path, markdown).ok();
-            }
-            for (key, markdown) in &changes.updates {
-                let file_path = base_path.join(format!("{}.{}", key, extension));
-                std::fs::write(&file_path, markdown).ok();
-            }
+            let _ = diwe::fs::apply_changes(changes, base_path, self.config.format);
         }
     }
 

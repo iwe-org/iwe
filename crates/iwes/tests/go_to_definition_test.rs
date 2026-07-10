@@ -1,5 +1,5 @@
+use diwe::config::MarkdownOptions;
 use indoc::indoc;
-use liwe::model::config::MarkdownOptions;
 
 use crate::fixture::*;
 

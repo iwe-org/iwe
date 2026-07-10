@@ -45,6 +45,30 @@ impl Changes {
         self.creates.is_empty() && self.updates.is_empty() && self.removes.is_empty()
     }
 
+    pub fn merge(&mut self, other: Changes) {
+        for key in other.removes {
+            if !self.removes.contains(&key) {
+                self.removes.push(key);
+            }
+        }
+        for (key, markdown) in other.creates {
+            if !self.creates.iter().any(|(existing, _)| existing == &key) {
+                self.creates.push((key, markdown));
+            }
+        }
+        for (key, markdown) in other.updates {
+            if let Some(slot) = self
+                .updates
+                .iter_mut()
+                .find(|(existing, _)| existing == &key)
+            {
+                slot.1 = markdown;
+            } else {
+                self.updates.push((key, markdown));
+            }
+        }
+    }
+
     pub fn affected_keys(&self) -> Vec<&Key> {
         let mut keys = Vec::new();
         for (key, _) in &self.creates {

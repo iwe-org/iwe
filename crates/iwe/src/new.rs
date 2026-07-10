@@ -6,8 +6,8 @@ use minijinja::{context, Environment};
 use rand::distr::Alphanumeric;
 use rand::Rng;
 
+use diwe::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
 use liwe::locale::get_locale;
-use liwe::model::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
 use liwe::model::Key;
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]

@@ -1,8 +1,8 @@
 use std::time::SystemTime;
 
 use chrono::{Local, TimeZone};
+use diwe::config::{ActionDefinition, Configuration, ExtractAll, LinkType};
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Configuration, ExtractAll, LinkType};
 
 use crate::fixture::*;
 

@@ -1,7 +1,8 @@
+use diwe::config::MarkdownOptions;
+use diwe::search::Language;
+use diwe::search_query::build_index;
 use indoc::indoc;
 use liwe::graph::Graph;
-use liwe::model::config::MarkdownOptions;
-use liwe::search::Language;
 use liwe::state::from_indoc;
 
 fn indexed_graph() -> Graph {
@@ -14,17 +15,11 @@ fn indexed_graph() -> Graph {
 
         Lazy dog sleeps.
     "});
-    Graph::from_state(
-        &state,
-        false,
-        MarkdownOptions::default(),
-        None,
-        Some(Language::English),
-    )
+    Graph::import(&state, MarkdownOptions::default(), None)
 }
 
 fn found(graph: &Graph, query: &str) -> Vec<String> {
-    graph
+    build_index(graph, Language::English)
         .search(query)
         .into_iter()
         .map(|scored| scored.id.to_string())
@@ -39,7 +34,7 @@ fn body_terms_are_searchable_after_build() {
 }
 
 #[test]
-fn update_document_replaces_index_vector() {
+fn rebuild_reflects_updated_document() {
     let mut graph = indexed_graph();
     graph.update_document(
         "1".into(),
@@ -51,7 +46,7 @@ fn update_document_replaces_index_vector() {
 }
 
 #[test]
-fn remove_document_clears_from_search() {
+fn rebuild_clears_removed_document() {
     let mut graph = indexed_graph();
     graph.remove_document("2".into());
 
@@ -59,21 +54,9 @@ fn remove_document_clears_from_search() {
 }
 
 #[test]
-fn insert_document_is_searchable_immediately() {
+fn rebuild_includes_inserted_document() {
     let mut graph = indexed_graph();
     graph.insert_document("3".into(), "# Gamma\n\nElephants roam.\n".to_string());
 
     assert_eq!(found(&graph, "elephants"), vec!["3".to_string()]);
-}
-
-#[test]
-fn search_disabled_returns_empty() {
-    let state = from_indoc(indoc! {"
-        # Alpha
-
-        The quick brown fox.
-    "});
-    let graph = Graph::from_state(&state, false, MarkdownOptions::default(), None, None);
-
-    assert_eq!(found(&graph, "fox"), Vec::<String>::new());
 }

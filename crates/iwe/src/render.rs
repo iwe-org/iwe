@@ -1,11 +1,11 @@
+use diwe::config::MarkdownOptions;
+use diwe::retrieve::{DocumentOutput, EdgeRef, RetrieveOutput};
 use liwe::graph::{Graph, GraphContext};
-use liwe::model::config::MarkdownOptions;
 use liwe::model::node::NodePointer;
 use liwe::model::projector::Projector;
 use liwe::model::tree::TreeIter;
 use liwe::model::writer::{blocks_to_markdown_sparce_skip_frontmatter, Block};
 use liwe::model::Key;
-use liwe::retrieve::{DocumentOutput, EdgeRef, RetrieveOutput};
 use serde::Serialize;
 use serde_yaml::{Mapping, Value};
 
@@ -146,12 +146,12 @@ fn truncate_rendered_body(
     }
     match max_document_tokens.filter(|&m| m > 0) {
         Some(max) => {
-            let (head, omitted) = liwe::tokens::truncate_to_tokens(&body, max);
+            let (head, omitted) = diwe::tokens::truncate_to_tokens(&body, max);
             if omitted > 0 {
                 format!(
                     "{}{}",
                     head.trim_end_matches('\n'),
-                    liwe::tokens::truncation_marker(omitted)
+                    diwe::tokens::truncation_marker(omitted)
                 )
             } else {
                 body

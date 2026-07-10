@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use diwe::config::{ActionDefinition, Command, Configuration, Transform};
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Command, Configuration, Transform};
 use tempfile::TempDir;
 
 use crate::fixture::*;

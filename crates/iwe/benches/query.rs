@@ -5,12 +5,12 @@ use std::time::Duration;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use tempfile::TempDir;
 
+use diwe::retrieve::{DocumentReader, RetrieveOptions};
+use diwe::stats::KeyStatistics;
 use liwe::model::Key;
 use liwe::query::{
     evaluate, execute, CountOp, Filter, FindOp, InclusionAnchor, KeyOp, Operation, ReferenceAnchor,
 };
-use liwe::retrieve::{DocumentReader, RetrieveOptions};
-use liwe::stats::KeyStatistics;
 
 use common::{doc_key, generate_corpus, hub_key, load_graph, sample_keys};
 

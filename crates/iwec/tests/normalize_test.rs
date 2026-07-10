@@ -1,5 +1,5 @@
 use crate::fixture::Fixture;
-use liwe::model::config::Configuration;
+use diwe::config::Configuration;
 use serde_json::json;
 
 #[tokio::test]

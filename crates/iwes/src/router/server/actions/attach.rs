@@ -3,11 +3,8 @@ use std::time::SystemTime;
 use chrono::{DateTime, Local, Locale};
 use minijinja::{context, Environment};
 
-use liwe::model::node::NodeIter;
-use liwe::model::node::{Node, Reference, ReferenceType};
-use liwe::model::tree::Tree;
 use liwe::model::Key;
-use liwe::operations::Changes;
+use liwe::operations::{attach_reference, AttachTarget, Changes};
 
 use super::{Action, ActionContext, ActionProvider};
 
@@ -160,43 +157,18 @@ impl ActionProvider for AttachAction {
 
         let now = context.now();
         let attach_to_key = self.format_target_key(now);
-        let reference = Tree {
-            id: None,
-            node: Node::Reference(Reference {
-                key: reference_key,
-                text: reference_text,
-                reference_type: ReferenceType::Regular,
-                url: String::new(),
-                display_url: None,
-            }),
-            children: vec![],
-        };
 
-        if context.key_exists(&attach_to_key) {
-            let tree = context.collect(&attach_to_key);
-
-            let updated = tree.attach(reference);
-
-            Some(
-                Changes::new().update(
-                    attach_to_key.clone(),
-                    updated
-                        .iter()
-                        .to_text(&attach_to_key.parent(), &context.format_options()),
-                ),
-            )
-        } else {
-            Some(
-                Changes::new().create(
-                    attach_to_key.clone(),
-                    self.format_target_document(
-                        now,
-                        reference
-                            .iter()
-                            .to_text(&attach_to_key.parent(), &context.format_options()),
-                    ),
-                ),
-            )
+        match attach_reference(
+            context.graph(),
+            &attach_to_key,
+            &reference_key,
+            &reference_text,
+        ) {
+            AttachTarget::AlreadyAttached => None,
+            AttachTarget::Update(content) => Some(Changes::new().update(attach_to_key, content)),
+            AttachTarget::Create(body) => {
+                Some(Changes::new().create(attach_to_key, self.format_target_document(now, body)))
+            }
         }
     }
 }

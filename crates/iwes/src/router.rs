@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use crossbeam_channel::{select, Receiver, Sender};
-use liwe::model::config::Configuration;
+use diwe::config::Configuration;
 use liwe::model::State;
 use log::{debug, error};
 use lsp_server::{ErrorCode, Message, Request};

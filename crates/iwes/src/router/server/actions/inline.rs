@@ -1,4 +1,4 @@
-use liwe::model::config::InlineType;
+use diwe::config::InlineType;
 use liwe::operations::{inline, Changes, InlineConfig};
 
 use super::{Action, ActionContext, ActionProvider};

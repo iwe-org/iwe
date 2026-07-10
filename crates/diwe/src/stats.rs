@@ -5,11 +5,11 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use serde::Serialize;
 
-use crate::graph::basic_iter::GraphNodePointer;
-use crate::graph::{Graph, GraphContext};
-use crate::model::is_ref_url;
-use crate::model::node::{Node, NodeIter, NodePointer};
-use crate::model::Key;
+use liwe::graph::basic_iter::GraphNodePointer;
+use liwe::graph::{Graph, GraphContext};
+use liwe::model::is_ref_url;
+use liwe::model::node::{Node, NodeIter, NodePointer};
+use liwe::model::Key;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
