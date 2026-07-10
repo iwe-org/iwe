@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `new --key <KEY>` — create a document at an explicit key, bypassing the template's key derivation. Subdirectory keys (e.g. `people/ada`) are allowed; omit the file extension.
+- `new --if-exists fail` — report an error and exit non-zero when the document already exists. It is the default when `--key` is given (an explicit key asserts an identity), where previously an existing key silently gained a `-1` suffix.
 - `retrieve --expand-includes` / `--expand-included-by` / `--expand-references` / `--expand-referenced-by` — one flag per expansion direction, each taking an optional depth (bare flag = one level, `0` = unbounded, omitted = not followed). `--expand-referenced-by` (pull documents that reference a seed) and transitive `--expand-references` are new directions.
 - `retrieve --lexical` / `--fuzzy` — a one-shot form that searches for seed documents within the candidate set (`-k` / `--filter` / anchors) and then expands the graph around the ordered seeds.
 - `retrieve --max-documents N` — cap the number of documents returned after expansion, trimming periphery documents first (`0` = unlimited).

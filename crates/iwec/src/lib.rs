@@ -18,7 +18,7 @@ use diwe::tokens::Truncation;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::node::NodePointer;
 use liwe::model::tree::{Tree, TreeIter};
-use liwe::model::Key;
+use liwe::model::{strip_doc_extension, Key};
 use liwe::operations::{
     attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
     rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
@@ -418,6 +418,10 @@ pub struct CreateParams {
     pub title: String,
     #[schemars(description = "Markdown content body (without the title heading)")]
     pub content: Option<String>,
+    #[schemars(
+        description = "Explicit document key. Derive it from stable metadata (entity name, session date), not the title wording. Subdirectory keys allowed (e.g. people/ada); do not include a file extension. Omit to derive a slug from the title. Creation fails if a document with this key already exists."
+    )]
+    pub key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -860,29 +864,50 @@ impl IweServer {
     }
 
     #[tool(
-        description = "Create a new document in the knowledge graph from a title and optional content"
+        description = "Create a new document from a title and optional content. Pass an explicit `key` to control the document's stable identity — derive it from stable metadata (entity name, session date), not the title wording; creation fails if that key already exists."
     )]
     async fn iwe_create(
         &self,
         Parameters(params): Parameters<CreateParams>,
     ) -> Result<CallToolResult, McpError> {
-        let slug = params
-            .title
-            .to_lowercase()
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '-' })
-            .collect::<String>()
-            .split('-')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join("-");
+        let key_name = match &params.key {
+            Some(k) => {
+                if strip_doc_extension(k) != k.as_str() {
+                    return Err(McpError::invalid_params(
+                        format!("Key '{}' must not include a file extension", k),
+                        None,
+                    ));
+                }
+                let key = Key::name(k);
+                if key.relative_path.is_empty() {
+                    return Err(McpError::invalid_params(
+                        "Key must not be empty".to_string(),
+                        None,
+                    ));
+                }
+                key.to_string()
+            }
+            None => {
+                let slug = params
+                    .title
+                    .to_lowercase()
+                    .chars()
+                    .map(|c| if c.is_alphanumeric() { c } else { '-' })
+                    .collect::<String>()
+                    .split('-')
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join("-");
 
-        if slug.is_empty() {
-            return Err(McpError::invalid_params(
-                "Title must contain at least one alphanumeric character".to_string(),
-                None,
-            ));
-        }
+                if slug.is_empty() {
+                    return Err(McpError::invalid_params(
+                        "Title must contain at least one alphanumeric character".to_string(),
+                        None,
+                    ));
+                }
+                slug
+            }
+        };
 
         let content_body = params.content.unwrap_or_default();
         let markdown = if content_body.is_empty() {
@@ -891,12 +916,12 @@ impl IweServer {
             format!("# {}\n\n{}\n", params.title, content_body)
         };
 
-        let key = Key::name(&slug);
+        let key = Key::name(&key_name);
         let mut graph = self.graph.lock().await;
 
         if (&*graph).get_node_id(&key).is_some() {
             return Err(McpError::invalid_params(
-                format!("Document '{}' already exists", slug),
+                format!("Document '{}' already exists", key_name),
                 None,
             ));
         }
@@ -908,7 +933,7 @@ impl IweServer {
         struct CreateResult {
             key: String,
         }
-        to_json_result(&CreateResult { key: slug })
+        to_json_result(&CreateResult { key: key_name })
     }
 
     #[tool(description = "Update the full markdown content of an existing document")]

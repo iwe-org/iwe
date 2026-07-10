@@ -46,6 +46,79 @@ async fn create_with_content() {
 }
 
 #[tokio::test]
+async fn create_with_explicit_key() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .call_tool(
+            "iwe_create",
+            json!({"title": "Completely Different Words", "key": "stable-id"}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(output["key"], "stable-id");
+
+    let retrieve = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["stable-id"], "depth": 0, "backlinks": false}),
+        )
+        .await;
+    let docs = Fixture::result_json(&retrieve);
+    assert_eq!(docs[0]["title"], "Completely Different Words");
+}
+
+#[tokio::test]
+async fn create_with_subdirectory_key() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .call_tool("iwe_create", json!({"title": "Ada", "key": "people/ada"}))
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(output["key"], "people/ada");
+
+    let retrieve = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["people/ada"], "depth": 0, "backlinks": false}),
+        )
+        .await;
+    let docs = Fixture::result_json(&retrieve);
+    assert_eq!(docs[0]["title"], "Ada");
+}
+
+#[tokio::test]
+async fn create_with_key_collision_fails() {
+    let f = Fixture::with_documents(vec![("existing", "# Existing\n")]).await;
+
+    let result = f
+        .try_call_tool("iwe_create", json!({"title": "New", "key": "existing"}))
+        .await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn create_with_empty_key_fails() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool("iwe_create", json!({"title": "New", "key": ""}))
+        .await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn create_with_extension_key_fails() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool("iwe_create", json!({"title": "New", "key": "note.md"}))
+        .await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
 async fn create_duplicate_fails() {
     let f = Fixture::with_documents(vec![("test", "# Test\n")]).await;
 

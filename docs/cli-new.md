@@ -16,11 +16,19 @@ iwe new <TITLE> [OPTIONS]
 
 - `-t, --template <NAME>`: Template name from config (default: "default")
 - `-c, --content <CONTENT>`: Initial content for the document
-- `-i, --if-exists <MODE>`: Behavior when file already exists (default: "suffix")
+- `-k, --key <KEY>`: Explicit document key, bypassing the template's key derivation. Subdirectory keys are allowed (e.g. `people/ada`). Omit the file extension.
+- `-i, --if-exists <MODE>`: Behavior when file already exists (default: "suffix", or "fail" when `--key` is given)
   - `suffix`: Append `-1`, `-2`, etc. to filename until unique
   - `override`: Overwrite existing file
   - `skip`: Do nothing, exit successfully without output
+  - `fail`: Report an error and exit with a non-zero status
 - `-e, --edit`: Open created file in `$EDITOR` after creation
+
+## Explicit keys
+
+By default the filename is derived from the title (slugified) through the template's `key_template`. Pass `--key` to set the document key yourself and skip that derivation — the title still fills the document body. Use this when the key is a stable identifier drawn from metadata (an entity name, a session date) rather than the title wording.
+
+Because an explicit key asserts an identity, `--key` defaults `--if-exists` to `fail`: creating a document whose key already exists reports an error instead of silently appending a `-1` suffix. Pass `--if-exists skip` or `--if-exists override` to opt into idempotent or forced re-creation.
 
 ## What it does
 
@@ -65,6 +73,12 @@ iwe new "My Note" --if-exists override
 
 # Skip if file exists (useful in scripts)
 iwe new "My Note" --if-exists skip
+
+# Create at an explicit key (fails if people/ada already exists)
+iwe new "Ada Lovelace" --key people/ada
+
+# Idempotent create at an explicit key
+iwe new "Ada Lovelace" --key people/ada --if-exists skip
 ```
 
 ## Configuration
