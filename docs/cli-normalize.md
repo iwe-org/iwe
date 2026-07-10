@@ -13,6 +13,7 @@ iwe normalize
 | Operation                | Description                                        |
 | ------------------------ | -------------------------------------------------- |
 | Link title sync          | Updates link text to match target document headers |
+| Link path rewriting      | Writes each link path per the `refs_path` setting  |
 | Header leveling          | Adjusts header levels for consistent hierarchy     |
 | List renumbering         | Fixes ordered list numbering (1, 2, 3...)          |
 | Whitespace normalization | Standardizes newlines and indentation              |
@@ -35,6 +36,24 @@ After (if `project-docs.md` has header `# Project Documentation`):
 ``` markdown
 See the [Project Documentation](project-docs) for details.
 ```
+
+### Link Path Rewriting
+
+Every markdown link is rewritten according to the `refs_path` setting (see below). With `refs_path = "absolute"`, a link written relative to the current document is rewritten as a root-absolute path from the library root.
+
+Before (in `guide/intro.md`, with `refs_path = "absolute"`):
+
+``` markdown
+See the [API](../reference/api) for details.
+```
+
+After:
+
+``` markdown
+See the [API](/reference/api) for details.
+```
+
+Regardless of the setting, a link that already starts with `/` is resolved from the library root, and any `#section` fragment is preserved.
 
 ### List Renumbering
 
@@ -113,7 +132,8 @@ Normalization behavior is controlled by `.iwe/config.toml`:
 
 ``` toml
 [markdown]
-refs_extension = ""  # Extension for reference links
+refs_extension = ""       # Extension for reference links
+refs_path = "relative"    # Link path form: "relative" or "absolute"
 ```
 
 ## Idempotency

@@ -19,6 +19,8 @@ pub const DEFAULT_KEY_DATE_FORMAT: &str = "%Y-%m-%d";
 pub struct MarkdownOptions {
     #[serde(default)]
     pub refs_extension: String,
+    #[serde(default)]
+    pub refs_path: RefsPath,
     pub date_format: Option<String>,
     pub time_format: Option<String>,
     pub locale: Option<String>,
@@ -57,6 +59,8 @@ impl Format {
 pub struct DjotOptions {
     #[serde(default)]
     pub refs_extension: String,
+    #[serde(default)]
+    pub refs_path: RefsPath,
     pub date_format: Option<String>,
     pub time_format: Option<String>,
     pub locale: Option<String>,
@@ -68,6 +72,7 @@ impl Default for DjotOptions {
     fn default() -> Self {
         Self {
             refs_extension: String::new(),
+            refs_path: RefsPath::default(),
             date_format: Some("%b %d, %Y".into()),
             time_format: None,
             locale: None,
@@ -126,6 +131,13 @@ impl FormatOptions {
         }
     }
 
+    pub fn refs_path(&self) -> RefsPath {
+        match self {
+            FormatOptions::Markdown(options) => options.refs_path,
+            FormatOptions::Djot(options) => options.refs_path,
+        }
+    }
+
     pub fn date_format(&self) -> Option<&str> {
         match self {
             FormatOptions::Markdown(options) => options.date_format.as_deref(),
@@ -164,10 +176,19 @@ pub enum WikiLinkPath {
     Preserve,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RefsPath {
+    #[default]
+    Relative,
+    Absolute,
+}
+
 impl Default for MarkdownOptions {
     fn default() -> Self {
         Self {
             refs_extension: String::new(),
+            refs_path: RefsPath::default(),
             date_format: Some("%b %d, %Y".into()),
             time_format: None,
             locale: None,

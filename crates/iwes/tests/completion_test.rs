@@ -1,6 +1,7 @@
 use indoc::indoc;
 use liwe::model::config::{
-    CompletionOptions, Configuration, LibraryOptions, LinkType, MarkdownOptions, WikiLinkPath,
+    CompletionOptions, Configuration, LibraryOptions, LinkType, MarkdownOptions, RefsPath,
+    WikiLinkPath,
 };
 
 use crate::fixture::*;
@@ -40,6 +41,7 @@ fn completion_test_with_refs_extension() {
     let config = Configuration {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
+            refs_path: Default::default(),
             date_format: None,
             time_format: None,
             locale: None,
@@ -118,9 +120,68 @@ fn completion_relative_test() {
 }
 
 #[test]
+fn completion_absolute_test() {
+    let config = Configuration {
+        markdown: MarkdownOptions {
+            refs_path: RefsPath::Absolute,
+            ..Default::default()
+        },
+        completion: CompletionOptions {
+            min_prefix_length: Some(0),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![
+            (
+                "dir/sub".to_string(),
+                indoc! {"
+                # sub-document
+            "}
+                .to_string(),
+            ),
+            (
+                "top".to_string(),
+                indoc! {"
+                # top-level
+            "}
+                .to_string(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+        None,
+    )
+    .completion(
+        uri_from("dir/sub").to_completion_params(2, 0),
+        completion_list(vec![
+            completion_item(
+                "🔗 sub-document",
+                "[sub-document](/dir/sub)",
+                "sub-document",
+                "sub-document",
+                empty_range(2, 0),
+            ),
+            completion_item(
+                "🔗 top-level",
+                "[top-level](/top)",
+                "top-level",
+                "top-level",
+                empty_range(2, 0),
+            ),
+        ]),
+    );
+}
+
+#[test]
 fn completion_relative_test_with_refs_extension() {
     let markdown_options = MarkdownOptions {
         refs_extension: ".html".to_string(),
+        refs_path: Default::default(),
         date_format: None,
         time_format: None,
         locale: None,
@@ -380,6 +441,7 @@ fn completion_with_wikilink_and_refs_extension() {
     let config = liwe::model::config::Configuration {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
+            refs_path: Default::default(),
             date_format: None,
             time_format: None,
             locale: None,

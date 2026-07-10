@@ -57,6 +57,7 @@ path = ""  # Subdirectory containing markdown files
 
 [markdown]
 refs_extension = ""
+refs_path = "relative"
 date_format = "%b %d, %Y"
 ```
 

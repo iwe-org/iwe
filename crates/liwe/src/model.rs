@@ -3,6 +3,8 @@ use std::{collections::HashMap, fmt::Display, ops::Range, path::Path, sync::Arc}
 use percent_encoding::percent_decode_str;
 use relative_path::RelativePath;
 
+use config::RefsPath;
+
 pub mod config;
 pub mod document;
 pub mod inline;
@@ -90,10 +92,17 @@ impl Key {
 
     pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
         let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
-        let key = strip_doc_extension(&decoded).to_string();
-        let path = RelativePath::new(relative_to)
-            .join_normalized(key)
-            .to_string();
+        let without_fragment = match decoded.split_once('#') {
+            Some((path, _)) => path,
+            None => decoded.as_str(),
+        };
+        let key = strip_doc_extension(without_fragment);
+        let base = if key.starts_with('/') {
+            ""
+        } else {
+            relative_to
+        };
+        let path = RelativePath::new(base).join_normalized(key).to_string();
         Key {
             relative_path: Arc::new(path),
         }
@@ -107,6 +116,13 @@ impl Key {
 
     pub fn to_library_url(&self) -> String {
         self.relative_path.to_string()
+    }
+
+    pub fn link_url(&self, relative_to: &str, refs_path: RefsPath) -> String {
+        match refs_path {
+            RefsPath::Relative => self.to_rel_link_url(relative_to),
+            RefsPath::Absolute => format!("/{}", self.to_library_url()),
+        }
     }
 
     pub fn last_url_segment(&self) -> String {

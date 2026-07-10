@@ -1,5 +1,5 @@
 use indoc::indoc;
-use liwe::model::config::{ActionDefinition, Configuration, Link, LinkType};
+use liwe::model::config::{ActionDefinition, Configuration, Link, LinkType, RefsPath};
 
 use crate::fixture::*;
 
@@ -264,6 +264,43 @@ fn link_word_with_collision() {
             .to_workspace_edit()
             .to_code_action("Link word", "custom.link"),
         );
+}
+
+#[test]
+fn link_word_from_subdirectory_writes_relative_path() {
+    let mut files = std::collections::HashMap::new();
+    files.insert("d/1".to_string(), "# test\n\nword here\n".to_string());
+
+    Fixture::with_options_and_client(files, link_config(), "", None).code_action(
+        uri_from("d/1").to_code_action_params(2, "custom.link"),
+        vec![
+            uri(2).to_create_file(),
+            uri(2).to_edit("# word\n"),
+            uri_from("d/1").to_edit("# test\n\n[word](../2) here\n"),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Link word", "custom.link"),
+    );
+}
+
+#[test]
+fn link_word_from_subdirectory_writes_absolute_path() {
+    let mut files = std::collections::HashMap::new();
+    files.insert("d/1".to_string(), "# test\n\nword here\n".to_string());
+
+    let mut config = link_config();
+    config.markdown.refs_path = RefsPath::Absolute;
+
+    Fixture::with_options_and_client(files, config, "", None).code_action(
+        uri_from("d/1").to_code_action_params(2, "custom.link"),
+        vec![
+            uri(2).to_create_file(),
+            uri(2).to_edit("# word\n"),
+            uri_from("d/1").to_edit("# test\n\n[word](/2) here\n"),
+        ]
+        .to_workspace_edit()
+        .to_code_action("Link word", "custom.link"),
+    );
 }
 
 #[test]
