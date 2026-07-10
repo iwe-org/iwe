@@ -11,7 +11,7 @@ mod help;
 use itertools::Itertools;
 
 use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
-use diwe::operations::{self, AttachTarget, SelectError};
+use diwe::graph_from_path;
 use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
@@ -27,8 +27,9 @@ use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
 use liwe::model::Key;
 use liwe::operations::{
-    delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename, Changes,
-    ExtractConfig, InlineConfig,
+    attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
+    rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
+    ExtractConfig, InlineConfig, SelectError,
 };
 use liwe::query::block::{
     parse_block_predicate, BlockOp, BlockPredicate, BlockRegex, MatchesSource,
@@ -1629,7 +1630,7 @@ fn apply_changes(changes: &Changes, configuration: &Configuration) {
 }
 
 fn load_graph(configuration: &Configuration) -> Graph {
-    diwe::loader::from_path(
+    graph_from_path(
         &get_library_path(configuration),
         false,
         configuration.format_options(),
@@ -1957,7 +1958,7 @@ fn delete_command(args: Delete) {
         return;
     }
 
-    let mut combined = liwe::operations::Changes::default();
+    let mut combined = Changes::default();
     for target in &targets {
         match op_delete(&graph, target) {
             Ok(changes) => combined.merge(changes),
@@ -2094,13 +2095,13 @@ fn extract_command(args: Extract) {
     let tree = (&graph).collect(&source_key);
 
     if args.list {
-        for section in operations::sections(&tree) {
+        for section in sections(&tree) {
             println!("{}: {}", section.number, section.title);
         }
         return;
     }
 
-    let selected = match operations::select_section(&tree, args.section.as_deref(), args.block) {
+    let selected = match select_section(&tree, args.section.as_deref(), args.block) {
         Ok(section) => section,
         Err(SelectError::NotFound(query)) => {
             eprintln!("Error: No section matches '{}'", query);
@@ -2203,7 +2204,7 @@ fn inline_command(args: Inline) {
     let tree = (&graph).collect(&source_key);
 
     if args.list {
-        for reference in operations::references(&tree) {
+        for reference in references(&tree) {
             println!(
                 "{}: [{}]({})",
                 reference.number, reference.title, reference.key
@@ -2212,8 +2213,7 @@ fn inline_command(args: Inline) {
         return;
     }
 
-    let selected = match operations::select_reference(&tree, args.reference.as_deref(), args.block)
-    {
+    let selected = match select_reference(&tree, args.reference.as_deref(), args.block) {
         Ok(reference) => reference,
         Err(SelectError::NotFound(query)) => {
             eprintln!("Error: No reference matches '{}'", query);
@@ -2760,20 +2760,20 @@ fn attach_command(args: Attach) {
         };
         let target_key = Key::name(&target_key_str);
 
-        let new_content =
-            match operations::attach_reference(&graph, &target_key, &source_key, &reference_text) {
-                AttachTarget::AlreadyAttached => continue,
-                AttachTarget::Update(content) => content,
-                AttachTarget::Create(body) => {
-                    match render_document_template(&attach.document_template, &body, &config) {
-                        Ok(content) => content,
-                        Err(e) => {
-                            eprintln!("Error: action '{}': {}", action_name, e);
-                            std::process::exit(1);
-                        }
+        let new_content = match attach_reference(&graph, &target_key, &source_key, &reference_text)
+        {
+            AttachTarget::AlreadyAttached => continue,
+            AttachTarget::Update(content) => content,
+            AttachTarget::Create(body) => {
+                match render_document_template(&attach.document_template, &body, &config) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        eprintln!("Error: action '{}': {}", action_name, e);
+                        std::process::exit(1);
                     }
                 }
-            };
+            }
+        };
 
         if args.dry_run {
             if !args.quiet {

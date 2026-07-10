@@ -1,4 +1,5 @@
 use diwe::config::{DjotOptions, Format, FormatOptions};
+use diwe::graph_from_path;
 
 fn djot_options() -> FormatOptions {
     FormatOptions::Djot(DjotOptions::default())
@@ -10,7 +11,7 @@ fn discovers_and_reads_dj_files_only() {
     std::fs::write(dir.path().join("note.dj"), "# Title\n\ntext\n").unwrap();
     std::fs::write(dir.path().join("ignored.md"), "# Md\n").unwrap();
 
-    let graph = diwe::loader::from_path(dir.path(), false, djot_options(), None);
+    let graph = graph_from_path(dir.path(), false, djot_options(), None);
 
     assert_eq!("# Title\n\ntext\n", graph.to_markdown(&"note".into()));
     assert_eq!("", graph.to_markdown(&"ignored".into()));

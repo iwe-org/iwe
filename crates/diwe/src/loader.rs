@@ -5,7 +5,7 @@ use liwe::model::config::FormatOptions;
 
 use crate::fs::new_for_path;
 
-pub fn from_path(
+pub fn graph_from_path(
     base_path: &Path,
     sequential_ids: bool,
     format_options: impl Into<FormatOptions>,

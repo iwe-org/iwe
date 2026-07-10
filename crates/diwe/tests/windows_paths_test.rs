@@ -7,6 +7,7 @@ use pretty_assertions::assert_str_eq;
 use tempfile::TempDir;
 
 use diwe::config::{MarkdownOptions, WikiLinkPath};
+use diwe::graph_from_path;
 
 static INIT: Once = Once::new();
 
@@ -31,7 +32,7 @@ fn wiki_link_resolves_across_directories_from_windows_disk() {
     fs::write(diary.join("today.md"), "# Today\r\n\r\n[[target]]\r\n").unwrap();
     fs::write(clippings.join("target.md"), "# Target\r\n").unwrap();
 
-    let graph = diwe::loader::from_path(
+    let graph = graph_from_path(
         &base_path,
         false,
         MarkdownOptions {
@@ -58,7 +59,7 @@ fn nested_windows_directories_produce_forward_slash_keys() {
     fs::create_dir_all(&nested).unwrap();
     fs::write(nested.join("deep.md"), "# Deep\r\n").unwrap();
 
-    let graph = diwe::loader::from_path(&base_path, false, MarkdownOptions::default(), None);
+    let graph = graph_from_path(&base_path, false, MarkdownOptions::default(), None);
 
     assert_str_eq!(
         "a/b/c/deep",
@@ -79,7 +80,7 @@ fn markdown_link_resolves_relative_across_windows_directories_from_disk() {
     fs::write(base_path.join("note.md"), "[old title](sub/dir/target)\r\n").unwrap();
     fs::write(sub_dir.join("target.md"), "# title\r\n").unwrap();
 
-    let graph = diwe::loader::from_path(
+    let graph = graph_from_path(
         &base_path,
         false,
         MarkdownOptions {

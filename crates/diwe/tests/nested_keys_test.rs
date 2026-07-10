@@ -5,6 +5,7 @@ use pretty_assertions::assert_str_eq;
 use tempfile::TempDir;
 
 use diwe::config::MarkdownOptions;
+use diwe::graph_from_path;
 
 static INIT: Once = Once::new();
 
@@ -27,7 +28,7 @@ fn link_into_subdirectory_resolves_when_loaded_from_disk() {
     fs::write(base_path.join("note.md"), "[old title](sub/dir/target)\n").unwrap();
     fs::write(sub_dir.join("target.md"), "# title\n").unwrap();
 
-    let graph = diwe::loader::from_path(
+    let graph = graph_from_path(
         &base_path,
         false,
         MarkdownOptions {
@@ -52,7 +53,7 @@ fn double_extension_file_strips_only_one_extension() {
 
     fs::write(base_path.join("note.md.md"), "# title\n").unwrap();
 
-    let graph = diwe::loader::from_path(&base_path, false, MarkdownOptions::default(), None);
+    let graph = graph_from_path(&base_path, false, MarkdownOptions::default(), None);
 
     let keys: Vec<String> = graph.keys().iter().map(|k| k.to_library_url()).collect();
 

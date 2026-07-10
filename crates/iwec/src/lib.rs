@@ -12,7 +12,6 @@ use diwe::config::{
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
 use diwe::fs::{new_for_path, new_from_hashmap};
-use diwe::operations::{self, AttachTarget, SelectError};
 use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use diwe::stats::{GraphStatistics, KeyStatistics};
 use diwe::tokens::Truncation;
@@ -21,8 +20,9 @@ use liwe::model::node::NodePointer;
 use liwe::model::tree::{Tree, TreeIter};
 use liwe::model::Key;
 use liwe::operations::{
-    delete as op_delete, extract as op_extract, inline as op_inline, rename as op_rename, Changes,
-    ExtractConfig, InlineConfig, OperationError,
+    attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
+    rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
+    ExtractConfig, InlineConfig, OperationError, SelectError,
 };
 use liwe::query::cli::parse_projection;
 use liwe::query::{
@@ -1111,7 +1111,7 @@ impl IweServer {
         let tree = (&*graph).collect(&source_key);
 
         if params.list.unwrap_or(false) {
-            let sections: Vec<SectionEntry> = operations::sections(&tree)
+            let sections: Vec<SectionEntry> = sections(&tree)
                 .into_iter()
                 .map(|section| SectionEntry {
                     block_number: section.number,
@@ -1121,42 +1121,41 @@ impl IweServer {
             return to_json_result(&sections);
         }
 
-        let section =
-            match operations::select_section(&tree, params.section.as_deref(), params.block) {
-                Ok(section) => section,
-                Err(SelectError::NotFound(query)) => {
-                    return Err(McpError::invalid_params(
-                        format!("No section matches '{}'", query),
-                        None,
-                    ))
-                }
-                Err(SelectError::Ambiguous(query, matches)) => {
-                    return Err(McpError::invalid_params(
-                        format!(
-                            "Multiple sections match '{}': {}",
-                            query,
-                            matches
-                                .iter()
-                                .map(|section| section.title.as_str())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        ),
-                        None,
-                    ))
-                }
-                Err(SelectError::OutOfRange(block, len)) => {
-                    return Err(McpError::invalid_params(
-                        format!("Block number {} out of range (1-{})", block, len),
-                        None,
-                    ))
-                }
-                Err(SelectError::NoSelector) => {
-                    return Err(McpError::invalid_params(
-                        "Must specify section, block, or list",
-                        None,
-                    ))
-                }
-            };
+        let section = match select_section(&tree, params.section.as_deref(), params.block) {
+            Ok(section) => section,
+            Err(SelectError::NotFound(query)) => {
+                return Err(McpError::invalid_params(
+                    format!("No section matches '{}'", query),
+                    None,
+                ))
+            }
+            Err(SelectError::Ambiguous(query, matches)) => {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "Multiple sections match '{}': {}",
+                        query,
+                        matches
+                            .iter()
+                            .map(|section| section.title.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    None,
+                ))
+            }
+            Err(SelectError::OutOfRange(block, len)) => {
+                return Err(McpError::invalid_params(
+                    format!("Block number {} out of range (1-{})", block, len),
+                    None,
+                ))
+            }
+            Err(SelectError::NoSelector) => {
+                return Err(McpError::invalid_params(
+                    "Must specify section, block, or list",
+                    None,
+                ))
+            }
+        };
 
         let section_id = section.id;
 
@@ -1198,7 +1197,7 @@ impl IweServer {
         let tree = (&*graph).collect(&source_key);
 
         if params.list.unwrap_or(false) {
-            let refs: Vec<ReferenceEntry> = operations::references(&tree)
+            let refs: Vec<ReferenceEntry> = references(&tree)
                 .into_iter()
                 .map(|reference| ReferenceEntry {
                     block_number: reference.number,
@@ -1209,42 +1208,41 @@ impl IweServer {
             return to_json_result(&refs);
         }
 
-        let reference =
-            match operations::select_reference(&tree, params.reference.as_deref(), params.block) {
-                Ok(reference) => reference,
-                Err(SelectError::NotFound(query)) => {
-                    return Err(McpError::invalid_params(
-                        format!("No reference matches '{}'", query),
-                        None,
-                    ))
-                }
-                Err(SelectError::Ambiguous(query, matches)) => {
-                    return Err(McpError::invalid_params(
-                        format!(
-                            "Multiple references match '{}': {}",
-                            query,
-                            matches
-                                .iter()
-                                .map(|reference| reference.key.to_string())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        ),
-                        None,
-                    ))
-                }
-                Err(SelectError::OutOfRange(block, len)) => {
-                    return Err(McpError::invalid_params(
-                        format!("Block number {} out of range (1-{})", block, len),
-                        None,
-                    ))
-                }
-                Err(SelectError::NoSelector) => {
-                    return Err(McpError::invalid_params(
-                        "Must specify reference, block, or list",
-                        None,
-                    ))
-                }
-            };
+        let reference = match select_reference(&tree, params.reference.as_deref(), params.block) {
+            Ok(reference) => reference,
+            Err(SelectError::NotFound(query)) => {
+                return Err(McpError::invalid_params(
+                    format!("No reference matches '{}'", query),
+                    None,
+                ))
+            }
+            Err(SelectError::Ambiguous(query, matches)) => {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "Multiple references match '{}': {}",
+                        query,
+                        matches
+                            .iter()
+                            .map(|reference| reference.key.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    None,
+                ))
+            }
+            Err(SelectError::OutOfRange(block, len)) => {
+                return Err(McpError::invalid_params(
+                    format!("Block number {} out of range (1-{})", block, len),
+                    None,
+                ))
+            }
+            Err(SelectError::NoSelector) => {
+                return Err(McpError::invalid_params(
+                    "Must specify reference, block, or list",
+                    None,
+                ))
+            }
+        };
 
         let ref_id = reference.id;
 
@@ -1373,7 +1371,7 @@ impl IweServer {
                 |e| McpError::invalid_params(format!("action '{}': {}", action_name, e), None),
             )?);
 
-            match operations::attach_reference(&graph, &target_key, &source_key, &reference_text) {
+            match attach_reference(&graph, &target_key, &source_key, &reference_text) {
                 AttachTarget::AlreadyAttached => continue,
                 AttachTarget::Update(content) => {
                     combined.add_update(target_key.clone(), content);
