@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `[schemas]` config binding — `config::SchemaBinding` and `config::Patterns` types and the `Configuration.schemas` map bind document schemas to document keys by glob (a single glob or a list). The new `schema` module resolves and runs them: `schema::SchemaBindings` matches a key to its schema names, and `schema::validate_documents` compiles the bound schema files, validates a set of documents, and returns a `schema::KeyReport` per `(key, schema)` with violations.
+
 ## [0.11.0] - 2026-07-10
 
 ### Added

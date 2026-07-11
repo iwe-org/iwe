@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `schema` module — document-schema validation: `compile_schema` compiles a YAML/JSON schema (frontmatter JSON Schema plus an ordered section tree with `header`, `maxTokens`, `maxDepth`, `minContains`/`maxContains`, `allSections`, `additionalSections`) into a `CompiledSchema`, and `CompiledSchema::validate` checks a `Document` and returns `Violation`s carrying a breadcrumb, hint, schema pointer, and keyword. Unknown and reserved keywords are load errors (`SchemaError`).
+
 ## [0.11.0](https://github.com/iwe-org/iwe/compare/liwe-v0.10.0...liwe-v0.11.0) - 2026-07-10
 
 ### Added

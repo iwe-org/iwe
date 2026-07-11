@@ -398,6 +398,34 @@ command = "uppercase"
 input_template = "{{context}}"
 ```
 
+## Schemas
+
+Bind [document schemas](document-schema.md) to documents. Each entry under
+`[schemas]` names a schema file in `.iwe/schemas/` and a glob (or list of
+globs) that selects which document keys it applies to:
+
+``` toml
+[schemas.person]
+match = "people/**"
+
+[schemas.session]
+match = ["journal/*", "meetings/**"]
+```
+
+- The entry name is the schema name: `[schemas.person]` resolves to
+  `.iwe/schemas/person.yaml`.
+- `match` is required and accepts a single glob or a list of globs, matched
+  against the document key (the relative path without the file extension).
+- Globs follow gitignore/globset syntax: `*` matches within a single path
+  segment and stops at `/`, `**` crosses segments. A leading `/` is optional
+  — patterns are always anchored at the library root.
+- Binding is order-free: a document is validated against **every** schema
+  whose `match` hits, so overlapping entries compose. A document that matches
+  no entry is unvalidated.
+
+Run [`iwe schema validate`](cli-schema.md) to check the store against these
+bindings.
+
 ## Migration from Version 2
 
 If you're upgrading from a configuration using the old `[models]` section, IWE will automatically migrate your configuration to version 3. The migration:

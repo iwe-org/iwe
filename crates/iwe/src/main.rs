@@ -431,6 +431,20 @@ enum TreeFormat {
     after_help = help::schema::AFTER_HELP
 )]
 struct Schema {
+    #[command(subcommand)]
+    command: Option<SchemaCommand>,
+
+    #[clap(flatten)]
+    fields: SchemaFields,
+}
+
+#[derive(Debug, Subcommand)]
+enum SchemaCommand {
+    Validate(SchemaValidate),
+}
+
+#[derive(Debug, Args)]
+struct SchemaFields {
     #[clap(
         long,
         short = 'f',
@@ -447,11 +461,33 @@ struct Schema {
     selector: FilterArgs,
 }
 
+#[derive(Debug, Args)]
+#[clap(about = "Validate documents against their configured schemas")]
+struct SchemaValidate {
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "text",
+        help = "Output format for validation reports"
+    )]
+    format: ValidateFormat,
+
+    #[clap(flatten)]
+    selector: FilterArgs,
+}
+
 #[derive(Debug, Clone, clap::ValueEnum)]
 enum SchemaFormat {
     Markdown,
     Json,
     Yaml,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum ValidateFormat {
+    Text,
+    Json,
 }
 
 #[derive(Debug, Args)]
@@ -1730,6 +1766,13 @@ fn get_configuration() -> Configuration {
 }
 
 fn schema_command(args: Schema) {
+    match args.command {
+        Some(SchemaCommand::Validate(validate)) => schema_validate_command(validate),
+        None => schema_infer_command(args.fields),
+    }
+}
+
+fn schema_infer_command(args: SchemaFields) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
@@ -1762,6 +1805,65 @@ fn schema_command(args: Schema) {
             print!("{}", output);
         }
     }
+}
+
+fn schema_validate_command(args: SchemaValidate) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let keys: Vec<Key> = match resolve_filter(&args.selector, &graph) {
+        Some(filter) => liwe::query::evaluate(&filter, &graph),
+        None => {
+            let mut k = graph.keys();
+            k.sort();
+            k
+        }
+    };
+
+    let reports = match diwe::schema::validate_documents(&config, &graph, &keys) {
+        Ok(reports) => reports,
+        Err(errors) => {
+            for error in errors {
+                eprintln!("error: {}", error);
+            }
+            std::process::exit(2);
+        }
+    };
+
+    if reports.is_empty() {
+        return;
+    }
+
+    match args.format {
+        ValidateFormat::Text => print!("{}", render_validation_text(&reports)),
+        ValidateFormat::Json => {
+            let json = serde_json::to_string_pretty(&reports).expect("Failed to serialize reports");
+            println!("{}", json);
+        }
+    }
+
+    std::process::exit(1);
+}
+
+fn render_validation_text(reports: &[diwe::schema::KeyReport]) -> String {
+    let mut out = String::new();
+    for report in reports {
+        for violation in &report.violations {
+            let breadcrumb = violation.breadcrumb_text();
+            if breadcrumb.is_empty() {
+                out.push_str(&format!("{}: {}\n", report.key, violation.message));
+            } else {
+                out.push_str(&format!(
+                    "{} › {}: {}\n",
+                    report.key, breadcrumb, violation.message
+                ));
+            }
+            if let Some(hint) = &violation.hint {
+                out.push_str(&format!("  hint: {}\n", hint));
+            }
+        }
+    }
+    out
 }
 
 #[tracing::instrument(level = "debug")]

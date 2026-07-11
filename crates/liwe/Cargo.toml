@@ -29,6 +29,8 @@ rand.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
 jotdown = { workspace = true, optional = true }
+jsonschema.workspace = true
+serde_json.workspace = true
 relative-path.workspace = true
 chrono.workspace = true
 sys-locale.workspace = true

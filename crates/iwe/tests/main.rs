@@ -14,6 +14,7 @@ mod normalize_test;
 mod rename_test;
 mod retrieve_test;
 mod schema_test;
+mod schema_validate_test;
 mod squash_test;
 mod stats_test;
 mod tree_test;
