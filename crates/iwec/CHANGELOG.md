@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Mutating tools (`iwe_create`, `iwe_update`, `iwe_delete`, `iwe_query`, `iwe_rename`, `iwe_extract`, `iwe_inline`, `iwe_attach`) now reject a change that would leave a touched document violating its bound schema, returning a detailed error carrying the readable report and a structured `violations` payload; nothing is written and the in-memory graph is left untouched. `iwe_normalize` and `iwe_squash` are unaffected.
+
 ## [0.11.0](https://github.com/iwe-org/iwe/compare/iwec-v0.10.0...iwec-v0.11.0) - 2026-07-10
 
 ### Added

@@ -7,12 +7,16 @@ use std::sync::Arc;
 
 use chrono::Local;
 use diwe::config::{
-    ActionDefinition, CompletionOptions, Configuration, MarkdownOptions, NoteTemplate,
-    DEFAULT_KEY_DATE_FORMAT,
+    schemas_dir_in, ActionDefinition, CompletionOptions, Configuration, MarkdownOptions,
+    NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
 use diwe::fs::{new_for_path, new_from_hashmap};
 use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
+use diwe::schema::{
+    pending_from_changes, render_reports_text, validate_pending_documents,
+    validate_pending_documents_in, KeyReport,
+};
 use diwe::stats::{GraphStatistics, KeyStatistics};
 use diwe::tokens::Truncation;
 use liwe::graph::{Graph, GraphContext};
@@ -100,6 +104,12 @@ fn to_json_result_with_warnings<T: Serialize>(
 
 fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::success(vec![Content::text(text)]))
+}
+
+fn schema_violation_error(reports: &[KeyReport]) -> McpError {
+    let mut message = String::from("schema validation failed; change rejected:\n");
+    message.push_str(&render_reports_text(reports));
+    McpError::invalid_params(message, Some(serde_json::json!({ "violations": reports })))
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -926,6 +936,8 @@ impl IweServer {
             ));
         }
 
+        self.ensure_schema_clean(&[(key.clone(), markdown.clone())])?;
+
         graph.insert_document(key.clone(), markdown.clone());
         self.write_file(&key, &markdown);
 
@@ -954,6 +966,8 @@ impl IweServer {
         let previous_title = (&*graph)
             .get_key_title(&key)
             .unwrap_or_else(|| params.key.clone());
+
+        self.ensure_schema_clean(&[(key.clone(), params.content.clone())])?;
 
         graph.update_document(key.clone(), params.content.clone());
         self.write_file(&key, &params.content);
@@ -987,6 +1001,7 @@ impl IweServer {
         let changes = op_delete(&graph, &key).map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
+            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
             self.write_changes(&changes);
         }
@@ -1069,6 +1084,7 @@ impl IweServer {
                     })
                     .collect();
                 if !dry_run {
+                    self.ensure_schema_clean(&changes)?;
                     for (key, content) in &changes {
                         graph.update_document(key.clone(), content.clone());
                         self.write_file(key, content);
@@ -1088,6 +1104,7 @@ impl IweServer {
                     combined.merge(changes);
                 }
                 if !dry_run {
+                    self.ensure_schema_clean(&pending_from_changes(&combined))?;
                     Self::apply_changes(&mut graph, &combined);
                     self.write_changes(&combined);
                 }
@@ -1109,6 +1126,7 @@ impl IweServer {
         let changes = op_rename(&graph, &old_key, &new_key).map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
+            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
             self.write_changes(&changes);
         }
@@ -1195,6 +1213,7 @@ impl IweServer {
         .map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
+            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
             self.write_changes(&changes);
         }
@@ -1285,6 +1304,7 @@ impl IweServer {
         let changes = op_inline(&graph, &source_key, ref_id, &config).map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
+            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
             self.write_changes(&changes);
         }
@@ -1416,6 +1436,7 @@ impl IweServer {
         }
 
         if !params.dry_run.unwrap_or(false) {
+            self.ensure_schema_clean(&pending_from_changes(&combined))?;
             Self::apply_changes(&mut graph, &combined);
             self.write_changes(&combined);
         }
@@ -1757,6 +1778,21 @@ impl IweServer {
         }
         for (key, markdown) in &changes.updates {
             graph.update_document(key.clone(), markdown.clone());
+        }
+    }
+
+    fn ensure_schema_clean(&self, docs: &[(Key, String)]) -> Result<(), McpError> {
+        let result = match &self.base_path {
+            Some(base) => validate_pending_documents_in(&schemas_dir_in(base), &self.config, docs),
+            None => validate_pending_documents(&self.config, docs),
+        };
+        match result {
+            Ok(reports) if reports.is_empty() => Ok(()),
+            Ok(reports) => Err(schema_violation_error(&reports)),
+            Err(errors) => Err(McpError::invalid_params(
+                format!("schema configuration error: {}", errors.join("; ")),
+                None,
+            )),
         }
     }
 

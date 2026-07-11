@@ -12,6 +12,10 @@ use itertools::Itertools;
 
 use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
 use diwe::graph_from_path;
+use diwe::schema::{
+    explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
+    validate_pending_documents,
+};
 use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
@@ -431,6 +435,20 @@ enum TreeFormat {
     after_help = help::schema::AFTER_HELP
 )]
 struct Schema {
+    #[command(subcommand)]
+    command: Option<SchemaCommand>,
+
+    #[clap(flatten)]
+    fields: SchemaFields,
+}
+
+#[derive(Debug, Subcommand)]
+enum SchemaCommand {
+    Validate(SchemaValidate),
+}
+
+#[derive(Debug, Args)]
+struct SchemaFields {
     #[clap(
         long,
         short = 'f',
@@ -447,11 +465,45 @@ struct Schema {
     selector: FilterArgs,
 }
 
+#[derive(Debug, Args)]
+#[clap(about = "Validate documents against their configured schemas")]
+struct SchemaValidate {
+    #[clap(
+        long,
+        short = 'f',
+        value_enum,
+        default_value = "text",
+        help = "Output format for validation reports"
+    )]
+    format: ValidateFormat,
+
+    #[clap(
+        long = "schema-file",
+        help = "Validate the selected documents against this schema file directly, bypassing the [schemas] config bindings"
+    )]
+    schema_file: Option<PathBuf>,
+
+    #[clap(
+        long,
+        help = "Print the binding trace (which section/block bound to which schema entry) instead of validating"
+    )]
+    explain: bool,
+
+    #[clap(flatten)]
+    selector: FilterArgs,
+}
+
 #[derive(Debug, Clone, clap::ValueEnum)]
 enum SchemaFormat {
     Markdown,
     Json,
     Yaml,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum ValidateFormat {
+    Text,
+    Json,
 }
 
 #[derive(Debug, Args)]
@@ -1730,6 +1782,13 @@ fn get_configuration() -> Configuration {
 }
 
 fn schema_command(args: Schema) {
+    match args.command {
+        Some(SchemaCommand::Validate(validate)) => schema_validate_command(validate),
+        None => schema_infer_command(args.fields),
+    }
+}
+
+fn schema_infer_command(args: SchemaFields) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
@@ -1760,6 +1819,83 @@ fn schema_command(args: Schema) {
         SchemaFormat::Markdown => {
             let output = iwe::schema::render_schema(&fields);
             print!("{}", output);
+        }
+    }
+}
+
+fn schema_validate_command(args: SchemaValidate) {
+    let config = get_configuration();
+    let graph = load_graph(&config);
+
+    let keys: Vec<Key> = match resolve_filter(&args.selector, &graph) {
+        Some(filter) => liwe::query::evaluate(&filter, &graph),
+        None => {
+            let mut k = graph.keys();
+            k.sort();
+            k
+        }
+    };
+
+    if args.explain {
+        let result = match &args.schema_file {
+            Some(path) => explain_documents_against_file(&graph, &keys, path),
+            None => explain_documents(&config, &graph, &keys),
+        };
+        match result {
+            Ok(trace) => print!("{}", trace),
+            Err(errors) => {
+                for error in errors {
+                    eprintln!("error: {}", error);
+                }
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
+
+    let result = match &args.schema_file {
+        Some(path) => diwe::schema::validate_documents_against_file(&graph, &keys, path),
+        None => diwe::schema::validate_documents(&config, &graph, &keys),
+    };
+
+    let reports = match result {
+        Ok(reports) => reports,
+        Err(errors) => {
+            for error in errors {
+                eprintln!("error: {}", error);
+            }
+            std::process::exit(2);
+        }
+    };
+
+    if reports.is_empty() {
+        return;
+    }
+
+    match args.format {
+        ValidateFormat::Text => print!("{}", render_reports_text(&reports)),
+        ValidateFormat::Json => {
+            let json = serde_json::to_string_pretty(&reports).expect("Failed to serialize reports");
+            println!("{}", json);
+        }
+    }
+
+    std::process::exit(1);
+}
+
+fn gate_pending(config: &Configuration, docs: &[(Key, String)]) {
+    match validate_pending_documents(config, docs) {
+        Ok(reports) if reports.is_empty() => {}
+        Ok(reports) => {
+            eprintln!("error: --strict blocked the write: schema validation failed");
+            eprint!("{}", render_reports_text(&reports));
+            std::process::exit(2);
+        }
+        Err(errors) => {
+            for error in errors {
+                eprintln!("error: {}", error);
+            }
+            std::process::exit(2);
         }
     }
 }
@@ -2011,6 +2147,9 @@ fn delete_command(args: Delete) {
     }
 
     if !args.dry_run {
+        if args.strict {
+            gate_pending(&config, &pending_from_changes(&combined));
+        }
         apply_changes(&combined, &config);
         if !args.quiet && !keys_mode {
             println!("Updated {} document(s)", combined.updates.len());
@@ -2442,6 +2581,11 @@ fn update_body(args: Update) {
         }
         return;
     }
+
+    if args.strict {
+        gate_pending(&config, &[(key.clone(), output.clone())]);
+    }
+
     std::fs::write(&file_path, &output).expect("Failed to write document file");
 
     if !args.quiet {
@@ -2582,6 +2726,10 @@ fn update_mutation(args: Update) {
             _ => unreachable!(),
         }
     };
+
+    if args.strict && !args.dry_run {
+        gate_pending(&config, &docs);
+    }
 
     let (matched, changed) = write_changed_documents(&library_path, ext, &docs, args.dry_run);
     report_mutation(args.quiet, args.dry_run, matched, changed);

@@ -1,6 +1,11 @@
 use indoc::indoc;
 use log::debug;
-use std::{collections::HashMap, env, fs::read_to_string};
+use std::{
+    collections::HashMap,
+    env,
+    fs::read_to_string,
+    path::{Path, PathBuf},
+};
 use toml_edit::{value, DocumentMut, Item};
 
 use serde::{Deserialize, Serialize};
@@ -84,6 +89,8 @@ pub struct Configuration {
     pub actions: HashMap<String, ActionDefinition>,
     #[serde(default)]
     pub templates: HashMap<String, NoteTemplate>,
+    #[serde(default)]
+    pub schemas: HashMap<String, SchemaBinding>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -169,6 +176,27 @@ pub struct NoteTemplate {
     pub document_template: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Patterns {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl Patterns {
+    pub fn as_slice(&self) -> &[String] {
+        match self {
+            Patterns::One(pattern) => std::slice::from_ref(pattern),
+            Patterns::Many(patterns) => patterns,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct SchemaBinding {
+    pub r#match: Patterns,
+}
+
 impl Default for Configuration {
     fn default() -> Self {
         Self {
@@ -182,6 +210,7 @@ impl Default for Configuration {
             commands: Default::default(),
             actions: Default::default(),
             templates: Default::default(),
+            schemas: Default::default(),
         }
     }
 }
@@ -394,6 +423,15 @@ impl Configuration {
 
         template
     }
+}
+
+pub fn schemas_dir() -> Result<PathBuf, String> {
+    let base = env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    Ok(schemas_dir_in(&base))
+}
+
+pub fn schemas_dir_in(base: &Path) -> PathBuf {
+    base.join(IWE_MARKER).join("schemas")
 }
 
 pub fn load_config() -> Result<Configuration, String> {

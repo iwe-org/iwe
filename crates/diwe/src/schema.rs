@@ -1,0 +1,805 @@
+use std::collections::HashMap;
+use std::fs::read_to_string;
+use std::path::Path;
+
+use globset::{GlobBuilder, GlobMatcher};
+use serde::ser::{Serialize, SerializeStruct, Serializer};
+
+use liwe::graph::Graph;
+use liwe::markdown::MarkdownReader;
+use liwe::model::Key;
+use liwe::operations::Changes;
+use liwe::schema::{build_document, compile_schema, CompiledSchema, Violation};
+
+use crate::config::{schemas_dir, Configuration, SchemaBinding};
+use crate::tokens::count_tokens;
+
+#[derive(Debug)]
+pub struct SchemaBindings {
+    rules: Vec<(String, Vec<GlobMatcher>)>,
+}
+
+impl SchemaBindings {
+    pub fn compile(schemas: &HashMap<String, SchemaBinding>) -> Result<Self, Vec<String>> {
+        let mut names: Vec<&String> = schemas.keys().collect();
+        names.sort();
+
+        let mut rules = Vec::new();
+        let mut errors = Vec::new();
+
+        for name in names {
+            let mut matchers = Vec::new();
+            for pattern in schemas[name].r#match.as_slice() {
+                let anchored = pattern.strip_prefix('/').unwrap_or(pattern);
+                match GlobBuilder::new(anchored).literal_separator(true).build() {
+                    Ok(glob) => matchers.push(glob.compile_matcher()),
+                    Err(error) => errors.push(format!(
+                        "schema '{name}': invalid pattern '{pattern}': {error}"
+                    )),
+                }
+            }
+            rules.push((name.clone(), matchers));
+        }
+
+        if errors.is_empty() {
+            Ok(SchemaBindings { rules })
+        } else {
+            Err(errors)
+        }
+    }
+
+    pub fn schemas_for(&self, key: &str) -> Vec<&str> {
+        self.rules
+            .iter()
+            .filter(|(_, matchers)| matchers.iter().any(|matcher| matcher.is_match(key)))
+            .map(|(name, _)| name.as_str())
+            .collect()
+    }
+}
+
+#[derive(Debug)]
+pub struct KeyReport {
+    pub key: Key,
+    pub schema: String,
+    pub violations: Vec<Violation>,
+}
+
+impl Serialize for KeyReport {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("KeyReport", 3)?;
+        state.serialize_field("key", &self.key.to_string())?;
+        state.serialize_field("schema", &self.schema)?;
+        state.serialize_field("violations", &self.violations)?;
+        state.end()
+    }
+}
+
+pub fn validate_documents(
+    config: &Configuration,
+    graph: &Graph,
+    keys: &[Key],
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let dir = schemas_dir().map_err(|error| vec![error])?;
+    validate_documents_in(&dir, config, graph, keys)
+}
+
+pub fn validate_documents_against_file(
+    graph: &Graph,
+    keys: &[Key],
+    schema_path: &Path,
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let label = schema_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("schema")
+        .to_string();
+
+    let source = read_to_string(schema_path)
+        .map_err(|_| vec![format!("schema file not found: {}", schema_path.display())])?;
+
+    let compiled = compile_schema(&source).map_err(|schema_errors| {
+        schema_errors
+            .into_iter()
+            .map(|error| {
+                if error.pointer.is_empty() {
+                    format!("schema '{label}': {}", error.message)
+                } else {
+                    format!("schema '{label}' {}: {}", error.pointer, error.message)
+                }
+            })
+            .collect::<Vec<_>>()
+    })?;
+
+    let mut reports = Vec::new();
+    for key in keys {
+        let document = build_document(graph, key, count_tokens);
+        let violations = compiled.validate(&document);
+        if !violations.is_empty() {
+            reports.push(KeyReport {
+                key: key.clone(),
+                schema: label.clone(),
+                violations,
+            });
+        }
+    }
+    Ok(reports)
+}
+
+pub fn explain_documents(
+    config: &Configuration,
+    graph: &Graph,
+    keys: &[Key],
+) -> Result<String, Vec<String>> {
+    let dir = schemas_dir().map_err(|error| vec![error])?;
+    let bindings = SchemaBindings::compile(&config.schemas)?;
+    let compiled = compile_schemas(&dir, &config.schemas)?;
+
+    let mut out = String::new();
+    for key in keys {
+        let names = bindings.schemas_for(&key.to_string());
+        if names.is_empty() {
+            out.push_str(&format!("{key}  (no schema)\n\n"));
+            continue;
+        }
+        let document = build_document(graph, key, count_tokens);
+        for name in names {
+            out.push_str(&format!("{key}  [schema: {name}]\n"));
+            out.push_str(&compiled[name].explain(&document));
+            out.push('\n');
+        }
+    }
+    Ok(out)
+}
+
+pub fn explain_documents_against_file(
+    graph: &Graph,
+    keys: &[Key],
+    schema_path: &Path,
+) -> Result<String, Vec<String>> {
+    let label = schema_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("schema")
+        .to_string();
+
+    let source = read_to_string(schema_path)
+        .map_err(|_| vec![format!("schema file not found: {}", schema_path.display())])?;
+    let compiled = compile_schema(&source).map_err(|schema_errors| {
+        schema_errors
+            .into_iter()
+            .map(|error| {
+                if error.pointer.is_empty() {
+                    format!("schema '{label}': {}", error.message)
+                } else {
+                    format!("schema '{label}' {}: {}", error.pointer, error.message)
+                }
+            })
+            .collect::<Vec<_>>()
+    })?;
+
+    let mut out = String::new();
+    for key in keys {
+        let document = build_document(graph, key, count_tokens);
+        out.push_str(&format!("{key}  [schema: {label}]\n"));
+        out.push_str(&compiled.explain(&document));
+        out.push('\n');
+    }
+    Ok(out)
+}
+
+pub fn render_reports_text(reports: &[KeyReport]) -> String {
+    let mut out = String::new();
+    for report in reports {
+        for violation in &report.violations {
+            let breadcrumb = violation.breadcrumb_text();
+            if breadcrumb.is_empty() {
+                out.push_str(&format!("{}: {}\n", report.key, violation.message));
+            } else {
+                out.push_str(&format!(
+                    "{} › {}: {}\n",
+                    report.key, breadcrumb, violation.message
+                ));
+            }
+            if let Some(hint) = &violation.hint {
+                out.push_str(&format!("  hint: {}\n", hint));
+            }
+        }
+    }
+    out
+}
+
+pub fn pending_from_changes(changes: &Changes) -> Vec<(Key, String)> {
+    changes
+        .creates
+        .iter()
+        .chain(changes.updates.iter())
+        .cloned()
+        .collect()
+}
+
+pub fn validate_pending_documents(
+    config: &Configuration,
+    docs: &[(Key, String)],
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let dir = schemas_dir().map_err(|error| vec![error])?;
+    validate_pending_documents_in(&dir, config, docs)
+}
+
+pub fn validate_pending_documents_in(
+    dir: &Path,
+    config: &Configuration,
+    docs: &[(Key, String)],
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let mut graph = Graph::new_with_options(config.format_options());
+    for (key, content) in docs {
+        graph.from_markdown(key.clone(), content, MarkdownReader::new());
+    }
+    let keys: Vec<Key> = docs.iter().map(|(key, _)| key.clone()).collect();
+    validate_documents_in(dir, config, &graph, &keys)
+}
+
+fn validate_documents_in(
+    dir: &Path,
+    config: &Configuration,
+    graph: &Graph,
+    keys: &[Key],
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let bindings = SchemaBindings::compile(&config.schemas)?;
+    let compiled = compile_schemas(dir, &config.schemas)?;
+
+    let mut reports = Vec::new();
+    for key in keys {
+        let names = bindings.schemas_for(&key.to_string());
+        if names.is_empty() {
+            continue;
+        }
+        let document = build_document(graph, key, count_tokens);
+        for name in names {
+            let violations = compiled[name].validate(&document);
+            if !violations.is_empty() {
+                reports.push(KeyReport {
+                    key: key.clone(),
+                    schema: name.to_string(),
+                    violations,
+                });
+            }
+        }
+    }
+    Ok(reports)
+}
+
+fn compile_schemas(
+    dir: &Path,
+    schemas: &HashMap<String, SchemaBinding>,
+) -> Result<HashMap<String, CompiledSchema>, Vec<String>> {
+    let mut names: Vec<&String> = schemas.keys().collect();
+    names.sort();
+
+    let mut compiled = HashMap::new();
+    let mut errors = Vec::new();
+
+    for name in names {
+        let path = dir.join(format!("{name}.yaml"));
+        let source = match read_to_string(&path) {
+            Ok(source) => source,
+            Err(_) => {
+                errors.push(format!(
+                    "schema '{name}': .iwe/schemas/{name}.yaml not found"
+                ));
+                continue;
+            }
+        };
+        match compile_schema(&source) {
+            Ok(schema) => {
+                compiled.insert(name.clone(), schema);
+            }
+            Err(schema_errors) => {
+                for error in schema_errors {
+                    if error.pointer.is_empty() {
+                        errors.push(format!("schema '{name}': {}", error.message));
+                    } else {
+                        errors.push(format!(
+                            "schema '{name}' {}: {}",
+                            error.pointer, error.message
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(compiled)
+    } else {
+        Err(errors)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::fs::{create_dir_all, write};
+
+    use liwe::schema::Crumb;
+    use tempfile::TempDir;
+
+    use crate::config::Patterns;
+
+    fn bindings(entries: &[(&str, Patterns)]) -> SchemaBindings {
+        let schemas = entries
+            .iter()
+            .map(|(name, patterns)| {
+                (
+                    name.to_string(),
+                    SchemaBinding {
+                        r#match: patterns.clone(),
+                    },
+                )
+            })
+            .collect();
+        SchemaBindings::compile(&schemas).expect("compiles")
+    }
+
+    #[test]
+    fn single_glob_matches_by_prefix() {
+        let bindings = bindings(&[("person", Patterns::One("people/**".to_string()))]);
+        assert_eq!(bindings.schemas_for("people/alice"), vec!["person"]);
+        assert_eq!(bindings.schemas_for("teams/core"), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn list_form_matches_any_pattern() {
+        let bindings = bindings(&[(
+            "session",
+            Patterns::Many(vec!["journal/*".to_string(), "meetings/**".to_string()]),
+        )]);
+        assert_eq!(bindings.schemas_for("journal/monday"), vec!["session"]);
+        assert_eq!(
+            bindings.schemas_for("meetings/2026/standup"),
+            vec!["session"]
+        );
+        assert_eq!(
+            bindings.schemas_for("journal/2026/monday"),
+            Vec::<&str>::new()
+        );
+    }
+
+    #[test]
+    fn single_star_stops_at_separator_double_star_crosses() {
+        let single = bindings(&[("one", Patterns::One("notes/*".to_string()))]);
+        assert_eq!(single.schemas_for("notes/today"), vec!["one"]);
+        assert_eq!(single.schemas_for("notes/2026/today"), Vec::<&str>::new());
+
+        let double = bindings(&[("all", Patterns::One("notes/**".to_string()))]);
+        assert_eq!(double.schemas_for("notes/today"), vec!["all"]);
+        assert_eq!(double.schemas_for("notes/2026/today"), vec!["all"]);
+    }
+
+    #[test]
+    fn leading_slash_in_pattern_is_stripped() {
+        let bindings = bindings(&[("person", Patterns::One("/people/**".to_string()))]);
+        assert_eq!(bindings.schemas_for("people/alice"), vec!["person"]);
+    }
+
+    #[test]
+    fn overlapping_schemas_both_apply_sorted_by_name() {
+        let bindings = bindings(&[
+            ("zeta", Patterns::One("people/**".to_string())),
+            ("alpha", Patterns::One("people/*".to_string())),
+        ]);
+        assert_eq!(bindings.schemas_for("people/alice"), vec!["alpha", "zeta"]);
+    }
+
+    #[test]
+    fn invalid_globs_report_every_bad_pattern() {
+        let schemas = HashMap::from([(
+            "broken".to_string(),
+            SchemaBinding {
+                r#match: Patterns::Many(vec!["[".to_string(), "people/[".to_string()]),
+            },
+        )]);
+        let errors = SchemaBindings::compile(&schemas).unwrap_err();
+        assert_eq!(
+            errors,
+            vec![
+                "schema 'broken': invalid pattern '[': error parsing glob '[': unclosed character class; missing ']'".to_string(),
+                "schema 'broken': invalid pattern 'people/[': error parsing glob 'people/[': unclosed character class; missing ']'".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn binding_round_trips_through_toml_as_string_and_list() {
+        let source = "\
+[schemas.person]
+match = \"people/**\"
+
+[schemas.session]
+match = [\"journal/*\", \"meetings/**\"]
+";
+        let config: Configuration = toml::from_str(source).expect("parses");
+        assert_eq!(
+            config.schemas["person"],
+            SchemaBinding {
+                r#match: Patterns::One("people/**".to_string()),
+            }
+        );
+        assert_eq!(
+            config.schemas["session"],
+            SchemaBinding {
+                r#match: Patterns::Many(vec!["journal/*".to_string(), "meetings/**".to_string()]),
+            }
+        );
+
+        let reparsed: Configuration =
+            toml::from_str(&toml::to_string(&config).expect("serializes")).expect("reparses");
+        assert_eq!(reparsed.schemas, config.schemas);
+    }
+
+    fn graph_with(entries: &[(&str, &str)]) -> Graph {
+        let mut graph = Graph::new();
+        for (key, content) in entries {
+            graph.from_markdown(Key::name(key), content, MarkdownReader::new());
+        }
+        graph
+    }
+
+    fn config_with(entries: &[(&str, Patterns)]) -> Configuration {
+        Configuration {
+            schemas: entries
+                .iter()
+                .map(|(name, patterns)| {
+                    (
+                        name.to_string(),
+                        SchemaBinding {
+                            r#match: patterns.clone(),
+                        },
+                    )
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    fn write_schema(dir: &Path, name: &str, source: &str) {
+        let schemas = dir.join(".iwe").join("schemas");
+        create_dir_all(&schemas).unwrap();
+        write(schemas.join(format!("{name}.yaml")), source).unwrap();
+    }
+
+    #[test]
+    fn validate_documents_reports_per_schema_in_key_and_name_order() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n  - header: { const: Tasks }\n",
+        );
+        write_schema(
+            temp.path(),
+            "audited",
+            "sections:\n  - header: { const: Review }\n",
+        );
+
+        let graph = graph_with(&[("people/alice", "# Summary\n"), ("teams/core", "# Team\n")]);
+        let config = config_with(&[
+            ("person", Patterns::One("people/**".to_string())),
+            ("audited", Patterns::One("people/**".to_string())),
+        ]);
+        let keys = vec![Key::name("people/alice"), Key::name("teams/core")];
+
+        let reports = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .expect("no config errors");
+
+        assert_eq!(reports.len(), 2);
+        assert_eq!(reports[0].key, Key::name("people/alice"));
+        assert_eq!(reports[0].schema, "audited");
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![],
+                message: "required section 'Review' missing".to_string(),
+                hint: None,
+                schema_pointer: "/sections/0/minContains".to_string(),
+                keyword: "minContains".to_string(),
+            }]
+        );
+        assert_eq!(reports[1].key, Key::name("people/alice"));
+        assert_eq!(reports[1].schema, "person");
+        assert_eq!(
+            reports[1].violations,
+            vec![Violation {
+                breadcrumb: vec![],
+                message: "required section 'Tasks' missing".to_string(),
+                hint: None,
+                schema_pointer: "/sections/1/minContains".to_string(),
+                keyword: "minContains".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn clean_document_yields_no_report() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n",
+        );
+        let graph = graph_with(&[("people/alice", "# Summary\n\ntext\n")]);
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .expect("no config errors");
+        assert!(reports.is_empty());
+    }
+
+    #[test]
+    fn nested_breadcrumb_survives_into_report() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\nadditionalSections: false\n",
+        );
+        let graph = graph_with(&[("people/alice", "# Summary\n\n# Extra\n")]);
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .expect("no config errors");
+        assert_eq!(reports.len(), 1);
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![Crumb::Header("Extra".to_string())],
+                message: "unexpected section".to_string(),
+                hint: None,
+                schema_pointer: "/additionalSections".to_string(),
+                keyword: "additionalSections".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_against_file_reports_under_the_file_stem() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("person.yaml");
+        write(
+            &schema_path,
+            "sections:\n  - header: { const: Summary }\n  - header: { const: Tasks }\n",
+        )
+        .unwrap();
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports =
+            validate_documents_against_file(&graph, &keys, &schema_path).expect("no schema errors");
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].key, Key::name("people/alice"));
+        assert_eq!(reports[0].schema, "person");
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![],
+                message: "required section 'Tasks' missing".to_string(),
+                hint: None,
+                schema_pointer: "/sections/1/minContains".to_string(),
+                keyword: "minContains".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_against_file_passes_clean_document() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("person.yaml");
+        write(&schema_path, "sections:\n  - header: { const: Summary }\n").unwrap();
+        let graph = graph_with(&[("people/alice", "# Summary\n\ntext\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports =
+            validate_documents_against_file(&graph, &keys, &schema_path).expect("no schema errors");
+        assert!(reports.is_empty());
+    }
+
+    #[test]
+    fn validate_against_missing_file_is_an_error() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("ghost.yaml");
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let errors = validate_documents_against_file(&graph, &keys, &schema_path).unwrap_err();
+        assert_eq!(
+            errors,
+            vec![format!("schema file not found: {}", schema_path.display())]
+        );
+    }
+
+    #[test]
+    fn validate_against_uncompilable_file_surfaces_schema_error() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("person.yaml");
+        write(&schema_path, "sections:\n  - minContains: -1\n").unwrap();
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let errors = validate_documents_against_file(&graph, &keys, &schema_path).unwrap_err();
+        assert_eq!(
+            errors,
+            vec![
+                "schema 'person' /sections/0/minContains: minContains must not be negative"
+                    .to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn block_violations_ride_the_key_report_path() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Notes }\n    blocks:\n      - type: paragraph\n    additionalBlocks: false\n",
+        );
+        let graph = graph_with(&[("people/alice", "# Notes\n\na paragraph\n\n- a list item\n")]);
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .expect("no config errors");
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![Crumb::Header("Notes".to_string()), Crumb::Block(1)],
+                message: "unexpected block".to_string(),
+                hint: None,
+                schema_pointer: "/sections/0/additionalBlocks".to_string(),
+                keyword: "additionalBlocks".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn missing_schema_file_is_a_config_error() {
+        let temp = TempDir::new().unwrap();
+        create_dir_all(temp.path().join(".iwe").join("schemas")).unwrap();
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let keys = vec![Key::name("people/alice")];
+
+        let errors = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .unwrap_err();
+        assert_eq!(
+            errors,
+            vec!["schema 'person': .iwe/schemas/person.yaml not found".to_string()]
+        );
+    }
+
+    #[test]
+    fn uncompilable_schema_surfaces_schema_error_text() {
+        let temp = TempDir::new().unwrap();
+        write_schema(temp.path(), "person", "sections:\n  - minContains: -1\n");
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let keys = vec![Key::name("people/alice")];
+
+        let errors = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .unwrap_err();
+        assert_eq!(
+            errors,
+            vec![
+                "schema 'person' /sections/0/minContains: minContains must not be negative"
+                    .to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn validate_pending_reports_violations_without_a_loaded_graph() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n  - header: { const: Tasks }\n",
+        );
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let docs = vec![(Key::name("people/alice"), "# Summary\n".to_string())];
+
+        let reports = validate_pending_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &docs,
+        )
+        .expect("no config errors");
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].key, Key::name("people/alice"));
+        assert_eq!(reports[0].schema, "person");
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![],
+                message: "required section 'Tasks' missing".to_string(),
+                hint: None,
+                schema_pointer: "/sections/1/minContains".to_string(),
+                keyword: "minContains".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_pending_passes_clean_content() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n",
+        );
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let docs = vec![(Key::name("people/alice"), "# Summary\n\ntext\n".to_string())];
+
+        let reports = validate_pending_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &docs,
+        )
+        .expect("no config errors");
+        assert!(reports.is_empty());
+    }
+
+    #[test]
+    fn validate_pending_surfaces_config_errors() {
+        let temp = TempDir::new().unwrap();
+        create_dir_all(temp.path().join(".iwe").join("schemas")).unwrap();
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let docs = vec![(Key::name("people/alice"), "# Summary\n".to_string())];
+
+        let errors = validate_pending_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &docs,
+        )
+        .unwrap_err();
+        assert_eq!(
+            errors,
+            vec!["schema 'person': .iwe/schemas/person.yaml not found".to_string()]
+        );
+    }
+}
