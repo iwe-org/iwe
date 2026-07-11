@@ -211,6 +211,31 @@ fn mutation_findings_reports_orphan_dangling_and_similar() {
 }
 
 #[test]
+fn mutation_findings_similar_page_uses_per_target_token_map() {
+    let graph = graph_with(&[
+        (
+            "index",
+            "# Index\n\n[Alpha](alpha)\n\n[Beta](beta)\n\n[Distinct](distinct)\n",
+        ),
+        ("alpha", ALPHA),
+        ("beta", BETA),
+        ("distinct", DISTINCT),
+    ]);
+    let index = build_index(&graph, Language::English);
+
+    let findings = mutation_findings(&graph, &index, &[Key::name("alpha")]);
+    assert_eq!(
+        findings,
+        vec![Finding {
+            rule: Rule::SimilarPage,
+            key: Key::name("alpha"),
+            other: Some(Key::name("beta")),
+            message: "closely matches 'beta' (0.94)".to_string(),
+        }]
+    );
+}
+
+#[test]
 fn graph_findings_returns_orphans_and_dangling_only() {
     let graph = graph_with(&[
         ("alpha", ALPHA),

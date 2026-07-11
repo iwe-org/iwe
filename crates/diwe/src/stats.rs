@@ -160,17 +160,6 @@ pub fn orphan_keys(graph: &Graph) -> Vec<Key> {
     keys
 }
 
-fn token_counts(graph: &Graph) -> HashMap<Key, usize> {
-    graph
-        .keys()
-        .into_par_iter()
-        .map(|key| {
-            let tokens = count_tokens(&corpus_text(graph, &key));
-            (key, tokens)
-        })
-        .collect()
-}
-
 /// A search index plus per-key token counts, built once and reused for every similarity query in a
 /// run. Building walks each page's corpus text (title + plain body) a single time to feed both the
 /// BM25 index and the token map that drives the size gate.
@@ -259,24 +248,12 @@ fn forward_matches(
     if a_tokens < SIMILARITY_MIN_TOKENS {
         return HashMap::new();
     }
-    let scores = index.scores_for_key(key);
-    let Some(self_score) = scores.get(key).copied() else {
-        return HashMap::new();
-    };
-    if self_score <= 0.0 {
-        return HashMap::new();
-    }
-    scores
+    index
+        .similar_to(key, SIMILARITY_FLOOR)
         .into_iter()
-        .filter(|(other, _)| other != key)
-        .filter_map(|(other, score)| {
-            let ratio = score / self_score;
-            if ratio < SIMILARITY_FLOOR {
-                return None;
-            }
-            let b_tokens = tokens.get(&other).copied().unwrap_or(0);
-            (b_tokens >= SIMILARITY_MIN_TOKENS && comparable_length(a_tokens, b_tokens))
-                .then_some((other, ratio))
+        .filter(|(other, _)| {
+            let b_tokens = tokens.get(other).copied().unwrap_or(0);
+            b_tokens >= SIMILARITY_MIN_TOKENS && comparable_length(a_tokens, b_tokens)
         })
         .collect()
 }
@@ -285,10 +262,11 @@ fn mutual_similar(index: &Bm25Index, tokens: &HashMap<Key, usize>, key: &Key) ->
     let mut ranked: Vec<SimilarPage> = forward_matches(index, tokens, key)
         .into_iter()
         .filter_map(|(other, forward_ratio)| {
-            let back = forward_matches(index, tokens, &other);
-            back.get(key).map(|reverse_ratio| SimilarPage {
+            let self_other = index.self_score(&other).filter(|s| *s > 0.0)?;
+            let reverse_ratio = index.score_between(&other, key)? / self_other;
+            (reverse_ratio >= SIMILARITY_FLOOR).then(|| SimilarPage {
                 key: other,
-                score: forward_ratio.min(*reverse_ratio),
+                score: forward_ratio.min(reverse_ratio),
             })
         })
         .collect();
@@ -328,21 +306,27 @@ pub fn graph_findings(graph: &Graph) -> Vec<Finding> {
 }
 
 /// Findings after a create/update: the whole-store [`graph_findings`] plus a similar-page check run
-/// only for the authored `targets` (the index must already reflect the post-change store).
+/// only for the authored `targets` (the index must already reflect the post-change store). Token
+/// counts are gathered per target over just the target and its floor survivors, so the whole store
+/// is never re-tokenized.
 pub fn mutation_findings(graph: &Graph, index: &Bm25Index, targets: &[Key]) -> Vec<Finding> {
     let mut findings = graph_findings(graph);
 
-    if !targets.is_empty() {
-        let tokens = token_counts(graph);
-        for target in targets {
-            for page in mutual_similar(index, &tokens, target) {
-                findings.push(Finding {
-                    rule: Rule::SimilarPage,
-                    message: format!("closely matches '{}' ({:.2})", page.key, page.score),
-                    key: target.clone(),
-                    other: Some(page.key),
-                });
-            }
+    for target in targets {
+        let survivors = index.similar_to(target, SIMILARITY_FLOOR);
+        let mut tokens: HashMap<Key, usize> = HashMap::new();
+        for key in std::iter::once(target).chain(survivors.iter().map(|(other, _)| other)) {
+            tokens
+                .entry(key.clone())
+                .or_insert_with(|| count_tokens(&corpus_text(graph, key)));
+        }
+        for page in mutual_similar(index, &tokens, target) {
+            findings.push(Finding {
+                rule: Rule::SimilarPage,
+                message: format!("closely matches '{}' ({:.2})", page.key, page.score),
+                key: target.clone(),
+                other: Some(page.key),
+            });
         }
     }
 
