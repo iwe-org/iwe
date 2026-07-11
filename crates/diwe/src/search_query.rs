@@ -13,7 +13,7 @@ use crate::search::{rrf_weight, Bm25Index, Language};
 
 const PARALLEL_BUILD_THRESHOLD: usize = 128;
 
-fn corpus_text(graph: &Graph, key: &Key) -> String {
+pub fn corpus_text(graph: &Graph, key: &Key) -> String {
     let title = graph.get_key_title(key).unwrap_or_default();
     format!("{}\n{}", title, graph.to_plain_text(key))
 }

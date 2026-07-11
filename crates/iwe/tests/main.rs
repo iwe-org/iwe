@@ -18,5 +18,6 @@ mod schema_test;
 mod schema_validate_test;
 mod squash_test;
 mod stats_test;
+mod stats_warnings_test;
 mod tree_test;
 mod update_test;

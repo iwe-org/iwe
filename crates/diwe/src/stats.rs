@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 use itertools::Itertools;
@@ -10,6 +10,15 @@ use liwe::graph::{Graph, GraphContext};
 use liwe::model::is_ref_url;
 use liwe::model::node::{Node, NodeIter, NodePointer};
 use liwe::model::Key;
+
+use crate::search::{Bm25Index, Language};
+use crate::search_query::corpus_text;
+use crate::tokens::count_tokens;
+
+const SIMILARITY_FLOOR: f32 = 0.85;
+const SIMILAR_PAGES_CAP: usize = 3;
+const SIMILARITY_MIN_TOKENS: usize = 50;
+const SIMILARITY_MAX_LENGTH_RATIO: f32 = 2.0;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +33,16 @@ fn serialize_key<S: serde::Serializer>(key: &Key, serializer: S) -> Result<S::Ok
     serializer.serialize_str(&key.to_string())
 }
 
-fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
+fn serialize_keys<S: serde::Serializer>(keys: &[Key], serializer: S) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(Some(keys.len()))?;
+    for key in keys {
+        seq.serialize_element(&key.to_string())?;
+    }
+    seq.end()
+}
+
+pub fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
     let existing_keys: HashSet<Key> = graph.keys().into_iter().collect();
     let mut seen = HashSet::new();
     let mut broken = Vec::new();
@@ -59,6 +77,276 @@ fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
 
     broken.sort_by(|a, b| (&a.source_key, &a.target_key).cmp(&(&b.source_key, &b.target_key)));
     broken
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Rule {
+    DanglingLink,
+    Orphan,
+    SimilarPage,
+}
+
+impl Rule {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Rule::DanglingLink => "dangling-link",
+            Rule::Orphan => "orphan",
+            Rule::SimilarPage => "similar-page",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Finding {
+    pub rule: Rule,
+    #[serde(serialize_with = "serialize_key")]
+    pub key: Key,
+    #[serde(serialize_with = "serialize_opt_key")]
+    pub other: Option<Key>,
+    pub message: String,
+}
+
+impl Finding {
+    pub fn render(&self) -> String {
+        format!("{} › {}: {}", self.key, self.rule.label(), self.message)
+    }
+}
+
+fn serialize_opt_key<S: serde::Serializer>(
+    key: &Option<Key>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    match key {
+        Some(key) => serializer.serialize_str(&key.to_string()),
+        None => serializer.serialize_none(),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimilarPage {
+    #[serde(serialize_with = "serialize_key")]
+    pub key: Key,
+    pub score: f32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyStatisticsReport {
+    #[serde(flatten)]
+    pub stats: KeyStatistics,
+    pub similar_pages: Vec<SimilarPage>,
+}
+
+/// An `index` page (root `index` or any `<dir>/index`) is an intentional entry point, so it is never
+/// reported as an orphan even when nothing links to it.
+fn is_index_key(key: &str) -> bool {
+    matches!(key.rsplit('/').next(), Some("index"))
+}
+
+pub fn orphan_keys(graph: &Graph) -> Vec<Key> {
+    let mut keys: Vec<Key> = graph
+        .keys()
+        .into_iter()
+        .filter(|key| {
+            !is_index_key(&key.relative_path)
+                && graph.get_inclusion_edges_to(key).is_empty()
+                && graph.get_reference_edges_to(key).is_empty()
+        })
+        .collect();
+    keys.sort();
+    keys
+}
+
+fn token_counts(graph: &Graph) -> HashMap<Key, usize> {
+    graph
+        .keys()
+        .into_par_iter()
+        .map(|key| {
+            let tokens = count_tokens(&corpus_text(graph, &key));
+            (key, tokens)
+        })
+        .collect()
+}
+
+/// A search index plus per-key token counts, built once and reused for every similarity query in a
+/// run. Building walks each page's corpus text (title + plain body) a single time to feed both the
+/// BM25 index and the token map that drives the size gate.
+pub struct SimilarityIndex {
+    index: Bm25Index,
+    tokens: HashMap<Key, usize>,
+}
+
+impl SimilarityIndex {
+    pub fn build(graph: &Graph, language: Language) -> Self {
+        let entries: Vec<(Key, String, usize)> = graph
+            .keys()
+            .into_par_iter()
+            .map(|key| {
+                let text = corpus_text(graph, &key);
+                let tokens = count_tokens(&text);
+                (key, text, tokens)
+            })
+            .collect();
+        let tokens: HashMap<Key, usize> = entries
+            .iter()
+            .map(|(key, _, count)| (key.clone(), *count))
+            .collect();
+        let corpus: Vec<(Key, String)> = entries
+            .into_iter()
+            .map(|(key, text, _)| (key, text))
+            .collect();
+        SimilarityIndex {
+            index: Bm25Index::build(corpus, language),
+            tokens,
+        }
+    }
+
+    /// Similar pages for one `key`: its forward matches that also match back (mutually similar — the
+    /// `min` of the two directional ratios ≥ [`SIMILARITY_FLOOR`]). Mutuality excludes containment (a
+    /// short page inside a long one); the token-size and comparable-length gates exclude too-small
+    /// pages and mismatched lengths.
+    pub fn similar(&self, key: &Key) -> Vec<SimilarPage> {
+        mutual_similar(&self.index, &self.tokens, key)
+    }
+
+    /// Every mutually-similar pair across the store, each pair once in alphabetical order. Forward
+    /// matches are computed once per page (concurrently); a pair is mutual when each page appears in
+    /// the other's forward matches.
+    pub fn pairs(&self) -> Vec<(Key, Key)> {
+        let forward: HashMap<Key, HashMap<Key, f32>> = self
+            .tokens
+            .par_iter()
+            .filter_map(|(key, _)| {
+                let matches = forward_matches(&self.index, &self.tokens, key);
+                (!matches.is_empty()).then(|| (key.clone(), matches))
+            })
+            .collect();
+
+        let mut pairs: Vec<(Key, Key)> = Vec::new();
+        for (a, a_matches) in &forward {
+            for b in a_matches.keys() {
+                if a < b
+                    && forward
+                        .get(b)
+                        .is_some_and(|b_matches| b_matches.contains_key(a))
+                {
+                    pairs.push((a.clone(), b.clone()));
+                }
+            }
+        }
+        pairs.sort();
+        pairs
+    }
+}
+
+fn comparable_length(a: usize, b: usize) -> bool {
+    let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
+    lo > 0 && hi as f32 <= lo as f32 * SIMILARITY_MAX_LENGTH_RATIO
+}
+
+/// The pages `key` matches in one direction: each `other` whose BM25 score against `key` clears
+/// [`SIMILARITY_FLOOR`] (self-normalized) and that passes the token-size and comparable-length gates.
+/// The map value is the forward ratio `score(key → other) / score(key → key)`.
+fn forward_matches(
+    index: &Bm25Index,
+    tokens: &HashMap<Key, usize>,
+    key: &Key,
+) -> HashMap<Key, f32> {
+    let a_tokens = tokens.get(key).copied().unwrap_or(0);
+    if a_tokens < SIMILARITY_MIN_TOKENS {
+        return HashMap::new();
+    }
+    let scores = index.scores_for_key(key);
+    let Some(self_score) = scores.get(key).copied() else {
+        return HashMap::new();
+    };
+    if self_score <= 0.0 {
+        return HashMap::new();
+    }
+    scores
+        .into_iter()
+        .filter(|(other, _)| other != key)
+        .filter_map(|(other, score)| {
+            let ratio = score / self_score;
+            if ratio < SIMILARITY_FLOOR {
+                return None;
+            }
+            let b_tokens = tokens.get(&other).copied().unwrap_or(0);
+            (b_tokens >= SIMILARITY_MIN_TOKENS && comparable_length(a_tokens, b_tokens))
+                .then_some((other, ratio))
+        })
+        .collect()
+}
+
+fn mutual_similar(index: &Bm25Index, tokens: &HashMap<Key, usize>, key: &Key) -> Vec<SimilarPage> {
+    let mut ranked: Vec<SimilarPage> = forward_matches(index, tokens, key)
+        .into_iter()
+        .filter_map(|(other, forward_ratio)| {
+            let back = forward_matches(index, tokens, &other);
+            back.get(key).map(|reverse_ratio| SimilarPage {
+                key: other,
+                score: forward_ratio.min(*reverse_ratio),
+            })
+        })
+        .collect();
+    ranked.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.key.cmp(&b.key))
+    });
+    ranked.truncate(SIMILAR_PAGES_CAP);
+    ranked
+}
+
+/// Whole-store graph-state findings that need no search index: orphan pages and dangling links.
+pub fn graph_findings(graph: &Graph) -> Vec<Finding> {
+    let mut findings = Vec::new();
+
+    for key in orphan_keys(graph) {
+        findings.push(Finding {
+            rule: Rule::Orphan,
+            key,
+            other: None,
+            message: "no page links here".to_string(),
+        });
+    }
+
+    for link in broken_links(graph) {
+        findings.push(Finding {
+            rule: Rule::DanglingLink,
+            message: format!("links to missing '{}'", link.target_key),
+            key: link.source_key,
+            other: Some(link.target_key),
+        });
+    }
+
+    findings
+}
+
+/// Findings after a create/update: the whole-store [`graph_findings`] plus a similar-page check run
+/// only for the authored `targets` (the index must already reflect the post-change store).
+pub fn mutation_findings(graph: &Graph, index: &Bm25Index, targets: &[Key]) -> Vec<Finding> {
+    let mut findings = graph_findings(graph);
+
+    if !targets.is_empty() {
+        let tokens = token_counts(graph);
+        for target in targets {
+            for page in mutual_similar(index, &tokens, target) {
+                findings.push(Finding {
+                    rule: Rule::SimilarPage,
+                    message: format!("closely matches '{}' ({:.2})", page.key, page.score),
+                    key: target.clone(),
+                    other: Some(page.key),
+                });
+            }
+        }
+    }
+
+    findings
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -210,6 +498,8 @@ pub struct GraphStatistics {
     pub total_references: usize,
     pub orphaned_documents: usize,
     pub orphaned_percentage: f64,
+    #[serde(serialize_with = "serialize_keys")]
+    pub orphans: Vec<Key>,
     pub leaf_documents: usize,
     pub leaf_percentage: f64,
     pub top_referenced: Vec<KeyStatistics>,
@@ -267,7 +557,7 @@ impl GraphStatistics {
             0.0
         };
 
-        Self::aggregate_statistics(
+        let mut stats = Self::aggregate_statistics(
             key_stats,
             total_nodes,
             total_paths,
@@ -275,7 +565,9 @@ impl GraphStatistics {
             max_path_depth,
             avg_path_depth,
             broken_links,
-        )
+        );
+        stats.orphans = orphan_keys(graph);
+        stats
     }
 
     fn aggregate_statistics(
@@ -317,7 +609,7 @@ impl GraphStatistics {
 
         let orphaned_documents = key_stats
             .iter()
-            .filter(|ks| ks.incoming_edges_count == 0)
+            .filter(|ks| ks.incoming_edges_count == 0 && !is_index_key(&ks.key))
             .count();
         let orphaned_percentage = if total_documents > 0 {
             (orphaned_documents as f64 / total_documents as f64) * 100.0
@@ -403,6 +695,7 @@ impl GraphStatistics {
             total_references: inclusion_edges + reference_edges,
             orphaned_documents,
             orphaned_percentage,
+            orphans: Vec::new(),
             leaf_documents,
             leaf_percentage,
             top_referenced,

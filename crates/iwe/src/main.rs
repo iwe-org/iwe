@@ -16,6 +16,8 @@ use diwe::schema::{
     explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
     validate_pending_documents,
 };
+use diwe::search_query::build_index;
+use diwe::stats::{graph_findings, mutation_findings, KeyStatisticsReport, SimilarityIndex};
 use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
@@ -513,6 +515,9 @@ enum ValidateFormat {
     after_help = help::stats::AFTER_HELP
 )]
 struct Stats {
+    #[command(subcommand)]
+    command: Option<StatsCommand>,
+
     #[clap(
         long,
         short = 'f',
@@ -528,6 +533,14 @@ struct Stats {
         help = "Document key for per-document stats. Omit for aggregate graph statistics."
     )]
     key: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+enum StatsCommand {
+    #[clap(
+        about = "List pages with near-identical, mutually-similar counterparts across the store"
+    )]
+    Similarity,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -1705,7 +1718,7 @@ fn load_graph(configuration: &Configuration) -> Graph {
 
 fn load_search_graph(configuration: &Configuration) -> (Graph, diwe::search::Bm25Index) {
     let graph = load_graph(configuration);
-    let index = diwe::search_query::build_index(&graph, configuration.search_language());
+    let index = build_index(&graph, configuration.search_language());
     (graph, index)
 }
 
@@ -1900,51 +1913,104 @@ fn gate_pending(config: &Configuration, docs: &[(Key, String)]) {
     }
 }
 
+fn apply_changes_to_graph(graph: &mut Graph, changes: &Changes) {
+    for key in &changes.removes {
+        graph.remove_document(key.clone());
+    }
+    for (key, markdown) in &changes.creates {
+        graph.insert_document(key.clone(), markdown.clone());
+    }
+    for (key, markdown) in &changes.updates {
+        graph.update_document(key.clone(), markdown.clone());
+    }
+}
+
+fn warn_stats(config: &Configuration, graph: &Graph, targets: &[Key]) {
+    let findings = if targets.is_empty() {
+        graph_findings(graph)
+    } else {
+        let index = build_index(graph, config.search_language());
+        mutation_findings(graph, &index, targets)
+    };
+    for finding in findings {
+        eprintln!("stats: {}", finding.render());
+    }
+}
+
 #[tracing::instrument(level = "debug")]
 fn stats_command(args: Stats) {
     let config = get_configuration();
     let graph = load_graph(&config);
+
+    if let Some(StatsCommand::Similarity) = args.command {
+        let similarity = SimilarityIndex::build(&graph, config.search_language());
+        for (a, b) in similarity.pairs() {
+            println!("{}\t{}", a, b);
+        }
+        return;
+    }
 
     if let Some(key_str) = args.key {
         let normalized_key = Key::name(&key_str).to_string();
         let key_stats = diwe::stats::KeyStatistics::from_graph(&graph);
         let entry = key_stats.into_iter().find(|s| s.key == normalized_key);
         match entry {
-            Some(s) => match args.format {
-                StatsFormat::Markdown => {
-                    println!("# {}\n", s.title);
-                    println!("- **Key:** {}", s.key);
-                    println!("- **Sections:** {}", s.sections);
-                    println!("- **Paragraphs:** {}", s.paragraphs);
-                    println!("- **Lines:** {}", s.lines);
-                    println!("- **Words:** {}", s.words);
-                    println!("- **Included by:** {}", s.included_by_count);
-                    println!("- **Referenced by:** {}", s.referenced_by_count);
-                    println!("- **Incoming edges:** {}", s.incoming_edges_count);
-                    println!("- **Includes:** {}", s.includes_count);
-                    println!("- **References:** {}", s.references_count);
-                    println!("- **Total edges:** {}", s.total_edges_count);
-                    println!("- **Bullet lists:** {}", s.bullet_lists);
-                    println!("- **Ordered lists:** {}", s.ordered_lists);
-                    println!("- **Code blocks:** {}", s.code_blocks);
-                    println!("- **Tables:** {}", s.tables);
-                    println!("- **Quotes:** {}", s.quotes);
+            Some(s) => {
+                let similar = if matches!(args.format, StatsFormat::Csv) {
+                    Vec::new()
+                } else {
+                    SimilarityIndex::build(&graph, config.search_language())
+                        .similar(&Key::name(&s.key))
+                };
+                match args.format {
+                    StatsFormat::Markdown => {
+                        println!("# {}\n", s.title);
+                        println!("- **Key:** {}", s.key);
+                        println!("- **Sections:** {}", s.sections);
+                        println!("- **Paragraphs:** {}", s.paragraphs);
+                        println!("- **Lines:** {}", s.lines);
+                        println!("- **Words:** {}", s.words);
+                        println!("- **Included by:** {}", s.included_by_count);
+                        println!("- **Referenced by:** {}", s.referenced_by_count);
+                        println!("- **Incoming edges:** {}", s.incoming_edges_count);
+                        println!("- **Includes:** {}", s.includes_count);
+                        println!("- **References:** {}", s.references_count);
+                        println!("- **Total edges:** {}", s.total_edges_count);
+                        println!("- **Bullet lists:** {}", s.bullet_lists);
+                        println!("- **Ordered lists:** {}", s.ordered_lists);
+                        println!("- **Code blocks:** {}", s.code_blocks);
+                        println!("- **Tables:** {}", s.tables);
+                        println!("- **Quotes:** {}", s.quotes);
+                        for page in &similar {
+                            println!("- **Similar page:** {} ({:.2})", page.key, page.score);
+                        }
+                    }
+                    StatsFormat::Csv => {
+                        let stdout = std::io::stdout();
+                        let mut csv_writer = csv::Writer::from_writer(stdout.lock());
+                        csv_writer.serialize(&s).expect("Failed to serialize stats");
+                        csv_writer.flush().expect("Failed to flush CSV");
+                    }
+                    StatsFormat::Json => {
+                        let report = KeyStatisticsReport {
+                            stats: s,
+                            similar_pages: similar,
+                        };
+                        let json = serde_json::to_string_pretty(&report)
+                            .expect("Failed to serialize stats");
+                        println!("{}", json);
+                    }
+                    StatsFormat::Yaml => {
+                        let report = KeyStatisticsReport {
+                            stats: s,
+                            similar_pages: similar,
+                        };
+                        let yaml =
+                            serde_yaml::to_string(&report).expect("Failed to serialize stats");
+                        print!("{}", yaml);
+                    }
                 }
-                StatsFormat::Csv => {
-                    let stdout = std::io::stdout();
-                    let mut csv_writer = csv::Writer::from_writer(stdout.lock());
-                    csv_writer.serialize(&s).expect("Failed to serialize stats");
-                    csv_writer.flush().expect("Failed to flush CSV");
-                }
-                StatsFormat::Json => {
-                    let json = serde_json::to_string_pretty(&s).expect("Failed to serialize stats");
-                    println!("{}", json);
-                }
-                StatsFormat::Yaml => {
-                    let yaml = serde_yaml::to_string(&s).expect("Failed to serialize stats");
-                    print!("{}", yaml);
-                }
-            },
+            }
             None => {
                 eprintln!("Error: Document '{}' not found", key_str);
                 std::process::exit(1);
@@ -2077,7 +2143,7 @@ fn delete_command(args: Delete) {
     use liwe::query::block_update::check_document_expect;
 
     let config = get_configuration();
-    let graph = load_graph(&config);
+    let mut graph = load_graph(&config);
 
     let doc_expect = args.expect.as_deref().map(parse_cli_expect);
     if args.strict && !args.dry_run && doc_expect.is_none() {
@@ -2151,6 +2217,10 @@ fn delete_command(args: Delete) {
             gate_pending(&config, &pending_from_changes(&combined));
         }
         apply_changes(&combined, &config);
+        if args.strict {
+            apply_changes_to_graph(&mut graph, &combined);
+            warn_stats(&config, &graph, &[]);
+        }
         if !args.quiet && !keys_mode {
             println!("Updated {} document(s)", combined.updates.len());
         }
@@ -2525,7 +2595,7 @@ fn split_raw_frontmatter(content: &str) -> (Option<&str>, &str) {
 
 fn update_body(args: Update) {
     let config = get_configuration();
-    let graph = load_graph(&config);
+    let mut graph = load_graph(&config);
 
     let key_str = match args.key.as_slice() {
         [single] => single.clone(),
@@ -2588,6 +2658,11 @@ fn update_body(args: Update) {
 
     std::fs::write(&file_path, &output).expect("Failed to write document file");
 
+    if args.strict {
+        graph.update_document(key.clone(), output.clone());
+        warn_stats(&config, &graph, std::slice::from_ref(&key));
+    }
+
     if !args.quiet {
         println!("Updated '{}'", key_str);
     }
@@ -2600,7 +2675,7 @@ fn update_mutation(args: Update) {
     use serde_yaml::{Mapping, Value};
 
     let config = get_configuration();
-    let graph = load_graph(&config);
+    let mut graph = load_graph(&config);
 
     let mut conjuncts: Vec<Filter> = Vec::new();
     let parsed_filter = args.filter.as_ref().map(|expr| {
@@ -2732,6 +2807,15 @@ fn update_mutation(args: Update) {
     }
 
     let (matched, changed) = write_changed_documents(&library_path, ext, &docs, args.dry_run);
+
+    if args.strict && !args.dry_run {
+        let targets: Vec<Key> = docs.iter().map(|(key, _)| key.clone()).collect();
+        for (key, content) in &docs {
+            graph.update_document(key.clone(), content.clone());
+        }
+        warn_stats(&config, &graph, &targets);
+    }
+
     report_mutation(args.quiet, args.dry_run, matched, changed);
 }
 

@@ -85,6 +85,15 @@
 {% endfor %}
 {%- endif %}
 
+{%- if orphans %}
+
+## Orphans
+
+{% for key in orphans -%}
+- {{ key }}
+{% endfor %}
+{%- endif %}
+
 ## Network Analysis
 
 - **Average references/doc:** {{ avgRefsPerDoc|round(2) }}

@@ -6,6 +6,7 @@ Generates comprehensive statistics about your knowledge graph.
 
 ``` bash
 iwe stats [OPTIONS]
+iwe stats similarity
 ```
 
 ## Options
@@ -15,6 +16,10 @@ iwe stats [OPTIONS]
   - `csv`: Machine-readable CSV format with per-document statistics
   - `json`: JSON output (aggregate stats only; ignored when `-k` is given — per-key stats always serialize as JSON)
 - `-k, --key <KEY>`: Document key for per-document statistics (always JSON output). Omit for aggregate graph statistics.
+
+## Subcommands
+
+- `similarity`: list pages that have a near-identical, mutually-similar counterpart elsewhere in the store (see [Detecting similar pages](#detecting-similar-pages)).
 
 ## What it shows
 
@@ -60,10 +65,33 @@ The stats command provides detailed analytics across multiple dimensions:
 - Maximum and average path depth
 - Counts of bullet lists, ordered lists, code blocks, tables, and quotes
 
+### Orphans
+
+- A list of every document with no incoming references (inclusion or inline), by key. `index` pages (the root `index` or any `<dir>/index`) are treated as intentional entry points and are never reported as orphans. The markdown, JSON, and YAML outputs carry this list; the aggregate count also appears under Reference Statistics.
+
 ### Network Analysis
 
 - Average references per document
 - Top 10 most connected documents (by total incoming + outgoing references)
+
+### Per-document Similar pages
+
+When you pass `-k <KEY>`, the output also lists **similar pages** — other documents whose content is near-identical to this one (see [Detecting similar pages](#detecting-similar-pages) for how the match is decided). The markdown output appends a `- **Similar page:** <key> (<score>)` line per match; the JSON/YAML output carries a `similarPages` array of `{ key, score }`.
+
+## Detecting similar pages
+
+`iwe stats similarity` scans the whole store and reports pages that duplicate one another. A page is only reported when the match is a genuine duplicate, not merely a related page:
+
+- **Mutual.** The similarity must hold in both directions — the two pages must each be mostly made of the other's content. This rules out a short page that is wholly contained in a longer one.
+- **Comparable size.** Both pages must be at least ~50 tokens and within ~2× the length of each other. Real duplicates are the same content, so they are the same size.
+- **Near-identical.** The bar is set high (a self-normalized BM25 score of at least `0.85`), so the same page saved under two keys is caught while related-but-distinct pages are not.
+
+Forward matches are computed once per page and run concurrently, so the scan stays fast on large stores. Output lists each mutually-similar pair once, tab-separated, in alphabetical order:
+
+``` text
+people/ada-and-kai	people/kai-and-ada
+notes/2019-budget	notes/2019-budget-copy
+```
 
 ## Examples
 

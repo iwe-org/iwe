@@ -120,6 +120,18 @@ impl Bm25Index {
             .collect()
     }
 
+    pub fn scores_for_key(&self, key: &Key) -> HashMap<Key, f32> {
+        match self.embeddings.get(key) {
+            Some(embedding) => self
+                .scorer
+                .matches(embedding)
+                .into_iter()
+                .map(|scored| (scored.id, scored.score))
+                .collect(),
+            None => HashMap::new(),
+        }
+    }
+
     fn insert(&mut self, key: Key, embedding: Embedding<u32>) {
         self.scorer.upsert(&key, embedding.clone());
         self.embeddings.insert(key, embedding);

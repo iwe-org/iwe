@@ -54,6 +54,18 @@ The MCP server exposes 14 tools for reading, writing, querying, and refactoring 
 
 `iwe_create` derives the document key from the title (slugified) unless you pass an explicit `key`. Give a `key` when the identity is a stable value drawn from metadata (an entity name, a session date) rather than the title wording; subdirectory keys such as `people/ada` are allowed; omit the file extension. Creation always fails if the key already exists.
 
+#### Stats warnings
+
+A successful `iwe_create`, `iwe_update`, or `iwe_query` (`update` / `delete`) may carry **stats warnings** alongside its result — one warning content block per finding, of the form `<key> › <rule>: <message>`:
+
+- **orphan** — a page nothing links to (no inclusion or inline reference points at it). `index` pages (root `index` or any `<dir>/index`) are intentional entry points and are never reported as orphans.
+- **dangling-link** — a link whose target document does not exist.
+- **similar-page** — a just-authored page that is near-identical to another (only on `create` / `update`; see [Detecting similar pages](cli-stats.md#detecting-similar-pages)).
+
+These warnings are **advisory** — nothing is ever blocked by them (schema validation remains the only hard reject). Each finding is reported **once per session**, so the first mutation surfaces the store's standing issues and later calls surface only what changed. Resolve reported warnings before ending the session; each carries the fix in its message.
+
+The per-document `iwe_stats` result (call `iwe_stats` with a `key`) also carries a `similarPages` array — other documents near-identical to that page.
+
 ### Query
 
 | Tool        | Description                                                          |
