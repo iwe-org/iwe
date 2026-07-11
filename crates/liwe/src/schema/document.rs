@@ -31,7 +31,6 @@ pub struct Block {
     pub text_tokens: usize,
     pub subtree_tokens: usize,
     pub lang: Option<String>,
-    pub target: Option<String>,
     pub items: Vec<Item>,
     pub blocks: Vec<Block>,
 }
@@ -52,7 +51,6 @@ pub enum BlockKind {
     Code,
     Quote,
     Table,
-    Ref,
     Rule,
 }
 
@@ -160,10 +158,6 @@ fn build_block(
         Node::Raw(lang, _) => lang.clone(),
         _ => None,
     };
-    let target = match &node {
-        Node::Reference(reference) => Some(reference.key.to_string()),
-        _ => None,
-    };
 
     let items = match kind {
         BlockKind::BulletList | BlockKind::OrderedList => build_items(graph, key, id, count),
@@ -180,7 +174,6 @@ fn build_block(
         text_tokens,
         subtree_tokens,
         lang,
-        target,
         items,
         blocks,
     }
@@ -222,7 +215,7 @@ fn block_kind(node: &Node) -> BlockKind {
         Node::Raw(_, _) => BlockKind::Code,
         Node::Quote() => BlockKind::Quote,
         Node::Table(_) => BlockKind::Table,
-        Node::Reference(_) => BlockKind::Ref,
+        Node::Reference(_) => BlockKind::Paragraph,
         Node::HorizontalRule() => BlockKind::Rule,
         Node::Document(_, _) | Node::Section(_) | Node::Item(_, _) => BlockKind::Paragraph,
     }
@@ -313,7 +306,6 @@ mod tests {
                             text_tokens: 0,
                             subtree_tokens: 0,
                             lang: None,
-                            target: None,
                             items: vec![],
                             blocks: vec![],
                         }],
@@ -353,7 +345,6 @@ mod tests {
             text_tokens: 0,
             subtree_tokens: 0,
             lang: None,
-            target: None,
             items: vec![],
             blocks: vec![],
         }
@@ -409,10 +400,7 @@ mod tests {
                             ..block(BlockKind::Quote, "")
                         },
                         block(BlockKind::Table, "H c"),
-                        Block {
-                            target: Some("other".to_string()),
-                            ..block(BlockKind::Ref, "link")
-                        },
+                        block(BlockKind::Paragraph, "link"),
                         block(BlockKind::Rule, ""),
                     ],
                     vec![section(

@@ -90,35 +90,42 @@ fn walk<'a>(
     descs: &[Option<&'a str>],
     out: &mut Vec<Violation>,
 ) {
-    let mut pointer = 0;
-    let mut binds: Vec<Option<usize>> = Vec::with_capacity(sections.len());
+    let binds = bind_sections(entries, sections);
     let mut counts = vec![0usize; entries.len()];
-    for section in sections {
-        let mut matched = None;
-        let mut candidate = pointer;
-        while candidate < entries.len() {
-            if entry_identity_matches(&entries[candidate], &section.header) {
-                matched = Some(candidate);
-                break;
+    for entry in binds.iter().flatten() {
+        counts[*entry] += 1;
+    }
+
+    let deny_additional = matches!(additional, CompiledAdditional::Deny { .. });
+    let mut out_of_order: Vec<Option<usize>> = vec![None; sections.len()];
+    let mut suppressed = vec![false; entries.len()];
+    if deny_additional {
+        for (index, section) in sections.iter().enumerate() {
+            if binds[index].is_none() {
+                if let Some(entry) = entries
+                    .iter()
+                    .position(|entry| entry_identity_matches(entry, &section.header))
+                {
+                    out_of_order[index] = Some(entry);
+                    suppressed[entry] = true;
+                }
             }
-            candidate += 1;
-        }
-        if let Some(entry) = matched {
-            pointer = entry;
-            counts[entry] += 1;
-            binds.push(Some(entry));
-        } else {
-            binds.push(None);
         }
     }
 
     for (index, entry) in entries.iter().enumerate() {
         let count = counts[index];
-        if count < entry.min_contains {
+        if count < entry.min_contains && !suppressed[index] {
             out.push(violation(
                 crumbs,
                 format!("required section {} missing", entry_name(entry, index)),
-                hint(&[entry.description.as_deref()], descs),
+                hint(
+                    &[
+                        header_description(&entry.header),
+                        entry.description.as_deref(),
+                    ],
+                    descs,
+                ),
                 format!("{}/minContains", entry.pointer),
                 "minContains",
             ));
@@ -220,9 +227,14 @@ fn walk<'a>(
                 match additional {
                     CompiledAdditional::Allow => {}
                     CompiledAdditional::Deny { pointer } => {
+                        let message = if out_of_order[index].is_some() {
+                            "section is out of order".to_string()
+                        } else {
+                            "unexpected section".to_string()
+                        };
                         out.push(violation(
                             &child_crumbs,
-                            "unexpected section".to_string(),
+                            message,
                             hint(&[], descs),
                             pointer.clone(),
                             "additionalSections",
@@ -310,35 +322,42 @@ fn walk_blocks<'a>(
     descs: &[Option<&'a str>],
     out: &mut Vec<Violation>,
 ) {
-    let mut pointer = 0;
-    let mut binds: Vec<Option<usize>> = Vec::with_capacity(blocks.len());
+    let binds = bind_blocks(entries, blocks);
     let mut counts = vec![0usize; entries.len()];
-    for block in blocks {
-        let mut matched = None;
-        let mut candidate = pointer;
-        while candidate < entries.len() {
-            if block_identity_matches(&entries[candidate], block) {
-                matched = Some(candidate);
-                break;
+    for entry in binds.iter().flatten() {
+        counts[*entry] += 1;
+    }
+
+    let deny_additional = matches!(additional, CompiledBlockAdditional::Deny { .. });
+    let mut out_of_order: Vec<Option<usize>> = vec![None; blocks.len()];
+    let mut suppressed = vec![false; entries.len()];
+    if deny_additional {
+        for (index, block) in blocks.iter().enumerate() {
+            if binds[index].is_none() {
+                if let Some(entry) = entries
+                    .iter()
+                    .position(|entry| block_identity_matches(entry, block))
+                {
+                    out_of_order[index] = Some(entry);
+                    suppressed[entry] = true;
+                }
             }
-            candidate += 1;
-        }
-        if let Some(entry) = matched {
-            pointer = entry;
-            counts[entry] += 1;
-            binds.push(Some(entry));
-        } else {
-            binds.push(None);
         }
     }
 
     for (index, entry) in entries.iter().enumerate() {
         let count = counts[index];
-        if count < entry.min_contains {
+        if count < entry.min_contains && !suppressed[index] {
             out.push(violation(
                 crumbs,
                 format!("required block {} missing", block_entry_name(entry, index)),
-                hint(&[entry.description.as_deref()], descs),
+                hint(
+                    &[
+                        block_text_description(&entry.text),
+                        entry.description.as_deref(),
+                    ],
+                    descs,
+                ),
                 format!("{}/minContains", entry.pointer),
                 "minContains",
             ));
@@ -381,9 +400,14 @@ fn walk_blocks<'a>(
             None => match additional {
                 CompiledBlockAdditional::Allow => {}
                 CompiledBlockAdditional::Deny { pointer } => {
+                    let message = if out_of_order[index].is_some() {
+                        "block is out of order".to_string()
+                    } else {
+                        "unexpected block".to_string()
+                    };
                     out.push(violation(
                         &child_crumbs,
-                        "unexpected block".to_string(),
+                        message,
                         hint(&[], descs),
                         pointer.clone(),
                         "additionalBlocks",
@@ -443,19 +467,6 @@ fn check_bound_block<'a>(
             lang,
             "lang",
             block.lang.as_deref().unwrap_or(""),
-            None,
-            false,
-            entry.description.as_deref(),
-            descs,
-            crumbs,
-            out,
-        );
-    }
-    if let Some(target) = &entry.target {
-        check_text(
-            target,
-            "target",
-            block.target.as_deref().unwrap_or(""),
             None,
             false,
             entry.description.as_deref(),
@@ -626,8 +637,8 @@ fn apply_reduced_block<'a>(
 }
 
 fn block_identity_matches(entry: &CompiledBlock, block: &Block) -> bool {
-    if let Some(kind) = entry.kind {
-        if kind != block.kind {
+    if let Some(kinds) = &entry.kinds {
+        if !kinds.contains(&block.kind) {
             return false;
         }
     }
@@ -638,11 +649,6 @@ fn block_identity_matches(entry: &CompiledBlock, block: &Block) -> bool {
     }
     if let Some(lang) = &entry.lang {
         if !header_identity_matches(lang, block.lang.as_deref().unwrap_or("")) {
-            return false;
-        }
-    }
-    if let Some(target) = &entry.target {
-        if !header_identity_matches(target, block.target.as_deref().unwrap_or("")) {
             return false;
         }
     }
@@ -661,8 +667,18 @@ fn block_entry_name(entry: &CompiledBlock, index: usize) -> String {
             return format!("matching '{}'", pattern.as_str());
         }
     }
-    if let Some(kind) = entry.kind {
-        return block_kind_name(kind).to_string();
+    if let Some(kinds) = &entry.kinds {
+        if let [kind] = kinds.as_slice() {
+            return block_kind_name(*kind).to_string();
+        }
+        return format!(
+            "one of {}",
+            kinds
+                .iter()
+                .map(|kind| block_kind_name(*kind))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
     }
     format!("at position {index}")
 }
@@ -675,7 +691,6 @@ fn block_kind_name(kind: BlockKind) -> &'static str {
         BlockKind::Code => "code",
         BlockKind::Quote => "quote",
         BlockKind::Table => "table",
-        BlockKind::Ref => "ref",
         BlockKind::Rule => "rule",
     }
 }
@@ -804,11 +819,63 @@ fn report_deep(
     }
 }
 
+fn bind_sections(entries: &[CompiledSection], sections: &[Section]) -> Vec<Option<usize>> {
+    let mut pointer = 0;
+    let mut binds = Vec::with_capacity(sections.len());
+    for section in sections {
+        let mut matched = None;
+        let mut candidate = pointer;
+        while candidate < entries.len() {
+            if entry_identity_matches(&entries[candidate], &section.header) {
+                matched = Some(candidate);
+                break;
+            }
+            candidate += 1;
+        }
+        if let Some(entry) = matched {
+            pointer = entry;
+        }
+        binds.push(matched);
+    }
+    binds
+}
+
+fn bind_blocks(entries: &[CompiledBlock], blocks: &[Block]) -> Vec<Option<usize>> {
+    let mut pointer = 0;
+    let mut binds = Vec::with_capacity(blocks.len());
+    for block in blocks {
+        let mut matched = None;
+        let mut candidate = pointer;
+        while candidate < entries.len() {
+            if block_identity_matches(&entries[candidate], block) {
+                matched = Some(candidate);
+                break;
+            }
+            candidate += 1;
+        }
+        if let Some(entry) = matched {
+            pointer = entry;
+        }
+        binds.push(matched);
+    }
+    binds
+}
+
 fn entry_identity_matches(entry: &CompiledSection, text: &str) -> bool {
     match &entry.header {
         None => true,
         Some(header) => header_identity_matches(header, text),
     }
+}
+
+fn header_description(header: &Option<CompiledHeader>) -> Option<&str> {
+    header
+        .as_ref()
+        .and_then(|header| header.description.as_deref())
+}
+
+fn block_text_description(text: &Option<CompiledHeader>) -> Option<&str> {
+    text.as_ref().and_then(|text| text.description.as_deref())
 }
 
 fn header_identity_matches(header: &CompiledHeader, text: &str) -> bool {
@@ -928,6 +995,69 @@ fn last_segment(schema_path: &str) -> String {
         .to_string()
 }
 
+impl CompiledSchema {
+    pub fn explain(&self, document: &Document) -> String {
+        let mut out = String::new();
+        explain_blocks(&self.blocks, &document.blocks, 0, &mut out);
+        explain_sections(&self.sections, &document.sections, 0, &mut out);
+        if out.is_empty() {
+            out.push_str("(no matched content)\n");
+        }
+        out
+    }
+}
+
+fn explain_sections(
+    entries: &[CompiledSection],
+    sections: &[Section],
+    depth: usize,
+    out: &mut String,
+) {
+    let binds = bind_sections(entries, sections);
+    for (index, section) in sections.iter().enumerate() {
+        let indent = "  ".repeat(depth);
+        let (label, entry) = match binds[index] {
+            Some(entry) => (format!("sections[{entry}]"), Some(&entries[entry])),
+            None => ("additional".to_string(), None),
+        };
+        out.push_str(&format!("{indent}# {}  ->  {label}\n", section.header));
+        let (child_blocks, child_sections): (&[CompiledBlock], &[CompiledSection]) = match entry {
+            Some(entry) => (&entry.blocks, &entry.sections),
+            None => (&[], &[]),
+        };
+        explain_blocks(child_blocks, &section.blocks, depth + 1, out);
+        explain_sections(child_sections, &section.sections, depth + 1, out);
+    }
+}
+
+fn explain_blocks(entries: &[CompiledBlock], blocks: &[Block], depth: usize, out: &mut String) {
+    let binds = bind_blocks(entries, blocks);
+    for (index, block) in blocks.iter().enumerate() {
+        let indent = "  ".repeat(depth);
+        let (label, entry) = match binds[index] {
+            Some(entry) => (format!("blocks[{entry}]"), Some(&entries[entry])),
+            None => ("additional".to_string(), None),
+        };
+        out.push_str(&format!("{indent}{}  ->  {label}\n", block_label(block)));
+        if block.kind == BlockKind::Quote {
+            let child = entry.map(|entry| entry.blocks.as_slice()).unwrap_or(&[]);
+            explain_blocks(child, &block.blocks, depth + 1, out);
+        }
+    }
+}
+
+fn block_label(block: &Block) -> String {
+    let kind = block_kind_name(block.kind);
+    let text = block.text.trim();
+    if text.is_empty() {
+        kind.to_string()
+    } else {
+        let preview: String = text.chars().take(40).collect();
+        let suffix = if text.chars().count() > 40 { "..." } else { "" };
+        format!("{kind} \"{preview}{suffix}\"")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -943,7 +1073,6 @@ mod tests {
             text_tokens: 0,
             subtree_tokens: 0,
             lang: None,
-            target: None,
             items: vec![],
             blocks: vec![],
         }
@@ -1182,22 +1311,23 @@ sections:
     }
 
     #[test]
-    fn greedy_wildcard_absorbs_later_match() {
+    fn explain_traces_block_and_section_bindings() {
         let schema = "\
+blocks:
+  - type: paragraph
 sections:
-  - {}
-  - header: { const: Last }
+  - header: { const: Intro }
 ";
-        let document = document(vec![leaf("A", 1), leaf("Last", 1)]);
+        let document = Document {
+            frontmatter: json!({}),
+            body_tokens: 0,
+            blocks: vec![blk(BlockKind::Paragraph, "lead")],
+            sections: vec![leaf("Intro", 1), leaf("Extra", 1)],
+        };
+        let compiled = compile_schema(schema).unwrap();
         assert_eq!(
-            validate(schema, &document),
-            vec![violation(
-                vec![],
-                "required section 'Last' missing",
-                None,
-                "/sections/1/minContains",
-                "minContains",
-            )]
+            compiled.explain(&document),
+            "paragraph \"lead\"  ->  blocks[0]\n# Intro  ->  sections[0]\n# Extra  ->  additional\n"
         );
     }
 
@@ -1218,6 +1348,46 @@ additionalSections: true
                 None,
                 "/sections/0/minContains",
                 "minContains",
+            )]
+        );
+    }
+
+    #[test]
+    fn header_description_hints_a_missing_section() {
+        let schema = "\
+sections:
+  - header: { const: Summary, description: open with a summary }
+";
+        let document = document(vec![leaf("Other", 1)]);
+        assert_eq!(
+            validate(schema, &document),
+            vec![violation(
+                vec![],
+                "required section 'Summary' missing",
+                Some("open with a summary"),
+                "/sections/0/minContains",
+                "minContains",
+            )]
+        );
+    }
+
+    #[test]
+    fn out_of_order_section_reports_once_under_deny() {
+        let schema = "\
+sections:
+  - header: { const: A }
+  - header: { const: B }
+additionalSections: false
+";
+        let document = document(vec![leaf("B", 1), leaf("A", 1)]);
+        assert_eq!(
+            validate(schema, &document),
+            vec![violation(
+                vec![header_crumb("A")],
+                "section is out of order",
+                None,
+                "/additionalSections",
+                "additionalSections",
             )]
         );
     }
@@ -1377,6 +1547,84 @@ additionalBlocks: false
     }
 
     #[test]
+    fn text_description_hints_a_missing_block() {
+        let schema = "\
+blocks:
+  - type: paragraph
+    text: { const: Intro, description: lead with intro }
+";
+        let document = block_document(vec![blk(BlockKind::Paragraph, "Other")]);
+        assert_eq!(
+            validate(schema, &document),
+            vec![violation(
+                vec![],
+                "required block 'Intro' missing",
+                Some("lead with intro"),
+                "/blocks/0/minContains",
+                "minContains",
+            )]
+        );
+    }
+
+    #[test]
+    fn out_of_order_block_reports_once_under_deny() {
+        let schema = "\
+blocks:
+  - type: paragraph
+  - type: code
+additionalBlocks: false
+";
+        let document = block_document(vec![
+            blk(BlockKind::Code, "body"),
+            blk(BlockKind::Paragraph, "lead"),
+        ]);
+        assert_eq!(
+            validate(schema, &document),
+            vec![violation(
+                vec![block_crumb(1)],
+                "block is out of order",
+                None,
+                "/additionalBlocks",
+                "additionalBlocks",
+            )]
+        );
+    }
+
+    #[test]
+    fn type_union_binds_either_listed_kind() {
+        let schema = "\
+blocks:
+  - type: [bullet-list, ordered-list]
+    maxContains: 2
+additionalBlocks: false
+";
+        let document = block_document(vec![
+            blk(BlockKind::BulletList, ""),
+            blk(BlockKind::OrderedList, ""),
+        ]);
+        assert_eq!(validate(schema, &document), vec![]);
+    }
+
+    #[test]
+    fn type_union_names_the_disjunction_in_missing() {
+        let schema = "\
+blocks:
+  - type: [bullet-list, ordered-list]
+";
+        let document = block_document(vec![blk(BlockKind::Code, "body")]);
+        assert_eq!(
+            validate(schema, &document),
+            vec![violation(
+                vec![],
+                "required block one of bullet-list, ordered-list missing",
+                None,
+                "/blocks/0/minContains",
+                "minContains",
+            )]
+        );
+    }
+
+    #[test]
     fn binding_by_text_const_names_the_missing_entry() {
         let schema = "\
 blocks:
@@ -1391,29 +1639,6 @@ blocks:
                 "required block 'Intro' missing",
                 None,
                 "/blocks/0/minContains",
-                "minContains",
-            )]
-        );
-    }
-
-    #[test]
-    fn duplicate_identity_second_entry_is_dead() {
-        let schema = "\
-blocks:
-  - type: paragraph
-  - type: paragraph
-";
-        let document = block_document(vec![
-            blk(BlockKind::Paragraph, "a"),
-            blk(BlockKind::Paragraph, "b"),
-        ]);
-        assert_eq!(
-            validate(schema, &document),
-            vec![violation(
-                vec![],
-                "required block paragraph missing",
-                None,
-                "/blocks/1/minContains",
                 "minContains",
             )]
         );
@@ -1627,39 +1852,6 @@ additionalBlocks: false
                 violation(
                     vec![],
                     "required block code missing",
-                    None,
-                    "/blocks/0/minContains",
-                    "minContains",
-                ),
-                violation(
-                    vec![block_crumb(0)],
-                    "unexpected block",
-                    None,
-                    "/additionalBlocks",
-                    "additionalBlocks",
-                ),
-            ]
-        );
-    }
-
-    #[test]
-    fn target_participates_in_binding_identity() {
-        let schema = "\
-blocks:
-  - type: ref
-    target: { pattern: \"^people/\" }
-additionalBlocks: false
-";
-        let document = block_document(vec![Block {
-            target: Some("teams/core".to_string()),
-            ..blk(BlockKind::Ref, "Core team")
-        }]);
-        assert_eq!(
-            validate(schema, &document),
-            vec![
-                violation(
-                    vec![],
-                    "required block ref missing",
                     None,
                     "/blocks/0/minContains",
                     "minContains",

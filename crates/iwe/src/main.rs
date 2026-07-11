@@ -12,7 +12,10 @@ use itertools::Itertools;
 
 use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
 use diwe::graph_from_path;
-use diwe::schema::{pending_from_changes, render_reports_text, validate_pending_documents};
+use diwe::schema::{
+    explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
+    validate_pending_documents,
+};
 use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
@@ -479,6 +482,12 @@ struct SchemaValidate {
         help = "Validate the selected documents against this schema file directly, bypassing the [schemas] config bindings"
     )]
     schema_file: Option<PathBuf>,
+
+    #[clap(
+        long,
+        help = "Print the binding trace (which section/block bound to which schema entry) instead of validating"
+    )]
+    explain: bool,
 
     #[clap(flatten)]
     selector: FilterArgs,
@@ -1826,6 +1835,23 @@ fn schema_validate_command(args: SchemaValidate) {
             k
         }
     };
+
+    if args.explain {
+        let result = match &args.schema_file {
+            Some(path) => explain_documents_against_file(&graph, &keys, path),
+            None => explain_documents(&config, &graph, &keys),
+        };
+        match result {
+            Ok(trace) => print!("{}", trace),
+            Err(errors) => {
+                for error in errors {
+                    eprintln!("error: {}", error);
+                }
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
 
     let result = match &args.schema_file {
         Some(path) => diwe::schema::validate_documents_against_file(&graph, &keys, path),

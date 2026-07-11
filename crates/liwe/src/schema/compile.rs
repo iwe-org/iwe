@@ -5,7 +5,7 @@ use serde_yaml::Mapping;
 
 use crate::schema::dialect::{
     parse_dialect, AdditionalBlocks, AdditionalSections, BlockSchema, DocumentSchema, HeaderSchema,
-    ItemSchema, ReducedBlock, ReducedSection, SectionSchema,
+    ItemSchema, ReducedBlock, ReducedSection, SectionSchema, TypeSpec,
 };
 use crate::schema::document::BlockKind;
 
@@ -25,7 +25,6 @@ const REDUCED_BLOCK_FORBIDDEN: &[&str] = &[
     "type",
     "lang",
     "items",
-    "target",
     "blocks",
     "additionalBlocks",
     "allBlocks",
@@ -72,14 +71,13 @@ struct CompiledSection {
 }
 
 struct CompiledBlock {
-    kind: Option<BlockKind>,
+    kinds: Option<Vec<BlockKind>>,
     text: Option<CompiledHeader>,
     max_tokens: Option<usize>,
     min_contains: usize,
     max_contains: Option<usize>,
     description: Option<String>,
     lang: Option<CompiledHeader>,
-    target: Option<CompiledHeader>,
     items: Option<Box<CompiledItem>>,
     min_items: Option<usize>,
     max_items: Option<usize>,
@@ -219,14 +217,16 @@ fn compile_sections(
     parent: &str,
     errors: &mut Vec<SchemaError>,
 ) -> Vec<CompiledSection> {
-    sections
+    let compiled: Vec<CompiledSection> = sections
         .iter()
         .enumerate()
         .map(|(index, section)| {
             let pointer = format!("{parent}/sections/{index}");
             compile_section(section, pointer, errors)
         })
-        .collect()
+        .collect();
+    check_section_reachability(&compiled, errors);
+    compiled
 }
 
 fn compile_section(
@@ -284,11 +284,13 @@ fn compile_blocks(
     parent: &str,
     errors: &mut Vec<SchemaError>,
 ) -> Vec<CompiledBlock> {
-    blocks
+    let compiled: Vec<CompiledBlock> = blocks
         .iter()
         .enumerate()
         .map(|(index, block)| compile_block(block, format!("{parent}/blocks/{index}"), errors))
-        .collect()
+        .collect();
+    check_block_reachability(&compiled, errors);
+    compiled
 }
 
 fn compile_block(
@@ -298,40 +300,31 @@ fn compile_block(
 ) -> CompiledBlock {
     check_extra(&block.extra, &pointer, Context::Full, errors);
 
-    let kind = compile_block_kind(block.r#type.as_deref(), &pointer, errors);
+    let kinds = compile_block_kinds(block.r#type.as_ref(), &pointer, errors);
 
-    let is_list = matches!(
-        kind,
-        Some(BlockKind::BulletList) | Some(BlockKind::OrderedList)
-    );
-    let is_quote = kind == Some(BlockKind::Quote);
-
-    if block.lang.is_some() && kind != Some(BlockKind::Code) {
+    if block.lang.is_some() && !kinds_all(&kinds, |kind| kind == BlockKind::Code) {
         errors.push(applicability_error(&pointer, "lang", "type: code"));
     }
-    if block.items.is_some() && !is_list {
+    if block.items.is_some() && !kinds_all(&kinds, is_list_kind) {
         errors.push(applicability_error(&pointer, "items", "a list type"));
     }
-    if block.min_items.is_some() && !is_list {
+    if block.min_items.is_some() && !kinds_all(&kinds, is_list_kind) {
         errors.push(applicability_error(&pointer, "minItems", "a list type"));
     }
-    if block.max_items.is_some() && !is_list {
+    if block.max_items.is_some() && !kinds_all(&kinds, is_list_kind) {
         errors.push(applicability_error(&pointer, "maxItems", "a list type"));
     }
-    if block.target.is_some() && kind != Some(BlockKind::Ref) {
-        errors.push(applicability_error(&pointer, "target", "type: ref"));
-    }
-    if !block.blocks.is_empty() && !is_quote {
+    if !block.blocks.is_empty() && !kinds_all(&kinds, |kind| kind == BlockKind::Quote) {
         errors.push(applicability_error(&pointer, "blocks", "type: quote"));
     }
-    if block.additional_blocks.is_some() && !is_quote {
+    if block.additional_blocks.is_some() && !kinds_all(&kinds, |kind| kind == BlockKind::Quote) {
         errors.push(applicability_error(
             &pointer,
             "additionalBlocks",
             "type: quote",
         ));
     }
-    if block.all_blocks.is_some() && !is_quote {
+    if block.all_blocks.is_some() && !kinds_all(&kinds, |kind| kind == BlockKind::Quote) {
         errors.push(applicability_error(&pointer, "allBlocks", "type: quote"));
     }
 
@@ -343,10 +336,6 @@ fn compile_block(
         .lang
         .as_ref()
         .map(|header| compile_header(header, format!("{pointer}/lang"), errors));
-    let target = block
-        .target
-        .as_ref()
-        .map(|header| compile_header(header, format!("{pointer}/target"), errors));
 
     let (min_contains, max_contains) =
         compile_counts(block.min_contains, block.max_contains, &pointer, errors);
@@ -367,14 +356,13 @@ fn compile_block(
         .map(|reduced| compile_reduced_block(reduced, &format!("{pointer}/allBlocks"), errors));
 
     CompiledBlock {
-        kind,
+        kinds,
         text,
         max_tokens: block.max_tokens,
         min_contains,
         max_contains,
         description: block.description.clone(),
         lang,
-        target,
         items,
         min_items,
         max_items,
@@ -447,12 +435,45 @@ fn compile_block_additional(
     }
 }
 
-fn compile_block_kind(
-    name: Option<&str>,
+fn compile_block_kinds(
+    spec: Option<&TypeSpec>,
     pointer: &str,
     errors: &mut Vec<SchemaError>,
-) -> Option<BlockKind> {
-    let name = name?;
+) -> Option<Vec<BlockKind>> {
+    let names: Vec<&str> = match spec? {
+        TypeSpec::One(name) => vec![name.as_str()],
+        TypeSpec::Many(list) => {
+            if list.is_empty() {
+                errors.push(SchemaError {
+                    pointer: format!("{pointer}/type"),
+                    message: "type list must not be empty".to_string(),
+                });
+                return None;
+            }
+            list.iter().map(String::as_str).collect()
+        }
+    };
+
+    let mut kinds = Vec::new();
+    for name in names {
+        match block_kind_from_name(name) {
+            Some(kind) if !kinds.contains(&kind) => kinds.push(kind),
+            Some(_) => {}
+            None => errors.push(SchemaError {
+                pointer: format!("{pointer}/type"),
+                message: format!("unknown block type '{name}'"),
+            }),
+        }
+    }
+
+    if kinds.is_empty() {
+        None
+    } else {
+        Some(kinds)
+    }
+}
+
+fn block_kind_from_name(name: &str) -> Option<BlockKind> {
     match name {
         "paragraph" => Some(BlockKind::Paragraph),
         "bullet-list" => Some(BlockKind::BulletList),
@@ -460,15 +481,134 @@ fn compile_block_kind(
         "code" => Some(BlockKind::Code),
         "quote" => Some(BlockKind::Quote),
         "table" => Some(BlockKind::Table),
-        "ref" => Some(BlockKind::Ref),
         "rule" => Some(BlockKind::Rule),
-        other => {
-            errors.push(SchemaError {
-                pointer: format!("{pointer}/type"),
-                message: format!("unknown block type '{other}'"),
-            });
-            None
+        _ => None,
+    }
+}
+
+fn is_list_kind(kind: BlockKind) -> bool {
+    matches!(kind, BlockKind::BulletList | BlockKind::OrderedList)
+}
+
+fn kinds_all(kinds: &Option<Vec<BlockKind>>, predicate: impl Fn(BlockKind) -> bool) -> bool {
+    match kinds {
+        Some(list) => list.iter().all(|kind| predicate(*kind)),
+        None => false,
+    }
+}
+
+type HeaderIdentity = (Option<String>, Option<String>, Option<Vec<String>>);
+
+fn header_has_identity(header: &CompiledHeader) -> bool {
+    header.pattern.is_some() || header.konst.is_some() || header.choices.is_some()
+}
+
+fn header_identity(header: &CompiledHeader) -> HeaderIdentity {
+    (
+        header
+            .pattern
+            .as_ref()
+            .map(|regex| regex.as_str().to_string()),
+        header.konst.clone(),
+        header.choices.clone(),
+    )
+}
+
+fn is_section_wildcard(entry: &CompiledSection) -> bool {
+    entry
+        .header
+        .as_ref()
+        .is_none_or(|header| !header_has_identity(header))
+}
+
+fn is_block_wildcard(entry: &CompiledBlock) -> bool {
+    let text_wild = |header: &Option<CompiledHeader>| {
+        header
+            .as_ref()
+            .is_none_or(|header| !header_has_identity(header))
+    };
+    entry.kinds.is_none() && text_wild(&entry.text) && text_wild(&entry.lang)
+}
+
+fn section_identity(entry: &CompiledSection) -> Option<HeaderIdentity> {
+    entry.header.as_ref().map(header_identity)
+}
+
+fn block_identity(
+    entry: &CompiledBlock,
+) -> (
+    Option<Vec<BlockKind>>,
+    Option<HeaderIdentity>,
+    Option<HeaderIdentity>,
+) {
+    (
+        entry.kinds.clone(),
+        entry.text.as_ref().map(header_identity),
+        entry.lang.as_ref().map(header_identity),
+    )
+}
+
+fn check_section_reachability(entries: &[CompiledSection], errors: &mut Vec<SchemaError>) {
+    if entries.len() < 2 {
+        return;
+    }
+    if let Some(index) = entries[..entries.len() - 1]
+        .iter()
+        .position(is_section_wildcard)
+    {
+        errors.push(unreachable_wildcard(&entries[index].pointer));
+        return;
+    }
+    let mut seen: Vec<(Option<HeaderIdentity>, String)> = Vec::new();
+    for entry in entries {
+        let key = section_identity(entry);
+        let prev = seen
+            .iter()
+            .find(|(seen, _)| *seen == key)
+            .map(|(_, ptr)| ptr.clone());
+        match prev {
+            Some(prev) => errors.push(duplicate_entry(&entry.pointer, &prev)),
+            None => seen.push((key, entry.pointer.clone())),
         }
+    }
+}
+
+fn check_block_reachability(entries: &[CompiledBlock], errors: &mut Vec<SchemaError>) {
+    if entries.len() < 2 {
+        return;
+    }
+    if let Some(index) = entries[..entries.len() - 1]
+        .iter()
+        .position(is_block_wildcard)
+    {
+        errors.push(unreachable_wildcard(&entries[index].pointer));
+        return;
+    }
+    let mut seen = Vec::new();
+    for entry in entries {
+        let key = block_identity(entry);
+        let prev = seen
+            .iter()
+            .find(|(seen, _)| *seen == key)
+            .map(|(_, ptr): &(_, String)| ptr.clone());
+        match prev {
+            Some(prev) => errors.push(duplicate_entry(&entry.pointer, &prev)),
+            None => seen.push((key, entry.pointer.clone())),
+        }
+    }
+}
+
+fn unreachable_wildcard(pointer: &str) -> SchemaError {
+    SchemaError {
+        pointer: pointer.to_string(),
+        message: "wildcard entry is not last; entries after it can never match".to_string(),
+    }
+}
+
+fn duplicate_entry(pointer: &str, earlier: &str) -> SchemaError {
+    SchemaError {
+        pointer: pointer.to_string(),
+        message: format!("entry is identical to {earlier} and can never match"),
     }
 }
 
@@ -805,6 +945,96 @@ mod tests {
     }
 
     #[test]
+    fn empty_type_list_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: []\n"),
+            SchemaError {
+                pointer: "/blocks/0/type".to_string(),
+                message: "type list must not be empty".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn unknown_type_inside_a_union_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: [bullet-list, heading]\n"),
+            SchemaError {
+                pointer: "/blocks/0/type".to_string(),
+                message: "unknown block type 'heading'".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn wildcard_section_before_other_entries_is_rejected() {
+        assert_eq!(
+            error("sections:\n  - {}\n  - header: { const: Last }\n"),
+            SchemaError {
+                pointer: "/sections/0".to_string(),
+                message: "wildcard entry is not last; entries after it can never match".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn wildcard_block_before_other_entries_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - {}\n  - type: code\n"),
+            SchemaError {
+                pointer: "/blocks/0".to_string(),
+                message: "wildcard entry is not last; entries after it can never match".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn wildcard_section_as_last_entry_is_allowed() {
+        assert!(compile_schema("sections:\n  - header: { const: Intro }\n  - {}\n").is_ok());
+    }
+
+    #[test]
+    fn duplicate_section_entry_is_rejected() {
+        assert_eq!(
+            error("sections:\n  - header: { const: Note }\n  - header: { const: Note }\n"),
+            SchemaError {
+                pointer: "/sections/1".to_string(),
+                message: "entry is identical to /sections/0 and can never match".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn duplicate_block_entry_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: paragraph\n  - type: paragraph\n"),
+            SchemaError {
+                pointer: "/blocks/1".to_string(),
+                message: "entry is identical to /blocks/0 and can never match".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn distinct_block_identities_are_allowed() {
+        assert!(compile_schema(
+            "blocks:\n  - type: code\n    lang: { const: rust }\n  - type: code\n    lang: { const: toml }\n"
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn items_on_a_union_with_a_non_list_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: [bullet-list, code]\n    items:\n      text: { maxTokens: 5 }\n"),
+            SchemaError {
+                pointer: "/blocks/0/items".to_string(),
+                message: "items requires a list type".to_string(),
+            }
+        );
+    }
+
+    #[test]
     fn lang_on_non_code_block_is_rejected() {
         assert_eq!(
             error("blocks:\n  - type: paragraph\n    lang: { const: rust }\n"),
@@ -822,17 +1052,6 @@ mod tests {
             SchemaError {
                 pointer: "/blocks/0/items".to_string(),
                 message: "items requires a list type".to_string(),
-            }
-        );
-    }
-
-    #[test]
-    fn target_on_non_ref_block_is_rejected() {
-        assert_eq!(
-            error("blocks:\n  - type: table\n    target: { const: other }\n"),
-            SchemaError {
-                pointer: "/blocks/0/target".to_string(),
-                message: "target requires type: ref".to_string(),
             }
         );
     }

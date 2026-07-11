@@ -165,6 +165,10 @@ Mind the asymmetry: `pattern` is unanchored, so `pattern: Tasks` matches
 any header *containing* "Tasks", while `const: Tasks` matches exactly.
 `enum` is a disjunction of consts. `enum` and `const` cannot be combined.
 
+> **Quoting regexes in YAML.** A backslash class like `\d` is an invalid
+> escape inside a YAML double-quoted string. Write patterns in **single
+> quotes** — `pattern: '^\d{4}$'` — or double the backslashes.
+
 ## 6. Reduced section schemas
 
 `allSections` and a schema-valued `additionalSections` take a **reduced**
@@ -220,16 +224,17 @@ Consequences:
   Hence `date, date, other, date` counts as three dates: it satisfies
   `minContains: 3` and violates `maxContains: 2`. `minContains` / `maxContains`
   bound the total, not the length of an unbroken run.
-- A headerless (wildcard) entry with the default unbounded `maxContains`
-  greedily absorbs every remaining section; give it `maxContains` or make it
-  the last entry.
+- A headerless (wildcard) entry greedily absorbs every remaining section, so
+  any entry after it can never bind — a wildcard must be the last entry.
+  Placing one earlier is rejected as a schema error (§10); `maxContains` does
+  not rescue it, since the wildcard still binds every match first.
 - There is no backtracking: matching is deterministic and errors are
   explainable. Order entries specific-first.
 
 ## 8. Blocks
 
 The schema also reaches below the section, to a section's **content** —
-paragraphs, lists, code, quotes, tables, references, rules. The vocabulary
+paragraphs, lists, code, quotes, tables, rules. The vocabulary
 mirrors the section level one step down: where a section has `sections`, it
 also has `blocks`; where a `header` constrains a section's title, `text`
 constrains a block's content; the `all*` / `additional*` / occurrence machinery
@@ -239,7 +244,7 @@ and the [matching algorithm](#7-matching-semantics) are reused verbatim.
 
 Every piece of non-section content is a **block**: a `type`, plain `text`
 (empty for containers), a token count, and — for containers — child blocks.
-The eight types map onto the document model:
+The seven types map onto the document model:
 
 | `type`         | content                       | its `text`         | type-only keywords                        |
 | -------------- | ----------------------------- | ------------------ | ----------------------------------------- |
@@ -249,8 +254,10 @@ The eight types map onto the document model:
 | `code`         | a fenced / raw code block     | the code body      | `lang`                                    |
 | `quote`        | a block quote                 | (empty)            | `blocks`, `additionalBlocks`, `allBlocks` |
 | `table`        | a table                       | the cell text      | —                                         |
-| `ref`          | a block reference (inclusion) | the link text      | `target`                                  |
 | `rule`         | a horizontal rule             | (empty)            | —                                         |
+
+An inclusion link (a lone reference to another document) is not a distinct
+type; it is matched as a `paragraph` whose `text` is the link text.
 
 Bullet and ordered lists are **distinct types** — there is no `ordered` flag.
 A list's elements are its **items**; an item is itself a container (its own
@@ -277,7 +284,7 @@ scope (document, enclosing sections, enclosing containers) all apply.
 
 | Keyword            | Value                        | Meaning                                                        | Types   |
 | ------------------ | ---------------------------- | -------------------------------------------------------------- | ------- |
-| `type`             | one of the eight             | the block kind; part of the binding identity (§8.5)            | all     |
+| `type`             | one of the seven, or a list  | the block kind(s); part of the binding identity (§8.5)         | all     |
 | `text`             | text schema (§5)             | constrains the block's plain text; part of the binding identity | all   |
 | `maxTokens`        | integer                      | budget for this block's whole subtree                          | all     |
 | `minContains`      | integer, default `1`         | minimum occurrences of this shape                              | all     |
@@ -287,16 +294,21 @@ scope (document, enclosing sections, enclosing containers) all apply.
 | `items`            | item schema (§8.4)           | schema applied to every list item                             | lists   |
 | `minItems`         | integer                      | minimum number of list items                                  | lists   |
 | `maxItems`         | integer                      | maximum number of list items                                  | lists   |
-| `target`           | text schema (§5)             | constrains the reference's target key; part of the identity    | `ref`   |
 | `blocks`           | array of block schemas       | ordered shapes for the quote's child blocks                   | `quote` |
 | `additionalBlocks` | bool or reduced block schema | policy for the quote's child blocks matching no entry         | `quote` |
 | `allBlocks`        | reduced block schema         | applies to every block inside the quote                       | `quote` |
 
-`text`, `lang`, and `target` reuse the [header schema shape](#5-header-schema):
+`text` and `lang` reuse the [header schema shape](#5-header-schema):
 `pattern`, `const`, `enum`, `minLength`, `maxLength`, `maxTokens`,
 `description`. A keyword used on the wrong type — `lang` on a `paragraph`,
-`items` on a `code`, `target` on a `table` — is a load error (§10), as is an
+`items` on a `code`, `blocks` on a `table` — is a load error (§10), as is an
 unknown `type` value.
+
+`type` may also be a **list** of type names — `type: [bullet-list,
+ordered-list]` binds a block whose kind is any one of them, the block analogue
+of a header `enum`. A type-specific keyword is then allowed only when every
+listed type accepts it (`items` on `[bullet-list, ordered-list]` is fine;
+`items` on `[bullet-list, code]` is a load error).
 
 Two token budgets, mirroring `header.maxTokens` vs a section's `maxTokens`:
 `text: { maxTokens }` bounds the block's **own** text, block `maxTokens` bounds
@@ -309,6 +321,12 @@ A list (`bullet-list` / `ordered-list`) bounds its length with
 `minItems` / `maxItems` and shapes each item with `items` — one schema applied
 to **every** item. Repetition uses this pair, not repeated entries: one-to-ten
 items is `{ type: bullet-list, minItems: 1, maxItems: 10 }`.
+
+> **`minItems` is not `minContains`.** Both `minItems` and `maxItems` default
+> to *unbounded* — omitting `minItems` means **no minimum** (an empty list
+> passes). This differs from `minContains`, which defaults to `1`. So a
+> `bullet-list` entry with nothing set is required to appear (via
+> `minContains: 1`) but may itself be empty until you add `minItems`.
 
 An **item schema** is a container without `type` or occurrence: `text` (the
 item's own text), `maxTokens` (the item's subtree), `description`, and its own
@@ -323,26 +341,26 @@ Within a node, its content blocks are matched against its `blocks` entries by
 the **same ordered, greedy, no-backtracking algorithm as sections**
 ([§7](#7-matching-semantics)) — the only difference is the binding identity. A
 block binds to the first entry at or after the pointer whose **`type`** matches
-(an entry with no `type` matches any block) **and** whose `text` / `lang` /
-`target` identity (`const`, `enum`, `pattern`), if present, the block
-satisfies. Blocks matching no open entry are **additional**, governed by
+(an entry with no `type` matches any block; a list `type` matches any of its
+kinds) **and** whose `text` / `lang` identity (`const`, `enum`, `pattern`), if
+present, the block satisfies. Blocks matching no open entry are **additional**,
+governed by
 `additionalBlocks`. After the walk, `minContains` / `maxContains` are tallied,
 each bound block is validated against the rest of its entry, and every
 `allBlocks` in scope applies to every block throughout. A missing required
 block is named by its `text` `const` / `enum` when present, else its `type`,
 else its position.
 
-Every §7 consequence carries over — in particular, **two consecutive entries
-with the same identity are an authoring error: the second can never bind and
-reports a permanent `minContains` miss.** Write "two to four lead paragraphs"
-as `{ type: paragraph, minContains: 2, maxContains: 4 }`, never as repeated
-`{ type: paragraph }` entries.
+Every §7 consequence carries over — in particular, **two entries with the same
+identity are rejected at load (§10): the second could never bind.** Write "two
+to four lead paragraphs" as `{ type: paragraph, minContains: 2, maxContains: 4 }`,
+never as repeated `{ type: paragraph }` entries.
 
 ### 8.6 Reduced block schema
 
 `allBlocks` and a schema-valued `additionalBlocks` take a **reduced** block
 schema — `text`, `maxTokens`, `description` only. Type-specific keywords
-(`type`, `lang`, `items`, `target`), structural keywords (`blocks`,
+(`type`, `lang`, `items`), structural keywords (`blocks`,
 `additionalBlocks`, `allBlocks`), and occurrence keywords (`minContains`,
 `maxContains`, `minItems`, `maxItems`) are rejected there, mirroring the
 [reduced section schema](#6-reduced-section-schemas).
@@ -424,13 +442,17 @@ violations:
 - an unknown keyword anywhere outside `frontmatter` — unlike JSON Schema,
   unknown keywords are rejected, so a typo cannot silently validate nothing
   (`ordered` is not a keyword, so it reports as unknown);
-- an unknown block `type`, or a type-specific block keyword on the wrong type
-  (`lang` off `code`, `items` off a list, `target` off `ref`, `blocks` off
-  `quote`);
+- an unknown block `type`, an empty `type` list, or a type-specific block
+  keyword on the wrong type (`lang` off `code`, `items` off a list, `blocks`
+  off `quote` — for a list `type`, every listed type must accept the keyword);
 - an invalid `pattern` regex, a negative count, `minContains` greater than
   `maxContains`, `minItems` greater than `maxItems`, or `enum` and `const`
   together;
-- occurrence or structural keywords inside a reduced section or block schema.
+- occurrence or structural keywords inside a reduced section or block schema;
+- an **unreachable entry** in a `sections` or `blocks` array — a wildcard entry
+  (one with no identity constraint) that is not last, since it absorbs every
+  match and starves the entries after it; or an entry whose identity exactly
+  duplicates an earlier one, since the earlier always binds first.
 
 ## 11. Examples
 

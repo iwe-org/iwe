@@ -43,10 +43,17 @@ pub struct SectionSchema {
     pub extra: Mapping,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
+pub enum TypeSpec {
+    One(String),
+    Many(Vec<String>),
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockSchema {
-    pub r#type: Option<String>,
+    pub r#type: Option<TypeSpec>,
     pub text: Option<HeaderSchema>,
     pub max_tokens: Option<usize>,
     pub min_contains: Option<i64>,
@@ -232,7 +239,7 @@ allBlocks:
         assert_eq!(schema.extra, Mapping::new());
 
         let code = &schema.blocks[0];
-        assert_eq!(code.r#type, Some("code".to_string()));
+        assert_eq!(code.r#type, Some(TypeSpec::One("code".to_string())));
         assert_eq!(code.max_contains, Some(1));
         assert_eq!(
             code.lang.as_ref().unwrap().choices,
@@ -240,7 +247,7 @@ allBlocks:
         );
 
         let list = &schema.blocks[1];
-        assert_eq!(list.r#type, Some("bullet-list".to_string()));
+        assert_eq!(list.r#type, Some(TypeSpec::One("bullet-list".to_string())));
         assert_eq!(list.min_items, Some(1));
         assert_eq!(list.max_items, Some(10));
         assert_eq!(
@@ -287,10 +294,16 @@ blocks:
       maxTokens: 5
 ";
         let schema = parse_dialect(source).unwrap();
-        assert_eq!(schema.blocks[0].r#type, Some("ordered-list".to_string()));
+        assert_eq!(
+            schema.blocks[0].r#type,
+            Some(TypeSpec::One("ordered-list".to_string()))
+        );
         let quote = &schema.blocks[1];
-        assert_eq!(quote.r#type, Some("quote".to_string()));
-        assert_eq!(quote.blocks[0].r#type, Some("paragraph".to_string()));
+        assert_eq!(quote.r#type, Some(TypeSpec::One("quote".to_string())));
+        assert_eq!(
+            quote.blocks[0].r#type,
+            Some(TypeSpec::One("paragraph".to_string()))
+        );
         assert_eq!(quote.all_blocks.as_ref().unwrap().max_tokens, Some(5));
     }
 

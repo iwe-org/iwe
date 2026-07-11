@@ -125,6 +125,68 @@ pub fn validate_documents_against_file(
     Ok(reports)
 }
 
+pub fn explain_documents(
+    config: &Configuration,
+    graph: &Graph,
+    keys: &[Key],
+) -> Result<String, Vec<String>> {
+    let dir = schemas_dir().map_err(|error| vec![error])?;
+    let bindings = SchemaBindings::compile(&config.schemas)?;
+    let compiled = compile_schemas(&dir, &config.schemas)?;
+
+    let mut out = String::new();
+    for key in keys {
+        let names = bindings.schemas_for(&key.to_string());
+        if names.is_empty() {
+            out.push_str(&format!("{key}  (no schema)\n\n"));
+            continue;
+        }
+        let document = build_document(graph, key, count_tokens);
+        for name in names {
+            out.push_str(&format!("{key}  [schema: {name}]\n"));
+            out.push_str(&compiled[name].explain(&document));
+            out.push('\n');
+        }
+    }
+    Ok(out)
+}
+
+pub fn explain_documents_against_file(
+    graph: &Graph,
+    keys: &[Key],
+    schema_path: &Path,
+) -> Result<String, Vec<String>> {
+    let label = schema_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("schema")
+        .to_string();
+
+    let source = read_to_string(schema_path)
+        .map_err(|_| vec![format!("schema file not found: {}", schema_path.display())])?;
+    let compiled = compile_schema(&source).map_err(|schema_errors| {
+        schema_errors
+            .into_iter()
+            .map(|error| {
+                if error.pointer.is_empty() {
+                    format!("schema '{label}': {}", error.message)
+                } else {
+                    format!("schema '{label}' {}: {}", error.pointer, error.message)
+                }
+            })
+            .collect::<Vec<_>>()
+    })?;
+
+    let mut out = String::new();
+    for key in keys {
+        let document = build_document(graph, key, count_tokens);
+        out.push_str(&format!("{key}  [schema: {label}]\n"));
+        out.push_str(&compiled.explain(&document));
+        out.push('\n');
+    }
+    Ok(out)
+}
+
 pub fn render_reports_text(reports: &[KeyReport]) -> String {
     let mut out = String::new();
     for report in reports {
