@@ -474,6 +474,12 @@ struct SchemaValidate {
     )]
     format: ValidateFormat,
 
+    #[clap(
+        long = "schema-file",
+        help = "Validate the selected documents against this schema file directly, bypassing the [schemas] config bindings"
+    )]
+    schema_file: Option<PathBuf>,
+
     #[clap(flatten)]
     selector: FilterArgs,
 }
@@ -1821,7 +1827,12 @@ fn schema_validate_command(args: SchemaValidate) {
         }
     };
 
-    let reports = match diwe::schema::validate_documents(&config, &graph, &keys) {
+    let result = match &args.schema_file {
+        Some(path) => diwe::schema::validate_documents_against_file(&graph, &keys, path),
+        None => diwe::schema::validate_documents(&config, &graph, &keys),
+    };
+
+    let reports = match result {
         Ok(reports) => reports,
         Err(errors) => {
             for error in errors {

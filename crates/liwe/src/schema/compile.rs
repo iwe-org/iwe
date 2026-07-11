@@ -4,23 +4,14 @@ use serde_json::Value;
 use serde_yaml::Mapping;
 
 use crate::schema::dialect::{
-    parse_dialect, AdditionalSections, DocumentSchema, HeaderSchema, ReducedSection, SectionSchema,
+    parse_dialect, AdditionalBlocks, AdditionalSections, BlockSchema, DocumentSchema, HeaderSchema,
+    ItemSchema, ReducedBlock, ReducedSection, SectionSchema,
 };
+use crate::schema::document::BlockKind;
+
+mod eval;
 
 pub const DIALECT_V1: &str = "https://iwe.md/document-schema/v1";
-
-const RESERVED_KEYWORDS: &[&str] = &[
-    "blocks",
-    "additionalBlocks",
-    "type",
-    "items",
-    "minItems",
-    "maxItems",
-    "ordered",
-    "lang",
-    "text",
-    "target",
-];
 
 const REDUCED_FORBIDDEN: &[&str] = &[
     "sections",
@@ -30,6 +21,20 @@ const REDUCED_FORBIDDEN: &[&str] = &[
     "maxContains",
 ];
 
+const REDUCED_BLOCK_FORBIDDEN: &[&str] = &[
+    "type",
+    "lang",
+    "items",
+    "target",
+    "blocks",
+    "additionalBlocks",
+    "allBlocks",
+    "minContains",
+    "maxContains",
+    "minItems",
+    "maxItems",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SchemaError {
     pub pointer: String,
@@ -37,49 +42,96 @@ pub struct SchemaError {
 }
 
 pub struct CompiledSchema {
-    pub(crate) description: Option<String>,
-    pub(crate) max_tokens: Option<usize>,
-    pub(crate) max_depth: Option<usize>,
-    pub(crate) all_sections: Option<CompiledReduced>,
-    pub(crate) sections: Vec<CompiledSection>,
-    pub(crate) additional_sections: CompiledAdditional,
-    pub(crate) frontmatter: Option<Validator>,
-    pub(crate) frontmatter_source: Option<Value>,
+    description: Option<String>,
+    max_tokens: Option<usize>,
+    max_depth: Option<usize>,
+    all_sections: Option<CompiledReduced>,
+    sections: Vec<CompiledSection>,
+    additional_sections: CompiledAdditional,
+    blocks: Vec<CompiledBlock>,
+    additional_blocks: CompiledBlockAdditional,
+    all_blocks: Option<CompiledReducedBlock>,
+    frontmatter: Option<Validator>,
+    frontmatter_source: Option<Value>,
 }
 
-pub(crate) struct CompiledSection {
-    pub(crate) header: Option<CompiledHeader>,
-    pub(crate) max_tokens: Option<usize>,
-    pub(crate) max_depth: Option<usize>,
-    pub(crate) min_contains: usize,
-    pub(crate) max_contains: Option<usize>,
-    pub(crate) description: Option<String>,
-    pub(crate) all_sections: Option<CompiledReduced>,
-    pub(crate) sections: Vec<CompiledSection>,
-    pub(crate) additional_sections: CompiledAdditional,
-    pub(crate) pointer: String,
+struct CompiledSection {
+    header: Option<CompiledHeader>,
+    max_tokens: Option<usize>,
+    max_depth: Option<usize>,
+    min_contains: usize,
+    max_contains: Option<usize>,
+    description: Option<String>,
+    all_sections: Option<CompiledReduced>,
+    sections: Vec<CompiledSection>,
+    additional_sections: CompiledAdditional,
+    blocks: Vec<CompiledBlock>,
+    additional_blocks: CompiledBlockAdditional,
+    all_blocks: Option<CompiledReducedBlock>,
+    pointer: String,
 }
 
-pub(crate) struct CompiledHeader {
-    pub(crate) pattern: Option<Regex>,
-    pub(crate) konst: Option<String>,
-    pub(crate) choices: Option<Vec<String>>,
-    pub(crate) min_length: Option<usize>,
-    pub(crate) max_length: Option<usize>,
-    pub(crate) max_tokens: Option<usize>,
-    pub(crate) description: Option<String>,
-    pub(crate) pointer: String,
+struct CompiledBlock {
+    kind: Option<BlockKind>,
+    text: Option<CompiledHeader>,
+    max_tokens: Option<usize>,
+    min_contains: usize,
+    max_contains: Option<usize>,
+    description: Option<String>,
+    lang: Option<CompiledHeader>,
+    target: Option<CompiledHeader>,
+    items: Option<Box<CompiledItem>>,
+    min_items: Option<usize>,
+    max_items: Option<usize>,
+    blocks: Vec<CompiledBlock>,
+    additional_blocks: CompiledBlockAdditional,
+    all_blocks: Option<CompiledReducedBlock>,
+    pointer: String,
 }
 
-pub(crate) struct CompiledReduced {
-    pub(crate) header: Option<CompiledHeader>,
-    pub(crate) max_tokens: Option<usize>,
-    pub(crate) max_depth: Option<usize>,
-    pub(crate) description: Option<String>,
-    pub(crate) pointer: String,
+struct CompiledItem {
+    text: Option<CompiledHeader>,
+    max_tokens: Option<usize>,
+    description: Option<String>,
+    blocks: Vec<CompiledBlock>,
+    additional_blocks: CompiledBlockAdditional,
+    all_blocks: Option<CompiledReducedBlock>,
+    pointer: String,
 }
 
-pub(crate) enum CompiledAdditional {
+struct CompiledReducedBlock {
+    text: Option<CompiledHeader>,
+    max_tokens: Option<usize>,
+    description: Option<String>,
+    pointer: String,
+}
+
+enum CompiledBlockAdditional {
+    Allow,
+    Deny { pointer: String },
+    Schema(Box<CompiledReducedBlock>),
+}
+
+struct CompiledHeader {
+    pattern: Option<Regex>,
+    konst: Option<String>,
+    choices: Option<Vec<String>>,
+    min_length: Option<usize>,
+    max_length: Option<usize>,
+    max_tokens: Option<usize>,
+    description: Option<String>,
+    pointer: String,
+}
+
+struct CompiledReduced {
+    header: Option<CompiledHeader>,
+    max_tokens: Option<usize>,
+    max_depth: Option<usize>,
+    description: Option<String>,
+    pointer: String,
+}
+
+enum CompiledAdditional {
     Allow,
     Deny { pointer: String },
     Schema(Box<CompiledReduced>),
@@ -88,7 +140,8 @@ pub(crate) enum CompiledAdditional {
 #[derive(Clone, Copy, PartialEq)]
 enum Context {
     Full,
-    Reduced,
+    ReducedSection,
+    ReducedBlock,
 }
 
 pub fn compile_schema(source: &str) -> Result<CompiledSchema, Vec<SchemaError>> {
@@ -138,6 +191,14 @@ fn compile_document(document: &DocumentSchema, errors: &mut Vec<SchemaError>) ->
 
     let additional_sections = compile_additional(document.additional_sections.as_ref(), "", errors);
 
+    let blocks = compile_blocks(&document.blocks, "", errors);
+    let additional_blocks =
+        compile_block_additional(document.additional_blocks.as_ref(), "", errors);
+    let all_blocks = document
+        .all_blocks
+        .as_ref()
+        .map(|reduced| compile_reduced_block(reduced, "/allBlocks", errors));
+
     CompiledSchema {
         description: document.description.clone(),
         max_tokens: document.max_tokens,
@@ -145,6 +206,9 @@ fn compile_document(document: &DocumentSchema, errors: &mut Vec<SchemaError>) ->
         all_sections,
         sections,
         additional_sections,
+        blocks,
+        additional_blocks,
+        all_blocks,
         frontmatter,
         frontmatter_source: document.frontmatter.clone(),
     }
@@ -190,6 +254,14 @@ fn compile_section(
     let additional_sections =
         compile_additional(section.additional_sections.as_ref(), &pointer, errors);
 
+    let blocks = compile_blocks(&section.blocks, &pointer, errors);
+    let additional_blocks =
+        compile_block_additional(section.additional_blocks.as_ref(), &pointer, errors);
+    let all_blocks = section
+        .all_blocks
+        .as_ref()
+        .map(|reduced| compile_reduced_block(reduced, &format!("{pointer}/allBlocks"), errors));
+
     CompiledSection {
         header,
         max_tokens: section.max_tokens,
@@ -200,7 +272,210 @@ fn compile_section(
         all_sections,
         sections,
         additional_sections,
+        blocks,
+        additional_blocks,
+        all_blocks,
         pointer,
+    }
+}
+
+fn compile_blocks(
+    blocks: &[BlockSchema],
+    parent: &str,
+    errors: &mut Vec<SchemaError>,
+) -> Vec<CompiledBlock> {
+    blocks
+        .iter()
+        .enumerate()
+        .map(|(index, block)| compile_block(block, format!("{parent}/blocks/{index}"), errors))
+        .collect()
+}
+
+fn compile_block(
+    block: &BlockSchema,
+    pointer: String,
+    errors: &mut Vec<SchemaError>,
+) -> CompiledBlock {
+    check_extra(&block.extra, &pointer, Context::Full, errors);
+
+    let kind = compile_block_kind(block.r#type.as_deref(), &pointer, errors);
+
+    let is_list = matches!(
+        kind,
+        Some(BlockKind::BulletList) | Some(BlockKind::OrderedList)
+    );
+    let is_quote = kind == Some(BlockKind::Quote);
+
+    if block.lang.is_some() && kind != Some(BlockKind::Code) {
+        errors.push(applicability_error(&pointer, "lang", "type: code"));
+    }
+    if block.items.is_some() && !is_list {
+        errors.push(applicability_error(&pointer, "items", "a list type"));
+    }
+    if block.min_items.is_some() && !is_list {
+        errors.push(applicability_error(&pointer, "minItems", "a list type"));
+    }
+    if block.max_items.is_some() && !is_list {
+        errors.push(applicability_error(&pointer, "maxItems", "a list type"));
+    }
+    if block.target.is_some() && kind != Some(BlockKind::Ref) {
+        errors.push(applicability_error(&pointer, "target", "type: ref"));
+    }
+    if !block.blocks.is_empty() && !is_quote {
+        errors.push(applicability_error(&pointer, "blocks", "type: quote"));
+    }
+    if block.additional_blocks.is_some() && !is_quote {
+        errors.push(applicability_error(
+            &pointer,
+            "additionalBlocks",
+            "type: quote",
+        ));
+    }
+    if block.all_blocks.is_some() && !is_quote {
+        errors.push(applicability_error(&pointer, "allBlocks", "type: quote"));
+    }
+
+    let text = block
+        .text
+        .as_ref()
+        .map(|header| compile_header(header, format!("{pointer}/text"), errors));
+    let lang = block
+        .lang
+        .as_ref()
+        .map(|header| compile_header(header, format!("{pointer}/lang"), errors));
+    let target = block
+        .target
+        .as_ref()
+        .map(|header| compile_header(header, format!("{pointer}/target"), errors));
+
+    let (min_contains, max_contains) =
+        compile_counts(block.min_contains, block.max_contains, &pointer, errors);
+    let (min_items, max_items) =
+        compile_item_counts(block.min_items, block.max_items, &pointer, errors);
+
+    let items = block
+        .items
+        .as_ref()
+        .map(|item| Box::new(compile_item(item, format!("{pointer}/items"), errors)));
+
+    let blocks = compile_blocks(&block.blocks, &pointer, errors);
+    let additional_blocks =
+        compile_block_additional(block.additional_blocks.as_ref(), &pointer, errors);
+    let all_blocks = block
+        .all_blocks
+        .as_ref()
+        .map(|reduced| compile_reduced_block(reduced, &format!("{pointer}/allBlocks"), errors));
+
+    CompiledBlock {
+        kind,
+        text,
+        max_tokens: block.max_tokens,
+        min_contains,
+        max_contains,
+        description: block.description.clone(),
+        lang,
+        target,
+        items,
+        min_items,
+        max_items,
+        blocks,
+        additional_blocks,
+        all_blocks,
+        pointer,
+    }
+}
+
+fn compile_item(item: &ItemSchema, pointer: String, errors: &mut Vec<SchemaError>) -> CompiledItem {
+    check_extra(&item.extra, &pointer, Context::Full, errors);
+
+    let text = item
+        .text
+        .as_ref()
+        .map(|header| compile_header(header, format!("{pointer}/text"), errors));
+
+    let blocks = compile_blocks(&item.blocks, &pointer, errors);
+    let additional_blocks =
+        compile_block_additional(item.additional_blocks.as_ref(), &pointer, errors);
+    let all_blocks = item
+        .all_blocks
+        .as_ref()
+        .map(|reduced| compile_reduced_block(reduced, &format!("{pointer}/allBlocks"), errors));
+
+    CompiledItem {
+        text,
+        max_tokens: item.max_tokens,
+        description: item.description.clone(),
+        blocks,
+        additional_blocks,
+        all_blocks,
+        pointer,
+    }
+}
+
+fn compile_reduced_block(
+    reduced: &ReducedBlock,
+    pointer: &str,
+    errors: &mut Vec<SchemaError>,
+) -> CompiledReducedBlock {
+    check_extra(&reduced.extra, pointer, Context::ReducedBlock, errors);
+
+    let text = reduced
+        .text
+        .as_ref()
+        .map(|header| compile_header(header, format!("{pointer}/text"), errors));
+
+    CompiledReducedBlock {
+        text,
+        max_tokens: reduced.max_tokens,
+        description: reduced.description.clone(),
+        pointer: pointer.to_string(),
+    }
+}
+
+fn compile_block_additional(
+    additional: Option<&AdditionalBlocks>,
+    parent: &str,
+    errors: &mut Vec<SchemaError>,
+) -> CompiledBlockAdditional {
+    let pointer = format!("{parent}/additionalBlocks");
+    match additional {
+        None | Some(AdditionalBlocks::Bool(true)) => CompiledBlockAdditional::Allow,
+        Some(AdditionalBlocks::Bool(false)) => CompiledBlockAdditional::Deny { pointer },
+        Some(AdditionalBlocks::Schema(reduced)) => CompiledBlockAdditional::Schema(Box::new(
+            compile_reduced_block(reduced, &pointer, errors),
+        )),
+    }
+}
+
+fn compile_block_kind(
+    name: Option<&str>,
+    pointer: &str,
+    errors: &mut Vec<SchemaError>,
+) -> Option<BlockKind> {
+    let name = name?;
+    match name {
+        "paragraph" => Some(BlockKind::Paragraph),
+        "bullet-list" => Some(BlockKind::BulletList),
+        "ordered-list" => Some(BlockKind::OrderedList),
+        "code" => Some(BlockKind::Code),
+        "quote" => Some(BlockKind::Quote),
+        "table" => Some(BlockKind::Table),
+        "ref" => Some(BlockKind::Ref),
+        "rule" => Some(BlockKind::Rule),
+        other => {
+            errors.push(SchemaError {
+                pointer: format!("{pointer}/type"),
+                message: format!("unknown block type '{other}'"),
+            });
+            None
+        }
+    }
+}
+
+fn applicability_error(pointer: &str, keyword: &str, requirement: &str) -> SchemaError {
+    SchemaError {
+        pointer: format!("{pointer}/{keyword}"),
+        message: format!("{keyword} requires {requirement}"),
     }
 }
 
@@ -249,7 +524,7 @@ fn compile_reduced(
     pointer: &str,
     errors: &mut Vec<SchemaError>,
 ) -> CompiledReduced {
-    check_extra(&reduced.extra, pointer, Context::Reduced, errors);
+    check_extra(&reduced.extra, pointer, Context::ReducedSection, errors);
 
     let header = reduced
         .header
@@ -286,36 +561,73 @@ fn compile_counts(
     pointer: &str,
     errors: &mut Vec<SchemaError>,
 ) -> (usize, Option<usize>) {
-    if let Some(min) = min_contains {
-        if min < 0 {
-            errors.push(SchemaError {
-                pointer: format!("{pointer}/minContains"),
-                message: "minContains must not be negative".to_string(),
-            });
-        }
-    }
-    if let Some(max) = max_contains {
-        if max < 0 {
-            errors.push(SchemaError {
-                pointer: format!("{pointer}/maxContains"),
-                message: "maxContains must not be negative".to_string(),
-            });
-        }
-    }
-    if let (Some(min), Some(max)) = (min_contains, max_contains) {
-        if min >= 0 && max >= 0 && min > max {
-            errors.push(SchemaError {
-                pointer: format!("{pointer}/minContains"),
-                message: "minContains exceeds maxContains".to_string(),
-            });
-        }
-    }
+    check_count_pair(
+        min_contains,
+        max_contains,
+        pointer,
+        "minContains",
+        "maxContains",
+        errors,
+    );
 
     let min = min_contains.filter(|value| *value >= 0).unwrap_or(1) as usize;
     let max = max_contains
         .filter(|value| *value >= 0)
         .map(|value| value as usize);
     (min, max)
+}
+
+fn compile_item_counts(
+    min_items: Option<i64>,
+    max_items: Option<i64>,
+    pointer: &str,
+    errors: &mut Vec<SchemaError>,
+) -> (Option<usize>, Option<usize>) {
+    check_count_pair(
+        min_items, max_items, pointer, "minItems", "maxItems", errors,
+    );
+
+    let min = min_items
+        .filter(|value| *value >= 0)
+        .map(|value| value as usize);
+    let max = max_items
+        .filter(|value| *value >= 0)
+        .map(|value| value as usize);
+    (min, max)
+}
+
+fn check_count_pair(
+    min: Option<i64>,
+    max: Option<i64>,
+    pointer: &str,
+    min_key: &str,
+    max_key: &str,
+    errors: &mut Vec<SchemaError>,
+) {
+    if let Some(value) = min {
+        if value < 0 {
+            errors.push(SchemaError {
+                pointer: format!("{pointer}/{min_key}"),
+                message: format!("{min_key} must not be negative"),
+            });
+        }
+    }
+    if let Some(value) = max {
+        if value < 0 {
+            errors.push(SchemaError {
+                pointer: format!("{pointer}/{max_key}"),
+                message: format!("{max_key} must not be negative"),
+            });
+        }
+    }
+    if let (Some(min), Some(max)) = (min, max) {
+        if min >= 0 && max >= 0 && min > max {
+            errors.push(SchemaError {
+                pointer: format!("{pointer}/{min_key}"),
+                message: format!("{min_key} exceeds {max_key}"),
+            });
+        }
+    }
 }
 
 fn compile_frontmatter(value: &Value, errors: &mut Vec<SchemaError>) -> Option<Validator> {
@@ -360,10 +672,10 @@ fn has_external_ref(value: &Value) -> bool {
 
 fn check_extra(extra: &Mapping, pointer: &str, context: Context, errors: &mut Vec<SchemaError>) {
     for key in extra.keys().filter_map(|key| key.as_str()) {
-        let message = if context == Context::Reduced && REDUCED_FORBIDDEN.contains(&key) {
+        let message = if context == Context::ReducedSection && REDUCED_FORBIDDEN.contains(&key) {
             format!("'{key}' is not allowed in allSections/additionalSections")
-        } else if RESERVED_KEYWORDS.contains(&key) {
-            format!("keyword '{key}' is reserved for a future version")
+        } else if context == Context::ReducedBlock && REDUCED_BLOCK_FORBIDDEN.contains(&key) {
+            format!("'{key}' is not allowed in allBlocks/additionalBlocks")
         } else {
             format!("unknown keyword '{key}'")
         };
@@ -400,17 +712,6 @@ mod tests {
             SchemaError {
                 pointer: "/width".to_string(),
                 message: "unknown keyword 'width'".to_string(),
-            }
-        );
-    }
-
-    #[test]
-    fn reserved_keyword_is_rejected() {
-        assert_eq!(
-            error("blocks: []\n"),
-            SchemaError {
-                pointer: "/blocks".to_string(),
-                message: "keyword 'blocks' is reserved for a future version".to_string(),
             }
         );
     }
@@ -490,6 +791,131 @@ mod tests {
                 message: "unknown schema dialect 'https://iwe.md/document-schema/v2'; expected https://iwe.md/document-schema/v1".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn unknown_block_type_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: heading\n"),
+            SchemaError {
+                pointer: "/blocks/0/type".to_string(),
+                message: "unknown block type 'heading'".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn lang_on_non_code_block_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: paragraph\n    lang: { const: rust }\n"),
+            SchemaError {
+                pointer: "/blocks/0/lang".to_string(),
+                message: "lang requires type: code".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn items_on_non_list_block_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: code\n    items:\n      text: { maxTokens: 5 }\n"),
+            SchemaError {
+                pointer: "/blocks/0/items".to_string(),
+                message: "items requires a list type".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn target_on_non_ref_block_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: table\n    target: { const: other }\n"),
+            SchemaError {
+                pointer: "/blocks/0/target".to_string(),
+                message: "target requires type: ref".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn quote_keyword_on_non_quote_block_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: paragraph\n    blocks:\n      - type: paragraph\n"),
+            SchemaError {
+                pointer: "/blocks/0/blocks".to_string(),
+                message: "blocks requires type: quote".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn type_specific_keyword_without_type_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - lang: { const: rust }\n"),
+            SchemaError {
+                pointer: "/blocks/0/lang".to_string(),
+                message: "lang requires type: code".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn reduced_block_forbidden_key_is_rejected() {
+        assert_eq!(
+            error("allBlocks:\n  items:\n    text: { maxTokens: 5 }\n"),
+            SchemaError {
+                pointer: "/allBlocks/items".to_string(),
+                message: "'items' is not allowed in allBlocks/additionalBlocks".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn negative_min_items_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: bullet-list\n    minItems: -1\n"),
+            SchemaError {
+                pointer: "/blocks/0/minItems".to_string(),
+                message: "minItems must not be negative".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn min_items_greater_than_max_items_is_rejected() {
+        assert_eq!(
+            error("blocks:\n  - type: bullet-list\n    minItems: 4\n    maxItems: 2\n"),
+            SchemaError {
+                pointer: "/blocks/0/minItems".to_string(),
+                message: "minItems exceeds maxItems".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn block_schema_compiles() {
+        let source = "\
+$schema: https://iwe.md/document-schema/v1
+allBlocks:
+  text: { maxTokens: 40 }
+sections:
+  - header: { pattern: \".+\" }
+    blocks:
+      - type: paragraph
+        maxContains: 1
+      - type: bullet-list
+        minItems: 1
+        items:
+          text: { maxTokens: 40 }
+          blocks:
+            - type: quote
+              blocks:
+                - type: paragraph
+      - type: code
+        lang: { enum: [rust, toml] }
+    additionalBlocks: false
+";
+        assert!(compile_schema(source).is_ok());
     }
 
     #[test]

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `iwe schema validate` — validate documents against the schemas bound to them by the `[schemas]` config section (each entry names a schema file in `.iwe/schemas/` and a glob that binds it to document keys). Reports violations as `-f text` (default) or `-f json`, and accepts the universal filter flags to scope the check. Exits `1` when any document has violations, `2` on a config or schema-file error, `0` when clean. Bare `iwe schema` still infers the frontmatter schema.
+- `iwe schema validate --schema-file <PATH>` — validate the selected documents (`-k` or the filter flags) against a schema file directly, bypassing the `[schemas]` config bindings, for ad-hoc checks; violations are reported under the file's stem.
 
 ### Changed
 - `update --strict` and `delete --strict` now reject a write that would leave a touched document violating its bound schema, aborting with exit `2` and the violation report before anything is written; previously `--strict` enforced only the `--expect` guards.

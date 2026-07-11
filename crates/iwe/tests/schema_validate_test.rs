@@ -177,6 +177,163 @@ fn validate_without_schemas_produces_no_output() {
     assert_eq!(stdout, "");
 }
 
+#[test]
+fn validate_reports_block_violation() {
+    let temp_dir = setup_blocks();
+    let output = run_validate(&temp_dir, &[]);
+
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {"
+        docs/one › Notes › blocks[1]: unexpected block
+    "};
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn validate_against_explicit_schema_file_bypasses_config() {
+    let temp_dir = setup_explicit_schema();
+    let output = run_validate(
+        &temp_dir,
+        &["-k", "docs/one", "--schema-file", "myschema.yaml"],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = indoc! {"
+        docs/one: required section 'Two' missing
+        docs/one › Extra: unexpected section
+    "};
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn validate_against_explicit_schema_file_json_uses_file_stem() {
+    let temp_dir = setup_explicit_schema();
+    let output = run_validate(
+        &temp_dir,
+        &[
+            "-k",
+            "docs/one",
+            "--schema-file",
+            "myschema.yaml",
+            "-f",
+            "json",
+        ],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Valid JSON");
+    assert_eq!(
+        parsed,
+        json!([
+            {
+                "key": "docs/one",
+                "schema": "myschema",
+                "violations": [
+                    {
+                        "breadcrumb": [],
+                        "message": "required section 'Two' missing",
+                        "hint": null,
+                        "schemaPath": "/sections/1/minContains",
+                        "keyword": "minContains"
+                    },
+                    {
+                        "breadcrumb": ["Extra"],
+                        "message": "unexpected section",
+                        "hint": null,
+                        "schemaPath": "/additionalSections",
+                        "keyword": "additionalSections"
+                    }
+                ]
+            }
+        ])
+    );
+}
+
+#[test]
+fn validate_against_missing_schema_file_exits_two() {
+    let temp_dir = setup_explicit_schema();
+    let output = run_validate(
+        &temp_dir,
+        &["-k", "docs/one", "--schema-file", "ghost.yaml"],
+    );
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 output");
+    assert_eq!(stderr, "error: schema file not found: ghost.yaml\n");
+}
+
+fn setup_explicit_schema() -> TempDir {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    create_dir_all(temp_path.join(".iwe")).unwrap();
+    create_dir_all(temp_path.join("docs")).unwrap();
+
+    write_config(temp_path, HashMap::new());
+
+    write(
+        temp_path.join("myschema.yaml"),
+        indoc! {"
+            sections:
+              - header: { const: One }
+              - header: { const: Two }
+            additionalSections: false
+        "},
+    )
+    .unwrap();
+
+    write(
+        temp_path.join("docs/one.md"),
+        indoc! {"
+            # One
+
+            text
+
+            # Extra
+        "},
+    )
+    .unwrap();
+
+    temp_dir
+}
+
+fn setup_blocks() -> TempDir {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    create_dir_all(temp_path.join(".iwe/schemas")).unwrap();
+    create_dir_all(temp_path.join("docs")).unwrap();
+
+    write_config(temp_path, binding("alpha", "docs/**"));
+
+    write(
+        temp_path.join(".iwe/schemas/alpha.yaml"),
+        indoc! {"
+            sections:
+              - header: { const: Notes }
+                blocks:
+                  - type: paragraph
+                additionalBlocks: false
+        "},
+    )
+    .unwrap();
+
+    write(
+        temp_path.join("docs/one.md"),
+        indoc! {"
+            # Notes
+
+            a paragraph
+
+            - a list item
+        "},
+    )
+    .unwrap();
+
+    temp_dir
+}
+
 fn setup_basic() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

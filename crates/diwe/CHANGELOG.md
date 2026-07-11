@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `[schemas]` config binding — `config::SchemaBinding` and `config::Patterns` types and the `Configuration.schemas` map bind document schemas to document keys by glob (a single glob or a list). The new `schema` module resolves and runs them: `schema::SchemaBindings` matches a key to its schema names, and `schema::validate_documents` compiles the bound schema files, validates a set of documents, and returns a `schema::KeyReport` per `(key, schema)` with violations.
 - `schema::validate_pending_documents` (and `schema::validate_pending_documents_in`, which takes an explicit schemas directory) validate a set of pending `(Key, content)` documents against their bound schemas by building a throwaway graph, so a change can be checked before it is written. `schema::pending_from_changes` collects the touched documents from a `Changes` set, `schema::render_reports_text` renders a `KeyReport` list as text, and `config::schemas_dir_in` resolves the schemas directory under a given base path.
+- `schema::validate_documents_against_file` — validate documents against one schema file directly, ignoring the `[schemas]` config bindings; reports are keyed by the file's stem.
 
 ## [0.11.0] - 2026-07-10
 

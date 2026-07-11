@@ -8,6 +8,8 @@ pub enum Crumb {
     Header(String),
     Position(usize),
     Field(String),
+    Block(usize),
+    Item(usize),
 }
 
 impl fmt::Display for Crumb {
@@ -17,6 +19,8 @@ impl fmt::Display for Crumb {
             Crumb::Header(text) => f.write_str(text),
             Crumb::Position(index) => write!(f, "sections[{index}]"),
             Crumb::Field(name) => f.write_str(name),
+            Crumb::Block(index) => write!(f, "blocks[{index}]"),
+            Crumb::Item(index) => write!(f, "items[{index}]"),
         }
     }
 }
@@ -122,6 +126,25 @@ mod tests {
         assert_eq!(
             violation.to_string(),
             "frontmatter › status: not one of 'draft', 'published'"
+        );
+    }
+
+    #[test]
+    fn block_and_item_crumbs_render_positionally() {
+        let violation = Violation {
+            breadcrumb: vec![
+                Crumb::Header("Tasks".to_string()),
+                Crumb::Block(1),
+                Crumb::Item(3),
+            ],
+            message: "text is 71 tokens (limit 40)".to_string(),
+            hint: None,
+            schema_pointer: "/sections/0/blocks/1/items/text/maxTokens".to_string(),
+            keyword: "maxTokens".to_string(),
+        };
+        assert_eq!(
+            violation.to_string(),
+            "Tasks › blocks[1] › items[3]: text is 71 tokens (limit 40)"
         );
     }
 

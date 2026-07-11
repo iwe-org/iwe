@@ -112,10 +112,13 @@ iwe schema validate [OPTIONS]
 | Flag                    | Description                                                | Default |
 | ----------------------- | ---------------------------------------------------------- | ------- |
 | `-f, --format <FORMAT>` | Output format: `text`, `json`                              | `text`  |
+| `--schema-file <PATH>`  | Validate against this schema file directly, ignoring the `[schemas]` bindings. | none    |
 | `--filter <EXPR>`       | Inline YAML filter to scope which documents are validated. | none    |
 | `-k, --key <KEY>`       | Match by document key. Repeatable.                         | none    |
 
 The same structural anchor flags as `iwe schema` (`--includes`, `--included-by`, `--references`, `--referenced-by`, `--roots`) also apply; with no selector, every document is checked.
+
+`--schema-file` runs an ad-hoc check: the selected documents are validated against that one file rather than the schemas bound to them in config, so a schema can be tried against a document without wiring up a `[schemas]` binding. Pair it with `-k` to check a single document — `iwe schema validate -k notes/intro --schema-file draft.yaml`. In `json` output the report's `schema` field is the file's stem (`draft.yaml` → `draft`).
 
 ### Output
 

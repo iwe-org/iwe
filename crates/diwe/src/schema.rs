@@ -83,6 +83,48 @@ pub fn validate_documents(
     validate_documents_in(&dir, config, graph, keys)
 }
 
+pub fn validate_documents_against_file(
+    graph: &Graph,
+    keys: &[Key],
+    schema_path: &Path,
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let label = schema_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("schema")
+        .to_string();
+
+    let source = read_to_string(schema_path)
+        .map_err(|_| vec![format!("schema file not found: {}", schema_path.display())])?;
+
+    let compiled = compile_schema(&source).map_err(|schema_errors| {
+        schema_errors
+            .into_iter()
+            .map(|error| {
+                if error.pointer.is_empty() {
+                    format!("schema '{label}': {}", error.message)
+                } else {
+                    format!("schema '{label}' {}: {}", error.pointer, error.message)
+                }
+            })
+            .collect::<Vec<_>>()
+    })?;
+
+    let mut reports = Vec::new();
+    for key in keys {
+        let document = build_document(graph, key, count_tokens);
+        let violations = compiled.validate(&document);
+        if !violations.is_empty() {
+            reports.push(KeyReport {
+                key: key.clone(),
+                schema: label.clone(),
+                violations,
+            });
+        }
+    }
+    Ok(reports)
+}
+
 pub fn render_reports_text(reports: &[KeyReport]) -> String {
     let mut out = String::new();
     for report in reports {
@@ -470,6 +512,114 @@ match = [\"journal/*\", \"meetings/**\"]
                 hint: None,
                 schema_pointer: "/additionalSections".to_string(),
                 keyword: "additionalSections".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_against_file_reports_under_the_file_stem() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("person.yaml");
+        write(
+            &schema_path,
+            "sections:\n  - header: { const: Summary }\n  - header: { const: Tasks }\n",
+        )
+        .unwrap();
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports =
+            validate_documents_against_file(&graph, &keys, &schema_path).expect("no schema errors");
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].key, Key::name("people/alice"));
+        assert_eq!(reports[0].schema, "person");
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![],
+                message: "required section 'Tasks' missing".to_string(),
+                hint: None,
+                schema_pointer: "/sections/1/minContains".to_string(),
+                keyword: "minContains".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_against_file_passes_clean_document() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("person.yaml");
+        write(&schema_path, "sections:\n  - header: { const: Summary }\n").unwrap();
+        let graph = graph_with(&[("people/alice", "# Summary\n\ntext\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports =
+            validate_documents_against_file(&graph, &keys, &schema_path).expect("no schema errors");
+        assert!(reports.is_empty());
+    }
+
+    #[test]
+    fn validate_against_missing_file_is_an_error() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("ghost.yaml");
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let errors = validate_documents_against_file(&graph, &keys, &schema_path).unwrap_err();
+        assert_eq!(
+            errors,
+            vec![format!("schema file not found: {}", schema_path.display())]
+        );
+    }
+
+    #[test]
+    fn validate_against_uncompilable_file_surfaces_schema_error() {
+        let temp = TempDir::new().unwrap();
+        let schema_path = temp.path().join("person.yaml");
+        write(&schema_path, "sections:\n  - minContains: -1\n").unwrap();
+        let graph = graph_with(&[("people/alice", "# Summary\n")]);
+        let keys = vec![Key::name("people/alice")];
+
+        let errors = validate_documents_against_file(&graph, &keys, &schema_path).unwrap_err();
+        assert_eq!(
+            errors,
+            vec![
+                "schema 'person' /sections/0/minContains: minContains must not be negative"
+                    .to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn block_violations_ride_the_key_report_path() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Notes }\n    blocks:\n      - type: paragraph\n    additionalBlocks: false\n",
+        );
+        let graph = graph_with(&[("people/alice", "# Notes\n\na paragraph\n\n- a list item\n")]);
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let keys = vec![Key::name("people/alice")];
+
+        let reports = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .expect("no config errors");
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![Crumb::Header("Notes".to_string()), Crumb::Block(1)],
+                message: "unexpected block".to_string(),
+                hint: None,
+                schema_pointer: "/sections/0/additionalBlocks".to_string(),
+                keyword: "additionalBlocks".to_string(),
             }]
         );
     }
