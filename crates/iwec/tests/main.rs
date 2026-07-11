@@ -10,6 +10,7 @@ mod prompt_test;
 mod query_test;
 mod resource_test;
 mod retrieve_test;
+mod schema_test;
 mod squash_test;
 mod stats_test;
 mod tree_test;

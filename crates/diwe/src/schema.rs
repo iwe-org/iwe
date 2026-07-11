@@ -6,7 +6,9 @@ use globset::{GlobBuilder, GlobMatcher};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 use liwe::graph::Graph;
+use liwe::markdown::MarkdownReader;
 use liwe::model::Key;
+use liwe::operations::Changes;
 use liwe::schema::{build_document, compile_schema, CompiledSchema, Violation};
 
 use crate::config::{schemas_dir, Configuration, SchemaBinding};
@@ -79,6 +81,57 @@ pub fn validate_documents(
 ) -> Result<Vec<KeyReport>, Vec<String>> {
     let dir = schemas_dir().map_err(|error| vec![error])?;
     validate_documents_in(&dir, config, graph, keys)
+}
+
+pub fn render_reports_text(reports: &[KeyReport]) -> String {
+    let mut out = String::new();
+    for report in reports {
+        for violation in &report.violations {
+            let breadcrumb = violation.breadcrumb_text();
+            if breadcrumb.is_empty() {
+                out.push_str(&format!("{}: {}\n", report.key, violation.message));
+            } else {
+                out.push_str(&format!(
+                    "{} › {}: {}\n",
+                    report.key, breadcrumb, violation.message
+                ));
+            }
+            if let Some(hint) = &violation.hint {
+                out.push_str(&format!("  hint: {}\n", hint));
+            }
+        }
+    }
+    out
+}
+
+pub fn pending_from_changes(changes: &Changes) -> Vec<(Key, String)> {
+    changes
+        .creates
+        .iter()
+        .chain(changes.updates.iter())
+        .cloned()
+        .collect()
+}
+
+pub fn validate_pending_documents(
+    config: &Configuration,
+    docs: &[(Key, String)],
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let dir = schemas_dir().map_err(|error| vec![error])?;
+    validate_pending_documents_in(&dir, config, docs)
+}
+
+pub fn validate_pending_documents_in(
+    dir: &Path,
+    config: &Configuration,
+    docs: &[(Key, String)],
+) -> Result<Vec<KeyReport>, Vec<String>> {
+    let mut graph = Graph::new_with_options(config.format_options());
+    for (key, content) in docs {
+        graph.from_markdown(key.clone(), content, MarkdownReader::new());
+    }
+    let keys: Vec<Key> = docs.iter().map(|(key, _)| key.clone()).collect();
+    validate_documents_in(dir, config, &graph, &keys)
 }
 
 fn validate_documents_in(
@@ -164,7 +217,6 @@ mod tests {
 
     use std::fs::{create_dir_all, write};
 
-    use liwe::markdown::MarkdownReader;
     use liwe::schema::Crumb;
     use tempfile::TempDir;
 
@@ -290,19 +342,20 @@ match = [\"journal/*\", \"meetings/**\"]
     }
 
     fn config_with(entries: &[(&str, Patterns)]) -> Configuration {
-        let mut config = Configuration::default();
-        config.schemas = entries
-            .iter()
-            .map(|(name, patterns)| {
-                (
-                    name.to_string(),
-                    SchemaBinding {
-                        r#match: patterns.clone(),
-                    },
-                )
-            })
-            .collect();
-        config
+        Configuration {
+            schemas: entries
+                .iter()
+                .map(|(name, patterns)| {
+                    (
+                        name.to_string(),
+                        SchemaBinding {
+                            r#match: patterns.clone(),
+                        },
+                    )
+                })
+                .collect(),
+            ..Default::default()
+        }
     }
 
     fn write_schema(dir: &Path, name: &str, source: &str) {
@@ -463,6 +516,78 @@ match = [\"journal/*\", \"meetings/**\"]
                 "schema 'person' /sections/0/minContains: minContains must not be negative"
                     .to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn validate_pending_reports_violations_without_a_loaded_graph() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n  - header: { const: Tasks }\n",
+        );
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let docs = vec![(Key::name("people/alice"), "# Summary\n".to_string())];
+
+        let reports = validate_pending_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &docs,
+        )
+        .expect("no config errors");
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].key, Key::name("people/alice"));
+        assert_eq!(reports[0].schema, "person");
+        assert_eq!(
+            reports[0].violations,
+            vec![Violation {
+                breadcrumb: vec![],
+                message: "required section 'Tasks' missing".to_string(),
+                hint: None,
+                schema_pointer: "/sections/1/minContains".to_string(),
+                keyword: "minContains".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_pending_passes_clean_content() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n",
+        );
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let docs = vec![(Key::name("people/alice"), "# Summary\n\ntext\n".to_string())];
+
+        let reports = validate_pending_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &docs,
+        )
+        .expect("no config errors");
+        assert!(reports.is_empty());
+    }
+
+    #[test]
+    fn validate_pending_surfaces_config_errors() {
+        let temp = TempDir::new().unwrap();
+        create_dir_all(temp.path().join(".iwe").join("schemas")).unwrap();
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let docs = vec![(Key::name("people/alice"), "# Summary\n".to_string())];
+
+        let errors = validate_pending_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &docs,
+        )
+        .unwrap_err();
+        assert_eq!(
+            errors,
+            vec!["schema 'person': .iwe/schemas/person.yaml not found".to_string()]
         );
     }
 }

@@ -1,6 +1,11 @@
 use indoc::indoc;
 use log::debug;
-use std::{collections::HashMap, env, fs::read_to_string, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env,
+    fs::read_to_string,
+    path::{Path, PathBuf},
+};
 use toml_edit::{value, DocumentMut, Item};
 
 use serde::{Deserialize, Serialize};
@@ -421,11 +426,12 @@ impl Configuration {
 }
 
 pub fn schemas_dir() -> Result<PathBuf, String> {
-    let mut dir =
-        env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
-    dir.push(IWE_MARKER);
-    dir.push("schemas");
-    Ok(dir)
+    let base = env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    Ok(schemas_dir_in(&base))
+}
+
+pub fn schemas_dir_in(base: &Path) -> PathBuf {
+    base.join(IWE_MARKER).join("schemas")
 }
 
 pub fn load_config() -> Result<Configuration, String> {

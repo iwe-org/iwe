@@ -12,6 +12,7 @@ use itertools::Itertools;
 
 use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
 use diwe::graph_from_path;
+use diwe::schema::{pending_from_changes, render_reports_text, validate_pending_documents};
 use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
@@ -1835,7 +1836,7 @@ fn schema_validate_command(args: SchemaValidate) {
     }
 
     match args.format {
-        ValidateFormat::Text => print!("{}", render_validation_text(&reports)),
+        ValidateFormat::Text => print!("{}", render_reports_text(&reports)),
         ValidateFormat::Json => {
             let json = serde_json::to_string_pretty(&reports).expect("Failed to serialize reports");
             println!("{}", json);
@@ -1845,25 +1846,21 @@ fn schema_validate_command(args: SchemaValidate) {
     std::process::exit(1);
 }
 
-fn render_validation_text(reports: &[diwe::schema::KeyReport]) -> String {
-    let mut out = String::new();
-    for report in reports {
-        for violation in &report.violations {
-            let breadcrumb = violation.breadcrumb_text();
-            if breadcrumb.is_empty() {
-                out.push_str(&format!("{}: {}\n", report.key, violation.message));
-            } else {
-                out.push_str(&format!(
-                    "{} › {}: {}\n",
-                    report.key, breadcrumb, violation.message
-                ));
+fn gate_pending(config: &Configuration, docs: &[(Key, String)]) {
+    match validate_pending_documents(config, docs) {
+        Ok(reports) if reports.is_empty() => {}
+        Ok(reports) => {
+            eprintln!("error: --strict blocked the write: schema validation failed");
+            eprint!("{}", render_reports_text(&reports));
+            std::process::exit(2);
+        }
+        Err(errors) => {
+            for error in errors {
+                eprintln!("error: {}", error);
             }
-            if let Some(hint) = &violation.hint {
-                out.push_str(&format!("  hint: {}\n", hint));
-            }
+            std::process::exit(2);
         }
     }
-    out
 }
 
 #[tracing::instrument(level = "debug")]
@@ -2113,6 +2110,9 @@ fn delete_command(args: Delete) {
     }
 
     if !args.dry_run {
+        if args.strict {
+            gate_pending(&config, &pending_from_changes(&combined));
+        }
         apply_changes(&combined, &config);
         if !args.quiet && !keys_mode {
             println!("Updated {} document(s)", combined.updates.len());
@@ -2544,6 +2544,11 @@ fn update_body(args: Update) {
         }
         return;
     }
+
+    if args.strict {
+        gate_pending(&config, &[(key.clone(), output.clone())]);
+    }
+
     std::fs::write(&file_path, &output).expect("Failed to write document file");
 
     if !args.quiet {
@@ -2684,6 +2689,10 @@ fn update_mutation(args: Update) {
             _ => unreachable!(),
         }
     };
+
+    if args.strict && !args.dry_run {
+        gate_pending(&config, &docs);
+    }
 
     let (matched, changed) = write_changed_documents(&library_path, ext, &docs, args.dry_run);
     report_mutation(args.quiet, args.dry_run, matched, changed);

@@ -13,6 +13,7 @@ mod new_test;
 mod normalize_test;
 mod rename_test;
 mod retrieve_test;
+mod schema_strict_test;
 mod schema_test;
 mod schema_validate_test;
 mod squash_test;
