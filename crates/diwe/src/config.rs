@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 use crate::search::{parse_language, Language};
 pub use liwe::model::config::{
     DjotOptions, Format, FormatOptions, FormattingOptions, InlineType, LineBreakStyle, LinkType,
-    MarkdownOptions, Operation, RefsPath, TargetType, WikiLinkPath, DEFAULT_KEY_DATE_FORMAT,
+    MarkdownOptions, Operation, RefsPath, RefsText, TargetType, WikiLinkPath,
+    DEFAULT_KEY_DATE_FORMAT,
 };
 
 const CONFIG_FILE_NAME: &str = "config.toml";

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `refs_text` markdown option — `preserve` (default) keeps each markdown link's text as written; `normalize` makes `iwe normalize` and document output rewrite the text to the linked document's title.
 - `iwe stats similarity` — list mutually near-identical page pairs across the store, each pair once and tab-separated in alphabetical order (forward matches computed once per page, concurrently).
 - `iwe stats` gains an `Orphans` section listing every page with no incoming links (`index` pages are exempt as intentional entry points); per-document stats (`-k`) gain a `Similar page` line (markdown) / `similarPages` array (JSON/YAML) of near-identical documents.
 - `iwe schema validate` — validate documents against the schemas bound to them by the `[schemas]` config section (each entry names a schema file in `.iwe/schemas/` and a glob that binds it to document keys). Reports violations as `-f text` (default) or `-f json`, and accepts the universal filter flags to scope the check. Exits `1` when any document has violations, `2` on a config or schema-file error, `0` when clean. Bare `iwe schema` still infers the frontmatter schema.
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iwe schema validate --explain` — print the binding trace (which section and block bound to which schema entry, `additional` for the rest) instead of validating, to see how the greedy matcher reads a document against a schema.
 
 ### Changed
+- `iwe normalize` and document rendering keep markdown link text as written by default; set `refs_text` to `normalize` to rewrite each link's text to the linked document's title (previously always rewritten).
 - `update --strict` and `delete --strict` now reject a write that would leave a touched document violating its bound schema, aborting with exit `2` and the violation report before anything is written; previously `--strict` enforced only the `--expect` guards.
 - `update --strict` and `delete --strict` also print non-blocking stats warnings to stderr after the schema gate — orphan pages and dangling links across the store, plus (on `update`) near-identical pages among the changed documents. They never change the exit code or block the write.
 

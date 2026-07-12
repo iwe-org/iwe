@@ -8,9 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `refs_text` field on `MarkdownOptions` and `DjotOptions` — a `RefsText` (`preserve` by default, or `normalize`) that controls whether a regular markdown link's text is rewritten to the linked document's title; read through `FormatOptions::refs_text()`, with `InlinesContext` and `Graph` gaining `normalize_ref_text`.
 - `schema` module — document-schema validation: `compile_schema` compiles a YAML/JSON schema (frontmatter JSON Schema plus an ordered section tree with `header`, `maxTokens`, `maxDepth`, `minContains`/`maxContains`, `allSections`, `additionalSections`) into a `CompiledSchema`, and `CompiledSchema::validate` checks a `Document` and returns `Violation`s carrying a breadcrumb, hint, schema pointer, and keyword. Unknown keywords are load errors (`SchemaError`).
 - `schema` validation reaches block content: the document and every section, quote, and list item carry `blocks` / `additionalBlocks` / `allBlocks` — an ordered, greedy-matched array of block schemas discriminated by `type` (`paragraph`, `bullet-list`, `ordered-list`, `code`, `quote`, `table`, `rule`, or a list of these for a disjunction), each with `text` / `lang` identity, `maxTokens`, `minContains` / `maxContains`, list `items` / `minItems` / `maxItems`, and quote/item recursion; `Document` and `Section` now carry a `blocks: Vec<Block>` field and `Crumb` gains `Block(usize)` / `Item(usize)`. An inclusion link is matched as a `paragraph`.
 - `CompiledSchema::explain` renders the binding trace — which section and block bound to which schema entry, `additional` for the rest — for a `Document`. A `sections` or `blocks` array with an unreachable entry (a wildcard that is not last, or an exact duplicate of an earlier entry) is a load error.
+
+### Changed
+- A regular markdown link's text is kept as written when rendering a document; set `refs_text` to `normalize` to re-derive it from the linked document's title (previously the text was always re-derived).
 
 ## [0.11.0](https://github.com/iwe-org/iwe/compare/liwe-v0.10.0...liwe-v0.11.0) - 2026-07-10
 

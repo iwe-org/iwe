@@ -104,10 +104,11 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
             GraphNode::HorizontalRule(_) => Some(Node::HorizontalRule()),
             GraphNode::Reference(reference) => {
                 let text = match reference.reference_type() {
-                    ReferenceType::Regular => self
+                    ReferenceType::Regular if self.graph.normalize_ref_text() => self
                         .graph
                         .get_ref_text(reference.key())
                         .unwrap_or(reference.text().to_string()),
+                    ReferenceType::Regular => reference.text().to_string(),
                     ReferenceType::WikiLink => String::default(),
                     ReferenceType::WikiLinkPiped => reference.text().to_string(),
                 };

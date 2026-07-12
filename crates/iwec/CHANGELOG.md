@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iwe_stats` with a `key` now returns a `similarPages` array of documents near-identical to that page.
 
 ### Changed
+- Markdown link text in rendered document content is kept as written by default; set the `refs_text` markdown option to `normalize` to rewrite each link's text to the linked document's title as before.
 - Mutating tools (`iwe_create`, `iwe_update`, `iwe_delete`, `iwe_query`, `iwe_rename`, `iwe_extract`, `iwe_inline`, `iwe_attach`) now reject a change that would leave a touched document violating its bound schema, returning a detailed error carrying the readable report and a structured `violations` payload; nothing is written and the in-memory graph is left untouched. `iwe_normalize` and `iwe_squash` are unaffected.
 
 ## [0.11.0](https://github.com/iwe-org/iwe/compare/iwec-v0.10.0...iwec-v0.11.0) - 2026-07-10

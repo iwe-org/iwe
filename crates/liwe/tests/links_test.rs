@@ -3,7 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use pretty_assertions::assert_str_eq;
 
-use liwe::model::config::{MarkdownOptions, RefsPath, WikiLinkPath};
+use liwe::model::config::{MarkdownOptions, RefsPath, RefsText, WikiLinkPath};
 use liwe::{
     graph::Graph,
     markdown::MarkdownReader,
@@ -21,6 +21,70 @@ fn links_text_updated_from_referenced_header() {
             "},
         indoc! {"
             [another title](2)
+            _
+            # title
+            "},
+    );
+}
+
+#[test]
+fn link_text_preserved_by_default() {
+    preserve(
+        indoc! {"
+            [another title](2)
+            _
+            # title
+            "},
+        indoc! {"
+            [another title](2)
+            _
+            # title
+            "},
+    );
+}
+
+#[test]
+fn inline_link_text_preserved_by_default() {
+    preserve(
+        indoc! {"
+            see [another title](2) here
+            _
+            # title
+            "},
+        indoc! {"
+            see [another title](2) here
+            _
+            # title
+            "},
+    );
+}
+
+#[test]
+fn link_url_normalized_while_text_preserved_by_default() {
+    preserve(
+        indoc! {"
+            [another title](2)
+            _
+            # title
+            "},
+        indoc! {"
+            [another title](2.md)
+            _
+            # title
+            "},
+    );
+}
+
+#[test]
+fn inline_link_text_updated_from_referenced_header() {
+    normalize(
+        indoc! {"
+            see [title](2) here
+            _
+            # title
+            "},
+        indoc! {"
+            see [another title](2) here
             _
             # title
             "},
@@ -706,12 +770,31 @@ fn refs_path_absolute_emits_root_absolute_link_on_normalize() {
         ),
         MarkdownOptions {
             refs_path: RefsPath::Absolute,
+            refs_text: RefsText::Normalize,
             ..Default::default()
         },
     );
 }
 
 fn normalize(expected: &str, denormalized: &str) {
+    setup();
+
+    let graph = Graph::import(
+        &from_indoc(denormalized),
+        MarkdownOptions {
+            refs_extension: String::default(),
+            refs_text: RefsText::Normalize,
+            ..Default::default()
+        },
+        None,
+    );
+
+    let normalized = to_indoc(&graph.export());
+
+    assert_str_eq!(expected, normalized);
+}
+
+fn preserve(expected: &str, denormalized: &str) {
     setup();
 
     let graph = Graph::import(
@@ -797,6 +880,7 @@ fn compare_docs(expected: State, denormalized: State) {
         denormalized,
         MarkdownOptions {
             refs_extension: String::default(),
+            refs_text: RefsText::Normalize,
             ..Default::default()
         },
     );

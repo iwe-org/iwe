@@ -3,7 +3,7 @@ use std::sync::Once;
 use indoc::indoc;
 use pretty_assertions::assert_str_eq;
 
-use liwe::model::config::MarkdownOptions;
+use liwe::model::config::{MarkdownOptions, RefsText};
 use liwe::{
     graph::Graph,
     state::{from_indoc, to_indoc},
@@ -31,7 +31,10 @@ fn links_text_updated_from_frontmatter_title() {
 
             # Header
             "}),
-        MarkdownOptions::default(),
+        MarkdownOptions {
+            refs_text: RefsText::Normalize,
+            ..Default::default()
+        },
         Some("title".to_string()),
     );
 
@@ -65,7 +68,10 @@ fn fallback_to_header_when_frontmatter_key_missing() {
 
             # Header Title
             "}),
-        MarkdownOptions::default(),
+        MarkdownOptions {
+            refs_text: RefsText::Normalize,
+            ..Default::default()
+        },
         Some("title".to_string()),
     );
 
@@ -95,7 +101,10 @@ fn fallback_to_header_when_no_frontmatter() {
             _
             # Header Title
             "}),
-        MarkdownOptions::default(),
+        MarkdownOptions {
+            refs_text: RefsText::Normalize,
+            ..Default::default()
+        },
         Some("title".to_string()),
     );
 
@@ -125,7 +134,10 @@ fn use_header_when_frontmatter_title_not_configured() {
 
             # Header
             "}),
-        MarkdownOptions::default(),
+        MarkdownOptions {
+            refs_text: RefsText::Normalize,
+            ..Default::default()
+        },
         None,
     );
 

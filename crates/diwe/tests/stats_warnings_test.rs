@@ -7,10 +7,14 @@ use diwe::stats::{
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::markdown::MarkdownReader;
+use liwe::model::config::{MarkdownOptions, RefsText};
 use liwe::model::Key;
 
 fn graph_with(docs: &[(&str, &str)]) -> Graph {
-    let mut graph = Graph::new();
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_text: RefsText::Normalize,
+        ..Default::default()
+    });
     for (key, content) in docs {
         graph.from_markdown(Key::name(key), content, MarkdownReader::new());
     }

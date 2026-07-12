@@ -187,7 +187,7 @@ fn update_with_graph_filter_targets_descendants() {
             status: draft
             ---
 
-            [B](2)
+            [b](2)
             _
             ---
             status: draft

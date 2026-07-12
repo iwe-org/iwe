@@ -42,6 +42,7 @@ fn completion_test_with_refs_extension() {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
             refs_path: Default::default(),
+            refs_text: Default::default(),
             date_format: None,
             time_format: None,
             locale: None,
@@ -182,6 +183,7 @@ fn completion_relative_test_with_refs_extension() {
     let markdown_options = MarkdownOptions {
         refs_extension: ".html".to_string(),
         refs_path: Default::default(),
+        refs_text: Default::default(),
         date_format: None,
         time_format: None,
         locale: None,
@@ -442,6 +444,7 @@ fn completion_with_wikilink_and_refs_extension() {
         markdown: MarkdownOptions {
             refs_extension: ".md".to_string(),
             refs_path: Default::default(),
+            refs_text: Default::default(),
             date_format: None,
             time_format: None,
             locale: None,

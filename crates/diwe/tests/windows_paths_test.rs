@@ -6,7 +6,7 @@ use std::sync::Once;
 use pretty_assertions::assert_str_eq;
 use tempfile::TempDir;
 
-use diwe::config::{MarkdownOptions, WikiLinkPath};
+use diwe::config::{MarkdownOptions, RefsText, WikiLinkPath};
 use diwe::graph_from_path;
 
 static INIT: Once = Once::new();
@@ -85,6 +85,7 @@ fn markdown_link_resolves_relative_across_windows_directories_from_disk() {
         false,
         MarkdownOptions {
             refs_extension: String::default(),
+            refs_text: RefsText::Normalize,
             ..Default::default()
         },
         None,
