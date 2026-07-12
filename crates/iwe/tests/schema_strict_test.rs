@@ -26,7 +26,7 @@ fn update_strict_blocks_violating_body_overwrite() {
         stderr,
         indoc! {"
             error: --strict blocked the write: schema validation failed
-            docs/one: required section 'Tasks' missing
+            docs/one: required section \"Tasks\" is missing
         "}
     );
     assert_eq!(
@@ -107,7 +107,7 @@ fn update_strict_blocks_violating_section_delete() {
         stderr,
         indoc! {"
             error: --strict blocked the write: schema validation failed
-            docs/one: required section 'Tasks' missing
+            docs/one: required section \"Tasks\" is missing
         "}
     );
     assert_eq!(

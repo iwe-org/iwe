@@ -504,7 +504,7 @@ match = [\"journal/*\", \"meetings/**\"]
             reports[0].violations,
             vec![Violation {
                 breadcrumb: vec![],
-                message: "required section 'Review' missing".to_string(),
+                message: "required section \"Review\" is missing".to_string(),
                 hint: None,
                 schema_pointer: "/sections/0/minContains".to_string(),
                 keyword: "minContains".to_string(),
@@ -516,7 +516,7 @@ match = [\"journal/*\", \"meetings/**\"]
             reports[1].violations,
             vec![Violation {
                 breadcrumb: vec![],
-                message: "required section 'Tasks' missing".to_string(),
+                message: "required section \"Tasks\" is missing".to_string(),
                 hint: None,
                 schema_pointer: "/sections/1/minContains".to_string(),
                 keyword: "minContains".to_string(),
@@ -600,7 +600,7 @@ match = [\"journal/*\", \"meetings/**\"]
             reports[0].violations,
             vec![Violation {
                 breadcrumb: vec![],
-                message: "required section 'Tasks' missing".to_string(),
+                message: "required section \"Tasks\" is missing".to_string(),
                 hint: None,
                 schema_pointer: "/sections/1/minContains".to_string(),
                 keyword: "minContains".to_string(),
@@ -756,7 +756,7 @@ match = [\"journal/*\", \"meetings/**\"]
             reports[0].violations,
             vec![Violation {
                 breadcrumb: vec![],
-                message: "required section 'Tasks' missing".to_string(),
+                message: "required section \"Tasks\" is missing".to_string(),
                 hint: None,
                 schema_pointer: "/sections/1/minContains".to_string(),
                 keyword: "minContains".to_string(),

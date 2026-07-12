@@ -1,58 +1,12 @@
 use serde_json::{Map, Value};
 
+use schematter_validator::{Block, BlockKind, Document, Item, Section};
+
 use crate::graph::basic_iter::GraphNodePointer;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{Node, NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
 use crate::query::frontmatter::is_reserved_segment;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Document {
-    pub frontmatter: Value,
-    pub body_tokens: usize,
-    pub blocks: Vec<Block>,
-    pub sections: Vec<Section>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Section {
-    pub header: String,
-    pub level: usize,
-    pub header_tokens: usize,
-    pub subtree_tokens: usize,
-    pub blocks: Vec<Block>,
-    pub sections: Vec<Section>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Block {
-    pub kind: BlockKind,
-    pub text: String,
-    pub text_tokens: usize,
-    pub subtree_tokens: usize,
-    pub lang: Option<String>,
-    pub items: Vec<Item>,
-    pub blocks: Vec<Block>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Item {
-    pub text: String,
-    pub text_tokens: usize,
-    pub subtree_tokens: usize,
-    pub blocks: Vec<Block>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlockKind {
-    Paragraph,
-    BulletList,
-    OrderedList,
-    Code,
-    Quote,
-    Table,
-    Rule,
-}
 
 pub fn build_document(graph: &Graph, key: &Key, count: impl Fn(&str) -> usize + Copy) -> Document {
     let frontmatter = graph
@@ -79,6 +33,7 @@ pub fn build_document(graph: &Graph, key: &Key, count: impl Fn(&str) -> usize + 
 
     Document {
         frontmatter,
+        frontmatter_error: None,
         body_tokens,
         blocks,
         sections,
@@ -292,6 +247,7 @@ mod tests {
             document,
             Document {
                 frontmatter: json!({ "status": "draft" }),
+                frontmatter_error: None,
                 body_tokens: 0,
                 blocks: vec![],
                 sections: vec![
@@ -380,6 +336,7 @@ mod tests {
             document,
             Document {
                 frontmatter: json!({}),
+                frontmatter_error: None,
                 body_tokens: 0,
                 blocks: vec![],
                 sections: vec![section(
@@ -445,6 +402,7 @@ mod tests {
             document,
             Document {
                 frontmatter: json!({}),
+                frontmatter_error: None,
                 body_tokens: 18,
                 blocks: vec![],
                 sections: vec![Section {
@@ -518,8 +476,7 @@ mod tests {
 
     #[test]
     fn validates_a_real_document_against_a_schema() {
-        use crate::schema::compile::compile_schema;
-        use crate::schema::violation::{Crumb, Violation};
+        use crate::schema::{compile_schema, Crumb, Violation};
 
         let schema = "\
 sections:
@@ -535,7 +492,7 @@ additionalSections: false
             vec![
                 Violation {
                     breadcrumb: vec![],
-                    message: "required section 'Tasks' missing".to_string(),
+                    message: "required section \"Tasks\" is missing".to_string(),
                     hint: None,
                     schema_pointer: "/sections/1/minContains".to_string(),
                     keyword: "minContains".to_string(),

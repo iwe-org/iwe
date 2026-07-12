@@ -18,7 +18,7 @@ wherever the concept maps: `pattern`, `const`, `enum`, `minLength`,
 A complete schema:
 
 ``` yaml
-$schema: https://iwe.md/document-schema/v1
+$schema: https://document-schema.org/draft/2026-06/schema
 frontmatter:
   type: object
   required: [status]
@@ -46,7 +46,7 @@ section, in that order; no other top-level sections are allowed.
 
 Schemas live in `.iwe/schemas/<name>.yaml`, one schema per file. Files are
 YAML 1.2, so JSON content is equally valid. The optional `$schema` key names
-the dialect; only `https://iwe.md/document-schema/v1` is accepted.
+the dialect; only `https://document-schema.org/draft/2026-06/schema` is accepted.
 
 A schema binds to documents through the `[schemas]` section of
 `.iwe/config.toml` (see [Configuration](configuration.md)):

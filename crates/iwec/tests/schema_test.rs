@@ -29,7 +29,7 @@ async fn update_violating_change_is_rejected_and_not_written() {
     let error = mcp_error(err);
     assert_eq!(
         error.message,
-        "schema validation failed; change rejected:\ndocs/one: required section 'Tasks' missing\n"
+        "schema validation failed; change rejected:\ndocs/one: required section \"Tasks\" is missing\n"
     );
     assert_eq!(
         error.data,
@@ -41,7 +41,7 @@ async fn update_violating_change_is_rejected_and_not_written() {
                     "violations": [
                         {
                             "breadcrumb": [],
-                            "message": "required section 'Tasks' missing",
+                            "message": "required section \"Tasks\" is missing",
                             "hint": null,
                             "schemaPath": "/sections/1/minContains",
                             "keyword": "minContains"
@@ -88,7 +88,7 @@ async fn create_violating_document_is_rejected_and_not_written() {
     let error = mcp_error(err);
     assert_eq!(
         error.message,
-        "schema validation failed; change rejected:\ndocs/ada: required section 'Summary' missing\ndocs/ada: required section 'Tasks' missing\n"
+        "schema validation failed; change rejected:\ndocs/ada: required section \"Summary\" is missing\ndocs/ada: required section \"Tasks\" is missing\n"
     );
     assert!(!base.join("docs/ada.md").exists());
 }
