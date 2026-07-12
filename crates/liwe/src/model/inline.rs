@@ -197,9 +197,10 @@ impl Inline {
             ),
             Inline::Reference(reference) => {
                 let new_text = match reference.reference_type {
-                    ReferenceType::Regular => context
+                    ReferenceType::Regular if context.normalize_ref_text() => context
                         .get_ref_title(&reference.key)
                         .unwrap_or_else(|| reference.text.clone()),
+                    ReferenceType::Regular => reference.text.clone(),
                     ReferenceType::WikiLink => String::new(),
                     ReferenceType::WikiLinkPiped => reference.text.clone(),
                 };

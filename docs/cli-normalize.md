@@ -10,10 +10,10 @@ iwe normalize
 
 ## Operations Performed
 
-| Operation                | Description                                        |
-| ------------------------ | -------------------------------------------------- |
-| Link title sync          | Updates link text to match target document headers |
-| Link path rewriting      | Writes each link path per the `refs_path` setting  |
+| Operation                | Description                                                        |
+| ------------------------ | ----------------------------------------------------------------- |
+| Link title sync          | Rewrites link text to the target document's title (opt-in, off by default; enable with `refs_text = "normalize"`) |
+| Link path rewriting      | Writes each link path per the `refs_path` setting                 |
 | Header leveling          | Adjusts header levels for consistent hierarchy     |
 | List renumbering         | Fixes ordered list numbering (1, 2, 3...)          |
 | Whitespace normalization | Standardizes newlines and indentation              |
@@ -25,13 +25,15 @@ iwe normalize
 
 ### Link Title Sync
 
+By default link text is preserved exactly as written. Set `refs_text = "normalize"` in `[markdown]` to rewrite each link's text to the linked document's title.
+
 Before:
 
 ``` markdown
 See the [old title](project-docs) for details.
 ```
 
-After (if `project-docs.md` has header `# Project Documentation`):
+After, with `refs_text = "normalize"` (and `project-docs.md` has header `# Project Documentation`):
 
 ``` markdown
 See the [Project Documentation](project-docs) for details.
@@ -134,6 +136,7 @@ Normalization behavior is controlled by `.iwe/config.toml`:
 [markdown]
 refs_extension = ""       # Extension for reference links
 refs_path = "relative"    # Link path form: "relative" or "absolute"
+refs_text = "preserve"    # Link text: "preserve" or "normalize"
 ```
 
 ## Idempotency

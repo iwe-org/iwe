@@ -8,6 +8,7 @@ IWE projects are configured through a `.iwe/config.toml` file in your project ro
 [markdown]
 refs_extension = ""
 refs_path = "relative"
+refs_text = "preserve"
 date_format = "%b %d, %Y"
 time_format = "%b %d, %Y %H:%M"
 locale = "de_DE"
@@ -43,6 +44,7 @@ trigger_characters = ["["]
 
 - `refs_extension`: File extension for markdown references (default: empty, uses `.md`)
 - `refs_path`: How the path inside a regular markdown link (`[…](…)`) is written (default: `"relative"`). One of `"relative"` or `"absolute"`: `"relative"` writes each link relative to the linking document's directory, and `"absolute"` writes every link as a root-absolute path from the library root (`/dir/note.md`). Affects normalization, formatting, and link completion. Resolution is unaffected — a link with a leading `/` always resolves from the library root regardless of this setting, and a `#section` fragment is dropped before the target key is computed. See [Keys and Cross-References](keys.md) for details.
+- `refs_text`: How the text of a regular markdown link (`[text](…)`) is written when documents are written (default: `"preserve"`). One of `"preserve"` or `"normalize"`: `"preserve"` keeps the link text exactly as typed, and `"normalize"` rewrites each link's text to the linked document's title (its frontmatter title when configured, otherwise its first header). Affects normalization and formatting; wiki links are unaffected. See [Keys and Cross-References](keys.md) for details.
 - `date_format`: Date format for markdown content display and the `{{today}}` variable (default: `"%b %d, %Y"`, e.g., "Jan 15, 2024")
 - `time_format`: Format for the `{{now}}` variable in document content (default: falls back to `date_format`). Use this to include time components like `%H`, `%M`, `%S` in `{{now}}` while keeping `{{today}}` date-only.
 - `locale`: Locale for date formatting in document content (default: system locale). Allows different localization for content than for file keys.

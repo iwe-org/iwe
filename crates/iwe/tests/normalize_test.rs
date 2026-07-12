@@ -1,4 +1,4 @@
-use diwe::config::{Configuration, FormattingOptions, LibraryOptions, MarkdownOptions};
+use diwe::config::{Configuration, FormattingOptions, LibraryOptions, MarkdownOptions, RefsText};
 use indoc::indoc;
 use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
@@ -155,7 +155,7 @@ fn test_normalize_with_verbose_flag() {
 
 #[test]
 fn test_normalize_updates_link_titles() {
-    let temp_dir = setup_test_workspace_with_outdated_links();
+    let temp_dir = setup_test_workspace_with_outdated_links(RefsText::Normalize);
     let temp_path = temp_dir.path();
 
     let output = run_normalize_command(temp_path);
@@ -163,7 +163,34 @@ fn test_normalize_updates_link_titles() {
 
     let content = read_to_string(temp_path.join("main.md")).expect("Should read main file");
 
-    assert!(content.contains("Updated Title") || content.contains("target.md"));
+    assert_eq!(
+        content,
+        indoc! {"
+            # Main Document
+
+            This document links to [Updated Title](target).
+        "}
+    );
+}
+
+#[test]
+fn test_normalize_preserves_link_titles_by_default() {
+    let temp_dir = setup_test_workspace_with_outdated_links(RefsText::Preserve);
+    let temp_path = temp_dir.path();
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize command should succeed");
+
+    let content = read_to_string(temp_path.join("main.md")).expect("Should read main file");
+
+    assert_eq!(
+        content,
+        indoc! {"
+            # Main Document
+
+            This document links to [Old Title](target).
+        "}
+    );
 }
 
 #[test]
@@ -352,11 +379,11 @@ fn setup_test_workspace_with_lists() -> TempDir {
     temp_dir
 }
 
-fn setup_test_workspace_with_outdated_links() -> TempDir {
+fn setup_test_workspace_with_outdated_links(refs_text: RefsText) -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
-    setup_iwe_config(temp_path);
+    setup_iwe_config_with_refs_text(temp_path, refs_text);
 
     let main_content = indoc! {"
         # Main Document
@@ -387,6 +414,27 @@ fn setup_empty_workspace() -> TempDir {
 
 fn setup_iwe_config(temp_path: &std::path::Path) {
     setup_iwe_config_with_formatting(temp_path, FormattingOptions::default());
+}
+
+fn setup_iwe_config_with_refs_text(temp_path: &std::path::Path, refs_text: RefsText) {
+    create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
+
+    let config = Configuration {
+        library: LibraryOptions {
+            path: "".to_string(),
+            ..Default::default()
+        },
+        markdown: MarkdownOptions {
+            refs_extension: "".to_string(),
+            refs_text,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let config_content = toml::to_string(&config).expect("Failed to serialize config to TOML");
+    write(temp_path.join(".iwe").join("config.toml"), config_content)
+        .expect("Should write config file");
 }
 
 fn setup_iwe_config_with_formatting(temp_path: &std::path::Path, formatting: FormattingOptions) {

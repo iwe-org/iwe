@@ -105,6 +105,10 @@ impl Graph {
         }
     }
 
+    pub fn normalize_ref_text(&self) -> bool {
+        self.format_options.refs_text().normalize()
+    }
+
     pub fn new_patch(&self) -> Graph {
         Graph {
             format_options: self.format_options.clone(),
@@ -594,6 +598,9 @@ impl InlinesContext for &Graph {
     }
     fn wiki_display(&self, key: &Key, original_url: &str) -> String {
         Graph::wiki_display(self, key, original_url)
+    }
+    fn normalize_ref_text(&self) -> bool {
+        Graph::normalize_ref_text(self)
     }
 }
 

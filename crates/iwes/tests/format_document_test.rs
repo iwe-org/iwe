@@ -1,4 +1,4 @@
-use diwe::config::{FormattingOptions, MarkdownOptions};
+use diwe::config::{FormattingOptions, MarkdownOptions, RefsText};
 use indoc::indoc;
 
 use crate::fixture::*;
@@ -42,7 +42,7 @@ fn metadata_format() {
 
 #[test]
 fn update_ref_titles() {
-    assert_formatted(
+    assert_formatted_normalized(
         indoc! {"
             # test
 
@@ -114,7 +114,7 @@ fn format_extension_inline() {
 
 #[test]
 fn update_link_titles() {
-    assert_formatted(
+    assert_formatted_normalized(
         indoc! {"
             # test
 
@@ -131,8 +131,44 @@ fn update_link_titles() {
 }
 
 #[test]
+fn preserve_ref_titles_by_default() {
+    assert_formatted(
+        indoc! {"
+            # test
+
+            [something else](2)
+            _
+            # new
+            "},
+        indoc! {"
+            # test
+
+            [something else](2)
+        "},
+    );
+}
+
+#[test]
+fn preserve_link_titles_by_default() {
+    assert_formatted(
+        indoc! {"
+            # test
+
+            link to [something else](2)
+            _
+            # new
+            "},
+        indoc! {"
+            # test
+
+            link to [something else](2)
+        "},
+    );
+}
+
+#[test]
 fn update_ref_titles_after_change() {
-    assert_formatted_after_change(
+    assert_formatted_normalized_after_change(
         indoc! {"
             # test
 
@@ -151,7 +187,7 @@ fn update_ref_titles_after_change() {
 
 #[test]
 fn update_ref_titles_after_new_file_change() {
-    assert_formatted_after_change(
+    assert_formatted_normalized_after_change(
         indoc! {"
             # test
 
@@ -177,6 +213,35 @@ fn assert_formatted(source: &str, formatted: &str) {
     );
 }
 
+fn assert_formatted_normalized(source: &str, formatted: &str) {
+    Fixture::with_options(
+        source,
+        MarkdownOptions {
+            refs_text: RefsText::Normalize,
+            ..Default::default()
+        },
+    )
+    .format_document(
+        uri(1).to_document_formatting_params(),
+        vec![formatted.to_text_edit_full()],
+    );
+}
+
+fn assert_formatted_normalized_after_change(source: &str, change: &str, formatted: &str) {
+    Fixture::with_options(
+        source,
+        MarkdownOptions {
+            refs_text: RefsText::Normalize,
+            ..Default::default()
+        },
+    )
+    .did_change_text_document(uri(2).to_did_change_params(2, change.to_string()))
+    .format_document(
+        uri(1).to_document_formatting_params(),
+        vec![formatted.to_text_edit_full()],
+    );
+}
+
 fn assert_formatted_with_extension(source: &str, formatted: &str) {
     Fixture::with_options(
         source,
@@ -189,15 +254,6 @@ fn assert_formatted_with_extension(source: &str, formatted: &str) {
         uri(1).to_document_formatting_params(),
         vec![formatted.to_text_edit_full()],
     );
-}
-
-fn assert_formatted_after_change(source: &str, change: &str, formatted: &str) {
-    Fixture::with(source)
-        .did_change_text_document(uri(2).to_did_change_params(2, change.to_string()))
-        .format_document(
-            uri(1).to_document_formatting_params(),
-            vec![formatted.to_text_edit_full()],
-        );
 }
 
 #[test]

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `config::RefsText` re-export and the `refs_text` field it sits on (`MarkdownOptions`/`DjotOptions`) — selects whether a markdown link's text is preserved (default) or normalized to the linked document's title.
 - `stats` findings functions — `graph_findings` (whole-store orphan and dangling-link `Finding`s, discriminated by `Rule`) and `mutation_findings` (the same plus a similar-page check for the created/updated keys), with `orphan_keys` and the now-public `broken_links` behind them.
 - `stats::SimilarityIndex` — a search index plus per-key token counts, built once per run (`SimilarityIndex::build`) and reused for `similar(key)` (near-identical pages for one key, as `stats::SimilarPage { key, score }`) and `pairs()` (every mutually-similar pair across the store, each once, computed concurrently). Duplicate detection uses mutual BM25 similarity with a token-size gate and a high threshold.
 - `GraphStatistics.orphans` — the list of orphan keys behind the existing `orphaned_documents` count; `stats::KeyStatisticsReport` pairs a `KeyStatistics` with its similar pages. `index` pages (root `index` or any `<dir>/index`) are treated as intentional entry points and excluded from both the orphan list and the count.

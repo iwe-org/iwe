@@ -4,7 +4,7 @@ use std::sync::Once;
 use pretty_assertions::assert_str_eq;
 use tempfile::TempDir;
 
-use diwe::config::MarkdownOptions;
+use diwe::config::{MarkdownOptions, RefsText};
 use diwe::graph_from_path;
 
 static INIT: Once = Once::new();
@@ -33,6 +33,7 @@ fn link_into_subdirectory_resolves_when_loaded_from_disk() {
         false,
         MarkdownOptions {
             refs_extension: String::default(),
+            refs_text: RefsText::Normalize,
             ..Default::default()
         },
         None,

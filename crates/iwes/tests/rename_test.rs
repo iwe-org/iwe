@@ -124,7 +124,7 @@ fn rename_reference_edges() {
         indoc! {"
             # title
 
-            [title](new_name) text
+            [inline link](new_name) text
         "},
         lsp_types::Position::new(2, 0),
         "new_name",

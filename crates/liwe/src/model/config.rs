@@ -15,6 +15,8 @@ pub struct MarkdownOptions {
     pub refs_extension: String,
     #[serde(default)]
     pub refs_path: RefsPath,
+    #[serde(default)]
+    pub refs_text: RefsText,
     pub date_format: Option<String>,
     pub time_format: Option<String>,
     pub locale: Option<String>,
@@ -55,6 +57,8 @@ pub struct DjotOptions {
     pub refs_extension: String,
     #[serde(default)]
     pub refs_path: RefsPath,
+    #[serde(default)]
+    pub refs_text: RefsText,
     pub date_format: Option<String>,
     pub time_format: Option<String>,
     pub locale: Option<String>,
@@ -67,6 +71,7 @@ impl Default for DjotOptions {
         Self {
             refs_extension: String::new(),
             refs_path: RefsPath::default(),
+            refs_text: RefsText::default(),
             date_format: Some("%b %d, %Y".into()),
             time_format: None,
             locale: None,
@@ -132,6 +137,13 @@ impl FormatOptions {
         }
     }
 
+    pub fn refs_text(&self) -> RefsText {
+        match self {
+            FormatOptions::Markdown(options) => options.refs_text,
+            FormatOptions::Djot(options) => options.refs_text,
+        }
+    }
+
     pub fn date_format(&self) -> Option<&str> {
         match self {
             FormatOptions::Markdown(options) => options.date_format.as_deref(),
@@ -178,11 +190,26 @@ pub enum RefsPath {
     Absolute,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RefsText {
+    #[default]
+    Preserve,
+    Normalize,
+}
+
+impl RefsText {
+    pub fn normalize(&self) -> bool {
+        matches!(self, RefsText::Normalize)
+    }
+}
+
 impl Default for MarkdownOptions {
     fn default() -> Self {
         Self {
             refs_extension: String::new(),
             refs_path: RefsPath::default(),
+            refs_text: RefsText::default(),
             date_format: Some("%b %d, %Y".into()),
             time_format: None,
             locale: None,

@@ -186,6 +186,7 @@ pub type Title = String;
 pub trait InlinesContext: Copy {
     fn get_ref_title(&self, key: &Key) -> Option<String>;
     fn wiki_display(&self, key: &Key, original_url: &str) -> String;
+    fn normalize_ref_text(&self) -> bool;
 }
 
 pub fn is_ref_url(url: &str) -> bool {

@@ -1,4 +1,4 @@
-use diwe::config::{Configuration, LibraryOptions, MarkdownOptions};
+use diwe::config::{Configuration, LibraryOptions, MarkdownOptions, RefsText};
 use indoc::indoc;
 use std::fs::{create_dir_all, write};
 use std::process::Command;
@@ -17,6 +17,7 @@ fn setup_workspace() -> TempDir {
         },
         markdown: MarkdownOptions {
             refs_extension: "".to_string(),
+            refs_text: RefsText::Normalize,
             ..Default::default()
         },
         ..Default::default()
