@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0](https://github.com/iwe-org/iwe/compare/iwe-v0.11.0...iwe-v0.12.0) - 2026-07-12
+
 ### Added
 - `refs_text` markdown option — `preserve` (default) keeps each markdown link's text as written; `normalize` makes `iwe normalize` and document output rewrite the text to the linked document's title.
 - `iwe stats similarity` — list mutually near-identical page pairs across the store, each pair once and tab-separated in alphabetical order (forward matches computed once per page, concurrently).

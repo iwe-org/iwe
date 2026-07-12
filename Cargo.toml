@@ -8,12 +8,12 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.82"
 repository = "https://github.com/iwe-org/iwe"
-version = "0.11.0"
+version = "0.12.0"
 
 [workspace.dependencies]
-liwe = { path = "./crates/liwe", version = "0.11.0" }
-diwe = { path = "./crates/diwe", version = "0.11.0" }
-iwe = { path = "./crates/iwe", version = "0.11.0" }
+liwe = { path = "./crates/liwe", version = "0.12.0" }
+diwe = { path = "./crates/diwe", version = "0.12.0" }
+iwe = { path = "./crates/iwe", version = "0.12.0" }
 schematter-validator = "0.1.0"
 anyhow = "1.0.102"
 clap = { version = "4.5", features = ["derive"] }

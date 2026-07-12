@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0](https://github.com/iwe-org/iwe/compare/liwe-v0.11.0...liwe-v0.12.0) - 2026-07-12
+
 ### Added
 - `refs_text` field on `MarkdownOptions` and `DjotOptions` — a `RefsText` (`preserve` by default, or `normalize`) that controls whether a regular markdown link's text is rewritten to the linked document's title; read through `FormatOptions::refs_text()`, with `InlinesContext` and `Graph` gaining `normalize_ref_text`.
 - `schema` module — document-schema validation: `compile_schema` compiles a YAML/JSON schema (frontmatter JSON Schema plus an ordered section tree with `header`, `maxTokens`, `maxDepth`, `minContains`/`maxContains`, `allSections`, `additionalSections`) into a `CompiledSchema`, and `CompiledSchema::validate` checks a `Document` and returns `Violation`s carrying a breadcrumb, hint, schema pointer, and keyword. Unknown keywords are load errors (`SchemaError`).
