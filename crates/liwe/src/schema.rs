@@ -1,10 +1,10 @@
-pub mod compile;
-pub mod dialect;
-pub mod document;
-pub mod infer;
-pub mod violation;
+mod document;
+mod infer;
 
-pub use compile::{compile_schema, CompiledSchema, SchemaError};
-pub use document::{build_document, Block, BlockKind, Document, Item, Section};
+pub use schematter_validator::{
+    compile_schema, Block, BlockKind, CompiledSchema, Crumb, Document, Item, SchemaError, Section,
+    Violation,
+};
+
+pub use document::build_document;
 pub use infer::{infer_schema, Coverage, FieldSchema, TypeCount, ValueCount};
-pub use violation::{Crumb, Violation};

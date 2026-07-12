@@ -14,7 +14,7 @@ fn validate_text_reports_violations_and_hint() {
     assert_eq!(output.status.code(), Some(1));
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
     let expected = indoc! {"
-        docs/one: required section 'Two' missing
+        docs/one: required section \"Two\" is missing
           hint: keep two after one
         docs/one › Extra: unexpected section
     "};
@@ -38,7 +38,7 @@ fn validate_json_reports_violations() {
                 "violations": [
                     {
                         "breadcrumb": [],
-                        "message": "required section 'Two' missing",
+                        "message": "required section \"Two\" is missing",
                         "hint": "keep two after one",
                         "schemaPath": "/sections/1/minContains",
                         "keyword": "minContains"
@@ -93,7 +93,7 @@ fn validate_document_bound_to_two_schemas_reports_each() {
                 "violations": [
                     {
                         "breadcrumb": [],
-                        "message": "required section 'One' missing",
+                        "message": "required section \"One\" is missing",
                         "hint": null,
                         "schemaPath": "/sections/0/minContains",
                         "keyword": "minContains"
@@ -106,7 +106,7 @@ fn validate_document_bound_to_two_schemas_reports_each() {
                 "violations": [
                     {
                         "breadcrumb": [],
-                        "message": "required section 'Two' missing",
+                        "message": "required section \"Two\" is missing",
                         "hint": null,
                         "schemaPath": "/sections/0/minContains",
                         "keyword": "minContains"
@@ -201,7 +201,7 @@ fn validate_against_explicit_schema_file_bypasses_config() {
     assert_eq!(output.status.code(), Some(1));
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
     let expected = indoc! {"
-        docs/one: required section 'Two' missing
+        docs/one: required section \"Two\" is missing
         docs/one › Extra: unexpected section
     "};
     assert_eq!(stdout, expected);
@@ -260,7 +260,7 @@ fn validate_against_explicit_schema_file_json_uses_file_stem() {
                 "violations": [
                     {
                         "breadcrumb": [],
-                        "message": "required section 'Two' missing",
+                        "message": "required section \"Two\" is missing",
                         "hint": null,
                         "schemaPath": "/sections/1/minContains",
                         "keyword": "minContains"

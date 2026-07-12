@@ -14,6 +14,7 @@ version = "0.11.0"
 liwe = { path = "./crates/liwe", version = "0.11.0" }
 diwe = { path = "./crates/diwe", version = "0.11.0" }
 iwe = { path = "./crates/iwe", version = "0.11.0" }
+schematter-validator = "0.1.0"
 anyhow = "1.0.102"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
