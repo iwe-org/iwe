@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe_create`, `iwe_update`, and `iwe_query` (`update` / `delete`) now return non-blocking stats warnings alongside a successful result — orphan pages, dangling links, and (on create/update) near-identical pages — as `warning:` content blocks, each finding reported once per session. They never block a write; schema validation remains the only hard reject.
+- `iwe_stats` with a `key` now returns a `similarPages` array of documents near-identical to that page.
+
 ### Changed
 - Mutating tools (`iwe_create`, `iwe_update`, `iwe_delete`, `iwe_query`, `iwe_rename`, `iwe_extract`, `iwe_inline`, `iwe_attach`) now reject a change that would leave a touched document violating its bound schema, returning a detailed error carrying the readable report and a structured `violations` payload; nothing is written and the in-memory graph is left untouched. `iwe_normalize` and `iwe_squash` are unaffected.
 

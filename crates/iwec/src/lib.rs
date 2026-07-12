@@ -17,7 +17,12 @@ use diwe::schema::{
     pending_from_changes, render_reports_text, validate_pending_documents,
     validate_pending_documents_in, KeyReport,
 };
-use diwe::stats::{GraphStatistics, KeyStatistics};
+use diwe::search::Bm25Index;
+use diwe::search_query::{build_index, corpus_text};
+use diwe::stats::{
+    mutation_findings, Finding, GraphStatistics, KeyStatistics, KeyStatisticsReport,
+    SimilarityIndex,
+};
 use diwe::tokens::Truncation;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::node::NodePointer;
@@ -704,6 +709,8 @@ pub struct IweServer {
     graph: Arc<Mutex<Graph>>,
     base_path: Option<PathBuf>,
     config: Configuration,
+    index: Arc<Mutex<Option<Bm25Index>>>,
+    seen: Arc<Mutex<HashSet<Finding>>>,
     tool_router: ToolRouter<IweServer>,
     prompt_router: PromptRouter<IweServer>,
 }
@@ -841,7 +848,12 @@ impl IweServer {
                 .ok_or_else(|| {
                     McpError::invalid_params(format!("Document '{}' not found", key), None)
                 })?;
-            to_json_result(&stat)
+            let similar = SimilarityIndex::build(&graph, self.config.search_language())
+                .similar(&Key::name(&key));
+            to_json_result(&KeyStatisticsReport {
+                stats: stat,
+                similar_pages: similar,
+            })
         } else {
             let stats = GraphStatistics::from_graph(&graph);
             to_json_result(&stats)
@@ -874,7 +886,7 @@ impl IweServer {
     }
 
     #[tool(
-        description = "Create a new document from a title and optional content. Pass an explicit `key` to control the document's stable identity — derive it from stable metadata (entity name, session date), not the title wording; creation fails if that key already exists."
+        description = "Create a new document from a title and optional content. Pass an explicit `key` to control the document's stable identity — derive it from stable metadata (entity name, session date), not the title wording; creation fails if that key already exists. Stats warnings (dangling links, orphans, similar pages) may ride the result; resolve them before ending the session."
     )]
     async fn iwe_create(
         &self,
@@ -941,14 +953,25 @@ impl IweServer {
         graph.insert_document(key.clone(), markdown.clone());
         self.write_file(&key, &markdown);
 
+        let warnings = self
+            .stats_warnings(
+                &graph,
+                std::slice::from_ref(&key),
+                &[],
+                std::slice::from_ref(&key),
+            )
+            .await;
+
         #[derive(Serialize)]
         struct CreateResult {
             key: String,
         }
-        to_json_result(&CreateResult { key: key_name })
+        to_json_result_with_warnings(&CreateResult { key: key_name }, &warnings)
     }
 
-    #[tool(description = "Update the full markdown content of an existing document")]
+    #[tool(
+        description = "Update the full markdown content of an existing document. Stats warnings (dangling links, orphans, similar pages) may ride the result; resolve them before ending the session."
+    )]
     async fn iwe_update(
         &self,
         Parameters(params): Parameters<UpdateParams>,
@@ -976,21 +999,33 @@ impl IweServer {
             .get_key_title(&key)
             .unwrap_or_else(|| params.key.clone());
 
+        let warnings = self
+            .stats_warnings(
+                &graph,
+                std::slice::from_ref(&key),
+                &[],
+                std::slice::from_ref(&key),
+            )
+            .await;
+
         #[derive(Serialize)]
         struct UpdateResult {
             key: String,
             previous_title: String,
             new_title: String,
         }
-        to_json_result(&UpdateResult {
-            key: params.key,
-            previous_title,
-            new_title,
-        })
+        to_json_result_with_warnings(
+            &UpdateResult {
+                key: params.key,
+                previous_title,
+                new_title,
+            },
+            &warnings,
+        )
     }
 
     #[tool(
-        description = "Delete a document from the knowledge graph. All block references and inline links to this document in other documents are cleaned up"
+        description = "Delete a document from the knowledge graph. All block references and inline links to this document in other documents are cleaned up. Stats warnings (dangling links, orphans, similar pages) may ride the result; resolve them before ending the session."
     )]
     async fn iwe_delete(
         &self,
@@ -1000,17 +1035,19 @@ impl IweServer {
         let mut graph = self.graph.lock().await;
         let changes = op_delete(&graph, &key).map_err(op_error_to_mcp)?;
 
+        let mut warnings = Vec::new();
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
             self.write_changes(&changes);
+            warnings = self.stats_after_delete(&graph, &changes).await;
         }
 
-        to_json_result(&ChangesOutput::from(&changes))
+        to_json_result_with_warnings(&ChangesOutput::from(&changes), &warnings)
     }
 
     #[tool(
-        description = "Run an IWE query/block-selection operation document. `find` and `count` read; `update` mutates frontmatter and blocks (operators $replace, $replaceText, $insertBefore, $insertAfter, $append, $delete); `delete` removes documents. Membership uses the `$content` filter operator; reads project `$content` narrowing, `$blocks`, and `$matches`. Always strict: every mutating application must carry an `expect` guard (document-level `expect` plus one per block operator). Use `find` with `$blocks`/`$matches` to locate targets and learn counts before mutating."
+        description = "Run an IWE query/block-selection operation document. `find` and `count` read; `update` mutates frontmatter and blocks (operators $replace, $replaceText, $insertBefore, $insertAfter, $append, $delete); `delete` removes documents. Membership uses the `$content` filter operator; reads project `$content` narrowing, `$blocks`, and `$matches`. Always strict: every mutating application must carry an `expect` guard (document-level `expect` plus one per block operator). Use `find` with `$blocks`/`$matches` to locate targets and learn counts before mutating. Update/delete results may carry stats warnings (dangling links, orphans, similar pages); resolve them before ending the session."
     )]
     async fn iwe_query(
         &self,
@@ -1083,14 +1120,17 @@ impl IweServer {
                         content: content.clone(),
                     })
                     .collect();
+                let mut warnings = Vec::new();
                 if !dry_run {
                     self.ensure_schema_clean(&changes)?;
                     for (key, content) in &changes {
                         graph.update_document(key.clone(), content.clone());
                         self.write_file(key, content);
                     }
+                    let touched: Vec<Key> = changes.iter().map(|(key, _)| key.clone()).collect();
+                    warnings = self.stats_warnings(&graph, &touched, &[], &touched).await;
                 }
-                to_json_result(&QueryUpdateOutput { dry_run, changed })
+                to_json_result_with_warnings(&QueryUpdateOutput { dry_run, changed }, &warnings)
             }
             Operation::Delete(_) => {
                 let outcome = execute(&op, &graph)
@@ -1103,12 +1143,14 @@ impl IweServer {
                     let changes = op_delete(&graph, key).map_err(op_error_to_mcp)?;
                     combined.merge(changes);
                 }
+                let mut warnings = Vec::new();
                 if !dry_run {
                     self.ensure_schema_clean(&pending_from_changes(&combined))?;
                     Self::apply_changes(&mut graph, &combined);
                     self.write_changes(&combined);
+                    warnings = self.stats_after_delete(&graph, &combined).await;
                 }
-                to_json_result(&ChangesOutput::from(&combined))
+                to_json_result_with_warnings(&ChangesOutput::from(&combined), &warnings)
             }
         }
     }
@@ -1743,6 +1785,8 @@ impl IweServer {
             graph: Arc::new(Mutex::new(graph)),
             base_path: Some(path),
             config: configuration.clone(),
+            index: Arc::new(Mutex::new(None)),
+            seen: Arc::new(Mutex::new(HashSet::new())),
             tool_router: Self::tool_router(),
             prompt_router: Self::prompt_router(),
         }
@@ -1764,6 +1808,8 @@ impl IweServer {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,
             config,
+            index: Arc::new(Mutex::new(None)),
+            seen: Arc::new(Mutex::new(HashSet::new())),
             tool_router: Self::tool_router(),
             prompt_router: Self::prompt_router(),
         }
@@ -1794,6 +1840,43 @@ impl IweServer {
                 None,
             )),
         }
+    }
+
+    async fn stats_warnings(
+        &self,
+        graph: &Graph,
+        upserts: &[Key],
+        removes: &[Key],
+        targets: &[Key],
+    ) -> Vec<String> {
+        let mut index_guard = self.index.lock().await;
+        if index_guard.is_none() {
+            *index_guard = Some(build_index(graph, self.config.search_language()));
+        } else {
+            let index = index_guard.as_mut().expect("index present");
+            for key in removes {
+                index.remove(key);
+            }
+            for key in upserts {
+                index.upsert(key.clone(), corpus_text(graph, key));
+            }
+        }
+        let index = index_guard.as_ref().expect("index present");
+        let findings = mutation_findings(graph, index, targets);
+        drop(index_guard);
+
+        let mut seen = self.seen.lock().await;
+        findings
+            .into_iter()
+            .filter(|finding| seen.insert(finding.clone()))
+            .map(|finding| finding.render())
+            .collect()
+    }
+
+    async fn stats_after_delete(&self, graph: &Graph, changes: &Changes) -> Vec<String> {
+        let neighbors: Vec<Key> = changes.updates.iter().map(|(key, _)| key.clone()).collect();
+        self.stats_warnings(graph, &neighbors, &changes.removes, &[])
+            .await
     }
 
     fn write_file(&self, key: &Key, content: &str) {

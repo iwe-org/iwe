@@ -51,6 +51,10 @@ harness = false
 name = "query"
 harness = false
 
+[[bench]]
+name = "similarity"
+harness = false
+
 [dev-dependencies]
 pretty_assertions.workspace = true
 tempfile.workspace = true
