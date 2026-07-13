@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::graph::{Graph, GraphContext};
 use crate::markdown::MarkdownReader;
 use crate::model::config::MarkdownOptions;
+use crate::model::ids::alloc_node_id;
 use crate::model::inline::Inline;
 use crate::model::node::Node;
 use crate::model::tree::Tree;
@@ -560,7 +561,8 @@ fn parse_inlines(options: &MarkdownOptions, parent_dir: &str, text: &str) -> Vec
 
 fn strip_ids(tree: Tree) -> Tree {
     Tree {
-        id: None,
+        id: alloc_node_id(),
+        line_range: None,
         node: tree.node,
         children: tree.children.into_iter().map(strip_ids).collect(),
     }
@@ -569,7 +571,7 @@ fn strip_ids(tree: Tree) -> Tree {
 fn apply_edits(tree: &Tree, edits: &HashMap<NodeId, Action>) -> Tree {
     let mut children = Vec::new();
     for child in &tree.children {
-        let action = child.id.and_then(|id| edits.get(&id));
+        let action = edits.get(&child.id);
         match action {
             Some(Action::Delete) => {}
             Some(Action::Dissolve) => {
@@ -630,6 +632,7 @@ fn apply_edits(tree: &Tree, edits: &HashMap<NodeId, Action>) -> Tree {
     }
     Tree {
         id: tree.id,
+        line_range: tree.line_range.clone(),
         node: tree.node.clone(),
         children,
     }

@@ -36,11 +36,10 @@ impl SearchIndex {
         self.bm25 = Some(diwe::search_query::build_index(graph, language));
         let graph_ctx: &Graph = graph;
         self.paths = graph
-            .nodes()
+            .section_ids()
             .par_iter()
-            .filter(|graph_node| graph_node.is_section())
-            .filter_map(|graph_node| {
-                let node_id = graph_node.id();
+            .filter_map(|node_id| {
+                let node_id = *node_id;
                 let node = graph_ctx.node(node_id);
 
                 let parent_is_document = node.to_parent().map(|p| p.is_document()).unwrap_or(false);

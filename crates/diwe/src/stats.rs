@@ -529,9 +529,8 @@ impl GraphStatistics {
         let key_stats = KeyStatistics::from_graph(graph);
         let broken_links = broken_links(graph);
 
-        let all_nodes = graph.nodes();
         let paths = graph.paths();
-        let total_nodes = all_nodes.len();
+        let total_nodes = graph.node_count();
         let total_paths = paths.len();
         let root_sections = paths.iter().filter(|p| p.ids().len() == 1).count();
         let max_path_depth = paths.iter().map(|p| p.ids().len()).max().unwrap_or(0);

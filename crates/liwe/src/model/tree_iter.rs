@@ -1,6 +1,8 @@
+use super::ids::alloc_node_id;
 use super::node::Node;
 use super::node_iter::NodeIter;
 use super::tree::Tree;
+use super::{LineRange, NodeId};
 
 pub struct TreeIter<'a> {
     tree_node: &'a Tree,
@@ -13,6 +15,16 @@ impl<'a> TreeIter<'a> {
             tree_node,
             path: vec![],
         }
+    }
+
+    fn current(&self) -> Option<&Tree> {
+        let mut node = self.tree_node;
+
+        for n in self.path.iter() {
+            node = node.children.get(*n)?;
+        }
+
+        Some(node)
     }
 }
 
@@ -45,16 +57,16 @@ impl<'a, 'b> NodeIter<'a> for TreeIter<'b> {
     }
 
     fn node(&self) -> Option<Node> {
-        let mut node = self.tree_node;
+        self.current().map(|node| node.node.clone())
+    }
 
-        for n in self.path.iter() {
-            if let Some(n) = &node.children.get(*n) {
-                node = n;
-            } else {
-                return None;
-            }
-        }
+    fn iter_id(&self) -> NodeId {
+        self.current()
+            .map(|node| node.id)
+            .unwrap_or_else(alloc_node_id)
+    }
 
-        Some(node.node.clone())
+    fn line_range(&self) -> Option<LineRange> {
+        self.current().and_then(|node| node.line_range.clone())
     }
 }

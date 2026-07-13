@@ -26,6 +26,7 @@ log.workspace = true
 rayon.workspace = true
 regex.workspace = true
 rand.workspace = true
+rustc-hash.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
 jotdown = { workspace = true, optional = true }

@@ -12,7 +12,7 @@ use sections_builder::SectionsBuilder;
 use serde_yaml::Mapping;
 
 use crate::model::{document::Document, tree::Tree};
-use arena::{finalize_build, Arena, BuildArena, BuildIds, NodeStore};
+use arena::{finalize_build, Arena, BuildArena, BuildIds, LineMap, NodeMap, NodeStore};
 use builder::GraphBuilder;
 use itertools::Itertools;
 use path::{graph_to_paths, NodePath};
@@ -205,15 +205,23 @@ impl Graph {
         self.arena.node(id)
     }
 
-    pub fn nodes(&self) -> &Vec<GraphNode> {
-        self.arena.nodes()
+    pub fn node_count(&self) -> usize {
+        self.arena.node_count()
+    }
+
+    pub fn node_ids(&self) -> Vec<NodeId> {
+        self.arena.node_ids()
+    }
+
+    pub fn section_ids(&self) -> Vec<NodeId> {
+        self.arena.section_ids()
     }
 
     pub fn new_node_id(&mut self) -> NodeId {
         self.arena.new_node_id()
     }
 
-    pub fn get_line(&self, id: LineId) -> Line {
+    pub fn get_line(&self, id: LineId) -> &Line {
         self.arena.get_line(id)
     }
 
@@ -227,7 +235,9 @@ impl Graph {
     }
 
     pub fn build_key_from_iter<'b>(&mut self, key: &Key, iter: impl NodeIter<'b>) {
-        self.build_key(key).insert_from_iter(iter);
+        let map = self.build_key(key).insert_from_iter(iter);
+        self.nodes_map.insert(key.clone(), map.clone());
+        self.global_nodes_map.extend(map);
     }
 
     pub fn builder(&mut self, id: NodeId) -> GraphBuilder<'_> {
@@ -441,7 +451,7 @@ impl Graph {
                 .collect()
         };
 
-        merge_outputs(&mut graph, outputs, &ids);
+        merge_outputs(&mut graph, outputs);
         graph.key_index = key_index;
         build_index_and_titles(&mut graph);
         graph
@@ -564,7 +574,15 @@ impl Debug for Graph {
 
 impl PartialEq for Graph {
     fn eq(&self, other: &Self) -> bool {
-        self.keys == other.keys && self.arena == other.arena
+        if self.keys.len() != other.keys.len() {
+            return false;
+        }
+        if !self.keys.keys().all(|key| other.keys.contains_key(key)) {
+            return false;
+        }
+        self.keys
+            .keys()
+            .all(|key| GraphContext::collect(&self, key) == GraphContext::collect(&other, key))
     }
 }
 
@@ -609,8 +627,8 @@ struct DocBuildOutput {
     root_id: NodeId,
     frontmatter: Option<Mapping>,
     nodes_map: crate::model::NodesMap,
-    nodes: HashMap<NodeId, GraphNode>,
-    lines: HashMap<crate::graph::LineId, graph_line::Line>,
+    nodes: NodeMap,
+    lines: LineMap,
     content: String,
 }
 
@@ -648,7 +666,7 @@ fn build_doc(
     }
 }
 
-fn merge_outputs(graph: &mut Graph, outputs: Vec<DocBuildOutput>, ids: &BuildIds) {
+fn merge_outputs(graph: &mut Graph, outputs: Vec<DocBuildOutput>) {
     let mut all_parts = Vec::with_capacity(outputs.len());
     for output in outputs {
         if let Some(fm) = output.frontmatter {
@@ -664,7 +682,7 @@ fn merge_outputs(graph: &mut Graph, outputs: Vec<DocBuildOutput>, ids: &BuildIds
         graph.content.insert(output.key.clone(), output.content);
         all_parts.push((output.nodes, output.lines));
     }
-    graph.arena = finalize_build(ids, all_parts);
+    graph.arena = finalize_build(all_parts);
 }
 
 fn collect_plain_text(tree: &Tree, lines: &mut Vec<String>) {
@@ -678,21 +696,18 @@ fn collect_plain_text(tree: &Tree, lines: &mut Vec<String>) {
 }
 
 fn build_index_and_titles(graph: &mut Graph) {
-    let nodes = graph.arena.nodes();
-    graph.index = if nodes.len() < PARALLEL_BUILD_THRESHOLD {
+    let root_ids: Vec<NodeId> = graph.keys.values().copied().collect();
+    graph.index = if root_ids.len() < PARALLEL_BUILD_THRESHOLD {
         let mut idx = RefIndex::new();
-        for node in nodes {
-            idx.index_node(graph, node.id());
+        for id in &root_ids {
+            idx.index_node(graph, *id);
         }
         idx
     } else {
-        nodes
-            .par_chunks(4096)
-            .map(|chunk| {
-                let mut local = RefIndex::new();
-                for node in chunk {
-                    local.index_node(graph, node.id());
-                }
+        root_ids
+            .par_iter()
+            .fold(RefIndex::new, |mut local, id| {
+                local.index_node(graph, *id);
                 local
             })
             .reduce(RefIndex::new, |mut acc, other| {
@@ -751,13 +766,23 @@ pub trait GraphPatch<'a> {
 
 impl<'a> GraphPatch<'a> for Graph {
     fn add_key(&mut self, key: &Key, iter: impl NodeIter<'a>) {
-        if iter.is_document() {
-            self.build_key_and(key, |doc| {
-                doc.insert_from_iter(iter.child().expect("to have child in document iter"))
-            });
+        let map = if iter.is_document() {
+            self.build_key(key)
+                .insert_from_iter(iter.child().expect("to have child in document iter"))
         } else {
-            self.build_key_and(key, |doc| doc.insert_from_iter(iter));
-        }
+            self.build_key(key).insert_from_iter(iter)
+        };
+
+        self.nodes_map.insert(key.clone(), map.clone());
+        self.global_nodes_map.extend(map);
+
+        self.extract_ref_text(key)
+            .map(|text| self.keys_to_ref_text.insert(key.clone(), text));
+
+        let id = self.get_document_id(key);
+        let mut index = RefIndex::new();
+        index.index_node(self, id);
+        self.index.merge(index);
     }
 
     fn markdown(&self, key: &Key) -> Option<String> {
@@ -932,7 +957,7 @@ mod retention_tests {
 
         graph.update_document("source".into(), linking_document());
 
-        let nodes_len = graph.nodes().len();
+        let nodes_len = graph.node_count();
         let lines_len = graph.arena.lines_len();
         let global_len = graph.global_nodes_map.len();
         let edge_counts = graph.index.edge_counts();
@@ -943,7 +968,7 @@ mod retention_tests {
             graph.update_document("source".into(), linking_document());
         }
 
-        assert_eq!(graph.nodes().len(), nodes_len);
+        assert_eq!(graph.node_count(), nodes_len);
         assert_eq!(graph.arena.lines_len(), lines_len);
         assert_eq!(graph.global_nodes_map.len(), global_len);
         assert_eq!(graph.index.edge_counts(), edge_counts);
@@ -973,22 +998,24 @@ mod retention_tests {
     }
 
     #[test]
-    fn shrink_then_grow_reuses_slots() {
+    fn shrink_then_grow_keeps_nodes_bounded() {
         let small = "# One\n".to_string();
         let large = "# One\n\n# Two\n\n# Three\n".to_string();
 
         let mut graph = Graph::new();
         graph.insert_document("source".into(), small.clone());
+        let small_nodes = graph.node_count();
 
         graph.update_document("source".into(), large.clone());
-        let large_nodes = graph.nodes().len();
+        let large_nodes = graph.node_count();
         let large_markdown = graph.to_markdown(&"source".into());
 
         graph.update_document("source".into(), small.clone());
-        assert_eq!(graph.nodes().len(), large_nodes);
+        assert_eq!(graph.node_count(), small_nodes);
+        assert_eq!(graph.to_markdown(&"source".into()), small);
 
         graph.update_document("source".into(), large.clone());
-        assert_eq!(graph.nodes().len(), large_nodes);
+        assert_eq!(graph.node_count(), large_nodes);
         assert_eq!(graph.to_markdown(&"source".into()), large_markdown);
     }
 

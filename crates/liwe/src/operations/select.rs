@@ -36,7 +36,7 @@ fn collect_sections(tree: &Tree, out: &mut Vec<SectionRef>) {
         out.push(SectionRef {
             number: out.len() + 1,
             title: inlines.iter().map(|i| i.plain_text()).collect(),
-            id: tree.id.expect("section node has an id"),
+            id: tree.id,
         });
     }
     for child in &tree.children {
@@ -84,7 +84,7 @@ fn collect_references(tree: &Tree, out: &mut Vec<InclusionRef>) {
             number: out.len() + 1,
             title: reference.text.clone(),
             key: reference.key.clone(),
-            id: tree.id.expect("reference node has an id"),
+            id: tree.id,
         });
     }
     for child in &tree.children {

@@ -7,6 +7,7 @@ use crate::model::node::NodePointer;
 use crate::model::node::Reference;
 use crate::model::node::ReferenceType;
 use crate::model::node::Table;
+use crate::model::LineRange;
 use crate::model::NodeId;
 
 pub struct GraphNodePointer<'a> {
@@ -53,6 +54,14 @@ impl<'a> NodePointer<'a> for GraphNodePointer<'a> {
 }
 
 impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
+    fn iter_id(&self) -> NodeId {
+        self.id
+    }
+
+    fn line_range(&self) -> Option<LineRange> {
+        self.graph.node_line_range(self.id)
+    }
+
     fn next(&self) -> Option<Self> {
         self.graph
             .graph_node(self.id)

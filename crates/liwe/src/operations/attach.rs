@@ -1,4 +1,5 @@
 use crate::graph::{Graph, GraphContext};
+use crate::model::ids::alloc_node_id;
 use crate::model::node::{Node, NodeIter, Reference, ReferenceType};
 use crate::model::tree::Tree;
 use crate::model::Key;
@@ -17,7 +18,8 @@ pub fn attach_reference(
 ) -> AttachTarget {
     let format_options = graph.format_options();
     let reference = Tree {
-        id: None,
+        id: alloc_node_id(),
+        line_range: None,
         node: Node::Reference(Reference {
             key: reference_key.clone(),
             text: reference_text.to_string(),
