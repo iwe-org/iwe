@@ -1,64 +1,54 @@
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::OnceLock;
+
+use rustc_hash::FxHashMap;
 
 use crate::graph::{
     LineId, NodeId,
     {graph_line::Line, graph_node::GraphNode},
 };
+use crate::model::ids::{alloc_line_id, alloc_node_id};
 use crate::model::inline::Inlines;
+
+pub type NodeMap = FxHashMap<NodeId, GraphNode>;
+pub type LineMap = FxHashMap<LineId, Line>;
+
+fn empty_line() -> &'static Line {
+    static EMPTY: OnceLock<Line> = OnceLock::new();
+    EMPTY.get_or_init(|| Line::new(0, Inlines::new()))
+}
 
 #[derive(Clone, Default)]
 pub struct Arena {
-    nodes: Vec<GraphNode>,
-    lines: Vec<Line>,
-    free_nodes: Vec<NodeId>,
-    free_lines: Vec<LineId>,
+    nodes: NodeMap,
+    lines: LineMap,
 }
 
 impl Arena {
-    pub fn from_parts(nodes: Vec<GraphNode>, lines: Vec<Line>) -> Self {
-        Arena {
-            nodes,
-            lines,
-            free_nodes: Vec::new(),
-            free_lines: Vec::new(),
-        }
+    pub fn from_parts(nodes: NodeMap, lines: LineMap) -> Self {
+        Arena { nodes, lines }
     }
 
     pub fn node(&self, id: NodeId) -> GraphNode {
-        self.nodes[id as usize].clone()
+        self.nodes.get(&id).cloned().unwrap_or(GraphNode::Empty)
     }
 
-    pub fn get_line(&self, id: LineId) -> Line {
-        self.lines[id].clone()
+    pub fn get_line(&self, id: LineId) -> &Line {
+        self.lines.get(&id).unwrap_or_else(|| empty_line())
     }
 
     pub fn add_line(&mut self, inlines: Inlines) -> LineId {
-        if let Some(id) = self.free_lines.pop() {
-            self.lines[id] = Line::new(id, inlines);
-            id
-        } else {
-            let id = self.new_line_id();
-            self.lines.push(Line::new(id, inlines));
-            id
-        }
+        let id = alloc_line_id();
+        self.lines.insert(id, Line::new(id, inlines));
+        id
     }
 
     pub fn new_node_id(&mut self) -> NodeId {
-        match self.free_nodes.pop() {
-            Some(id) => id,
-            None => self.nodes.len() as NodeId,
-        }
-    }
-
-    fn new_line_id(&mut self) -> LineId {
-        self.lines.len() as LineId
+        alloc_node_id()
     }
 
     pub fn delete_branch(&mut self, from_id: NodeId) {
         for line_id in self.node(from_id).line_ids() {
-            self.lines[line_id] = Line::new(line_id, Inlines::new());
-            self.free_lines.push(line_id);
+            self.lines.remove(&line_id);
         }
 
         if let Some(id) = self.node(from_id).child_id() {
@@ -69,12 +59,23 @@ impl Arena {
             self.delete_branch(id)
         }
 
-        self.set_node(from_id, GraphNode::Empty);
-        self.free_nodes.push(from_id);
+        self.nodes.remove(&from_id);
     }
 
-    pub fn nodes(&self) -> &Vec<GraphNode> {
-        &self.nodes
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn node_ids(&self) -> Vec<NodeId> {
+        self.nodes.keys().copied().collect()
+    }
+
+    pub fn section_ids(&self) -> Vec<NodeId> {
+        self.nodes
+            .iter()
+            .filter(|(_, node)| node.is_section())
+            .map(|(id, _)| *id)
+            .collect()
     }
 
     #[cfg(test)]
@@ -83,86 +84,53 @@ impl Arena {
     }
 
     pub fn set_node(&mut self, id: NodeId, node: GraphNode) {
-        if id as usize >= self.nodes.len() {
-            self.nodes.push(node)
-        } else {
-            self.nodes[id as usize] = node;
-        }
+        self.nodes.insert(id, node);
     }
 
     pub fn update_node<F>(&mut self, id: NodeId, f: F)
     where
         F: FnOnce(&mut GraphNode),
     {
-        if matches!(self.nodes[id as usize], GraphNode::Empty) {
+        let node = self
+            .nodes
+            .get_mut(&id)
+            .unwrap_or_else(|| panic!("Node {} is missing", id));
+        if matches!(node, GraphNode::Empty) {
             panic!("Node {} is empty", id);
         }
-        f(&mut self.nodes[id as usize]);
-    }
-}
-
-impl PartialEq for Arena {
-    fn eq(&self, other: &Self) -> bool {
-        if self.nodes.len() != other.nodes.len() {
-            return false;
-        }
-        for (i, node) in self.nodes.iter().enumerate() {
-            if node != &other.nodes[i] {
-                return false;
-            }
-        }
-        if self.lines.len() != other.lines.len() {
-            return false;
-        }
-        for (i, line) in self.lines.iter().enumerate() {
-            if line != &other.lines[i] {
-                return false;
-            }
-        }
-        true
+        f(node);
     }
 }
 
 #[derive(Default)]
-pub struct BuildIds {
-    next_node_id: AtomicU64,
-    next_line_id: AtomicUsize,
-}
+pub struct BuildIds;
 
 impl BuildIds {
     pub fn new() -> Self {
-        Self::default()
+        BuildIds
     }
 
     pub fn alloc_node_id(&self) -> NodeId {
-        self.next_node_id.fetch_add(1, Ordering::Relaxed)
+        alloc_node_id()
     }
 
     pub fn alloc_line_id(&self) -> LineId {
-        self.next_line_id.fetch_add(1, Ordering::Relaxed)
-    }
-
-    pub fn total_nodes(&self) -> usize {
-        self.next_node_id.load(Ordering::Relaxed) as usize
-    }
-
-    pub fn total_lines(&self) -> usize {
-        self.next_line_id.load(Ordering::Relaxed)
+        alloc_line_id()
     }
 }
 
 #[derive(Default)]
 pub struct BuildArena<'a> {
-    nodes: HashMap<NodeId, GraphNode>,
-    lines: HashMap<LineId, Line>,
+    nodes: NodeMap,
+    lines: LineMap,
     ids: Option<&'a BuildIds>,
 }
 
 impl<'a> BuildArena<'a> {
     pub fn new(ids: &'a BuildIds) -> Self {
         Self {
-            nodes: HashMap::new(),
-            lines: HashMap::new(),
+            nodes: NodeMap::default(),
+            lines: LineMap::default(),
             ids: Some(ids),
         }
     }
@@ -207,7 +175,7 @@ impl<'a> BuildArena<'a> {
         f(entry);
     }
 
-    pub fn into_parts(self) -> (HashMap<NodeId, GraphNode>, HashMap<LineId, Line>) {
+    pub fn into_parts(self) -> (NodeMap, LineMap) {
         (self.nodes, self.lines)
     }
 }
@@ -244,25 +212,18 @@ impl<'a> NodeStore for BuildArena<'a> {
     }
 }
 
-pub fn finalize_build(
-    ids: &BuildIds,
-    parts: Vec<(HashMap<NodeId, GraphNode>, HashMap<LineId, Line>)>,
-) -> Arena {
-    let total_nodes = ids.total_nodes();
-    let total_lines = ids.total_lines();
+pub fn finalize_build(parts: Vec<(NodeMap, LineMap)>) -> Arena {
+    let total_nodes: usize = parts.iter().map(|(nodes, _)| nodes.len()).sum();
+    let total_lines: usize = parts.iter().map(|(_, lines)| lines.len()).sum();
 
-    let mut nodes = vec![GraphNode::Empty; total_nodes];
-    let mut lines: Vec<Line> = (0..total_lines)
-        .map(|i| Line::new(i, Inlines::new()))
-        .collect();
+    let mut nodes = NodeMap::default();
+    let mut lines = LineMap::default();
+    nodes.reserve(total_nodes);
+    lines.reserve(total_lines);
 
     for (doc_nodes, doc_lines) in parts {
-        for (id, node) in doc_nodes {
-            nodes[id as usize] = node;
-        }
-        for (id, line) in doc_lines {
-            lines[id] = line;
-        }
+        nodes.extend(doc_nodes);
+        lines.extend(doc_lines);
     }
 
     Arena::from_parts(nodes, lines)

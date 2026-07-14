@@ -86,11 +86,10 @@ impl NodePath {
 
 pub fn graph_to_paths(graph: &Graph) -> Vec<NodePath> {
     let paths: Vec<NodePath> = graph
-        .nodes()
+        .node_ids()
         .into_par_iter()
-        .filter(|node| !matches!(node, GraphNode::Empty))
-        .filter(|node| !graph.node(node.id()).is_in_list())
-        .flat_map(|node| paths_for_node(graph, node.id(), &mut HashSet::new()))
+        .filter(|id| !graph.node(*id).is_in_list())
+        .flat_map(|id| paths_for_node(graph, id, &mut HashSet::new()))
         .filter(|path| !path.ids.is_empty())
         .filter(|path| {
             path.first_id()
@@ -150,8 +149,35 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
 #[cfg(test)]
 mod test {
 
+    use std::collections::HashMap;
+
     use crate::graph::path::{graph_to_paths, NodePath};
     use crate::graph::Graph;
+    use crate::model::NodeId;
+
+    fn normalize(paths: &[NodePath]) -> Vec<Vec<usize>> {
+        let mut map: HashMap<NodeId, usize> = HashMap::new();
+        let mut next = 0usize;
+        paths
+            .iter()
+            .map(|path| {
+                path.ids()
+                    .iter()
+                    .map(|id| {
+                        *map.entry(*id).or_insert_with(|| {
+                            let ordinal = next;
+                            next += 1;
+                            ordinal
+                        })
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    fn assert_paths_eq(expected: Vec<NodePath>, actual: Vec<NodePath>) {
+        assert_eq!(normalize(&expected), normalize(&actual));
+    }
 
     #[test]
     fn empty_path_returns_none() {
@@ -171,30 +197,30 @@ mod test {
 
     #[test]
     pub fn no_parents() {
-        assert_eq!(
+        assert_paths_eq(
             vec![NodePath::from_id(1)],
             graph_to_paths(&Graph::with(|graph| {
                 graph.build_key(&"key".into()).section_text("test");
-            }))
+            })),
         );
     }
 
     #[test]
     pub fn two_sections() {
-        assert_eq!(
+        assert_paths_eq(
             vec![NodePath::from_id(1), NodePath::from_id(2)],
             graph_to_paths(&Graph::with(|graph| {
                 graph
                     .build_key(&"key".into())
                     .section_text("test")
                     .section_text("test2");
-            }))
+            })),
         );
     }
 
     #[test]
     pub fn list() {
-        assert_eq!(
+        assert_paths_eq(
             vec![NodePath::from_id(1)],
             graph_to_paths(&Graph::with(|graph| {
                 graph
@@ -204,45 +230,45 @@ mod test {
                             l.section_text("test2");
                         });
                     });
-            }))
+            })),
         );
     }
 
     #[test]
     pub fn one_parent_two_sections() {
-        assert_eq!(
+        assert_paths_eq(
             vec![NodePath::new(vec![1]), NodePath::new(vec![1, 2])],
             graph_to_paths(&Graph::with(|graph| {
                 graph.build_key(&"a".into()).section_text_and("1", |s| {
                     s.section_text("2");
                 });
-            }))
+            })),
         );
     }
 
     #[test]
     pub fn two_parents() {
-        assert_eq!(
+        assert_paths_eq(
             vec![
                 NodePath::new(vec![1]),
                 NodePath::new(vec![1, 2]),
-                NodePath::new(vec![1, 3])
+                NodePath::new(vec![1, 3]),
             ],
             graph_to_paths(Graph::new().build_key_and(&"a".into(), |a| {
                 a.section_text_and("1", |s1| {
                     s1.section_text("2").section_text("3");
                 });
-            }))
+            })),
         );
     }
 
     #[test]
     pub fn three_segments() {
-        assert_eq!(
+        assert_paths_eq(
             vec![
                 NodePath::new(vec![1]),
                 NodePath::new(vec![1, 2]),
-                NodePath::new(vec![1, 2, 3])
+                NodePath::new(vec![1, 2, 3]),
             ],
             graph_to_paths(Graph::new().build_key_and(&"a".into(), |a| {
                 a.section_text_and("1", |s1| {
@@ -250,7 +276,7 @@ mod test {
                         s2.section_text("3");
                     });
                 });
-            }))
+            })),
         );
     }
 
@@ -268,9 +294,9 @@ mod test {
                 });
         });
 
-        assert_eq!(
+        assert_paths_eq(
             vec![NodePath::new(vec![3]), NodePath::new(vec![3, 1])],
-            graph_to_paths(&graph)
+            graph_to_paths(&graph),
         );
     }
 
@@ -293,13 +319,13 @@ mod test {
                 });
         });
 
-        assert_eq!(
+        assert_paths_eq(
             vec![
                 NodePath::new(vec![6]),
                 NodePath::new(vec![6, 3]),
-                NodePath::new(vec![6, 3, 1])
+                NodePath::new(vec![6, 3, 1]),
             ],
-            graph_to_paths(&graph)
+            graph_to_paths(&graph),
         );
     }
 

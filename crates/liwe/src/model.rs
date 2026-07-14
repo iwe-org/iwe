@@ -7,6 +7,7 @@ use config::RefsPath;
 
 pub mod config;
 pub mod document;
+pub mod ids;
 pub mod inline;
 pub mod key_index;
 pub mod node;
@@ -25,10 +26,10 @@ pub type MaybeKey = Option<Key>;
 pub type Content = String;
 pub type State = HashMap<String, String>;
 
-pub type NodeId = u64;
+pub type NodeId = i64;
 pub type MaybeNodeId = Option<NodeId>;
 
-pub type LineId = usize;
+pub type LineId = i64;
 pub type MaybeLineId = Option<LineId>;
 
 pub type StrId = usize;

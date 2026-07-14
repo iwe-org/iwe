@@ -110,9 +110,7 @@ fn build_sections(
     tree: &Tree,
 ) {
     tree.children.iter().for_each(|child| {
-        let Some(child_id) = child.id else {
-            return;
-        };
+        let child_id = child.id;
         if child.is_list() {
         } else if depth == 0 && child.is_section() {
             cache.documents.insert(
@@ -136,16 +134,12 @@ fn build_sections(
                 },
             );
             if tree.is_section() {
-                if let Some(tree_id) = tree.id {
-                    cache.section_to_section.insert((tree_id, child_id));
-                }
+                cache.section_to_section.insert((tree.id, child_id));
             }
             build_sections(key, cache, key_depth, depth + 1, _max_depth, child);
         } else if child.is_reference() {
             if let Some(ref_key) = child.node.reference_key() {
-                if let Some(tree_id) = tree.id {
-                    cache.section_to_document.insert((tree_id, ref_key.clone()));
-                }
+                cache.section_to_document.insert((tree.id, ref_key.clone()));
                 cache.document_to_document.insert((key.into(), ref_key));
             }
         }
@@ -234,17 +228,17 @@ mod tests {
     #[test]
     fn build_sections_one_doc() {
         let doc1 = Tree::new(
-            Some(1),
+            1,
             Node::Document(Key::name("1"), None),
             vec![Tree::new(
-                Some(2),
+                2,
                 Node::Section(vec!["title".to_string().into()]),
                 vec![
                     Tree::new(
-                        Some(3),
+                        3,
                         Node::Section(vec!["1.1".to_string().into()]),
                         vec![Tree::new(
-                            Some(4),
+                            4,
                             Node::Reference(Reference {
                                 key: Key::name("2"),
                                 text: "".into(),
@@ -256,10 +250,10 @@ mod tests {
                         )],
                     ),
                     Tree::new(
-                        Some(5),
+                        5,
                         Node::Section(vec!["1.2".to_string().into()]),
                         vec![Tree::new(
-                            Some(6),
+                            6,
                             Node::Reference(Reference {
                                 key: Key::name("3"),
                                 text: "".into(),

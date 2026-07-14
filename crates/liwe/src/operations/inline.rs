@@ -4,6 +4,7 @@ use itertools::Itertools;
 
 use crate::graph::{Graph, GraphContext};
 use crate::model::config::InlineType;
+use crate::model::ids::alloc_node_id;
 use crate::model::node::{Node, NodeIter};
 use crate::model::tree::Tree;
 use crate::model::{Key, NodeId};
@@ -52,7 +53,8 @@ pub fn inline(
         }
         InlineType::Quote => {
             let quote_tree = Tree {
-                id: None,
+                id: alloc_node_id(),
+                line_range: None,
                 node: Node::Quote(),
                 children: inline_tree.children.clone(),
             };

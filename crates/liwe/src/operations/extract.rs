@@ -4,6 +4,7 @@ use itertools::Itertools;
 
 use crate::graph::{Graph, GraphContext};
 use crate::model::config::LinkType;
+use crate::model::ids::alloc_node_id;
 use crate::model::node::{Node, NodeIter, Reference, ReferenceType};
 use crate::model::tree::Tree;
 use crate::model::{Key, NodeId};
@@ -130,7 +131,8 @@ fn extract_section_rec(
         children.insert(
             tree.pre_sub_header_position(),
             Tree {
-                id: None,
+                id: alloc_node_id(),
+                line_range: None,
                 node: Node::Reference(Reference {
                     key: new_key.clone(),
                     text: title.to_string(),
@@ -144,6 +146,7 @@ fn extract_section_rec(
 
         return vec![Tree {
             id: tree.id,
+            line_range: tree.line_range.clone(),
             node: tree.node.clone(),
             children,
         }];
@@ -151,6 +154,7 @@ fn extract_section_rec(
 
     vec![Tree {
         id: tree.id,
+        line_range: tree.line_range.clone(),
         node: tree.node.clone(),
         children: tree
             .children
@@ -191,7 +195,7 @@ pub fn extract_all(
         .children
         .iter()
         .filter(|child| child.is_section())
-        .filter_map(|child| child.id)
+        .map(|child| child.id)
         .collect();
 
     if subsection_ids.is_empty() {

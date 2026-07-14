@@ -6,8 +6,7 @@ how the search surfaces differ.
 
 For the user-facing overview see [Notes Search](feature-search.md). The
 fuzzy/lexical split and RRF fusion described here are implemented across the CLI,
-MCP, and LSP surfaces; see [the find fuzzy/lexical/RRF plan](plans/find-fuzzy-lexical-rrf.md)
-for the design rationale.
+MCP, and LSP surfaces.
 
 ## Two rankers
 

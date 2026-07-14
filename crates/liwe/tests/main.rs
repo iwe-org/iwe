@@ -25,6 +25,7 @@ mod query_graph;
 mod query_reserved_prefix;
 mod query_scores;
 mod query_update;
+mod roundtrip_test;
 mod squash_test;
 mod task_items_test;
 mod toc_test;

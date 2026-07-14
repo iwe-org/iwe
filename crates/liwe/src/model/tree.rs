@@ -3,21 +3,34 @@ use std::collections::HashMap;
 use itertools::Itertools;
 
 use super::{
+    ids::alloc_node_id,
     inline::{prepend_checkbox, Inline},
     node::{Node, NodePointer, Reference, ReferenceType},
-    Key, NodeId,
+    Key, LineRange, NodeId,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Tree {
-    pub id: Option<NodeId>,
+    pub id: NodeId,
+    pub line_range: Option<LineRange>,
     pub node: Node,
     pub children: Vec<Tree>,
 }
 
+impl PartialEq for Tree {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node && self.children == other.children
+    }
+}
+
 impl Tree {
-    pub fn new(id: Option<NodeId>, node: Node, children: Vec<Tree>) -> Tree {
-        Tree { id, node, children }
+    pub fn new(id: NodeId, node: Node, children: Vec<Tree>) -> Tree {
+        Tree {
+            id,
+            line_range: None,
+            node,
+            children,
+        }
     }
 
     pub fn iter(&self) -> TreeIter<'_> {
@@ -37,23 +50,23 @@ impl Tree {
     }
 
     pub fn extract_sections(&self, keys: HashMap<NodeId, (Key, String)>) -> Tree {
-        self.id
-            .filter(|id| keys.contains_key(id))
-            .map(|id| {
-                let (key, text) = keys.get(&id).expect("to have key").clone();
-                Tree {
-                    id: None,
-                    node: Node::Reference(Reference {
-                        key,
-                        text,
-                        reference_type: ReferenceType::Regular,
-                        url: String::new(),
-                        display_url: None,
-                    }),
-                    children: vec![],
-                }
-            })
-            .unwrap_or_else(|| self.map_children(|child| child.extract_sections(keys.clone())))
+        if keys.contains_key(&self.id) {
+            let (key, text) = keys.get(&self.id).expect("to have key").clone();
+            Tree {
+                id: alloc_node_id(),
+                line_range: None,
+                node: Node::Reference(Reference {
+                    key,
+                    text,
+                    reference_type: ReferenceType::Regular,
+                    url: String::new(),
+                    display_url: None,
+                }),
+                children: vec![],
+            }
+        } else {
+            self.map_children(|child| child.extract_sections(keys.clone()))
+        }
     }
 
     pub fn replace(&self, node_id: NodeId, tree: &Tree) -> Tree {
@@ -68,6 +81,7 @@ impl Tree {
         if self.id_eq(node_id) {
             Tree {
                 id: self.id,
+                line_range: self.line_range.clone(),
                 node: match &self.node {
                     Node::BulletList() => Node::OrderedList(),
                     Node::OrderedList() => Node::BulletList(),
@@ -83,6 +97,7 @@ impl Tree {
     fn map_children(&self, f: impl Fn(&Tree) -> Tree) -> Tree {
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: self.node.clone(),
             children: self.children.iter().map(f).collect(),
         }
@@ -107,7 +122,8 @@ impl Tree {
             children.insert(
                 pos + 1,
                 Tree {
-                    id: None,
+                    id: alloc_node_id(),
+                    line_range: None,
                     node: Node::Leaf(vec![Inline::Str(end.to_string())]),
                     children: vec![],
                 },
@@ -115,7 +131,8 @@ impl Tree {
             children.insert(
                 pos,
                 Tree {
-                    id: None,
+                    id: alloc_node_id(),
+                    line_range: None,
                     node: Node::Leaf(vec![Inline::Str(start.to_string())]),
                     children: vec![],
                 },
@@ -123,6 +140,7 @@ impl Tree {
 
             Tree {
                 id: self.id,
+                line_range: self.line_range.clone(),
                 children,
                 node: self.node.clone(),
             }
@@ -135,6 +153,7 @@ impl Tree {
         if self.id_eq(target_id) {
             Tree {
                 id: self.id,
+                line_range: self.line_range.clone(),
                 node: match &self.node {
                     Node::Section(_) => Node::Section(inlines.clone()),
                     Node::Leaf(_) => Node::Leaf(inlines.clone()),
@@ -165,6 +184,7 @@ impl Tree {
     pub fn remove_node(&self, target_id: NodeId) -> Tree {
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: self.node.clone(),
             children: self
                 .clone()
@@ -185,6 +205,7 @@ impl Tree {
 
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: self.node.clone(),
             children: children
                 .into_iter()
@@ -195,7 +216,7 @@ impl Tree {
 
     fn find_first_section(&self) -> Option<NodeId> {
         if self.is_section() {
-            return self.id;
+            return Some(self.id);
         }
 
         self.children
@@ -213,6 +234,7 @@ impl Tree {
 
                 Tree {
                     id: self.id,
+                    line_range: self.line_range.clone(),
                     node: self.node.clone(),
                     children,
                 }
@@ -228,6 +250,7 @@ impl Tree {
 
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: self.node.clone(),
             children: children
                 .into_iter()
@@ -237,11 +260,12 @@ impl Tree {
     }
 
     pub fn id_eq(&self, id: NodeId) -> bool {
-        self.id == Some(id)
+        self.id == id
     }
 
     pub fn from_pointer<'a>(pointer: impl NodePointer<'a>) -> Option<Tree> {
-        let id = pointer.id();
+        let id = pointer.iter_id();
+        let line_range = pointer.line_range();
         let payload = pointer.node()?;
         let mut children = Vec::new();
 
@@ -259,6 +283,7 @@ impl Tree {
 
         Some(Tree {
             id,
+            line_range,
             node: payload,
             children: children
                 .into_iter()
@@ -270,7 +295,8 @@ impl Tree {
     pub fn wrap_into_list(&self, node_id: NodeId) -> Tree {
         if self.id_eq(node_id) {
             Tree {
-                id: self.id,
+                id: alloc_node_id(),
+                line_range: None,
                 node: Node::BulletList(),
                 children: vec![self.clone()],
             }
@@ -283,6 +309,7 @@ impl Tree {
         match &self.node {
             Node::Item(checked, inlines) => Tree {
                 id: self.id,
+                line_range: self.line_range.clone(),
                 node: Node::Section(prepend_checkbox(*checked, inlines.clone())),
                 children: self.children.clone(),
             },
@@ -309,6 +336,7 @@ impl Tree {
 
             Tree {
                 id: self.id,
+                line_range: self.line_range.clone(),
                 node: self.node.clone(),
                 children,
             }
@@ -320,6 +348,7 @@ impl Tree {
     pub fn change_key(&self, target_key: &Key, updated_key: &Key) -> Tree {
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: match &self.node {
                 Node::Section(inlines) => Node::Section(
                     inlines
@@ -373,7 +402,7 @@ impl Tree {
 
     pub fn get_top_level_surrounding_list_id(&self, id: NodeId) -> Option<NodeId> {
         if self.contains(id) && self.is_list() {
-            return self.id;
+            return Some(self.id);
         }
 
         self.children
@@ -384,7 +413,7 @@ impl Tree {
 
     pub fn get_surrounding_top_level_block(&self, id: NodeId) -> Option<NodeId> {
         if self.contains(id) && (self.is_list() || self.is_list()) {
-            return self.id;
+            return Some(self.id);
         }
 
         self.children
@@ -395,7 +424,7 @@ impl Tree {
 
     pub fn get_surrounding_list_id(&self, id: NodeId) -> Option<NodeId> {
         if self.is_list() && self.parent_of(id) {
-            return self.id;
+            return Some(self.id);
         }
 
         self.children
@@ -406,7 +435,7 @@ impl Tree {
 
     pub fn get_surrounding_section_id(&self, id: NodeId) -> Option<NodeId> {
         if self.is_section() && self.parent_of(id) {
-            return self.id;
+            return Some(self.id);
         }
 
         self.children
@@ -416,7 +445,8 @@ impl Tree {
     }
 
     pub fn squash_from_pointer<'a>(pointer: impl NodePointer<'a>, depth: u8) -> Vec<Tree> {
-        let id = pointer.id();
+        let id = pointer.iter_id();
+        let line_range = pointer.line_range();
         let node = pointer.node().unwrap();
         let mut children = Vec::new();
 
@@ -447,6 +477,7 @@ impl Tree {
 
         vec![Tree {
             id,
+            line_range,
             node,
             children: children
                 .into_iter()
@@ -528,6 +559,7 @@ impl Tree {
 
             return Tree {
                 id: self.id,
+                line_range: self.line_range.clone(),
                 node: self.node.clone(),
                 children: sorted_children,
             };
@@ -535,6 +567,7 @@ impl Tree {
 
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: self.node.clone(),
             children: self
                 .children
@@ -582,7 +615,8 @@ impl Tree {
     pub fn remove_inclusion_edges_to(&self, target_key: &Key) -> Tree {
         if self.reference_key_direct() == Some(target_key.clone()) {
             return Tree {
-                id: None,
+                id: alloc_node_id(),
+                line_range: None,
                 node: Node::Leaf(vec![]),
                 children: vec![],
             };
@@ -590,6 +624,7 @@ impl Tree {
 
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: self.node.clone(),
             children: self
                 .children
@@ -617,6 +652,7 @@ impl Tree {
 
         Tree {
             id: self.id,
+            line_range: self.line_range.clone(),
             node: updated_node,
             children: self
                 .children
@@ -713,6 +749,7 @@ impl Tree {
 
                     Tree {
                         id: self.id,
+                        line_range: self.line_range.clone(),
                         node: Node::Leaf(inlines),
                         children: vec![],
                     }
@@ -732,12 +769,14 @@ mod tests {
     #[test]
     fn test_is_section() {
         let section_node = Tree {
-            id: None,
+            id: 0,
+            line_range: None,
             node: Node::Section(vec![]),
             children: vec![],
         };
         let non_section_node = Tree {
-            id: None,
+            id: 0,
+            line_range: None,
             node: Node::Quote(),
             children: vec![],
         };
@@ -749,17 +788,20 @@ mod tests {
     #[test]
     fn test_is_list() {
         let bullet_list_node = Tree {
-            id: None,
+            id: 0,
+            line_range: None,
             node: Node::BulletList(),
             children: vec![],
         };
         let ordered_list_node = Tree {
-            id: None,
+            id: 0,
+            line_range: None,
             node: Node::OrderedList(),
             children: vec![],
         };
         let non_list_node = Tree {
-            id: None,
+            id: 0,
+            line_range: None,
             node: Node::Section(vec![]),
             children: vec![],
         };
@@ -772,15 +814,18 @@ mod tests {
     #[test]
     fn test_replace() {
         let replacer = Tree {
-            id: Some(2),
+            id: 2,
+            line_range: None,
             node: Node::Section(vec![]),
             children: vec![],
         };
         let root = Tree {
-            id: Some(1),
+            id: 1,
+            line_range: None,
             node: Node::Quote(),
             children: vec![Tree {
-                id: Some(2),
+                id: 2,
+                line_range: None,
                 node: Node::BulletList(),
                 children: vec![],
             }],
@@ -795,10 +840,12 @@ mod tests {
     fn test_update_node() {
         let inlines = vec![Inline::Str("Updated".to_string())];
         let root = Tree {
-            id: Some(1),
+            id: 1,
+            line_range: None,
             node: Node::Quote(),
             children: vec![Tree {
-                id: Some(2),
+                id: 2,
+                line_range: None,
                 node: Node::Section(vec![Inline::Str("Old".to_string())]),
                 children: vec![],
             }],
@@ -816,12 +863,14 @@ mod tests {
     #[test]
     fn test_find() {
         let child_tree = Tree {
-            id: Some(2),
+            id: 2,
+            line_range: None,
             node: Node::Quote(),
             children: vec![],
         };
         let root = Tree {
-            id: Some(1),
+            id: 1,
+            line_range: None,
             node: Node::Section(vec![]),
             children: vec![child_tree.clone()],
         };
@@ -833,17 +882,19 @@ mod tests {
     #[test]
     fn test_get() {
         let root = Tree {
-            id: Some(1),
+            id: 1,
+            line_range: None,
             node: Node::Section(vec![]),
             children: vec![Tree {
-                id: Some(2),
+                id: 2,
+                line_range: None,
                 node: Node::Quote(),
                 children: vec![],
             }],
         };
 
         let child = root.get(2);
-        assert_eq!(child.id, Some(2));
+        assert_eq!(child.id, 2);
         assert!(matches!(child.node, Node::Quote()));
     }
 
@@ -854,10 +905,12 @@ mod tests {
         #[test]
         fn test_with_list_containing_node() {
             let list_node = Tree {
-                id: Some(1),
+                id: 1,
+                line_range: None,
                 node: Node::BulletList(),
                 children: vec![Tree {
-                    id: Some(2),
+                    id: 2,
+                    line_range: None,
                     node: Node::Quote(),
                     children: vec![],
                 }],
@@ -869,13 +922,16 @@ mod tests {
         #[test]
         fn test_with_no_list_containing_node() {
             let root = Tree {
-                id: Some(1),
+                id: 1,
+                line_range: None,
                 node: Node::Section(vec![]),
                 children: vec![Tree {
-                    id: Some(2),
+                    id: 2,
+                    line_range: None,
                     node: Node::Quote(),
                     children: vec![Tree {
-                        id: Some(3),
+                        id: 3,
+                        line_range: None,
                         node: Node::Leaf(vec![Inline::Str("Test".to_string())]),
                         children: vec![],
                     }],

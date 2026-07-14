@@ -2,6 +2,7 @@ use serde_yaml::{Mapping, Value};
 
 use crate::graph::{Graph, GraphContext};
 use crate::model::config::MarkdownOptions;
+use crate::model::ids::alloc_node_id;
 use crate::model::inline::{inlines_to_markdown, to_plain_text};
 use crate::model::node::Node;
 use crate::model::projector::Projector;
@@ -236,7 +237,7 @@ impl BlockIndex {
     fn add(&mut self, tree: &Tree, parent: Option<usize>, level: u8, path: &[String]) -> usize {
         let i = self.blocks.len();
         self.blocks.push(BlockInfo {
-            id: tree.id,
+            id: Some(tree.id),
             node: tree.node.clone(),
             parent,
             children: Vec::new(),
@@ -517,7 +518,8 @@ impl BlockIndex {
                     i += 1;
                 }
                 out.push(Tree {
-                    id: None,
+                    id: self.blocks[list].id.unwrap_or_else(alloc_node_id),
+                    line_range: None,
                     node: self.blocks[list].node.clone(),
                     children: items,
                 });
@@ -531,7 +533,8 @@ impl BlockIndex {
 
     fn prune_tree(&self, node: &ForestNode) -> Tree {
         Tree {
-            id: None,
+            id: self.blocks[node.idx].id.unwrap_or_else(alloc_node_id),
+            line_range: None,
             node: self.blocks[node.idx].node.clone(),
             children: self.prune_children(&node.children, node.idx),
         }

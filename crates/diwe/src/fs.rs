@@ -3,6 +3,7 @@ use std::{collections::HashMap, fs};
 
 use ignore::WalkBuilder;
 use log::error;
+use rayon::prelude::*;
 
 use liwe::model::config::Format;
 use liwe::model::{Content, State};
@@ -27,7 +28,7 @@ pub fn new_for_path(base_path: &PathBuf, format: Format) -> State {
     }
 
     walk_md_paths(base_path, format)
-        .into_iter()
+        .into_par_iter()
         .filter_map(|(key, path)| {
             fs::read_to_string(&path)
                 .ok()

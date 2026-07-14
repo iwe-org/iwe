@@ -704,65 +704,63 @@ impl Server {
 
     fn collect_folding_ranges(&self, tree: &Tree, ranges: &mut Vec<FoldingRange>, level: u8) {
         let mut next_level = level;
-        if let Some(id) = tree.id {
-            if let Some(line_range) = self.graph.node_line_range(id) {
-                let (end_line, collapsed_text) = match &tree.node {
-                    Node::Section(inlines) | Node::Item(_, inlines) => {
-                        let end = self.section_end_line(tree, line_range.end);
-                        let header_prefix = "#".repeat(level as usize);
-                        let text: String = inlines.iter().map(|i| i.plain_text()).collect();
-                        next_level = level + 1;
-                        (
-                            Some((end - 1) as u32),
-                            Some(format!("{} {}", header_prefix, text)),
-                        )
-                    }
-                    Node::Raw(lang, _) if line_range.end > line_range.start + 1 => {
-                        (Some((line_range.end - 1) as u32), lang.clone())
-                    }
-                    Node::Quote() if line_range.end > line_range.start + 1 => {
-                        (Some((line_range.end - 1) as u32), None)
-                    }
-                    Node::BulletList()
-                        if tree.children.len() > 1 && line_range.end > line_range.start + 1 =>
-                    {
-                        let end = self.section_end_line(tree, line_range.end);
-                        let first_item_text = tree
-                            .children
-                            .first()
-                            .map(|child| child.node.plain_text())
-                            .filter(|s| !s.is_empty())
-                            .map(|s| format!("- {}", s));
-                        (Some((end - 1) as u32), first_item_text)
-                    }
-                    Node::OrderedList()
-                        if tree.children.len() > 1 && line_range.end > line_range.start + 1 =>
-                    {
-                        let end = self.section_end_line(tree, line_range.end);
-                        let first_item_text = tree
-                            .children
-                            .first()
-                            .map(|child| child.node.plain_text())
-                            .filter(|s| !s.is_empty())
-                            .map(|s| format!("1. {}", s));
-                        (Some((end - 1) as u32), first_item_text)
-                    }
-                    Node::Table(_) if line_range.end > line_range.start + 1 => {
-                        (Some((line_range.end - 1) as u32), None)
-                    }
-                    _ => (None, None),
-                };
-
-                if let Some(end_line) = end_line {
-                    ranges.push(FoldingRange {
-                        start_line: line_range.start as u32,
-                        start_character: None,
-                        end_line,
-                        end_character: None,
-                        kind: Some(FoldingRangeKind::Region),
-                        collapsed_text,
-                    });
+        if let Some(line_range) = self.graph.node_line_range(tree.id) {
+            let (end_line, collapsed_text) = match &tree.node {
+                Node::Section(inlines) | Node::Item(_, inlines) => {
+                    let end = self.section_end_line(tree, line_range.end);
+                    let header_prefix = "#".repeat(level as usize);
+                    let text: String = inlines.iter().map(|i| i.plain_text()).collect();
+                    next_level = level + 1;
+                    (
+                        Some((end - 1) as u32),
+                        Some(format!("{} {}", header_prefix, text)),
+                    )
                 }
+                Node::Raw(lang, _) if line_range.end > line_range.start + 1 => {
+                    (Some((line_range.end - 1) as u32), lang.clone())
+                }
+                Node::Quote() if line_range.end > line_range.start + 1 => {
+                    (Some((line_range.end - 1) as u32), None)
+                }
+                Node::BulletList()
+                    if tree.children.len() > 1 && line_range.end > line_range.start + 1 =>
+                {
+                    let end = self.section_end_line(tree, line_range.end);
+                    let first_item_text = tree
+                        .children
+                        .first()
+                        .map(|child| child.node.plain_text())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| format!("- {}", s));
+                    (Some((end - 1) as u32), first_item_text)
+                }
+                Node::OrderedList()
+                    if tree.children.len() > 1 && line_range.end > line_range.start + 1 =>
+                {
+                    let end = self.section_end_line(tree, line_range.end);
+                    let first_item_text = tree
+                        .children
+                        .first()
+                        .map(|child| child.node.plain_text())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| format!("1. {}", s));
+                    (Some((end - 1) as u32), first_item_text)
+                }
+                Node::Table(_) if line_range.end > line_range.start + 1 => {
+                    (Some((line_range.end - 1) as u32), None)
+                }
+                _ => (None, None),
+            };
+
+            if let Some(end_line) = end_line {
+                ranges.push(FoldingRange {
+                    start_line: line_range.start as u32,
+                    start_character: None,
+                    end_line,
+                    end_character: None,
+                    kind: Some(FoldingRangeKind::Region),
+                    collapsed_text,
+                });
             }
         }
 
@@ -776,10 +774,7 @@ impl Server {
     }
 
     fn max_end_line_recursive(&self, tree: &Tree) -> Option<usize> {
-        let own_end = tree
-            .id
-            .and_then(|id| self.graph.node_line_range(id))
-            .map(|r| r.end);
+        let own_end = self.graph.node_line_range(tree.id).map(|r| r.end);
         let children_max = tree
             .children
             .iter()

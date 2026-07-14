@@ -1,7 +1,27 @@
+use std::collections::HashSet;
+
 use super::*;
 use crate::graph::arena::NodeStore;
+use crate::model::ids::alloc_node_id;
 use crate::model::inline::Inline;
 use crate::model::node::{ColumnAlignment, Node, Reference, ReferenceType};
+use crate::model::NodesMap;
+
+#[derive(Default)]
+struct ImportIds {
+    map: NodesMap,
+    seen: HashSet<NodeId>,
+}
+
+impl ImportIds {
+    fn resolve(&mut self, id: NodeId) -> NodeId {
+        if self.seen.insert(id) {
+            id
+        } else {
+            alloc_node_id()
+        }
+    }
+}
 
 pub struct GraphBuilder<'a> {
     id: NodeId,
@@ -256,7 +276,16 @@ impl<'a> GraphBuilder<'a> {
         });
     }
 
+    #[cfg(test)]
     fn add_new_node_and<F>(&mut self, node: Node, f: F)
+    where
+        F: FnOnce(&mut GraphBuilder),
+    {
+        let id = self.store.new_node_id();
+        self.add_new_node_with_id(node, id, f);
+    }
+
+    fn add_new_node_with_id<F>(&mut self, node: Node, id: NodeId, f: F)
     where
         F: FnOnce(&mut GraphBuilder),
     {
@@ -264,43 +293,35 @@ impl<'a> GraphBuilder<'a> {
             Node::Document(_, _) => panic!("Document node is not allowed"),
             Node::Section(inlines) => {
                 let line_id = self.store.add_line(inlines);
-                let new_id = self.store.new_node_id();
-                self.add_node_and2(GraphNode::new_section(self.id, new_id, line_id), f);
+                self.add_node_and2(GraphNode::new_section(self.id, id, line_id), f);
             }
             Node::Quote() => {
-                let new_id = self.store.new_node_id();
-                self.add_node_and2(GraphNode::new_quote(self.id, new_id), f);
+                self.add_node_and2(GraphNode::new_quote(self.id, id), f);
             }
             Node::BulletList() => {
-                let new_id = self.store.new_node_id();
-                self.add_node_and2(GraphNode::new_bullet_list(self.id, new_id), f);
+                self.add_node_and2(GraphNode::new_bullet_list(self.id, id), f);
             }
             Node::OrderedList() => {
-                let new_id = self.store.new_node_id();
-                self.add_node_and2(GraphNode::new_ordered_list(self.id, new_id), f);
+                self.add_node_and2(GraphNode::new_ordered_list(self.id, id), f);
             }
             Node::Leaf(inlines) => {
                 let line_id = self.store.add_line(inlines);
-                let new_id = self.store.new_node_id();
-                self.add_node_and2(GraphNode::new_leaf(self.id, new_id, line_id), f);
+                self.add_node_and2(GraphNode::new_leaf(self.id, id, line_id), f);
             }
             Node::Item(checked, inlines) => {
                 let line_id = self
                     .store
                     .add_line(crate::model::inline::prepend_checkbox(checked, inlines));
-                let new_id = self.store.new_node_id();
-                self.add_node_and2(GraphNode::new_section(self.id, new_id, line_id), f);
+                self.add_node_and2(GraphNode::new_section(self.id, id, line_id), f);
             }
             Node::Raw(lang, content) => {
-                let new_id = self.store.new_node_id();
                 self.add_node_and2(
-                    GraphNode::new_raw_leaf(self.id, new_id, content.to_string(), lang),
+                    GraphNode::new_raw_leaf(self.id, id, content.to_string(), lang),
                     f,
                 );
             }
             Node::HorizontalRule() => {
-                let new_id = self.store.new_node_id();
-                self.add_node_and2(GraphNode::new_rule(self.id, new_id), f);
+                self.add_node_and2(GraphNode::new_rule(self.id, id), f);
             }
             Node::Reference(Reference {
                 key,
@@ -309,11 +330,10 @@ impl<'a> GraphBuilder<'a> {
                 url,
                 display_url: _,
             }) => {
-                let new_id = self.store.new_node_id();
                 self.add_node_and2(
                     GraphNode::new_ref(
                         self.id,
-                        new_id,
+                        id,
                         key.clone(),
                         title.to_string(),
                         reference_type,
@@ -323,8 +343,6 @@ impl<'a> GraphBuilder<'a> {
                 );
             }
             Node::Table(table) => {
-                let new_id = self.store.new_node_id();
-
                 let header_line_ids = table
                     .header
                     .iter()
@@ -344,7 +362,7 @@ impl<'a> GraphBuilder<'a> {
                 self.add_node_and2(
                     GraphNode::new_table(
                         self.id,
-                        new_id,
+                        id,
                         header_line_ids,
                         table.alignment.clone(),
                         rows,
@@ -355,41 +373,55 @@ impl<'a> GraphBuilder<'a> {
         }
     }
 
-    fn append_from_visitor<'b>(&mut self, iter: impl NodeIter<'b>) {
+    fn append_nodes<'b>(&mut self, iter: impl NodeIter<'b>, ids: &mut ImportIds) {
         self.insert = false;
 
         if iter.is_document() {
-            self.append_from_visitor(iter.child().unwrap());
+            self.append_nodes(iter.child().unwrap(), ids);
             return;
         }
 
         if let Some(node) = iter.node() {
-            self.add_new_node_and(node, |builder| {
+            let id = ids.resolve(iter.iter_id());
+            if let Some(range) = iter.line_range() {
+                ids.map.push((id, range));
+            }
+            self.add_new_node_with_id(node, id, |builder| {
                 if let Some(child) = iter.child() {
-                    builder.insert_from_iter(child);
+                    builder.insert_nodes(child, &mut *ids);
                 }
                 if let Some(next) = iter.next() {
-                    builder.append_from_visitor(next);
+                    builder.append_nodes(next, &mut *ids);
                 }
             });
         }
     }
 
-    pub fn insert_from_iter<'b>(&mut self, iter: impl NodeIter<'b>) {
+    pub fn insert_from_iter<'b>(&mut self, iter: impl NodeIter<'b>) -> NodesMap {
+        let mut ids = ImportIds::default();
+        self.insert_nodes(iter, &mut ids);
+        ids.map
+    }
+
+    fn insert_nodes<'b>(&mut self, iter: impl NodeIter<'b>, ids: &mut ImportIds) {
         self.insert = true;
 
         if iter.is_document() {
-            self.insert_from_iter(iter.child().unwrap());
+            self.insert_nodes(iter.child().unwrap(), ids);
             return;
         }
 
         if let Some(node) = iter.node() {
-            self.add_new_node_and(node, |builder| {
+            let id = ids.resolve(iter.iter_id());
+            if let Some(range) = iter.line_range() {
+                ids.map.push((id, range));
+            }
+            self.add_new_node_with_id(node, id, |builder| {
                 if let Some(child) = iter.child() {
-                    builder.insert_from_iter(child);
+                    builder.insert_nodes(child, &mut *ids);
                 }
                 if let Some(next) = iter.next() {
-                    builder.append_from_visitor(next);
+                    builder.append_nodes(next, &mut *ids);
                 }
             });
         }
@@ -419,7 +451,7 @@ impl<'a> GraphBuilder<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::{Graph, GraphNodePointer, Tree};
+    use super::{Graph, GraphContext, GraphNodePointer, Tree};
     use crate::markdown::MarkdownReader;
     use crate::model::inline::Inline;
     use crate::model::node::{Node, NodePointer};
@@ -437,10 +469,12 @@ mod test {
 
         assert_eq!(
             Tree {
-                id: Some(0),
+                id: 0,
+                line_range: None,
                 node: Node::Document("key".into(), None),
                 children: vec![Tree {
-                    id: Some(1),
+                    id: 1,
+                    line_range: None,
                     node: Node::Leaf(vec![Inline::Str("item".to_string())]),
                     children: vec![]
                 }]
@@ -464,13 +498,16 @@ mod test {
 
         assert_eq!(
             Tree {
-                id: Some(0),
+                id: 0,
+                line_range: None,
                 node: Node::Document("key".into(), None),
                 children: vec![Tree {
-                    id: Some(1),
+                    id: 1,
+                    line_range: None,
                     node: Node::Section(vec![Inline::Str("item".to_string())]),
                     children: vec![Tree {
-                        id: Some(2),
+                        id: 2,
+                        line_range: None,
                         node: Node::Leaf(vec![Inline::Str("item".to_string())]),
                         children: vec![]
                     }]
@@ -482,19 +519,17 @@ mod test {
 
     #[test]
     pub fn graph_form_tree() {
-        let tree = Tree {
-            id: Some(0),
-            node: Node::Document("key".into(), None),
-            children: vec![Tree {
-                id: Some(1),
-                node: Node::Section(vec![Inline::Str("section".to_string())]),
-                children: vec![Tree {
-                    id: Some(2),
-                    node: Node::Leaf(vec![Inline::Str("item".to_string())]),
-                    children: vec![],
-                }],
-            }],
-        };
+        let mut source = Graph::new();
+        source.from_markdown(
+            "key".into(),
+            indoc! { "
+                # section
+
+                item
+                "},
+            MarkdownReader::new(),
+        );
+        let tree = (&source).collect(&"key".into());
 
         let mut graph = Graph::new();
 

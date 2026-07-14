@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `model::ids` — `alloc_node_id` / `alloc_line_id` back every id from a single process-global atomic counter (starting at 1), so ids are unique for the process lifetime and never re-issued; `Ids` is the handle type.
+- `Tree.line_range: Option<LineRange>` — the source line range a tree node was read from, populated when a tree is collected from the graph and preserved across an export/import round-trip.
+- `NodeIter::iter_id()` and `NodeIter::line_range()` — a node's id and source line range while iterating; `GraphBuilder::insert_from_iter` stores each imported node under `iter_id()` (honoring caller-provided ids instead of allocating fresh ones) and returns the accumulated `NodesMap`.
+
+### Changed
+- `NodeId` and `LineId` are now `i64` (were `u64` and `usize`).
+- `Tree.id` is now a mandatory `NodeId` (was `Option<NodeId>`); synthesized tree nodes receive a fresh id. `Tree::new` takes a `NodeId` in place of an `Option<NodeId>`.
+- `Tree` equality is structural — it compares `node` and `children` and ignores `id` and `line_range`, so two independently built trees of the same content are equal. `Graph` equality likewise compares the per-key exported trees rather than raw arena positions.
+- The arena stores nodes and lines in hash maps, so a dangling id resolves to `GraphNode::Empty` instead of panicking and deleted ids are dropped rather than recycled.
+- `Graph::nodes()` is replaced by `node_count()`, `node_ids()`, and `section_ids()` — the old accessor returned the backing `Vec<GraphNode>`, which no longer exists; callers that only need a count or a set of ids avoid materializing every node.
+- `Graph::get_line` and `Arena::get_line` return `&Line` (was an owned `Line`), so reading a line no longer clones its inlines on every access.
+
 ## [0.12.0](https://github.com/iwe-org/iwe/compare/liwe-v0.11.0...liwe-v0.12.0) - 2026-07-12
 
 ### Added

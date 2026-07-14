@@ -1,6 +1,7 @@
-use crate::model::Key;
+use crate::model::{Key, LineRange, NodeId};
 
 use super::config::FormatOptions;
+use super::ids::alloc_node_id;
 use super::inline::{Inline, Inlines};
 use super::node::{ColumnAlignment, Node, ReferenceType};
 use super::projector::Projector;
@@ -9,6 +10,14 @@ pub trait NodeIter<'a>: Sized {
     fn next(&self) -> Option<Self>;
     fn child(&self) -> Option<Self>;
     fn node(&self) -> Option<Node>;
+
+    fn iter_id(&self) -> NodeId {
+        alloc_node_id()
+    }
+
+    fn line_range(&self) -> Option<LineRange> {
+        None
+    }
 
     fn to_text(self, parent: &str, format: &FormatOptions) -> String {
         let blocks = Projector::project(self, parent, format.refs_path());

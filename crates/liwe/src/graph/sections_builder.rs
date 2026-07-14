@@ -293,7 +293,7 @@ mod test {
 
     use crate::{graph::Graph, markdown::MarkdownReader, model::LineRange};
 
-    use crate::model::{Key, NodeId};
+    use crate::model::Key;
 
     #[test]
     pub fn code_block_no_lang() {
@@ -577,9 +577,15 @@ mod test {
         assert_eq!(expected, actual_graph);
     }
 
-    fn assert_position_eq(actual: &str, node_id: NodeId, range: LineRange) {
+    fn assert_position_eq(actual: &str, node_index: usize, range: LineRange) {
         let mut actual_graph = Graph::new();
         actual_graph.from_markdown(Key::name("key"), actual, MarkdownReader::new());
+
+        let nodes_map = actual_graph
+            .nodes_map
+            .get(&Key::name("key"))
+            .expect("to have nodes map");
+        let (node_id, _) = nodes_map[node_index - 1];
 
         assert_eq!(
             range,
