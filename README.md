@@ -10,6 +10,7 @@
 [![Discussions](https://img.shields.io/github/discussions/iwe-org/iwe)](https://github.com/iwe-org/iwe/discussions)
 [![Twitter](https://img.shields.io/badge/Twitter-@iwe__md-blue?logo=x)](https://x.com/iwe_md)
 [![Reddit](https://img.shields.io/badge/Reddit-r%2Fiwe-orange?logo=reddit)](https://www.reddit.com/r/iwe/)
+[![BundleDex](https://bundledex.net/badge/iwe.svg)](https://bundledex.net/bundles/iwe/)
 
 ![Knowledge Graph](docs/docs-detailed.svg)
 
