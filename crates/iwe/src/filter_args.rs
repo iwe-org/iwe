@@ -61,28 +61,28 @@ pub struct FilterArgs {
     #[clap(
         long,
         value_parser = parse_key_depth,
-        help = "$includes anchor. KEY or KEY:DEPTH (DEPTH defaults to --max-depth). Lowers to scalar shorthand when DEPTH=1, full form { match: { $key: KEY }, maxDepth: N } otherwise. Repeatable; anchors are ANDed."
+        help = "$includes anchor. KEY or KEY:DEPTH (DEPTH defaults to --max-depth; 0 = unbounded). Lowers to scalar shorthand when DEPTH=1, full form { match: { $key: KEY }, maxDepth: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub includes: Vec<KeyDepth>,
 
     #[clap(
         long = "included-by",
         value_parser = parse_key_depth,
-        help = "$includedBy anchor. KEY or KEY:DEPTH (DEPTH defaults to --max-depth). Lowers to scalar shorthand when DEPTH=1, full form { match: { $key: KEY }, maxDepth: N } otherwise. Repeatable; anchors are ANDed."
+        help = "$includedBy anchor. KEY or KEY:DEPTH (DEPTH defaults to --max-depth; 0 = unbounded). Lowers to scalar shorthand when DEPTH=1, full form { match: { $key: KEY }, maxDepth: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub included_by: Vec<KeyDepth>,
 
     #[clap(
         long,
         value_parser = parse_key_depth,
-        help = "$references anchor. KEY or KEY:DIST (DIST defaults to --max-distance). Lowers to scalar shorthand when DIST=1, full form { match: { $key: KEY }, maxDistance: N } otherwise. Repeatable; anchors are ANDed."
+        help = "$references anchor. KEY or KEY:DIST (DIST defaults to --max-distance; 0 = unbounded). Lowers to scalar shorthand when DIST=1, full form { match: { $key: KEY }, maxDistance: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub references: Vec<KeyDepth>,
 
     #[clap(
         long = "referenced-by",
         value_parser = parse_key_depth,
-        help = "$referencedBy anchor. KEY or KEY:DIST (DIST defaults to --max-distance). Lowers to scalar shorthand when DIST=1, full form { match: { $key: KEY }, maxDistance: N } otherwise. Repeatable; anchors are ANDed."
+        help = "$referencedBy anchor. KEY or KEY:DIST (DIST defaults to --max-distance; 0 = unbounded). Lowers to scalar shorthand when DIST=1, full form { match: { $key: KEY }, maxDistance: N } otherwise. Repeatable; anchors are ANDed."
     )]
     pub referenced_by: Vec<KeyDepth>,
 
@@ -113,13 +113,13 @@ pub struct FilterArgs {
 
     #[clap(
         long = "max-depth",
-        help = "Default maxDepth applied to inclusion anchor flags without a colon-suffix. Default 1."
+        help = "Default maxDepth applied to inclusion anchor flags without a colon-suffix. Default 1; 0 = unbounded."
     )]
     pub max_depth: Option<u8>,
 
     #[clap(
         long = "max-distance",
-        help = "Default maxDistance applied to reference anchor flags without a colon-suffix. Default 1."
+        help = "Default maxDistance applied to reference anchor flags without a colon-suffix. Default 1; 0 = unbounded."
     )]
     pub max_distance: Option<u8>,
 }

@@ -1,11 +1,13 @@
 use crate::queries::{
-    and, eq, filter, find, included_by, includes, key_eq, key_in, key_ne, key_nin, nor, or,
-    referenced_by, references,
+    and, any_document, eq, filter, find, included_by, includes, inclusion_count, key_eq, key_in,
+    key_ne, key_nin, nor, or, reference_count, referenced_by, references,
 };
 use indoc::indoc;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
-use liwe::query::{execute, FindOp, InclusionAnchor, Outcome, ReferenceAnchor};
+use liwe::query::{
+    execute, CountCmp, CountPred, FindOp, InclusionAnchor, Outcome, ReferenceAnchor,
+};
 use liwe::state::from_indoc;
 
 fn run_find_keys(docs: &str, op: FindOp) -> Vec<String> {
@@ -612,5 +614,184 @@ fn included_by_match_excludes_anchor_set() {
             5,
         ))),
         &["3"],
+    );
+}
+
+const INCLUSION_CHAIN: &str = "[b](2)\n_\n[c](3)\n_\n# C\n";
+const INCLUSION_CHAIN_4: &str = "[b](2)\n_\n[c](3)\n_\n[d](4)\n_\n# D\n";
+
+#[test]
+fn included_by_size_zero_selects_roots() {
+    assert_keys(
+        INCLUSION_CHAIN,
+        filter(included_by(inclusion_count(
+            any_document(),
+            1,
+            CountPred::eq(0),
+        ))),
+        &["1"],
+    );
+}
+
+#[test]
+fn included_by_size_zero_unbounded_matches_direct() {
+    assert_keys(
+        INCLUSION_CHAIN,
+        filter(included_by(inclusion_count(
+            any_document(),
+            u32::MAX,
+            CountPred::eq(0),
+        ))),
+        &["1"],
+    );
+}
+
+#[test]
+fn includes_size_zero_selects_leaves() {
+    assert_keys(
+        INCLUSION_CHAIN,
+        filter(includes(inclusion_count(
+            any_document(),
+            1,
+            CountPred::eq(0),
+        ))),
+        &["3"],
+    );
+}
+
+#[test]
+fn included_by_size_bounded_transitive_count() {
+    assert_keys(
+        INCLUSION_CHAIN_4,
+        filter(included_by(inclusion_count(
+            any_document(),
+            u32::MAX,
+            CountPred::new(vec![CountCmp::Gte(2)]),
+        ))),
+        &["3", "4"],
+    );
+}
+
+#[test]
+fn included_by_size_filtered_by_match() {
+    assert_keys(
+        indoc! {"
+            ---
+            status: active
+            ---
+            [c](3)
+            _
+            ---
+            status: draft
+            ---
+            [c](3)
+            _
+            # C
+        "},
+        filter(included_by(inclusion_count(
+            eq("status", "active"),
+            1,
+            CountPred::new(vec![CountCmp::Gte(1)]),
+        ))),
+        &["3"],
+    );
+}
+
+#[test]
+fn included_by_size_filtered_exact_count_excludes() {
+    assert_keys(
+        indoc! {"
+            ---
+            status: active
+            ---
+            [c](3)
+            _
+            ---
+            status: draft
+            ---
+            [c](3)
+            _
+            # C
+        "},
+        filter(included_by(inclusion_count(
+            eq("status", "active"),
+            1,
+            CountPred::eq(2),
+        ))),
+        &[],
+    );
+}
+
+#[test]
+fn referenced_by_size_zero_selects_orphans() {
+    assert_keys(
+        indoc! {"
+            See [x](3).
+            _
+            See [x](3).
+            _
+            # C
+        "},
+        filter(referenced_by(reference_count(
+            any_document(),
+            1,
+            CountPred::eq(0),
+        ))),
+        &["1", "2"],
+    );
+}
+
+#[test]
+fn referenced_by_size_gte_selects_hubs() {
+    assert_keys(
+        indoc! {"
+            See [x](3).
+            _
+            See [x](3).
+            _
+            # C
+        "},
+        filter(referenced_by(reference_count(
+            any_document(),
+            1,
+            CountPred::new(vec![CountCmp::Gte(2)]),
+        ))),
+        &["3"],
+    );
+}
+
+#[test]
+fn references_size_excludes_self_in_cycle() {
+    assert_keys(
+        indoc! {"
+            See [b](2).
+            _
+            See [a](1).
+        "},
+        filter(references(reference_count(
+            any_document(),
+            u32::MAX,
+            CountPred::eq(1),
+        ))),
+        &["1", "2"],
+    );
+}
+
+#[test]
+fn includes_size_conjunction_with_frontmatter() {
+    assert_keys(
+        indoc! {"
+            [b](2)
+            _
+            ---
+            status: draft
+            ---
+            # B
+        "},
+        filter(and(vec![
+            includes(inclusion_count(any_document(), 1, CountPred::eq(0))),
+            eq("status", "draft"),
+        ])),
+        &["2"],
     );
 }

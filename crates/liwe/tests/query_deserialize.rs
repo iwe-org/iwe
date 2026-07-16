@@ -6,8 +6,8 @@ use crate::queries::{
 };
 use indoc::indoc;
 use liwe::query::{
-    parse_operation, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, Limit, Operation,
-    OperationKind, ReferenceAnchor, Update, UpdateOperator, YamlType,
+    parse_operation, CountCmp, CountPred, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor,
+    Limit, Operation, OperationKind, ReferenceAnchor, Update, UpdateOperator, YamlType,
 };
 use serde_yaml::Value;
 
@@ -807,14 +807,52 @@ fn includes_array_form_rejected() {
 }
 
 #[test]
-fn anchor_full_form_omitted_bounds_unbounded() {
+fn anchor_full_form_omitted_bounds_default_to_direct() {
     assert_parse(
         indoc! {"
             filter:
               $includes: { match: { $key: K } }
         "},
         OperationKind::Find,
+        find(filter(includes(InclusionAnchor::new("K", 1, 1)))),
+    );
+}
+
+#[test]
+fn anchor_full_form_max_zero_is_unbounded() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includes: { match: { $key: K }, maxDepth: 0 }
+        "},
+        OperationKind::Find,
         find(filter(includes(InclusionAnchor::new("K", 1, u32::MAX)))),
+    );
+}
+
+#[test]
+fn anchor_match_omitted_defaults_to_any_document() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includedBy: { $size: 0 }
+        "},
+        OperationKind::Find,
+        find(filter(included_by(
+            InclusionAnchor::with_match(and(vec![]), 1, 1).with_size(CountPred::eq(0)),
+        ))),
+    );
+}
+
+#[test]
+fn anchor_lone_min_depth_without_max_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $includedBy: { match: { $key: K }, minDepth: 2 }
+        "},
+        OperationKind::Find,
+        "DepthRangeInverted",
     );
 }
 
@@ -1009,11 +1047,164 @@ fn references_with_depth_modifier_rejected() {
 }
 
 #[test]
-fn references_zero_distance_rejected() {
+fn relational_size_bare_integer_is_eq() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includes: { $size: 0 }
+        "},
+        OperationKind::Find,
+        find(filter(includes(
+            InclusionAnchor::with_match(and(vec![]), 1, 1).with_size(CountPred::eq(0)),
+        ))),
+    );
+}
+
+#[test]
+fn relational_size_comparison_mapping() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $referencedBy: { $size: { $gte: 5 } }
+        "},
+        OperationKind::Find,
+        find(filter(referenced_by(
+            ReferenceAnchor::with_match(and(vec![]), 1, 1)
+                .with_size(CountPred::new(vec![CountCmp::Gte(5)])),
+        ))),
+    );
+}
+
+#[test]
+fn relational_size_multiple_comparisons_and_together() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includedBy: { $size: { $gte: 2, $lte: 5 }, maxDepth: 3 }
+        "},
+        OperationKind::Find,
+        find(filter(included_by(
+            InclusionAnchor::with_match(and(vec![]), 1, 3)
+                .with_size(CountPred::new(vec![CountCmp::Gte(2), CountCmp::Lte(5)])),
+        ))),
+    );
+}
+
+#[test]
+fn relational_size_with_match_and_bounds() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $includedBy:
+                match: { type: project, status: active }
+                $size: { $gte: 2 }
+                maxDepth: 3
+        "},
+        OperationKind::Find,
+        find(filter(included_by(
+            InclusionAnchor::with_match(
+                and(vec![eq("type", "project"), eq("status", "active")]),
+                1,
+                3,
+            )
+            .with_size(CountPred::new(vec![CountCmp::Gte(2)])),
+        ))),
+    );
+}
+
+#[test]
+fn relational_size_negative_rejected() {
     assert_parse_error(
         indoc! {"
             filter:
+              $includes: { $size: -1 }
+        "},
+        OperationKind::Find,
+        "OperatorExpectedNonNegativeInt",
+    );
+}
+
+#[test]
+fn relational_size_float_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $includes: { $size: 1.5 }
+        "},
+        OperationKind::Find,
+        "OperatorExpectedInteger",
+    );
+}
+
+#[test]
+fn relational_size_unknown_comparison_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $includes: { $size: { $between: 3 } }
+        "},
+        OperationKind::Find,
+        "UnknownOperator",
+    );
+}
+
+#[test]
+fn relational_empty_mapping_still_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $includes: {}
+        "},
+        OperationKind::Find,
+        "EmptyAnchorMapping",
+    );
+}
+
+#[test]
+fn relational_unknown_key_still_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $includes: { match: { $key: K }, bogus: 1 }
+        "},
+        OperationKind::Find,
+        "GraphOpExpectedScalarOrMapping",
+    );
+}
+
+#[test]
+fn frontmatter_size_comparison_mapping() {
+    assert_parse(
+        indoc! {"
+            filter:
+              tags: { $size: { $gte: 3 } }
+        "},
+        OperationKind::Find,
+        find(filter(Filter::Field {
+            path: FieldPath::from_dotted("tags"),
+            op: FieldOp::Size(CountPred::new(vec![CountCmp::Gte(3)])),
+        })),
+    );
+}
+
+#[test]
+fn references_max_distance_zero_is_unbounded() {
+    assert_parse(
+        indoc! {"
+            filter:
               $references: { match: { $key: K }, maxDistance: 0 }
+        "},
+        OperationKind::Find,
+        find(filter(references(ReferenceAnchor::new("K", 1, u32::MAX)))),
+    );
+}
+
+#[test]
+fn references_zero_min_distance_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $references: { match: { $key: K }, minDistance: 0 }
         "},
         OperationKind::Find,
         "InvalidDepthValue",

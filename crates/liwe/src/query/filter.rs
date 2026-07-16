@@ -73,8 +73,8 @@ pub fn match_field_op(op: &FieldOp, value: Option<&Value>) -> bool {
                 .all(|target| seq.iter().any(|elem| deep_eq(elem, target))),
             _ => false,
         },
-        FieldOp::Size(n) => match value {
-            Some(Value::Sequence(seq)) => seq.len() as u64 == *n,
+        FieldOp::Size(pred) => match value {
+            Some(Value::Sequence(seq)) => pred.satisfied_by(seq.len() as u64),
             _ => false,
         },
         FieldOp::Not(inner) => !match_field_op(inner, value),
@@ -273,7 +273,7 @@ pub(crate) fn is_iso_datetime(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::document::{FieldOp, FieldPath, Filter, YamlType};
+    use crate::query::document::{CountPred, FieldOp, FieldPath, Filter, YamlType};
 
     fn p(s: &str) -> FieldPath {
         if s.contains('.') {
@@ -340,7 +340,7 @@ mod tests {
     fn size(path: &str, n: u64) -> Filter {
         Filter::Field {
             path: p(path),
-            op: FieldOp::Size(n),
+            op: FieldOp::Size(CountPred::eq(n)),
         }
     }
     fn type_of(path: &str, t: YamlType) -> Filter {

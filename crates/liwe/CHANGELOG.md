@@ -8,11 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `$size` cardinality predicate on the relational operators (`$includes`, `$includedBy`, `$references`, `$referencedBy`) — count the distinct related documents instead of testing for existence, e.g. `$includedBy: { $size: 0 }` (roots), `$referencedBy: { $size: { $gte: 5 } }` (hubs). Takes a non-negative integer or a mapping of `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` comparisons; `CountPred` / `CountCmp` are the new public types and `InclusionAnchor` / `ReferenceAnchor` gain a `size: Option<CountPred>` field.
+- The frontmatter array `$size` operator now accepts count comparisons (`{ $size: { $gte: 3 } }`) in addition to an exact integer; `FieldOp::Size` carries a `CountPred` (was `u64`).
 - `model::ids` — `alloc_node_id` / `alloc_line_id` back every id from a single process-global atomic counter (starting at 1), so ids are unique for the process lifetime and never re-issued; `Ids` is the handle type.
 - `Tree.line_range: Option<LineRange>` — the source line range a tree node was read from, populated when a tree is collected from the graph and preserved across an export/import round-trip.
 - `NodeIter::iter_id()` and `NodeIter::line_range()` — a node's id and source line range while iterating; `GraphBuilder::insert_from_iter` stores each imported node under `iter_id()` (honoring caller-provided ids instead of allocating fresh ones) and returns the accumulated `NodesMap`.
 
 ### Changed
+- Relational operators in the mapping form default `maxDepth` / `maxDistance` to direct edges (was: absence meant an unbounded walk); `maxDepth: 0` / `maxDistance: 0` is the new unbounded sentinel. `match` is now optional and defaults to any document, so `InclusionAnchor::with_match(Filter::all(), ..)`-style anchors are expressible from the query language directly.
 - `NodeId` and `LineId` are now `i64` (were `u64` and `usize`).
 - `Tree.id` is now a mandatory `NodeId` (was `Option<NodeId>`); synthesized tree nodes receive a fresh id. `Tree::new` takes a `NodeId` in place of an `Option<NodeId>`.
 - `Tree` equality is structural — it compares `node` and `children` and ignores `id` and `line_range`, so two independently built trees of the same content are equal. `Graph` equality likewise compares the per-key exported trees rather than raw arena positions.

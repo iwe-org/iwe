@@ -3,10 +3,10 @@ use serde_yaml::{Mapping, Value};
 use crate::model::Key;
 use crate::query::block::{parse_block_predicate, parse_matches_source, BlockPredicate};
 use crate::query::document::{
-    BlockUpdate, BlockUpdateOp, CountOp, DeleteOp, Expect, FieldOp, FieldPath, Filter, FindOp,
-    InclusionAnchor, KeyOp, Limit, Operation, OperationKind, Projection, ProjectionBase,
-    ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir, Update,
-    UpdateOp, UpdateOperator, YamlType,
+    BlockUpdate, BlockUpdateOp, CountCmp, CountOp, CountPred, DeleteOp, Expect, FieldOp, FieldPath,
+    Filter, FindOp, InclusionAnchor, KeyOp, Limit, Operation, OperationKind, Projection,
+    ProjectionBase, ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir,
+    Update, UpdateOp, UpdateOperator, YamlType,
 };
 use crate::query::search::SearchSpec;
 use crate::query::wire::{
@@ -112,14 +112,15 @@ pub enum ParseError {
     EmptyAnchorMapping {
         op: &'static str,
     },
-    MatchMissing {
-        op: &'static str,
-    },
     WrongBoundFamily {
         op: &'static str,
         modifier: &'static str,
     },
     DepthRangeInverted {
+        op: &'static str,
+        sentinel: &'static str,
+    },
+    InvalidCountPredicate {
         op: &'static str,
     },
     KeyOpForbidden {
@@ -271,15 +272,19 @@ impl std::fmt::Display for ParseError {
             Self::EmptyAnchorMapping { op } => {
                 write!(f, "'{}' mapping must not be empty", op)
             }
-            Self::MatchMissing { op } => {
-                write!(f, "'{}' requires a 'match' key", op)
-            }
             Self::WrongBoundFamily { op, modifier } => {
                 write!(f, "'{}' does not accept the '{}' modifier", op, modifier)
             }
-            Self::DepthRangeInverted { op } => {
-                write!(f, "'{}' has an inverted depth range (min > max)", op)
-            }
+            Self::DepthRangeInverted { op, sentinel } => write!(
+                f,
+                "'{}' has an inverted range (min > max); use '{}: 0' for an unbounded upper bound",
+                op, sentinel
+            ),
+            Self::InvalidCountPredicate { op } => write!(
+                f,
+                "'{}' expects a non-negative integer or a mapping of count comparisons ($eq, $ne, $gt, $gte, $lt, $lte)",
+                op
+            ),
             Self::KeyOpForbidden { op } => {
                 write!(f, "$key predicates are not allowed inside '{}'", op)
             }
@@ -783,18 +788,7 @@ fn build_field_op(op: &str, value: Value, path: &[String]) -> Result<FieldOp, Pa
             }
             Ok(FieldOp::Type(types))
         }
-        "$size" => match value {
-            Value::Number(n) => {
-                let i = n
-                    .as_i64()
-                    .ok_or(ParseError::OperatorExpectedInteger { op: "$size" })?;
-                if i < 0 {
-                    return Err(ParseError::OperatorExpectedNonNegativeInt { op: "$size" });
-                }
-                Ok(FieldOp::Size(i as u64))
-            }
-            _ => Err(ParseError::OperatorExpectedInteger { op: "$size" }),
-        },
+        "$size" => Ok(FieldOp::Size(parse_count_pred(&value, "$size")?)),
         "$not" => {
             let m = value
                 .as_mapping()
@@ -1401,6 +1395,30 @@ fn pos_u32(i: i64, op: &'static str, modifier: &'static str) -> Result<u32, Pars
     }
 }
 
+fn parse_max_bound(
+    raw: Option<i64>,
+    op: &'static str,
+    modifier: &'static str,
+) -> Result<u32, ParseError> {
+    match raw {
+        None => Ok(1),
+        Some(0) => Ok(u32::MAX),
+        Some(n) if n >= 1 => Ok((n as u64).min(u32::MAX as u64) as u32),
+        Some(_) => Err(ParseError::InvalidDepthValue { op, modifier }),
+    }
+}
+
+fn parse_min_bound(
+    raw: Option<i64>,
+    op: &'static str,
+    modifier: &'static str,
+) -> Result<u32, ParseError> {
+    match raw {
+        None => Ok(1),
+        Some(n) => pos_u32(n, op, modifier),
+    }
+}
+
 fn parse_relational_obj(value: &Value, op: &'static str) -> Result<RawRelationalObj, ParseError> {
     if matches!(value, Value::Sequence(_)) {
         return Err(ParseError::ArrayFormRemoved { op });
@@ -1415,9 +1433,59 @@ fn parse_relational_obj(value: &Value, op: &'static str) -> Result<RawRelational
         .map_err(|_| ParseError::GraphOpExpectedScalarOrMapping { op })
 }
 
-fn match_to_filter(raw: &RawRelationalObj, op: &'static str) -> Result<Filter, ParseError> {
-    let m = raw.match_.as_ref().ok_or(ParseError::MatchMissing { op })?;
-    build_filter_at(m.clone(), &[])
+fn match_to_filter(raw: &RawRelationalObj) -> Result<Filter, ParseError> {
+    match raw.match_.as_ref() {
+        Some(m) => build_filter_at(m.clone(), &[]),
+        None => Ok(Filter::all()),
+    }
+}
+
+fn parse_count_pred(value: &Value, op: &'static str) -> Result<CountPred, ParseError> {
+    match value {
+        Value::Number(_) => Ok(CountPred::eq(parse_count_int(value, op)?)),
+        Value::Mapping(m) => {
+            if m.is_empty() {
+                return Err(ParseError::InvalidCountPredicate { op });
+            }
+            let mut comparisons = Vec::with_capacity(m.len());
+            for (k, v) in m {
+                let key = k.as_str().ok_or(ParseError::NonStringKey)?;
+                let n = parse_count_int(v, op)?;
+                let cmp = match key {
+                    "$eq" => CountCmp::Eq(n),
+                    "$ne" => CountCmp::Ne(n),
+                    "$gt" => CountCmp::Gt(n),
+                    "$gte" => CountCmp::Gte(n),
+                    "$lt" => CountCmp::Lt(n),
+                    "$lte" => CountCmp::Lte(n),
+                    other => {
+                        return Err(ParseError::UnknownOperator {
+                            op: other.to_string(),
+                            path: vec![op.to_string()],
+                        })
+                    }
+                };
+                comparisons.push(cmp);
+            }
+            Ok(CountPred::new(comparisons))
+        }
+        _ => Err(ParseError::InvalidCountPredicate { op }),
+    }
+}
+
+fn parse_count_int(value: &Value, op: &'static str) -> Result<u64, ParseError> {
+    match value {
+        Value::Number(n) => {
+            let i = n
+                .as_i64()
+                .ok_or(ParseError::OperatorExpectedInteger { op })?;
+            if i < 0 {
+                return Err(ParseError::OperatorExpectedNonNegativeInt { op });
+            }
+            Ok(i as u64)
+        }
+        _ => Err(ParseError::OperatorExpectedInteger { op }),
+    }
 }
 
 fn parse_inclusion_arg(value: &Value, op: &'static str) -> Result<InclusionAnchor, ParseError> {
@@ -1437,23 +1505,23 @@ fn parse_inclusion_arg(value: &Value, op: &'static str) -> Result<InclusionAncho
             modifier: "minDistance",
         });
     }
-    let match_filter = match_to_filter(&raw, op)?;
-    let max_depth = match raw.max_depth {
-        Some(n) => pos_u32(n, op, "maxDepth")?,
-        None => u32::MAX,
-    };
-    let min_depth = match raw.min_depth {
-        Some(n) => pos_u32(n, op, "minDepth")?,
-        None => 1,
-    };
+    let match_filter = match_to_filter(&raw)?;
+    let max_depth = parse_max_bound(raw.max_depth, op, "maxDepth")?;
+    let min_depth = parse_min_bound(raw.min_depth, op, "minDepth")?;
     if min_depth > max_depth {
-        return Err(ParseError::DepthRangeInverted { op });
+        return Err(ParseError::DepthRangeInverted {
+            op,
+            sentinel: "maxDepth",
+        });
     }
-    Ok(InclusionAnchor::with_match(
-        match_filter,
-        min_depth,
-        max_depth,
-    ))
+    let size = raw
+        .size
+        .as_ref()
+        .map(|v| parse_count_pred(v, "$size"))
+        .transpose()?;
+    let mut anchor = InclusionAnchor::with_match(match_filter, min_depth, max_depth);
+    anchor.size = size;
+    Ok(anchor)
 }
 
 fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAnchor, ParseError> {
@@ -1473,23 +1541,23 @@ fn parse_reference_arg(value: &Value, op: &'static str) -> Result<ReferenceAncho
             modifier: "minDepth",
         });
     }
-    let match_filter = match_to_filter(&raw, op)?;
-    let max_distance = match raw.max_distance {
-        Some(n) => pos_u32(n, op, "maxDistance")?,
-        None => u32::MAX,
-    };
-    let min_distance = match raw.min_distance {
-        Some(n) => pos_u32(n, op, "minDistance")?,
-        None => 1,
-    };
+    let match_filter = match_to_filter(&raw)?;
+    let max_distance = parse_max_bound(raw.max_distance, op, "maxDistance")?;
+    let min_distance = parse_min_bound(raw.min_distance, op, "minDistance")?;
     if min_distance > max_distance {
-        return Err(ParseError::DepthRangeInverted { op });
+        return Err(ParseError::DepthRangeInverted {
+            op,
+            sentinel: "maxDistance",
+        });
     }
-    Ok(ReferenceAnchor::with_match(
-        match_filter,
-        min_distance,
-        max_distance,
-    ))
+    let size = raw
+        .size
+        .as_ref()
+        .map(|v| parse_count_pred(v, "$size"))
+        .transpose()?;
+    let mut anchor = ReferenceAnchor::with_match(match_filter, min_distance, max_distance);
+    anchor.size = size;
+    Ok(anchor)
 }
 
 fn check_update_conflicts(ops: &[UpdateOperator]) -> Result<(), ParseError> {

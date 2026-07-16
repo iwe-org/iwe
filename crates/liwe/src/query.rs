@@ -22,10 +22,10 @@ pub use builder::{
     ParseError,
 };
 pub use document::{
-    BlockUpdate, BlockUpdateOp, CountOp, DeleteOp, Expect, FieldOp, FieldPath, Filter, FindOp,
-    InclusionAnchor, KeyOp, Limit, Operation, OperationKind, Projection, ProjectionBase,
-    ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir, Update,
-    UpdateOp, UpdateOperator, YamlType,
+    BlockUpdate, BlockUpdateOp, CountCmp, CountOp, CountPred, DeleteOp, Expect, FieldOp, FieldPath,
+    Filter, FindOp, InclusionAnchor, KeyOp, Limit, Operation, OperationKind, Projection,
+    ProjectionBase, ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir,
+    Update, UpdateOp, UpdateOperator, YamlType,
 };
 pub use eval::evaluate;
 pub use execute::{execute, execute_with_scores, strict_guard_violations, FindMatch, Outcome};

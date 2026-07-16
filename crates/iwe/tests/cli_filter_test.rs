@@ -252,6 +252,93 @@ fn rename_f_keys_matches_legacy_keys_flag() {
     assert_eq!(out_new, out_old);
 }
 
+fn setup_chain() -> TempDir {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path();
+    create_dir_all(path.join(".iwe")).unwrap();
+    let config = Configuration {
+        library: LibraryOptions {
+            path: "".to_string(),
+            ..Default::default()
+        },
+        markdown: MarkdownOptions {
+            refs_extension: "".to_string(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    write(
+        path.join(".iwe/config.toml"),
+        toml::to_string(&config).unwrap(),
+    )
+    .unwrap();
+    write(path.join("root.md"), "# Root\n\n[Mid](mid)\n").unwrap();
+    write(path.join("mid.md"), "# Mid\n\n[Leaf](leaf)\n").unwrap();
+    write(path.join("leaf.md"), "# Leaf\n").unwrap();
+    dir
+}
+
+#[test]
+fn included_by_default_depth_matches_direct_child() {
+    let dir = setup_chain();
+    let (stdout, _, ok) = run(dir.path(), "find", &["--included-by", "root", "-f", "keys"]);
+    assert!(ok);
+    assert_eq!(stdout, "mid\n");
+}
+
+#[test]
+fn included_by_zero_depth_is_unbounded() {
+    let dir = setup_chain();
+    let (stdout, _, ok) = run(
+        dir.path(),
+        "find",
+        &["--included-by", "root:0", "-f", "keys"],
+    );
+    assert!(ok);
+    assert_eq!(stdout, "leaf\nmid\n");
+}
+
+#[test]
+fn filter_size_zero_selects_roots() {
+    let dir = setup_chain();
+    let (stdout, _, ok) = run(
+        dir.path(),
+        "find",
+        &["--filter", "$includedBy: { $size: 0 }", "-f", "keys"],
+    );
+    assert!(ok);
+    assert_eq!(stdout, "root\n");
+}
+
+#[test]
+fn filter_includes_size_zero_selects_leaves() {
+    let dir = setup_chain();
+    let (stdout, _, ok) = run(
+        dir.path(),
+        "find",
+        &["--filter", "$includes: { $size: 0 }", "-f", "keys"],
+    );
+    assert!(ok);
+    assert_eq!(stdout, "leaf\n");
+}
+
+#[test]
+fn filter_size_comparison_mapping_counts_edges() {
+    let dir = setup();
+    let (stdout, _, ok) = run(
+        dir.path(),
+        "find",
+        &[
+            "--filter",
+            "$includedBy: { $size: { $gte: 1 } }",
+            "-f",
+            "keys",
+        ],
+    );
+    assert!(ok);
+    assert_eq!(stdout, "a\n");
+}
+
 #[test]
 fn find_max_depth_widens_includes_anchor() {
     let dir = setup();
