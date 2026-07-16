@@ -282,6 +282,36 @@ fn squash_infinite_recursion() {
     );
 }
 
+#[test]
+fn squash_preserves_root_frontmatter() {
+    setup();
+    let state: liwe::model::State = [
+        (
+            "1".to_string(),
+            "---\ntitle: Kept\n---\n\n# One\n\n[](2)".to_string(),
+        ),
+        ("2".to_string(), "text".to_string()),
+    ]
+    .into_iter()
+    .collect();
+    let graph = &Graph::import(&state, MarkdownOptions::default(), None);
+    let mut patch = Graph::new();
+    let document_tree = graph.squash(&"1".into(), 2);
+    patch.build_key_from_iter(&"1".into(), document_tree.iter());
+    assert_eq!(
+        patch.export_key(&"1".into()).unwrap(),
+        indoc! {"
+            ---
+            title: Kept
+            ---
+
+            # One
+
+            text
+        "}
+    );
+}
+
 fn squash(source: &str, expected: &str) {
     setup();
 

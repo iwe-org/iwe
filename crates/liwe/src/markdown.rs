@@ -7,7 +7,7 @@ use crate::model::writer::{
 
 pub mod reader;
 
-use reader::MarkdownEventsReader;
+pub use reader::MarkdownEventsReader;
 pub struct MarkdownReader {}
 
 pub mod writer;

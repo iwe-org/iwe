@@ -901,7 +901,7 @@ impl IweServer {
                     ));
                 }
                 let key = Key::name(k);
-                if key.relative_path.is_empty() {
+                if key.as_str().is_empty() {
                     return Err(McpError::invalid_params(
                         "Key must not be empty".to_string(),
                         None,

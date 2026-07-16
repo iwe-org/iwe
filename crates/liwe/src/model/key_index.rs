@@ -74,7 +74,7 @@ impl KeyIndex {
     }
 
     pub fn shorten_wiki(&self, target: &Key) -> String {
-        let path = target.relative_path.to_string();
+        let path = target.as_str().to_string();
 
         let segs = segments(&path);
 
@@ -116,18 +116,18 @@ fn segments(path: &str) -> Vec<&str> {
 }
 
 fn ends_with_segments(key: &Key, suffix: &[&str]) -> bool {
-    let key_segs = segments(&key.relative_path);
+    let key_segs = segments(key.as_str());
     key_segs.len() >= suffix.len() && key_segs[key_segs.len() - suffix.len()..] == *suffix
 }
 
 fn segment_count(key: &Key) -> usize {
-    segments(&key.relative_path).len()
+    segments(key.as_str()).len()
 }
 
 fn resolution_order(a: &Key, b: &Key) -> std::cmp::Ordering {
     segment_count(a)
         .cmp(&segment_count(b))
-        .then_with(|| a.relative_path.cmp(&b.relative_path))
+        .then_with(|| a.as_str().cmp(b.as_str()))
 }
 
 #[cfg(test)]

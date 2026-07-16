@@ -165,7 +165,7 @@ impl<'a> DocumentCreator<'a> {
         )?;
 
         let base_key = Key::name(&relative_key);
-        if base_key.relative_path.is_empty() {
+        if base_key.as_str().is_empty() {
             return Err(if options.key.is_some() {
                 "Provided key is empty.".to_string()
             } else {

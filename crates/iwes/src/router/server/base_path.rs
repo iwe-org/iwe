@@ -34,7 +34,7 @@ impl BasePath {
     }
 
     pub fn key_to_url(&self, key: &Key) -> Uri {
-        self.build_url(&key.relative_path)
+        self.build_url(key.as_str())
     }
 
     pub fn relative_to_full_path(&self, path: &str) -> Uri {

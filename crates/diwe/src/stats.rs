@@ -151,7 +151,7 @@ pub fn orphan_keys(graph: &Graph) -> Vec<Key> {
         .keys()
         .into_iter()
         .filter(|key| {
-            !is_index_key(&key.relative_path)
+            !is_index_key(key.as_str())
                 && graph.get_inclusion_edges_to(key).is_empty()
                 && graph.get_reference_edges_to(key).is_empty()
         })

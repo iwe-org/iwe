@@ -9,7 +9,7 @@ use crate::model::Key;
 use super::changes::{Changes, OperationError};
 
 pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, OperationError> {
-    if new_key.relative_path.is_empty() {
+    if new_key.as_str().is_empty() {
         return Err(OperationError::InvalidTarget(
             "Key cannot be empty".to_string(),
         ));
