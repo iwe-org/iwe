@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--filter` relational operators gain a `$size` count predicate — `--filter '$includedBy: { $size: 0 }'` finds roots, `--filter '$includes: { $size: 0 }'` finds leaves, `--filter '$referencedBy: { $size: { $gte: 5 } }'` finds hubs.
+
+### Changed
+- `--filter` relational operators default to direct edges (`maxDepth` / `maxDistance` 1) when the bound is omitted; an unbounded walk is now spelled `maxDepth: 0` / `maxDistance: 0` (was: omitting the bound meant unbounded). The structural anchor flags are unaffected — `--included-by KEY` was already direct and `--included-by KEY:0` is still unbounded.
+
 ## [0.12.0](https://github.com/iwe-org/iwe/compare/iwe-v0.11.0...iwe-v0.12.0) - 2026-07-12
 
 ### Added

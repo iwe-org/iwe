@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe_query` relational operators gain a `$size` count predicate — `$includedBy: { $size: 0 }` (roots), `$includes: { $size: 0 }` (leaves), `$referencedBy: { $size: { $gte: 5 } }` (hubs). Takes a non-negative integer or a mapping of `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` comparisons.
+
+### Changed
+- `iwe_query` relational operators default to direct edges when `maxDepth` / `maxDistance` is omitted; an unbounded walk is now spelled `maxDepth: 0` / `maxDistance: 0` (was unbounded by default). `match` is now optional, defaulting to any document.
+
 ## [0.12.0](https://github.com/iwe-org/iwe/compare/iwec-v0.11.0...iwec-v0.12.0) - 2026-07-12
 
 ### Added

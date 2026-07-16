@@ -2,9 +2,9 @@ use serde_yaml::Value;
 
 use liwe::query::block::{BlockPredicate, BlockRegex, MatchesSource};
 use liwe::query::document::{
-    CountOp, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp, Operation,
-    Projection, ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, Update,
-    UpdateOp, YamlType,
+    CountOp, CountPred, DeleteOp, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp,
+    Operation, Projection, ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort,
+    Update, UpdateOp, YamlType,
 };
 
 pub fn filter(f: Filter) -> FindOp {
@@ -100,7 +100,7 @@ pub fn all(path: &str, values: impl IntoIterator<Item = impl Into<Value>>) -> Fi
 }
 
 pub fn size(path: &str, n: u64) -> Filter {
-    field_op(path, FieldOp::Size(n))
+    field_op(path, FieldOp::Size(CountPred::eq(n)))
 }
 
 pub fn type_of(path: &str, types: impl IntoIterator<Item = YamlType>) -> Filter {
@@ -165,6 +165,22 @@ pub fn reference_range(
     max_distance: u32,
 ) -> ReferenceAnchor {
     ReferenceAnchor::new(key, min_distance, max_distance)
+}
+
+pub fn any_document() -> Filter {
+    Filter::all()
+}
+
+pub fn inclusion_count(match_filter: Filter, max_depth: u32, size: CountPred) -> InclusionAnchor {
+    InclusionAnchor::with_match(match_filter, 1, max_depth).with_size(size)
+}
+
+pub fn reference_count(
+    match_filter: Filter,
+    max_distance: u32,
+    size: CountPred,
+) -> ReferenceAnchor {
+    ReferenceAnchor::with_match(match_filter, 1, max_distance).with_size(size)
 }
 
 pub fn blocks(pred: BlockPredicate) -> ProjectionSource {

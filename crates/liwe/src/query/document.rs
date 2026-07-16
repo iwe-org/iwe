@@ -226,6 +226,7 @@ pub struct InclusionAnchor {
     pub match_filter: Filter,
     pub min_depth: u32,
     pub max_depth: u32,
+    pub size: Option<CountPred>,
 }
 
 impl InclusionAnchor {
@@ -234,6 +235,7 @@ impl InclusionAnchor {
             match_filter: Filter::Key(KeyOp::Eq(Key::name(&key.into()))),
             min_depth,
             max_depth,
+            size: None,
         }
     }
     pub fn with_max(key: impl Into<String>, max_depth: u32) -> Self {
@@ -244,7 +246,12 @@ impl InclusionAnchor {
             match_filter,
             min_depth,
             max_depth,
+            size: None,
         }
+    }
+    pub fn with_size(mut self, size: CountPred) -> Self {
+        self.size = Some(size);
+        self
     }
 }
 
@@ -253,6 +260,7 @@ pub struct ReferenceAnchor {
     pub match_filter: Filter,
     pub min_distance: u32,
     pub max_distance: u32,
+    pub size: Option<CountPred>,
 }
 
 impl ReferenceAnchor {
@@ -261,6 +269,7 @@ impl ReferenceAnchor {
             match_filter: Filter::Key(KeyOp::Eq(Key::name(&key.into()))),
             min_distance,
             max_distance,
+            size: None,
         }
     }
     pub fn with_max(key: impl Into<String>, max_distance: u32) -> Self {
@@ -271,7 +280,12 @@ impl ReferenceAnchor {
             match_filter,
             min_distance,
             max_distance,
+            size: None,
         }
+    }
+    pub fn with_size(mut self, size: CountPred) -> Self {
+        self.size = Some(size);
+        self
     }
 }
 
@@ -369,9 +383,59 @@ pub enum FieldOp {
     Exists(bool),
     Type(Vec<YamlType>),
     All(Vec<Value>),
-    Size(u64),
+    Size(CountPred),
     Not(Box<FieldOp>),
     And(Vec<FieldOp>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CountPred {
+    pub comparisons: Vec<CountCmp>,
+}
+
+impl CountPred {
+    pub fn new(comparisons: Vec<CountCmp>) -> Self {
+        CountPred { comparisons }
+    }
+
+    pub fn eq(n: u64) -> Self {
+        CountPred {
+            comparisons: vec![CountCmp::Eq(n)],
+        }
+    }
+
+    pub fn at_least_one() -> Self {
+        CountPred {
+            comparisons: vec![CountCmp::Gte(1)],
+        }
+    }
+
+    pub fn satisfied_by(&self, count: u64) -> bool {
+        self.comparisons.iter().all(|c| c.satisfied_by(count))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CountCmp {
+    Eq(u64),
+    Ne(u64),
+    Gt(u64),
+    Gte(u64),
+    Lt(u64),
+    Lte(u64),
+}
+
+impl CountCmp {
+    pub fn satisfied_by(&self, count: u64) -> bool {
+        match self {
+            CountCmp::Eq(n) => count == *n,
+            CountCmp::Ne(n) => count != *n,
+            CountCmp::Gt(n) => count > *n,
+            CountCmp::Gte(n) => count >= *n,
+            CountCmp::Lt(n) => count < *n,
+            CountCmp::Lte(n) => count <= *n,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

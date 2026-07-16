@@ -40,7 +40,8 @@ status:   { $in: [draft, review] }
 status:   { $nin: [archived, deleted] }
 reviewed: { $exists: true }
 tags:     { $all: [rust, async] }
-tags:     { $size: 0 }
+tags:     { $size: 0 }                # exact array length
+tags:     { $size: { $gte: 3 } }      # $size also takes count comparisons
 ```
 
 Operators in one expression are ANDed together. User frontmatter fields cannot start with `$`, so an operator and a field name never collide.
@@ -96,10 +97,10 @@ $key: { $nin: [drafts/scratch, drafts/temp] }  # none of these
 | `$references` | this doc references an anchor | reference | `maxDistance`, `minDistance` |
 | `$referencedBy` | this doc is referenced by an anchor | reference | `maxDistance`, `minDistance` |
 
-Each takes either a scalar key (shorthand for direct edges) or a mapping with `match` and walk parameters:
+Each takes either a scalar key (shorthand for direct edges) or a mapping with an optional `match`, walk parameters, and an optional `$size`:
 
 ```yaml
-# Direct edges only — scalar shorthand fixes maxDepth: 1
+# Direct edges only — scalar shorthand for { match: { $key: projects/alpha } }
 $includedBy: projects/alpha
 
 # Walk inclusion edges from a single anchor, bounded
@@ -122,15 +123,38 @@ $includedBy:
 $referencedBy: { match: { $key: archive/index }, minDistance: 2, maxDistance: 3 }
 ```
 
-In the full mapping form, **omitting `maxDepth` / `maxDistance` means unbounded** — the walk reaches every transitively-related document. Walks are BFS and de-duplicate via a visited set, so cycles terminate.
+In the full mapping form, **omitting `maxDepth` / `maxDistance` means direct edges** (depth 1). Set `maxDepth: 0` / `maxDistance: 0` for an unbounded walk that reaches every transitively-related document. Walks are BFS and de-duplicate via a visited set, so cycles terminate.
+
+```yaml
+$includedBy: { match: { $key: projects/alpha } }               # direct children
+$includedBy: { match: { $key: projects/alpha }, maxDepth: 0 }  # whole tree
+```
+
+`match` is optional and defaults to `{}` (any document); the empty mapping `$includedBy: {}` is still a parse error.
 
 A relational operator never matches a document in its own anchor set. To include the anchor, OR it in:
 
 ```yaml
 $or:
   - $key: projects/alpha
-  - $includedBy: { match: { $key: projects/alpha }, maxDepth: 5 }
+  - $includedBy: { match: { $key: projects/alpha }, maxDepth: 0 }
 ```
+
+#### Cardinality — `$size`
+
+By default a relational operator holds when at least one document stands in the relation. Add `$size` to test the *count* of related documents instead. `$size` takes a non-negative integer (an `$eq` shorthand) or a mapping of count comparisons (`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`); multiple comparisons AND together. The count is over the distinct documents in the walk's `[min, max]` band, matching `match`, always excluding the document itself.
+
+```yaml
+$includedBy:   { $size: 0 }                              # roots — nothing includes them
+$includes:     { $size: 0 }                              # leaves — include nothing
+$referencedBy: { $size: 0 }                              # orphans — no inbound links
+$referencedBy: { $size: { $gte: 5 } }                    # hubs — 5+ direct referrers
+$includedBy:   { $size: { $gte: 10 }, maxDepth: 0 }      # 10+ transitive ancestors
+$includedBy:   { match: { type: project, status: active },
+                 $size: { $gte: 2 }, maxDepth: 3 }       # counted, filtered, bounded
+```
+
+Because the default bounds count direct edges, `$size: 0` is the same whether bounded or unbounded: zero direct edges means zero at every depth.
 
 ### `$content` — content membership
 
@@ -539,7 +563,7 @@ On the CLI, structural anchor flags lower to graph operators. A `KEY[:DEPTH]` su
 | `-k KEY` | `$key: KEY` (1 key = `$eq`; 2+ = `$in`) |
 | `--includes KEY` | `$includes: KEY` (scalar shorthand, depth 1) |
 | `--included-by KEY:5` | `$includedBy: { match: { $key: KEY }, maxDepth: 5 }` |
-| `--references KEY:0` | `$references: { match: { $key: KEY } }` (unbounded) |
+| `--references KEY:0` | `$references: { match: { $key: KEY }, maxDistance: 0 }` (unbounded) |
 | `--referenced-by KEY` | `$referencedBy: KEY` |
 | `--max-depth N` | session default for `--includes` / `--included-by` (default 1) |
 | `--max-distance N` | session default for `--references` / `--referenced-by` (default 1) |

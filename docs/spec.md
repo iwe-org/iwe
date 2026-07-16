@@ -557,18 +557,25 @@ tags: { $all: [rust, async] }
 - Every element of the listed values must appear at least once in the field's array. Order is irrelevant; duplicates are irrelevant.
 - Element equality follows §4.5 (deep equality, type-strict).
 - **Empty list** `$all: []` is a parse-time error.
-#### `$size: N`
+#### `$size: count_pred`
 
-Matches when the field's array has exactly N elements.
+Matches when the length of the field's array satisfies a count predicate.
 
-```yaml
-tags: { $size: 0 }                   # no tags
-authors: { $size: 1 }                # exactly one author
+```
+count_pred ::= non_neg_int | { count_op: non_neg_int, ... }
+count_op   ::= $eq | $ne | $gt | $gte | $lt | $lte
 ```
 
-- N must be a non-negative integer (`$size: -1` is an error; `$size: 1.5` is an error).
+```yaml
+tags:    { $size: 0 }                # no tags (bare integer is $eq shorthand)
+authors: { $size: 1 }                # exactly one author
+tags:    { $size: { $gte: 3 } }      # three or more tags
+tags:    { $size: { $gte: 2, $lte: 5 } }   # between 2 and 5, inclusive
+```
+
+- A bare integer is `$eq` shorthand. Each `count_op` value must be a non-negative integer (`$size: -1` is an error; `$size: 1.5` is an error). Multiple comparisons in the mapping AND together.
 - Field must be an array; non-arrays and missing fields → false.
-- `$size` does not accept ranges: `$size: { $gt: 3 }` is **not** supported.
+- The same `count_pred` grammar is reused by the relational operators' `$size` argument (§5.2.6).
 
 ### 4.10 Filter requirements (use-case checklist)
 
@@ -655,40 +662,44 @@ A **walk** is a BFS traversal from the anchor set over the operator's edge type,
 
 #### 5.2.1 Argument shape
 
-Each relational operator accepts either a scalar key (shorthand) or a mapping with a `match` field and optional walk parameters:
+Each relational operator accepts either a scalar key (shorthand) or a mapping with an optional `match` field, optional walk parameters, and an optional `$size` count predicate:
 
 ```
 relational_arg ::= key | relational_obj
 
 relational_obj ::= {
-  match:       filter        (required)
-  maxDepth:    pos_int       (inclusion ops only; optional, absent = unbounded)
-  minDepth:    pos_int       (inclusion ops only; optional, absent = 1)
-  maxDistance: pos_int       (reference ops only; optional, absent = unbounded)
-  minDistance: pos_int       (reference ops only; optional, absent = 1)
+  match:       filter        (optional, default {} — any document)
+  maxDepth:    int >= 0      (inclusion ops only; optional, default 1; 0 = unbounded)
+  minDepth:    int >= 1      (inclusion ops only; optional, default 1)
+  maxDistance: int >= 0      (reference ops only; optional, default 1; 0 = unbounded)
+  minDistance: int >= 1      (reference ops only; optional, default 1)
+  $size:       count_pred    (optional, default { $gte: 1 }; see §5.2.6)
 }
 ```
 
-Field names inside `relational_obj` are bare-named — `$`-prefix is reserved for operators that evaluate, not configuration. The `match` field's value is a filter document; any `$`-prefixed names appearing inside it are filter-language operators, not walk configuration.
+Walk-parameter field names inside `relational_obj` are bare-named — the `$`-prefix marks operators that evaluate. `$size` is the one exception: it is the operator that evaluates the relation's cardinality, so it keeps its `$`. The `match` field's value is a filter document; any `$`-prefixed names appearing inside it are filter-language operators, not walk configuration.
 
-A scalar key K is shorthand that fixes a direct-edge walk:
+A scalar key K is pure sugar for anchoring by identity:
 
-- For inclusion operators: `K` is equivalent to `{ match: { $key: K }, maxDepth: 1 }`.
-- For reference operators: `K` is equivalent to `{ match: { $key: K }, maxDistance: 1 }`.
+- For inclusion operators: `K` is equivalent to `{ match: { $key: K } }`.
+- For reference operators: `K` is equivalent to `{ match: { $key: K } }`.
 
-Use the full mapping form to anchor by predicate, to widen the walk, or to use range bounds. In the full form, walk parameters are independent: `maxDepth` / `maxDistance` absent → unbounded; `minDepth` / `minDistance` absent → 1.
+Under the default bounds (§5.2.3), both desugar to a direct-edge walk. Use the full mapping form to anchor by predicate, to widen the walk, to use range bounds, or to count with `$size`.
 
 Examples:
 
 ```yaml
-# Scalar shorthand — single-document anchor at depth/distance 1
+# Scalar shorthand — single-document anchor at direct edges (depth/distance 1)
 $includes:     roadmap/q2
 $includedBy:   projects/alpha
 $references:   people/alice
 $referencedBy: archive/index
 
-# Full form, maxDepth omitted — fully unbounded walk
+# Full form, match only — direct edges (maxDepth defaults to 1)
 $includedBy: { match: { $key: projects/alpha } }
+
+# Full form, unbounded — the whole tree
+$includedBy: { match: { $key: projects/alpha }, maxDepth: 0 }
 
 # Anchor by identity with explicit bounds
 $includes:   { match: { $key: roadmap/q2 },     maxDepth: 2 }
@@ -757,18 +768,20 @@ Reference-edge operators (`$references`, `$referencedBy`) use `maxDistance` / `m
 
 Defaults in the full mapping form:
 
-- `maxDepth` / `maxDistance` absent → unbounded (the walk reaches every transitively related document).
+- `maxDepth` / `maxDistance` absent → 1 (direct edges).
 - `minDepth` / `minDistance` absent → 1 (the walk starts at level / hop 1).
-- Both absent → fully unbounded walk over the relevant edge kind.
+- `maxDepth: 0` / `maxDistance: 0` → unbounded (the walk reaches every transitively related document).
+- Both bounds absent → a direct-edge walk over the relevant edge kind.
 
-Scalar-key shorthand bypasses the unbounded default and fixes `maxDepth: 1` (or `maxDistance: 1`); see §5.2.1.
+Scalar-key shorthand desugars to `{ match: { $key: K } }` and inherits these defaults, so it too is a direct-edge walk; see §5.2.1.
 
 Wrong-category walk parameters (`maxDistance` / `minDistance` inside an inclusion-edge operator, or `maxDepth` / `minDepth` inside a reference-edge operator) are parse-time errors.
 
 Value constraints on walk parameters:
 
-- All values are positive integers (≥ 1). Zero, negatives, floats, strings, null, and operator expressions are parse-time errors.
-- No `-1` sentinel — absence in the full form is the unbounded signal.
+- `maxDepth` / `maxDistance` are non-negative integers (≥ 0), where `0` is the unbounded sentinel. `minDepth` / `minDistance` are positive integers (≥ 1). Negatives, floats, strings, null, and operator expressions are parse-time errors.
+- `0` — meaningless as an edge count — is the single sentinel for "unconstrained", matching the CLI's `KEY:0` and the language's `limit: 0`.
+- A lone `minDepth`/`minDistance` ≥ 2 with no `maxDepth`/`maxDistance` is an inverted range (min > the defaulted max of 1) and is a parse-time error; set `maxDepth: 0` / `maxDistance: 0` to walk from that level to unbounded.
 
 Anchor exclusion: a relational operator never matches a document in its anchor set. `$includedBy: { match: { $key: K }, maxDepth: 5 }` matches the documents that K transitively includes within 5 levels but does not match K itself. More generally, a `match` that selects a set S contributes anchors S, and the walk's matches are documents reached *from* S — never S itself. To include the anchor set in the result, compose at the filter level:
 
@@ -807,11 +820,28 @@ $includedBy:
 
 #### 5.2.5 Empty argument and unknown fields
 
-The empty mapping `$includedBy: {}` is a parse-time error — `match` is required. A mapping without `match` is also a parse-time error, regardless of which walk parameters are present. The array form `$includedBy: []` is a parse-time error.
+The empty mapping `$includedBy: {}` is a parse-time error. `match` is optional — a mapping that omits it (for example `$includedBy: { $size: 0 }`) is well-formed and defaults `match` to `{}` (any document). The array form `$includedBy: []` is a parse-time error.
 
-The set of recognized keys inside a `relational_obj` is closed: `match`, `maxDepth`, `minDepth`, `maxDistance`, `minDistance`. Any other key — including misspellings (`maxDepht`, `match_`), `$`-prefixed names, and reserved-prefix names — is a parse-time error. Implementations MUST reject unknown keys rather than silently ignoring them; this prevents typos from quietly widening or narrowing the walk.
+The set of recognized keys inside a `relational_obj` is closed: `match`, `maxDepth`, `minDepth`, `maxDistance`, `minDistance`, `$size`. Any other key — including misspellings (`maxDepht`, `match_`), other `$`-prefixed names, and reserved-prefix names — is a parse-time error. Implementations MUST reject unknown keys rather than silently ignoring them; this prevents typos from quietly widening or narrowing the walk.
 
-A `match` filter that selects no documents is well-formed but contributes an empty anchor set; the relational predicate then matches nothing.
+A `match` filter that selects no documents is well-formed but contributes an empty anchor set; a `$size`-free predicate then matches nothing, and a `$size` predicate counts zero related documents for every candidate.
+
+#### 5.2.6 Cardinality — `$size`
+
+The operator's argument denotes a **set**: the distinct documents standing in the named relation to the document under test, within `[min, max]` hops, matching `match`, always excluding the document itself (cycles included).
+
+- Without `$size`, the predicate holds iff that set is non-empty. This is the default `$size: { $gte: 1 }`; the two spellings are equivalent.
+- With `$size`, the predicate holds iff the set's cardinality satisfies the count predicate. `$size` reuses the `count_pred` grammar of §4.9: a bare non-negative integer (`$eq` shorthand) or a mapping of `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` comparisons that AND together.
+
+```yaml
+$includedBy:   { $size: 0 }                          # roots — nothing includes them
+$includes:     { $size: 0 }                          # leaves — include nothing
+$referencedBy: { $size: 0 }                          # orphans — no inbound links
+$referencedBy: { $size: { $gte: 5 } }                # hubs — 5+ direct referrers
+$includedBy:   { $size: { $gte: 10 }, maxDepth: 0 }  # 10+ transitive ancestors
+```
+
+`$size: 0` is bound-insensitive under the default `minDepth: 1`: any transitive relation implies a direct one, so zero direct edges means zero at every depth.
 
 ### 5.3 Graph operator composition with filter
 
@@ -949,6 +979,8 @@ Implementation requirements:
 - **Traversal order** — BFS. Depth and distance bounds are well-defined under BFS and ambiguous under DFS.
 - **Depth / distance measure** — the shortest path from anchor to candidate (BFS-natural).
 - **Anchor self-results** — when a document has a self-edge, it does not appear in its own walk result. Anchor exclusion (§5.2.3) applies regardless of self-edges.
+
+**Existential vs cardinality evaluation.** A `$size`-free relational predicate (§5.2.6) is evaluated anchor-first: the `match` filter resolves to an anchor set, one walk runs from each anchor, and the reached documents are the result. A `$size` predicate is evaluated per-candidate: the `match` filter resolves once to a key set, then for each candidate document a walk runs from *that document* in the relation's direction, the distinct reached documents within `[min, max]` that are in the key set are counted (self always excluded), and the count is tested against the predicate. With the default `maxDepth`/`maxDistance` of 1, this is a direct-edge lookup and never traverses beyond one hop; `maxDepth: 0` counts full per-document reachability and is the expensive path, always visible in the query.
 
 #### 5.5.2 Other edge cases
 
@@ -2309,7 +2341,10 @@ element_op ::=
 
 array_op ::=
     $all:  [value, ...]                            # non-empty
-  | $size: non_neg_int
+  | $size: count_pred
+
+count_pred ::= non_neg_int | { count_op: non_neg_int, ... }   # bare int is $eq; ops AND together
+count_op   ::= $eq | $ne | $gt | $gte | $lt | $lte
 
 type_name ::=
     "string" | "number" | "boolean" | "null"
@@ -2364,28 +2399,29 @@ key_expr ::=
 relational_arg ::= key | relational_obj
 
 relational_obj ::= {
-    match:       filter                            (required)
-    maxDepth:    pos_int                           (inclusion ops, optional; absent = unbounded)
-    minDepth:    pos_int                           (inclusion ops, optional; absent = 1)
-    maxDistance: pos_int                           (reference ops, optional; absent = unbounded)
-    minDistance: pos_int                           (reference ops, optional; absent = 1)
+    match:       filter                            (optional; absent = {} — any document)
+    maxDepth:    int >= 0                           (inclusion ops, optional; default 1; 0 = unbounded)
+    minDepth:    int >= 1                           (inclusion ops, optional; default 1)
+    maxDistance: int >= 0                           (reference ops, optional; default 1; 0 = unbounded)
+    minDistance: int >= 1                           (reference ops, optional; default 1)
+    $size:       count_pred                         (optional; default { $gte: 1 }; §5.2.6)
 }
 
-# Scalar `key` shorthand expands to:
-#   - inclusion ops:  { match: { $key: KEY }, maxDepth: 1 }
-#   - reference ops:  { match: { $key: KEY }, maxDistance: 1 }
+# Scalar `key` shorthand expands to { match: { $key: KEY } } for every operator,
+#   inheriting the default bounds (direct edges).
 # Inclusion-edge ops accept maxDepth / minDepth only;
 #   maxDistance / minDistance are parse-time errors.
 # Reference-edge ops accept maxDistance / minDistance only;
 #   maxDepth / minDepth are parse-time errors.
-# match is required; an object without match is a parse-time error.
+# match is optional; an object without match anchors on any document.
 # Empty mapping {} is a parse-time error. The array form [...] is a parse-time error.
-# All walk-parameter values are positive integers (>= 1).
-# No -1 sentinel; absence is the unbounded signal in the full relational_obj form.
+# maxDepth / maxDistance are >= 0 (0 = unbounded); minDepth / minDistance are >= 1.
+# 0 is the single unbounded sentinel; a lone minDepth/minDistance >= 2 with no max is
+#   an inverted range and a parse-time error (§5.2.3).
 # minDepth > maxDepth (and minDistance > maxDistance) is a parse-time error (§5.2.3).
-# Field names inside relational_obj are bare — $-prefix is reserved for evaluating operators.
+# Walk-parameter names inside relational_obj are bare; $size keeps its $ as an evaluating operator.
 # The recognized key set is closed: any key other than match / maxDepth / minDepth /
-#   maxDistance / minDistance is a parse-time error (unknown keys are not silently ignored).
+#   maxDistance / minDistance / $size is a parse-time error (unknown keys are not silently ignored).
 # The filter inside `match` is the §A.2 filter production — the grammar is mutually recursive.
 # Because that filter accepts any §A.2 / §A.3 production, $key is allowed inside `match`:
 #   { match: { $key: K },                       maxDepth: 5 }

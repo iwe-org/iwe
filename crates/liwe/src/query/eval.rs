@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rayon::prelude::*;
 
@@ -9,7 +9,9 @@ use crate::graph::Graph;
 use crate::model::Key;
 use crate::query::block::BlockPredicate;
 use crate::query::block_eval::BlockIndex;
-use crate::query::document::{FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, ReferenceAnchor};
+use crate::query::document::{
+    CountPred, FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, ReferenceAnchor,
+};
 use crate::query::filter::{match_field_op, resolve_path, Resolution};
 use crate::query::graph_match::match_key_op;
 
@@ -147,6 +149,33 @@ fn eval_inclusion(
     scope: Option<&HashSet<Key>>,
     outbound: bool,
 ) -> HashSet<Key> {
+    match &anchor.size {
+        None => eval_inclusion_existential(anchor, graph, scope, outbound),
+        Some(pred) => {
+            let walk: WalkFn = if outbound {
+                descendants_inclusion
+            } else {
+                ancestors_inclusion
+            };
+            eval_relation_count(
+                &anchor.match_filter,
+                anchor.min_depth,
+                anchor.max_depth,
+                pred,
+                graph,
+                scope,
+                walk,
+            )
+        }
+    }
+}
+
+fn eval_inclusion_existential(
+    anchor: &InclusionAnchor,
+    graph: &Graph,
+    scope: Option<&HashSet<Key>>,
+    outbound: bool,
+) -> HashSet<Key> {
     let anchor_keys = eval(&anchor.match_filter, graph, None);
     let mut combined: HashSet<Key> = HashSet::new();
     for ak in &anchor_keys {
@@ -176,6 +205,33 @@ fn eval_reference(
     scope: Option<&HashSet<Key>>,
     outbound: bool,
 ) -> HashSet<Key> {
+    match &anchor.size {
+        None => eval_reference_existential(anchor, graph, scope, outbound),
+        Some(pred) => {
+            let walk: WalkFn = if outbound {
+                outbound_reference
+            } else {
+                inbound_reference
+            };
+            eval_relation_count(
+                &anchor.match_filter,
+                anchor.min_distance,
+                anchor.max_distance,
+                pred,
+                graph,
+                scope,
+                walk,
+            )
+        }
+    }
+}
+
+fn eval_reference_existential(
+    anchor: &ReferenceAnchor,
+    graph: &Graph,
+    scope: Option<&HashSet<Key>>,
+    outbound: bool,
+) -> HashSet<Key> {
     let anchor_keys = eval(&anchor.match_filter, graph, None);
     let mut combined: HashSet<Key> = HashSet::new();
     for ak in &anchor_keys {
@@ -197,6 +253,37 @@ fn eval_reference(
         combined.retain(|k| s.contains(k));
     }
     combined
+}
+
+type WalkFn = fn(&Graph, &Key, u32) -> HashMap<Key, u32>;
+
+fn eval_relation_count(
+    match_filter: &Filter,
+    min: u32,
+    max: u32,
+    pred: &CountPred,
+    graph: &Graph,
+    scope: Option<&HashSet<Key>>,
+    walk: WalkFn,
+) -> HashSet<Key> {
+    let match_set = eval(match_filter, graph, None);
+    let candidates: Vec<Key> = scope
+        .cloned()
+        .unwrap_or_else(|| all_keys(graph))
+        .into_iter()
+        .collect();
+    let test = |d: &Key| -> bool {
+        let count = walk(graph, d, max)
+            .into_iter()
+            .filter(|(k, depth)| *depth >= min && *depth <= max && k != d && match_set.contains(k))
+            .count() as u64;
+        pred.satisfied_by(count)
+    };
+    if candidates.len() >= PARALLEL_THRESHOLD {
+        candidates.into_par_iter().filter(|d| test(d)).collect()
+    } else {
+        candidates.into_iter().filter(|d| test(d)).collect()
+    }
 }
 
 fn intersect_sets(mut sets: Vec<HashSet<Key>>) -> HashSet<Key> {
