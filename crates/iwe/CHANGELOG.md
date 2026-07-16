@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/iwe-org/iwe/compare/iwe-v0.12.0...iwe-v0.13.0) - 2026-07-15
+
 ### Added
 - `--filter` relational operators gain a `$size` count predicate — `--filter '$includedBy: { $size: 0 }'` finds roots, `--filter '$includes: { $size: 0 }'` finds leaves, `--filter '$referencedBy: { $size: { $gte: 5 } }'` finds hubs.
 

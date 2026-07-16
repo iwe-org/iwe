@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/iwe-org/iwe/compare/liwe-v0.12.0...liwe-v0.13.0) - 2026-07-15
+
 ### Added
 - `$size` cardinality predicate on the relational operators (`$includes`, `$includedBy`, `$references`, `$referencedBy`) — count the distinct related documents instead of testing for existence, e.g. `$includedBy: { $size: 0 }` (roots), `$referencedBy: { $size: { $gte: 5 } }` (hubs). Takes a non-negative integer or a mapping of `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` comparisons; `CountPred` / `CountCmp` are the new public types and `InclusionAnchor` / `ReferenceAnchor` gain a `size: Option<CountPred>` field.
 - The frontmatter array `$size` operator now accepts count comparisons (`{ $size: { $gte: 3 } }`) in addition to an exact integer; `FieldOp::Size` carries a `CountPred` (was `u64`).
