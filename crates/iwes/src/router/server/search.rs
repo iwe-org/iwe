@@ -187,7 +187,7 @@ fn accumulate_rrf(rrf: &mut [f64], order: &[usize], same_score: impl Fn(usize, u
 fn render_search_text(title: &str, parent_titles: &[String], key: &Key) -> String {
     let mut all_titles = vec![title.to_string()];
     all_titles.extend(parent_titles.iter().cloned());
-    all_titles.push(key.relative_path.to_string());
+    all_titles.push(key.as_str().to_string());
     all_titles
         .join(" ")
         .chars()

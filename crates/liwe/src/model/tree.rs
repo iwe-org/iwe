@@ -33,6 +33,37 @@ impl Tree {
         }
     }
 
+    pub fn new_generated(node: Node, children: Vec<Tree>) -> Tree {
+        Tree {
+            id: alloc_node_id(),
+            line_range: None,
+            node,
+            children,
+        }
+    }
+
+    pub fn with_line_range_generated(
+        line_range: Option<LineRange>,
+        node: Node,
+        children: Vec<Tree>,
+    ) -> Tree {
+        Tree {
+            id: alloc_node_id(),
+            line_range,
+            node,
+            children,
+        }
+    }
+
+    pub fn with_new_ids(&self) -> Tree {
+        Tree {
+            id: alloc_node_id(),
+            line_range: self.line_range.clone(),
+            node: self.node.clone(),
+            children: self.children.iter().map(|c| c.with_new_ids()).collect(),
+        }
+    }
+
     pub fn iter(&self) -> TreeIter<'_> {
         TreeIter::new(self)
     }
@@ -765,6 +796,34 @@ pub use super::tree_iter::TreeIter;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_generated_allocates_unique_ids() {
+        let a = Tree::new_generated(Node::HorizontalRule(), vec![]);
+        let b = Tree::new_generated(Node::HorizontalRule(), vec![]);
+        assert_ne!(a.id, b.id);
+        assert_eq!(a.line_range, None);
+        assert_eq!(a.node, Node::HorizontalRule());
+    }
+
+    #[test]
+    fn with_line_range_generated_keeps_range() {
+        let a = Tree::new_generated(Node::HorizontalRule(), vec![]);
+        let b = Tree::with_line_range_generated(Some(2..5), Node::HorizontalRule(), vec![]);
+        assert_eq!(b.line_range, Some(2..5));
+        assert_ne!(b.id, a.id);
+    }
+
+    #[test]
+    fn with_new_ids_reallocates_all_ids_preserving_structure() {
+        let child = Tree::new_generated(Node::Section(vec![]), vec![]);
+        let parent = Tree::new_generated(Node::Quote(), vec![child]);
+        let fresh = parent.with_new_ids();
+
+        assert_ne!(fresh.id, parent.id);
+        assert_ne!(fresh.children[0].id, parent.children[0].id);
+        assert_eq!(fresh, parent);
+    }
 
     #[test]
     fn test_is_section() {

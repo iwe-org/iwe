@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{Debug, Formatter},
 };
 
@@ -22,8 +22,10 @@ use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
 use crate::model::config::{Format, FormatOptions, MarkdownOptions, WikiLinkPath};
+use crate::model::frontmatter_to_string;
 use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
+use crate::model::node::Node;
 use crate::model::node::{NodeIter, NodePointer};
 use crate::model::InlinesContext;
 use crate::model::{Content, Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
@@ -41,6 +43,12 @@ mod squash_iter;
 pub mod walk;
 
 type Documents = HashMap<Key, Content>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DocumentReference {
+    pub source_key: Key,
+    pub source_title: Option<String>,
+}
 
 #[derive(Clone, Default)]
 pub struct Graph {
@@ -184,6 +192,90 @@ impl Graph {
         self.keys.keys().cloned().collect()
     }
 
+    pub fn has_key(&self, key: &Key) -> bool {
+        self.keys.contains_key(key)
+    }
+
+    pub fn refresh_ref_text(&mut self, key: &Key) {
+        if !self.keys.contains_key(key) {
+            self.keys_to_ref_text.remove(key);
+            return;
+        }
+        match self.extract_ref_text(key) {
+            Some(text) => {
+                self.keys_to_ref_text.insert(key.clone(), text);
+            }
+            None => {
+                self.keys_to_ref_text.remove(key);
+            }
+        }
+    }
+
+    pub fn reindex_keys(&mut self, keys: &[Key]) {
+        let sources: HashSet<Key> = keys.iter().cloned().collect();
+        let mut index = std::mem::take(&mut self.index);
+        index.remove_edges_from_sources(self, &sources);
+        self.index = index;
+
+        let mut fresh = RefIndex::new();
+        for key in keys {
+            if let Some(root_id) = self.keys.get(key).copied() {
+                fresh.index_node(self, root_id);
+            }
+        }
+        self.index.merge(fresh);
+    }
+
+    pub fn rebuild_indexes(&mut self) {
+        build_index_and_titles(self);
+    }
+
+    pub fn raw_metadata(&self, key: &Key) -> Option<String> {
+        self.frontmatter.get(key).map(frontmatter_to_string)
+    }
+
+    pub fn get_document_references_to(&self, key: &Key) -> Vec<DocumentReference> {
+        let mut seen = HashSet::new();
+        self.index
+            .get_inclusion_edges_to(key)
+            .into_iter()
+            .chain(self.index.get_reference_edges_to(key))
+            .filter_map(|node_id| {
+                let source_key = self.node_key(node_id);
+                if source_key == *key || !seen.insert(source_key.clone()) {
+                    return None;
+                }
+                Some(DocumentReference {
+                    source_title: self.get_key_title(&source_key),
+                    source_key,
+                })
+            })
+            .collect()
+    }
+
+    pub fn root_section_keys(&self) -> Vec<Key> {
+        self.keys
+            .iter()
+            .filter_map(|(key, &doc_id)| {
+                let doc_node = self.graph_node(doc_id);
+                let mut child_id = doc_node.child_id();
+                while let Some(id) = child_id {
+                    let child = self.graph_node(id);
+                    if matches!(child, GraphNode::Section(_))
+                        && self
+                            .index
+                            .get_inclusion_edges_to(&self.node_key(id))
+                            .is_empty()
+                    {
+                        return Some(key.clone());
+                    }
+                    child_id = child.next_id();
+                }
+                None
+            })
+            .collect()
+    }
+
     pub fn inclusion_edge_target_keys(&self) -> Vec<Key> {
         self.index.inclusion_edge_target_keys().cloned().collect()
     }
@@ -235,6 +327,16 @@ impl Graph {
     }
 
     pub fn build_key_from_iter<'b>(&mut self, key: &Key, iter: impl NodeIter<'b>) {
+        if let Some(Node::Document(_, frontmatter)) = iter.node() {
+            match frontmatter {
+                Some(mapping) => {
+                    self.frontmatter.insert(key.clone(), mapping);
+                }
+                None => {
+                    self.frontmatter.remove(key);
+                }
+            }
+        }
         let map = self.build_key(key).insert_from_iter(iter);
         self.nodes_map.insert(key.clone(), map.clone());
         self.global_nodes_map.extend(map);
@@ -729,7 +831,7 @@ fn build_index_and_titles(graph: &mut Graph) {
             .filter_map(|(key, _)| graph.extract_ref_text(key).map(|text| (key.clone(), text)))
             .collect()
     };
-    graph.keys_to_ref_text.extend(extractions);
+    graph.keys_to_ref_text = extractions.into_iter().collect();
 }
 
 const PARALLEL_BUILD_THRESHOLD: usize = 128;
@@ -1037,5 +1139,160 @@ mod retention_tests {
         assert_eq!(graph.global_nodes_map.len(), baseline_global);
         assert_eq!(graph.index.edge_counts(), baseline_edges);
         assert_eq!(graph.index.key_counts(), baseline_keys);
+    }
+}
+
+#[cfg(test)]
+mod new_api_tests {
+    use super::*;
+
+    #[test]
+    fn has_key_reflects_presence() {
+        let mut graph = Graph::new();
+        graph.insert_document("a".into(), "# A\n".to_string());
+        assert!(graph.has_key(&"a".into()));
+        assert!(!graph.has_key(&"missing".into()));
+    }
+
+    #[test]
+    fn raw_metadata_returns_stripped_frontmatter() {
+        let mut graph = Graph::new();
+        graph.insert_document("a".into(), "---\ntitle: Hello\n---\n\n# A\n".to_string());
+        assert_eq!(
+            graph.raw_metadata(&"a".into()),
+            Some("title: Hello".to_string())
+        );
+        assert_eq!(graph.raw_metadata(&"no-front".into()), None);
+    }
+
+    #[test]
+    fn refresh_ref_text_missing_key_does_not_panic() {
+        let mut graph = Graph::new();
+        graph
+            .keys_to_ref_text
+            .insert("ghost".into(), "Stale".to_string());
+        graph.refresh_ref_text(&"ghost".into());
+        assert_eq!(graph.get_key_title(&"ghost".into()), None);
+    }
+
+    #[test]
+    fn refresh_ref_text_updates_and_clears() {
+        let mut graph = Graph::new();
+        graph.insert_document("titled".into(), "# Fresh Title\n".to_string());
+        graph.keys_to_ref_text.remove(&"titled".into());
+        graph.refresh_ref_text(&"titled".into());
+        assert_eq!(
+            graph.get_key_title(&"titled".into()),
+            Some("Fresh Title".to_string())
+        );
+
+        graph.insert_document("untitled".into(), "A plain paragraph.\n".to_string());
+        graph
+            .keys_to_ref_text
+            .insert("untitled".into(), "Stale".to_string());
+        graph.refresh_ref_text(&"untitled".into());
+        assert_eq!(graph.get_key_title(&"untitled".into()), None);
+    }
+
+    #[test]
+    fn rebuild_indexes_drops_stale_titles() {
+        let mut graph = Graph::new();
+        graph.insert_document("a".into(), "# A Title\n".to_string());
+        graph
+            .keys_to_ref_text
+            .insert("ghost".into(), "Stale".to_string());
+        graph.rebuild_indexes();
+        assert_eq!(graph.get_key_title(&"ghost".into()), None);
+        assert_eq!(
+            graph.get_key_title(&"a".into()),
+            Some("A Title".to_string())
+        );
+    }
+
+    #[test]
+    fn document_references_cover_inclusion_and_reference_edges() {
+        let mut graph = Graph::new();
+        graph.insert_document("target".into(), "# Target\n".to_string());
+        graph.insert_document(
+            "via-link".into(),
+            "See [Target](target) here.\n".to_string(),
+        );
+        graph.insert_document(
+            "via-include".into(),
+            "# Src\n\n[Target](target)\n".to_string(),
+        );
+
+        let keys: Vec<String> = graph
+            .get_document_references_to(&"target".into())
+            .iter()
+            .map(|reference| reference.source_key.to_string())
+            .sorted()
+            .collect();
+        assert_eq!(
+            keys,
+            vec!["via-include".to_string(), "via-link".to_string()]
+        );
+    }
+
+    #[test]
+    fn document_references_dedup_and_carry_title() {
+        let mut graph = Graph::new();
+        graph.insert_document("target".into(), "# Target\n".to_string());
+        graph.insert_document(
+            "src".into(),
+            "# Source Title\n\nSee [Target](target) here.\n\n[Target](target)\n".to_string(),
+        );
+        assert_eq!(
+            graph.get_document_references_to(&"target".into()),
+            vec![DocumentReference {
+                source_key: "src".into(),
+                source_title: Some("Source Title".to_string()),
+            }]
+        );
+    }
+
+    #[test]
+    fn document_references_exclude_self() {
+        let mut graph = Graph::new();
+        graph.insert_document("self".into(), "# Self\n\n[Self](self)\n".to_string());
+        assert_eq!(
+            graph.get_document_references_to(&"self".into()),
+            Vec::<DocumentReference>::new()
+        );
+    }
+
+    #[test]
+    fn reindex_keys_replaces_stale_edges() {
+        let mut graph = Graph::new();
+        graph.insert_document("target-a".into(), "# A\n".to_string());
+        graph.insert_document("target-b".into(), "# B\n".to_string());
+        graph.insert_document("source".into(), "Link to [A](target-a) here.\n".to_string());
+        assert_eq!(graph.get_reference_edges_to(&"target-a".into()).len(), 1);
+        assert_eq!(graph.get_reference_edges_to(&"target-b".into()).len(), 0);
+
+        let mut other = Graph::new();
+        other.insert_document("source".into(), "Link to [B](target-b) here.\n".to_string());
+        let relinked = (&other).collect(&"source".into()).with_new_ids();
+        graph.build_key_from_iter(&"source".into(), relinked.iter());
+
+        graph.reindex_keys(&["source".into()]);
+
+        assert_eq!(graph.get_reference_edges_to(&"target-a".into()).len(), 0);
+        assert_eq!(graph.get_reference_edges_to(&"target-b".into()).len(), 1);
+    }
+
+    #[test]
+    fn root_section_keys_excludes_transcluded_documents() {
+        let mut graph = Graph::new();
+        graph.insert_document("child".into(), "# Child\n".to_string());
+        graph.insert_document("root".into(), "# Root\n\n[Child](child)\n".to_string());
+
+        let keys: Vec<String> = graph
+            .root_section_keys()
+            .iter()
+            .map(|key| key.to_string())
+            .sorted()
+            .collect();
+        assert_eq!(keys, vec!["root".to_string()]);
     }
 }

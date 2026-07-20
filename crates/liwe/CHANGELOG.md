@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Graph` document-index helpers: `has_key`, `refresh_ref_text`, `reindex_keys`, `rebuild_indexes`, `raw_metadata`, `get_document_references_to`, and `root_section_keys`; `DocumentReference { source_key, source_title }` names a document that links to another.
+- `Tree::new_generated`, `Tree::with_line_range_generated`, and `Tree::with_new_ids` build trees with freshly-allocated node ids.
+- `frontmatter_from_str`, `frontmatter_to_string`, and the `Frontmatter` type alias for parsing and rendering document frontmatter.
+
+### Changed
+- `Key` is backed by `Arc<str>` and read through `as_str()` (was a public `relative_path: Arc<String>` field), and gains string-based `Serialize` / `Deserialize`.
+
 ## [0.13.0](https://github.com/iwe-org/iwe/compare/liwe-v0.12.0...liwe-v0.13.0) - 2026-07-15
 
 ### Added

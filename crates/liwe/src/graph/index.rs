@@ -24,6 +24,17 @@ impl RefIndex {
         }
     }
 
+    pub fn remove_edges_from_sources(&mut self, graph: &Graph, sources: &HashSet<Key>) {
+        for set in self.inclusion_edges.values_mut() {
+            set.retain(|id| !sources.contains(&graph.node_key(*id)));
+        }
+        for set in self.reference_edges.values_mut() {
+            set.retain(|id| !sources.contains(&graph.node_key(*id)));
+        }
+        self.inclusion_edges.retain(|_, set| !set.is_empty());
+        self.reference_edges.retain(|_, set| !set.is_empty());
+    }
+
     pub fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
         self.inclusion_edges
             .get(key)

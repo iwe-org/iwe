@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt::Display, ops::Range, path::Path, sync::Arc}
 
 use percent_encoding::percent_decode_str;
 use relative_path::RelativePath;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use config::RefsPath;
 
@@ -18,6 +19,46 @@ pub mod reference;
 pub mod tree;
 pub mod tree_iter;
 pub mod writer;
+
+pub use document::{
+    Attributes, BlockQuote, BulletList, Code, CodeBlock, Div, Document, DocumentBlock,
+    DocumentBlocks, DocumentInline, DocumentInlines, Emph, Format, Header, HorizontalRule, Image,
+    LineBlock, LineBreak, Link, LinkType, Math, MathType, OrderedList, Para, Plain, RawBlock,
+    RawInline, SmallCaps, SoftBreak, Space, Strikeout, Strong, Subscript, Superscript, Target,
+    Underline,
+};
+pub use inline::{inlines_to_markdown, to_graph_inlines, to_plain_text, Inline, Inlines};
+pub use node::{ColumnAlignment, Node, Reference, ReferenceType};
+pub use node_iter::NodeIter;
+pub use node_pointer::NodePointer;
+pub use projector::Projector;
+pub use tree::Tree;
+pub use tree_iter::TreeIter;
+pub use writer::{blocks_to_markdown, Block};
+
+use writer::frontmatter_to_yaml;
+
+pub type Frontmatter = serde_yaml::Mapping;
+
+pub fn frontmatter_from_str(raw: &str) -> Option<Frontmatter> {
+    if raw.trim().is_empty() {
+        return Some(Frontmatter::new());
+    }
+    match serde_yaml::from_str::<serde_yaml::Value>(raw.trim()).ok()? {
+        serde_yaml::Value::Mapping(mapping) => Some(mapping),
+        _ => None,
+    }
+}
+
+pub fn frontmatter_to_string(frontmatter: &Frontmatter) -> String {
+    if frontmatter.is_empty() {
+        return String::new();
+    }
+    frontmatter_to_yaml(frontmatter)
+        .trim_start_matches("---\n")
+        .trim_end()
+        .to_string()
+}
 
 pub type Markdown = String;
 
@@ -38,34 +79,38 @@ pub type MaybeStrId = Option<StrId>;
 pub type LineNumber = usize;
 pub type LineRange = Range<LineNumber>;
 
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Default, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Key {
-    pub relative_path: Arc<String>,
+    text: Arc<str>,
 }
 
 impl Display for Key {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.relative_path)
+        write!(f, "{}", self.as_str())
     }
 }
 
 impl Key {
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+
     pub fn parent(&self) -> String {
-        RelativePath::new(&self.relative_path.to_string())
+        RelativePath::new(self.as_str())
             .parent()
             .map(|p| p.to_string())
             .unwrap_or_default()
     }
 
     pub fn source(&self) -> String {
-        RelativePath::new(&self.relative_path.to_string())
+        RelativePath::new(self.as_str())
             .file_name()
             .unwrap_or("")
             .to_string()
     }
 
     pub fn path(&self) -> Option<String> {
-        RelativePath::new(&self.relative_path.to_string())
+        RelativePath::new(self.as_str())
             .parent()
             .map(|p| p.to_string())
     }
@@ -73,21 +118,19 @@ impl Key {
     pub fn combine(parent: &str, id: &str) -> Key {
         let path = RelativePath::new(parent).join(id).to_string();
         Key {
-            relative_path: Arc::new(path),
+            text: Arc::from(path),
         }
     }
 
     pub fn name(name: &str) -> Self {
-        let key = strip_doc_extension(name).to_string();
-
         Key {
-            relative_path: Arc::new(key),
+            text: Arc::from(strip_doc_extension(name)),
         }
     }
 
     pub fn from_stripped(key: &str) -> Self {
         Key {
-            relative_path: Arc::new(key.to_string()),
+            text: Arc::from(key),
         }
     }
 
@@ -105,18 +148,18 @@ impl Key {
         };
         let path = RelativePath::new(base).join_normalized(key).to_string();
         Key {
-            relative_path: Arc::new(path),
+            text: Arc::from(path),
         }
     }
 
     pub fn to_rel_link_url(&self, relative_to: &str) -> String {
         RelativePath::new(relative_to)
-            .relative(self.relative_path.to_string())
+            .relative(self.as_str())
             .to_string()
     }
 
     pub fn to_library_url(&self) -> String {
-        self.relative_path.to_string()
+        self.as_str().to_string()
     }
 
     pub fn link_url(&self, relative_to: &str, refs_path: RefsPath) -> String {
@@ -127,16 +170,41 @@ impl Key {
     }
 
     pub fn last_url_segment(&self) -> String {
-        format!("{}", self.relative_path).to_string()
+        self.as_str().to_string()
     }
 
     pub fn to_path(&self, format: config::Format) -> String {
-        format!("{}.{}", self.relative_path, format.extension())
+        format!("{}.{}", self.as_str(), format.extension())
     }
 
     pub fn from_path(path: &Path) -> Option<Key> {
         let name = path.file_name()?.to_string_lossy().to_string();
         Some(Key::name(&name))
+    }
+}
+
+impl Default for Key {
+    fn default() -> Self {
+        Key::name("")
+    }
+}
+
+impl Serialize for Key {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for Key {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(Key::name(&s))
     }
 }
 
