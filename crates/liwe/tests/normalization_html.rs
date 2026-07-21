@@ -36,6 +36,40 @@ fn normalization_drop_html_block() {
     );
 }
 
+#[test]
+fn normalization_drop_indented_html_block() {
+    compare(
+        indoc! {r##"
+            text
+
+            text 2
+            "##},
+        indoc! {r##"
+            text
+
+              <div>block</div>
+
+            text 2
+            "##},
+    );
+}
+
+#[test]
+fn normalization_drop_indented_multiline_html_block() {
+    compare(
+        indoc! {r##"
+            # title
+            "##},
+        indoc! {r##"
+            # title
+
+              <a>
+              text
+              </a>
+            "##},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 

@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `Key` is backed by `Arc<str>` and read through `as_str()` (was a public `relative_path: Arc<String>` field), and gains string-based `Serialize` / `Deserialize`.
 
+### Fixed
+- Reading a document with an indented HTML block no longer panics; the block is dropped as before.
+
 ## [0.13.0](https://github.com/iwe-org/iwe/compare/liwe-v0.12.0...liwe-v0.13.0) - 2026-07-15
 
 ### Added

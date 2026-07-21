@@ -20,6 +20,7 @@ pub struct MarkdownEventsReader {
     line_starts: Vec<usize>,
     line_offset: usize,
     metadata_block: bool,
+    html_block: bool,
     frontmatter: Option<Mapping>,
     content: Option<String>,
 }
@@ -41,6 +42,7 @@ impl MarkdownEventsReader {
             line_starts: Vec::new(),
             line_offset: 0,
             metadata_block: false,
+            html_block: false,
             frontmatter: None,
             content: None,
         }
@@ -56,6 +58,7 @@ impl MarkdownEventsReader {
             line_starts: Vec::new(),
             line_offset: 0,
             metadata_block: false,
+            html_block: false,
             frontmatter: None,
             content: None,
         }
@@ -107,7 +110,9 @@ impl MarkdownEventsReader {
                     self.end_tag(tag, range);
                 }
                 Text(text) => {
-                    if !self.metadata_block {
+                    if self.metadata_block {
+                        self.frontmatter = Some(parse_frontmatter(&text));
+                    } else if !self.html_block {
                         match self.top_block() {
                             DocumentBlock::CodeBlock(code_block) => {
                                 code_block.text = format!("{}{}", code_block.text, text)
@@ -121,8 +126,6 @@ impl MarkdownEventsReader {
                                 self.pop_inline();
                             }
                         }
-                    } else {
-                        self.frontmatter = Some(parse_frontmatter(&text));
                     }
                 }
                 Code(text) => {
@@ -271,7 +274,7 @@ impl MarkdownEventsReader {
                     text: String::default(),
                 }))
             }
-            Tag::HtmlBlock => {}
+            Tag::HtmlBlock => self.html_block = true,
             Tag::List(num) => {
                 let line_range = self.to_line_range(range);
                 if num.is_some() {
@@ -399,7 +402,7 @@ impl MarkdownEventsReader {
             TagEnd::CodeBlock => {
                 self.pop_block();
             }
-            TagEnd::HtmlBlock => {}
+            TagEnd::HtmlBlock => self.html_block = false,
             TagEnd::List(_) => {
                 self.pop_block();
             }
