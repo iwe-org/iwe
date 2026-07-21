@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Opening a document with an indented HTML block no longer crashes the server.
+
 ## [0.13.0](https://github.com/iwe-org/iwe/compare/iwes-v0.12.0...iwes-v0.13.0) - 2026-07-15
 
 Workspace version bump — no user-visible changes in this crate.
