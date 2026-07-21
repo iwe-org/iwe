@@ -1,0 +1,7 @@
+Print built-in reference documentation.
+
+The reference docs are embedded in the binary, so they always describe the
+exact version you are running and work offline. Without a topic, lists the
+available topics. With a topic, prints that reference as markdown to stdout
+— read it before writing queries, editing .iwe/config.toml, or authoring
+document schemas.

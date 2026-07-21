@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `docs` subcommand — prints the embedded query language, configuration, and document schema references (`iwe docs query`, `iwe docs config`, `iwe docs schema`); bare `iwe docs` lists the topics.
+
 ### Changed
 - `squash` keeps the source document's YAML frontmatter in its output (previously dropped).
 

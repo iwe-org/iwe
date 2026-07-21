@@ -4,6 +4,7 @@ mod attach_test;
 mod cli_filter_test;
 mod completions_test;
 mod delete_test;
+mod docs_test;
 mod export_dot_test;
 mod extract_test;
 mod find_test;
