@@ -51,7 +51,11 @@ const CONFIG_FILE_NAME: &str = "config.toml";
 const IWE_MARKER: &str = ".iwe";
 
 #[derive(Debug, Parser)]
-#[clap(name = "iwe", version)]
+#[clap(
+    name = "iwe",
+    version,
+    after_help = "Run 'iwe docs' for the built-in query language, configuration, and document schema references."
+)]
 pub struct App {
     #[clap(flatten)]
     global_opts: GlobalOpts,
@@ -80,6 +84,25 @@ enum Command {
     Update(Update),
     Attach(Attach),
     Completions(Completions),
+    Docs(Docs),
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::docs::ABOUT,
+    long_about = help::docs::LONG_ABOUT,
+    after_help = help::docs::AFTER_HELP
+)]
+struct Docs {
+    #[clap(value_enum, help = "Reference topic to print")]
+    topic: Option<DocsTopic>,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum DocsTopic {
+    Query,
+    Config,
+    Schema,
 }
 
 #[derive(Debug, Args)]
@@ -959,6 +982,16 @@ fn main() {
         Command::Update(update) => update_command(update),
         Command::Attach(attach) => attach_command(attach),
         Command::Completions(completions) => completions_command(completions),
+        Command::Docs(docs) => docs_command(docs),
+    }
+}
+
+fn docs_command(args: Docs) {
+    match args.topic {
+        Some(DocsTopic::Query) => print!("{}", help::docs::QUERY),
+        Some(DocsTopic::Config) => print!("{}", help::docs::CONFIG),
+        Some(DocsTopic::Schema) => print!("{}", help::docs::SCHEMA),
+        None => print!("{}", help::docs::INDEX),
     }
 }
 

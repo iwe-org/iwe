@@ -105,3 +105,13 @@ pub mod completions {
     pub const LONG_ABOUT: &str = include_str!("../help/completions/long_about.txt");
     pub const AFTER_HELP: &str = include_str!("../help/completions/after_help.txt");
 }
+
+pub mod docs {
+    pub const ABOUT: &str = include_str!("../help/docs/about.txt");
+    pub const LONG_ABOUT: &str = include_str!("../help/docs/long_about.txt");
+    pub const AFTER_HELP: &str = include_str!("../help/docs/after_help.txt");
+    pub const INDEX: &str = include_str!("../docs/index.txt");
+    pub const QUERY: &str = include_str!("../docs/query.md");
+    pub const CONFIG: &str = include_str!("../docs/config.md");
+    pub const SCHEMA: &str = include_str!("../docs/schema.md");
+}

@@ -1,0 +1,8 @@
+Embedded reference documentation, matching this binary's version.
+Print a topic with `iwe docs <topic>`.
+
+  query    Query language: filters, graph operators, search, projection,
+           and block operations for find/count/update/delete
+  config   Configuration: every .iwe/config.toml section, field, and default
+  schema   Document schemas: validating markdown structure and frontmatter
+           with `iwe schema validate`

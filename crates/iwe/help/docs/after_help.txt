@@ -1,0 +1,14 @@
+TOPICS:
+
+  query    Query language: filters, graph operators, search, projection,
+           and block operations for find/count/update/delete
+  config   Configuration: every .iwe/config.toml section, field, and default
+  schema   Document schemas: validating markdown structure and frontmatter
+           with `iwe schema validate`
+
+EXAMPLES:
+
+  iwe docs           # list the topics
+  iwe docs query     # the query language reference
+  iwe docs config    # the configuration reference
+  iwe docs schema    # the document schema reference
