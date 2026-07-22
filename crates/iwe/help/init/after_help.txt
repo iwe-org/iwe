@@ -1,12 +1,28 @@
 EXAMPLES:
 
-  # Initialize current directory
+  # Detect settings and choose between them at a terminal
   iwe init
+
+  # Accept the detected settings without prompting
+  iwe init --auto
+
+  # Inspect the evidence before committing to anything
+  iwe init --dry-run
+
+  # Let an agent read the full report, then apply a reviewed decision
+  iwe init --dry-run --json
+  iwe init --auto --link-format wiki --library notes
+
+  # Skip detection and write the static template
+  iwe init --defaults
 
   # After initialization, edit config
   $EDITOR .iwe/config.toml
 
 OUTPUT:
 
-  Creates .iwe/config.toml with default settings. No output on success.
-  Exits with error if .iwe already exists.
+  Writes .iwe/config.toml, each detected value preceded by a comment citing
+  its evidence. Prints a scan summary, any warnings, and how many files
+  `iwe normalize` would rewrite.
+
+  Exits 2 if .iwe already exists.

@@ -9,9 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `docs` subcommand — prints the embedded query language, configuration, and document schema references (`iwe docs query`, `iwe docs config`, `iwe docs schema`); bare `iwe docs` lists the topics.
+- `init` now fits the configuration to the existing files instead of writing a fixed template — it detects the library directory, source format, link style and path conventions, date formats, key naming, search language, and the markdown formatting tokens, and labels every value detected, assumed, or overridden.
+- `init` measures how many files `iwe normalize` would rewrite under both the detected settings and the iwe defaults, and reports the two side by side before writing anything.
+- `init` flags: `--auto` (`-y`) writes without prompting, `--dry-run` prints the proposal and writes nothing, `--defaults` keeps the old fixed template, `--json` emits a machine-readable report.
+- `init` per-setting overrides applied on top of detection: `--library`, `--link-format`, `--refs-extension`, `--format`, `--date-format`.
+- `init` reports findings that map to no setting — CRLF endings, setext headers, embeds and callouts, tag styles, frontmatter fields, duplicate titles, filename case collisions, and unresolved links.
+- `init` can add an `<!-- iwe -->` section to `AGENTS.md` describing the graph's conventions and register the `iwec` MCP server in `.mcp.json`, offered when the directory already shows signs of agent use; the files are only written after an interactive confirmation — otherwise the snippets are printed instead.
 
 ### Changed
 - `squash` keeps the source document's YAML frontmatter in its output (previously dropped).
+- `init` at a terminal lists every setting with the detected value, marks the rows where detection differs from the defaults, and asks one question: write the detected settings or the defaults; with no terminal attached it behaves as `--auto` (previously it always wrote the fixed template with no output).
+- `init` writes each detected value with a comment citing its evidence, and emits configuration sections in a stable order (previously the generated file's section order varied between runs).
+- `init` sets the `link_type` of the generated `extract`, `extract_all`, and `link` actions to the chosen link format (was always `markdown`).
+- `init` exits 2 when `.iwe` already exists and reports it on stderr (was: exit 0 with a message only visible under `--verbose`).
 
 ### Fixed
 - Processing a document with an indented HTML block no longer crashes.

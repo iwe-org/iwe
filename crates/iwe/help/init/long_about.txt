@@ -1,14 +1,33 @@
 Initialize the current directory as an IWE project.
 
-Creates the .iwe/ directory with a default config.toml file. This establishes
-the directory as an IWE-managed knowledge base, enabling all CLI commands and
-LSP server features.
+Scans the existing markdown files, fits the configuration to what it finds, and
+writes .iwe/config.toml. Nothing outside .iwe/ is touched unless the agent
+artifacts are opted into.
 
-Configuration options in .iwe/config.toml:
-- library.path: Subdirectory containing markdown files (default: "")
-- library.date_format: Date format for templates (default: "%Y-%m-%d")
-- markdown.refs_extension: Extension appended to written markdown links (default: empty)
-- completion.link_format: Link style - "markdown" or "wiki"
+At a terminal, init shows the detected settings next to the iwe defaults —
+only the rows where they differ — with the number of files `iwe normalize`
+would rewrite under each column. Answer y (or press Enter) to write the
+detected settings, n to write the defaults, or q to quit without writing.
+With no terminal attached, init behaves as --auto.
+
+Detection covers the library directory, source format, link style and path
+conventions, date formats, key naming, search language, and the markdown
+formatting tokens. Every value is labelled detected, assumed, or overridden,
+and each detected value is written with a comment citing its evidence.
+
+Modes:
+- --auto (-y): write the detected configuration without prompting
+- --dry-run: print the proposed configuration and evidence, write nothing
+- --defaults: write the static template, skipping detection entirely
+- --json: emit a machine-readable report; combines with --auto and --dry-run
+
+Per-setting overrides apply on top of detection in every mode:
+--library, --link-format, --refs-extension, --format, --date-format
+
+Exit codes:
+- 0: configuration written, or dry run completed
+- 2: already initialized
+- 1: any other failure
 
 Prerequisites:
 - The .iwe directory must not already exist in the current location

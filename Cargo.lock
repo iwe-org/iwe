@@ -1544,6 +1544,7 @@ dependencies = [
  "minijinja",
  "pretty_assertions",
  "rand 0.9.5",
+ "regex",
  "sanitize-filename",
  "serde",
  "serde_json",
@@ -1551,6 +1552,7 @@ dependencies = [
  "sys-locale",
  "tempfile",
  "toml",
+ "toml_edit",
  "tracing",
  "tracing-subscriber",
 ]
