@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0](https://github.com/iwe-org/iwe/compare/iwe-v0.14.0...iwe-v0.15.0) - 2026-07-22
+
 ### Added
 - `stats similarity --threshold` (`-t`) — sets how close two pages must be to be reported as a match, defaulting to the previous fixed level of `0.85`; lower values list looser matches, higher values only closer ones.
 
