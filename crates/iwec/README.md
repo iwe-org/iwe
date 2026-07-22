@@ -20,6 +20,7 @@ cargo install --path .
 | `iwe_create` | Create a new document from a title and optional content |
 | `iwe_update` | Update the full markdown content of an existing document |
 | `iwe_delete` | Delete a document with automatic reference cleanup |
+| `iwe_query` | Run a query language operation (`find`, `count`, `update`, `delete`) verbatim |
 | `iwe_rename` | Rename a document key with cross-graph reference updates |
 | `iwe_extract` | Extract a section into a new document, replacing it with a block reference |
 | `iwe_inline` | Replace a block reference with the actual content of the referenced document |
@@ -28,10 +29,14 @@ cargo install --path .
 
 ## MCP resources
 
+- `iwe://documents/{key}` - individual document content
+- `iwe://tree` - full hierarchical document tree
+- `iwe://stats` - aggregate knowledge graph statistics
 - `iwe://config` - current workspace configuration
 
 ## MCP prompts
 
+- `explore` - overview of the knowledge graph with key statistics
 - `review` - review a document
 - `refactor` - analyze a document for restructuring
 
