@@ -6,7 +6,7 @@ Generates comprehensive statistics about your knowledge graph.
 
 ``` bash
 iwe stats [OPTIONS]
-iwe stats similarity
+iwe stats similarity [-t <THRESHOLD>]
 ```
 
 ## Options
@@ -20,6 +20,7 @@ iwe stats similarity
 ## Subcommands
 
 - `similarity`: list pages that have a near-identical, mutually-similar counterpart elsewhere in the store (see [Detecting similar pages](#detecting-similar-pages)).
+  - `-t, --threshold <THRESHOLD>`: how close a pair must be to be reported (default: `0.85`). Lower values list looser matches, higher values only closer ones.
 
 ## What it shows
 
@@ -92,6 +93,20 @@ Forward matches are computed once per page and run concurrently, so the scan sta
 people/ada-and-kai	people/kai-and-ada
 notes/2019-budget	notes/2019-budget-copy
 ```
+
+### Tuning the match level
+
+`-t, --threshold` moves the near-identical bar. Lower it to surface rewrites and paraphrases that the default misses, raise it to keep only the closest copies:
+
+``` bash
+# Default: only near-identical copies
+iwe stats similarity
+
+# Looser: also catches rewritten and paraphrased pages
+iwe stats similarity -t 0.5
+```
+
+The threshold applies to both directions of the match; the mutuality, size, and length gates stay in place at every level. The per-document similar pages shown by `iwe stats -k <KEY>` always use the default level.
 
 ## Examples
 

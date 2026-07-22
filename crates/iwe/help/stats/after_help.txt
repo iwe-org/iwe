@@ -21,6 +21,11 @@ PER-DOCUMENT STATS (-k <KEY>):
   Returns the record for a single document. Default -f markdown prints
   a bullet-list record; csv, json, and yaml are also supported.
 
+SIMILARITY (stats similarity):
+  Lists mutually near-identical page pairs, tab-separated. Use
+  -t/--threshold to move the bar (default 0.85): lower reports looser
+  matches, higher only closer ones.
+
 EXAMPLES:
 
   # Generate human-readable statistics
@@ -41,6 +46,10 @@ EXAMPLES:
   # Per-document stats as JSON or YAML
   iwe stats -k my-document -f json
   iwe stats -k my-document -f yaml
+
+  # Near-identical page pairs, then a looser scan
+  iwe stats similarity
+  iwe stats similarity -t 0.5
 
   # Find most connected documents
   iwe stats -f csv | tail -n +2 | sort -t, -k12 -nr | head -5

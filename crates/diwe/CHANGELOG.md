@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `stats::SimilarityIndex::with_threshold` — sets the match level used by `similar` and `pairs`, so one built index can answer queries at several levels.
+- `stats::DEFAULT_SIMILARITY_THRESHOLD` — the `0.85` match level used when no threshold is set.
+
 ## [0.14.0](https://github.com/iwe-org/iwe/compare/diwe-v0.13.0...diwe-v0.14.0) - 2026-07-21
 
 Workspace version bump — no user-visible changes in this crate.
