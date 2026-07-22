@@ -24,7 +24,7 @@ iwe new "Project Overview"
 iwe new "Meeting Notes" --template meeting
 
 iwe find
-iwe find "project"
+iwe find --fuzzy project
 
 iwe retrieve -k project-overview
 iwe tree --depth 3
@@ -36,13 +36,21 @@ iwe stats
 ## Commands
 
 ### `init`
-Initialize a new IWE workspace with configuration.
+Initialize an IWE workspace with configuration.
 
 ```bash
 iwe init
+iwe init --dry-run
+iwe init -y
 ```
 
-Creates `.iwe/config.toml` with default settings for markdown processing.
+Detects the conventions of markdown files already in the directory and proposes a matching `.iwe/config.toml`.
+
+Options:
+- `-y, --auto` - write the detected configuration without prompting
+- `--dry-run` - print the proposed configuration and evidence, write nothing
+- `--defaults` - write the static default template without detection
+- `--json` - print a machine-readable report
 
 ### `new`
 Create a new document in the workspace.
@@ -58,7 +66,8 @@ iwe new "Maybe Duplicate" --if-exists skip
 Options:
 - `-t, --template <NAME>` - template name from config
 - `-c, --content <TEXT>` - document content
-- `-i, --if-exists <MODE>` - behavior when file exists: `suffix` (default), `override`, `skip`
+- `-k, --key <KEY>` - explicit document key, bypassing the template's key derivation
+- `-i, --if-exists <MODE>` - behavior when file exists: `suffix` (default), `override`, `skip`, `fail` (default when `--key` is given)
 - `-e, --edit` - open created file in `$EDITOR`
 
 ### `find`
@@ -66,44 +75,62 @@ Search and discover documents.
 
 ```bash
 iwe find                           # list all documents
-iwe find "search query"            # fuzzy match on title and key
+iwe find --fuzzy project           # fuzzy match on title and key
+iwe find --lexical "search query"  # full-text match on title and body
+iwe find --filter 'status: draft'  # frontmatter filter
 iwe find --roots                   # only root documents (no incoming refs)
-iwe find --refs-to project         # documents referencing "project"
-iwe find --refs-from project       # documents referenced by "project"
+iwe find --references project      # documents that link to "project"
+iwe find --referenced-by project   # documents "project" links to
 iwe find -l 10                     # limit results
 iwe find -f json                   # output as JSON
 ```
 
 Options:
-- `--roots` - only root documents (no incoming block refs)
-- `--refs-to <KEY>` - documents that reference this key
-- `--refs-from <KEY>` - documents referenced by this key
-- `-l, --limit <N>` - maximum results
-- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`, `json`
+- `--fuzzy <QUERY>` - fuzzy match on document title and key
+- `--lexical <QUERY>` - full-text (BM25) match on title and body
+- `--filter <EXPR>` - filter expression (inline YAML)
+- `--roots` - only root documents (no incoming inclusion links)
+- `--references <KEY>` - documents that reference this key
+- `--referenced-by <KEY>` - documents this key references
+- `-l, --limit <N>` - maximum results (0 = unlimited)
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`, `json`, `yaml`
 
 ### `retrieve`
 Retrieve document content with configurable expansion.
 
 ```bash
 iwe retrieve -k my-document
-iwe retrieve -k doc1 -k doc2       # multiple documents
-iwe retrieve -k doc -d 2           # expand refs 2 levels deep
-iwe retrieve -k doc -c 0           # no parent context
-iwe retrieve -k doc --links        # include inline references
-iwe retrieve -k doc -e other-doc   # exclude specific documents
-iwe retrieve -k doc -f json        # JSON output
-iwe retrieve -k doc --children     # populate the includes edge array
+iwe retrieve -k doc1 -k doc2                 # multiple documents
+iwe retrieve -k doc --expand-includes 2      # expand into children 2 levels deep
+iwe retrieve -k doc --expand-included-by 1   # include parent context
+iwe retrieve -k doc --expand-references 1    # follow outbound reference links
+iwe retrieve --lexical "query" --limit 5     # seed by full-text search
+iwe retrieve -k doc -e other-doc             # exclude specific documents
+iwe retrieve -k doc -f json                  # JSON output
+iwe retrieve -k doc --children               # populate the includes edge array
 ```
 
 Options:
 - `-k, --key <KEY>` - document key(s) to retrieve (repeatable)
-- `-d, --depth <N>` - follow block refs down N levels (default: 1)
-- `-c, --context <N>` - include N levels of parent context (default: 1)
-- `-l, --links` - include inline references
-- `-b, --backlinks` - include incoming references (default: true)
+- `--expand-includes <N>` - expand into child documents to depth N (0 = unbounded)
+- `--expand-included-by <N>` - expand into parent documents to depth N (0 = unbounded)
+- `--expand-references <N>` - follow outbound reference links to depth N (0 = unbounded)
+- `--expand-referenced-by <N>` - follow inbound reference links to depth N (0 = unbounded)
+- `--lexical <QUERY>` - seed search: full-text query on title and body
+- `--fuzzy <QUERY>` - seed search: fuzzy query on title and key
+- `--limit <N>` - cap seed documents kept before expansion (0 = unlimited)
 - `-e, --exclude <KEY>` - exclude document key(s) (repeatable)
-- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`, `json`
+- `-b, --backlinks` - include incoming references (default: true)
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`, `json`, `yaml`
 - `--children` - populate the `includes` array with child document edges
+
+### `count`
+Count documents matching a filter.
+
+```bash
+iwe count
+iwe count --filter 'status: draft'
+```
 
 ### `tree`
 Display the document hierarchy.
@@ -118,7 +145,7 @@ iwe tree -f json                   # JSON output
 Options:
 - `-k, --key <KEY>` - filter to paths starting from specific document(s) (repeatable)
 - `-d, --depth <N>` - maximum depth to traverse (default: 4)
-- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`, `json`
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`, `json`, `yaml`
 
 ### `normalize`
 Format and normalize all markdown files in the workspace.
@@ -144,24 +171,27 @@ Generate statistics about the knowledge graph.
 
 ```bash
 iwe stats
-iwe stats --format csv
+iwe stats -k my-document           # per-document stats
+iwe stats similarity               # near-identical page pairs
 iwe stats -f csv > stats.csv
 ```
 
 Options:
-- `-f, --format <FORMAT>` - output format: `markdown` (default), `csv`
+- `-k, --key <KEY>` - document key for per-document stats
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `csv`, `json`, `yaml`
 
 ### `export`
 Export knowledge graph in DOT format for visualization.
 
 ```bash
-iwe export dot
-iwe export dot --key project       # filter by key
-iwe export dot --depth 3           # limit depth
-iwe export dot --include-headers   # include section headers as subgraphs
+iwe export
+iwe export -k project              # filter by key
+iwe export -d 3                    # limit depth
+iwe export --include-headers       # include section headers as subgraphs
 ```
 
 Options:
+- `-f, --format <FORMAT>` - output format: `dot` (default)
 - `-k, --key <KEY>` - filter nodes by specific key
 - `-d, --depth <N>` - limit traversal depth
 - `--include-headers` - include section headers with colored subgraphs
@@ -172,28 +202,50 @@ Rename a document key, updating all references across the graph.
 ```bash
 iwe rename old-key new-key
 iwe rename old-key new-key --dry-run
-iwe rename old-key new-key --keys  # print affected document keys
+iwe rename old-key new-key -f keys # print affected document keys
 ```
 
 Options:
 - `--dry-run` - preview changes without writing to disk
 - `--quiet` - suppress progress output
-- `--keys` - print affected document keys (one per line)
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys` (affected document keys, one per line)
 
 ### `delete`
-Delete a document from the knowledge graph.
+Delete documents from the knowledge graph.
 
 ```bash
 iwe delete document-key
-iwe delete document-key --force    # skip confirmation
+iwe delete --filter 'status: archived' --expect 3
 iwe delete document-key --dry-run  # preview only
 ```
 
 Options:
+- `--filter <EXPR>` - filter expression (inline YAML); required if positional KEY omitted
+- `--expect <ARG>` - assert the number of matched documents before deleting
+- `--strict` - require the `--expect` guard
 - `--dry-run` - preview changes without writing to disk
 - `--quiet` - suppress progress output
-- `--keys` - print affected document keys (one per line)
-- `--force` - skip confirmation prompt
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`
+
+### `update`
+Apply frontmatter and block edits, or overwrite a document body.
+
+```bash
+iwe update -k my-document --set status=done
+iwe update --filter 'status: draft' --set status=review --dry-run
+iwe update -k my-document --content -        # new body from stdin
+```
+
+Options:
+- `-k, --key <KEY>` - match by document key (repeatable)
+- `--filter <EXPR>` - filter expression (inline YAML)
+- `--set FIELD=VALUE` / `--unset FIELD` - frontmatter edits
+- `--replace`, `--replace-text`, `--insert-before`, `--insert-after`, `--append`, `--delete` - block edit operators
+- `-c, --content <TEXT>` - new full markdown content (`-` reads stdin)
+- `--expect <ARG>` - assert the number of matched documents
+- `--strict` - require an expect guard on every mutating application
+- `--dry-run` - preview without writing
+- `--quiet` - suppress progress output
 
 ### `extract`
 Extract a section from a document into a new standalone document.
@@ -201,7 +253,7 @@ Extract a section from a document into a new standalone document.
 ```bash
 iwe extract my-doc --list                  # list sections with block numbers
 iwe extract my-doc --section "Overview"    # extract by section title
-iwe extract my-doc --block 2              # extract by block number
+iwe extract my-doc --block 2               # extract by block number
 iwe extract my-doc --section "Notes" --action my-action
 ```
 
@@ -212,7 +264,7 @@ Options:
 - `--action <NAME>` - action name from config
 - `--dry-run` - preview changes without writing to disk
 - `--quiet` - suppress progress output
-- `--keys` - print affected document keys (one per line)
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`
 
 ### `inline`
 Replace a block reference with the content of the referenced document.
@@ -234,7 +286,49 @@ Options:
 - `--keep-target` - keep the target document after inlining
 - `--dry-run` - preview changes without writing to disk
 - `--quiet` - suppress progress output
-- `--keys` - print affected document keys (one per line)
+- `-f, --format <FORMAT>` - output format: `markdown` (default), `keys`
+
+### `attach`
+Attach a document to configured targets.
+
+```bash
+iwe attach --list
+iwe attach -k my-document --to my-action
+```
+
+Options:
+- `--to <ACTION>` - configured attach action(s) (repeatable)
+- `-k, --key <KEY>` - source document key
+- `--list` - list configured attach actions
+- `--dry-run` - preview without writing
+- `--quiet` - suppress progress output
+
+### `schema`
+Print inferred document schemas, or validate documents against configured schemas.
+
+```bash
+iwe schema
+iwe schema validate
+iwe schema validate --schema-file my-schema.yaml
+```
+
+### `docs`
+Print built-in reference documentation.
+
+```bash
+iwe docs query
+iwe docs config
+iwe docs schema
+```
+
+### `completions`
+Generate shell completions.
+
+```bash
+iwe completions zsh
+```
+
+Supported shells: `bash`, `elvish`, `fish`, `nushell`, `powershell`, `zsh`.
 
 ## Configuration
 
@@ -245,7 +339,7 @@ IWE uses `.iwe/config.toml` for workspace configuration:
 path = ""
 
 [markdown]
-refs_extension = false
+refs_extension = ""
 ```
 
 ## Global options

@@ -50,9 +50,9 @@ The CLI lets you (and AI agents) work with your notes from the terminal or in sc
 
 **Example: preparing context for an AI conversation**
 ```bash
-iwe find auth
+iwe find --fuzzy auth
 
-iwe retrieve --key authentication --depth 2
+iwe retrieve --key authentication --expand-includes 2
 
 iwe tree --key oauth
 ```
@@ -117,13 +117,13 @@ More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
 
    **Set up your editor** — [VS Code](https://iwe.md/docs/editors/vscode/) · [Neovim](https://iwe.md/docs/editors/neovim/) · [Helix](https://iwe.md/docs/editors/helix/) · [Zed](https://iwe.md/docs/editors/zed/)
 
-   **Connect your AI agent** — point it at the MCP server:
+   **Connect your AI agent** — point it at the MCP server. `iwec` serves the directory it runs in, so set the working directory to your notes:
    ```json
    {
      "mcpServers": {
        "iwe": {
          "command": "iwec",
-         "args": ["--project", "~/notes"]
+         "cwd": "~/notes"
        }
      }
    }
