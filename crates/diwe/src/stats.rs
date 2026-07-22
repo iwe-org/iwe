@@ -15,7 +15,9 @@ use crate::search::{Bm25Index, Language};
 use crate::search_query::corpus_text;
 use crate::tokens::count_tokens;
 
-const SIMILARITY_FLOOR: f32 = 0.85;
+/// The self-normalized BM25 ratio a pair must clear in both directions to count as near-identical.
+/// Callers can override it per index with [`SimilarityIndex::with_threshold`].
+pub const DEFAULT_SIMILARITY_THRESHOLD: f32 = 0.85;
 const SIMILAR_PAGES_CAP: usize = 3;
 const SIMILARITY_MIN_TOKENS: usize = 50;
 const SIMILARITY_MAX_LENGTH_RATIO: f32 = 2.0;
@@ -166,6 +168,7 @@ pub fn orphan_keys(graph: &Graph) -> Vec<Key> {
 pub struct SimilarityIndex {
     index: Bm25Index,
     tokens: HashMap<Key, usize>,
+    threshold: f32,
 }
 
 impl SimilarityIndex {
@@ -190,15 +193,24 @@ impl SimilarityIndex {
         SimilarityIndex {
             index: Bm25Index::build(corpus, language),
             tokens,
+            threshold: DEFAULT_SIMILARITY_THRESHOLD,
         }
     }
 
+    /// Replaces the match threshold used by [`similar`](Self::similar) and [`pairs`](Self::pairs).
+    /// Lower values report looser matches, higher values only closer ones; the index itself is
+    /// unaffected, so one build can answer queries at several thresholds.
+    pub fn with_threshold(mut self, threshold: f32) -> Self {
+        self.threshold = threshold;
+        self
+    }
+
     /// Similar pages for one `key`: its forward matches that also match back (mutually similar — the
-    /// `min` of the two directional ratios ≥ [`SIMILARITY_FLOOR`]). Mutuality excludes containment (a
+    /// `min` of the two directional ratios ≥ the index threshold). Mutuality excludes containment (a
     /// short page inside a long one); the token-size and comparable-length gates exclude too-small
     /// pages and mismatched lengths.
     pub fn similar(&self, key: &Key) -> Vec<SimilarPage> {
-        mutual_similar(&self.index, &self.tokens, key)
+        mutual_similar(&self.index, &self.tokens, key, self.threshold)
     }
 
     /// Every mutually-similar pair across the store, each pair once in alphabetical order. Forward
@@ -209,7 +221,7 @@ impl SimilarityIndex {
             .tokens
             .par_iter()
             .filter_map(|(key, _)| {
-                let matches = forward_matches(&self.index, &self.tokens, key);
+                let matches = forward_matches(&self.index, &self.tokens, key, self.threshold);
                 (!matches.is_empty()).then(|| (key.clone(), matches))
             })
             .collect();
@@ -237,19 +249,20 @@ fn comparable_length(a: usize, b: usize) -> bool {
 }
 
 /// The pages `key` matches in one direction: each `other` whose BM25 score against `key` clears
-/// [`SIMILARITY_FLOOR`] (self-normalized) and that passes the token-size and comparable-length gates.
+/// `threshold` (self-normalized) and that passes the token-size and comparable-length gates.
 /// The map value is the forward ratio `score(key → other) / score(key → key)`.
 fn forward_matches(
     index: &Bm25Index,
     tokens: &HashMap<Key, usize>,
     key: &Key,
+    threshold: f32,
 ) -> HashMap<Key, f32> {
     let a_tokens = tokens.get(key).copied().unwrap_or(0);
     if a_tokens < SIMILARITY_MIN_TOKENS {
         return HashMap::new();
     }
     index
-        .similar_to(key, SIMILARITY_FLOOR)
+        .similar_to(key, threshold)
         .into_iter()
         .filter(|(other, _)| {
             let b_tokens = tokens.get(other).copied().unwrap_or(0);
@@ -258,13 +271,18 @@ fn forward_matches(
         .collect()
 }
 
-fn mutual_similar(index: &Bm25Index, tokens: &HashMap<Key, usize>, key: &Key) -> Vec<SimilarPage> {
-    let mut ranked: Vec<SimilarPage> = forward_matches(index, tokens, key)
+fn mutual_similar(
+    index: &Bm25Index,
+    tokens: &HashMap<Key, usize>,
+    key: &Key,
+    threshold: f32,
+) -> Vec<SimilarPage> {
+    let mut ranked: Vec<SimilarPage> = forward_matches(index, tokens, key, threshold)
         .into_iter()
         .filter_map(|(other, forward_ratio)| {
             let self_other = index.self_score(&other).filter(|s| *s > 0.0)?;
             let reverse_ratio = index.score_between(&other, key)? / self_other;
-            (reverse_ratio >= SIMILARITY_FLOOR).then(|| SimilarPage {
+            (reverse_ratio >= threshold).then(|| SimilarPage {
                 key: other,
                 score: forward_ratio.min(reverse_ratio),
             })
@@ -313,14 +331,14 @@ pub fn mutation_findings(graph: &Graph, index: &Bm25Index, targets: &[Key]) -> V
     let mut findings = graph_findings(graph);
 
     for target in targets {
-        let survivors = index.similar_to(target, SIMILARITY_FLOOR);
+        let survivors = index.similar_to(target, DEFAULT_SIMILARITY_THRESHOLD);
         let mut tokens: HashMap<Key, usize> = HashMap::new();
         for key in std::iter::once(target).chain(survivors.iter().map(|(other, _)| other)) {
             tokens
                 .entry(key.clone())
                 .or_insert_with(|| count_tokens(&corpus_text(graph, key)));
         }
-        for page in mutual_similar(index, &tokens, target) {
+        for page in mutual_similar(index, &tokens, target, DEFAULT_SIMILARITY_THRESHOLD) {
             findings.push(Finding {
                 rule: Rule::SimilarPage,
                 message: format!("closely matches '{}' ({:.2})", page.key, page.score),

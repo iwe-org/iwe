@@ -86,6 +86,24 @@ fn similar_keys(graph: &Graph, key: &str) -> Vec<String> {
         .collect()
 }
 
+fn similar_keys_at(graph: &Graph, key: &str, threshold: f32) -> Vec<String> {
+    SimilarityIndex::build(graph, Language::English)
+        .with_threshold(threshold)
+        .similar(&Key::name(key))
+        .iter()
+        .map(|page| page.key.to_string())
+        .collect()
+}
+
+fn pair_keys_at(graph: &Graph, threshold: f32) -> Vec<(String, String)> {
+    SimilarityIndex::build(graph, Language::English)
+        .with_threshold(threshold)
+        .pairs()
+        .into_iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect()
+}
+
 #[test]
 fn orphan_keys_lists_zero_inbound_sorted() {
     let graph = graph_with(&[
@@ -153,6 +171,31 @@ fn similar_pages_excludes_paraphrase_and_containment() {
     assert_eq!(similar_keys(&graph, "paraphrase"), Vec::<String>::new());
     assert_eq!(similar_keys(&graph, "long"), Vec::<String>::new());
     assert_eq!(similar_keys(&graph, "contained"), Vec::<String>::new());
+}
+
+#[test]
+fn similar_pages_threshold_widens_and_narrows_the_match() {
+    let graph = graph_with(&[("original", ALPHA), ("paraphrase", PARAPHRASE)]);
+
+    assert_eq!(
+        similar_keys_at(&graph, "original", 0.3),
+        vec!["paraphrase".to_string()]
+    );
+    assert_eq!(
+        similar_keys_at(&graph, "original", 0.85),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn similar_pairs_threshold_widens_and_narrows_the_match() {
+    let graph = graph_with(&[("beta", BETA), ("alpha", ALPHA), ("distinct", DISTINCT)]);
+
+    assert_eq!(
+        pair_keys_at(&graph, 0.85),
+        vec![("alpha".to_string(), "beta".to_string())]
+    );
+    assert_eq!(pair_keys_at(&graph, 1.5), Vec::<(String, String)>::new());
 }
 
 #[test]

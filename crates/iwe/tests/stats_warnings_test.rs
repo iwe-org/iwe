@@ -45,6 +45,15 @@ const BETA: &str = indoc! {"
     musicians across Europe and beyond.
 "};
 
+const PARAPHRASE: &str = indoc! {"
+    # Kai and Ada
+
+    Kai and Ada first crossed paths in Vienna during the spring season of 1998
+    while the two of them were studying analog synthesizers. Together they built
+    a modular sequencer, and afterwards launched a modest workshop crafting
+    bespoke filters for gigging musicians touring the continent.
+"};
+
 const DISTINCT: &str = indoc! {"
     # Tax Filing Checklist
 
@@ -160,6 +169,43 @@ fn stats_similarity_lists_each_pair_once() {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
     assert_eq!(stdout, "alpha\tbeta\n");
+}
+
+#[test]
+fn stats_similarity_threshold_controls_the_match_level() {
+    let temp = TempDir::new().expect("tempdir");
+    write_config(temp.path());
+    write(temp.path().join("alpha.md"), ALPHA).unwrap();
+    write(temp.path().join("paraphrase.md"), PARAPHRASE).unwrap();
+
+    let strict = run(temp.path(), "stats", &["similarity"]);
+    assert!(strict.status.success());
+    assert_eq!(
+        String::from_utf8(strict.stdout).expect("Valid UTF-8 output"),
+        ""
+    );
+
+    let loose = run(temp.path(), "stats", &["similarity", "--threshold", "0.3"]);
+    assert!(loose.status.success());
+    assert_eq!(
+        String::from_utf8(loose.stdout).expect("Valid UTF-8 output"),
+        "alpha\tparaphrase\n"
+    );
+}
+
+#[test]
+fn stats_similarity_rejects_non_positive_threshold() {
+    let temp = TempDir::new().expect("tempdir");
+    write_config(temp.path());
+    write(temp.path().join("alpha.md"), ALPHA).unwrap();
+
+    let output = run(temp.path(), "stats", &["similarity", "--threshold", "0"]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 output");
+    assert_eq!(
+        stderr.lines().next(),
+        Some("error: invalid value '0' for '--threshold <THRESHOLD>': threshold must be a positive number (typically between 0.5 and 1.0)")
+    );
 }
 
 #[test]

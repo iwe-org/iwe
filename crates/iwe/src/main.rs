@@ -16,7 +16,10 @@ use diwe::schema::{
     validate_pending_documents,
 };
 use diwe::search_query::build_index;
-use diwe::stats::{graph_findings, mutation_findings, KeyStatisticsReport, SimilarityIndex};
+use diwe::stats::{
+    graph_findings, mutation_findings, KeyStatisticsReport, SimilarityIndex,
+    DEFAULT_SIMILARITY_THRESHOLD,
+};
 use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
@@ -594,7 +597,26 @@ enum StatsCommand {
     #[clap(
         about = "List pages with near-identical, mutually-similar counterparts across the store"
     )]
-    Similarity,
+    Similarity {
+        #[clap(
+            long,
+            short = 't',
+            default_value_t = DEFAULT_SIMILARITY_THRESHOLD,
+            value_parser = parse_similarity_threshold,
+            help = "Match level a pair must clear in both directions. Lower reports looser matches, higher only closer ones."
+        )]
+        threshold: f32,
+    },
+}
+
+fn parse_similarity_threshold(value: &str) -> Result<f32, String> {
+    let threshold: f32 = value
+        .parse()
+        .map_err(|_| format!("'{}' is not a number", value))?;
+    if !threshold.is_finite() || threshold <= 0.0 {
+        return Err("threshold must be a positive number (typically between 0.5 and 1.0)".into());
+    }
+    Ok(threshold)
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -2009,8 +2031,9 @@ fn stats_command(args: Stats) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    if let Some(StatsCommand::Similarity) = args.command {
-        let similarity = SimilarityIndex::build(&graph, config.search_language());
+    if let Some(StatsCommand::Similarity { threshold }) = args.command {
+        let similarity =
+            SimilarityIndex::build(&graph, config.search_language()).with_threshold(threshold);
         for (a, b) in similarity.pairs() {
             println!("{}\t{}", a, b);
         }
