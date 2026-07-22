@@ -76,7 +76,7 @@ pub struct InitOptions {
 pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
     let marker = root.join(IWE_MARKER);
     if marker.exists() {
-        return already_initialized(root, &marker, options);
+        return already_initialized(&marker, options);
     }
 
     let probes = probe(root);
@@ -138,7 +138,6 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
 
     if options.dry_run {
         return finish_dry_run(
-            root,
             options,
             &chosen,
             &evidence,
@@ -169,7 +168,7 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
         notes.extend(artifacts.iter().cloned());
         let report = Report {
             written: true,
-            config_path: config_path_display(root, &marker),
+            config_path: config_path_display(),
             settings: chosen.values(),
             confidence: chosen.confidences(),
             evidence: summarize(&evidence),
@@ -191,7 +190,7 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
     for note in &notes {
         println!("note: {}", note);
     }
-    println!("initialized {}", config_path_display(root, &marker));
+    println!("initialized {}", config_path_display());
     for artifact in &artifacts {
         println!("{}", artifact);
     }
@@ -207,7 +206,6 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
 
 #[allow(clippy::too_many_arguments)]
 fn finish_dry_run(
-    root: &Path,
     options: &InitOptions,
     chosen: &Settings,
     evidence: &evidence::Evidence,
@@ -217,12 +215,10 @@ fn finish_dry_run(
     warnings: Vec<String>,
     notes: Vec<String>,
 ) -> i32 {
-    let marker = root.join(IWE_MARKER);
-
     if options.json {
         let report = Report {
             written: false,
-            config_path: config_path_display(root, &marker),
+            config_path: config_path_display(),
             settings: chosen.values(),
             confidence: chosen.confidences(),
             evidence: summarize(evidence),
@@ -256,11 +252,11 @@ fn finish_dry_run(
     EXIT_OK
 }
 
-fn already_initialized(root: &Path, marker: &Path, options: &InitOptions) -> i32 {
+fn already_initialized(marker: &Path, options: &InitOptions) -> i32 {
     if options.json {
         let payload = serde_json::json!({
             "written": false,
-            "config_path": config_path_display(root, marker),
+            "config_path": config_path_display(),
             "error": "already initialized",
         });
         println!(
@@ -271,10 +267,7 @@ fn already_initialized(root: &Path, marker: &Path, options: &InitOptions) -> i32
     }
 
     if marker.is_dir() {
-        eprintln!(
-            "already initialized — inspect {}",
-            config_path_display(root, marker)
-        );
+        eprintln!("already initialized — inspect {}", config_path_display());
     } else {
         eprintln!("{} already exists and is not a directory", IWE_MARKER);
     }
@@ -317,11 +310,8 @@ fn write_agent_artifacts(root: &Path, settings: &Settings, print_only: bool) -> 
     lines
 }
 
-fn config_path_display(root: &Path, marker: &Path) -> String {
-    let full = marker.join(CONFIG_FILE_NAME);
-    full.strip_prefix(root)
-        .map(|relative| relative.display().to_string())
-        .unwrap_or_else(|_| full.display().to_string())
+fn config_path_display() -> String {
+    format!("{}/{}", IWE_MARKER, CONFIG_FILE_NAME)
 }
 
 fn print_json(report: &Report) {
