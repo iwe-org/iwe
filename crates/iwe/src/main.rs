@@ -1,5 +1,4 @@
 use std::env;
-use std::fs::create_dir;
 use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 
@@ -22,6 +21,7 @@ use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
+use iwe::init::{current_root, init_library, InitOptions, Overrides};
 use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
 use iwe::projection_args::{parse_projection_extend, parse_projection_replace};
 use iwe::render::{FindBlockRenderer, RetrieveRenderer};
@@ -46,9 +46,6 @@ use liwe::query::{
 };
 
 use log::{debug, error, info};
-
-const CONFIG_FILE_NAME: &str = "config.toml";
-const IWE_MARKER: &str = ".iwe";
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -365,7 +362,41 @@ struct Normalize {}
     long_about = help::init::LONG_ABOUT,
     after_help = help::init::AFTER_HELP
 )]
-struct Init {}
+struct Init {
+    #[clap(
+        long,
+        short = 'y',
+        help = "Write the detected configuration without prompting"
+    )]
+    auto: bool,
+
+    #[clap(
+        long,
+        help = "Print the proposed configuration and evidence, write nothing"
+    )]
+    dry_run: bool,
+
+    #[clap(long, help = "Write the static default template without detection")]
+    defaults: bool,
+
+    #[clap(long, help = "Print a machine-readable report")]
+    json: bool,
+
+    #[clap(long, help = "Subdirectory holding the markdown files")]
+    library: Option<String>,
+
+    #[clap(long, value_parser = ["wiki", "markdown"], help = "Link format to write")]
+    link_format: Option<String>,
+
+    #[clap(long, help = "File extension written inside markdown links")]
+    refs_extension: Option<String>,
+
+    #[clap(long, value_parser = ["markdown", "djot"], help = "Source format for the library")]
+    format: Option<String>,
+
+    #[clap(long, help = "Date format used for keys of date-named documents")]
+    date_format: Option<String>,
+}
 
 #[derive(Debug, Args)]
 #[clap(
@@ -1390,22 +1421,25 @@ fn count_command(args: Count) {
 #[tracing::instrument(level = "debug")]
 fn init_command(init: Init) {
     info!("initializing IWE");
-    let mut path = env::current_dir().expect("to get current dir");
-    path.push(IWE_MARKER);
-    if path.is_dir() {
-        error!("IWE is already initialized in the current location.");
-        return;
-    }
-    if path.exists() {
-        error!("Initialization failed: '.iwe' path already exists in the current location.");
-        return;
-    }
-    create_dir(&path).expect("to create .iwe directory");
 
-    let toml = toml::to_string(&Configuration::template()).expect("valid TOML");
+    let options = InitOptions {
+        auto: init.auto,
+        dry_run: init.dry_run,
+        use_defaults: init.defaults,
+        json: init.json,
+        overrides: Overrides {
+            library: init.library,
+            link_format: init.link_format,
+            refs_extension: init.refs_extension,
+            format: init.format,
+            date_format: init.date_format,
+        },
+    };
 
-    std::fs::write(path.join(CONFIG_FILE_NAME), toml).expect("Failed to write to config.json");
-    info!("IWE initialized in the current location. Default config added to .iwe/config.json");
+    let code = init_library(&current_root(), &options);
+    if code != 0 {
+        std::process::exit(code);
+    }
 }
 
 #[tracing::instrument(level = "debug")]
