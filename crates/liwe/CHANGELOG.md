@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/iwe-org/iwe/compare/liwe-v0.13.0...liwe-v0.14.0) - 2026-07-21
+
 ### Added
 - `Graph` document-index helpers: `has_key`, `refresh_ref_text`, `reindex_keys`, `rebuild_indexes`, `raw_metadata`, `get_document_references_to`, and `root_section_keys`; `DocumentReference { source_key, source_title }` names a document that links to another.
 - `Tree::new_generated`, `Tree::with_line_range_generated`, and `Tree::with_new_ids` build trees with freshly-allocated node ids.

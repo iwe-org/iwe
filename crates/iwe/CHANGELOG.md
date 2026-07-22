@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/iwe-org/iwe/compare/iwe-v0.13.0...iwe-v0.14.0) - 2026-07-21
+
 ### Added
 - `docs` subcommand — prints the embedded query language, configuration, and document schema references (`iwe docs query`, `iwe docs config`, `iwe docs schema`); bare `iwe docs` lists the topics.
 - `init` now fits the configuration to the existing files instead of writing a fixed template — it detects the library directory, source format, link style and path conventions, date formats, key naming, search language, and the markdown formatting tokens, and labels every value detected, assumed, or overridden.

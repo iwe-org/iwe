@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/iwe-org/iwe/compare/iwec-v0.13.0...iwec-v0.14.0) - 2026-07-21
+
 ### Changed
 - `iwe_squash` keeps the document's YAML frontmatter in its output (previously dropped).
 
