@@ -1,5 +1,7 @@
 # IWE - Memory system for you and your AI agents
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Fiwe-org%2Fiwe.svg)](https://mcptoplist.com/server/glama%2Fiwe-org%2Fiwe)
+
 > Turn your thinking into queryable context
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
