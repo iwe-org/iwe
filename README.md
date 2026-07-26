@@ -156,7 +156,7 @@ IWE is open source and community-driven. Join the [discussions](https://github.c
 
 **Agentic skills:** [iwe-org/skills](https://github.com/iwe-org/skills) — agentic AI skills for knowledge graph management. Contributors welcome.
 
-**Building on IWE:** projects already embed IWE — as an agent-memory backend, as the graph layer of an LLM wiki engine, in research tooling. The practical integration surfaces today are the **CLI** and the **MCP server**; the [`liwe`](https://crates.io/crates/liwe) library is published but not yet API-stable, so pin your version if you build against it. A declared, stable integration surface is on the roadmap — if you're building on IWE, [tell us](https://github.com/iwe-org/iwe/discussions) what you depend on, so we know what not to break.
+**Building on IWE:** projects already embed IWE — as an agent-memory backend, as the graph layer of an LLM wiki engine, in research tooling. The practical integration surfaces today are the **CLI** and the **MCP server**; the [`liwe`](https://crates.io/crates/liwe) library is published but not yet API-stable, so pin your version if you build against it. A declared, stable integration surface is on the roadmap — if you're building on IWE, [tell us](https://github.com/iwe-org/iwe/discussions/362) what you depend on, so we know what not to break.
 
 ## License
 
