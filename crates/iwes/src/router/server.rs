@@ -906,8 +906,9 @@ mod fs_sync_tests {
         for (key, content) in docs {
             map.insert(key.to_string(), content.to_string());
         }
+        let base_path = if cfg!(windows) { "C:/kb" } else { "/kb" };
         Server::new(ServerConfig {
-            base_path: "/kb".to_string(),
+            base_path: base_path.to_string(),
             state: new_from_hashmap(map),
             sequential_ids: Some(true),
             configuration: Configuration::default(),
