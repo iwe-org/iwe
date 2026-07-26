@@ -748,6 +748,7 @@ name = "diwe"
 version = "0.15.0"
 dependencies = [
  "bm25",
+ "crossbeam-channel",
  "csv",
  "env_logger",
  "fuzzy-matcher",
@@ -757,6 +758,7 @@ dependencies = [
  "itertools 0.14.0",
  "liwe",
  "log",
+ "notify",
  "pretty_assertions",
  "rayon",
  "relative-path",
@@ -1569,7 +1571,6 @@ dependencies = [
  "indoc",
  "liwe",
  "minijinja",
- "notify",
  "rmcp",
  "schemars",
  "serde",

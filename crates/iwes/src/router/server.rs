@@ -64,6 +64,18 @@ impl Server {
         &self.graph
     }
 
+    pub fn apply_external_update(&mut self, key: Key, content: String) {
+        self.graph.update_document(key, content);
+        self.search_index
+            .update(&self.graph, self.configuration.search_language());
+    }
+
+    pub fn apply_external_removal(&mut self, key: Key) {
+        self.graph.remove_document(key);
+        self.search_index
+            .update(&self.graph, self.configuration.search_language());
+    }
+
     fn resolve_link_key(&self, url: &str, relative_to: &str, reference_type: ReferenceType) -> Key {
         self.graph
             .key_index()
@@ -144,9 +156,7 @@ impl Server {
             match change.typ {
                 FileChangeType::DELETED => {
                     let key = self.base_path.url_to_key(&change.uri);
-                    self.graph.remove_document(key);
-                    self.search_index
-                        .update(&self.graph, self.configuration.search_language());
+                    self.apply_external_removal(key);
                 }
                 FileChangeType::CREATED => {}
                 FileChangeType::CHANGED => {}
@@ -882,5 +892,64 @@ impl ActionContext for &Server {
 
     fn now(&self) -> SystemTime {
         self.override_now.unwrap_or_else(SystemTime::now)
+    }
+}
+
+#[cfg(test)]
+mod fs_sync_tests {
+    use super::*;
+    use diwe::fs::new_from_hashmap;
+    use std::collections::HashMap;
+
+    fn server_with(docs: &[(&str, &str)]) -> Server {
+        let mut map = HashMap::new();
+        for (key, content) in docs {
+            map.insert(key.to_string(), content.to_string());
+        }
+        Server::new(ServerConfig {
+            base_path: "/kb".to_string(),
+            state: new_from_hashmap(map),
+            sequential_ids: Some(true),
+            configuration: Configuration::default(),
+            lsp_client: LspClient::Unknown,
+            override_now: None,
+        })
+    }
+
+    #[test]
+    fn apply_external_update_replaces_in_memory_document() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+
+        server.apply_external_update("a".into(), "# Renamed A\n".to_string());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Renamed A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn apply_external_update_adds_new_document() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+
+        server.apply_external_update("b".into(), "# Doc B\n".to_string());
+
+        assert_eq!(
+            server.graph.get_document(&"b".into()),
+            Some("# Doc B\n".to_string())
+        );
+    }
+
+    #[test]
+    fn apply_external_removal_drops_in_memory_document() {
+        let mut server = server_with(&[("a", "# Doc A\n"), ("b", "# Doc B\n")]);
+
+        server.apply_external_removal("b".into());
+
+        assert_eq!(server.graph.get_document(&"b".into()), None);
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Doc A\n".to_string())
+        );
     }
 }

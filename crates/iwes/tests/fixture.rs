@@ -4,6 +4,7 @@
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
+    path::PathBuf,
     str::FromStr,
     time::Duration,
 };
@@ -18,6 +19,7 @@ use lsp_server::{Connection, Message, Notification, Request, ResponseError};
 use lsp_types::{notification::*, request::*, *};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tempfile::TempDir;
 
 use std::time::SystemTime;
 
@@ -30,6 +32,7 @@ pub struct Fixture {
     last_show_document_uri: RefCell<Option<String>>,
     client: Connection,
     _thread: std::thread::JoinHandle<()>,
+    workspace_dir: Option<TempDir>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -347,6 +350,14 @@ pub fn server_base_path() -> String {
     }
 }
 
+fn write_workspace_doc(root: &std::path::Path, key: &str, content: &str) {
+    let path = root.join(format!("{key}.md"));
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).expect("create parent dir");
+    }
+    std::fs::write(path, content).expect("write doc");
+}
+
 pub fn file_uri(rel: &str) -> Uri {
     Uri::from_str(&format!("{}{}", base_uri_prefix(), rel)).unwrap()
 }
@@ -513,6 +524,7 @@ impl Fixture {
                         base_path: server_base_path(),
                         configuration,
                         override_now,
+                        watch_poll_interval: None,
                     },
                 )
                 .unwrap()
@@ -525,7 +537,95 @@ impl Fixture {
             last_show_document_uri: RefCell::new(None),
             client,
             _thread,
+            workspace_dir: None,
         }
+    }
+
+    pub fn with_workspace(files: Vec<(&str, &str)>) -> Fixture {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let base_path = dir.path().to_string_lossy().to_string();
+
+        for (key, content) in &files {
+            write_workspace_doc(dir.path(), key, content);
+        }
+
+        let (connection, client) = Connection::memory();
+
+        let _thread: std::thread::JoinHandle<()> = std::thread::Builder::new()
+            .name("test watcher server".to_owned())
+            .spawn(move || {
+                main_loop(
+                    connection,
+                    ServerParams {
+                        state: None,
+                        client_name: Some(String::new()),
+                        sequential_ids: Some(true),
+                        base_path,
+                        configuration: Configuration::default(),
+                        override_now: None,
+                        watch_poll_interval: Some(Duration::from_millis(10)),
+                    },
+                )
+                .unwrap()
+            })
+            .expect("failed to spawn a thread");
+
+        Fixture {
+            req_id: Cell::new(1),
+            messages: Default::default(),
+            last_show_document_uri: RefCell::new(None),
+            client,
+            _thread,
+            workspace_dir: Some(dir),
+        }
+    }
+
+    pub fn workspace_root(&self) -> PathBuf {
+        self.workspace_dir
+            .as_ref()
+            .expect("workspace fixture")
+            .path()
+            .to_path_buf()
+    }
+
+    pub fn write_doc(&self, key: &str, content: &str) {
+        write_workspace_doc(&self.workspace_root(), key, content);
+    }
+
+    pub fn remove_doc(&self, key: &str) {
+        std::fs::remove_file(self.workspace_root().join(format!("{key}.md"))).expect("remove doc");
+    }
+
+    pub fn symbol_names(&self, query: &str) -> Vec<String> {
+        let params = serde_json::to_value(workspace_symbol_params(query)).unwrap();
+        let response = self.raw_response("workspace/symbol", params);
+        let mut names: Vec<String> = response
+            .result
+            .and_then(|value| value.as_array().cloned())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|symbol| symbol.get("name").and_then(|name| name.as_str()))
+            .map(|name| name.to_string())
+            .collect();
+        names.sort();
+        names
+    }
+
+    pub fn wait_for_symbols(&self, query: &str, expected: &[&str]) {
+        let mut expected: Vec<String> = expected.iter().map(|name| name.to_string()).collect();
+        expected.sort();
+
+        for _ in 0..200 {
+            if self.symbol_names(query) == expected {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+
+        panic!(
+            "timed out waiting for symbols {expected:?}, last saw {:?}",
+            self.symbol_names(query)
+        );
     }
 
     pub fn notification<N>(&self, params: N::Params)

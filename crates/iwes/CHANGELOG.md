@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The server now watches the project directory and refreshes its in-memory documents when files change on disk — created, edited, or removed — so edits made by the `iwe` CLI or other tools are picked up without restarting the server.
+
+### Fixed
+- External file changes are no longer ignored, preventing the server from overwriting on-disk edits with its own stale copy of a document. Previously only file deletions reported by the editor were noticed; creations and edits were dropped.
+
 ## [0.15.0](https://github.com/iwe-org/iwe/compare/iwes-v0.14.0...iwes-v0.15.0) - 2026-07-22
 
 Workspace version bump — no user-visible changes in this crate.

@@ -11,3 +11,4 @@ pub mod search;
 pub mod search_query;
 pub mod stats;
 pub mod tokens;
+pub mod watcher;

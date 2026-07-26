@@ -24,6 +24,7 @@ use serde_json::to_value;
 use uuid::Uuid;
 
 use self::server::Server;
+use diwe::watcher::FsChange;
 
 pub mod server;
 
@@ -88,35 +89,51 @@ impl Router {
         router
     }
 
-    fn next_event(&self, inbox: &Receiver<Message>) -> Option<Message> {
-        select! {
-            recv(inbox) -> msg =>
-                msg.ok()
+    pub fn run(mut self, receiver: Receiver<Message>, fs_events: Receiver<FsChange>) -> Result<()> {
+        use std::panic::AssertUnwindSafe;
+
+        loop {
+            select! {
+                recv(receiver) -> message => {
+                    let Ok(message) = message else {
+                        bail!("client exited without proper shutdown sequence")
+                    };
+                    let shutdown =
+                        panic::catch_unwind(AssertUnwindSafe(|| self.handle_message(message)))
+                            .unwrap_or_else(|err| {
+                                let error_message = if let Some(string) = err.downcast_ref::<&str>() {
+                                    format!("Panic occurred with message: {}", string)
+                                } else if let Some(string) = err.downcast_ref::<String>() {
+                                    format!("Panic occurred with message: {}", string)
+                                } else {
+                                    "Panic occurred with unknown cause".to_string()
+                                };
+                                error!("Panic message: {}", error_message);
+                                false
+                            });
+
+                    if shutdown {
+                        return Ok(());
+                    }
+                }
+                recv(fs_events) -> event => {
+                    if let Ok(event) = event {
+                        self.on_fs_event(event);
+                    }
+                }
+            }
         }
     }
 
-    pub fn run(mut self, receiver: Receiver<Message>) -> Result<()> {
-        use std::panic::AssertUnwindSafe;
-
-        while let Some(message) = self.next_event(&receiver) {
-            let shutdown = panic::catch_unwind(AssertUnwindSafe(|| self.handle_message(message)))
-                .unwrap_or_else(|err| {
-                    let error_message = if let Some(string) = err.downcast_ref::<&str>() {
-                        format!("Panic occurred with message: {}", string)
-                    } else if let Some(string) = err.downcast_ref::<String>() {
-                        format!("Panic occurred with message: {}", string)
-                    } else {
-                        "Panic occurred with unknown cause".to_string()
-                    };
-                    error!("Panic message: {}", error_message);
-                    false
-                });
-
-            if shutdown {
-                return Ok(());
+    fn on_fs_event(&mut self, event: FsChange) {
+        if let Some(server) = Arc::get_mut(&mut self.server) {
+            match event {
+                FsChange::Update(key, content) => server.apply_external_update(key, content),
+                FsChange::Remove(key) => server.apply_external_removal(key),
             }
+        } else {
+            error!("Failed to get mutable reference to server");
         }
-        bail!("client exited without proper shutdown sequence")
     }
 
     fn handle_message(&mut self, message: Message) -> bool {

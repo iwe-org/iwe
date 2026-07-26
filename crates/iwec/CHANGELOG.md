@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Server `instructions` string now lists `iwe_query` among the available tools (previously omitted).
+- File watching now detects changes reliably when the project path resolves through a symlink (for example a macOS temp directory), where events were previously dropped and the in-memory graph went stale.
 
 ## [0.15.0](https://github.com/iwe-org/iwe/compare/iwec-v0.14.0...iwec-v0.15.0) - 2026-07-22
 
