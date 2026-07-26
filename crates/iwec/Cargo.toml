@@ -29,7 +29,6 @@ tokio-util = "0.7"
 axum = "0.8"
 rmcp = { version = "1", features = ["server", "macros", "transport-io", "transport-streamable-http-server", "schemars"] }
 schemars = "1.2"
-notify = "8"
 minijinja.workspace = true
 chrono.workspace = true
 

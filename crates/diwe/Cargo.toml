@@ -31,8 +31,10 @@ csv.workspace = true
 tiktoken-rs.workspace = true
 bm25.workspace = true
 fuzzy-matcher.workspace = true
+notify = "8"
 
 [dev-dependencies]
 env_logger.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
+crossbeam-channel.workspace = true

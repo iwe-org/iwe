@@ -11,10 +11,10 @@ use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
-    DidChangeWatchedFilesParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, FoldingRangeParams, GotoDefinitionResponse, HoverParams, InlayHintParams,
-    InlineValueParams, ReferenceParams, RenameParams, ShowDocumentParams,
-    TextDocumentPositionParams, WorkspaceSymbolParams,
+    DidChangeWatchedFilesParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams, FoldingRangeParams,
+    GotoDefinitionResponse, HoverParams, InlayHintParams, InlineValueParams, ReferenceParams,
+    RenameParams, ShowDocumentParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 
@@ -24,6 +24,7 @@ use serde_json::to_value;
 use uuid::Uuid;
 
 use self::server::Server;
+use diwe::watcher::FsChange;
 
 pub mod server;
 
@@ -88,35 +89,51 @@ impl Router {
         router
     }
 
-    fn next_event(&self, inbox: &Receiver<Message>) -> Option<Message> {
-        select! {
-            recv(inbox) -> msg =>
-                msg.ok()
+    pub fn run(mut self, receiver: Receiver<Message>, fs_events: Receiver<FsChange>) -> Result<()> {
+        use std::panic::AssertUnwindSafe;
+
+        loop {
+            select! {
+                recv(receiver) -> message => {
+                    let Ok(message) = message else {
+                        bail!("client exited without proper shutdown sequence")
+                    };
+                    let shutdown =
+                        panic::catch_unwind(AssertUnwindSafe(|| self.handle_message(message)))
+                            .unwrap_or_else(|err| {
+                                let error_message = if let Some(string) = err.downcast_ref::<&str>() {
+                                    format!("Panic occurred with message: {}", string)
+                                } else if let Some(string) = err.downcast_ref::<String>() {
+                                    format!("Panic occurred with message: {}", string)
+                                } else {
+                                    "Panic occurred with unknown cause".to_string()
+                                };
+                                error!("Panic message: {}", error_message);
+                                false
+                            });
+
+                    if shutdown {
+                        return Ok(());
+                    }
+                }
+                recv(fs_events) -> event => {
+                    if let Ok(event) = event {
+                        self.on_fs_event(event);
+                    }
+                }
+            }
         }
     }
 
-    pub fn run(mut self, receiver: Receiver<Message>) -> Result<()> {
-        use std::panic::AssertUnwindSafe;
-
-        while let Some(message) = self.next_event(&receiver) {
-            let shutdown = panic::catch_unwind(AssertUnwindSafe(|| self.handle_message(message)))
-                .unwrap_or_else(|err| {
-                    let error_message = if let Some(string) = err.downcast_ref::<&str>() {
-                        format!("Panic occurred with message: {}", string)
-                    } else if let Some(string) = err.downcast_ref::<String>() {
-                        format!("Panic occurred with message: {}", string)
-                    } else {
-                        "Panic occurred with unknown cause".to_string()
-                    };
-                    error!("Panic message: {}", error_message);
-                    false
-                });
-
-            if shutdown {
-                return Ok(());
+    fn on_fs_event(&mut self, event: FsChange) {
+        if let Some(server) = Arc::get_mut(&mut self.server) {
+            match event {
+                FsChange::Update(key, content) => server.apply_external_update(key, content),
+                FsChange::Remove(key) => server.apply_external_removal(key),
             }
+        } else {
+            error!("Failed to get mutable reference to server");
         }
-        bail!("client exited without proper shutdown sequence")
     }
 
     fn handle_message(&mut self, message: Message) -> bool {
@@ -133,6 +150,30 @@ impl Router {
         }
 
         match notification.method.as_str() {
+            "textDocument/didOpen" => {
+                match DidOpenTextDocumentParams::deserialize(notification.params) {
+                    Ok(params) => {
+                        if let Some(server) = Arc::get_mut(&mut self.server) {
+                            server.handle_did_open_text_document(params);
+                        } else {
+                            error!("Failed to get mutable reference to server");
+                        }
+                    }
+                    Err(e) => error!("Failed to deserialize didOpen params: {}", e),
+                }
+            }
+            "textDocument/didClose" => {
+                match DidCloseTextDocumentParams::deserialize(notification.params) {
+                    Ok(params) => {
+                        if let Some(server) = Arc::get_mut(&mut self.server) {
+                            server.handle_did_close_text_document(params);
+                        } else {
+                            error!("Failed to get mutable reference to server");
+                        }
+                    }
+                    Err(e) => error!("Failed to deserialize didClose params: {}", e),
+                }
+            }
             "textDocument/didChange" => {
                 match DidChangeTextDocumentParams::deserialize(notification.params) {
                     Ok(params) => {

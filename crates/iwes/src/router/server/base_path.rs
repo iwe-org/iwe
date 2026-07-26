@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use lsp_types::*;
@@ -51,16 +52,23 @@ impl BasePath {
         let target = url.to_file_path().expect("URI is a file URL");
         let relative = target.strip_prefix(&base).unwrap_or(&target);
 
-        let joined = relative
-            .components()
-            .filter_map(|c| match c {
-                std::path::Component::Normal(os) => Some(os.to_string_lossy().to_string()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join("/");
+        relative_path_key(relative)
+    }
 
-        Key::name(&joined)
+    pub fn maybe_url_to_key(&self, uri: &Uri) -> Option<Key> {
+        let url = canonical(Url::parse(&uri.to_string()).ok()?);
+        let base = self.url.to_file_path().ok()?;
+        let target = url.to_file_path().ok()?;
+        let relative = target.strip_prefix(&base).ok()?;
+
+        Some(relative_path_key(relative))
+    }
+
+    pub fn key_to_path(&self, key: &Key) -> Option<PathBuf> {
+        Url::parse(&self.key_to_url(key).to_string())
+            .ok()?
+            .to_file_path()
+            .ok()
     }
 
     pub fn resolve_relative_url(&self, link: &str, relative_to: &str) -> Uri {
@@ -106,6 +114,19 @@ impl BasePath {
         }
         Uri::from_str(url.as_str()).expect("valid URI")
     }
+}
+
+fn relative_path_key(relative: &Path) -> Key {
+    let joined = relative
+        .components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(os) => Some(os.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/");
+
+    Key::name(&joined)
 }
 
 fn canonical(url: Url) -> Url {
@@ -245,6 +266,37 @@ mod tests {
     fn test_from_rel_link_url_decodes_percent_encoded_spaces() {
         let key = liwe::model::Key::from_rel_link_url("a%20b.md", "");
         assert_eq!(key.to_string(), "a b");
+    }
+
+    #[test]
+    fn key_to_path_appends_extension_for_nested_key() {
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
+        let path = base_path.key_to_path(&Key::name("sub/dir/note")).unwrap();
+        assert_eq!(path, PathBuf::from(abs_path("basepath/sub/dir/note.md")));
+    }
+
+    #[test]
+    fn key_to_path_preserves_spaces_in_key() {
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
+        let path = base_path.key_to_path(&Key::name("my document")).unwrap();
+        assert_eq!(path, PathBuf::from(abs_path("basepath/my document.md")));
+    }
+
+    #[test]
+    fn maybe_url_to_key_resolves_uri_within_base() {
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
+        let uri = Uri::from_str(&file_url("basepath/sub/note.md")).unwrap();
+        assert_eq!(
+            base_path.maybe_url_to_key(&uri),
+            Some(Key::name("sub/note"))
+        );
+    }
+
+    #[test]
+    fn maybe_url_to_key_rejects_uri_outside_base() {
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
+        let uri = Uri::from_str(&file_url("elsewhere/note.md")).unwrap();
+        assert_eq!(base_path.maybe_url_to_key(&uri), None);
     }
 
     #[test]

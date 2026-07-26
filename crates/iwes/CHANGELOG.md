@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The server now watches the project directory and refreshes its in-memory documents when files change on disk — created, edited, or removed — so edits made by the `iwe` CLI or other tools are picked up without restarting the server.
+
+### Changed
+- The server now respects editor ownership of open documents: filesystem changes are applied only to documents that are not open in the editor, and a document is re-read from disk when it is closed (previously the last change won, whether it came from the editor or the disk).
+
+### Fixed
+- External file changes are no longer ignored, preventing the server from overwriting on-disk edits with its own stale copy of a document. Previously only file deletions reported by the editor were noticed; creations and edits were dropped.
+- A file changed on disk can no longer overwrite unsaved editor edits, and the server's own save can no longer revert a just-typed buffer — changes to open documents are ignored until the document is closed.
+- Closing a document without saving now discards its unsaved edits from the server's in-memory state (previously they lingered until the next external change).
+- A file renamed on disk by an external tool no longer leaves a stale document under the old name.
+
 ## [0.15.0](https://github.com/iwe-org/iwe/compare/iwes-v0.14.0...iwes-v0.15.0) - 2026-07-22
 
 Workspace version bump — no user-visible changes in this crate.
