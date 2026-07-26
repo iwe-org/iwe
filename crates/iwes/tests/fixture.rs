@@ -596,6 +596,46 @@ impl Fixture {
         std::fs::remove_file(self.workspace_root().join(format!("{key}.md"))).expect("remove doc");
     }
 
+    pub fn rename_doc(&self, from: &str, to: &str) {
+        std::fs::rename(
+            self.workspace_root().join(format!("{from}.md")),
+            self.workspace_root().join(format!("{to}.md")),
+        )
+        .expect("rename doc");
+    }
+
+    pub fn workspace_uri(&self, key: &str) -> Uri {
+        let path = self.workspace_root().join(format!("{key}.md"));
+        let url = url::Url::from_file_path(&path).expect("absolute doc path");
+        Uri::from_str(url.as_str()).expect("valid doc URI")
+    }
+
+    pub fn open_doc(&self, key: &str, text: &str) {
+        self.notification::<DidOpenTextDocument>(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: self.workspace_uri(key),
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: text.to_string(),
+            },
+        });
+    }
+
+    pub fn close_doc(&self, key: &str) {
+        self.notification::<DidCloseTextDocument>(DidCloseTextDocumentParams {
+            text_document: TextDocumentIdentifier {
+                uri: self.workspace_uri(key),
+            },
+        });
+    }
+
+    pub fn change_doc(&self, key: &str, text: &str) {
+        self.notification::<DidChangeTextDocument>(
+            self.workspace_uri(key)
+                .to_did_change_params(2, text.to_string()),
+        );
+    }
+
     pub fn symbol_names(&self, query: &str) -> Vec<String> {
         let params = serde_json::to_value(workspace_symbol_params(query)).unwrap();
         let response = self.raw_response("workspace/symbol", params);

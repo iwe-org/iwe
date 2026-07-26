@@ -1,5 +1,6 @@
 use actions::{all_action_types, ActionContext, ActionProvider};
 use diwe::config::{Command, Configuration, FormatOptions, MarkdownOptions};
+use diwe::fs::read_md_file;
 use itertools::Itertools;
 use liwe::model::node::Node;
 use liwe::{
@@ -8,6 +9,7 @@ use liwe::{
 };
 use lsp_server::ResponseError;
 use lsp_types::*;
+use std::collections::HashSet;
 use std::time::SystemTime;
 
 use super::{LspClient, ServerConfig};
@@ -34,6 +36,7 @@ pub struct Server {
     configuration: Configuration,
     search_index: SearchIndex,
     override_now: Option<SystemTime>,
+    open_documents: HashSet<Key>,
 }
 
 impl Server {
@@ -58,6 +61,7 @@ impl Server {
             configuration: config.configuration,
             search_index,
             override_now: config.override_now,
+            open_documents: HashSet::new(),
         }
     }
     pub fn graph(&self) -> impl DatabaseContext + '_ {
@@ -65,13 +69,65 @@ impl Server {
     }
 
     pub fn apply_external_update(&mut self, key: Key, content: String) {
+        if self.open_documents.contains(&key) {
+            return;
+        }
+        if self.graph.get_document(&key).as_deref() == Some(content.as_str()) {
+            return;
+        }
         self.graph.update_document(key, content);
         self.search_index
             .update(&self.graph, self.configuration.search_language());
     }
 
     pub fn apply_external_removal(&mut self, key: Key) {
+        if self.open_documents.contains(&key) {
+            return;
+        }
+        if self.graph.get_document(&key).is_none() {
+            return;
+        }
         self.graph.remove_document(key);
+        self.search_index
+            .update(&self.graph, self.configuration.search_language());
+    }
+
+    pub fn handle_did_open_text_document(&mut self, params: DidOpenTextDocumentParams) {
+        let Some(key) = self.base_path.maybe_url_to_key(&params.text_document.uri) else {
+            return;
+        };
+        self.open_documents.insert(key.clone());
+        if self.graph.get_document(&key).as_deref() == Some(params.text_document.text.as_str()) {
+            return;
+        }
+        self.graph.update_document(key, params.text_document.text);
+        self.search_index
+            .update(&self.graph, self.configuration.search_language());
+    }
+
+    pub fn handle_did_close_text_document(&mut self, params: DidCloseTextDocumentParams) {
+        let Some(key) = self.base_path.maybe_url_to_key(&params.text_document.uri) else {
+            return;
+        };
+        self.open_documents.remove(&key);
+        let disk_content = self
+            .base_path
+            .key_to_path(&key)
+            .and_then(|path| read_md_file(&path));
+        match disk_content {
+            Some(content) => {
+                if self.graph.get_document(&key).as_deref() == Some(content.as_str()) {
+                    return;
+                }
+                self.graph.update_document(key, content);
+            }
+            None => {
+                if self.graph.get_document(&key).is_none() {
+                    return;
+                }
+                self.graph.remove_document(key);
+            }
+        }
         self.search_index
             .update(&self.graph, self.configuration.search_language());
     }
@@ -900,13 +956,15 @@ mod fs_sync_tests {
     use super::*;
     use diwe::fs::new_from_hashmap;
     use std::collections::HashMap;
+    use std::path::Path;
+    use std::str::FromStr;
+    use url::Url;
 
-    fn server_with(docs: &[(&str, &str)]) -> Server {
+    fn server_at(base_path: &str, docs: &[(&str, &str)]) -> Server {
         let mut map = HashMap::new();
         for (key, content) in docs {
             map.insert(key.to_string(), content.to_string());
         }
-        let base_path = if cfg!(windows) { "C:/kb" } else { "/kb" };
         Server::new(ServerConfig {
             base_path: base_path.to_string(),
             state: new_from_hashmap(map),
@@ -915,6 +973,62 @@ mod fs_sync_tests {
             lsp_client: LspClient::Unknown,
             override_now: None,
         })
+    }
+
+    fn server_with(docs: &[(&str, &str)]) -> Server {
+        let base_path = if cfg!(windows) { "C:/kb" } else { "/kb" };
+        server_at(base_path, docs)
+    }
+
+    fn doc_uri(key: &str) -> Uri {
+        let prefix = if cfg!(windows) {
+            "file:///c:/kb/"
+        } else {
+            "file:///kb/"
+        };
+        Uri::from_str(&format!("{prefix}{key}.md")).unwrap()
+    }
+
+    fn outside_uri() -> Uri {
+        let url = if cfg!(windows) {
+            "file:///c:/elsewhere/x.md"
+        } else {
+            "file:///elsewhere/x.md"
+        };
+        Uri::from_str(url).unwrap()
+    }
+
+    fn dir_doc_uri(dir: &Path, key: &str) -> Uri {
+        let url = Url::from_file_path(dir.join(format!("{key}.md"))).unwrap();
+        Uri::from_str(url.as_str()).unwrap()
+    }
+
+    fn open_params(uri: Uri, text: &str) -> DidOpenTextDocumentParams {
+        DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri,
+                language_id: "markdown".to_string(),
+                version: 1,
+                text: text.to_string(),
+            },
+        }
+    }
+
+    fn close_params(uri: Uri) -> DidCloseTextDocumentParams {
+        DidCloseTextDocumentParams {
+            text_document: TextDocumentIdentifier { uri },
+        }
+    }
+
+    fn change_params(uri: Uri, text: &str) -> DidChangeTextDocumentParams {
+        DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier { uri, version: 2 },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: text.to_string(),
+            }],
+        }
     }
 
     #[test]
@@ -952,5 +1066,159 @@ mod fs_sync_tests {
             server.graph.get_document(&"a".into()),
             Some("# Doc A\n".to_string())
         );
+    }
+
+    #[test]
+    fn apply_external_removal_of_unknown_key_keeps_other_documents() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+
+        server.apply_external_removal("b".into());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Doc A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn apply_external_update_with_identical_content_keeps_document() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+
+        server.apply_external_update("a".into(), "# Doc A\n".to_string());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Doc A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn external_update_skipped_while_document_open() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+        server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
+
+        server.apply_external_update("a".into(), "# External A\n".to_string());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Doc A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn external_removal_skipped_while_document_open() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+        server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
+
+        server.apply_external_removal("a".into());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Doc A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn external_echo_does_not_revert_open_buffer() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+        server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
+        server.handle_did_change_text_document(change_params(doc_uri("a"), "# Doc A Newer\n"));
+
+        server.apply_external_update("a".into(), "# Doc A\n".to_string());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Doc A Newer\n".to_string())
+        );
+    }
+
+    #[test]
+    fn did_open_replaces_content_with_buffer_text() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+
+        server.handle_did_open_text_document(open_params(doc_uri("a"), "# Buffer A\n"));
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Buffer A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn did_open_twice_keeps_document_owned_by_buffer() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+
+        server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
+        server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
+        server.apply_external_update("a".into(), "# External A\n".to_string());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Doc A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn did_open_outside_base_path_is_ignored() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+
+        server.handle_did_open_text_document(open_params(outside_uri(), "# Phantom\n"));
+
+        assert_eq!(server.graph.get_document(&Key::name("elsewhere/x")), None);
+    }
+
+    #[test]
+    fn did_close_adopts_disk_content() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut server = server_at(&dir.path().to_string_lossy(), &[("a", "# Doc A\n")]);
+        let uri = dir_doc_uri(dir.path(), "a");
+        server.handle_did_open_text_document(open_params(uri.clone(), "# Buffer A\n"));
+        std::fs::write(dir.path().join("a.md"), "# Disk A\n").unwrap();
+
+        server.handle_did_close_text_document(close_params(uri));
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Disk A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn did_close_removes_document_when_file_is_gone() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut server = server_at(&dir.path().to_string_lossy(), &[("a", "# Doc A\n")]);
+        let uri = dir_doc_uri(dir.path(), "a");
+        server.handle_did_open_text_document(open_params(uri.clone(), "# Buffer A\n"));
+
+        server.handle_did_close_text_document(close_params(uri));
+
+        assert_eq!(server.graph.get_document(&"a".into()), None);
+    }
+
+    #[test]
+    fn did_close_releases_ownership_for_external_updates() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.md"), "# Doc A\n").unwrap();
+        let mut server = server_at(&dir.path().to_string_lossy(), &[("a", "# Doc A\n")]);
+        let uri = dir_doc_uri(dir.path(), "a");
+        server.handle_did_open_text_document(open_params(uri.clone(), "# Doc A\n"));
+        server.handle_did_close_text_document(close_params(uri));
+
+        server.apply_external_update("a".into(), "# External A\n".to_string());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# External A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn did_close_without_open_removes_document_missing_on_disk() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut server = server_at(&dir.path().to_string_lossy(), &[("a", "# Doc A\n")]);
+
+        server.handle_did_close_text_document(close_params(dir_doc_uri(dir.path(), "a")));
+
+        assert_eq!(server.graph.get_document(&"a".into()), None);
     }
 }

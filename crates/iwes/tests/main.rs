@@ -18,6 +18,7 @@ mod inline_quote_test;
 mod inline_section_test;
 mod link_test;
 mod list_to_sections_test;
+mod reconcile_test;
 mod references_test;
 mod rename_test;
 mod sections_to_list_test;

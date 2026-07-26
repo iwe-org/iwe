@@ -11,10 +11,10 @@ use lsp_server::{ErrorCode, Message, Request};
 use lsp_server::{Notification, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, DidChangeTextDocumentParams,
-    DidChangeWatchedFilesParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, FoldingRangeParams, GotoDefinitionResponse, HoverParams, InlayHintParams,
-    InlineValueParams, ReferenceParams, RenameParams, ShowDocumentParams,
-    TextDocumentPositionParams, WorkspaceSymbolParams,
+    DidChangeWatchedFilesParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams, FoldingRangeParams,
+    GotoDefinitionResponse, HoverParams, InlayHintParams, InlineValueParams, ReferenceParams,
+    RenameParams, ShowDocumentParams, TextDocumentPositionParams, WorkspaceSymbolParams,
 };
 use lsp_types::{CompletionParams, GotoDefinitionParams};
 
@@ -150,6 +150,30 @@ impl Router {
         }
 
         match notification.method.as_str() {
+            "textDocument/didOpen" => {
+                match DidOpenTextDocumentParams::deserialize(notification.params) {
+                    Ok(params) => {
+                        if let Some(server) = Arc::get_mut(&mut self.server) {
+                            server.handle_did_open_text_document(params);
+                        } else {
+                            error!("Failed to get mutable reference to server");
+                        }
+                    }
+                    Err(e) => error!("Failed to deserialize didOpen params: {}", e),
+                }
+            }
+            "textDocument/didClose" => {
+                match DidCloseTextDocumentParams::deserialize(notification.params) {
+                    Ok(params) => {
+                        if let Some(server) = Arc::get_mut(&mut self.server) {
+                            server.handle_did_close_text_document(params);
+                        } else {
+                            error!("Failed to get mutable reference to server");
+                        }
+                    }
+                    Err(e) => error!("Failed to deserialize didClose params: {}", e),
+                }
+            }
             "textDocument/didChange" => {
                 match DidChangeTextDocumentParams::deserialize(notification.params) {
                     Ok(params) => {

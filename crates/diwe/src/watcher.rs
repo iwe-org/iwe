@@ -5,6 +5,7 @@ use liwe::model::Key;
 use notify::{Config, Event, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::config::Format;
+use crate::fs::read_md_file;
 
 pub enum FsChange {
     Update(Key, String),
@@ -37,11 +38,11 @@ fn dispatch<H: Fn(FsChange)>(base_path: &Path, format: Format, event: Event, han
         };
 
         match event.kind {
-            EventKind::Create(_) | EventKind::Modify(_) => {
-                if let Ok(content) = std::fs::read_to_string(path) {
-                    handler(FsChange::Update(key, content));
-                }
-            }
+            EventKind::Create(_) | EventKind::Modify(_) => match read_md_file(path) {
+                Some(content) => handler(FsChange::Update(key, content)),
+                None if !path.exists() => handler(FsChange::Remove(key)),
+                None => {}
+            },
             EventKind::Remove(_) => {
                 handler(FsChange::Remove(key));
             }
@@ -142,6 +143,49 @@ mod tests {
             ),
             Some(Key::from_stripped("note"))
         );
+    }
+
+    #[test]
+    fn dispatch_reports_remove_when_a_modified_path_no_longer_exists() {
+        use notify::event::{ModifyKind, RenameMode};
+
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().to_path_buf();
+        let (tx, rx) = unbounded::<FsChange>();
+        let event = Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Any)))
+            .add_path(base.join("note.md"));
+
+        dispatch(&base, Format::Markdown, event, &move |change| {
+            let _ = tx.send(change);
+        });
+
+        match rx.try_recv().expect("a change") {
+            FsChange::Remove(key) => assert_eq!(key, Key::from_stripped("note")),
+            FsChange::Update(_, _) => panic!("expected a remove change"),
+        }
+    }
+
+    #[test]
+    fn dispatch_normalizes_line_endings_on_update() {
+        use notify::event::ModifyKind;
+
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().to_path_buf();
+        std::fs::write(base.join("note.md"), "# Title\r\n").unwrap();
+        let (tx, rx) = unbounded::<FsChange>();
+        let event = Event::new(EventKind::Modify(ModifyKind::Any)).add_path(base.join("note.md"));
+
+        dispatch(&base, Format::Markdown, event, &move |change| {
+            let _ = tx.send(change);
+        });
+
+        match rx.try_recv().expect("a change") {
+            FsChange::Update(key, content) => {
+                assert_eq!(key, Key::from_stripped("note"));
+                assert_eq!(content, "# Title\n");
+            }
+            FsChange::Remove(_) => panic!("expected an update change"),
+        }
     }
 
     #[test]

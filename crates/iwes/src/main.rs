@@ -20,7 +20,11 @@ use lsp_types::WorkspaceFileOperationsServerCapabilities;
 use lsp_types::WorkspaceServerCapabilities;
 
 use lsp_server::Connection;
+use lsp_types::SaveOptions;
 use lsp_types::TextDocumentSyncCapability;
+use lsp_types::TextDocumentSyncKind;
+use lsp_types::TextDocumentSyncOptions;
+use lsp_types::TextDocumentSyncSaveOptions;
 
 use log::{debug, info};
 
@@ -72,8 +76,15 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         }),
         workspace_symbol_provider: Some(OneOf::Left(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
-        text_document_sync: Some(TextDocumentSyncCapability::Kind(
-            lsp_types::TextDocumentSyncKind::FULL,
+        text_document_sync: Some(TextDocumentSyncCapability::Options(
+            TextDocumentSyncOptions {
+                open_close: Some(true),
+                change: Some(TextDocumentSyncKind::FULL),
+                save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                    include_text: Some(false),
+                })),
+                ..Default::default()
+            },
         )),
         inlay_hint_provider: Some(OneOf::Left(true)),
         inline_value_provider: Some(OneOf::Left(true)),
