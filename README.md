@@ -22,7 +22,7 @@ Write in **Markdown**, structure with links, give AI agents the **tools** to nav
 - **Plain markdown, full ownership.** Your notes are `.md` files in a local directory. Read them, edit them, `git push` them. Nothing proprietary.
 - **A graph, not a folder tree.** Link notes together and the same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
 - **IDE features for your editor.** Real LSP integration with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/) — search, refactor, rename, autocomplete.
-- **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) let agents search, retrieve, and refactor the same notes you edit by hand.
+- **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) give agents parent context and structural navigation over the same notes you edit by hand — retrieval by structure, not similarity guessing.
 - **Fast.** Built in Rust, [processes 20,000 files in under a second](docs/benchmark.md).
 
 ## How It Works
@@ -39,6 +39,8 @@ This structure makes retrieval powerful — whether you're browsing in your edit
 ## Working with AI
 
 IWE gives AI agents structured access to your notes through two interfaces: a CLI for scripting and shell-based workflows, and an MCP server for native connection with AI tools. Both expose the same operations — search, retrieve, create, refactor — so you can choose whichever fits your setup.
+
+IWE pairs **search with structure**: built-in fuzzy and similarity search finds the entry point, and the graph turns a hit into usable context — parent context, children, cross-references, link-safe refactoring. It also composes cleanly with any external tooling you already use (ripgrep, full-text, vector): whatever finds the note, IWE supplies the context around it.
 
 ### Integration Server (MCP)
 
@@ -153,6 +155,8 @@ IWE is open source and community-driven. Join the [discussions](https://github.c
 **Editor plugins:** [VS Code](https://github.com/iwe-org/vscode-iwe) · [Neovim](https://github.com/iwe-org/iwe.nvim) · [Zed](https://github.com/iwe-org/zed-iwe)
 
 **Agentic skills:** [iwe-org/skills](https://github.com/iwe-org/skills) — agentic AI skills for knowledge graph management. Contributors welcome.
+
+**Building on IWE:** projects already embed IWE — as an agent-memory backend, as the graph layer of an LLM wiki engine, in research tooling. The practical integration surfaces today are the **CLI** and the **MCP server**; the [`liwe`](https://crates.io/crates/liwe) library is published but not yet API-stable, so pin your version if you build against it. A declared, stable integration surface is on the roadmap — if you're building on IWE, [tell us](https://github.com/iwe-org/iwe/discussions) what you depend on, so we know what not to break.
 
 ## License
 

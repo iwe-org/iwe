@@ -48,6 +48,7 @@ jobs:
           # Note that glob pattern is not supported yet.
           bin: iwe,iwes,iwec
           archive: $tag-$target
+          checksum: sha256
           # (optional) Target triple, default is host triple.
           target: ${{ matrix.target }}
           # (required) GitHub token for uploading assets to GitHub Releases.
