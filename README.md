@@ -107,6 +107,11 @@ More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
    cargo install iwe iwes iwec
    ```
 
+   Or from [conda-forge](https://anaconda.org/conda-forge/iwe) (community-maintained — thanks, [salim-b](https://github.com/salim-b)):
+   ```bash
+   conda install -c conda-forge iwe
+   ```
+
 2. **Initialize** your workspace:
    ```bash
    cd ~/notes
