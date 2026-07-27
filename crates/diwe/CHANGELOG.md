@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0](https://github.com/iwe-org/iwe/compare/diwe-v0.15.0...diwe-v0.16.0) - 2026-07-26
+
 ### Added
 - `watcher` module — `start_watcher` and `start_poll_watcher` watch a project directory and report each change as an `FsChange` (`Update`/`Remove`) to a caller-supplied handler, mapping paths to document keys and reading file contents. Shared by the LSP server and the MCP server.
 

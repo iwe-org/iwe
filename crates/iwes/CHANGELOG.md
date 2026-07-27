@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0](https://github.com/iwe-org/iwe/compare/iwes-v0.15.0...iwes-v0.16.0) - 2026-07-26
+
 ### Added
 - The server now watches the project directory and refreshes its in-memory documents when files change on disk — created, edited, or removed — so edits made by the `iwe` CLI or other tools are picked up without restarting the server.
 
