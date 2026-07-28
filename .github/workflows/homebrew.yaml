@@ -22,9 +22,9 @@ jobs:
           # Get SHA256 for each platform from asset digests
           ASSETS=$(echo "$RELEASE" | jq -r '.assets')
 
-          MACOS_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | contains("universal-apple-darwin")) | .digest' | sed 's/sha256://')
-          LINUX_X64_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | contains("x86_64-unknown-linux-gnu")) | .digest' | sed 's/sha256://')
-          LINUX_ARM_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | contains("aarch64-unknown-linux-gnu")) | .digest' | sed 's/sha256://')
+          MACOS_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("universal-apple-darwin.tar.gz")) | .digest' | sed 's/sha256://')
+          LINUX_X64_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x86_64-unknown-linux-gnu.tar.gz")) | .digest' | sed 's/sha256://')
+          LINUX_ARM_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("aarch64-unknown-linux-gnu.tar.gz")) | .digest' | sed 's/sha256://')
 
           echo "macos_sha=$MACOS_SHA" >> $GITHUB_OUTPUT
           echo "linux_x64_sha=$LINUX_X64_SHA" >> $GITHUB_OUTPUT
