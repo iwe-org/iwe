@@ -8,6 +8,7 @@ use config::RefsPath;
 
 pub mod config;
 pub mod document;
+pub mod frontmatter;
 pub mod ids;
 pub mod inline;
 pub mod key_index;
@@ -27,6 +28,7 @@ pub use document::{
     RawInline, SmallCaps, SoftBreak, Space, Strikeout, Strong, Subscript, Superscript, Target,
     Underline,
 };
+pub use frontmatter::{prepend_frontmatter, split_raw_frontmatter};
 pub use inline::{inlines_to_markdown, to_graph_inlines, to_plain_text, Inline, Inlines};
 pub use node::{ColumnAlignment, Node, Reference, ReferenceType};
 pub use node_iter::NodeIter;

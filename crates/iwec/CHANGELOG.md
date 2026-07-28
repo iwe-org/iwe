@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe_create` accepts a `frontmatter` object and writes it at the top of the new document, above the title heading. Keys beginning with `_`, `$`, `.`, `#` or `@` are reserved and dropped.
+
+### Changed
+- `iwe_create` now rejects `content` that begins with a frontmatter block and points at the `frontmatter` parameter; previously the block was written below the title heading, where other tools do not read it as metadata.
+
 ## [0.16.0](https://github.com/iwe-org/iwe/compare/iwec-v0.15.0...iwec-v0.16.0) - 2026-07-26
 
 ### Fixed

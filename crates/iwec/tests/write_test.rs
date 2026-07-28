@@ -1,5 +1,144 @@
 use crate::fixture::Fixture;
+use diwe::config::Configuration;
 use serde_json::json;
+
+#[tokio::test]
+async fn create_writes_frontmatter_above_the_title() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    f.call_tool(
+        "iwe_create",
+        json!({
+            "title": "Note",
+            "content": "Body",
+            "frontmatter": {"type": "note", "tags": ["demo"]}
+        }),
+    )
+    .await;
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(
+        on_disk,
+        "---\ntags:\n- demo\ntype: note\n---\n\n# Note\n\nBody\n"
+    );
+}
+
+#[tokio::test]
+async fn create_writes_frontmatter_without_content() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    f.call_tool(
+        "iwe_create",
+        json!({"title": "Note", "frontmatter": {"type": "note"}}),
+    )
+    .await;
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "---\ntype: note\n---\n\n# Note\n");
+}
+
+#[tokio::test]
+async fn create_drops_reserved_frontmatter_keys() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    f.call_tool(
+        "iwe_create",
+        json!({
+            "title": "Note",
+            "content": "Body",
+            "frontmatter": {"_internal": 1, "$x": 2, "type": "note"}
+        }),
+    )
+    .await;
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "---\ntype: note\n---\n\n# Note\n\nBody\n");
+}
+
+#[tokio::test]
+async fn create_with_empty_frontmatter_writes_no_fences() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    f.call_tool(
+        "iwe_create",
+        json!({"title": "Note", "content": "Body", "frontmatter": {}}),
+    )
+    .await;
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "# Note\n\nBody\n");
+}
+
+#[tokio::test]
+async fn create_without_frontmatter_writes_no_fences() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    f.call_tool("iwe_create", json!({"title": "Note", "content": "Body"}))
+        .await;
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "# Note\n\nBody\n");
+}
+
+#[tokio::test]
+async fn create_rejects_content_starting_with_frontmatter() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"title": "Note", "content": "---\ntype: note\n---\n\nBody"}),
+        )
+        .await;
+
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Content must not begin with a frontmatter block. Use the 'frontmatter' parameter to write frontmatter."
+    );
+}
+
+#[tokio::test]
+async fn create_rejects_content_starting_with_dot_closed_frontmatter() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"title": "Note", "content": "---\ntype: note\n...\n\nBody"}),
+        )
+        .await;
+
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Content must not begin with a frontmatter block. Use the 'frontmatter' parameter to write frontmatter."
+    );
+}
+
+#[tokio::test]
+async fn create_accepts_content_starting_with_thematic_break() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    f.call_tool(
+        "iwe_create",
+        json!({"title": "Note", "content": "---\n\nBody"}),
+    )
+    .await;
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "# Note\n\n---\n\nBody\n");
+}
 
 #[tokio::test]
 async fn create_document() {

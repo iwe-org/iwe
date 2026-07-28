@@ -8,7 +8,9 @@ use rand::Rng;
 
 use diwe::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
 use liwe::locale::get_locale;
-use liwe::model::{strip_doc_extension, Key};
+use liwe::model::{
+    prepend_frontmatter, split_raw_frontmatter, strip_doc_extension, Frontmatter, Key,
+};
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
 pub enum IfExists {
@@ -37,6 +39,7 @@ pub struct CreateOptions {
     pub content: Option<String>,
     pub key: Option<String>,
     pub if_exists: IfExists,
+    pub frontmatter: Option<Frontmatter>,
 }
 
 pub struct CreatedDocument {
@@ -89,6 +92,13 @@ impl<'a> DocumentCreator<'a> {
             .ok_or_else(|| format!("Template '{}' not found in configuration", template_name))?;
 
         let content = options.content.unwrap_or_default();
+
+        if split_raw_frontmatter(&content).0.is_some() {
+            return Err(
+                "Content must not begin with a frontmatter block. Use --frontmatter or --set to write frontmatter."
+                    .to_string(),
+            );
+        }
 
         let key_date_format = self
             .config
@@ -163,6 +173,8 @@ impl<'a> DocumentCreator<'a> {
             &id,
             &content,
         )?;
+
+        let document_content = prepend_frontmatter(options.frontmatter, &document_content)?;
 
         let base_key = Key::name(&relative_key);
         if base_key.as_str().is_empty() {

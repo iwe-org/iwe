@@ -22,7 +22,38 @@ iwe new <TITLE> [OPTIONS]
   - `override`: Overwrite existing file
   - `skip`: Do nothing, exit successfully without output
   - `fail`: Report an error and exit with a non-zero status
+- `--frontmatter <YAML>`: YAML mapping written as frontmatter at the top of the document
+- `--set <FIELD=VALUE>`: Set a single frontmatter field, repeatable, overrides `--frontmatter`
 - `-e, --edit`: Open created file in `$EDITOR` after creation
+
+## Frontmatter
+
+`--frontmatter` sets the whole mapping, `--set FIELD=VALUE` sets one field and overrides it. Both write the frontmatter at the top of the file, above the title heading.
+
+``` bash
+iwe new "Ada Lovelace" --key people/ada \
+  --frontmatter 'type: person
+tags: [pioneer]' \
+  --set status=draft
+```
+
+``` markdown
+---
+type: person
+tags:
+- pioneer
+status: draft
+---
+
+# Ada Lovelace
+```
+
+- `--set` is repeatable and its VALUE is parsed as YAML, so `--set 'tags=[a, b]'` writes a list. The last `--set` for a field wins.
+- `--set` applies after `--frontmatter`, in command-line order. A new field is appended; an existing field is replaced in place, keeping its position. Values are replaced wholesale — there is no deep merge.
+- Fields starting with `_`, `$`, `.`, `#` or `@` are reserved by IWE and are dropped.
+- Frontmatter belongs in these flags, not in `--content` or piped input — content that begins with a frontmatter block is rejected.
+- When the template already emits its own frontmatter, passing `--frontmatter` or `--set` is an error. Drop the flags or drop the frontmatter from the template.
+- With `frontmatter_document_title` configured, `iwe new "Y" --set title=X` makes the graph title `X` while the heading still reads `Y`. Both are written as asked.
 
 ## Explicit keys
 

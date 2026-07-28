@@ -27,7 +27,9 @@ use diwe::tokens::Truncation;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::node::NodePointer;
 use liwe::model::tree::{Tree, TreeIter};
-use liwe::model::{strip_doc_extension, Key};
+use liwe::model::{
+    prepend_frontmatter, split_raw_frontmatter, strip_doc_extension, Frontmatter, Key,
+};
 use liwe::operations::{
     attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
     rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
@@ -109,6 +111,18 @@ fn to_json_result_with_warnings<T: Serialize>(
 
 fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::success(vec![Content::text(text)]))
+}
+
+fn frontmatter_from_json(
+    map: serde_json::Map<String, serde_json::Value>,
+) -> Result<Frontmatter, McpError> {
+    match serde_yaml::to_value(map) {
+        Ok(serde_yaml::Value::Mapping(mapping)) => Ok(mapping),
+        _ => Err(McpError::invalid_params(
+            "Invalid frontmatter: expected an object".to_string(),
+            None,
+        )),
+    }
 }
 
 fn schema_violation_error(reports: &[KeyReport]) -> McpError {
@@ -431,12 +445,18 @@ pub struct SquashParams {
 pub struct CreateParams {
     #[schemars(description = "Document title")]
     pub title: String,
-    #[schemars(description = "Markdown content body (without the title heading)")]
+    #[schemars(
+        description = "Markdown content body (without the title heading). Must not begin with a frontmatter block; pass frontmatter through the `frontmatter` parameter instead."
+    )]
     pub content: Option<String>,
     #[schemars(
         description = "Explicit document key. Derive it from stable metadata (entity name, session date), not the title wording. Subdirectory keys allowed (e.g. people/ada); do not include a file extension. Omit to derive a slug from the title. Creation fails if a document with this key already exists."
     )]
     pub key: Option<String>,
+    #[schemars(
+        description = "Frontmatter fields, written at the top of the file, above the title heading. Keys beginning with `_`, `$`, `.`, `#` or `@` are reserved and dropped. Keys are written in alphabetical order. Do not put frontmatter in `content`."
+    )]
+    pub frontmatter: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -932,11 +952,22 @@ impl IweServer {
         };
 
         let content_body = params.content.unwrap_or_default();
+        if split_raw_frontmatter(&content_body).0.is_some() {
+            return Err(McpError::invalid_params(
+                "Content must not begin with a frontmatter block. Use the 'frontmatter' parameter to write frontmatter.".to_string(),
+                None,
+            ));
+        }
+
+        let frontmatter = params.frontmatter.map(frontmatter_from_json).transpose()?;
+
         let markdown = if content_body.is_empty() {
             format!("# {}\n", params.title)
         } else {
             format!("# {}\n\n{}\n", params.title, content_body)
         };
+        let markdown = prepend_frontmatter(frontmatter, &markdown)
+            .map_err(|e| McpError::invalid_params(e, None))?;
 
         let key = Key::name(&key_name);
         let mut graph = self.graph.lock().await;

@@ -54,6 +54,26 @@ The MCP server exposes 14 tools for reading, writing, querying, and refactoring 
 
 `iwe_create` derives the document key from the title (slugified) unless you pass an explicit `key`. Give a `key` when the identity is a stable value drawn from metadata (an entity name, a session date) rather than the title wording; subdirectory keys such as `people/ada` are allowed; omit the file extension. Creation always fails if the key already exists.
 
+#### Frontmatter on create
+
+`iwe_create` takes an optional `frontmatter` object, written at the top of the file, above the title heading:
+
+``` json
+{ "title": "Ada Lovelace", "key": "people/ada", "frontmatter": { "type": "person", "tags": ["pioneer"] } }
+```
+
+``` markdown
+---
+tags:
+- pioneer
+type: person
+---
+
+# Ada Lovelace
+```
+
+Keys are written in alphabetical order. Fields starting with `_`, `$`, `.`, `#` or `@` are reserved by IWE and are dropped. Frontmatter belongs in this parameter, not in `content` — content that begins with a frontmatter block is rejected, since it would land below the title heading where other tools do not read it as metadata.
+
 #### Stats warnings
 
 A successful `iwe_create`, `iwe_update`, or `iwe_query` (`update` / `delete`) may carry **stats warnings** alongside its result — one warning content block per finding, of the form `<key> › <rule>: <message>`:

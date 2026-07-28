@@ -775,3 +775,391 @@ fn test_new_key_with_template_renders_body() {
         "Should bypass the template's key derivation"
     );
 }
+
+#[test]
+fn test_new_frontmatter_written_above_title() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--frontmatter")
+        .arg("type: note\ntags: [demo]\n")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(
+        content,
+        "---\ntype: note\ntags:\n- demo\n---\n\n# Title\n\n"
+    );
+}
+
+#[test]
+fn test_new_set_fields_in_command_line_order() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--set")
+        .arg("type=note")
+        .arg("--set")
+        .arg("tags=[demo]")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(
+        content,
+        "---\ntype: note\ntags:\n- demo\n---\n\n# Title\n\n"
+    );
+}
+
+#[test]
+fn test_new_set_overrides_frontmatter_field_in_place() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--frontmatter")
+        .arg("type: note\nstatus: draft\n")
+        .arg("--set")
+        .arg("type=memo")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(
+        content,
+        "---\ntype: memo\nstatus: draft\n---\n\n# Title\n\n"
+    );
+}
+
+#[test]
+fn test_new_duplicate_set_last_wins() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--set")
+        .arg("type=note")
+        .arg("--set")
+        .arg("type=memo")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(content, "---\ntype: memo\n---\n\n# Title\n\n");
+}
+
+#[test]
+fn test_new_set_drops_reserved_field() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--set")
+        .arg("_internal=1")
+        .arg("--set")
+        .arg("type=note")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(content, "---\ntype: note\n---\n\n# Title\n\n");
+}
+
+#[test]
+fn test_new_set_with_mapping_shaped_input_errors() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--set")
+        .arg("type: note")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(
+        !output.status.success(),
+        "Should fail for mapping-shaped --set"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(
+        stderr,
+        "error: invalid --set assignment 'type: note': expected FIELD=VALUE; use --frontmatter to pass a whole YAML mapping\n"
+    );
+}
+
+#[test]
+fn test_new_empty_frontmatter_argument_errors() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--frontmatter")
+        .arg("")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(
+        !output.status.success(),
+        "Should fail for empty --frontmatter"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(
+        stderr,
+        "error: --frontmatter requires a YAML mapping, got an empty value\n"
+    );
+}
+
+#[test]
+fn test_new_non_mapping_frontmatter_argument_errors() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--frontmatter")
+        .arg("[a]")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(
+        !output.status.success(),
+        "Should fail for non-mapping --frontmatter"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(
+        stderr,
+        "error: invalid --frontmatter: expected a YAML mapping\n"
+    );
+}
+
+#[test]
+fn test_new_frontmatter_with_custom_template() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    add_template(
+        &temp_dir,
+        "custom",
+        NoteTemplate {
+            key_template: "{{slug}}".to_string(),
+            document_template: "Body: {{title}}\n".to_string(),
+        },
+    );
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--template")
+        .arg("custom")
+        .arg("--set")
+        .arg("type=note")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(content, "---\ntype: note\n---\n\nBody: Title");
+}
+
+#[test]
+fn test_new_frontmatter_collides_with_template_frontmatter() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    add_template(
+        &temp_dir,
+        "with_frontmatter",
+        NoteTemplate {
+            key_template: "{{slug}}".to_string(),
+            document_template: "---\nstatus: draft\n---\n\n# {{title}}\n".to_string(),
+        },
+    );
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--template")
+        .arg("with_frontmatter")
+        .arg("--set")
+        .arg("type=note")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(
+        !output.status.success(),
+        "Should fail on frontmatter collision"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(
+        stderr,
+        "Error: the document already begins with a frontmatter block, it would be written twice\n"
+    );
+}
+
+#[test]
+fn test_new_template_frontmatter_without_flags_is_kept() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    add_template(
+        &temp_dir,
+        "with_frontmatter",
+        NoteTemplate {
+            key_template: "{{slug}}".to_string(),
+            document_template: "---\nstatus: draft\n---\n\n# {{title}}\n".to_string(),
+        },
+    );
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--template")
+        .arg("with_frontmatter")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(content, "---\nstatus: draft\n---\n\n# Title");
+}
+
+#[test]
+fn test_new_content_starting_with_frontmatter_errors() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--content=---\ntype: note\n---\n\nBody paragraph.")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(
+        !output.status.success(),
+        "Should reject frontmatter in content"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(
+        stderr,
+        "Error: Content must not begin with a frontmatter block. Use --frontmatter or --set to write frontmatter.\n"
+    );
+}
+
+#[test]
+fn test_new_stdin_starting_with_frontmatter_errors() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let mut child = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .current_dir(temp_path)
+        .spawn()
+        .expect("Failed to spawn command");
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(b"---\ntype: note\n---\n\nBody paragraph.")
+            .expect("Failed to write stdin");
+    }
+
+    let output = child.wait_with_output().expect("Failed to wait");
+    assert!(
+        !output.status.success(),
+        "Should reject frontmatter in stdin"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8");
+    assert_eq!(
+        stderr,
+        "Error: Content must not begin with a frontmatter block. Use --frontmatter or --set to write frontmatter.\n"
+    );
+}
+
+#[test]
+fn test_new_content_with_two_thematic_breaks_is_accepted() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .arg("new")
+        .arg("Title")
+        .arg("--key")
+        .arg("doc")
+        .arg("--content=---\n\n---\n\nBody paragraph.")
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(output.status.success(), "Command should succeed");
+
+    let content = read_to_string(temp_path.join("doc.md")).expect("Read created file");
+    assert_eq!(content, "# Title\n\n---\n\n---\n\nBody paragraph.");
+}

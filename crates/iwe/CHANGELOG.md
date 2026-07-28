@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe new --frontmatter` accepts a YAML mapping and `iwe new --set FIELD=VALUE` sets single fields (repeatable, overrides `--frontmatter`); both write frontmatter at the top of the new document, above the title heading.
+
+### Changed
+- `iwe new` now rejects content that begins with a frontmatter block and points at `--frontmatter` / `--set`; previously the block was written below the title heading, where other tools do not read it as metadata.
+
+### Fixed
+- `iwe update` body mode now preserves frontmatter closed with `...` (previously it was discarded).
+
 ## [0.16.0](https://github.com/iwe-org/iwe/compare/iwe-v0.15.0...iwe-v0.16.0) - 2026-07-26
 
 Workspace version bump — no user-visible changes in this crate.

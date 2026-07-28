@@ -300,3 +300,14 @@ fn strict_with_all_guards_applies() {
     assert!(output.status.success());
     assert_eq!(read_to_string(temp.path().join("d.md")).unwrap(), "# Doc\n");
 }
+
+#[test]
+fn body_overwrite_preserves_dot_closed_frontmatter() {
+    let temp = setup(vec![("d", "---\ntype: note\n...\n\n# Doc\n\npara\n")]);
+    let output = run_update(temp.path(), &["-k", "d", "--content", "# Doc\n\nnew\n"]);
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("d.md")).unwrap(),
+        "---\ntype: note\n...\n# Doc\n\nnew\n"
+    );
+}

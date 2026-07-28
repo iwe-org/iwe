@@ -24,6 +24,19 @@ EXAMPLES:
   # Create at an explicit key (bypasses key_template; fails if it exists)
   iwe new "Ada Lovelace" --key people/ada
 
+  # Write frontmatter at the top of the file, above the title heading
+  iwe new "Ada Lovelace" --frontmatter '{type: person, tags: [pioneer]}' --set status=draft
+
+FRONTMATTER:
+
+  --frontmatter sets the whole mapping, --set FIELD=VALUE sets one field and
+  overrides it. --set is repeatable, VALUE is parsed as YAML, and the last
+  --set for a field wins. Fields starting with _ $ . # or @ are reserved and
+  are dropped.
+
+  Frontmatter belongs in these flags, not in --content -- content that begins
+  with a frontmatter block is rejected.
+
 TEMPLATE VARIABLES:
 
   Templates in config support these variables:

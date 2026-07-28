@@ -34,7 +34,7 @@ use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
 use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
-use liwe::model::Key;
+use liwe::model::{frontmatter_from_str, split_raw_frontmatter, Frontmatter, Key};
 use liwe::operations::{
     attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
     rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
@@ -431,6 +431,18 @@ struct New {
         help = "Behavior when file already exists: suffix (append -1, -2, etc.), override (overwrite), skip (do nothing), fail (error). Default: suffix, or fail when --key is given."
     )]
     if_exists: Option<IfExists>,
+
+    #[clap(
+        long,
+        help = "YAML mapping written as frontmatter at the top of the new document, above the title heading"
+    )]
+    frontmatter: Option<String>,
+
+    #[clap(
+        long,
+        help = "Set a single frontmatter field, FIELD=VALUE with VALUE parsed as YAML. Repeatable; overrides --frontmatter"
+    )]
+    set: Vec<String>,
 
     #[clap(long, short = 'e', help = "Open created file in $EDITOR")]
     edit: bool,
@@ -1484,6 +1496,8 @@ fn new_command(args: New) {
         IfExists::Suffix
     });
 
+    let frontmatter = parse_new_frontmatter(args.frontmatter.as_deref(), &args.set);
+
     let creator = DocumentCreator::new(&config, library_path);
     let options = CreateOptions {
         title: args.title,
@@ -1491,6 +1505,7 @@ fn new_command(args: New) {
         content,
         key: args.key,
         if_exists,
+        frontmatter,
     };
 
     match creator.create(options) {
@@ -1506,6 +1521,47 @@ fn new_command(args: New) {
             eprintln!("Error: {}", e);
             std::process::exit(1);
         }
+    }
+}
+
+fn parse_new_frontmatter(frontmatter: Option<&str>, set: &[String]) -> Option<Frontmatter> {
+    use serde_yaml::Value;
+
+    let mut mapping = match frontmatter {
+        Some(raw) => {
+            if raw.trim().is_empty() {
+                eprintln!("error: --frontmatter requires a YAML mapping, got an empty value");
+                std::process::exit(2);
+            }
+            frontmatter_from_str(raw).unwrap_or_else(|| {
+                eprintln!("error: invalid --frontmatter: expected a YAML mapping");
+                std::process::exit(2);
+            })
+        }
+        None if set.is_empty() => return None,
+        None => Frontmatter::new(),
+    };
+
+    for assign in set {
+        let (field, value) = parse_set_assignment(assign).unwrap_or_else(|e| {
+            eprintln!("error: {}{}", e, set_mapping_hint(assign));
+            std::process::exit(2);
+        });
+        mapping.insert(Value::String(field), value);
+    }
+
+    Some(mapping)
+}
+
+fn set_mapping_hint(assign: &str) -> &'static str {
+    let mapping_shaped = matches!(
+        serde_yaml::from_str::<serde_yaml::Value>(assign),
+        Ok(serde_yaml::Value::Mapping(_))
+    );
+    if !assign.contains('=') && mapping_shaped {
+        "; use --frontmatter to pass a whole YAML mapping"
+    } else {
+        ""
     }
 }
 
@@ -2657,30 +2713,6 @@ fn update_command(args: Update) {
     } else {
         update_mutation(args);
     }
-}
-
-fn split_raw_frontmatter(content: &str) -> (Option<&str>, &str) {
-    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
-        return (None, content);
-    }
-    let after_open = if content.starts_with("---\r\n") { 5 } else { 4 };
-    let rest = &content[after_open..];
-    if let Some(close_pos) = rest.find("\n---\n") {
-        let end = after_open + close_pos + "\n---\n".len();
-        return (Some(&content[..end]), &content[end..]);
-    }
-    if let Some(close_pos) = rest.find("\r\n---\r\n") {
-        let end = after_open + close_pos + "\r\n---\r\n".len();
-        return (Some(&content[..end]), &content[end..]);
-    }
-    if rest.ends_with("\n---\n") || rest.ends_with("\n---") {
-        if let Some(close_pos) = rest.rfind("\n---") {
-            let end = after_open + close_pos + "\n---".len();
-            let trailing = &content[end..];
-            return (Some(&content[..end + trailing.len()]), "");
-        }
-    }
-    (None, content)
 }
 
 fn update_body(args: Update) {
