@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0](https://github.com/iwe-org/iwe/compare/iwec-v0.16.0...iwec-v0.17.0) - 2026-07-28
+
 ### Changed
 - `iwe_create` now takes the complete document: `content` carries the frontmatter block and the title heading and is written verbatim, `key` is required, and `if_exists: "skip"` makes creation idempotent (was `title` plus a body, with the heading and the key generated for you).
 

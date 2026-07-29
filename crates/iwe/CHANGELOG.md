@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0](https://github.com/iwe-org/iwe/compare/iwe-v0.16.0...iwe-v0.17.0) - 2026-07-28
+
 ### Added
 - `iwe create` creates documents in two explicit modes: content mode (`iwe create <key> --content`, or piped input) writes the complete document you pass byte for byte, and template mode (`--template NAME`) composes it from a named template, with your frontmatter written above the rendered output. Both accept `--strict` to validate against the document schema before writing.
 - `iwe create --var NAME=VALUE` sets one template variable and uses the value verbatim as a string, so markdown like `--var body='## Notes'` arrives untouched; `--vars-yaml` and `--vars-json` take all the variables at once and keep their types, so templates can branch on booleans and loop over lists. `--set FIELD=VALUE` sets one frontmatter field written above the rendered document, repeat it for more. All of them require `--template`.
