@@ -144,8 +144,8 @@ values fall back to defaults.
 - `locale`: locale for date formatting in keys (default: system locale).
   Separate from `markdown.locale`, so keys and content can use different
   languages.
-- `default_template`: template used by `iwe new` when `--template` is not
-  given.
+- `default_template`: template `iwe new` uses when no template name is
+  given. `iwe create --template NAME` always names its own.
 - `frontmatter_document_title`: frontmatter field to use as the document
   title (default: none — the first header is the title). Affects link text,
   completion, and search results; falls back to the first header when the
@@ -169,21 +169,26 @@ Editor completion via the LSP server (`iwes`).
 
 ## `[templates]`
 
-Document templates for `iwe new`. Each `[templates.<name>]` entry has:
+Document templates for `iwe create --template NAME`. Each `[templates.<name>]`
+entry has:
 
 - `key_template`: derives the document key.
 - `document_template`: the initial document content.
 
-Template variables: `{{title}}` (the title argument), `{{slug}}` (slugified
-title), `{{today}}` (date, via `library.date_format` for keys and
-`markdown.date_format` for content), `{{now}}` (date/time, via the
-`time_format` fields), `{{id}}` (random 8-character alphanumeric), and
-`{{content}}` (content from `-c` or stdin; document template only).
+Template variables come from `--var NAME=VALUE` (one variable, VALUE used
+verbatim as a string) and from `--vars-yaml` / `--vars-json` (all of them at
+once, keeping their types), each available under its own name. iwe adds
+the computed `{{slug}}` (slugified `title` variable), `{{today}}` (date, via
+`library.date_format` for keys and `markdown.date_format` for content),
+`{{now}}` (date/time, via the `time_format` fields) and `{{id}}` (random
+8-character alphanumeric); those four names are reserved. By convention
+`{{title}}` names the title and `{{body}}` the prose slot, which piped input
+fills; `{{content}}` is a legacy alias for `{{body}}`.
 
 ```toml
 [templates.journal]
 key_template = "journal/{{today}}"
-document_template = "# {{today}}\n\n{{content}}"
+document_template = "# {{today}}\n\n{{body}}"
 ```
 
 ## `[commands]`

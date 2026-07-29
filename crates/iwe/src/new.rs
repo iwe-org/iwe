@@ -1,16 +1,23 @@
+use std::collections::BTreeMap;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
 use chrono::Local;
-use minijinja::{context, Environment};
+use minijinja::value::Value as TemplateValue;
+use minijinja::Environment;
 use rand::distr::Alphanumeric;
 use rand::Rng;
 
 use diwe::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
 use liwe::locale::get_locale;
-use liwe::model::{
-    prepend_frontmatter, split_raw_frontmatter, strip_doc_extension, Frontmatter, Key,
-};
+use liwe::model::{prepend_frontmatter, strip_doc_extension, Frontmatter, Key};
+
+pub const BODY_VARIABLE: &str = "body";
+pub const LEGACY_BODY_VARIABLE: &str = "content";
+pub const TITLE_VARIABLE: &str = "title";
+pub const RESERVED_VARIABLES: [&str; 4] = ["slug", "today", "now", "id"];
+
+pub type Variables = BTreeMap<String, serde_yaml::Value>;
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
 pub enum IfExists {
@@ -34,12 +41,24 @@ pub struct DocumentCreator<'a> {
 }
 
 pub struct CreateOptions {
-    pub title: String,
     pub template_name: Option<String>,
-    pub content: Option<String>,
+    pub variables: Variables,
     pub key: Option<String>,
     pub if_exists: IfExists,
     pub frontmatter: Option<Frontmatter>,
+    pub empty_key_error: String,
+}
+
+pub struct ContentOptions {
+    pub key: String,
+    pub content: String,
+    pub if_exists: IfExists,
+}
+
+pub struct PreparedDocument {
+    pub key: Key,
+    pub path: PathBuf,
+    pub content: String,
 }
 
 pub struct CreatedDocument {
@@ -71,7 +90,67 @@ impl<'a> DocumentCreator<'a> {
         candidate_key
     }
 
-    pub fn create(&self, options: CreateOptions) -> Result<Option<CreatedDocument>, String> {
+    fn locate(
+        &self,
+        relative_key: &str,
+        empty_key_error: &str,
+        if_exists: &IfExists,
+    ) -> Result<Option<(Key, PathBuf)>, String> {
+        let base_key = Key::name(relative_key);
+        if base_key.as_str().is_empty() {
+            return Err(empty_key_error.to_string());
+        }
+
+        let path_str = base_key.to_path(self.config.format);
+        let filename_len = std::path::Path::new(&path_str)
+            .file_name()
+            .map(|name| name.len())
+            .unwrap_or(path_str.len());
+        if filename_len > 255 {
+            return Err(format!(
+                "Generated filename is too long ({} bytes, max 255). Use a shorter title.",
+                filename_len
+            ));
+        }
+
+        let file_exists = self.library_path.join(&path_str).exists();
+        let final_key = match if_exists {
+            IfExists::Skip if file_exists => return Ok(None),
+            IfExists::Fail if file_exists => {
+                return Err(format!("Document '{}' already exists", base_key))
+            }
+            IfExists::Suffix => self.find_available_key(&base_key),
+            IfExists::Override | IfExists::Skip | IfExists::Fail => base_key,
+        };
+
+        let file_path = self
+            .library_path
+            .join(final_key.to_path(self.config.format));
+        Ok(Some((final_key, file_path)))
+    }
+
+    pub fn prepare_content(
+        &self,
+        options: ContentOptions,
+    ) -> Result<Option<PreparedDocument>, String> {
+        if strip_doc_extension(&options.key) != options.key.as_str() {
+            return Err(format!(
+                "Key '{}' must not include a file extension",
+                options.key
+            ));
+        }
+
+        match self.locate(&options.key, "Provided key is empty.", &options.if_exists)? {
+            Some((key, path)) => Ok(Some(PreparedDocument {
+                key,
+                path,
+                content: options.content,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    pub fn prepare(&self, options: CreateOptions) -> Result<Option<PreparedDocument>, String> {
         let template_name = options
             .template_name
             .or_else(|| self.config.library.default_template.clone())
@@ -90,15 +169,6 @@ impl<'a> DocumentCreator<'a> {
                 }
             })
             .ok_or_else(|| format!("Template '{}' not found in configuration", template_name))?;
-
-        let content = options.content.unwrap_or_default();
-
-        if split_raw_frontmatter(&content).0.is_some() {
-            return Err(
-                "Content must not begin with a frontmatter block. Use --frontmatter or --set to write frontmatter."
-                    .to_string(),
-            );
-        }
 
         let key_date_format = self
             .config
@@ -143,7 +213,7 @@ impl<'a> DocumentCreator<'a> {
             .format_localized(&content_time_format, content_locale)
             .to_string();
 
-        let slug = string_to_slug(&options.title);
+        let slug = string_to_slug(&scalar_text(options.variables.get(TITLE_VARIABLE)));
         let id = generate_random_id();
 
         let relative_key = match &options.key {
@@ -155,78 +225,51 @@ impl<'a> DocumentCreator<'a> {
             }
             None => render_template(
                 &template.key_template,
-                &options.title,
-                &slug,
-                &key_today,
-                &key_now,
-                &id,
-                &content,
+                &template_context(&options.variables, &slug, &key_today, &key_now, &id),
             )?,
         };
 
         let document_content = render_template(
             &template.document_template,
-            &options.title,
-            &slug,
-            &content_today,
-            &content_now,
-            &id,
-            &content,
+            &template_context(&options.variables, &slug, &content_today, &content_now, &id),
         )?;
 
         let document_content = prepend_frontmatter(options.frontmatter, &document_content)?;
 
-        let base_key = Key::name(&relative_key);
-        if base_key.as_str().is_empty() {
-            return Err(if options.key.is_some() {
-                "Provided key is empty.".to_string()
-            } else {
-                "Generated key is empty. Use a non-empty title.".to_string()
-            });
-        }
-        let path_str = base_key.to_path(self.config.format);
-        let filename_len = std::path::Path::new(&path_str)
-            .file_name()
-            .map(|f| f.len())
-            .unwrap_or(path_str.len());
-        if filename_len > 255 {
-            return Err(format!(
-                "Generated filename is too long ({} bytes, max 255). Use a shorter title.",
-                filename_len
-            ));
-        }
-        let file_path = self.library_path.join(base_key.to_path(self.config.format));
-        let file_exists = file_path.exists();
-
-        let final_key = match options.if_exists {
-            IfExists::Skip if file_exists => return Ok(None),
-            IfExists::Fail if file_exists => {
-                return Err(format!("Document '{}' already exists", base_key))
-            }
-            IfExists::Suffix => self.find_available_key(&base_key),
-            IfExists::Override | IfExists::Skip | IfExists::Fail => base_key,
+        let empty_key_error = if options.key.is_some() {
+            "Provided key is empty."
+        } else {
+            &options.empty_key_error
         };
 
-        let file_path = self
-            .library_path
-            .join(final_key.to_path(self.config.format));
-
-        if let Some(parent) = file_path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create parent directories: {}", e))?;
-            }
+        match self.locate(&relative_key, empty_key_error, &options.if_exists)? {
+            Some((key, path)) => Ok(Some(PreparedDocument {
+                key,
+                path,
+                content: document_content,
+            })),
+            None => Ok(None),
         }
-
-        std::fs::write(&file_path, document_content)
-            .map_err(|e| format!("Failed to write file: {}", e))?;
-
-        let absolute_path = file_path.canonicalize().unwrap_or(file_path);
-
-        Ok(Some(CreatedDocument {
-            path: absolute_path,
-        }))
     }
+}
+
+pub fn write_document(prepared: &PreparedDocument) -> Result<CreatedDocument, String> {
+    if let Some(parent) = prepared.path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create parent directories: {}", e))?;
+        }
+    }
+
+    std::fs::write(&prepared.path, &prepared.content)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+
+    Ok(CreatedDocument {
+        path: prepared
+            .path
+            .canonicalize()
+            .unwrap_or_else(|_| prepared.path.clone()),
+    })
 }
 
 pub fn read_stdin_if_available() -> String {
@@ -236,31 +279,46 @@ pub fn read_stdin_if_available() -> String {
         return String::new();
     }
 
+    read_stdin()
+}
+
+pub fn read_stdin() -> String {
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer).unwrap_or_default();
     buffer
 }
 
-fn render_template(
-    template_str: &str,
-    title: &str,
+fn template_context(
+    variables: &Variables,
     slug: &str,
     today: &str,
     now: &str,
     id: &str,
-    content: &str,
+) -> BTreeMap<String, TemplateValue> {
+    let mut context: BTreeMap<String, TemplateValue> = variables
+        .iter()
+        .map(|(name, value)| (name.clone(), TemplateValue::from_serialize(value)))
+        .collect();
+
+    if let Some(body) = context.get(BODY_VARIABLE).cloned() {
+        context.insert(LEGACY_BODY_VARIABLE.to_string(), body);
+    }
+
+    context.insert("slug".to_string(), TemplateValue::from(slug));
+    context.insert("today".to_string(), TemplateValue::from(today));
+    context.insert("now".to_string(), TemplateValue::from(now));
+    context.insert("id".to_string(), TemplateValue::from(id));
+    context
+}
+
+fn render_template(
+    template_str: &str,
+    context: &BTreeMap<String, TemplateValue>,
 ) -> Result<String, String> {
     Environment::new()
         .template_from_str(template_str)
         .map_err(|e| format!("Invalid template syntax: {}", e))?
-        .render(context! {
-            title => title,
-            slug => slug,
-            today => today,
-            now => now,
-            id => id,
-            content => content,
-        })
+        .render(context)
         .map_err(|e| format!("Template rendering failed: {}", e))
 }
 
@@ -271,6 +329,15 @@ fn generate_random_id() -> String {
         .map(char::from)
         .collect::<String>()
         .to_lowercase()
+}
+
+fn scalar_text(value: Option<&serde_yaml::Value>) -> String {
+    match value {
+        Some(serde_yaml::Value::String(text)) => text.clone(),
+        Some(serde_yaml::Value::Number(number)) => number.to_string(),
+        Some(serde_yaml::Value::Bool(flag)) => flag.to_string(),
+        _ => String::new(),
+    }
 }
 
 fn string_to_slug(s: &str) -> String {

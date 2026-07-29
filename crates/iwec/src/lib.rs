@@ -27,9 +27,7 @@ use diwe::tokens::Truncation;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::node::NodePointer;
 use liwe::model::tree::{Tree, TreeIter};
-use liwe::model::{
-    prepend_frontmatter, split_raw_frontmatter, strip_doc_extension, Frontmatter, Key,
-};
+use liwe::model::{strip_doc_extension, Key};
 use liwe::operations::{
     attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
     rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
@@ -113,16 +111,10 @@ fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::success(vec![Content::text(text)]))
 }
 
-fn frontmatter_from_json(
-    map: serde_json::Map<String, serde_json::Value>,
-) -> Result<Frontmatter, McpError> {
-    match serde_yaml::to_value(map) {
-        Ok(serde_yaml::Value::Mapping(mapping)) => Ok(mapping),
-        _ => Err(McpError::invalid_params(
-            "Invalid frontmatter: expected an object".to_string(),
-            None,
-        )),
-    }
+#[derive(Serialize)]
+struct CreateResult {
+    key: String,
+    created: bool,
 }
 
 fn schema_violation_error(reports: &[KeyReport]) -> McpError {
@@ -441,21 +433,34 @@ pub struct SquashParams {
     pub depth: Option<u8>,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CreateIfExists {
+    Fail,
+    Skip,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateParams {
-    #[schemars(description = "Document title")]
-    pub title: String,
     #[schemars(
-        description = "Markdown content body (without the title heading). Must not begin with a frontmatter block; pass frontmatter through the `frontmatter` parameter instead."
-    )]
-    pub content: Option<String>,
-    #[schemars(
-        description = "Explicit document key. Derive it from stable metadata (entity name, session date), not the title wording. Subdirectory keys allowed (e.g. people/ada); do not include a file extension. Omit to derive a slug from the title. Creation fails if a document with this key already exists."
+        required,
+        description = "Document key — the created document's stable identity. Derive it from stable metadata (entity name, session date), not the title wording. Subdirectory keys allowed (e.g. people/ada); do not include a file extension."
     )]
     pub key: Option<String>,
     #[schemars(
-        description = "Frontmatter fields, written at the top of the file, above the title heading. Keys beginning with `_`, `$`, `.`, `#` or `@` are reserved and dropped. Keys are written in alphabetical order. Do not put frontmatter in `content`."
+        required,
+        description = "The complete document, written verbatim: the YAML frontmatter block first (when there is one), then the markdown, normally starting with a `# Title` heading. Nothing is added or moved."
     )]
+    pub content: Option<String>,
+    #[schemars(
+        description = "Behavior when the key already exists: \"fail\" (default) reports an error, \"skip\" leaves the existing document untouched and returns created: false, which makes retries idempotent."
+    )]
+    pub if_exists: Option<CreateIfExists>,
+    #[schemars(skip)]
+    pub template: Option<String>,
+    #[schemars(skip)]
+    pub variables: Option<serde_json::Map<String, serde_json::Value>>,
+    #[schemars(skip)]
     pub frontmatter: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
@@ -906,12 +911,26 @@ impl IweServer {
     }
 
     #[tool(
-        description = "Create a new document from a title and optional content. Pass an explicit `key` to control the document's stable identity — derive it from stable metadata (entity name, session date), not the title wording; creation fails if that key already exists. Stats warnings (dangling links, orphans, similar pages) may ride the result; resolve them before ending the session."
+        description = "Create a document at an explicit `key` from the complete markdown in `content` — frontmatter block first (when there is one), then the title heading and the body. The content is written verbatim; the server adds nothing and moves nothing. Derive the key from stable metadata (entity name, session date), not the title wording. Pass if_exists: \"skip\" to make retries idempotent. Stats warnings (dangling links, orphans, similar pages) may ride the result; resolve them before ending the session."
     )]
     async fn iwe_create(
         &self,
         Parameters(params): Parameters<CreateParams>,
     ) -> Result<CallToolResult, McpError> {
+        if params.content.is_some() && params.template.is_some() {
+            return Err(McpError::invalid_params(
+                "'content' and 'template' are mutually exclusive: content mode writes the document you pass, template mode composes it from a named template".to_string(),
+                None,
+            ));
+        }
+        if params.template.is_some() || params.variables.is_some() || params.frontmatter.is_some() {
+            return Err(McpError::invalid_params(
+                "template mode is not yet supported; pass the complete document in 'content'"
+                    .to_string(),
+                None,
+            ));
+        }
+
         let key_name = match &params.key {
             Some(k) => {
                 if strip_doc_extension(k) != k.as_str() {
@@ -930,53 +949,40 @@ impl IweServer {
                 key.to_string()
             }
             None => {
-                let slug = params
-                    .title
-                    .to_lowercase()
-                    .chars()
-                    .map(|c| if c.is_alphanumeric() { c } else { '-' })
-                    .collect::<String>()
-                    .split('-')
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<_>>()
-                    .join("-");
-
-                if slug.is_empty() {
-                    return Err(McpError::invalid_params(
-                        "Title must contain at least one alphanumeric character".to_string(),
-                        None,
-                    ));
-                }
-                slug
+                return Err(McpError::invalid_params(
+                    "'key' is required: it is the created document's stable identity".to_string(),
+                    None,
+                ))
             }
         };
 
-        let content_body = params.content.unwrap_or_default();
-        if split_raw_frontmatter(&content_body).0.is_some() {
-            return Err(McpError::invalid_params(
-                "Content must not begin with a frontmatter block. Use the 'frontmatter' parameter to write frontmatter.".to_string(),
-                None,
-            ));
-        }
-
-        let frontmatter = params.frontmatter.map(frontmatter_from_json).transpose()?;
-
-        let markdown = if content_body.is_empty() {
-            format!("# {}\n", params.title)
-        } else {
-            format!("# {}\n\n{}\n", params.title, content_body)
+        let markdown = match params.content {
+            Some(content) if !content.trim().is_empty() => content,
+            _ => {
+                return Err(McpError::invalid_params(
+                    "'content' is required: pass the complete document, frontmatter and title heading included".to_string(),
+                    None,
+                ))
+            }
         };
-        let markdown = prepend_frontmatter(frontmatter, &markdown)
-            .map_err(|e| McpError::invalid_params(e, None))?;
 
         let key = Key::name(&key_name);
         let mut graph = self.graph.lock().await;
 
-        if (&*graph).get_node_id(&key).is_some() {
-            return Err(McpError::invalid_params(
-                format!("Document '{}' already exists", key_name),
-                None,
-            ));
+        if (&*graph).get_node_id(&key).is_some() || self.document_file_exists(&key) {
+            return match params.if_exists {
+                Some(CreateIfExists::Skip) => to_json_result_with_warnings(
+                    &CreateResult {
+                        key: key_name,
+                        created: false,
+                    },
+                    &[],
+                ),
+                _ => Err(McpError::invalid_params(
+                    format!("Document '{}' already exists", key_name),
+                    None,
+                )),
+            };
         }
 
         self.ensure_schema_clean(&[(key.clone(), markdown.clone())])?;
@@ -993,11 +999,13 @@ impl IweServer {
             )
             .await;
 
-        #[derive(Serialize)]
-        struct CreateResult {
-            key: String,
-        }
-        to_json_result_with_warnings(&CreateResult { key: key_name }, &warnings)
+        to_json_result_with_warnings(
+            &CreateResult {
+                key: key_name,
+                created: true,
+            },
+            &warnings,
+        )
     }
 
     #[tool(
@@ -1910,10 +1918,19 @@ impl IweServer {
             .await
     }
 
+    fn document_path(&self, key: &Key) -> Option<PathBuf> {
+        let base_path = self.base_path.as_ref()?;
+        let extension = self.config.format.extension();
+        Some(base_path.join(format!("{}.{}", key, extension)))
+    }
+
+    fn document_file_exists(&self, key: &Key) -> bool {
+        self.document_path(key)
+            .is_some_and(|file_path| file_path.exists())
+    }
+
     fn write_file(&self, key: &Key, content: &str) {
-        if let Some(base_path) = &self.base_path {
-            let extension = self.config.format.extension();
-            let file_path = base_path.join(format!("{}.{}", key, extension));
+        if let Some(file_path) = self.document_path(key) {
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent).ok();
             }
@@ -1922,10 +1939,7 @@ impl IweServer {
     }
 
     fn read_file(&self, key: &Key) -> Option<String> {
-        let base_path = self.base_path.as_ref()?;
-        let extension = self.config.format.extension();
-        let file_path = base_path.join(format!("{}.{}", key, extension));
-        std::fs::read_to_string(&file_path).ok()
+        std::fs::read_to_string(self.document_path(key)?).ok()
     }
 
     fn write_changes(&self, changes: &Changes) {

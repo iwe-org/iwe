@@ -1,5 +1,6 @@
-use pulldown_cmark::{Event, Options, Parser, Tag};
+use pulldown_cmark::{Event, Parser, Tag};
 
+use crate::markdown::reader::PARSER_OPTIONS;
 use crate::model::{frontmatter_to_string, Frontmatter};
 use crate::query::frontmatter::strip_reserved;
 
@@ -26,7 +27,8 @@ pub fn prepend_frontmatter(
 
     if leading_metadata_block_end(rendered).is_some() {
         return Err(
-            "the document already begins with a frontmatter block, it would be written twice"
+            "the document already begins with a frontmatter block, it would be written twice; \
+             drop the frontmatter fields, or pass the complete document as content"
                 .to_string(),
         );
     }
@@ -52,11 +54,10 @@ fn leading_metadata_block_end(content: &str) -> Option<usize> {
 }
 
 fn metadata_block_end(content: &str) -> Option<usize> {
-    let options = Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-        | Options::ENABLE_WIKILINKS
-        | Options::ENABLE_TABLES;
-
-    match Parser::new_ext(content, options).into_offset_iter().next() {
+    match Parser::new_ext(content, PARSER_OPTIONS)
+        .into_offset_iter()
+        .next()
+    {
         Some((Event::Start(Tag::MetadataBlock(_)), range)) if range.start == 0 => {
             Some(range.end + line_ending_len(&content[range.end..]))
         }
@@ -203,7 +204,8 @@ mod tests {
                 "---\nother: 1\n---\n\n# Title\n"
             ),
             Err(
-                "the document already begins with a frontmatter block, it would be written twice"
+                "the document already begins with a frontmatter block, it would be written twice; \
+                 drop the frontmatter fields, or pass the complete document as content"
                     .to_string()
             )
         );

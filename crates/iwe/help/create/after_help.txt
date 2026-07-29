@@ -1,0 +1,91 @@
+EXAMPLES:
+
+  # Content mode -- the document is written exactly as passed
+  # (continuation lines start at column 0, so these examples copy cleanly)
+  iwe create projects/overview --content '# Overview
+
+The first paragraph.'
+
+  # Content mode from stdin
+  cat doc.md | iwe create projects/overview
+
+  # Template mode with the stock template
+  iwe create --template default --var title="Standup notes"
+
+  # Template mode with another template and frontmatter
+  iwe create --template meeting --var title="Sync" --set type=note
+
+  # All variables at once, keeping their types
+  iwe create -t meeting --vars-yaml 'title: Sync
+attendees: [ada, alan]
+draft: false'
+
+  iwe create -t meeting --vars-json '{"title": "Sync", "draft": false}'
+
+CONTENT MODE:
+
+  --content takes the whole document, including its frontmatter block and title
+  heading, and writes it verbatim. '--content -' always reads stdin to the end,
+  terminal included (finish with Ctrl-D); bare piped input is read the same way.
+  --if-exists accepts fail (default) or skip; an explicit key names one
+  document, so there is no suffix, and replacing a document is `iwe update`.
+
+TEMPLATE MODE:
+
+  --template NAME names the template to compose from; the name is always
+  required. Nothing here is implicit: --var, --vars-yaml, --vars-json and --set
+  all require --template.
+
+  --var NAME=VALUE sets one variable and its VALUE is used verbatim as a string,
+  never parsed: --var body='## Notes' is that heading, literally. Repeat it as
+  needed; among --var flags the last assignment for a name wins.
+
+  Typed values come from the bulk forms -- --vars-yaml '<YAML mapping>' or
+  --vars-json '<JSON object>', at most one per command. Their booleans, numbers
+  and lists reach the template as such, so {% if %} and {% for %} work. The bulk
+  mapping is applied first and every --var overrides it, wherever the flags sit
+  on the command line. Note that --var draft=false is the string "false", which
+  {% if draft %} reads as true -- write 'draft: false' in --vars-yaml when you
+  mean the boolean. A null value is rejected; pass '' for an empty value.
+
+  By convention 'title' names the title and 'body' the prose slot; {{content}}
+  is a legacy alias for {{body}}. Template mode never reads stdin -- piped input
+  is content mode's. Every variable arrives through a flag; a variable no flag
+  sets renders as empty.
+
+  Multiline prose goes in a --vars-yaml block scalar:
+
+    iwe create -t note --vars-yaml 'title: Release
+body: |
+  ## Notes
+
+  Shipped.'
+
+  slug, today, now and id are computed by iwe and cannot be set as variables.
+
+  --set FIELD=VALUE sets one frontmatter field, written above the rendered
+  document. Repeat it as needed; fields are applied in command-line order and the
+  last one for a field wins. Unlike --var, VALUE is parsed as YAML -- variables
+  are render text, frontmatter is data. There is no bulk frontmatter flag; write
+  a mapping as repeated --set. Fields starting with _ $ . # or @ are reserved and
+  dropped.
+
+TEMPLATE VARIABLES:
+
+  - {{title}}: from --var title=VALUE
+  - {{body}}: from --var body=VALUE ({{content}} is an alias)
+  - {{slug}}: URL-safe form of the title variable
+  - {{today}}: current date (library.date_format for the key,
+               markdown.date_format for the document)
+  - {{now}}: current date and time (library.time_format for the key,
+             markdown.time_format for the document; each falls back to the
+             matching date_format when unset)
+  - {{id}}: unique identifier
+
+OUTPUT:
+
+  Prints the absolute path to the created file:
+
+    /path/to/library/projects/overview.md
+
+  Returns empty output if --if-exists skip and the document exists.

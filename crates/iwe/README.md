@@ -20,8 +20,8 @@ cargo build --release
 mkdir my-notes && cd my-notes
 iwe init
 
-iwe new "Project Overview"
-iwe new "Meeting Notes" --template meeting
+iwe create project-overview -c "# Project Overview"
+iwe create --template meeting --var title="Meeting Notes"
 
 iwe find
 iwe find --fuzzy project
@@ -52,8 +52,29 @@ Options:
 - `--defaults` - write the static default template without detection
 - `--json` - print a machine-readable report
 
+### `create`
+Create a document, either from complete markdown or from a template.
+
+```bash
+iwe create notes/import --content "# Imported content"
+cat draft.md | iwe create projects/overview
+iwe create --template default --var title="Document Title"
+iwe create --template daily --var title="Daily Note"
+iwe create notes/inbox -c "# Inbox" --if-exists skip
+```
+
+Options:
+- `-c, --content <TEXT>` - the complete document, written verbatim (`-` reads stdin)
+- `-t, --template <NAME>` - compose from the named template; the name is always required
+- `--var <NAME=VALUE>` - one template variable; VALUE is used verbatim as a string
+- `--vars-yaml <YAML>` / `--vars-json <JSON>` - all variables at once, keeping their types (booleans, numbers, lists)
+- `--set <FIELD=VALUE>` - one frontmatter field written above the rendered document; repeatable
+- `-i, --if-exists <MODE>` - behavior when the document exists: `fail` / `skip`, plus `suffix` / `override` in template mode
+- `--strict` - validate against the document schema before writing
+- `-e, --edit` - open created file in `$EDITOR`
+
 ### `new`
-Create a new document in the workspace.
+Create a new document from a title.
 
 ```bash
 iwe new "Document Title"
@@ -64,7 +85,7 @@ iwe new "Maybe Duplicate" --if-exists skip
 ```
 
 Options:
-- `-t, --template <NAME>` - template name from config
+- `-t, --template <NAME>` - template name from config (default: `library.default_template`)
 - `-c, --content <TEXT>` - document content
 - `-k, --key <KEY>` - explicit document key, bypassing the template's key derivation
 - `-i, --if-exists <MODE>` - behavior when file exists: `suffix` (default), `override`, `skip`, `fail` (default when `--key` is given)

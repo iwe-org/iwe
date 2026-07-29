@@ -44,7 +44,7 @@ async fn create_result_carries_orphan_and_dangling_warnings() {
     let result = f
         .call_tool(
             "iwe_create",
-            json!({"title": "Notes", "content": "See [missing](ghost)."}),
+            json!({"key": "notes", "content": "# Notes\n\nSee [missing](ghost).\n"}),
         )
         .await;
 
@@ -64,7 +64,7 @@ async fn findings_are_reported_once_per_session() {
     let first = f
         .call_tool(
             "iwe_create",
-            json!({"title": "Notes", "content": "See [missing](ghost)."}),
+            json!({"key": "notes", "content": "# Notes\n\nSee [missing](ghost).\n"}),
         )
         .await;
     assert_eq!(
@@ -75,7 +75,12 @@ async fn findings_are_reported_once_per_session() {
         ]
     );
 
-    let second = f.call_tool("iwe_create", json!({"title": "Extra"})).await;
+    let second = f
+        .call_tool(
+            "iwe_create",
+            json!({"key": "extra", "content": "# Extra\n"}),
+        )
+        .await;
     assert_eq!(
         warnings(&second),
         vec!["warning: extra › orphan: no page links here".to_string()]

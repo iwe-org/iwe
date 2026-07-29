@@ -57,7 +57,7 @@ pub fn instructions(settings: &Settings) -> String {
         \n\
         - `iwe find <query>` — full-text search across the graph\n\
         - `iwe retrieve <key>` — read a document and the documents it includes\n\
-        - `iwe new <title>` — create a document from the default template\n\
+        - `iwe create <key> -c <document>` — create a document from complete markdown\n\
         - `iwe update <key>` — apply a structured edit to a document\n\
         - `iwe normalize` — rewrite every document in canonical form\n\
         {end}\n",

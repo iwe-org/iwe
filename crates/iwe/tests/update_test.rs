@@ -311,3 +311,22 @@ fn body_overwrite_preserves_dot_closed_frontmatter() {
         "---\ntype: note\n...\n# Doc\n\nnew\n"
     );
 }
+
+#[test]
+fn body_overwrite_with_own_frontmatter_replaces_the_existing_block() {
+    let temp = setup(vec![("d", "---\ntype: note\n---\n\n# Doc\n\npara\n")]);
+    let output = run_update(
+        temp.path(),
+        &[
+            "-k",
+            "d",
+            "--content",
+            "---\ntype: page\n---\n\n# Doc\n\nnew\n",
+        ],
+    );
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("d.md")).unwrap(),
+        "---\ntype: page\n---\n\n# Doc\n\nnew\n"
+    );
+}

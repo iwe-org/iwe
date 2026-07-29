@@ -8,13 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `iwe new --frontmatter` accepts a YAML mapping and `iwe new --set FIELD=VALUE` sets single fields (repeatable, overrides `--frontmatter`); both write frontmatter at the top of the new document, above the title heading.
-
-### Changed
-- `iwe new` now rejects content that begins with a frontmatter block and points at `--frontmatter` / `--set`; previously the block was written below the title heading, where other tools do not read it as metadata.
+- `iwe create` creates documents in two explicit modes: content mode (`iwe create <key> --content`, or piped input) writes the complete document you pass byte for byte, and template mode (`--template NAME`) composes it from a named template, with your frontmatter written above the rendered output. Both accept `--strict` to validate against the document schema before writing.
+- `iwe create --var NAME=VALUE` sets one template variable and uses the value verbatim as a string, so markdown like `--var body='## Notes'` arrives untouched; `--vars-yaml` and `--vars-json` take all the variables at once and keep their types, so templates can branch on booleans and loop over lists. `--set FIELD=VALUE` sets one frontmatter field written above the rendered document, repeat it for more. All of them require `--template`.
 
 ### Fixed
-- `iwe update` body mode now preserves frontmatter closed with `...` (previously it was discarded).
+- `iwe update -c` no longer strands new frontmatter below the old block: content that carries its own frontmatter now replaces the existing one, and frontmatter closed with `...` is preserved (previously discarded).
 
 ## [0.16.0](https://github.com/iwe-org/iwe/compare/iwe-v0.15.0...iwe-v0.16.0) - 2026-07-26
 

@@ -117,6 +117,21 @@ impl Fixture {
             .collect()
     }
 
+    pub async fn list_tools(&self) -> ListToolsResult {
+        let response = self
+            .client
+            .send_request(ClientRequest::ListToolsRequest(
+                rmcp::model::RequestOptionalParam::default(),
+            ))
+            .await
+            .expect("list tools to succeed");
+
+        match response {
+            ServerResult::ListToolsResult(result) => result,
+            other => panic!("expected ListToolsResult, got: {other:?}"),
+        }
+    }
+
     pub async fn list_resources(&self) -> ListResourcesResult {
         let response = self
             .client

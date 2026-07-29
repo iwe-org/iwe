@@ -3,141 +3,50 @@ use diwe::config::Configuration;
 use serde_json::json;
 
 #[tokio::test]
-async fn create_writes_frontmatter_above_the_title() {
+async fn create_writes_the_document_verbatim() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path().canonicalize().unwrap();
     let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
 
-    f.call_tool(
-        "iwe_create",
-        json!({
-            "title": "Note",
-            "content": "Body",
-            "frontmatter": {"type": "note", "tags": ["demo"]}
-        }),
-    )
-    .await;
-
-    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
-    assert_eq!(
-        on_disk,
-        "---\ntags:\n- demo\ntype: note\n---\n\n# Note\n\nBody\n"
-    );
-}
-
-#[tokio::test]
-async fn create_writes_frontmatter_without_content() {
-    let dir = tempfile::tempdir().unwrap();
-    let base = dir.path().canonicalize().unwrap();
-    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
-
-    f.call_tool(
-        "iwe_create",
-        json!({"title": "Note", "frontmatter": {"type": "note"}}),
-    )
-    .await;
-
-    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
-    assert_eq!(on_disk, "---\ntype: note\n---\n\n# Note\n");
-}
-
-#[tokio::test]
-async fn create_drops_reserved_frontmatter_keys() {
-    let dir = tempfile::tempdir().unwrap();
-    let base = dir.path().canonicalize().unwrap();
-    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
-
-    f.call_tool(
-        "iwe_create",
-        json!({
-            "title": "Note",
-            "content": "Body",
-            "frontmatter": {"_internal": 1, "$x": 2, "type": "note"}
-        }),
-    )
-    .await;
-
-    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
-    assert_eq!(on_disk, "---\ntype: note\n---\n\n# Note\n\nBody\n");
-}
-
-#[tokio::test]
-async fn create_with_empty_frontmatter_writes_no_fences() {
-    let dir = tempfile::tempdir().unwrap();
-    let base = dir.path().canonicalize().unwrap();
-    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
-
-    f.call_tool(
-        "iwe_create",
-        json!({"title": "Note", "content": "Body", "frontmatter": {}}),
-    )
-    .await;
-
-    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
-    assert_eq!(on_disk, "# Note\n\nBody\n");
-}
-
-#[tokio::test]
-async fn create_without_frontmatter_writes_no_fences() {
-    let dir = tempfile::tempdir().unwrap();
-    let base = dir.path().canonicalize().unwrap();
-    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
-
-    f.call_tool("iwe_create", json!({"title": "Note", "content": "Body"}))
+    let document = "---\ntags:\n- demo\ntype: note\n---\n\n# Note\n\nBody\n";
+    f.call_tool("iwe_create", json!({"key": "note", "content": document}))
         .await;
 
     let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
-    assert_eq!(on_disk, "# Note\n\nBody\n");
+    assert_eq!(on_disk, document);
 }
 
 #[tokio::test]
-async fn create_rejects_content_starting_with_frontmatter() {
-    let f = Fixture::with_documents(vec![]).await;
+async fn create_keeps_frontmatter_at_the_first_byte() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
 
-    let result = f
-        .try_call_tool(
-            "iwe_create",
-            json!({"title": "Note", "content": "---\ntype: note\n---\n\nBody"}),
-        )
-        .await;
+    let document = "---\ntype: person\n---\n\n# Ada Lovelace\n\nBody\n";
+    f.call_tool(
+        "iwe_create",
+        json!({"key": "people/ada", "content": document}),
+    )
+    .await;
 
-    assert_eq!(
-        result.unwrap_err().to_string(),
-        "Mcp error: -32602: Content must not begin with a frontmatter block. Use the 'frontmatter' parameter to write frontmatter."
-    );
+    let on_disk = std::fs::read_to_string(base.join("people/ada.md")).unwrap();
+    assert_eq!(on_disk, document);
 }
 
 #[tokio::test]
-async fn create_rejects_content_starting_with_dot_closed_frontmatter() {
-    let f = Fixture::with_documents(vec![]).await;
-
-    let result = f
-        .try_call_tool(
-            "iwe_create",
-            json!({"title": "Note", "content": "---\ntype: note\n...\n\nBody"}),
-        )
-        .await;
-
-    assert_eq!(
-        result.unwrap_err().to_string(),
-        "Mcp error: -32602: Content must not begin with a frontmatter block. Use the 'frontmatter' parameter to write frontmatter."
-    );
-}
-
-#[tokio::test]
-async fn create_accepts_content_starting_with_thematic_break() {
+async fn create_does_not_add_a_title_heading() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path().canonicalize().unwrap();
     let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
 
     f.call_tool(
         "iwe_create",
-        json!({"title": "Note", "content": "---\n\nBody"}),
+        json!({"key": "note", "content": "Just a paragraph.\n"}),
     )
     .await;
 
     let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
-    assert_eq!(on_disk, "# Note\n\n---\n\nBody\n");
+    assert_eq!(on_disk, "Just a paragraph.\n");
 }
 
 #[tokio::test]
@@ -145,10 +54,14 @@ async fn create_document() {
     let f = Fixture::with_documents(vec![]).await;
 
     let result = f
-        .call_tool("iwe_create", json!({"title": "My New Document"}))
+        .call_tool(
+            "iwe_create",
+            json!({"key": "my-new-document", "content": "# My New Document\n"}),
+        )
         .await;
     let output = Fixture::result_json(&result);
     assert_eq!(output["key"], "my-new-document");
+    assert_eq!(output["created"], true);
 
     let retrieve = f
         .call_tool(
@@ -161,58 +74,14 @@ async fn create_document() {
 }
 
 #[tokio::test]
-async fn create_with_content() {
-    let f = Fixture::with_documents(vec![]).await;
-
-    let result = f
-        .call_tool(
-            "iwe_create",
-            json!({"title": "Note", "content": "Some body text"}),
-        )
-        .await;
-    let output = Fixture::result_json(&result);
-    assert_eq!(output["key"], "note");
-
-    let retrieve = f
-        .call_tool(
-            "iwe_retrieve",
-            json!({"keys": ["note"], "depth": 0, "backlinks": false}),
-        )
-        .await;
-    let docs = Fixture::result_json(&retrieve);
-    let content = docs[0]["content"].as_str().unwrap();
-    assert!(content.contains("Some body text"));
-}
-
-#[tokio::test]
-async fn create_with_explicit_key() {
-    let f = Fixture::with_documents(vec![]).await;
-
-    let result = f
-        .call_tool(
-            "iwe_create",
-            json!({"title": "Completely Different Words", "key": "stable-id"}),
-        )
-        .await;
-    let output = Fixture::result_json(&result);
-    assert_eq!(output["key"], "stable-id");
-
-    let retrieve = f
-        .call_tool(
-            "iwe_retrieve",
-            json!({"keys": ["stable-id"], "depth": 0, "backlinks": false}),
-        )
-        .await;
-    let docs = Fixture::result_json(&retrieve);
-    assert_eq!(docs[0]["title"], "Completely Different Words");
-}
-
-#[tokio::test]
 async fn create_with_subdirectory_key() {
     let f = Fixture::with_documents(vec![]).await;
 
     let result = f
-        .call_tool("iwe_create", json!({"title": "Ada", "key": "people/ada"}))
+        .call_tool(
+            "iwe_create",
+            json!({"key": "people/ada", "content": "# Ada\n"}),
+        )
         .await;
     let output = Fixture::result_json(&result);
     assert_eq!(output["key"], "people/ada");
@@ -232,9 +101,97 @@ async fn create_with_key_collision_fails() {
     let f = Fixture::with_documents(vec![("existing", "# Existing\n")]).await;
 
     let result = f
-        .try_call_tool("iwe_create", json!({"title": "New", "key": "existing"}))
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": "existing", "content": "# New\n"}),
+        )
         .await;
-    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Document 'existing' already exists"
+    );
+}
+
+#[tokio::test]
+async fn create_fails_on_a_file_the_graph_has_not_seen() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    std::fs::write(base.join("note.md"), "# On disk\n").unwrap();
+
+    let result = f
+        .try_call_tool("iwe_create", json!({"key": "note", "content": "# New\n"}))
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Document 'note' already exists"
+    );
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "# On disk\n");
+}
+
+#[tokio::test]
+async fn create_skips_a_file_the_graph_has_not_seen() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    std::fs::write(base.join("note.md"), "# On disk\n").unwrap();
+
+    let result = f
+        .call_tool(
+            "iwe_create",
+            json!({"key": "note", "content": "# New\n", "if_exists": "skip"}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(output["key"], "note");
+    assert_eq!(output["created"], false);
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "# On disk\n");
+}
+
+#[tokio::test]
+async fn create_with_skip_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    f.call_tool("iwe_create", json!({"key": "note", "content": "# First\n"}))
+        .await;
+
+    let result = f
+        .call_tool(
+            "iwe_create",
+            json!({"key": "note", "content": "# Second\n", "if_exists": "skip"}),
+        )
+        .await;
+    let output = Fixture::result_json(&result);
+    assert_eq!(output["key"], "note");
+    assert_eq!(output["created"], false);
+
+    let on_disk = std::fs::read_to_string(base.join("note.md")).unwrap();
+    assert_eq!(on_disk, "# First\n");
+}
+
+#[tokio::test]
+async fn create_schema_marks_key_and_content_required() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let tools = f.list_tools().await;
+    let create = tools
+        .tools
+        .iter()
+        .find(|tool| tool.name == "iwe_create")
+        .expect("iwe_create tool to be listed");
+
+    assert_eq!(
+        create.input_schema.get("required"),
+        Some(&json!(["key", "content"]))
+    );
 }
 
 #[tokio::test]
@@ -242,9 +199,12 @@ async fn create_with_empty_key_fails() {
     let f = Fixture::with_documents(vec![]).await;
 
     let result = f
-        .try_call_tool("iwe_create", json!({"title": "New", "key": ""}))
+        .try_call_tool("iwe_create", json!({"key": "", "content": "# New\n"}))
         .await;
-    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Key must not be empty"
+    );
 }
 
 #[tokio::test]
@@ -252,27 +212,100 @@ async fn create_with_extension_key_fails() {
     let f = Fixture::with_documents(vec![]).await;
 
     let result = f
-        .try_call_tool("iwe_create", json!({"title": "New", "key": "note.md"}))
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": "note.md", "content": "# New\n"}),
+        )
         .await;
-    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Key 'note.md' must not include a file extension"
+    );
 }
 
 #[tokio::test]
-async fn create_duplicate_fails() {
-    let f = Fixture::with_documents(vec![("test", "# Test\n")]).await;
-
-    let result = f
-        .try_call_tool("iwe_create", json!({"title": "test"}))
-        .await;
-    assert!(result.is_err());
-}
-
-#[tokio::test]
-async fn create_non_alphanumeric_title_fails() {
+async fn create_without_key_fails() {
     let f = Fixture::with_documents(vec![]).await;
 
-    let result = f.try_call_tool("iwe_create", json!({"title": "!!!"})).await;
-    assert!(result.is_err());
+    let result = f
+        .try_call_tool("iwe_create", json!({"content": "# New\n"}))
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: 'key' is required: it is the created document's stable identity"
+    );
+}
+
+#[tokio::test]
+async fn create_without_content_fails() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f.try_call_tool("iwe_create", json!({"key": "note"})).await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: 'content' is required: pass the complete document, frontmatter and title heading included"
+    );
+}
+
+#[tokio::test]
+async fn create_with_blank_content_fails() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool("iwe_create", json!({"key": "note", "content": "  \n"}))
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: 'content' is required: pass the complete document, frontmatter and title heading included"
+    );
+}
+
+#[tokio::test]
+async fn create_with_content_and_template_fails() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": "note", "content": "# New\n", "template": "daily"}),
+        )
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: 'content' and 'template' are mutually exclusive: content mode writes the document you pass, template mode composes it from a named template"
+    );
+}
+
+#[tokio::test]
+async fn create_with_template_is_not_yet_supported() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": "note", "template": "daily", "variables": {"title": "Note"}}),
+        )
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: template mode is not yet supported; pass the complete document in 'content'"
+    );
+}
+
+#[tokio::test]
+async fn create_with_frontmatter_parameter_is_not_yet_supported() {
+    let f = Fixture::with_documents(vec![]).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": "note", "content": "# Note\n", "frontmatter": {"type": "note"}}),
+        )
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: template mode is not yet supported; pass the complete document in 'content'"
+    );
 }
 
 #[tokio::test]
@@ -434,7 +467,10 @@ async fn round_trip_create_retrieve_update_delete() {
     let f = Fixture::with_documents(vec![]).await;
 
     let create = f
-        .call_tool("iwe_create", json!({"title": "Temp Doc", "content": "v1"}))
+        .call_tool(
+            "iwe_create",
+            json!({"key": "temp-doc", "content": "# Temp Doc\n\nv1\n"}),
+        )
         .await;
     let key = Fixture::result_json(&create)["key"]
         .as_str()

@@ -5,7 +5,7 @@ IWE provides a powerful command-line interface for managing markdown-based knowl
 ## Quick Start
 
 1.  **Initialize a project**: `iwe init`
-2.  **Create a new document**: `iwe new "My Note"`
+2.  **Create a new document**: `iwe create --template default --var title="My Note"`
 3.  **Retrieve a document with context**: `iwe retrieve -k my-note`
 4.  **Find and search documents**: `iwe find "search term"`
 5.  **Count matching documents**: `iwe count --filter 'status: draft'`
@@ -81,7 +81,8 @@ See the [Query Language](query-language.md) reference for the YAML syntax, opera
 | Command     | Description                                                  | Documentation                     |
 | ----------- | ------------------------------------------------------------ | --------------------------------- |
 | `init`      | Initialize a new IWE project                                 | [IWE Init](cli-init.md)           |
-| `new`       | Create a new document                                        | [IWE New](cli-new.md)             |
+| `create`    | Create a document from complete content, or from a template  | [IWE Create](cli-create.md)       |
+| `new`       | Create a new document from a title                           | [IWE New](cli-new.md)             |
 | `update`    | Overwrite a document body, or mutate frontmatter via filter  | [IWE Update](cli-update.md)       |
 | `normalize` | Normalize all documents                                      | [IWE Normalize](cli-normalize.md) |
 

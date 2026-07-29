@@ -17,7 +17,7 @@ cargo install --path .
 | `iwe_tree` | View hierarchical tree structure of the knowledge graph |
 | `iwe_stats` | Get graph statistics including document counts, references, and connectivity |
 | `iwe_squash` | Expand all block references into a single flat markdown document |
-| `iwe_create` | Create a new document from a title and optional content |
+| `iwe_create` | Create a document at a key from a complete markdown document |
 | `iwe_update` | Update the full markdown content of an existing document |
 | `iwe_delete` | Delete a document with automatic reference cleanup |
 | `iwe_query` | Run a query language operation (`find`, `count`, `update`, `delete`) verbatim |
