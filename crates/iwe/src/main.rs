@@ -57,6 +57,7 @@ use log::{debug, error, info};
 #[derive(Debug, Parser)]
 #[clap(
     name = "iwe",
+    bin_name = "iwe",
     version,
     after_help = "Run 'iwe docs' for the built-in query language, configuration, and document schema references."
 )]
