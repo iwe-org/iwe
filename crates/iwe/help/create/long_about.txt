@@ -1,0 +1,12 @@
+Create a document in one of two explicit modes.
+
+Content mode (the default) writes the document you pass, byte for byte: frontmatter
+first, then the markdown, normally starting with the title heading. The key is
+required -- it is the document's identity.
+
+Template mode (--template NAME) composes the document from a named template in the
+configuration. The template name is always required. Variables come from --var,
+--vars-yaml and --vars-json, frontmatter fields from --set, and the key is derived
+from the template's key_template unless you pass one.
+
+--content and --template are mutually exclusive.

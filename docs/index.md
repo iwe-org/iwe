@@ -14,7 +14,7 @@
 
 [IWE Init](cli-init.md)
 
-[IWE New](cli-new.md)
+[IWE Create](cli-create.md)
 
 [IWE Retrieve](cli-retrieve.md)
 

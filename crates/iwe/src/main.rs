@@ -25,7 +25,11 @@ use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
 use iwe::init::{current_root, init_library, InitOptions, Overrides};
-use iwe::new::{read_stdin_if_available, CreateOptions, DocumentCreator, IfExists};
+use iwe::new::{
+    read_stdin, read_stdin_if_available, write_document, ContentOptions, CreateOptions,
+    DocumentCreator, IfExists, PreparedDocument, Variables, BODY_VARIABLE, LEGACY_BODY_VARIABLE,
+    RESERVED_VARIABLES, TITLE_VARIABLE,
+};
 use iwe::projection_args::{parse_projection_extend, parse_projection_replace};
 use iwe::render::{FindBlockRenderer, RetrieveRenderer};
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
@@ -34,7 +38,7 @@ use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
 use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
-use liwe::model::Key;
+use liwe::model::{split_raw_frontmatter, Frontmatter, Key};
 use liwe::operations::{
     attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
     rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
@@ -53,6 +57,7 @@ use log::{debug, error, info};
 #[derive(Debug, Parser)]
 #[clap(
     name = "iwe",
+    bin_name = "iwe",
     version,
     after_help = "Run 'iwe docs' for the built-in query language, configuration, and document schema references."
 )]
@@ -67,6 +72,7 @@ pub struct App {
 #[derive(Debug, Subcommand)]
 enum Command {
     Init(Init),
+    Create(Create),
     New(New),
     Retrieve(Retrieve),
     Find(Find),
@@ -399,6 +405,86 @@ struct Init {
 
     #[clap(long, help = "Date format used for keys of date-named documents")]
     date_format: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = help::create::ABOUT,
+    long_about = help::create::LONG_ABOUT,
+    after_help = help::create::AFTER_HELP
+)]
+struct Create {
+    #[clap(
+        help = "Document key. Required in content mode. In template mode, omit it to derive the key from the template's key_template. Subdirectory keys allowed (e.g. people/ada); omit the file extension."
+    )]
+    key: Option<String>,
+
+    #[clap(
+        long,
+        short = 'c',
+        allow_hyphen_values = true,
+        help = "The complete document, frontmatter and title heading included, written verbatim. Use '-' to read from stdin."
+    )]
+    content: Option<String>,
+
+    #[clap(
+        long,
+        short = 't',
+        value_name = "NAME",
+        help = "Compose the document from the named template in the configuration"
+    )]
+    template: Option<String>,
+
+    #[clap(
+        long,
+        value_name = "YAML",
+        requires = "template",
+        help = "YAML mapping of template variables. Values keep their YAML types: booleans, numbers, lists, nested maps. Requires --template."
+    )]
+    vars_yaml: Option<String>,
+
+    #[clap(
+        long,
+        value_name = "JSON",
+        conflicts_with = "vars_yaml",
+        requires = "template",
+        help = "JSON object of template variables. Values keep their JSON types: booleans, numbers, arrays, nested objects. Requires --template."
+    )]
+    vars_json: Option<String>,
+
+    #[clap(
+        long,
+        value_name = "NAME=VALUE",
+        allow_hyphen_values = true,
+        requires = "template",
+        help = "Set a single template variable, NAME=VALUE with VALUE used verbatim as a string. Repeatable; always overrides --vars-yaml/--vars-json, wherever it appears. Requires --template."
+    )]
+    var: Vec<String>,
+
+    #[clap(
+        long,
+        value_name = "FIELD=VALUE",
+        requires = "template",
+        help = "Set a single frontmatter field, FIELD=VALUE with VALUE parsed as YAML, written above the rendered document. Repeatable; the last one for a field wins. Requires --template."
+    )]
+    set: Vec<String>,
+
+    #[clap(
+        long,
+        short = 'i',
+        value_enum,
+        help = "Behavior when the document already exists: fail (error), skip (do nothing), and in template mode suffix (append -1, -2, etc.) or override (overwrite). Default: fail, except in template mode without a key, where the derived key gets suffix."
+    )]
+    if_exists: Option<IfExists>,
+
+    #[clap(
+        long,
+        help = "Validate the document against the configured schema before writing"
+    )]
+    strict: bool,
+
+    #[clap(long, short = 'e', help = "Open created file in $EDITOR")]
+    edit: bool,
 }
 
 #[derive(Debug, Args)]
@@ -839,6 +925,7 @@ struct Update {
     #[clap(
         long,
         short = 'c',
+        allow_hyphen_values = true,
         help = "New full markdown content (body-overwrite mode). Use '-' to read from stdin."
     )]
     content: Option<String>,
@@ -1021,6 +1108,7 @@ fn main() {
             squash_command(squash);
         }
         Command::Init(init) => init_command(init),
+        Command::Create(create) => create_command(create),
         Command::New(new) => new_command(new),
         Command::Retrieve(retrieve) => retrieve_command(retrieve),
         Command::Find(find) => find_command(find),
@@ -1469,14 +1557,7 @@ fn new_command(args: New) {
     let config = get_configuration();
     let library_path = get_library_path(&config);
 
-    let content = args.content.or_else(|| {
-        let stdin_content = read_stdin_if_available();
-        if stdin_content.is_empty() {
-            None
-        } else {
-            Some(stdin_content)
-        }
-    });
+    let content = args.content.unwrap_or_else(read_stdin_if_available);
 
     let if_exists = args.if_exists.unwrap_or(if args.key.is_some() {
         IfExists::Fail
@@ -1484,29 +1565,335 @@ fn new_command(args: New) {
         IfExists::Suffix
     });
 
+    let mut variables = Variables::new();
+    variables.insert(
+        TITLE_VARIABLE.to_string(),
+        serde_yaml::Value::String(args.title),
+    );
+    variables.insert(
+        BODY_VARIABLE.to_string(),
+        serde_yaml::Value::String(content),
+    );
+
     let creator = DocumentCreator::new(&config, library_path);
     let options = CreateOptions {
-        title: args.title,
         template_name: args.template,
-        content,
+        variables,
         key: args.key,
         if_exists,
+        frontmatter: None,
+        empty_key_error: "Generated key is empty. Give the document a title, or pass --key."
+            .to_string(),
     };
 
-    match creator.create(options) {
-        Ok(Some(doc)) => {
-            println!("{}", doc.path.display());
+    match creator.prepare(options) {
+        Ok(Some(prepared)) => match write_document(&prepared) {
+            Ok(doc) => {
+                println!("{}", doc.path.display());
 
-            if args.edit {
-                open_in_editor(&doc.path);
+                if args.edit {
+                    open_in_editor(&doc.path);
+                }
             }
-        }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        },
         Ok(None) => {}
         Err(e) => {
             eprintln!("Error: {}", e);
             std::process::exit(1);
         }
     }
+}
+
+#[tracing::instrument(level = "debug")]
+fn create_command(args: Create) {
+    if args.template.is_some() && args.content.is_some() {
+        eprintln!(
+            "error: --content and --template are mutually exclusive: content mode writes the \
+             document you pass, template mode composes it from a named template"
+        );
+        std::process::exit(1);
+    }
+
+    let config = get_configuration();
+    let library_path = get_library_path(&config);
+    let creator = DocumentCreator::new(&config, library_path);
+
+    let prepared = if args.template.is_some() {
+        prepare_from_template(&args, &creator)
+    } else {
+        prepare_from_content(&args, &creator)
+    };
+
+    let prepared = match prepared {
+        Ok(Some(prepared)) => prepared,
+        Ok(None) => return,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if args.strict {
+        gate_pending(&config, &[(prepared.key.clone(), prepared.content.clone())]);
+    }
+
+    match write_document(&prepared) {
+        Ok(doc) => {
+            println!("{}", doc.path.display());
+
+            if args.edit {
+                open_in_editor(&doc.path);
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn prepare_from_content(
+    args: &Create,
+    creator: &DocumentCreator,
+) -> Result<Option<PreparedDocument>, String> {
+    let key = args.key.clone().unwrap_or_else(|| {
+        eprintln!(
+            "error: content mode needs an explicit key: iwe create <key> --content '<document>'"
+        );
+        std::process::exit(1);
+    });
+
+    let if_exists = match args.if_exists.clone().unwrap_or(IfExists::Fail) {
+        IfExists::Suffix => {
+            eprintln!(
+                "error: --if-exists suffix is template-mode only; an explicit key is the \
+                 document's identity, so pick fail or skip"
+            );
+            std::process::exit(1);
+        }
+        IfExists::Override => {
+            eprintln!(
+                "error: --if-exists override is not available in content mode; use `iwe update` \
+                 to replace an existing document"
+            );
+            std::process::exit(1);
+        }
+        if_exists => if_exists,
+    };
+
+    let content = match args.content.as_deref() {
+        Some("-") => read_stdin(),
+        None => read_stdin_if_available(),
+        Some(inline) => inline.to_string(),
+    };
+    if content.trim().is_empty() {
+        eprintln!(
+            "error: content mode needs a document: pass --content '<document>' or pipe it on stdin"
+        );
+        std::process::exit(1);
+    }
+
+    creator.prepare_content(ContentOptions {
+        key,
+        content,
+        if_exists,
+    })
+}
+
+fn prepare_from_template(
+    args: &Create,
+    creator: &DocumentCreator,
+) -> Result<Option<PreparedDocument>, String> {
+    let variables = parse_variables(
+        args.vars_yaml.as_deref(),
+        args.vars_json.as_deref(),
+        &args.var,
+    );
+
+    let template_name = args.template.clone().filter(|name| !name.is_empty());
+    if template_name.is_none() {
+        eprintln!("error: --template needs a template name, got an empty value");
+        std::process::exit(2);
+    }
+
+    let if_exists = args.if_exists.clone().unwrap_or(if args.key.is_some() {
+        IfExists::Fail
+    } else {
+        IfExists::Suffix
+    });
+
+    creator.prepare(CreateOptions {
+        template_name,
+        variables,
+        key: args.key.clone(),
+        if_exists,
+        frontmatter: parse_document_frontmatter(&args.set),
+        empty_key_error:
+            "Generated key is empty. Set the title with --var title=VALUE, or pass an explicit key."
+                .to_string(),
+    })
+}
+
+fn parse_variables(
+    vars_yaml: Option<&str>,
+    vars_json: Option<&str>,
+    assignments: &[String],
+) -> Variables {
+    use serde_yaml::Value;
+
+    let mut variables = Variables::new();
+    let mut body_spelling: Option<String> = None;
+
+    if let Some(raw) = vars_yaml {
+        if raw.trim().is_empty() {
+            eprintln!("error: --vars-yaml requires a YAML mapping, got an empty value");
+            std::process::exit(2);
+        }
+        let mapping = match serde_yaml::from_str::<Value>(raw) {
+            Ok(Value::Mapping(mapping)) => mapping,
+            _ => {
+                eprintln!("error: invalid --vars-yaml: expected a YAML mapping");
+                std::process::exit(2);
+            }
+        };
+        for (name, value) in mapping {
+            let name = match name {
+                Value::String(name) => name,
+                _ => {
+                    eprintln!("error: invalid --vars-yaml: every variable name must be a string");
+                    std::process::exit(2);
+                }
+            };
+            insert_variable(&mut variables, &mut body_spelling, name, value);
+        }
+    }
+
+    if let Some(raw) = vars_json {
+        if raw.trim().is_empty() {
+            eprintln!("error: --vars-json requires a JSON object, got an empty value");
+            std::process::exit(2);
+        }
+        let object = match serde_json::from_str::<serde_json::Value>(raw) {
+            Ok(serde_json::Value::Object(object)) => object,
+            Ok(_) => {
+                eprintln!("error: invalid --vars-json: expected a JSON object");
+                std::process::exit(2);
+            }
+            Err(e) => {
+                eprintln!("error: invalid --vars-json: {}", e);
+                std::process::exit(2);
+            }
+        };
+        for (name, value) in object {
+            let value = serde_yaml::to_value(value).unwrap_or_else(|e| {
+                eprintln!("error: invalid --vars-json value for '{}': {}", name, e);
+                std::process::exit(2);
+            });
+            insert_variable(&mut variables, &mut body_spelling, name, value);
+        }
+    }
+
+    for assign in assignments {
+        let (name, raw) = assign.split_once('=').unwrap_or_else(|| {
+            eprintln!(
+                "error: invalid --var assignment '{}': expected NAME=VALUE{}",
+                assign,
+                vars_mapping_hint(assign)
+            );
+            std::process::exit(2);
+        });
+        if name.is_empty() {
+            eprintln!("error: invalid --var assignment '{}': empty name", assign);
+            std::process::exit(2);
+        }
+
+        insert_variable(
+            &mut variables,
+            &mut body_spelling,
+            name.to_string(),
+            Value::String(raw.to_string()),
+        );
+    }
+
+    variables
+}
+
+fn insert_variable(
+    variables: &mut Variables,
+    body_spelling: &mut Option<String>,
+    name: String,
+    value: serde_yaml::Value,
+) {
+    if RESERVED_VARIABLES.contains(&name.as_str()) {
+        eprintln!(
+            "error: '{}' is computed by iwe and cannot be set as a template variable (reserved: {})",
+            name,
+            RESERVED_VARIABLES.join(", ")
+        );
+        std::process::exit(2);
+    }
+
+    if value.is_null() {
+        eprintln!(
+            "error: variable '{}' is null, which would render as the text \"none\"; pass '' for \
+             an empty value",
+            name
+        );
+        std::process::exit(2);
+    }
+
+    let name = if name == BODY_VARIABLE || name == LEGACY_BODY_VARIABLE {
+        if let Some(seen) = body_spelling.as_deref() {
+            if seen != name {
+                eprintln!(
+                    "error: '{}' and '{}' name the same variable; pass only one",
+                    seen, name
+                );
+                std::process::exit(2);
+            }
+        }
+        *body_spelling = Some(name.clone());
+        BODY_VARIABLE.to_string()
+    } else {
+        name
+    };
+
+    variables.insert(name, value);
+}
+
+fn vars_mapping_hint(assign: &str) -> &'static str {
+    let mapping_shaped = matches!(
+        serde_yaml::from_str::<serde_yaml::Value>(assign),
+        Ok(serde_yaml::Value::Mapping(_))
+    );
+    if mapping_shaped {
+        "; use --vars-yaml to pass a whole YAML mapping"
+    } else {
+        ""
+    }
+}
+
+fn parse_document_frontmatter(set: &[String]) -> Option<Frontmatter> {
+    use serde_yaml::Value;
+
+    if set.is_empty() {
+        return None;
+    }
+
+    let mut mapping = Frontmatter::new();
+    for assign in set {
+        let (field, value) = parse_set_assignment(assign).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
+        mapping.insert(Value::String(field), value);
+    }
+
+    Some(mapping)
 }
 
 fn open_in_editor(path: &std::path::Path) {
@@ -2659,30 +3046,6 @@ fn update_command(args: Update) {
     }
 }
 
-fn split_raw_frontmatter(content: &str) -> (Option<&str>, &str) {
-    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
-        return (None, content);
-    }
-    let after_open = if content.starts_with("---\r\n") { 5 } else { 4 };
-    let rest = &content[after_open..];
-    if let Some(close_pos) = rest.find("\n---\n") {
-        let end = after_open + close_pos + "\n---\n".len();
-        return (Some(&content[..end]), &content[end..]);
-    }
-    if let Some(close_pos) = rest.find("\r\n---\r\n") {
-        let end = after_open + close_pos + "\r\n---\r\n".len();
-        return (Some(&content[..end]), &content[end..]);
-    }
-    if rest.ends_with("\n---\n") || rest.ends_with("\n---") {
-        if let Some(close_pos) = rest.rfind("\n---") {
-            let end = after_open + close_pos + "\n---".len();
-            let trailing = &content[end..];
-            return (Some(&content[..end + trailing.len()]), "");
-        }
-    }
-    (None, content)
-}
-
 fn update_body(args: Update) {
     let config = get_configuration();
     let mut graph = load_graph(&config);
@@ -2730,10 +3093,13 @@ fn update_body(args: Update) {
     }
 
     let existing = std::fs::read_to_string(&file_path).unwrap_or_default();
-    let (frontmatter, _) = split_raw_frontmatter(&existing);
-    let output = match frontmatter {
-        Some(fm) => format!("{}{}", fm, content),
-        None => content,
+    let output = if split_raw_frontmatter(&content).0.is_some() {
+        content
+    } else {
+        match split_raw_frontmatter(&existing).0 {
+            Some(fm) => format!("{}{}", fm, content),
+            None => content,
+        }
     };
     if output == existing {
         if !args.quiet {

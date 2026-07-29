@@ -3,6 +3,7 @@ mod common;
 mod attach_test;
 mod cli_filter_test;
 mod completions_test;
+mod create_test;
 mod delete_test;
 mod docs_test;
 mod export_dot_test;

@@ -4,6 +4,12 @@ pub mod init {
     pub const AFTER_HELP: &str = include_str!("../help/init/after_help.txt");
 }
 
+pub mod create {
+    pub const ABOUT: &str = include_str!("../help/create/about.txt");
+    pub const LONG_ABOUT: &str = include_str!("../help/create/long_about.txt");
+    pub const AFTER_HELP: &str = include_str!("../help/create/after_help.txt");
+}
+
 pub mod new {
     pub const ABOUT: &str = include_str!("../help/new/about.txt");
     pub const LONG_ABOUT: &str = include_str!("../help/new/long_about.txt");

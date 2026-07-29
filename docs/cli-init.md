@@ -75,7 +75,7 @@ document_template = "# {{title}}\n\n{{content}}"
 | ------------------ | ---------- | ------------------------------------------------------------- |
 | `path`             | `""`       | Subdirectory containing markdown files (empty = project root) |
 | `date_format`      | `%Y-%m-%d` | Format for dates in document keys                             |
-| `default_template` | `null`     | Template name for `iwe new` command                           |
+| `default_template` | `null`     | Template name `iwe new` uses when `-t` is not given           |
 
 
 ### Markdown Section

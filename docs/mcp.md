@@ -48,11 +48,33 @@ The MCP server exposes 14 tools for reading, writing, querying, and refactoring 
 
 | Tool           | Description                                                 |
 | -------------- | ---------------------------------------------------------- |
-| `iwe_create`   | Create a new document from title and content, or an explicit key |
+| `iwe_create`   | Create a document at a key from a complete markdown document |
 | `iwe_update`   | Replace the full content of an existing document           |
 | `iwe_delete`   | Delete a document and clean up all references              |
 
-`iwe_create` derives the document key from the title (slugified) unless you pass an explicit `key`. Give a `key` when the identity is a stable value drawn from metadata (an entity name, a session date) rather than the title wording; subdirectory keys such as `people/ada` are allowed; omit the file extension. Creation always fails if the key already exists.
+#### `iwe_create`
+
+`iwe_create` takes the **complete document** and writes it verbatim — the server adds nothing and moves nothing.
+
+``` json
+{
+  "key": "people/ada",
+  "content": "---\ntype: person\ntags: [pioneer]\n---\n\n# Ada Lovelace\n\nFirst English computer programmer.\n",
+  "if_exists": "fail"
+}
+```
+
+→ `{ "key": "people/ada", "created": true }`
+
+| Parameter    | Description                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| `key`        | Required. The document's stable identity — draw it from metadata (an entity name, a session date), not the title wording. Subdirectory keys such as `people/ada` are allowed; omit the file extension. |
+| `content`    | Required. Frontmatter block first (when there is one), then the markdown, normally starting with `# Title`. |
+| `if_exists`  | `"fail"` (default) errors when the key is taken; `"skip"` leaves the existing document untouched and returns `created: false`, which makes retries idempotent. |
+
+Because `content` is the whole file, frontmatter belongs at its first byte — that is where other tools read it. There is no separate frontmatter parameter to place it for you, and nothing is inserted above or below what you send. `iwe_update` has the same contract, with the opposite existence precondition.
+
+The `template`, `variables` and `frontmatter` parameters are reserved for a later template mode and are rejected today.
 
 #### Stats warnings
 

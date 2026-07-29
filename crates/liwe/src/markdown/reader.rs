@@ -11,6 +11,10 @@ use crate::model::document::SoftBreak as DocumentSoftBreak;
 use crate::model::document::*;
 use crate::model::*;
 
+pub(crate) const PARSER_OPTIONS: Options = Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+    .union(Options::ENABLE_WIKILINKS)
+    .union(Options::ENABLE_TABLES);
+
 pub struct MarkdownEventsReader {
     markdown_options: MarkdownOptions,
     inlines_pos_stack: Vec<LineRange>,
@@ -92,13 +96,7 @@ impl MarkdownEventsReader {
             content.push('\n');
         }
         self.content = Some(content.clone());
-        let iter = Parser::new_ext(
-            &content,
-            Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-                | Options::ENABLE_WIKILINKS
-                | Options::ENABLE_TABLES,
-        )
-        .into_offset_iter();
+        let iter = Parser::new_ext(&content, PARSER_OPTIONS).into_offset_iter();
         self.line_starts = line_starts(&content);
 
         for (event, range) in iter {

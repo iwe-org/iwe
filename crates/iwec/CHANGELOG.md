@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `iwe_create` now takes the complete document: `content` carries the frontmatter block and the title heading and is written verbatim, `key` is required, and `if_exists: "skip"` makes creation idempotent (was `title` plus a body, with the heading and the key generated for you).
+
+### Fixed
+- `iwe_create` no longer overwrites a file that exists on disk but has not reached the in-memory graph yet — the existence check now looks at the file as well, so `if_exists` decides in both cases.
+
 ## [0.16.0](https://github.com/iwe-org/iwe/compare/iwec-v0.15.0...iwec-v0.16.0) - 2026-07-26
 
 ### Fixed

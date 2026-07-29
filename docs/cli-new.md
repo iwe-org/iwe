@@ -1,6 +1,15 @@
 # IWE New
 
-Creates a new document from a template.
+Creates a new document from a title — the quick-capture form of document creation. The title is the positional argument, `-c` or piped stdin fills the template's content slot, and `library.default_template` picks the template when `-t` is not given.
+
+For composing from named templates with typed variables, or for writing a complete document verbatim, see [`iwe create`](cli-create.md). The commands overlap but differ: `iwe create` requires an explicit template name (it never reads `library.default_template`), takes no positional title, and its template mode never reads stdin.
+
+| `iwe new`                          | `iwe create` equivalent                             |
+| ---------------------------------- | --------------------------------------------------- |
+| `iwe new "My Note"`                | `iwe create --template default --var title="My Note"` |
+| `iwe new "Sync" -t meeting`        | `iwe create -t meeting --var title="Sync"`            |
+| `iwe new "Ada" --key people/ada`   | `iwe create people/ada -t default --var title="Ada"`  |
+| `iwe new "Note" -c "body text"`    | `iwe create -t default --var title="Note" --var body="body text"` |
 
 ## Usage
 
@@ -14,7 +23,7 @@ iwe new <TITLE> [OPTIONS]
 
 ## Options
 
-- `-t, --template <NAME>`: Template name from config (default: "default")
+- `-t, --template <NAME>`: Template name from config (default: `library.default_template`, or "default" when unset)
 - `-c, --content <CONTENT>`: Initial content for the document
 - `-k, --key <KEY>`: Explicit document key, bypassing the template's key derivation. Subdirectory keys are allowed (e.g. `people/ada`). Omit the file extension.
 - `-i, --if-exists <MODE>`: Behavior when file already exists (default: "suffix", or "fail" when `--key` is given)
@@ -23,6 +32,8 @@ iwe new <TITLE> [OPTIONS]
   - `skip`: Do nothing, exit successfully without output
   - `fail`: Report an error and exit with a non-zero status
 - `-e, --edit`: Open created file in `$EDITOR` after creation
+
+Frontmatter is not available on `iwe new` — use [`iwe create`](cli-create.md)'s `--set`.
 
 ## Explicit keys
 

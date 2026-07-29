@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `split_raw_frontmatter` splits a leading YAML frontmatter block off markdown text, matching the parser's rules.
+- `prepend_frontmatter` prepends a frontmatter mapping to a rendered document, dropping reserved keys.
+
 ## [0.16.0](https://github.com/iwe-org/iwe/compare/liwe-v0.15.0...liwe-v0.16.0) - 2026-07-26
 
 Workspace version bump — no user-visible changes in this crate.

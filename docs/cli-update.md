@@ -25,7 +25,7 @@ iwe update --filter "EXPR" --replace-text "{ <selector>, to: ... }"
 | Flag                       | Description                                                                                                  | Mode               |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------ |
 | `-k, --key <KEY>`          | Document key. Required for body-overwrite. Optional in mutation mode (combined with `--filter` via AND).     | both               |
-| `-c, --content <STR>`      | New full markdown content. Use `-` to read from stdin.                                                       | body-overwrite     |
+| `-c, --content <STR>`      | The complete document. Use `-` to read from stdin. Replaces the existing frontmatter block when it carries one of its own. | body-overwrite     |
 | `--filter <EXPR>`          | Inline YAML filter. Required if `-k` omitted in mutation mode.                                               | mutation           |
 | `--set <FIELD=VALUE>`      | `$set` assignment. `VALUE` is parsed as a YAML scalar. Repeatable.                                           | mutation           |
 | `--unset <FIELD>`          | `$unset` field. Repeatable.                                                                                  | mutation           |
@@ -55,7 +55,25 @@ cat new-content.md | iwe update -k notes/draft -c -
 iwe update -k notes/draft -c "..." --dry-run
 ```
 
-This mode does not touch frontmatter. It is also the escape hatch when block predicates cannot address a target — two byte-identical sibling blocks, for instance, are indistinguishable to any predicate.
+`-c` is the **complete document**. If the content you pass begins with its own frontmatter block, that block replaces the existing one. If it does not, the existing document's frontmatter is preserved above it, so a body-only rewrite keeps the metadata untouched.
+
+``` bash
+# Body only -- the existing frontmatter block stays
+iwe update -k notes/draft -c "# Draft
+
+New content."
+
+# Complete document -- the frontmatter block is replaced too
+iwe update -k notes/draft -c '---
+type: page
+---
+
+# Draft
+
+New content.'
+```
+
+This mode is also the escape hatch when block predicates cannot address a target — two byte-identical sibling blocks, for instance, are indistinguishable to any predicate. To edit individual frontmatter fields rather than the whole block, use mutation mode's `--set` / `--unset`.
 
 ## Mutation mode
 

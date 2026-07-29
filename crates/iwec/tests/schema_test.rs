@@ -81,7 +81,10 @@ async fn create_violating_document_is_rejected_and_not_written() {
     let f = Fixture::with_path(base.to_str().unwrap(), config("person", "docs/**")).await;
 
     let err = f
-        .try_call_tool("iwe_create", json!({ "key": "docs/ada", "title": "Ada" }))
+        .try_call_tool(
+            "iwe_create",
+            json!({ "key": "docs/ada", "content": "# Ada\n" }),
+        )
         .await
         .unwrap_err();
 
