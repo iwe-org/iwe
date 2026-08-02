@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0](https://github.com/iwe-org/iwe/compare/iwec-v0.17.0...iwec-v0.18.0) - 2026-08-01
+
 ### Fixed
 - The search index behind mutation warnings no longer grows with every edit, so memory and search speed stay steady across a long session.
 

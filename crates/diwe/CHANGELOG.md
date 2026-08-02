@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0](https://github.com/iwe-org/iwe/compare/diwe-v0.17.0...diwe-v0.18.0) - 2026-08-01
+
 ### Added
 - `PathFilter` in the `fs` module — decides whether a path belongs to the library using the same hidden-file and ignore-file rules as `walk_md_paths`, so watching and the initial scan agree on which files count.
 - `Bm25Index::avgdl_drift` — how far the corpus average document length has moved from the value the index was fit to.

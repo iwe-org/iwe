@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0](https://github.com/iwe-org/iwe/compare/iwes-v0.17.0...iwes-v0.18.0) - 2026-08-01
+
 ### Fixed
 - Bulk filesystem changes no longer stall the server. Adding or deleting many files at once — for example when a package manager rewrites a dependency tree — rebuilds the search index once for the whole batch instead of once per file, turning an operation that ran for minutes at full CPU into one that finishes in well under a second.
 - Files that the initial scan skips are no longer picked up while watching. Changes under directories excluded by `.gitignore` or `.ignore`, such as `node_modules`, are now ignored at runtime too, so they can no longer appear in completions, symbols, or link resolution.
