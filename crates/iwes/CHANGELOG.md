@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1](https://github.com/iwe-org/iwe/compare/iwes-v0.18.0...iwes-v0.18.1) - 2026-08-02
+
 ### Fixed
 - Links to a hub document in a parent directory keep their target when a document is reformatted — a link from `a/b.md` to `a.md` stays `../a` (previously it was emptied).
 - Renaming a document updates links inside table cells, which used to keep pointing at the old document.

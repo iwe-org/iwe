@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1](https://github.com/iwe-org/iwe/compare/iwec-v0.18.0...iwec-v0.18.1) - 2026-08-02
+
 ### Fixed
 - `iwe_rename` and `iwe_delete` now update links inside table cells, which used to silently keep pointing at the old document.
 - Links to a hub document in a parent directory keep their target when a document is rewritten — a link from `a/b` to `a` stays `../a` (previously it was emptied).
