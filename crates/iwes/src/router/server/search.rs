@@ -25,6 +25,7 @@ pub struct SearchPath {
 pub struct SearchIndex {
     paths: Vec<SearchPath>,
     bm25: Option<Bm25Index>,
+    rebuilds: usize,
 }
 
 impl SearchIndex {
@@ -32,7 +33,12 @@ impl SearchIndex {
         Self::default()
     }
 
+    pub fn rebuild_count(&self) -> usize {
+        self.rebuilds
+    }
+
     pub fn update(&mut self, graph: &Graph, language: Language) {
+        self.rebuilds += 1;
         self.bm25 = Some(diwe::search_query::build_index(graph, language));
         let graph_ctx: &Graph = graph;
         self.paths = graph

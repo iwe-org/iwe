@@ -5,7 +5,7 @@ use liwe::model::Key;
 use notify::{Config, Event, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::config::Format;
-use crate::fs::read_md_file;
+use crate::fs::{read_md_file, PathFilter};
 
 pub enum FsChange {
     Update(Key, String),
@@ -31,11 +31,21 @@ fn path_to_key(path: &Path, base_path: &Path, format: Format) -> Option<Key> {
     Some(Key::from_stripped(&key_str))
 }
 
-fn dispatch<H: Fn(FsChange)>(base_path: &Path, format: Format, event: Event, handler: &H) {
+fn dispatch<H: Fn(FsChange)>(
+    base_path: &Path,
+    format: Format,
+    filter: &PathFilter,
+    event: Event,
+    handler: &H,
+) {
     for path in &event.paths {
         let Some(key) = path_to_key(path, base_path, format) else {
             continue;
         };
+
+        if !filter.includes(path) {
+            continue;
+        }
 
         match event.kind {
             EventKind::Create(_) | EventKind::Modify(_) => match read_md_file(path) {
@@ -58,10 +68,11 @@ pub fn start_watcher(
 ) -> Option<impl Watcher + Send> {
     let base_path = base_path.canonicalize().unwrap_or(base_path);
     let handler_base = base_path.clone();
+    let filter = PathFilter::new(&base_path);
     let mut watcher = RecommendedWatcher::new(
         move |res: notify::Result<Event>| {
             if let Ok(event) = res {
-                dispatch(&handler_base, format, event, &handler);
+                dispatch(&handler_base, format, &filter, event, &handler);
             }
         },
         Config::default(),
@@ -80,13 +91,14 @@ pub fn start_poll_watcher(
 ) -> Option<impl Watcher + Send> {
     let base_path = base_path.canonicalize().unwrap_or(base_path);
     let handler_base = base_path.clone();
+    let filter = PathFilter::new(&base_path);
     let config = Config::default()
         .with_poll_interval(interval)
         .with_compare_contents(true);
     let mut watcher = PollWatcher::new(
         move |res: notify::Result<Event>| {
             if let Ok(event) = res {
-                dispatch(&handler_base, format, event, &handler);
+                dispatch(&handler_base, format, &filter, event, &handler);
             }
         },
         config,
@@ -155,9 +167,15 @@ mod tests {
         let event = Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Any)))
             .add_path(base.join("note.md"));
 
-        dispatch(&base, Format::Markdown, event, &move |change| {
-            let _ = tx.send(change);
-        });
+        dispatch(
+            &base,
+            Format::Markdown,
+            &PathFilter::new(&base),
+            event,
+            &move |change| {
+                let _ = tx.send(change);
+            },
+        );
 
         match rx.try_recv().expect("a change") {
             FsChange::Remove(key) => assert_eq!(key, Key::from_stripped("note")),
@@ -175,9 +193,15 @@ mod tests {
         let (tx, rx) = unbounded::<FsChange>();
         let event = Event::new(EventKind::Modify(ModifyKind::Any)).add_path(base.join("note.md"));
 
-        dispatch(&base, Format::Markdown, event, &move |change| {
-            let _ = tx.send(change);
-        });
+        dispatch(
+            &base,
+            Format::Markdown,
+            &PathFilter::new(&base),
+            event,
+            &move |change| {
+                let _ = tx.send(change);
+            },
+        );
 
         match rx.try_recv().expect("a change") {
             FsChange::Update(key, content) => {
@@ -214,6 +238,107 @@ mod tests {
             FsChange::Update(key, content) => {
                 assert_eq!(key, Key::from_stripped("note"));
                 assert_eq!(content, "# External\n");
+            }
+            FsChange::Remove(_) => panic!("expected an update change"),
+        }
+    }
+
+    fn workspace_with_ignored_files() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path();
+        std::fs::create_dir_all(base.join("node_modules/pkg")).unwrap();
+        std::fs::create_dir_all(base.join(".hidden")).unwrap();
+        std::fs::write(base.join(".gitignore"), "node_modules\n").unwrap();
+        std::fs::write(base.join("note.md"), "# Note\n").unwrap();
+        std::fs::write(base.join("node_modules/pkg/README.md"), "# Dependency\n").unwrap();
+        std::fs::write(base.join(".hidden/secret.md"), "# Secret\n").unwrap();
+        dir
+    }
+
+    fn dispatched_keys(base: &Path, kind: EventKind) -> Vec<Key> {
+        let event = Event::new(kind)
+            .add_path(base.join("node_modules/pkg/README.md"))
+            .add_path(base.join(".hidden/secret.md"))
+            .add_path(base.join("note.md"));
+
+        let (tx, rx) = unbounded::<FsChange>();
+        dispatch(
+            base,
+            Format::Markdown,
+            &PathFilter::new(base),
+            event,
+            &move |change| {
+                let _ = tx.send(change);
+            },
+        );
+
+        let mut keys = Vec::new();
+        while let Ok(change) = rx.try_recv() {
+            keys.push(match change {
+                FsChange::Update(key, _) => key,
+                FsChange::Remove(key) => key,
+            });
+        }
+        keys
+    }
+
+    #[test]
+    fn dispatch_keeps_library_writes_and_drops_ignored_ones() {
+        use notify::event::ModifyKind;
+
+        let dir = workspace_with_ignored_files();
+
+        assert_eq!(
+            dispatched_keys(dir.path(), EventKind::Modify(ModifyKind::Any)),
+            vec![Key::from_stripped("note")]
+        );
+    }
+
+    #[test]
+    fn dispatch_keeps_library_deletions_and_drops_ignored_ones() {
+        use notify::event::RemoveKind;
+
+        let dir = workspace_with_ignored_files();
+
+        assert_eq!(
+            dispatched_keys(dir.path(), EventKind::Remove(RemoveKind::Any)),
+            vec![Key::from_stripped("note")]
+        );
+    }
+
+    #[test]
+    fn poll_watcher_ignores_writes_under_a_gitignored_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let base_path = dir.path().to_path_buf();
+        std::fs::write(base_path.join(".gitignore"), "node_modules\n").unwrap();
+        std::fs::create_dir_all(base_path.join("node_modules/pkg")).unwrap();
+
+        let (tx, rx) = unbounded::<FsChange>();
+        let _watcher = start_poll_watcher(
+            base_path.clone(),
+            Format::Markdown,
+            Duration::from_millis(10),
+            move |change| {
+                let _ = tx.send(change);
+            },
+        )
+        .expect("watcher to start");
+
+        std::fs::write(
+            base_path.join("node_modules/pkg/README.md"),
+            "# Dependency\n",
+        )
+        .unwrap();
+        std::fs::write(base_path.join("note.md"), "# Note\n").unwrap();
+
+        let change = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("a change within timeout");
+
+        match change {
+            FsChange::Update(key, content) => {
+                assert_eq!(key, Key::from_stripped("note"));
+                assert_eq!(content, "# Note\n");
             }
             FsChange::Remove(_) => panic!("expected an update change"),
         }

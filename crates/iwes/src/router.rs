@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
-use crossbeam_channel::{select, Receiver, Sender};
+use crossbeam_channel::{after, never, select, Receiver, Sender};
 use diwe::config::Configuration;
 use liwe::model::State;
 use log::{debug, error};
@@ -27,6 +27,8 @@ use self::server::Server;
 use diwe::watcher::FsChange;
 
 pub mod server;
+
+const IDLE_REBUILD_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LspClient {
@@ -93,6 +95,12 @@ impl Router {
         use std::panic::AssertUnwindSafe;
 
         loop {
+            let idle_rebuild = if self.server.search_index_is_dirty() {
+                after(IDLE_REBUILD_DELAY)
+            } else {
+                never()
+            };
+
             select! {
                 recv(receiver) -> message => {
                     let Ok(message) = message else {
@@ -121,6 +129,7 @@ impl Router {
                         self.on_fs_event(event);
                     }
                 }
+                recv(idle_rebuild) -> _ => self.refresh_search_index(),
             }
         }
     }
@@ -136,7 +145,18 @@ impl Router {
         }
     }
 
+    fn refresh_search_index(&mut self) {
+        if let Some(server) = Arc::get_mut(&mut self.server) {
+            server.refresh_search_index();
+        } else {
+            error!("Failed to get mutable reference to server");
+        }
+    }
+
     fn handle_message(&mut self, message: Message) -> bool {
+        if matches!(message, Message::Request(_)) {
+            self.refresh_search_index();
+        }
         match message {
             Message::Request(req) => self.on_request(req),
             Message::Notification(notification) => self.on_notification(notification),

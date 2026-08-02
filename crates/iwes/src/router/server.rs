@@ -35,6 +35,7 @@ pub struct Server {
     lsp_client: LspClient,
     configuration: Configuration,
     search_index: SearchIndex,
+    search_index_dirty: bool,
     override_now: Option<SystemTime>,
     open_documents: HashSet<Key>,
 }
@@ -51,21 +52,36 @@ impl Server {
                 .frontmatter_document_title
                 .clone(),
         );
-        let mut search_index = SearchIndex::new();
-        search_index.update(&graph, config.configuration.search_language());
-
         Server {
             base_path: BasePath::from_path(&config.base_path, config.configuration.format),
             graph,
             lsp_client: config.lsp_client,
             configuration: config.configuration,
-            search_index,
+            search_index: SearchIndex::new(),
+            search_index_dirty: true,
             override_now: config.override_now,
             open_documents: HashSet::new(),
         }
     }
     pub fn graph(&self) -> impl DatabaseContext + '_ {
         &self.graph
+    }
+
+    pub fn search_index_is_dirty(&self) -> bool {
+        self.search_index_dirty
+    }
+
+    pub fn search_index_rebuilds(&self) -> usize {
+        self.search_index.rebuild_count()
+    }
+
+    pub fn refresh_search_index(&mut self) {
+        if !self.search_index_dirty {
+            return;
+        }
+        self.search_index
+            .update(&self.graph, self.configuration.search_language());
+        self.search_index_dirty = false;
     }
 
     pub fn apply_external_update(&mut self, key: Key, content: String) {
@@ -76,8 +92,7 @@ impl Server {
             return;
         }
         self.graph.update_document(key, content);
-        self.search_index
-            .update(&self.graph, self.configuration.search_language());
+        self.search_index_dirty = true;
     }
 
     pub fn apply_external_removal(&mut self, key: Key) {
@@ -88,8 +103,7 @@ impl Server {
             return;
         }
         self.graph.remove_document(key);
-        self.search_index
-            .update(&self.graph, self.configuration.search_language());
+        self.search_index_dirty = true;
     }
 
     pub fn handle_did_open_text_document(&mut self, params: DidOpenTextDocumentParams) {
@@ -101,8 +115,7 @@ impl Server {
             return;
         }
         self.graph.update_document(key, params.text_document.text);
-        self.search_index
-            .update(&self.graph, self.configuration.search_language());
+        self.search_index_dirty = true;
     }
 
     pub fn handle_did_close_text_document(&mut self, params: DidCloseTextDocumentParams) {
@@ -128,8 +141,7 @@ impl Server {
                 self.graph.remove_document(key);
             }
         }
-        self.search_index
-            .update(&self.graph, self.configuration.search_language());
+        self.search_index_dirty = true;
     }
 
     fn resolve_link_key(&self, url: &str, relative_to: &str, reference_type: ReferenceType) -> Key {
@@ -190,8 +202,7 @@ impl Server {
                 self.base_path.url_to_key(&params.text_document.uri.clone()),
                 text,
             );
-            self.search_index
-                .update(&self.graph, self.configuration.search_language());
+            self.search_index_dirty = true;
         }
     }
 
@@ -203,8 +214,7 @@ impl Server {
             self.base_path.url_to_key(&params.text_document.uri.clone()),
             content.text.clone(),
         );
-        self.search_index
-            .update(&self.graph, self.configuration.search_language());
+        self.search_index_dirty = true;
     }
 
     pub fn handle_did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
@@ -1066,6 +1076,141 @@ mod fs_sync_tests {
             server.graph.get_document(&"a".into()),
             Some("# Doc A\n".to_string())
         );
+    }
+
+    fn server_with_documents(count: usize) -> Server {
+        let mut map = HashMap::new();
+        for index in 0..count {
+            map.insert(
+                format!("doc{index}"),
+                format!("# Title {index}\n\nBody text for document {index}.\n"),
+            );
+        }
+        let base_path = if cfg!(windows) { "C:/kb" } else { "/kb" };
+        Server::new(ServerConfig {
+            base_path: base_path.to_string(),
+            state: new_from_hashmap(map),
+            sequential_ids: Some(true),
+            configuration: Configuration::default(),
+            lsp_client: LspClient::Unknown,
+            override_now: None,
+        })
+    }
+
+    fn rebuilds_for_deleted_batch(count: usize) -> usize {
+        let mut server = server_with_documents(count + 1);
+        server.refresh_search_index();
+        let baseline = server.search_index_rebuilds();
+
+        server.handle_did_change_watched_files(DidChangeWatchedFilesParams {
+            changes: (0..count)
+                .map(|index| FileEvent {
+                    uri: doc_uri(&format!("doc{index}")),
+                    typ: FileChangeType::DELETED,
+                })
+                .collect(),
+        });
+        server.refresh_search_index();
+
+        server.search_index_rebuilds() - baseline
+    }
+
+    #[test]
+    fn a_batch_of_deletions_costs_one_rebuild_whatever_its_size() {
+        assert_eq!(rebuilds_for_deleted_batch(1), 1);
+        assert_eq!(rebuilds_for_deleted_batch(10), 1);
+        assert_eq!(rebuilds_for_deleted_batch(200), 1);
+    }
+
+    #[test]
+    fn many_external_changes_cost_one_rebuild() {
+        let mut server = server_with_documents(200);
+        server.refresh_search_index();
+        let baseline = server.search_index_rebuilds();
+
+        for index in 0..100 {
+            server.apply_external_removal(format!("doc{index}").into());
+        }
+        for index in 100..150 {
+            server.apply_external_update(
+                format!("doc{index}").into(),
+                format!("# Changed {index}\n"),
+            );
+        }
+
+        assert_eq!(server.search_index_rebuilds(), baseline);
+
+        server.refresh_search_index();
+
+        assert_eq!(server.search_index_rebuilds(), baseline + 1);
+    }
+
+    #[test]
+    fn many_editor_edits_cost_one_rebuild_before_the_next_read() {
+        let mut server = server_with_documents(3);
+        server.refresh_search_index();
+        let baseline = server.search_index_rebuilds();
+
+        for edit in 0..100 {
+            server.handle_did_change_text_document(change_params(
+                doc_uri("doc0"),
+                &format!("# Edit {edit}\n"),
+            ));
+        }
+
+        assert_eq!(server.search_index_rebuilds(), baseline);
+
+        server.refresh_search_index();
+
+        assert_eq!(server.search_index_rebuilds(), baseline + 1);
+    }
+
+    #[test]
+    fn startup_defers_the_first_index_build() {
+        let server = server_with_documents(3);
+
+        assert_eq!(server.search_index_rebuilds(), 0);
+        assert!(server.search_index_is_dirty());
+    }
+
+    #[test]
+    fn refreshing_a_clean_index_does_not_rebuild() {
+        let mut server = server_with_documents(3);
+        server.refresh_search_index();
+        let baseline = server.search_index_rebuilds();
+
+        for _ in 0..10 {
+            server.refresh_search_index();
+        }
+
+        assert_eq!(server.search_index_rebuilds(), baseline);
+    }
+
+    #[test]
+    fn changes_that_do_nothing_cost_no_rebuild() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+        server.refresh_search_index();
+        let baseline = server.search_index_rebuilds();
+
+        server.apply_external_update("a".into(), "# Doc A\n".to_string());
+        server.apply_external_removal("b".into());
+        server.refresh_search_index();
+
+        assert_eq!(server.search_index_rebuilds(), baseline);
+    }
+
+    #[test]
+    fn changes_to_open_documents_cost_no_rebuild() {
+        let mut server = server_with(&[("a", "# Doc A\n")]);
+        server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
+        server.refresh_search_index();
+        let baseline = server.search_index_rebuilds();
+
+        server.apply_external_update("a".into(), "# External A\n".to_string());
+        server.apply_external_removal("a".into());
+        server.refresh_search_index();
+
+        assert_eq!(server.search_index_rebuilds(), baseline);
     }
 
     #[test]
