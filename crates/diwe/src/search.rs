@@ -10,6 +10,9 @@ pub use bm25::{Language, ScoredDocument};
 
 const DEFAULT_AVGDL: f32 = 256.0;
 const PARALLEL_EMBED_THRESHOLD: usize = 128;
+const K1: f32 = 1.2;
+const B: f32 = 0.75;
+const REFIT_DRIFT: f32 = 0.25;
 
 pub const RRF_K: f64 = 60.0;
 
@@ -42,10 +45,12 @@ pub fn parse_language(name: &str) -> Language {
 
 pub struct Bm25Index {
     embedder: Embedder<u32>,
-    keys: Vec<Key>,
+    keys: Vec<Option<Key>>,
     ids: HashMap<Key, u32>,
     docs: Vec<Option<Embedding<u32>>>,
     postings: HashMap<u32, Vec<(u32, f32)>>,
+    free_slots: Vec<u32>,
+    total_length: f64,
     language: Language,
 }
 
@@ -53,7 +58,10 @@ impl Bm25Index {
     pub fn build(docs: Vec<(Key, String)>, language: Language) -> Self {
         let corpus: Vec<&str> = docs.iter().map(|(_, text)| text.as_str()).collect();
         let embedder: Embedder<u32> =
-            EmbedderBuilder::<u32>::with_fit_to_corpus(language.clone(), &corpus).build();
+            EmbedderBuilder::<u32>::with_fit_to_corpus(language.clone(), &corpus)
+                .k1(K1)
+                .b(B)
+                .build();
 
         let embedded: Vec<(Key, Embedding<u32>)> = if docs.len() < PARALLEL_EMBED_THRESHOLD {
             docs.into_iter()
@@ -77,6 +85,8 @@ impl Bm25Index {
             ids: HashMap::new(),
             docs: Vec::new(),
             postings: HashMap::new(),
+            free_slots: Vec::new(),
+            total_length: 0.0,
             language,
         };
         for (key, embedding) in embedded {
@@ -88,6 +98,8 @@ impl Bm25Index {
     pub fn empty(language: Language) -> Self {
         let embedder = EmbedderBuilder::<u32>::with_avgdl(DEFAULT_AVGDL)
             .language_mode(language.clone())
+            .k1(K1)
+            .b(B)
             .build();
         Self {
             embedder,
@@ -95,6 +107,8 @@ impl Bm25Index {
             ids: HashMap::new(),
             docs: Vec::new(),
             postings: HashMap::new(),
+            free_slots: Vec::new(),
+            total_length: 0.0,
             language,
         }
     }
@@ -102,9 +116,33 @@ impl Bm25Index {
     pub fn upsert(&mut self, key: Key, text: String) {
         let embedding = self.embedder.embed(&text);
         self.insert(key, embedding);
+        self.refit_if_drifted();
     }
 
     pub fn remove(&mut self, key: &Key) {
+        self.evict(key);
+        self.refit_if_drifted();
+    }
+
+    /// How far the corpus average document length has moved from the value the embedder was fit
+    /// to, as a ratio of the fitted value. Term weights are computed against the fitted value, so
+    /// this is the staleness of the index's length normalization.
+    pub fn avgdl_drift(&self) -> f32 {
+        let fitted = self.embedder.avgdl();
+        if fitted <= 0.0 || self.ids.is_empty() {
+            return 0.0;
+        }
+        ((self.current_avgdl() - fitted) / fitted).abs()
+    }
+
+    fn current_avgdl(&self) -> f32 {
+        if self.ids.is_empty() {
+            return DEFAULT_AVGDL;
+        }
+        (self.total_length / self.ids.len() as f64) as f32
+    }
+
+    fn evict(&mut self, key: &Key) {
         let Some(doc_id) = self.ids.remove(key) else {
             return;
         };
@@ -114,12 +152,69 @@ impl Bm25Index {
         let Some(embedding) = slot.take() else {
             return;
         };
+        self.total_length -= embedding.len() as f64;
+        self.drop_postings(doc_id, &embedding);
+        self.keys[doc_id as usize] = None;
+        self.free_slots.push(doc_id);
+    }
+
+    fn refit_if_drifted(&mut self) {
+        if self.avgdl_drift() > REFIT_DRIFT {
+            self.refit();
+        }
+    }
+
+    /// Re-fit the embedder to the current corpus and recompute every term weight against the new
+    /// average document length. Term frequency and document length are both recoverable from a
+    /// stored embedding, so this needs no document text.
+    fn refit(&mut self) {
+        let avgdl = self.current_avgdl();
+        self.embedder = EmbedderBuilder::<u32>::with_avgdl(avgdl)
+            .language_mode(self.language.clone())
+            .k1(K1)
+            .b(B)
+            .build();
+
+        self.postings.clear();
+        let mut docs = std::mem::take(&mut self.docs);
+        for (doc_id, slot) in docs.iter_mut().enumerate() {
+            let Some(embedding) = slot.as_mut() else {
+                continue;
+            };
+            reweight(embedding, avgdl);
+            self.add_postings(doc_id as u32, embedding);
+        }
+        self.docs = docs;
+    }
+
+    fn add_postings(&mut self, doc_id: u32, embedding: &Embedding<u32>) {
         let mut seen: HashSet<u32> = HashSet::new();
         for token in embedding.iter() {
-            if seen.insert(token.index) {
-                if let Some(postings) = self.postings.get_mut(&token.index) {
-                    postings.retain(|&(id, _)| id != doc_id);
-                }
+            if !seen.insert(token.index) {
+                continue;
+            }
+            let postings = self.postings.entry(token.index).or_default();
+            match postings.binary_search_by_key(&doc_id, |&(id, _)| id) {
+                Ok(position) => postings[position].1 = token.value,
+                Err(position) => postings.insert(position, (doc_id, token.value)),
+            }
+        }
+    }
+
+    fn drop_postings(&mut self, doc_id: u32, embedding: &Embedding<u32>) {
+        let mut seen: HashSet<u32> = HashSet::new();
+        for token in embedding.iter() {
+            if !seen.insert(token.index) {
+                continue;
+            }
+            let Some(postings) = self.postings.get_mut(&token.index) else {
+                continue;
+            };
+            if let Ok(position) = postings.binary_search_by_key(&doc_id, |&(id, _)| id) {
+                postings.remove(position);
+            }
+            if postings.is_empty() {
+                self.postings.remove(&token.index);
             }
         }
     }
@@ -131,9 +226,10 @@ impl Bm25Index {
             .into_iter()
             .enumerate()
             .filter(|(_, score)| *score > 0.0)
-            .map(|(doc_id, score)| ScoredDocument {
-                id: self.keys[doc_id].clone(),
-                score,
+            .filter_map(|(doc_id, score)| {
+                self.keys[doc_id]
+                    .clone()
+                    .map(|id| ScoredDocument { id, score })
             })
             .collect();
         results.sort_by(|a, b| {
@@ -179,7 +275,9 @@ impl Bm25Index {
                     return None;
                 }
                 let ratio = score / self_score;
-                (ratio >= floor).then(|| (self.keys[doc_id].clone(), ratio))
+                (ratio >= floor)
+                    .then(|| self.keys[doc_id].clone().map(|key| (key, ratio)))
+                    .flatten()
             })
             .collect()
     }
@@ -235,22 +333,40 @@ impl Bm25Index {
     }
 
     fn insert(&mut self, key: Key, embedding: Embedding<u32>) {
-        if self.ids.contains_key(&key) {
-            self.remove(&key);
-        }
-        let doc_id = self.keys.len() as u32;
-        let mut seen: HashSet<u32> = HashSet::new();
-        for token in embedding.iter() {
-            if seen.insert(token.index) {
-                self.postings
-                    .entry(token.index)
-                    .or_default()
-                    .push((doc_id, token.value));
+        self.evict(&key);
+
+        let doc_id = match self.free_slots.pop() {
+            Some(reused) => reused,
+            None => {
+                self.keys.push(None);
+                self.docs.push(None);
+                (self.keys.len() - 1) as u32
             }
-        }
+        };
+
+        self.add_postings(doc_id, &embedding);
+        self.total_length += embedding.len() as f64;
         self.ids.insert(key.clone(), doc_id);
-        self.keys.push(key);
-        self.docs.push(Some(embedding));
+        self.keys[doc_id as usize] = Some(key);
+        self.docs[doc_id as usize] = Some(embedding);
+    }
+
+    #[cfg(test)]
+    pub fn slot_count(&self) -> usize {
+        self.keys.len()
+    }
+}
+
+fn reweight(embedding: &mut Embedding<u32>, avgdl: f32) {
+    let length = embedding.len() as f32;
+    let mut counts: HashMap<u32, f32> = HashMap::new();
+    for token in embedding.iter() {
+        *counts.entry(token.index).or_insert(0.0) += 1.0;
+    }
+    let saturation = K1 * (1.0 - B + B * (length / avgdl));
+    for token in embedding.0.iter_mut() {
+        let frequency = counts.get(&token.index).copied().unwrap_or(0.0);
+        token.value = frequency * (K1 + 1.0) / (frequency + saturation);
     }
 }
 
@@ -258,6 +374,8 @@ impl Clone for Bm25Index {
     fn clone(&self) -> Self {
         let embedder = EmbedderBuilder::<u32>::with_avgdl(self.embedder.avgdl())
             .language_mode(self.language.clone())
+            .k1(K1)
+            .b(B)
             .build();
         Self {
             embedder,
@@ -265,6 +383,8 @@ impl Clone for Bm25Index {
             ids: self.ids.clone(),
             docs: self.docs.clone(),
             postings: self.postings.clone(),
+            free_slots: self.free_slots.clone(),
+            total_length: self.total_length,
             language: self.language.clone(),
         }
     }
@@ -428,6 +548,130 @@ mod tests {
     fn similar_to_floor_gates_out_weak_matches() {
         let index = twins_index();
         assert_eq!(index.similar_to(&key("a"), 1.5), Vec::<(Key, f32)>::new());
+    }
+
+    #[test]
+    fn repeated_edits_reuse_one_slot() {
+        let mut index = Bm25Index::build(
+            vec![(key("note"), "alpha beta gamma".to_string())],
+            Language::English,
+        );
+        assert_eq!(index.slot_count(), 1);
+
+        for edit in 0..1000 {
+            index.upsert(key("note"), format!("alpha beta gamma edit {}", edit));
+        }
+
+        assert_eq!(index.slot_count(), 1);
+        assert_eq!(keys(&index, "alpha"), vec![key("note")]);
+    }
+
+    #[test]
+    fn removed_slots_are_reused_by_later_documents() {
+        let mut index = Bm25Index::build(
+            vec![
+                (key("a"), "alpha content here".to_string()),
+                (key("b"), "beta content here".to_string()),
+            ],
+            Language::English,
+        );
+        assert_eq!(index.slot_count(), 2);
+
+        index.remove(&key("a"));
+        index.upsert(key("c"), "gamma content here".to_string());
+
+        assert_eq!(index.slot_count(), 2);
+        assert_eq!(keys(&index, "alpha"), Vec::<Key>::new());
+        assert_eq!(keys(&index, "gamma"), vec![key("c")]);
+        assert_eq!(keys(&index, "beta"), vec![key("b")]);
+    }
+
+    #[test]
+    fn reused_slot_does_not_inherit_the_previous_document_terms() {
+        let mut index = Bm25Index::build(
+            vec![(key("a"), "alpha unique marker".to_string())],
+            Language::English,
+        );
+
+        index.remove(&key("a"));
+        index.upsert(key("b"), "beta different marker".to_string());
+
+        assert_eq!(keys(&index, "alpha"), Vec::<Key>::new());
+        assert_eq!(keys(&index, "unique"), Vec::<Key>::new());
+        assert_eq!(keys(&index, "beta"), vec![key("b")]);
+    }
+
+    #[test]
+    fn postings_stay_ordered_by_document_id() {
+        let mut index = Bm25Index::build(
+            vec![
+                (key("a"), "shared alpha".to_string()),
+                (key("b"), "shared beta".to_string()),
+                (key("c"), "shared gamma".to_string()),
+            ],
+            Language::English,
+        );
+        index.remove(&key("b"));
+        index.upsert(key("d"), "shared delta".to_string());
+
+        for postings in index.postings.values() {
+            let ids: Vec<u32> = postings.iter().map(|&(id, _)| id).collect();
+            let mut sorted = ids.clone();
+            sorted.sort();
+            assert_eq!(ids, sorted);
+        }
+    }
+
+    #[test]
+    fn growing_documents_refit_the_average_length() {
+        let mut index = Bm25Index::build(
+            vec![(key("seed"), "alpha beta".to_string())],
+            Language::English,
+        );
+        let fitted = index.embedder.avgdl();
+
+        for document in 0..20 {
+            index.upsert(
+                key(&format!("long{}", document)),
+                (0..200)
+                    .map(|word| format!("filler{}", word))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+        }
+
+        assert!(index.avgdl_drift() <= REFIT_DRIFT);
+        assert!(index.embedder.avgdl() > fitted);
+    }
+
+    #[test]
+    fn refit_matches_a_batch_build_of_the_same_corpus() {
+        let documents: Vec<(Key, String)> = (0..40)
+            .map(|document| {
+                (
+                    key(&format!("doc{}", document)),
+                    format!(
+                        "shared harvest term {}",
+                        (0..document * 5)
+                            .map(|word| format!("filler{}", word))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    ),
+                )
+            })
+            .collect();
+
+        let mut incremental = Bm25Index::empty(Language::English);
+        for (document_key, text) in &documents {
+            incremental.upsert(document_key.clone(), text.clone());
+        }
+        incremental.refit();
+
+        let batch = Bm25Index::build(documents.clone(), Language::English);
+
+        for query in ["harvest", "shared", "filler3", "term"] {
+            assert_eq!(keys(&incremental, query), keys(&batch, query));
+        }
     }
 
     #[test]

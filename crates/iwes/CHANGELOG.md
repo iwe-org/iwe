@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Bulk filesystem changes no longer stall the server. Adding or deleting many files at once — for example when a package manager rewrites a dependency tree — rebuilds the search index once for the whole batch instead of once per file, turning an operation that ran for minutes at full CPU into one that finishes in well under a second.
+- Files that the initial scan skips are no longer picked up while watching. Changes under directories excluded by `.gitignore` or `.ignore`, such as `node_modules`, are now ignored at runtime too, so they can no longer appear in completions, symbols, or link resolution.
+
+### Changed
+- The search index is rebuilt when a search actually needs it, or after a short idle pause, rather than immediately on every document change (previously every keystroke in a large project triggered a full rebuild).
+
 ## [0.17.0](https://github.com/iwe-org/iwe/compare/iwes-v0.16.0...iwes-v0.17.0) - 2026-07-28
 
 Workspace version bump — no user-visible changes in this crate.

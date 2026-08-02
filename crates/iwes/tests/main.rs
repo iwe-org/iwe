@@ -25,5 +25,6 @@ mod sections_to_list_test;
 mod sort_test;
 mod transform_test;
 mod unknown_method_test;
+mod watched_files_test;
 mod watcher_test;
 mod workspace_symbols_test;

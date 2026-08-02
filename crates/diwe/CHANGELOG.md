@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `PathFilter` in the `fs` module — decides whether a path belongs to the library using the same hidden-file and ignore-file rules as `walk_md_paths`, so watching and the initial scan agree on which files count.
+- `Bm25Index::avgdl_drift` — how far the corpus average document length has moved from the value the index was fit to.
+
+### Changed
+- `start_watcher` and `start_poll_watcher` skip hidden files and files excluded by `.gitignore` or `.ignore` (previously every file with a matching extension was reported).
+
+### Fixed
+- `Bm25Index` reuses document slots instead of abandoning one on every `upsert` and `remove`, so a long-lived index no longer grows with the number of edits made to it.
+- `Bm25Index` re-fits its length normalization once the average document length drifts far enough from the fitted value, so incremental updates no longer score against stale corpus statistics.
+
 ## [0.17.0](https://github.com/iwe-org/iwe/compare/diwe-v0.16.0...diwe-v0.17.0) - 2026-07-28
 
 Workspace version bump — no user-visible changes in this crate.

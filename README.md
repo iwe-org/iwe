@@ -11,7 +11,7 @@
 [![Twitter](https://img.shields.io/badge/Twitter-@iwe__md-blue?logo=x)](https://x.com/iwe_md)
 [![Reddit](https://img.shields.io/badge/Reddit-r%2Fiwe-orange?logo=reddit)](https://www.reddit.com/r/iwe/)
 
-![Knowledge Graph](docs/docs-detailed.svg)
+[![Knowledge Graph](docs/docs-detailed.svg)](https://iwe.md)
 
 IWE turns a directory of markdown files into a knowledge graph — a connected structure you browse from your editor and your AI queries from the command line. Same files, same links, two interfaces. No cloud, no database, no lock-in. Version everything with git.
 
