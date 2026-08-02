@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `iwe normalize` no longer empties links pointing at a hub document in a parent directory. A link from `a/b.md` to `a.md` stays `../a` (previously it was rewritten to an empty target).
+- `iwe rename` and `iwe delete` now update links inside table cells, which used to silently keep pointing at the old document.
+
 ## [0.18.0](https://github.com/iwe-org/iwe/compare/iwe-v0.17.0...iwe-v0.18.0) - 2026-08-01
 
 Workspace version bump — no user-visible changes in this crate.

@@ -228,6 +228,43 @@ fn test_rename_quiet_mode() {
     );
 }
 
+#[test]
+fn test_rename_updates_table_cell_links() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        (
+            "a",
+            indoc! {"
+            # Doc A
+
+            [link](b)
+
+            | Name | Link     |
+            | ---- | -------- |
+            | row  | [link](b) |
+        "},
+        ),
+        ("b", "# Doc B\n"),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_rename_command(temp_path, &["b", "new-name"]);
+    assert!(output.status.success());
+
+    let a_content = read_to_string(temp_path.join("a.md")).unwrap();
+    assert_eq!(
+        a_content,
+        indoc! {"
+            # Doc A
+
+            [Doc B](new-name)
+
+            | Name | Link              |
+            | ---- | ----------------- |
+            | row  | [Doc B](new-name) |
+        "}
+    );
+}
+
 fn setup_workspace_with_docs(docs: Vec<(&str, &str)>) -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
