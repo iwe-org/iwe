@@ -5,7 +5,7 @@ use itertools::Itertools;
 use super::{
     ids::alloc_node_id,
     inline::{prepend_checkbox, Inline},
-    node::{Node, NodePointer, Reference, ReferenceType},
+    node::{Node, NodePointer, Reference, ReferenceType, Table},
     Key, LineRange, NodeId,
 };
 
@@ -415,6 +415,11 @@ impl Tree {
                     },
                     display_url: None,
                 }),
+                Node::Table(table) => Node::Table(map_table_cells(table, |cell| {
+                    cell.iter()
+                        .map(|inline| inline.change_key(target_key, updated_key))
+                        .collect_vec()
+                })),
                 _ => self.node.clone(),
             },
             children: self
@@ -678,6 +683,9 @@ impl Tree {
                 *checked,
                 Self::remove_inline_links_to_rec(inlines, target_key),
             ),
+            Node::Table(table) => Node::Table(map_table_cells(table, |cell| {
+                Self::remove_inline_links_to_rec(cell, target_key)
+            })),
             _ => self.node.clone(),
         };
 
@@ -788,6 +796,21 @@ impl Tree {
             }
             _ => self.map_children(|child| child.annotate_references(parent_lookup, parent_key)),
         }
+    }
+}
+
+fn map_table_cells<F>(table: &Table, map: F) -> Table
+where
+    F: Fn(&[Inline]) -> Vec<Inline>,
+{
+    Table {
+        header: table.header.iter().map(|cell| map(cell)).collect_vec(),
+        alignment: table.alignment.clone(),
+        rows: table
+            .rows
+            .iter()
+            .map(|row| row.iter().map(|cell| map(cell)).collect_vec())
+            .collect_vec(),
     }
 }
 

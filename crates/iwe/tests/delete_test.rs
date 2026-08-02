@@ -287,6 +287,43 @@ fn strict_with_expect_deletes() {
     assert!(!temp_path.join("b.md").exists());
 }
 
+#[test]
+fn test_delete_unlinks_table_cell_links() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        (
+            "a",
+            indoc! {"
+            # Doc A
+
+            Prose link to [Doc B](b).
+
+            | Name | Link         |
+            | ---- | ------------ |
+            | row  | [Doc B](b)   |
+        "},
+        ),
+        ("b", "# Doc B\n"),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["b"]);
+    assert!(output.status.success());
+
+    let a_content = read_to_string(temp_path.join("a.md")).unwrap();
+    assert_eq!(
+        a_content,
+        indoc! {"
+            # Doc A
+
+            Prose link to Doc B.
+
+            | Name | Link  |
+            | ---- | ----- |
+            | row  | Doc B |
+        "}
+    );
+}
+
 fn setup_workspace_with_docs(docs: Vec<(&str, &str)>) -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

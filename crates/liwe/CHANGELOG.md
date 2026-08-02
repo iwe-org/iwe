@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Key::to_rel_link_url` keeps the file name in the URL when a document links to a hub in one of its parent directories, so `a/b` linking to `a` renders `../a` (previously the URL collapsed to an empty string or a bare `..`).
+- `Tree::change_key` and `Tree::remove_inline_links_to` now rewrite links inside table cells, so renaming or deleting a document updates table cells the same way it updates prose.
+
 ## [0.18.0](https://github.com/iwe-org/iwe/compare/liwe-v0.17.0...liwe-v0.18.0) - 2026-08-01
 
 Workspace version bump — no user-visible changes in this crate.

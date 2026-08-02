@@ -661,3 +661,62 @@ fn test_normalize_preserves_newlines() {
         "},
     );
 }
+
+#[test]
+fn test_normalize_keeps_link_to_parent_hub() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+    create_dir_all(temp_path.join("a")).expect("Should create directory");
+
+    write(temp_path.join("a.md"), "# Doc A\n\n[Doc B](a/b)\n").expect("Should write file");
+    write(
+        temp_path.join("a").join("b.md"),
+        "# Doc B\n\nSee the parent [Doc A](../a) for context.\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize should succeed");
+
+    let content = read_to_string(temp_path.join("a").join("b.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            # Doc B
+
+            See the parent [Doc A](../a) for context.
+        "},
+    );
+}
+
+#[test]
+fn test_normalize_keeps_link_to_grandparent_hub() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+    create_dir_all(temp_path.join("a").join("b")).expect("Should create directory");
+
+    write(temp_path.join("a.md"), "# Doc A\n\n[Doc C](a/b/c)\n").expect("Should write file");
+    write(temp_path.join("a").join("b.md"), "# Doc B\n").expect("Should write file");
+    write(
+        temp_path.join("a").join("b").join("c.md"),
+        "# Doc C\n\nUp to [Doc A](../../a) and [Doc B](../b).\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize should succeed");
+
+    let content = read_to_string(temp_path.join("a").join("b").join("c.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            # Doc C
+
+            Up to [Doc A](../../a) and [Doc B](../b).
+        "},
+    );
+}

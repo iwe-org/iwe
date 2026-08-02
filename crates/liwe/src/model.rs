@@ -155,9 +155,21 @@ impl Key {
     }
 
     pub fn to_rel_link_url(&self, relative_to: &str) -> String {
-        RelativePath::new(relative_to)
-            .relative(self.as_str())
-            .to_string()
+        let target = RelativePath::new(self.as_str());
+        let Some(file_name) = target.file_name() else {
+            return RelativePath::new(relative_to)
+                .relative(self.as_str())
+                .to_string();
+        };
+        let target_parent = target.parent().map(|p| p.to_string()).unwrap_or_default();
+        let prefix = RelativePath::new(relative_to)
+            .relative(&target_parent)
+            .to_string();
+        if prefix.is_empty() {
+            file_name.to_string()
+        } else {
+            format!("{prefix}/{file_name}")
+        }
     }
 
     pub fn to_library_url(&self) -> String {

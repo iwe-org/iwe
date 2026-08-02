@@ -270,6 +270,46 @@ fn nested_parent_dir_relative_inline_link_resolved() {
 }
 
 #[test]
+fn link_to_parent_hub_keeps_relative_url() {
+    compare_state(
+        vec![("a", "# text\n"), ("a/1", "[title](../a)\n")],
+        vec![("a", "# text\n"), ("a/1", "[title](../a)\n")],
+    );
+}
+
+#[test]
+fn link_to_grandparent_hub_keeps_relative_url() {
+    compare_state(
+        vec![("a", "# text\n"), ("a/b/1", "[title](../../a)\n")],
+        vec![("a", "# text\n"), ("a/b/1", "[title](../../a)\n")],
+    );
+}
+
+#[test]
+fn link_to_hub_from_nested_dir_keeps_relative_url() {
+    compare_state(
+        vec![("a/b", "# text\n"), ("a/b/1", "[title](../b)\n")],
+        vec![("a/b", "# text\n"), ("a/b/1", "[title](../b)\n")],
+    );
+}
+
+#[test]
+fn link_to_hub_from_sibling_dir_keeps_relative_url() {
+    compare_state(
+        vec![("a/b", "# text\n"), ("a/c/1", "[title](../b)\n")],
+        vec![("a/b", "# text\n"), ("a/c/1", "[title](../b)\n")],
+    );
+}
+
+#[test]
+fn link_from_hub_to_own_child_keeps_relative_url() {
+    compare_state(
+        vec![("a", "[title](a/1)\n"), ("a/1", "# text\n")],
+        vec![("a", "[title](a/1)\n"), ("a/1", "# text\n")],
+    );
+}
+
+#[test]
 fn wiki_link_across_directories_renders_as_bare_name() {
     compare_state(
         vec![
