@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0](https://github.com/iwe-org/iwe/compare/iwe-v0.18.1...iwe-v0.19.0) - 2026-08-07
+
 ### Added
 - `iwe init --okf` scaffolds an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundle: it writes the three conformance schemas into `.iwe/schemas/`, binds them in the configuration, sets `refs_extension` to `.md`, and creates a bundle-root `index.md` carrying `okf_version` when none exists. An existing `index.md` is left alone, and an explicit `--refs-extension` still wins.
 - `!` negation in schema binding `match` patterns in `.iwe/config.toml` — patterns apply in order and the last matching one decides, gitignore-style, so a catch-all binding like `match = ["data/**", "!data/index"]` skips a reserved key and a later pattern can re-include what an earlier `!` removed.

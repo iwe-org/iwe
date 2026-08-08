@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0](https://github.com/iwe-org/iwe/compare/diwe-v0.18.1...diwe-v0.19.0) - 2026-08-07
+
 ### Added
 - Negated glob patterns in `SchemaBinding::match` — a `!`-prefixed pattern unbinds keys an earlier pattern matched. `SchemaBindings::schemas_for` applies patterns in order and the last matching one decides, gitignore-style, so a later pattern can re-include what a `!` removed; `\!` escapes a literal leading `!`.
 
