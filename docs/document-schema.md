@@ -62,8 +62,11 @@ match = ["journal/*", "meetings/**"]
 The entry name is the schema name — `[schemas.note]` resolves to
 `.iwe/schemas/note.yaml`. `match` is a glob, or a list of globs, matched
 against the document key: `*` stays within a path segment, `**` crosses
-segments, and a leading `/` is optional. Binding is order-free — a document
-is validated against **every** schema whose `match` hits, so overlapping
+segments, and a leading `/` is optional. A `!` prefix negates a pattern —
+within one list patterns apply in order and the last matching one decides,
+gitignore-style, so `["notes/**", "!notes/index"]` binds everything under
+`notes/` except the index. Bindings compose order-free — a document is
+validated against **every** schema whose `match` hits, so overlapping
 bindings compose (as JSON Schema `allOf` does). A document matching no entry
 is unvalidated.
 

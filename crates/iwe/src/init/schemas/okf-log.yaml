@@ -1,0 +1,18 @@
+$schema: https://document-schema.org/draft/2026-06/schema
+description: OKF v0.2 log file — date-grouped update history (SPEC §9)
+frontmatter:
+  type: object
+  additionalProperties: false
+maxDepth: 2
+sections:
+  - header: { pattern: '.+' }
+    description: a single title section holds the whole history
+    maxContains: 1
+    sections:
+      - header: { pattern: '^\d{4}-\d{2}-\d{2}$' }
+        description: ISO 8601 date group, newest first
+        minContains: 1
+        blocks:
+          - type: bullet-list
+    additionalSections: false
+additionalSections: false

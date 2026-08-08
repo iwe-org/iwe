@@ -2,7 +2,7 @@ Initialize the current directory as an IWE project.
 
 Scans the existing markdown files, fits the configuration to what it finds, and
 writes .iwe/config.toml. Nothing outside .iwe/ is touched unless the agent
-artifacts are opted into.
+artifacts or --okf are opted into.
 
 At a terminal, init shows the detected settings next to the iwe defaults —
 only the rows where they differ — with the number of files `iwe normalize`
@@ -20,6 +20,14 @@ Modes:
 - --dry-run: print the proposed configuration and evidence, write nothing
 - --defaults: write the static template, skipping detection entirely
 - --json: emit a machine-readable report; combines with --auto and --dry-run
+- --okf: scaffold an Open Knowledge Format v0.2 bundle
+
+--okf writes the three conformance schemas into .iwe/schemas/ (okf.yaml for
+concept documents, okf-index.yaml and okf-log.yaml for the reserved index.md
+and log.md files), binds them in the configuration, sets refs_extension to .md
+so links resolve outside iwe, and creates a bundle-root index.md carrying
+okf_version when none exists. An explicit --refs-extension still wins.
+`iwe schema validate` then checks conformance on demand or in CI.
 
 Per-setting overrides apply on top of detection in every mode:
 --library, --link-format, --refs-extension, --format, --date-format

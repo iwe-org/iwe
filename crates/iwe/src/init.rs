@@ -2,6 +2,7 @@ pub mod agents;
 pub mod detect;
 pub mod evidence;
 pub mod fit;
+pub mod okf;
 pub mod probe;
 pub mod report;
 pub mod screen;
@@ -70,6 +71,7 @@ pub struct InitOptions {
     pub dry_run: bool,
     pub use_defaults: bool,
     pub json: bool,
+    pub okf: bool,
     pub overrides: Overrides,
 }
 
@@ -90,7 +92,11 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
         (detected, defaults(), evidence)
     };
 
-    apply_overrides(&mut chosen, &options.overrides);
+    let mut overrides = options.overrides.clone();
+    if options.okf && overrides.refs_extension.is_none() {
+        overrides.refs_extension = Some(okf::REFS_EXTENSION.to_string());
+    }
+    apply_overrides(&mut chosen, &overrides);
 
     let interactive = !options.auto
         && !options.dry_run
@@ -132,11 +138,23 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
         measure(root, &to_configuration(&base_defaults))
     };
 
-    let rendered = render(&chosen);
+    let rendered = if options.okf {
+        format!("{}\n{}", render(&chosen), okf::BINDINGS)
+    } else {
+        render(&chosen)
+    };
     let warnings = warnings(&evidence, &chosen, &probes);
-    let notes = notes(&evidence);
+    let mut notes = notes(&evidence);
+    let library = chosen
+        .get(SettingId::LibraryPath)
+        .as_text()
+        .unwrap_or_default()
+        .to_string();
 
     if options.dry_run {
+        if options.okf {
+            notes.extend(okf::planned_artifacts(root, &library));
+        }
         return finish_dry_run(
             options,
             &chosen,
@@ -159,8 +177,11 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
     }
 
     let mut artifacts = Vec::new();
+    if options.okf {
+        artifacts.extend(okf::write_artifacts(root, &library));
+    }
     if chosen.agents_enabled() {
-        artifacts = write_agent_artifacts(root, &chosen, !confirmed);
+        artifacts.extend(write_agent_artifacts(root, &chosen, !confirmed));
     }
 
     if options.json {

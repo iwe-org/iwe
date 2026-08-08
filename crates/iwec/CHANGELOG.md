@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Schema bindings honor `!`-negated `match` patterns in `.iwe/config.toml`, so a document a negated pattern unbinds is no longer validated on write.
+
 ## [0.18.1](https://github.com/iwe-org/iwe/compare/iwec-v0.18.0...iwec-v0.18.1) - 2026-08-02
 
 ### Fixed

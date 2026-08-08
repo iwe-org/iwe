@@ -391,6 +391,12 @@ struct Init {
     #[clap(long, help = "Print a machine-readable report")]
     json: bool,
 
+    #[clap(
+        long,
+        help = "Scaffold an Open Knowledge Format v0.2 bundle — conformance schemas, their bindings, and a bundle-root index.md"
+    )]
+    okf: bool,
+
     #[clap(long, help = "Subdirectory holding the markdown files")]
     library: Option<String>,
 
@@ -1537,6 +1543,7 @@ fn init_command(init: Init) {
         dry_run: init.dry_run,
         use_defaults: init.defaults,
         json: init.json,
+        okf: init.okf,
         overrides: Overrides {
             library: init.library,
             link_format: init.link_format,

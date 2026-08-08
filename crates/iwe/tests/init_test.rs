@@ -2,7 +2,7 @@ use std::fs::{create_dir_all, read_to_string, write, File};
 use std::path::Path;
 use std::process::{Command, Output};
 
-use diwe::config::{ActionDefinition, Configuration, LinkType};
+use diwe::config::{ActionDefinition, Configuration, LinkType, Patterns, SchemaBinding};
 use liwe::model::config::{Format, RefsPath, WikiLinkPath};
 use tempfile::TempDir;
 
@@ -553,4 +553,110 @@ fn init_measures_lower_churn_for_the_detected_bundle() {
 
     assert_eq!(&serde_json::json!(0), &report["normalize_churn"]["changed"]);
     assert_eq!(&serde_json::json!(2), &report["default_churn"]["changed"]);
+}
+
+#[test]
+fn init_okf_scaffolds_schemas_bindings_and_a_bundle_root_index() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+
+    let output = run_init(temp.path(), &["--okf", "--defaults"]);
+
+    assert_eq!(Some(0), output.status.code());
+
+    let schemas = temp.path().join(".iwe").join("schemas");
+    assert_eq!(true, schemas.join("okf.yaml").is_file());
+    assert_eq!(true, schemas.join("okf-index.yaml").is_file());
+    assert_eq!(true, schemas.join("okf-log.yaml").is_file());
+
+    assert_eq!(
+        "---\nokf_version: \"0.2\"\n---\n",
+        read_to_string(temp.path().join("index.md")).expect("Should read index")
+    );
+
+    let config = written_config(temp.path());
+    assert_eq!(".md", config.markdown.refs_extension);
+
+    let mut names: Vec<&String> = config.schemas.keys().collect();
+    names.sort();
+    assert_eq!(vec!["okf", "okf-index", "okf-log"], names);
+    assert_eq!(
+        SchemaBinding {
+            r#match: Patterns::Many(vec![
+                "**".to_string(),
+                "!index".to_string(),
+                "!**/index".to_string(),
+                "!log".to_string(),
+                "!**/log".to_string(),
+            ]),
+        },
+        config.schemas["okf"]
+    );
+}
+
+#[test]
+fn init_okf_keeps_an_existing_index() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+    note(
+        temp.path(),
+        "index.md",
+        "# Index\n\n* [One](one.md) - one\n",
+    );
+
+    run_init(temp.path(), &["--okf", "--defaults"]);
+
+    assert_eq!(
+        "# Index\n\n* [One](one.md) - one\n",
+        read_to_string(temp.path().join("index.md")).expect("Should read index")
+    );
+}
+
+#[test]
+fn init_okf_places_the_index_inside_the_detected_library() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+    wiki_vault(temp.path());
+
+    run_init(temp.path(), &["--okf", "--auto"]);
+
+    let config = written_config(temp.path());
+    assert_eq!("notes", config.library.path);
+    assert_eq!(true, temp.path().join("notes").join("index.md").is_file());
+}
+
+#[test]
+fn init_okf_dry_run_writes_nothing() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+
+    let output = run_init(temp.path(), &["--okf", "--dry-run", "--defaults"]);
+
+    assert_eq!(Some(0), output.status.code());
+    assert_eq!(false, temp.path().join(".iwe").exists());
+    assert_eq!(false, temp.path().join("index.md").exists());
+
+    let notes: Vec<String> = stdout_of(&output)
+        .lines()
+        .filter(|line| line.starts_with("note: would "))
+        .map(|line| line.trim_start_matches("note: ").to_string())
+        .collect();
+    assert_eq!(
+        vec![
+            "would write .iwe/schemas/okf.yaml".to_string(),
+            "would write .iwe/schemas/okf-index.yaml".to_string(),
+            "would write .iwe/schemas/okf-log.yaml".to_string(),
+            "would write index.md".to_string(),
+        ],
+        notes
+    );
+}
+
+#[test]
+fn init_okf_yields_to_an_explicit_refs_extension() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+
+    run_init(
+        temp.path(),
+        &["--okf", "--defaults", "--refs-extension", ""],
+    );
+
+    let config = written_config(temp.path());
+    assert_eq!("", config.markdown.refs_extension);
 }
