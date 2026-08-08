@@ -1,0 +1,49 @@
+$schema: https://document-schema.org/draft/2026-06/schema
+description: OKF v0.2 concept document — frontmatter with a non-empty type (SPEC §4.1, §11)
+frontmatter:
+  type: object
+  required: [type]
+  properties:
+    type: { type: string, minLength: 1 }
+    title: { type: string }
+    description: { type: string }
+    resource: { type: string }
+    tags: { type: array, items: { type: string } }
+    status:
+      enum: [draft, stable, deprecated]
+      description: OKF lifecycle (SPEC §5.4); omit when stable
+    stale_after: { type: string, format: date }
+    generated:
+      type: object
+      required: [by]
+      properties:
+        by: { type: string, description: "actor — <producer>/<version>, human:<id>, or process:<id>" }
+        at: { type: string, description: ISO 8601 datetime of last meaningful change }
+    verified:
+      anyOf:
+        - $ref: '#/$defs/verification'
+        - { type: array, items: { $ref: '#/$defs/verification' } }
+    sources:
+      type: array
+      items:
+        type: object
+        required: [resource]
+        properties:
+          id: { type: string }
+          resource: { type: string }
+          title: { type: string }
+          author: { type: string }
+          usage_count: { type: integer }
+          last_modified: { type: string, format: date }
+    usage_window:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+  $defs:
+    verification:
+      type: object
+      required: [by]
+      properties:
+        by: { type: string }
+        at: { type: string }

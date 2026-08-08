@@ -1,0 +1,15 @@
+$schema: https://document-schema.org/draft/2026-06/schema
+description: OKF v0.2 index file — no frontmatter (okf_version allowed at bundle root); sections of link bullets (SPEC §8)
+frontmatter:
+  type: object
+  properties:
+    okf_version: { const: "0.2" }
+  additionalProperties: false
+maxDepth: 1
+sections:
+  - header: { pattern: '.+' }
+    description: each section groups concepts under a heading, one link bullet list per group
+    minContains: 0
+    blocks:
+      - type: bullet-list
+additionalSections: false

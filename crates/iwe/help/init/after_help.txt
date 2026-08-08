@@ -16,6 +16,10 @@ EXAMPLES:
   # Skip detection and write the static template
   iwe init --defaults
 
+  # Scaffold a conformant Open Knowledge Format bundle, then check it
+  iwe init --okf
+  iwe schema validate
+
   # After initialization, edit config
   $EDITOR .iwe/config.toml
 

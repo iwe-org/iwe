@@ -23,6 +23,7 @@ Write in **Markdown**, structure with links, give AI agents the **tools** to nav
 - **A graph, not a folder tree.** Link notes together and the same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
 - **IDE features for your editor.** Real LSP integration with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/) — search, refactor, rename, autocomplete.
 - **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) give agents parent context and structural navigation over the same notes you edit by hand — retrieval by structure, not similarity guessing.
+- **Speaks OKF.** An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle is markdown with YAML frontmatter — the format IWE already manages. `iwe init --okf` scaffolds a conformant bundle, `iwe schema validate` checks conformance mechanically, and `iwe find --filter '{type: …}'` queries OKF frontmatter directly.
 - **Fast.** Built in Rust, [processes 20,000 files in under a second](docs/benchmark.md).
 
 ## How It Works
@@ -143,6 +144,7 @@ More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
 - [CLI Reference](https://iwe.md/docs/cli/) — Command-line tools
 - [Working with AI](https://iwe.md/docs/agentic/) — AI agent integration
 - [MCP Server](https://iwe.md/docs/agentic/mcp/) — Native AI tool integration via Model Context Protocol
+- [OKF](https://iwe.md/docs/agentic/okf/) — Open Knowledge Format: scaffold, validate, and query conformant bundles
 - [Configuration](https://iwe.md/docs/configuration/) — Settings and customization
 - [Examples](https://iwe.md/docs/examples/) — Example projects and case studies
 
@@ -153,6 +155,8 @@ IWE is open source and community-driven. Join the [discussions](https://github.c
 **Community:** [Twitter/X](https://x.com/iwe_md) · [Reddit](https://www.reddit.com/r/iwe/) · [Discussions](https://github.com/iwe-org/iwe/discussions)
 
 **Editor plugins:** [VS Code](https://github.com/iwe-org/vscode-iwe) · [Neovim](https://github.com/iwe-org/iwe.nvim) · [Zed](https://github.com/iwe-org/zed-iwe)
+
+**Workspace templates:** [marketing-workspace](https://github.com/iwe-org/marketing-workspace) — campaign memory for a marketing agent · [dev-workspace](https://github.com/iwe-org/dev-workspace) — project memory for a coding agent. Both ship as conformant [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles, validated in CI on every commit.
 
 **Agentic skills:** [iwe-org/skills](https://github.com/iwe-org/skills) — agentic AI skills for knowledge graph management. Contributors welcome.
 

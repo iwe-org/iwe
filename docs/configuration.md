@@ -412,6 +412,9 @@ match = "people/**"
 
 [schemas.session]
 match = ["journal/*", "meetings/**"]
+
+[schemas.note]
+match = ["notes/**", "!notes/index"]
 ```
 
 - The entry name is the schema name: `[schemas.person]` resolves to
@@ -421,9 +424,14 @@ match = ["journal/*", "meetings/**"]
 - Globs follow gitignore/globset syntax: `*` matches within a single path
   segment and stops at `/`, `**` crosses segments. A leading `/` is optional
   — patterns are always anchored at the library root.
-- Binding is order-free: a document is validated against **every** schema
-  whose `match` hits, so overlapping entries compose. A document that matches
-  no entry is unvalidated.
+- A `!` prefix negates a pattern, gitignore-style: within one `match` list
+  patterns apply in order and the last matching one decides, so
+  `["notes/**", "!notes/index"]` binds everything under `notes/` except
+  `notes/index`, and a later pattern can re-include what an earlier `!`
+  removed. Escape a literal leading `!` as `\!`.
+- Bindings compose order-free: a document is validated against **every**
+  schema whose `match` hits, so overlapping entries compose. A document that
+  matches no entry is unvalidated.
 
 Run [`iwe schema validate`](cli-schema.md) to check the store against these
 bindings.

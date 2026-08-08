@@ -16,7 +16,7 @@ use crate::tokens::count_tokens;
 
 #[derive(Debug)]
 pub struct SchemaBindings {
-    rules: Vec<(String, Vec<GlobMatcher>)>,
+    rules: Vec<(String, Vec<(GlobMatcher, bool)>)>,
 }
 
 impl SchemaBindings {
@@ -28,17 +28,8 @@ impl SchemaBindings {
         let mut errors = Vec::new();
 
         for name in names {
-            let mut matchers = Vec::new();
-            for pattern in schemas[name].r#match.as_slice() {
-                let anchored = pattern.strip_prefix('/').unwrap_or(pattern);
-                match GlobBuilder::new(anchored).literal_separator(true).build() {
-                    Ok(glob) => matchers.push(glob.compile_matcher()),
-                    Err(error) => errors.push(format!(
-                        "schema '{name}': invalid pattern '{pattern}': {error}"
-                    )),
-                }
-            }
-            rules.push((name.clone(), matchers));
+            let patterns = compile_patterns(name, schemas[name].r#match.as_slice(), &mut errors);
+            rules.push((name.clone(), patterns));
         }
 
         if errors.is_empty() {
@@ -51,10 +42,43 @@ impl SchemaBindings {
     pub fn schemas_for(&self, key: &str) -> Vec<&str> {
         self.rules
             .iter()
-            .filter(|(_, matchers)| matchers.iter().any(|matcher| matcher.is_match(key)))
+            .filter(|(_, patterns)| {
+                patterns.iter().fold(false, |bound, (matcher, negated)| {
+                    if matcher.is_match(key) {
+                        !negated
+                    } else {
+                        bound
+                    }
+                })
+            })
             .map(|(name, _)| name.as_str())
             .collect()
     }
+}
+
+fn compile_patterns(
+    name: &str,
+    patterns: &[String],
+    errors: &mut Vec<String>,
+) -> Vec<(GlobMatcher, bool)> {
+    let mut matchers = Vec::new();
+    for pattern in patterns {
+        let (body, negated) = if let Some(rest) = pattern.strip_prefix('!') {
+            (rest, true)
+        } else if pattern.starts_with("\\!") {
+            (&pattern[1..], false)
+        } else {
+            (pattern.as_str(), false)
+        };
+        let anchored = body.strip_prefix('/').unwrap_or(body);
+        match GlobBuilder::new(anchored).literal_separator(true).build() {
+            Ok(glob) => matchers.push((glob.compile_matcher(), negated)),
+            Err(error) => errors.push(format!(
+                "schema '{name}': invalid pattern '{pattern}': {error}"
+            )),
+        }
+    }
+    matchers
 }
 
 #[derive(Debug)]
@@ -339,6 +363,101 @@ mod tests {
             })
             .collect();
         SchemaBindings::compile(&schemas).expect("compiles")
+    }
+
+    #[test]
+    fn negated_patterns_unbind_keys_earlier_patterns_matched() {
+        let bindings = bindings(&[(
+            "note",
+            Patterns::Many(vec![
+                "data/**".to_string(),
+                "!data/index".to_string(),
+                "!data/**/index".to_string(),
+                "!data/log".to_string(),
+                "!data/**/log".to_string(),
+            ]),
+        )]);
+        assert_eq!(bindings.schemas_for("data/product"), vec!["note"]);
+        assert_eq!(bindings.schemas_for("data/people/alice"), vec!["note"]);
+        assert_eq!(bindings.schemas_for("data/index"), Vec::<&str>::new());
+        assert_eq!(bindings.schemas_for("data/log"), Vec::<&str>::new());
+        assert_eq!(
+            bindings.schemas_for("data/people/index"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(bindings.schemas_for("data/people/log"), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn negation_narrows_by_prefix_within_a_directory() {
+        let bindings = bindings(&[(
+            "person",
+            Patterns::Many(vec!["people/**".to_string(), "!people/role-*".to_string()]),
+        )]);
+        assert_eq!(bindings.schemas_for("people/alice"), vec!["person"]);
+        assert_eq!(bindings.schemas_for("people/rita"), vec!["person"]);
+        assert_eq!(
+            bindings.schemas_for("people/role-contact"),
+            Vec::<&str>::new()
+        );
+    }
+
+    #[test]
+    fn last_matching_pattern_wins_so_a_later_pattern_reincludes() {
+        let bindings = bindings(&[(
+            "note",
+            Patterns::Many(vec![
+                "**".to_string(),
+                "!drafts/**".to_string(),
+                "drafts/keep".to_string(),
+            ]),
+        )]);
+        assert_eq!(bindings.schemas_for("pages/one"), vec!["note"]);
+        assert_eq!(bindings.schemas_for("drafts/scratch"), Vec::<&str>::new());
+        assert_eq!(bindings.schemas_for("drafts/keep"), vec!["note"]);
+    }
+
+    #[test]
+    fn escaped_leading_bang_is_a_literal_pattern() {
+        let bindings = bindings(&[("note", Patterns::One("\\!special".to_string()))]);
+        assert_eq!(bindings.schemas_for("!special"), vec!["note"]);
+        assert_eq!(bindings.schemas_for("special"), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn invalid_negated_patterns_report_with_their_bang_prefix() {
+        let schemas = HashMap::from([(
+            "broken".to_string(),
+            SchemaBinding {
+                r#match: Patterns::Many(vec!["data/**".to_string(), "!data/[".to_string()]),
+            },
+        )]);
+        let errors = SchemaBindings::compile(&schemas).unwrap_err();
+        assert_eq!(
+            errors,
+            vec![
+                "schema 'broken': invalid pattern '!data/[': error parsing glob 'data/[': unclosed character class; missing ']'".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn negated_patterns_round_trip_through_toml() {
+        let source = "\
+[schemas.note]
+match = [\"data/**\", \"!data/index\"]
+";
+        let config: Configuration = toml::from_str(source).expect("parses");
+        assert_eq!(
+            config.schemas["note"],
+            SchemaBinding {
+                r#match: Patterns::Many(vec!["data/**".to_string(), "!data/index".to_string()]),
+            }
+        );
+
+        let rendered = toml::to_string(&config).expect("serializes");
+        let reparsed: Configuration = toml::from_str(&rendered).expect("reparses");
+        assert_eq!(reparsed.schemas, config.schemas);
     }
 
     #[test]
