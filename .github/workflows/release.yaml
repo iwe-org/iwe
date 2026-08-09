@@ -67,8 +67,6 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.inputs.tag && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
