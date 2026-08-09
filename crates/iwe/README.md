@@ -9,6 +9,11 @@ Install from source:
 cargo install --path .
 ```
 
+Or prebuilt binaries via npm:
+```bash
+npm install -g @iwe-org/iwe
+```
+
 Or build locally:
 ```bash
 cargo build --release

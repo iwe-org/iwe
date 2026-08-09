@@ -1,0 +1,17 @@
+{
+  "name": "@iwe-org/cli-win32-x64",
+  "version": "0.0.0",
+  "description": "IWE binaries for Windows x64.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iwe-org/iwe.git"
+  },
+  "homepage": "https://iwe.md",
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "files": ["iwe.exe", "iwes.exe", "iwec.exe"],
+  "publishConfig": {
+    "access": "public"
+  }
+}

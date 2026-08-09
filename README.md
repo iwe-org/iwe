@@ -117,6 +117,11 @@ More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
    brew install iwe
    ```
 
+   Or using npm (macOS/Linux/Windows):
+   ```bash
+   npm install -g @iwe-org/iwe
+   ```
+
    Or using Cargo:
    ```bash
    cargo install iwe iwes iwec
@@ -149,12 +154,26 @@ More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
    }
    ```
 
+   No install needed — `npx` fetches the server on demand:
+   ```json
+   {
+     "mcpServers": {
+       "iwe": {
+         "command": "npx",
+         "args": ["-y", "@iwe-org/mcp"],
+         "cwd": "~/notes"
+       }
+     }
+   }
+   ```
+
    Or hand the setup to the agent — paste this into Claude Code or any agent with shell access:
 
    ```text
    Set up IWE for my notes: install it (brew tap iwe-org/iwe && brew install iwe,
-   or cargo install iwe iwes iwec), run `iwe init` in my notes directory, then
-   add the `iwec` MCP server with its working directory set to that folder.
+   npm install -g @iwe-org/iwe, or cargo install iwe iwes iwec), run `iwe init`
+   in my notes directory, then add the `iwec` MCP server with its working
+   directory set to that folder.
    Docs: https://iwe.md/docs/agentic/
    ```
 

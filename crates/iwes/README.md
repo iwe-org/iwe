@@ -8,6 +8,11 @@ Language Server Protocol (LSP) server for IWE - memory system for you and your A
 cargo install --path .
 ```
 
+Or prebuilt binaries via npm (installs `iwe`, `iwes`, and `iwec`):
+```bash
+npm install -g @iwe-org/iwe
+```
+
 ## Supported editors
 
 - **VS Code** - via [IWE extension](https://marketplace.visualstudio.com/items?itemName=IWE.iwe)

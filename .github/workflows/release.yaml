@@ -55,3 +55,77 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           # Override ref for manual triggers - ensure it's in refs/tags/ format
           ref: ${{ github.event.inputs.tag && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
+
+  publish-npm:
+    needs: upload-assets
+    if: ${{ startsWith(github.event.inputs.tag || github.event.release.tag_name, 'iwe-v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Resolve version from tag
+        id: version
+        run: |
+          TAG="${{ github.event.inputs.tag || github.event.release.tag_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#iwe-v}" >> "$GITHUB_OUTPUT"
+      - name: Download release binaries into platform packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" --dir archives \
+            --pattern '*-aarch64-apple-darwin.tar.gz' \
+            --pattern '*-x86_64-apple-darwin.tar.gz' \
+            --pattern '*-x86_64-unknown-linux-gnu.tar.gz' \
+            --pattern '*-aarch64-unknown-linux-gnu.tar.gz' \
+            --pattern '*-x86_64-pc-windows-msvc.zip'
+          tar -xzf archives/*-aarch64-apple-darwin.tar.gz -C npm/cli-darwin-arm64
+          tar -xzf archives/*-x86_64-apple-darwin.tar.gz -C npm/cli-darwin-x64
+          tar -xzf archives/*-x86_64-unknown-linux-gnu.tar.gz -C npm/cli-linux-x64
+          tar -xzf archives/*-aarch64-unknown-linux-gnu.tar.gz -C npm/cli-linux-arm64
+          unzip -o archives/*-x86_64-pc-windows-msvc.zip -d npm/cli-win32-x64
+      - name: Stamp versions
+        run: node npm/stamp.js "${{ steps.version.outputs.version }}"
+      - name: Publish packages
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          for pkg in cli-darwin-arm64 cli-darwin-x64 cli-linux-x64 cli-linux-arm64 cli-win32-x64 iwe mcp; do
+            if npm view "@iwe-org/${pkg}@${VERSION}" version > /dev/null 2>&1; then
+              echo "@iwe-org/${pkg}@${VERSION} already published, skipping"
+            else
+              (cd "npm/${pkg}" && npm publish)
+            fi
+          done
+
+  npm-smoke-test:
+    needs: publish-npm
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run npx smoke test
+        shell: bash
+        run: |
+          VERSION="${{ needs.publish-npm.outputs.version }}"
+          for attempt in $(seq 1 10); do
+            if npx -y "@iwe-org/iwe@${VERSION}" --version && npx -y "@iwe-org/mcp@${VERSION}" --version; then
+              exit 0
+            fi
+            echo "registry not ready yet, retrying in 30s (attempt ${attempt}/10)"
+            sleep 30
+          done
+          exit 1

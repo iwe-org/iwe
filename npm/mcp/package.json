@@ -1,0 +1,25 @@
+{
+  "name": "@iwe-org/mcp",
+  "version": "0.0.0",
+  "description": "MCP server for IWE — markdown knowledge base as agent memory.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iwe-org/iwe.git"
+  },
+  "homepage": "https://iwe.md",
+  "keywords": ["mcp", "model-context-protocol", "agent-memory", "markdown", "knowledge-graph"],
+  "bin": {
+    "iwe-mcp": "bin/iwe-mcp.js"
+  },
+  "files": ["bin"],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@iwe-org/iwe": "0.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

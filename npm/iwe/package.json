@@ -1,0 +1,31 @@
+{
+  "name": "@iwe-org/iwe",
+  "version": "0.0.0",
+  "description": "IWE — markdown-based knowledge management for developers: CLI, LSP server, and MCP server.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iwe-org/iwe.git"
+  },
+  "homepage": "https://iwe.md",
+  "keywords": ["markdown", "lsp", "knowledge-graph", "pkm", "notes", "zettelkasten", "mcp", "agent-memory"],
+  "bin": {
+    "iwe": "bin/iwe.js",
+    "iwes": "bin/iwes.js",
+    "iwec": "bin/iwec.js"
+  },
+  "files": ["bin", "lib"],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@iwe-org/cli-darwin-arm64": "0.0.0",
+    "@iwe-org/cli-darwin-x64": "0.0.0",
+    "@iwe-org/cli-linux-x64": "0.0.0",
+    "@iwe-org/cli-linux-arm64": "0.0.0",
+    "@iwe-org/cli-win32-x64": "0.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

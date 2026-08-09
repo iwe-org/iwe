@@ -60,11 +60,15 @@ The IWE plugin requires the `iwes` LSP server binary to be installed on your sys
     ``` bash
     cargo install iwes
     ```
-2.  **Download from GitHub Releases**:
+2.  **Install via npm**:
+    ``` bash
+    npm install -g @iwe-org/iwe
+    ```
+3.  **Download from GitHub Releases**:
     - Visit [IWE releases](https://github.com/iwe-org/iwe/releases)
     - Download the appropriate binary for your system
     - Ensure `iwes` is in your system PATH
-3.  **Build from Source**:
+4.  **Build from Source**:
     ``` bash
     git clone https://github.com/iwe-org/iwe.git
     cd iwe

@@ -13,6 +13,22 @@ brew install iwe
 
 This installs the CLI (`iwe`), the LSP server (`iwes`), and the MCP server (`iwec`).
 
+## Using npm (macOS/Linux/Windows)
+
+Prebuilt binaries are published to npm, including Windows — no toolchain needed:
+
+``` sh
+npm install -g @iwe-org/iwe
+```
+
+This installs the same three binaries (`iwe`, `iwes`, `iwec`). You can also run the CLI without installing:
+
+``` sh
+npx -y @iwe-org/iwe --help
+```
+
+For AI agents, [@iwe-org/mcp](https://www.npmjs.com/package/@iwe-org/mcp) starts the MCP server directly via `npx -y @iwe-org/mcp` — see the [agentic docs](https://iwe.md/docs/agentic/).
+
 ## From Crates.IO
 
 - Rust and Cargo must be installed on your system. You can get them from [rustup.rs](https://rustup.rs).

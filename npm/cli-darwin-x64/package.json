@@ -1,0 +1,17 @@
+{
+  "name": "@iwe-org/cli-darwin-x64",
+  "version": "0.0.0",
+  "description": "IWE binaries for macOS x64.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iwe-org/iwe.git"
+  },
+  "homepage": "https://iwe.md",
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "files": ["iwe", "iwes", "iwec"],
+  "publishConfig": {
+    "access": "public"
+  }
+}

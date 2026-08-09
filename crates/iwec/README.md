@@ -8,6 +8,11 @@ Model Context Protocol (MCP) server for IWE - memory system for you and your AI 
 cargo install --path .
 ```
 
+Or prebuilt binaries via npm:
+```bash
+npm install -g @iwe-org/iwe
+```
+
 ## MCP tools
 
 | Tool | Description |
@@ -54,6 +59,20 @@ Add to your Claude Desktop configuration:
     "iwe": {
       "command": "iwec",
       "args": [],
+      "cwd": "/path/to/your/workspace"
+    }
+  }
+}
+```
+
+Or via npx with no install:
+
+```json
+{
+  "mcpServers": {
+    "iwe": {
+      "command": "npx",
+      "args": ["-y", "@iwe-org/mcp"],
       "cwd": "/path/to/your/workspace"
     }
   }
