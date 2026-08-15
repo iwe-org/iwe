@@ -1,6 +1,7 @@
 {
   "name": "@iwe-org/mcp",
   "version": "0.0.0",
+  "mcpName": "io.github.iwe-org/iwe",
   "description": "MCP server for IWE — markdown knowledge base as agent memory.",
   "license": "Apache-2.0",
   "repository": {

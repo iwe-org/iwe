@@ -127,3 +127,20 @@ jobs:
             sleep 30
           done
           exit 1
+
+  publish-mcp-registry:
+    needs: [publish-npm, npm-smoke-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Stamp versions
+        run: node npm/stamp.js "${{ needs.publish-npm.outputs.version }}"
+      - name: Install mcp-publisher
+        run: curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - name: Publish server to MCP Registry
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

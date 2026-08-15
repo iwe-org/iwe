@@ -34,3 +34,12 @@ for (const dir of packages) {
   fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
   console.log(pkg.name + '@' + version)
 }
+
+const serverFile = path.join(__dirname, '..', 'server.json')
+const server = JSON.parse(fs.readFileSync(serverFile, 'utf8'))
+server.version = version
+for (const pkg of server.packages) {
+  pkg.version = version
+}
+fs.writeFileSync(serverFile, JSON.stringify(server, null, 2) + '\n')
+console.log(server.name + '@' + version)

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.iwe-org/iwe",
+  "title": "IWE",
+  "description": "Markdown knowledge base as agent memory. Runs against the notes directory it is started in.",
+  "repository": {
+    "url": "https://github.com/iwe-org/iwe",
+    "source": "github"
+  },
+  "websiteUrl": "https://iwe.md",
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@iwe-org/mcp",
+      "version": "0.0.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
