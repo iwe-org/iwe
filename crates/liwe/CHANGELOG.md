@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `MarkdownOptions`, `DjotOptions`, and `FormattingOptions` reject unknown fields when deserialized (previously unknown keys were silently ignored)
+
 ## [0.19.1](https://github.com/iwe-org/iwe/compare/liwe-v0.19.0...liwe-v0.19.1) - 2026-08-14
 
 Workspace version bump — no user-visible changes in this crate.

@@ -225,7 +225,14 @@ impl std::fmt::Display for ParseError {
                 write!(f, "invalid projection value at '{}'", fmt_path(path))
             }
             Self::UnknownProjectionSource { selector } => {
-                write!(f, "unknown projection source '{}'", selector)
+                write!(
+                    f,
+                    "unknown projection source '{}'; frontmatter fields are bare names \
+                     (write '{}', not '{}')",
+                    selector,
+                    selector.trim_start_matches('$'),
+                    selector
+                )
             }
             Self::ReservedOutputName { name } => {
                 write!(f, "projection output name '{}' is reserved", name)

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The server refuses to start when `.iwe/config.toml` contains unknown keys, reporting the parse error (previously unknown keys were silently ignored)
+
 ## [0.19.1](https://github.com/iwe-org/iwe/compare/iwes-v0.19.0...iwes-v0.19.1) - 2026-08-14
 
 Workspace version bump — no user-visible changes in this crate.

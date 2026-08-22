@@ -1,4 +1,5 @@
 use std::env;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 
@@ -25,6 +26,12 @@ use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
 use iwe::init::{current_root, init_library, InitOptions, Overrides};
+use iwe::internal::claude::{
+    capture_brief, complete_capture_chunk, digest_claude_transcript, enable_memory,
+    enter_memory_store, frontier_capture_chunks, next_capture_chunk, prompt_body,
+    read_hook_payload, render_memory_index, reset_capture_session, run_memory_sweep,
+    skip_capture_chunk, EnableOptions, SweepMode, SweepOptions, DEFAULT_FRONTIER_CHARS,
+};
 use iwe::new::{
     read_stdin, read_stdin_if_available, write_document, ContentOptions, CreateOptions,
     DocumentCreator, IfExists, PreparedDocument, Variables, BODY_VARIABLE, LEGACY_BODY_VARIABLE,
@@ -54,10 +61,12 @@ use liwe::query::{
 
 use log::{debug, error, info};
 
+const BIN_NAME: &str = "iwe";
+
 #[derive(Debug, Parser)]
 #[clap(
-    name = "iwe",
-    bin_name = "iwe",
+    name = BIN_NAME,
+    bin_name = BIN_NAME,
     version,
     after_help = "Run 'iwe docs' for the built-in query language, configuration, and document schema references."
 )]
@@ -91,6 +100,291 @@ enum Command {
     Attach(Attach),
     Completions(Completions),
     Docs(Docs),
+    #[clap(hide = true)]
+    Internal(Internal),
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    hide = true,
+    about = "Unstable helper commands, no compatibility guarantee"
+)]
+struct Internal {
+    #[command(subcommand)]
+    command: InternalCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum InternalCommand {
+    Claude(InternalClaude),
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Claude Code integration commands")]
+struct InternalClaude {
+    #[command(subcommand)]
+    command: ClaudeCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ClaudeCommand {
+    Digest(ClaudeDigest),
+    Enable(ClaudeEnable),
+    Hook(ClaudeHook),
+    Job(ClaudeJob),
+    Prompt(ClaudePrompt),
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Print the instructions a memory skill or agent follows, so the plugin ships \
+             only frontmatter and the text always matches this binary's commands"
+)]
+struct ClaudePrompt {
+    #[clap(value_enum, help = "Which instructions to print")]
+    name: PromptName,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum PromptName {
+    Init,
+    Distill,
+    Reflect,
+    DistillAgent,
+}
+
+impl PromptName {
+    fn as_str(self) -> &'static str {
+        match self {
+            PromptName::Init => "init",
+            PromptName::Distill => "distill",
+            PromptName::Reflect => "reflect",
+            PromptName::DistillAgent => "distill-agent",
+        }
+    }
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Make the workspace at ROOT (default: the current directory) memory-enabled: \
+             run `iwe init --defaults` if needed and write the MEMORY.md policy document. \
+             Exit codes: 0 enabled, 2 already enabled, 1 error."
+)]
+struct ClaudeEnable {
+    #[clap(help = "Workspace root; defaults to the current directory")]
+    root: Option<PathBuf>,
+
+    #[clap(
+        long,
+        conflicts_with = "body",
+        help = "Install the optional typed ontology (templates, schemas, a daily hub) and use its policy body"
+    )]
+    typed: bool,
+
+    #[clap(long, help = "Also write the queries cookbook document")]
+    queries: bool,
+
+    #[clap(
+        long,
+        help = "File whose content becomes the policy body, verbatim; the created frontmatter is added here"
+    )]
+    body: Option<PathBuf>,
+
+    #[clap(
+        long,
+        conflicts_with = "typed",
+        help = "TOML file appended to .iwe/config.toml — a composed ontology's templates, \
+                schemas and actions; refused on a table clash, rolled back if the result does not parse"
+    )]
+    config: Option<PathBuf>,
+
+    #[clap(
+        long = "schema",
+        conflicts_with = "typed",
+        help = "Schema YAML file installed into .iwe/schemas/; repeatable"
+    )]
+    schemas: Vec<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Capture chunk machinery for the memory agents")]
+struct ClaudeJob {
+    #[command(subcommand)]
+    command: JobCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum JobCommand {
+    Brief(JobBrief),
+    Next(JobNext),
+    Frontier(JobFrontier),
+    Complete(JobComplete),
+    Skip(JobSkip),
+    Reset(JobReset),
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Print what capture needs before its first chunk: the MEMORY.md policy, the \
+             frontmatter this store's own documents carry, and the most recent of them"
+)]
+struct JobBrief {}
+
+#[derive(Debug, Args)]
+#[clap(about = "Print the pending capture chunk of the most recent session; \
+             empty output means the queue is drained")]
+struct JobNext {}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Print one pending capture chunk per session, newest session first: the batch a \
+             drain triages before it spends a full curation pass on any of them"
+)]
+struct JobFrontier {
+    #[clap(
+        long = "limit",
+        default_value = "10",
+        help = "Serve at most this many sessions' chunks"
+    )]
+    limit: usize,
+
+    #[clap(
+        long = "max-chars",
+        default_value_t = DEFAULT_FRONTIER_CHARS,
+        help = "Stop the batch once it would print more than this, so no digest is cut in half"
+    )]
+    max_chars: usize,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Refuse the chunk currently served for a session: the queue moves on to the other \
+             sessions, and the chunk returns to a fresh agent after the in-flight TTL"
+)]
+struct JobSkip {
+    #[clap(help = "Session id of the chunk to skip")]
+    session: String,
+
+    #[clap(
+        long = "lines",
+        help = "The chunk's covers_lines, as printed by `job next`"
+    )]
+    lines: usize,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Rewind a session so its span sweeps again: set the watermark and drop the chunks \
+             past it; the next sweep re-imports the span from the transcript"
+)]
+struct JobReset {
+    #[clap(help = "Session id to rewind")]
+    session: String,
+
+    #[clap(
+        long = "to",
+        default_value = "0",
+        help = "Line to rewind the watermark to"
+    )]
+    to: usize,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Complete a capture chunk: advance the watermark, append the capture note, stamp the chunk captured"
+)]
+struct JobComplete {
+    #[clap(help = "Session id of the capture chunk to complete")]
+    session: String,
+
+    #[clap(
+        long = "lines",
+        help = "The chunk's covers_lines, as printed by `job next`"
+    )]
+    lines: usize,
+
+    #[clap(
+        long = "wrote",
+        help = "Key of a document this capture created or updated; repeatable, omit when nothing was kept"
+    )]
+    wrote: Vec<String>,
+
+    #[clap(
+        long,
+        help = "Title for the session record; applied only while it still carries the default title"
+    )]
+    title: Option<String>,
+
+    #[clap(
+        long,
+        help = "One-line summary for the session record; applied only while it still carries the default body"
+    )]
+    summary: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Session hooks for agent memory integrations")]
+struct ClaudeHook {
+    #[command(subcommand)]
+    command: HookCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum HookCommand {
+    SessionStart(HookSessionStart),
+    Stop(HookStop),
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Print the memory index block for a starting session")]
+struct HookSessionStart {
+    #[clap(long, help = "Closing line to print inside the memory index block")]
+    footer: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Sweep the session transcripts and import the spans worth capturing")]
+struct HookStop {
+    #[clap(
+        long,
+        conflicts_with = "adopt",
+        help = "Report what the sweep would claim, without writing anything"
+    )]
+    survey: bool,
+
+    #[clap(
+        long,
+        help = "Mark every transcript as already captured, without reading any"
+    )]
+    adopt: bool,
+
+    #[clap(
+        long = "max-chunks",
+        help = "Import at most this many chunks, overriding the MEMORY.md knob"
+    )]
+    max_chunks: Option<usize>,
+
+    #[clap(long, help = "Directory holding the session transcripts")]
+    transcripts: Option<PathBuf>,
+
+    #[clap(
+        long = "capture-reason",
+        help = "Reason to answer with when a capture job is claimed"
+    )]
+    capture_reason: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Summarize an agent transcript tail into a bounded digest")]
+struct ClaudeDigest {
+    #[clap(long, help = "Transcript file to read")]
+    path: PathBuf,
+
+    #[clap(long, default_value = "0", help = "Skip this many leading lines")]
+    from: usize,
+
+    #[clap(long = "max-chars", help = "Character budget for the rendered digest")]
+    max_chars: usize,
 }
 
 #[derive(Debug, Args)]
@@ -109,6 +403,7 @@ enum DocsTopic {
     Query,
     Config,
     Schema,
+    Agent,
 }
 
 #[derive(Debug, Args)]
@@ -828,6 +1123,15 @@ struct Delete {
     key: Option<String>,
 
     #[clap(
+        short = 'k',
+        long = "key",
+        value_name = "KEY",
+        conflicts_with = "key",
+        help = "Document key to delete; same as the positional KEY (matches retrieve/update)"
+    )]
+    key_flag: Option<String>,
+
+    #[clap(
         long,
         help = "Filter expression (inline YAML). Required if positional KEY omitted."
     )]
@@ -1130,6 +1434,184 @@ fn main() {
         Command::Attach(attach) => attach_command(attach),
         Command::Completions(completions) => completions_command(completions),
         Command::Docs(docs) => docs_command(docs),
+        Command::Internal(internal) => internal_command(internal),
+    }
+}
+
+fn internal_command(args: Internal) {
+    match args.command {
+        InternalCommand::Claude(claude) => internal_claude_command(claude),
+    }
+}
+
+fn internal_claude_command(args: InternalClaude) {
+    match args.command {
+        ClaudeCommand::Digest(digest) => claude_digest_command(digest),
+        ClaudeCommand::Enable(enable) => {
+            let code = enable_memory(&EnableOptions {
+                typed: enable.typed,
+                queries: enable.queries,
+                body: enable.body,
+                config: enable.config,
+                schemas: enable.schemas,
+                root: enable.root,
+            });
+            if code != 0 {
+                std::process::exit(code);
+            }
+        }
+        ClaudeCommand::Hook(hook) => claude_hook_command(hook),
+        ClaudeCommand::Job(job) => claude_job_command(job),
+        ClaudeCommand::Prompt(prompt) => match prompt_body(prompt.name.as_str()) {
+            Some(body) => print!("{body}"),
+            None => {
+                eprintln!("error: no prompt named {}", prompt.name.as_str());
+                std::process::exit(1);
+            }
+        },
+    }
+}
+
+fn claude_job_command(args: ClaudeJob) {
+    let Some(store) = enter_memory_store(None) else {
+        eprintln!("error: this directory is not a memory-enabled iwe workspace");
+        std::process::exit(1);
+    };
+
+    match args.command {
+        JobCommand::Brief(_) => print!("{}", capture_brief(&store)),
+        JobCommand::Next(_) => match next_capture_chunk(&store) {
+            Ok(Some(chunk)) => print!("{}", chunk),
+            Ok(None) => {}
+            Err(error) => {
+                eprintln!("error: {}", error);
+                std::process::exit(1);
+            }
+        },
+        JobCommand::Frontier(frontier) => {
+            match frontier_capture_chunks(&store, frontier.limit, frontier.max_chars) {
+                Ok(Some(batch)) => print!("{}", batch),
+                Ok(None) => {}
+                Err(error) => {
+                    eprintln!("error: {}", error);
+                    std::process::exit(1);
+                }
+            }
+        }
+        JobCommand::Complete(complete) => {
+            match complete_capture_chunk(
+                &store,
+                &complete.session,
+                complete.lines,
+                &complete.wrote,
+                complete.title.as_deref(),
+                complete.summary.as_deref(),
+            ) {
+                Ok(report) => println!("{}", report),
+                Err(error) => {
+                    eprintln!("error: {}", error);
+                    std::process::exit(1);
+                }
+            }
+        }
+        JobCommand::Skip(skip) => match skip_capture_chunk(&store, &skip.session, skip.lines) {
+            Ok(report) => println!("{}", report),
+            Err(error) => {
+                eprintln!("error: {}", error);
+                std::process::exit(1);
+            }
+        },
+        JobCommand::Reset(reset) => match reset_capture_session(&store, &reset.session, reset.to) {
+            Ok(report) => println!("{}", report),
+            Err(error) => {
+                eprintln!("error: {}", error);
+                std::process::exit(1);
+            }
+        },
+    }
+}
+
+fn claude_hook_command(args: ClaudeHook) {
+    let payload = read_hook_payload();
+
+    let output = match args.command {
+        HookCommand::SessionStart(start) => {
+            let footer = non_empty_text(start.footer);
+            enter_memory_store(payload.text("cwd"))
+                .and_then(|store| render_memory_index(&store, footer.as_deref()))
+        }
+        HookCommand::Stop(stop) => {
+            if payload.is_true("stop_hook_active") {
+                None
+            } else {
+                let loud = stop.survey || stop.adopt;
+                let options = SweepOptions {
+                    mode: if stop.survey {
+                        SweepMode::Survey
+                    } else if stop.adopt {
+                        SweepMode::Adopt
+                    } else {
+                        SweepMode::Claim
+                    },
+                    max_chunks: stop.max_chunks,
+                    transcripts: stop.transcripts,
+                    transcript_path: payload.text("transcript_path"),
+                    capture_reason: non_empty_text(stop.capture_reason),
+                };
+                let store = enter_memory_store(payload.text("cwd"));
+                if store.is_none() && loud {
+                    eprintln!(
+                        "error: this directory is not a memory-enabled iwe workspace — \
+                         there is no MEMORY document to sweep against"
+                    );
+                    eprintln!("hint: run `iwe internal claude enable` (or /iwe:init) first");
+                    std::process::exit(1);
+                }
+                let swept = match store {
+                    Some(mut store) => match run_memory_sweep(&mut store, &options) {
+                        Ok(swept) => swept,
+                        Err(error) => {
+                            eprintln!("error: {}", error);
+                            std::process::exit(1);
+                        }
+                    },
+                    None => None,
+                };
+                if swept.is_none() && loud {
+                    eprintln!("error: no transcript directory found for this project");
+                    std::process::exit(1);
+                }
+                swept
+            }
+        }
+    };
+
+    if let Some(output) = output {
+        print!("{}", output);
+    }
+}
+
+fn non_empty_text(value: Option<String>) -> Option<String> {
+    value.filter(|text| !text.trim().is_empty())
+}
+
+fn claude_digest_command(args: ClaudeDigest) {
+    let result = digest_claude_transcript(&args.path, args.from, args.max_chars);
+
+    let digest = match result {
+        Ok(digest) => digest,
+        Err(error) => {
+            eprintln!("error: {}: {}", args.path.display(), error);
+            std::process::exit(1);
+        }
+    };
+
+    let written = writeln!(std::io::stdout(), "{}\n{}", digest.covered, digest.text);
+    if let Err(error) = written {
+        if error.kind() != std::io::ErrorKind::BrokenPipe {
+            eprintln!("error: {}", error);
+            std::process::exit(1);
+        }
     }
 }
 
@@ -1138,12 +1620,37 @@ fn docs_command(args: Docs) {
         Some(DocsTopic::Query) => print!("{}", help::docs::QUERY),
         Some(DocsTopic::Config) => print!("{}", help::docs::CONFIG),
         Some(DocsTopic::Schema) => print!("{}", help::docs::SCHEMA),
+        Some(DocsTopic::Agent) => print!("{}", help::docs::AGENT),
         None => print!("{}", help::docs::INDEX),
     }
 }
 
+fn visible_command_tree() -> clap::Command {
+    let full = App::command();
+    let visible: Vec<clap::Command> = full
+        .get_subcommands()
+        .filter(|subcommand| !subcommand.is_hide_set())
+        .cloned()
+        .collect();
+
+    let mut tree = clap::Command::new(BIN_NAME)
+        .bin_name(BIN_NAME)
+        .version(env!("CARGO_PKG_VERSION"))
+        .args(full.get_arguments().cloned().collect::<Vec<_>>())
+        .subcommands(visible);
+
+    if let Some(about) = full.get_about() {
+        tree = tree.about(about.clone());
+    }
+    if let Some(after_help) = full.get_after_help() {
+        tree = tree.after_help(after_help.clone());
+    }
+
+    tree
+}
+
 fn completions_command(args: Completions) {
-    let mut cmd = App::command();
+    let mut cmd = visible_command_tree();
     let bin_name = cmd.get_name().to_string();
     let mut out = std::io::stdout();
     match args.shell {
@@ -2354,8 +2861,8 @@ fn schema_validate_command(args: SchemaValidate) {
         None => diwe::schema::validate_documents(&config, &graph, &keys),
     };
 
-    let reports = match result {
-        Ok(reports) => reports,
+    let run = match result {
+        Ok(run) => run,
         Err(errors) => {
             for error in errors {
                 eprintln!("error: {}", error);
@@ -2364,6 +2871,14 @@ fn schema_validate_command(args: SchemaValidate) {
         }
     };
 
+    if run.documents == 0 {
+        eprintln!(
+            "validated {} document(s) against {} schema(s)",
+            run.documents, run.schemas
+        );
+    }
+
+    let reports = run.reports;
     if reports.is_empty() {
         return;
     }
@@ -2381,10 +2896,10 @@ fn schema_validate_command(args: SchemaValidate) {
 
 fn gate_pending(config: &Configuration, docs: &[(Key, String)]) {
     match validate_pending_documents(config, docs) {
-        Ok(reports) if reports.is_empty() => {}
-        Ok(reports) => {
+        Ok(run) if run.reports.is_empty() => {}
+        Ok(run) => {
             eprintln!("error: --strict blocked the write: schema validation failed");
-            eprint!("{}", render_reports_text(&reports));
+            eprint!("{}", render_reports_text(&run.reports));
             std::process::exit(2);
         }
         Err(errors) => {
@@ -2713,7 +3228,7 @@ fn delete_command(args: Delete) {
 
 fn resolve_delete_targets(args: &Delete, graph: &Graph) -> Vec<Key> {
     let mut targets: Vec<Key> = Vec::new();
-    if let Some(k) = &args.key {
+    if let Some(k) = args.key.as_ref().or(args.key_flag.as_ref()) {
         targets.push(Key::name(k));
     }
     if let Some(expr) = &args.filter {
@@ -2725,7 +3240,7 @@ fn resolve_delete_targets(args: &Delete, graph: &Graph) -> Vec<Key> {
         targets.extend(matched);
     }
     if targets.is_empty() {
-        eprintln!("Error: provide a positional KEY or --filter");
+        eprintln!("Error: provide a KEY (positional or -k) or --filter");
         std::process::exit(1);
     }
     targets.sort();
@@ -3544,4 +4059,54 @@ fn render_document_template(
             content => content,
         })
         .map_err(|e| format!("document template rendering failed: {}", e))
+}
+
+#[cfg(test)]
+mod prompt_tests {
+    use clap::CommandFactory;
+    use iwe::internal::claude::prompt::{invocations, unknown_invocations, PROMPTS};
+
+    use super::{help, App};
+
+    #[test]
+    fn prompts_only_invoke_commands_this_binary_has() {
+        let mut app = App::command();
+        app.build();
+        let bodies: Vec<(&str, &str)> = PROMPTS
+            .iter()
+            .copied()
+            .chain([("docs agent", help::docs::AGENT)])
+            .collect();
+        for (name, body) in &bodies {
+            assert!(
+                invocations(body).len() >= 5,
+                "{name} should reference the CLI more than {} times",
+                invocations(body).len()
+            );
+        }
+        let problems: Vec<String> = bodies
+            .iter()
+            .flat_map(|(name, body)| {
+                unknown_invocations(&app, body)
+                    .into_iter()
+                    .map(move |problem| format!("{name}: {problem}"))
+            })
+            .collect();
+        assert!(problems.is_empty(), "\n{}", problems.join("\n"));
+    }
+
+    #[test]
+    fn every_prompt_name_is_served() {
+        use super::PromptName;
+        use clap::ValueEnum;
+        let served: Vec<&str> = PROMPTS.iter().map(|(name, _)| *name).collect();
+        for variant in PromptName::value_variants() {
+            assert!(
+                served.contains(&variant.as_str()),
+                "{} has no body",
+                variant.as_str()
+            );
+        }
+        assert_eq!(PromptName::value_variants().len(), PROMPTS.len());
+    }
 }

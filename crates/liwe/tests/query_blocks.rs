@@ -831,7 +831,7 @@ fn parse_error_content_scalar_argument() {
 fn parse_error_unknown_parameterized_source() {
     assert_eq!(
         parse_err("project: { x: { $bogus: {} } }"),
-        "unknown projection source '$bogus'"
+        "unknown projection source '$bogus'; frontmatter fields are bare names (write 'bogus', not '$bogus')"
     );
 }
 

@@ -2,71 +2,29 @@ use std::path::Path;
 
 use serde_json::{json, Map, Value as JsonValue};
 
-use crate::init::settings::{SettingId, Settings};
-
 pub const SECTION_START: &str = "<!-- iwe -->";
 pub const SECTION_END: &str = "<!-- /iwe -->";
 
-pub fn instructions(settings: &Settings) -> String {
-    let library = match settings.get(SettingId::LibraryPath).as_text() {
-        Some(path) if !path.is_empty() => format!("{}/", path),
-        _ => "the repository root".to_string(),
-    };
-
-    let wiki = settings.get(SettingId::LinkFormat).as_text() == Some("wiki");
-    let extension = settings
-        .get(SettingId::RefsExtension)
-        .as_text()
-        .unwrap_or_default()
-        .to_string();
-
-    let link_example = if wiki {
-        if settings.get(SettingId::WikiLinkPath).as_text() == Some("short") {
-            "[[roadmap]]".to_string()
-        } else {
-            "[[projects/roadmap]]".to_string()
-        }
-    } else {
-        format!("[Roadmap](projects/roadmap{})", extension)
-    };
-    let link_rule = if wiki {
-        "Link between documents with wiki links"
-    } else {
-        "Link between documents with regular markdown links"
-    };
-
-    let key_naming = match settings.get(SettingId::KeyTemplate).as_text() {
-        Some("{{title}}") => "Filenames mirror the document title, spaces included.",
-        Some("{{id}}") => "Filenames are numeric identifiers.",
-        _ => "Filenames are lowercase slugs with hyphens between words.",
-    };
-
+pub fn agent_instructions() -> String {
     format!(
         "{start}\n\
         ## Notes in this repository\n\
         \n\
-        These notes form an IWE graph. Keep the following conventions when editing them.\n\
+        These notes are an [IWE](https://iwe.md) knowledge graph — markdown documents the `iwe` CLI reads, searches and edits as one structure.\n\
         \n\
-        - Documents live under {library} and are addressed by key — the path without the extension.\n\
-        - Every document starts with a single `#` header; that header is its title.\n\
-        - {link_rule}, for example `{link_example}`.\n\
-        - {key_naming}\n\
-        - Run `iwe normalize` after bulk edits so formatting stays consistent.\n\
+        Key principles:\n\
         \n\
-        Useful commands:\n\
+        - Every document is a node in the graph, addressed by key — its path without the extension.\n\
+        - A document starts with a single `#` header; that header is its title.\n\
+        - Links between documents are the graph's edges; edit through `iwe` so they stay valid.\n\
+        - `iwe normalize` rewrites every document in canonical form — run it after bulk edits.\n\
         \n\
-        - `iwe find <query>` — full-text search across the graph\n\
-        - `iwe retrieve <key>` — read a document and the documents it includes\n\
-        - `iwe create <key> -c <document>` — create a document from complete markdown\n\
-        - `iwe update <key>` — apply a structured edit to a document\n\
-        - `iwe normalize` — rewrite every document in canonical form\n\
+        Learn the tool from the binary itself: `iwe help` lists the commands, `iwe docs` prints the reference for the installed version.\n\
+        \n\
+        As the graph forms, extend this section with the `iwe` queries that answer this repository's recurring questions.\n\
         {end}\n",
         start = SECTION_START,
         end = SECTION_END,
-        library = library,
-        link_rule = link_rule,
-        link_example = link_example,
-        key_naming = key_naming,
     )
 }
 
@@ -83,9 +41,9 @@ pub fn mcp_snippet() -> String {
         + "\n"
 }
 
-pub fn write_instructions(root: &Path, settings: &Settings) -> Result<String, String> {
+pub fn write_agent_instructions(root: &Path) -> Result<String, String> {
     let target = root.join("AGENTS.md");
-    let section = instructions(settings);
+    let section = agent_instructions();
 
     let existing = std::fs::read_to_string(&target).unwrap_or_default();
     if existing.contains(SECTION_START) {
@@ -154,19 +112,7 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use super::{instructions, register_mcp, write_instructions};
-    use crate::init::settings::{defaults, Confidence, SettingId, Settings, Value};
-
-    fn wiki_settings() -> Settings {
-        let mut settings = defaults();
-        settings.set(
-            SettingId::LinkFormat,
-            Value::text("wiki"),
-            Confidence::Detected,
-            "3 wiki links vs 0 markdown links",
-        );
-        settings
-    }
+    use super::{agent_instructions, register_mcp, write_agent_instructions};
 
     #[test]
     fn appends_an_iwe_section_to_an_existing_agents_file() {
@@ -176,17 +122,13 @@ mod tests {
             "# House rules\n\nBe careful.\n",
         )
         .expect("Should write AGENTS.md");
-        let settings = wiki_settings();
 
-        let message = write_instructions(temp.path(), &settings).expect("Should write section");
+        let message = write_agent_instructions(temp.path()).expect("Should write section");
 
         let agents = read_to_string(temp.path().join("AGENTS.md")).expect("Should read AGENTS.md");
         assert_eq!("appended an iwe section to AGENTS.md", message);
         assert_eq!(
-            format!(
-                "# House rules\n\nBe careful.\n\n{}",
-                instructions(&settings)
-            ),
+            format!("# House rules\n\nBe careful.\n\n{}", agent_instructions()),
             agents
         );
     }
@@ -194,11 +136,10 @@ mod tests {
     #[test]
     fn leaves_an_existing_iwe_section_untouched() {
         let temp = TempDir::new().expect("Should create temp directory");
-        let settings = wiki_settings();
-        let existing = format!("# House rules\n\n{}", instructions(&settings));
+        let existing = format!("# House rules\n\n{}", agent_instructions());
         write(temp.path().join("AGENTS.md"), &existing).expect("Should write AGENTS.md");
 
-        let message = write_instructions(temp.path(), &settings).expect("Should report");
+        let message = write_agent_instructions(temp.path()).expect("Should report");
 
         let agents = read_to_string(temp.path().join("AGENTS.md")).expect("Should read AGENTS.md");
         assert_eq!(
@@ -206,29 +147,6 @@ mod tests {
             message
         );
         assert_eq!(existing, agents);
-    }
-
-    #[test]
-    fn short_wiki_paths_use_a_bare_link_example() {
-        let mut settings = wiki_settings();
-        settings.set(
-            SettingId::WikiLinkPath,
-            Value::text("short"),
-            Confidence::Detected,
-            "0 wiki links carry a path, 3 are bare names",
-        );
-
-        let section = instructions(&settings);
-        let bare: Vec<&str> = section
-            .lines()
-            .filter(|line| line.starts_with("- Link between"))
-            .map(|line| line.trim_end())
-            .collect();
-
-        assert_eq!(
-            vec!["- Link between documents with wiki links, for example `[[roadmap]]`."],
-            bare
-        );
     }
 
     #[test]

@@ -1,0 +1,10 @@
+$schema: https://document-schema.org/draft/2026-06/schema
+frontmatter:
+  type: object
+  required: [type, created]
+  properties:
+    type: { const: topic }
+    created: { type: string }
+  additionalProperties: true
+maxTokens: 600
+maxDepth: 3

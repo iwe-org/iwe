@@ -18,9 +18,10 @@ pub use liwe::model::config::{
 };
 
 const CONFIG_FILE_NAME: &str = "config.toml";
-const IWE_MARKER: &str = ".iwe";
+pub const IWE_MARKER: &str = ".iwe";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LibraryOptions {
     #[serde(default)]
     pub path: String,
@@ -32,6 +33,7 @@ pub struct LibraryOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CompletionOptions {
     pub link_format: Option<LinkType>,
     pub min_prefix_length: Option<usize>,
@@ -39,6 +41,7 @@ pub struct CompletionOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SearchOptions {
     #[serde(default = "default_search_language")]
     pub language: String,
@@ -70,6 +73,7 @@ impl Default for LibraryOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Configuration {
     pub version: Option<u32>,
     #[serde(default)]
@@ -95,6 +99,7 @@ pub struct Configuration {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Command {
     pub run: String,
     pub args: Option<Vec<String>>,
@@ -124,6 +129,7 @@ pub enum ActionDefinition {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Transform {
     pub title: String,
     pub command: String,
@@ -131,6 +137,7 @@ pub struct Transform {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Attach {
     pub title: String,
     pub key_template: String,
@@ -138,12 +145,14 @@ pub struct Attach {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Sort {
     pub title: String,
     pub reverse: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Inline {
     pub title: String,
     pub inline_type: InlineType,
@@ -151,6 +160,7 @@ pub struct Inline {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Extract {
     pub title: String,
     pub link_type: Option<LinkType>,
@@ -158,6 +168,7 @@ pub struct Extract {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExtractAll {
     pub title: String,
     pub link_type: Option<LinkType>,
@@ -165,6 +176,7 @@ pub struct ExtractAll {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Link {
     pub title: String,
     pub link_type: Option<LinkType>,
@@ -172,6 +184,7 @@ pub struct Link {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct NoteTemplate {
     pub key_template: String,
     pub document_template: String,
@@ -194,6 +207,7 @@ impl Patterns {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SchemaBinding {
     pub r#match: Patterns,
 }
@@ -706,4 +720,65 @@ pub fn migrate_v2_to_v3(input: &str) -> String {
     }
 
     doc.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use indoc::indoc;
+
+    use super::*;
+
+    #[test]
+    fn unknown_top_level_table_is_rejected() {
+        let source = "version = 3\n\n[schema.note]\nmatch = \"**\"\n";
+        let error = toml::from_str::<Configuration>(source).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            indoc! {r#"
+                TOML parse error at line 3, column 2
+                  |
+                3 | [schema.note]
+                  |  ^^^^^^
+                unknown field `schema`, expected one of `version`, `format`, `markdown`, `djot`, `library`, `completion`, `search`, `commands`, `actions`, `templates`, `schemas`
+            "#}
+        );
+    }
+
+    #[test]
+    fn unknown_schema_binding_key_is_rejected() {
+        let source = "version = 3\n\n[schemas.note]\nmach = \"**\"\n";
+        let error = toml::from_str::<Configuration>(source).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            indoc! {r#"
+                TOML parse error at line 4, column 1
+                  |
+                4 | mach = "**"
+                  | ^^^^
+                unknown field `mach`, expected `match`
+            "#}
+        );
+    }
+
+    #[test]
+    fn unknown_markdown_key_is_rejected() {
+        let source = "version = 3\n\n[markdown]\nrefs_extention = \".md\"\n";
+        let error = toml::from_str::<Configuration>(source).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            indoc! {r#"
+                TOML parse error at line 4, column 1
+                  |
+                4 | refs_extention = ".md"
+                  | ^^^^^^^^^^^^^^
+                unknown field `refs_extention`, expected one of `refs_extension`, `refs_path`, `refs_text`, `date_format`, `time_format`, `locale`, `wiki_link_path`, `formatting`
+            "#}
+        );
+    }
+
+    #[test]
+    fn template_configuration_round_trips() {
+        let rendered = toml::to_string(&Configuration::template()).expect("serializes");
+        toml::from_str::<Configuration>(&rendered).expect("parses");
+    }
 }

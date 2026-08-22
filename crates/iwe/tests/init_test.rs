@@ -463,7 +463,7 @@ fn init_prints_agent_snippets_without_a_terminal() {
 }
 
 #[test]
-fn init_describes_the_detected_conventions_to_agents() {
+fn init_describes_the_graph_principles_to_agents() {
     let temp = TempDir::new().expect("Failed to create temp directory");
     wiki_vault(temp.path());
     note(temp.path(), "AGENTS.md", "# House rules\n");
@@ -471,17 +471,17 @@ fn init_describes_the_detected_conventions_to_agents() {
     let output = run_init(temp.path(), &[]);
 
     let stdout = stdout_of(&output);
-    let bullets: Vec<&str> = stdout
+    let lines: Vec<&str> = stdout
         .lines()
-        .filter(|line| line.starts_with("- Documents live") || line.starts_with("- Link between"))
+        .filter(|line| line.starts_with("- Every document") || line.starts_with("Learn the tool"))
         .collect();
 
     assert_eq!(
         vec![
-            "- Documents live under notes/ and are addressed by key — the path without the extension.",
-            "- Link between documents with wiki links, for example `[[projects/roadmap]]`.",
+            "- Every document is a node in the graph, addressed by key — its path without the extension.",
+            "Learn the tool from the binary itself: `iwe help` lists the commands, `iwe docs` prints the reference for the installed version.",
         ],
-        bullets
+        lines
     );
 }
 

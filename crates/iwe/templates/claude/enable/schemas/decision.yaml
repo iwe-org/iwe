@@ -1,0 +1,12 @@
+$schema: https://document-schema.org/draft/2026-06/schema
+frontmatter:
+  type: object
+  required: [type, created]
+  properties:
+    type: { const: decision }
+    created: { type: string }
+    session: { type: string }
+    origin: { type: string }
+  additionalProperties: true
+maxTokens: 400
+maxDepth: 2

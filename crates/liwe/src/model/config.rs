@@ -10,6 +10,7 @@ use super::NodeId;
 pub const DEFAULT_KEY_DATE_FORMAT: &str = "%Y-%m-%d";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct MarkdownOptions {
     #[serde(default)]
     pub refs_extension: String,
@@ -52,6 +53,7 @@ impl Format {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct DjotOptions {
     #[serde(default)]
     pub refs_extension: String,
@@ -227,6 +229,7 @@ pub enum LineBreakStyle {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct FormattingOptions {
     pub emphasis_token: Option<String>,
     pub strong_token: Option<String>,

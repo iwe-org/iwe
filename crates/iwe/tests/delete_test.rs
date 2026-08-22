@@ -36,6 +36,24 @@ fn test_delete_basic() {
 }
 
 #[test]
+fn test_delete_accepts_the_key_flag() {
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A"), ("b", "# Doc B")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["-k", "b", "--expect", "1"]);
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!temp_path.join("b.md").exists());
+
+    let conflicting = run_delete_command(temp_path, &["a", "-k", "a"]);
+    assert!(!conflicting.status.success());
+    assert!(temp_path.join("a.md").exists());
+}
+
+#[test]
 fn test_delete_removes_multiple_inclusion_edges() {
     let temp_dir = setup_workspace_with_docs(vec![
         (

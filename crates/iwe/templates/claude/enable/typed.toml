@@ -1,0 +1,40 @@
+
+# --- IWE memory: typed ontology ------------------------------------------
+# Installed by the memory init skill on request. Three knowledge types with
+# slug keys, a topic hub type, a daily attach action, and schemas bound to the
+# four prefixes. Nothing here binds a schema to the memory machinery's own
+# documents: those carry no type and validate against nothing.
+
+[templates.learning]
+key_template = "learnings/{{slug}}"
+document_template = "---\ntype: learning\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}{% if origin %}origin: \"{{origin}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
+
+[templates.decision]
+key_template = "decisions/{{slug}}"
+document_template = "---\ntype: decision\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}{% if origin %}origin: \"{{origin}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
+
+[templates.gotcha]
+key_template = "gotchas/{{slug}}"
+document_template = "---\ntype: gotcha\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}{% if origin %}origin: \"{{origin}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
+
+[templates.topic]
+key_template = "topics/{{slug}}"
+document_template = "---\ntype: topic\ncreated: \"{{now}}\"\n---\n\n# {{title}}\n\n{{body}}\n"
+
+[actions.daily]
+type = "attach"
+title = "{{today}}"
+key_template = "daily/{{today}}"
+document_template = "---\ntype: daily\n---\n\n# {{today}}\n\n{{content}}\n"
+
+[schemas.learning]
+match = "learnings/**"
+
+[schemas.decision]
+match = "decisions/**"
+
+[schemas.gotcha]
+match = "gotchas/**"
+
+[schemas.topic]
+match = "topics/**"
