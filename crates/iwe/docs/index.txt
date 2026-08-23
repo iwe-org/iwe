@@ -6,3 +6,5 @@ Print a topic with `iwe docs <topic>`.
   config   Configuration: every .iwe/config.toml section, field, and default
   schema   Document schemas: validating markdown structure and frontmatter
            with `iwe schema validate`
+  agent    Agent policy: which command answers which task, in one bounded
+           call, so an agent never falls back to grep or the filesystem

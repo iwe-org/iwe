@@ -3,11 +3,14 @@ use std::path::Path;
 
 use crate::init::evidence::Evidence;
 use crate::init::fit::measure;
+use crate::init::probe::Probes;
 use crate::init::report::summary_line;
-use crate::init::settings::{to_configuration, Confidence, SettingId, Settings, ALL_SETTINGS};
+use crate::init::settings::{
+    to_configuration, Confidence, SettingId, Settings, Value, ALL_SETTINGS,
+};
 
 pub enum Outcome {
-    Write(Settings),
+    Write { settings: Settings, memory: bool },
     Quit,
 }
 
@@ -16,14 +19,18 @@ pub fn run(
     evidence: &Evidence,
     detected: &Settings,
     defaults: &Settings,
+    probes: &Probes,
     input: &mut impl BufRead,
     output: &mut impl Write,
 ) -> Outcome {
     let decisions: Vec<SettingId> = detected
         .differing(defaults)
         .into_iter()
+        .filter(|id| *id != SettingId::Agents)
         .filter(|id| detected.confidence(*id) != Confidence::Overridden)
         .collect();
+
+    let mut chosen = detected.clone();
 
     if decisions.is_empty() {
         let _ = writeln!(output, "{}", summary_line(evidence));
@@ -31,31 +38,90 @@ pub fn run(
             output,
             "detection matches the iwe defaults — nothing to choose"
         );
-        return Outcome::Write(detected.clone());
+    } else {
+        draw(root, evidence, detected, defaults, &decisions, output);
+
+        loop {
+            let mut line = String::new();
+            if input.read_line(&mut line).unwrap_or(0) == 0 {
+                let _ = writeln!(output);
+                return Outcome::Quit;
+            }
+
+            match line.trim() {
+                "" | "y" => break,
+                "n" => {
+                    for id in &decisions {
+                        chosen.adopt(*id, defaults);
+                    }
+                    break;
+                }
+                "q" => return Outcome::Quit,
+                _ => {
+                    let _ = writeln!(output, "answer y, n or q");
+                    prompt(output);
+                }
+            }
+        }
     }
 
-    draw(root, evidence, detected, defaults, &decisions, output);
+    if probes.has_agent_surface() {
+        let _ = writeln!(output);
+        let _ = writeln!(output, "{}", probes.agent_surface_note());
+        let agents = match confirm(
+            "add agent instructions to AGENTS.md and the MCP server to .mcp.json?",
+            input,
+            output,
+        ) {
+            Some(answer) => answer,
+            None => return Outcome::Quit,
+        };
+        chosen.set(
+            SettingId::Agents,
+            Value::Bool(agents),
+            Confidence::Asked,
+            "",
+        );
+    }
+
+    let mut memory = false;
+    if probes.claude_dir {
+        memory = match confirm(
+            "enable claude memory (writes the MEMORY.md policy)?",
+            input,
+            output,
+        ) {
+            Some(answer) => answer,
+            None => return Outcome::Quit,
+        };
+    }
+
+    Outcome::Write {
+        settings: chosen,
+        memory,
+    }
+}
+
+fn confirm(question: &str, input: &mut impl BufRead, output: &mut impl Write) -> Option<bool> {
+    let _ = writeln!(output, "{} y yes · ⏎/n no · q quit", question);
+    let _ = write!(output, "> ");
+    let _ = output.flush();
 
     loop {
         let mut line = String::new();
         if input.read_line(&mut line).unwrap_or(0) == 0 {
             let _ = writeln!(output);
-            return Outcome::Quit;
+            return None;
         }
 
         match line.trim() {
-            "" | "y" => return Outcome::Write(detected.clone()),
-            "n" => {
-                let mut chosen = detected.clone();
-                for id in &decisions {
-                    chosen.adopt(*id, defaults);
-                }
-                return Outcome::Write(chosen);
-            }
-            "q" => return Outcome::Quit,
+            "" | "n" => return Some(false),
+            "y" => return Some(true),
+            "q" => return None,
             _ => {
                 let _ = writeln!(output, "answer y, n or q");
-                prompt(output);
+                let _ = write!(output, "> ");
+                let _ = output.flush();
             }
         }
     }
@@ -75,6 +141,9 @@ fn draw(
     let _ = writeln!(output, "    {:<18} {:<20} DEFAULT:", "", "DETECTED:");
 
     for id in ALL_SETTINGS {
+        if id == SettingId::Agents {
+            continue;
+        }
         let on_offer = decisions.contains(&id);
         let mut detected_cell = detected.get(id).to_string();
         if detected.is_mixed(id) {
@@ -123,6 +192,7 @@ mod tests {
 
     use super::{run, Outcome};
     use crate::init::evidence::Evidence;
+    use crate::init::probe::Probes;
     use crate::init::settings::{defaults, Confidence, SettingId, Settings, Value};
 
     fn bundles() -> (Settings, Settings) {
@@ -143,6 +213,12 @@ mod tests {
         (detected, base)
     }
 
+    fn claude_probes() -> Probes {
+        let mut probes = Probes::default();
+        probes.claude_dir = true;
+        probes
+    }
+
     fn drive(input: &str) -> (Option<Settings>, String) {
         let (detected, base) = bundles();
         drive_bundles(input, &detected, &base)
@@ -153,6 +229,16 @@ mod tests {
         detected: &Settings,
         base: &Settings,
     ) -> (Option<Settings>, String) {
+        let (selected, _, transcript) = drive_probes(input, detected, base, &Probes::default());
+        (selected, transcript)
+    }
+
+    fn drive_probes(
+        input: &str,
+        detected: &Settings,
+        base: &Settings,
+        probes: &Probes,
+    ) -> (Option<Settings>, bool, String) {
         let mut reader = Cursor::new(input.as_bytes().to_vec());
         let mut output = Vec::new();
 
@@ -161,17 +247,19 @@ mod tests {
             &Evidence::default(),
             detected,
             base,
+            probes,
             &mut reader,
             &mut output,
         );
 
-        let selected = match outcome {
-            Outcome::Write(settings) => Some(settings),
-            Outcome::Quit => None,
+        let (selected, memory) = match outcome {
+            Outcome::Write { settings, memory } => (Some(settings), memory),
+            Outcome::Quit => (None, false),
         };
 
         (
             selected,
+            memory,
             String::from_utf8(output).expect("valid UTF-8 output"),
         )
     }
@@ -291,5 +379,92 @@ mod tests {
         );
         assert_eq!(Value::text(""), selected.get(SettingId::LibraryPath));
         assert_eq!(Value::text("wiki"), selected.get(SettingId::LinkFormat));
+    }
+
+    fn questions_of(transcript: &str) -> Vec<String> {
+        transcript
+            .lines()
+            .map(|line| line.trim_start_matches("> "))
+            .filter(|line| line.ends_with("y yes · ⏎/n no · q quit"))
+            .map(|line| line.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn the_agent_and_memory_questions_default_to_no() {
+        let (detected, base) = bundles();
+        let (selected, memory, transcript) =
+            drive_probes("\n\n\n", &detected, &base, &claude_probes());
+        let selected = selected.expect("screen writes on Enter");
+
+        assert_eq!(Value::Bool(false), selected.get(SettingId::Agents));
+        assert_eq!(false, memory);
+        assert_eq!(
+            vec![
+                "add agent instructions to AGENTS.md and the MCP server to .mcp.json? y yes · ⏎/n no · q quit".to_string(),
+                "enable claude memory (writes the MEMORY.md policy)? y yes · ⏎/n no · q quit".to_string(),
+            ],
+            questions_of(&transcript)
+        );
+    }
+
+    #[test]
+    fn yes_answers_enable_agent_files_and_memory() {
+        let (detected, base) = bundles();
+        let (selected, memory, _) = drive_probes("\ny\ny\n", &detected, &base, &claude_probes());
+        let selected = selected.expect("screen writes on Enter");
+
+        assert_eq!(Value::Bool(true), selected.get(SettingId::Agents));
+        assert_eq!(true, memory);
+    }
+
+    #[test]
+    fn the_memory_question_needs_a_claude_directory() {
+        let (detected, base) = bundles();
+        let mut probes = Probes::default();
+        probes.mcp_config = true;
+
+        let (selected, memory, transcript) = drive_probes("\ny\n", &detected, &base, &probes);
+        let selected = selected.expect("screen writes on Enter");
+
+        assert_eq!(Value::Bool(true), selected.get(SettingId::Agents));
+        assert_eq!(false, memory);
+        assert_eq!(
+            vec![
+                "add agent instructions to AGENTS.md and the MCP server to .mcp.json? y yes · ⏎/n no · q quit".to_string(),
+            ],
+            questions_of(&transcript)
+        );
+    }
+
+    #[test]
+    fn no_questions_without_an_agent_surface() {
+        let (detected, base) = bundles();
+        let (selected, memory, transcript) =
+            drive_probes("\n", &detected, &base, &Probes::default());
+
+        assert!(selected.is_some());
+        assert_eq!(false, memory);
+        assert_eq!(Vec::<String>::new(), questions_of(&transcript));
+    }
+
+    #[test]
+    fn quit_at_a_question_writes_nothing() {
+        let (detected, base) = bundles();
+        let (selected, memory, _) = drive_probes("\nq\n", &detected, &base, &claude_probes());
+
+        assert!(selected.is_none());
+        assert_eq!(false, memory);
+    }
+
+    #[test]
+    fn choosing_defaults_still_asks_the_questions() {
+        let (detected, base) = bundles();
+        let (selected, memory, _) = drive_probes("n\ny\ny\n", &detected, &base, &claude_probes());
+        let selected = selected.expect("screen writes on n");
+
+        assert_eq!(Value::text(""), selected.get(SettingId::LibraryPath));
+        assert_eq!(Value::Bool(true), selected.get(SettingId::Agents));
+        assert_eq!(true, memory);
     }
 }

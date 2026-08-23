@@ -5,6 +5,8 @@ TOPICS:
   config   Configuration: every .iwe/config.toml section, field, and default
   schema   Document schemas: validating markdown structure and frontmatter
            with `iwe schema validate`
+  agent    Agent policy: which command answers which task, in one bounded
+           call, so an agent never falls back to grep or the filesystem
 
 EXAMPLES:
 
@@ -12,3 +14,4 @@ EXAMPLES:
   iwe docs query     # the query language reference
   iwe docs config    # the configuration reference
   iwe docs schema    # the document schema reference
+  iwe docs agent     # the policy an agent follows to use this CLI

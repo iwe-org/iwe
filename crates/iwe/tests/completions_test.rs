@@ -51,6 +51,18 @@ fn test_completions_zsh() {
 }
 
 #[test]
+fn test_completions_omit_hidden_commands() {
+    for shell in ["bash", "elvish", "fish", "nushell", "powershell", "zsh"] {
+        let output = run_completions(shell);
+        assert!(output.status.success());
+        let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+        assert!(!stdout.contains("internal"), "{} completions", shell);
+        assert!(!stdout.contains("session-start"), "{} completions", shell);
+        assert!(stdout.contains("normalize"), "{} completions", shell);
+    }
+}
+
+#[test]
 fn test_completions_rejects_unknown_shell() {
     let output = Command::new(crate::common::get_iwe_binary_path())
         .arg("completions")

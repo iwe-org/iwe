@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::read_to_string;
 use std::path::Path;
 
@@ -98,11 +98,18 @@ impl Serialize for KeyReport {
     }
 }
 
+#[derive(Debug)]
+pub struct ValidationRun {
+    pub reports: Vec<KeyReport>,
+    pub documents: usize,
+    pub schemas: usize,
+}
+
 pub fn validate_documents(
     config: &Configuration,
     graph: &Graph,
     keys: &[Key],
-) -> Result<Vec<KeyReport>, Vec<String>> {
+) -> Result<ValidationRun, Vec<String>> {
     let dir = schemas_dir().map_err(|error| vec![error])?;
     validate_documents_in(&dir, config, graph, keys)
 }
@@ -111,7 +118,7 @@ pub fn validate_documents_against_file(
     graph: &Graph,
     keys: &[Key],
     schema_path: &Path,
-) -> Result<Vec<KeyReport>, Vec<String>> {
+) -> Result<ValidationRun, Vec<String>> {
     let label = schema_path
         .file_stem()
         .and_then(|stem| stem.to_str())
@@ -146,7 +153,11 @@ pub fn validate_documents_against_file(
             });
         }
     }
-    Ok(reports)
+    Ok(ValidationRun {
+        reports,
+        documents: keys.len(),
+        schemas: 1,
+    })
 }
 
 pub fn explain_documents(
@@ -244,7 +255,7 @@ pub fn pending_from_changes(changes: &Changes) -> Vec<(Key, String)> {
 pub fn validate_pending_documents(
     config: &Configuration,
     docs: &[(Key, String)],
-) -> Result<Vec<KeyReport>, Vec<String>> {
+) -> Result<ValidationRun, Vec<String>> {
     let dir = schemas_dir().map_err(|error| vec![error])?;
     validate_pending_documents_in(&dir, config, docs)
 }
@@ -253,7 +264,7 @@ pub fn validate_pending_documents_in(
     dir: &Path,
     config: &Configuration,
     docs: &[(Key, String)],
-) -> Result<Vec<KeyReport>, Vec<String>> {
+) -> Result<ValidationRun, Vec<String>> {
     let mut graph = Graph::new_with_options(config.format_options());
     for (key, content) in docs {
         graph.from_markdown(key.clone(), content, MarkdownReader::new());
@@ -267,18 +278,22 @@ fn validate_documents_in(
     config: &Configuration,
     graph: &Graph,
     keys: &[Key],
-) -> Result<Vec<KeyReport>, Vec<String>> {
+) -> Result<ValidationRun, Vec<String>> {
     let bindings = SchemaBindings::compile(&config.schemas)?;
     let compiled = compile_schemas(dir, &config.schemas)?;
 
     let mut reports = Vec::new();
+    let mut documents = 0;
+    let mut schemas_used = HashSet::new();
     for key in keys {
         let names = bindings.schemas_for(&key.to_string());
         if names.is_empty() {
             continue;
         }
+        documents += 1;
         let document = build_document(graph, key, count_tokens);
         for name in names {
+            schemas_used.insert(name);
             let violations = compiled[name].validate(&document);
             if !violations.is_empty() {
                 reports.push(KeyReport {
@@ -289,7 +304,11 @@ fn validate_documents_in(
             }
         }
     }
-    Ok(reports)
+    Ok(ValidationRun {
+        reports,
+        documents,
+        schemas: schemas_used.len(),
+    })
 }
 
 fn compile_schemas(
@@ -614,7 +633,8 @@ match = [\"journal/*\", \"meetings/**\"]
             &graph,
             &keys,
         )
-        .expect("no config errors");
+        .expect("no config errors")
+        .reports;
 
         assert_eq!(reports.len(), 2);
         assert_eq!(reports[0].key, Key::name("people/alice"));
@@ -644,6 +664,65 @@ match = [\"journal/*\", \"meetings/**\"]
     }
 
     #[test]
+    fn validation_run_counts_bound_documents_and_distinct_schemas() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n",
+        );
+        write_schema(
+            temp.path(),
+            "audited",
+            "sections:\n  - header: { const: Review }\n",
+        );
+
+        let graph = graph_with(&[("people/alice", "# Summary\n"), ("teams/core", "# Team\n")]);
+        let config = config_with(&[
+            ("person", Patterns::One("people/**".to_string())),
+            ("audited", Patterns::One("people/**".to_string())),
+        ]);
+        let keys = vec![Key::name("people/alice"), Key::name("teams/core")];
+
+        let run = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .expect("no config errors");
+
+        assert_eq!(run.documents, 1);
+        assert_eq!(run.schemas, 2);
+    }
+
+    #[test]
+    fn validation_run_reports_zero_counts_when_nothing_is_bound() {
+        let temp = TempDir::new().unwrap();
+        write_schema(
+            temp.path(),
+            "person",
+            "sections:\n  - header: { const: Summary }\n",
+        );
+
+        let graph = graph_with(&[("teams/core", "# Team\n")]);
+        let config = config_with(&[("person", Patterns::One("people/**".to_string()))]);
+        let keys = vec![Key::name("teams/core")];
+
+        let run = validate_documents_in(
+            temp.path().join(".iwe").join("schemas").as_path(),
+            &config,
+            &graph,
+            &keys,
+        )
+        .expect("no config errors");
+
+        assert!(run.reports.is_empty());
+        assert_eq!(run.documents, 0);
+        assert_eq!(run.schemas, 0);
+    }
+
+    #[test]
     fn clean_document_yields_no_report() {
         let temp = TempDir::new().unwrap();
         write_schema(
@@ -661,7 +740,8 @@ match = [\"journal/*\", \"meetings/**\"]
             &graph,
             &keys,
         )
-        .expect("no config errors");
+        .expect("no config errors")
+        .reports;
         assert!(reports.is_empty());
     }
 
@@ -683,7 +763,8 @@ match = [\"journal/*\", \"meetings/**\"]
             &graph,
             &keys,
         )
-        .expect("no config errors");
+        .expect("no config errors")
+        .reports;
         assert_eq!(reports.len(), 1);
         assert_eq!(
             reports[0].violations,
@@ -709,8 +790,9 @@ match = [\"journal/*\", \"meetings/**\"]
         let graph = graph_with(&[("people/alice", "# Summary\n")]);
         let keys = vec![Key::name("people/alice")];
 
-        let reports =
-            validate_documents_against_file(&graph, &keys, &schema_path).expect("no schema errors");
+        let reports = validate_documents_against_file(&graph, &keys, &schema_path)
+            .expect("no schema errors")
+            .reports;
 
         assert_eq!(reports.len(), 1);
         assert_eq!(reports[0].key, Key::name("people/alice"));
@@ -735,8 +817,9 @@ match = [\"journal/*\", \"meetings/**\"]
         let graph = graph_with(&[("people/alice", "# Summary\n\ntext\n")]);
         let keys = vec![Key::name("people/alice")];
 
-        let reports =
-            validate_documents_against_file(&graph, &keys, &schema_path).expect("no schema errors");
+        let reports = validate_documents_against_file(&graph, &keys, &schema_path)
+            .expect("no schema errors")
+            .reports;
         assert!(reports.is_empty());
     }
 
@@ -790,7 +873,8 @@ match = [\"journal/*\", \"meetings/**\"]
             &graph,
             &keys,
         )
-        .expect("no config errors");
+        .expect("no config errors")
+        .reports;
 
         assert_eq!(reports.len(), 1);
         assert_eq!(
@@ -866,7 +950,8 @@ match = [\"journal/*\", \"meetings/**\"]
             &config,
             &docs,
         )
-        .expect("no config errors");
+        .expect("no config errors")
+        .reports;
 
         assert_eq!(reports.len(), 1);
         assert_eq!(reports[0].key, Key::name("people/alice"));
@@ -899,7 +984,8 @@ match = [\"journal/*\", \"meetings/**\"]
             &config,
             &docs,
         )
-        .expect("no config errors");
+        .expect("no config errors")
+        .reports;
         assert!(reports.is_empty());
     }
 

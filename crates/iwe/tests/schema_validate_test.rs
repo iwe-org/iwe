@@ -22,6 +22,29 @@ fn validate_text_reports_violations_and_hint() {
 }
 
 #[test]
+fn validate_stays_quiet_when_documents_were_validated() {
+    let temp_dir = setup_basic();
+    let output = run_validate(&temp_dir, &[]);
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 output");
+    assert_eq!(stderr, "");
+}
+
+#[test]
+fn validate_summary_makes_an_unbound_run_visible() {
+    let temp_dir = setup_basic();
+    write_config(temp_dir.path(), binding("alpha", "nowhere/**"));
+    let output = run_validate(&temp_dir, &[]);
+
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    assert_eq!(stdout, "");
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 output");
+    assert_eq!(stderr, "validated 0 document(s) against 0 schema(s)\n");
+}
+
+#[test]
 fn validate_json_reports_violations() {
     let temp_dir = setup_basic();
     let output = run_validate(&temp_dir, &["-f", "json"]);
@@ -163,7 +186,7 @@ fn validate_uncompilable_schema_exits_two() {
 }
 
 #[test]
-fn validate_without_schemas_produces_no_output() {
+fn validate_without_schemas_prints_only_the_summary() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
     create_dir_all(temp_path.join(".iwe")).unwrap();
@@ -175,6 +198,8 @@ fn validate_without_schemas_produces_no_output() {
     assert_eq!(output.status.code(), Some(0));
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
     assert_eq!(stdout, "");
+    let stderr = String::from_utf8(output.stderr).expect("Valid UTF-8 output");
+    assert_eq!(stderr, "validated 0 document(s) against 0 schema(s)\n");
 }
 
 #[test]

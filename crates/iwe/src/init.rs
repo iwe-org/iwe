@@ -12,6 +12,9 @@ pub mod writer;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
+use crate::init::agents::{
+    agent_instructions, mcp_snippet, register_mcp, write_agent_instructions,
+};
 use crate::init::detect::detect;
 use crate::init::evidence::scan;
 use crate::init::fit::{measure, Churn};
@@ -22,6 +25,7 @@ use crate::init::report::{
 use crate::init::screen::{run, Outcome};
 use crate::init::settings::{defaults, to_configuration, Confidence, SettingId, Settings, Value};
 use crate::init::writer::render;
+use crate::internal::claude::{enable_memory, EnableOptions};
 
 pub const IWE_MARKER: &str = ".iwe";
 pub const CONFIG_FILE_NAME: &str = "config.toml";
@@ -106,6 +110,7 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
         && std::io::stdout().is_terminal();
 
     let mut confirmed = false;
+    let mut memory = false;
     if interactive {
         let detected = chosen.clone();
         let stdin = std::io::stdin();
@@ -116,12 +121,17 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
             &evidence,
             &detected,
             &base_defaults,
+            &probes,
             &mut input,
             &mut output,
         ) {
-            Outcome::Write(selected) => {
-                chosen = selected;
+            Outcome::Write {
+                settings,
+                memory: enable,
+            } => {
+                chosen = settings;
                 confirmed = true;
+                memory = enable;
             }
             Outcome::Quit => {
                 println!("nothing written");
@@ -181,7 +191,7 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
         artifacts.extend(okf::write_artifacts(root, &library));
     }
     if chosen.agents_enabled() {
-        artifacts.extend(write_agent_artifacts(root, &chosen, !confirmed));
+        artifacts.extend(write_agent_artifacts(root, !confirmed));
     }
 
     if options.json {
@@ -214,6 +224,19 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
     println!("initialized {}", config_path_display());
     for artifact in &artifacts {
         println!("{}", artifact);
+    }
+    if memory {
+        let code = enable_memory(&EnableOptions {
+            typed: false,
+            queries: false,
+            body: None,
+            config: None,
+            schemas: Vec::new(),
+            root: Some(root.to_path_buf()),
+        });
+        if code == EXIT_ERROR {
+            println!("warning: claude memory was not enabled");
+        }
     }
     if !options.use_defaults && churn.total > 0 {
         println!("iwe normalize would rewrite {}", churn.render());
@@ -309,22 +332,22 @@ fn apply_overrides(settings: &mut Settings, overrides: &Overrides) {
     }
 }
 
-fn write_agent_artifacts(root: &Path, settings: &Settings, print_only: bool) -> Vec<String> {
+fn write_agent_artifacts(root: &Path, print_only: bool) -> Vec<String> {
     if print_only {
         return vec![
             "add this section to AGENTS.md:".to_string(),
-            agents::instructions(settings),
+            agent_instructions(),
             "register the MCP server in .mcp.json:".to_string(),
-            agents::mcp_snippet(),
+            mcp_snippet(),
         ];
     }
 
     let mut lines = Vec::new();
-    match agents::write_instructions(root, settings) {
+    match write_agent_instructions(root) {
         Ok(message) => lines.push(message),
         Err(error) => lines.push(format!("warning: {}", error)),
     }
-    match agents::register_mcp(root) {
+    match register_mcp(root) {
         Ok(message) => lines.push(message),
         Err(error) => lines.push(format!("warning: {}", error)),
     }

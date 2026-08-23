@@ -1,0 +1,15 @@
+<iwe-memory>
+This repository is an IWE workspace with durable memory in it: markdown documents, captured from past sessions and reviewed as ordinary diffs.
+Most recently recorded, newest first — titles and keys only, not content:
+
+{{ entries }}
+
+Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical "<terms>" --limit 5`.
+The `MEMORY.md` document says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+{% if queries %}
+The `queries` document is this store's query cookbook.
+{% endif %}
+{% if footer %}
+{{ footer }}
+{% endif %}
+</iwe-memory>

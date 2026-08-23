@@ -10,6 +10,7 @@ const INDEX: &str = include_str!("../docs/index.txt");
 const QUERY: &str = include_str!("../docs/query.md");
 const CONFIG: &str = include_str!("../docs/config.md");
 const SCHEMA: &str = include_str!("../docs/schema.md");
+const AGENT: &str = include_str!("../docs/agent.md");
 
 fn run_docs(args: &[&str]) -> std::process::Output {
     Command::new(crate::common::get_iwe_binary_path())
@@ -69,6 +70,14 @@ fn test_docs_schema() {
     let output = run_docs(&["schema"]);
     assert!(output.status.success());
     assert_eq!(String::from_utf8_lossy(&output.stdout), SCHEMA);
+}
+
+#[test]
+fn test_docs_agent() {
+    let output = run_docs(&["agent"]);
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout), AGENT);
+    assert!(INDEX.contains("agent"));
 }
 
 #[test]

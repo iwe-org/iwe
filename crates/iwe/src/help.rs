@@ -120,4 +120,5 @@ pub mod docs {
     pub const QUERY: &str = include_str!("../docs/query.md");
     pub const CONFIG: &str = include_str!("../docs/config.md");
     pub const SCHEMA: &str = include_str!("../docs/schema.md");
+    pub const AGENT: &str = include_str!("../docs/agent.md");
 }

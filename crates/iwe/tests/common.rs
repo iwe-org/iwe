@@ -2,6 +2,19 @@ use std::env;
 use std::path::PathBuf;
 
 pub fn get_iwe_binary_path() -> PathBuf {
+    let binary_name = format!("iwe{}", env::consts::EXE_SUFFIX);
+
+    if let Ok(target_dir) = env::var("CARGO_TARGET_DIR") {
+        let base = PathBuf::from(target_dir);
+        if let Some(path) = ["debug", "release"]
+            .into_iter()
+            .map(|x| base.join(x).join(&binary_name))
+            .find(|x| x.exists())
+        {
+            return path;
+        }
+    }
+
     let mut binary_path = env::current_dir().expect("Failed to get current directory");
 
     while !binary_path.join("Cargo.toml").exists() || !binary_path.join("crates").exists() {
@@ -11,8 +24,6 @@ pub fn get_iwe_binary_path() -> PathBuf {
     }
 
     binary_path.push("target");
-
-    let binary_name = format!("iwe{}", env::consts::EXE_SUFFIX);
 
     ["debug", "release"]
         .into_iter()

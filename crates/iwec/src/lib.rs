@@ -1872,8 +1872,8 @@ impl IweServer {
             None => validate_pending_documents(&self.config, docs),
         };
         match result {
-            Ok(reports) if reports.is_empty() => Ok(()),
-            Ok(reports) => Err(schema_violation_error(&reports)),
+            Ok(run) if run.reports.is_empty() => Ok(()),
+            Ok(run) => Err(schema_violation_error(&run.reports)),
             Err(errors) => Err(McpError::invalid_params(
                 format!("schema configuration error: {}", errors.join("; ")),
                 None,

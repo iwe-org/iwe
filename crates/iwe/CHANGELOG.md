@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe internal` — hidden commands backing the Claude Code memory integration: enabling memory, session hooks, transcript digests, and the capture queue an agent works through
+- Capture chunks — the raw transcript digests the memory queue serves — live under `.iwe/claude-sessions/` at the workspace root (or `$IWE_MEMORY_STATE`), ignored by git and outside the graph; only the `MEMORY.md` policy and the `sessions/<id>` records are store documents
+- `iwe init` offers to enable Claude memory when a `.claude/` directory is present, defaulting to no
+- `iwe delete -k <key>` — the same key flag `retrieve` and `update` take, alongside the existing positional
+- `iwe internal claude prompt <init|distill|reflect|distill-agent>` prints the instructions the memory plugin's skills and agent follow, so the plugin ships only frontmatter and the text always matches the installed binary
+- `iwe docs agent` — the policy an agent follows to use this CLI, served by the binary so the published skill never lags the release
+
+### Changed
+- `iwe init` asks a separate question before adding the `AGENTS.md` section and registering the `.mcp.json` server, defaulting to no (previously confirming the detected settings wrote both files)
+- The `AGENTS.md` section `iwe init` writes explains the graph principles and points at `iwe help` and `iwe docs` (previously it listed specific commands and detected store conventions)
+- `schema validate` warns on stderr when its bindings match no documents (previously a silent exit 0)
+- Unknown keys in `.iwe/config.toml` are rejected with a parse error (previously silently ignored)
+
+### Fixed
+- The `unknown projection source` error names the fix: frontmatter fields are bare names (`type`, not `$type`)
+
 ## [0.19.1](https://github.com/iwe-org/iwe/compare/iwe-v0.19.0...iwe-v0.19.1) - 2026-08-14
 
 Workspace version bump — no user-visible changes in this crate.

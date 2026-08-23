@@ -69,7 +69,7 @@ fn parse_item(item: &str) -> Result<ProjectionField, String> {
     if let Some(stripped) = item.strip_prefix('$') {
         let selector = format!("${}", stripped);
         let pf = PseudoField::from_selector(&selector)
-            .ok_or_else(|| format!("unknown projection source '{}'", selector))?;
+            .ok_or_else(|| unknown_source(&selector, stripped))?;
         return Ok(ProjectionField {
             output: pf.default_output_name().to_string(),
             source: ProjectionSource::Pseudo(pf),
@@ -90,7 +90,7 @@ fn parse_source(src: &str) -> Result<ProjectionSource, String> {
     if let Some(stripped) = src.strip_prefix('$') {
         let selector = format!("${}", stripped);
         let pf = PseudoField::from_selector(&selector)
-            .ok_or_else(|| format!("unknown projection source '{}'", selector))?;
+            .ok_or_else(|| unknown_source(&selector, stripped))?;
         Ok(ProjectionSource::Pseudo(pf))
     } else if !src.is_empty() {
         let segments: Vec<String> = src.split('.').map(|s| s.to_string()).collect();
@@ -98,6 +98,13 @@ fn parse_source(src: &str) -> Result<ProjectionSource, String> {
     } else {
         Err("projection source cannot be empty".to_string())
     }
+}
+
+fn unknown_source(selector: &str, stripped: &str) -> String {
+    format!(
+        "unknown projection source '{}'; frontmatter fields are bare names (write '{}', not '{}')",
+        selector, stripped, selector
+    )
 }
 
 fn check_output_name(name: &str) -> Result<(), String> {
@@ -302,9 +309,15 @@ mod tests {
     #[test]
     fn unknown_pseudo_rejected() {
         let bare = parse_projection_replace("$bogus").unwrap_err();
-        assert_eq!(bare, "unknown projection source '$bogus'");
+        assert_eq!(
+            bare,
+            "unknown projection source '$bogus'; frontmatter fields are bare names (write 'bogus', not '$bogus')"
+        );
         let aliased = parse_projection_replace("x=$bogus").unwrap_err();
-        assert_eq!(aliased, "unknown projection source '$bogus'");
+        assert_eq!(
+            aliased,
+            "unknown projection source '$bogus'; frontmatter fields are bare names (write 'bogus', not '$bogus')"
+        );
     }
 
     #[test]
