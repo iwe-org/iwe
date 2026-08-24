@@ -39,8 +39,6 @@ use liwe::query::{
     OperationKind, Outcome, ProjectionBase,
 };
 use minijinja::{context, Environment};
-use rmcp::handler::server::router::prompt::PromptRouter;
-use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
 use rmcp::schemars::JsonSchema;
@@ -737,8 +735,6 @@ pub struct IweServer {
     config: Configuration,
     index: Arc<Mutex<Option<Bm25Index>>>,
     seen: Arc<Mutex<HashSet<Finding>>>,
-    tool_router: ToolRouter<IweServer>,
-    prompt_router: PromptRouter<IweServer>,
 }
 
 #[tool_router]
@@ -1812,8 +1808,6 @@ impl IweServer {
             config: configuration.clone(),
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
-            tool_router: Self::tool_router(),
-            prompt_router: Self::prompt_router(),
         }
     }
 
@@ -1836,8 +1830,6 @@ impl IweServer {
             config,
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
-            tool_router: Self::tool_router(),
-            prompt_router: Self::prompt_router(),
         }
     }
 
