@@ -1,5 +1,5 @@
 use crate::fixture::Fixture;
-use diwe::config::{Configuration, Patterns, SchemaBinding};
+use diwe::config::{Configuration, LibraryOptions, Patterns, SchemaBinding};
 use rmcp::model::ErrorData;
 use rmcp::ServiceError;
 use serde_json::json;
@@ -135,6 +135,69 @@ async fn normalize_is_not_gated_by_a_pre_existing_violation() {
     let output = Fixture::result_json(&result);
 
     assert_eq!(output["total"], 1);
+}
+
+#[tokio::test]
+async fn schema_is_read_from_the_project_root_when_library_path_is_set() {
+    let dir = TempDir::new().unwrap();
+    let base = dir.path();
+    create_dir_all(base.join(".iwe/schemas")).unwrap();
+    write(base.join(".iwe/schemas/person.yaml"), PERSON_SCHEMA).unwrap();
+    create_dir_all(base.join("library/docs")).unwrap();
+    write(base.join("library/docs/one.md"), CLEAN).unwrap();
+
+    let mut configuration = config("person", "docs/**");
+    configuration.library = LibraryOptions {
+        path: "library".to_string(),
+        ..Default::default()
+    };
+    let f = Fixture::with_path(base.to_str().unwrap(), configuration).await;
+
+    let err = f
+        .try_call_tool(
+            "iwe_update",
+            json!({ "key": "docs/one", "content": "# Summary\n" }),
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        mcp_error(err).message,
+        "schema validation failed; change rejected:\ndocs/one: required section \"Tasks\" is missing\n"
+    );
+    assert_eq!(
+        read_to_string(base.join("library/docs/one.md")).unwrap(),
+        CLEAN
+    );
+}
+
+#[tokio::test]
+async fn clean_change_is_written_under_the_library_path() {
+    let dir = TempDir::new().unwrap();
+    let base = dir.path();
+    create_dir_all(base.join(".iwe/schemas")).unwrap();
+    write(base.join(".iwe/schemas/person.yaml"), PERSON_SCHEMA).unwrap();
+    create_dir_all(base.join("library/docs")).unwrap();
+    write(base.join("library/docs/one.md"), CLEAN).unwrap();
+
+    let mut configuration = config("person", "docs/**");
+    configuration.library = LibraryOptions {
+        path: "library".to_string(),
+        ..Default::default()
+    };
+    let f = Fixture::with_path(base.to_str().unwrap(), configuration).await;
+
+    let new_content = "# Summary\n\nmore\n\n# Tasks\n";
+    f.call_tool(
+        "iwe_update",
+        json!({ "key": "docs/one", "content": new_content }),
+    )
+    .await;
+
+    assert_eq!(
+        read_to_string(base.join("library/docs/one.md")).unwrap(),
+        new_content
+    );
 }
 
 fn setup(schema: &str) -> TempDir {

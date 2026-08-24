@@ -156,8 +156,7 @@ More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
 
    Using Homebrew (macOS/Linux):
    ```bash
-   brew tap iwe-org/iwe
-   brew install iwe
+   brew install iwe-org/iwe/iwe
    ```
 
    Or using npm (macOS/Linux/Windows):
@@ -219,7 +218,7 @@ More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
    Or hand the setup to the agent — paste this into Claude Code or any agent with shell access:
 
    ```text
-   Set up IWE for my notes: install it (brew tap iwe-org/iwe && brew install iwe,
+   Set up IWE for my notes: install it (brew install iwe-org/iwe/iwe,
    npm install -g @iwe-org/iwe, or cargo install iwe iwes iwec), run `iwe init`
    in my notes directory, then add the `iwec` MCP server with its working
    directory set to that folder.

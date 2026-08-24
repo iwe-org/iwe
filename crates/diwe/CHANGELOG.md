@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `library_path_in` — resolves the library directory from a project root and a `Configuration`
+
 ### Changed
 - The `validate_documents` family returns `ValidationRun` — the reports plus counts of validated documents and distinct schemas (was `Vec<KeyReport>`)
 - `Configuration` and its nested option types reject unknown fields when deserialized (previously unknown keys were silently ignored)

@@ -60,12 +60,8 @@ async fn main() -> Result<()> {
     });
 
     let current_dir = env::current_dir().expect("current dir");
-    let mut library_path = current_dir.clone();
-    if !configuration.library.path.is_empty() {
-        library_path.push(configuration.library.path.clone());
-    }
 
-    let server = IweServer::new(&library_path.to_string_lossy(), &configuration);
+    let server = IweServer::new(&current_dir.to_string_lossy(), &configuration);
     server.start_watching();
 
     match cli.transport {

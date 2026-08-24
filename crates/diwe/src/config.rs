@@ -449,6 +449,14 @@ pub fn schemas_dir_in(base: &Path) -> PathBuf {
     base.join(IWE_MARKER).join("schemas")
 }
 
+pub fn library_path_in(project_root: &Path, configuration: &Configuration) -> PathBuf {
+    if configuration.library.path.is_empty() {
+        project_root.to_path_buf()
+    } else {
+        project_root.join(&configuration.library.path)
+    }
+}
+
 pub fn load_config() -> Result<Configuration, String> {
     let current_dir =
         env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;

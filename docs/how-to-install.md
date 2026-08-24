@@ -7,8 +7,7 @@ Installation instructions are below. Editor integration is covered in the [quick
 The easiest way to install IWE on macOS or Linux is using Homebrew:
 
 ``` sh
-brew tap iwe-org/iwe
-brew install iwe
+brew install iwe-org/iwe/iwe
 ```
 
 This installs the CLI (`iwe`), the LSP server (`iwes`), and the MCP server (`iwec`).
