@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use chrono::Local;
 use diwe::config::{
-    schemas_dir_in, ActionDefinition, CompletionOptions, Configuration, MarkdownOptions,
-    NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
+    library_path_in, schemas_dir_in, ActionDefinition, CompletionOptions, Configuration,
+    MarkdownOptions, NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
 use diwe::fs::{new_for_path, new_from_hashmap};
@@ -224,11 +224,11 @@ pub struct FindParams {
     )]
     pub max_document_tokens: Option<usize>,
     #[schemars(
-        description = "Replacement projection (e.g. 'title,priority' or 'body=$content,parents=$includedBy'). Mutually exclusive with add_fields."
+        description = "Replacement projection (e.g. '$title,priority' or 'body=$content,parents=$includedBy'). Bare names are frontmatter fields, and project null when the document has no such field; document fields are `$`-selectors (`$key`, `$title`, `$content`, `$includedBy`, ...). Mutually exclusive with add_fields."
     )]
     pub project: Option<String>,
     #[schemars(
-        description = "Additive projection: same grammar as project, extends defaults rather than replacing. Mutually exclusive with project."
+        description = "Additive projection: same grammar as project (bare names are frontmatter fields, `$`-selectors are the document's own), extends defaults rather than replacing. Mutually exclusive with project."
     )]
     pub add_fields: Option<String>,
     #[serde(flatten)]
@@ -733,6 +733,7 @@ pub struct RefactorPromptArgs {
 pub struct IweServer {
     graph: Arc<Mutex<Graph>>,
     base_path: Option<PathBuf>,
+    project_path: Option<PathBuf>,
     config: Configuration,
     index: Arc<Mutex<Option<Bm25Index>>>,
     seen: Arc<Mutex<HashSet<Finding>>>,
@@ -1811,9 +1812,10 @@ impl ServerHandler for IweServer {
 }
 
 impl IweServer {
-    pub fn new(base_path: &str, configuration: &Configuration) -> Self {
-        let path = PathBuf::from_str(base_path).expect("valid path");
-        let state = new_for_path(&path, configuration.format);
+    pub fn new(project_path: &str, configuration: &Configuration) -> Self {
+        let root = PathBuf::from_str(project_path).expect("valid path");
+        let library = library_path_in(&root, configuration);
+        let state = new_for_path(&library, configuration.format);
         let graph = Graph::from_state(
             &state,
             false,
@@ -1822,7 +1824,8 @@ impl IweServer {
         );
         Self {
             graph: Arc::new(Mutex::new(graph)),
-            base_path: Some(path),
+            base_path: Some(library),
+            project_path: Some(root),
             config: configuration.clone(),
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
@@ -1846,6 +1849,7 @@ impl IweServer {
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,
+            project_path: None,
             config,
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
@@ -1867,8 +1871,8 @@ impl IweServer {
     }
 
     fn ensure_schema_clean(&self, docs: &[(Key, String)]) -> Result<(), McpError> {
-        let result = match &self.base_path {
-            Some(base) => validate_pending_documents_in(&schemas_dir_in(base), &self.config, docs),
+        let result = match &self.project_path {
+            Some(root) => validate_pending_documents_in(&schemas_dir_in(root), &self.config, docs),
             None => validate_pending_documents(&self.config, docs),
         };
         match result {

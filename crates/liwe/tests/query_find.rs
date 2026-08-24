@@ -275,6 +275,47 @@ fn find_projection_alias_with_user_chosen_name() {
 }
 
 #[test]
+fn find_projection_bare_identity_names_read_frontmatter() {
+    let matches = run_find(
+        indoc! {"
+            ---
+            title: Frontmatter Title
+            key: frontmatter-key
+            ---
+            # Doc One
+        "},
+        filter(Filter::all()).project(Projection::fields(&["title", "key"])),
+    );
+    assert_eq!(matches.len(), 1);
+    let mut expected = Mapping::new();
+    expected.insert(
+        Value::String("title".into()),
+        Value::String("Frontmatter Title".into()),
+    );
+    expected.insert(
+        Value::String("key".into()),
+        Value::String("frontmatter-key".into()),
+    );
+    assert_eq!(matches[0].1, expected);
+}
+
+#[test]
+fn find_projection_missing_frontmatter_field_is_null() {
+    let matches = run_find(
+        indoc! {"
+            # Doc One
+        "},
+        filter(Filter::all()).project(Projection::fields(&["title", "key", "status"])),
+    );
+    assert_eq!(matches.len(), 1);
+    let mut expected = Mapping::new();
+    expected.insert(Value::String("title".into()), Value::Null);
+    expected.insert(Value::String("key".into()), Value::Null);
+    expected.insert(Value::String("status".into()), Value::Null);
+    assert_eq!(matches[0].1, expected);
+}
+
+#[test]
 fn find_sort_and_limit() {
     assert_keys(
         indoc! {"

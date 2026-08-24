@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Schemas are read from the project root, so `iwe_create` and `iwe_update` validate against `.iwe/schemas/` next to `.iwe/config.toml` (previously the server looked under the library directory and every write failed with a schema-not-found error whenever `library.path` was set)
+
 ## [0.19.1](https://github.com/iwe-org/iwe/compare/iwec-v0.19.0...iwec-v0.19.1) - 2026-08-14
 
 Workspace version bump — no user-visible changes in this crate.
