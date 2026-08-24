@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1](https://github.com/iwe-org/iwe/compare/liwe-v0.20.0...liwe-v0.20.1) - 2026-08-24
+
+Workspace version bump — no user-visible changes in this crate.
+
 ## [0.20.0](https://github.com/iwe-org/iwe/compare/liwe-v0.19.1...liwe-v0.20.0) - 2026-08-23
 
 ### Changed
