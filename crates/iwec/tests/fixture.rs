@@ -86,8 +86,8 @@ impl Fixture {
         result
             .content
             .iter()
-            .filter_map(|c| match &c.raw {
-                RawContent::Text(t) => Some(t.text.clone()),
+            .filter_map(|c| match c {
+                ContentBlock::Text(t) => Some(t.text.clone()),
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -98,8 +98,8 @@ impl Fixture {
         let text = result
             .content
             .iter()
-            .find_map(|c| match &c.raw {
-                RawContent::Text(t) => Some(t.text.clone()),
+            .find_map(|c| match c {
+                ContentBlock::Text(t) => Some(t.text.clone()),
                 _ => None,
             })
             .expect("result to have a text block");
@@ -110,8 +110,8 @@ impl Fixture {
         result
             .content
             .iter()
-            .filter_map(|c| match &c.raw {
-                RawContent::Text(t) => Some(t.text.clone()),
+            .filter_map(|c| match c {
+                ContentBlock::Text(t) => Some(t.text.clone()),
                 _ => None,
             })
             .collect()

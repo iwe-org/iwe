@@ -39,8 +39,6 @@ use liwe::query::{
     OperationKind, Outcome, ProjectionBase,
 };
 use minijinja::{context, Environment};
-use rmcp::handler::server::router::prompt::PromptRouter;
-use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
 use rmcp::schemars::JsonSchema;
@@ -53,7 +51,7 @@ use tokio::sync::Mutex;
 fn to_json_result<T: Serialize>(output: &T) -> Result<CallToolResult, McpError> {
     let json =
         serde_json::to_string(output).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-    Ok(CallToolResult::success(vec![Content::text(json)]))
+    Ok(CallToolResult::success(vec![ContentBlock::text(json)]))
 }
 
 #[derive(Serialize)]
@@ -74,9 +72,9 @@ fn to_json_result_with_truncation<T: Serialize>(
 ) -> Result<CallToolResult, McpError> {
     let json =
         serde_json::to_string(output).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-    let mut blocks = vec![Content::text(json)];
+    let mut blocks = vec![ContentBlock::text(json)];
     if truncation.is_truncated() {
-        blocks.push(Content::text(truncation_note(truncation)));
+        blocks.push(ContentBlock::text(truncation_note(truncation)));
     }
     Ok(CallToolResult::success(blocks))
 }
@@ -100,15 +98,15 @@ fn to_json_result_with_warnings<T: Serialize>(
 ) -> Result<CallToolResult, McpError> {
     let json =
         serde_json::to_string(output).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-    let mut blocks = vec![Content::text(json)];
+    let mut blocks = vec![ContentBlock::text(json)];
     for warning in warnings {
-        blocks.push(Content::text(format!("warning: {}", warning)));
+        blocks.push(ContentBlock::text(format!("warning: {}", warning)));
     }
     Ok(CallToolResult::success(blocks))
 }
 
 fn to_text_result(text: String) -> Result<CallToolResult, McpError> {
-    Ok(CallToolResult::success(vec![Content::text(text)]))
+    Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }
 
 #[derive(Serialize)]
@@ -737,8 +735,6 @@ pub struct IweServer {
     config: Configuration,
     index: Arc<Mutex<Option<Bm25Index>>>,
     seen: Arc<Mutex<HashSet<Finding>>>,
-    tool_router: ToolRouter<IweServer>,
-    prompt_router: PromptRouter<IweServer>,
 }
 
 #[tool_router]
@@ -1580,7 +1576,7 @@ impl IweServer {
         let stats_json = serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "{}".to_string());
 
         let messages = vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             format!(
                 "Here is an overview of the IWE knowledge graph.\n\n## Statistics\n\n```json\n{}\n```\n\nExplore the graph using iwe_retrieve to read documents, iwe_find to search, and iwe_tree to navigate the structure.",
                 stats_json
@@ -1614,7 +1610,7 @@ impl IweServer {
             serde_json::to_string_pretty(&output.documents).unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             format!(
                 "Review this document and its context in the knowledge graph:\n\n```json\n{}\n```\n\nConsider: Is it well-placed in the graph? Are there missing links? Is the content clear and well-structured? What sections might be extracted into separate documents?",
                 json
@@ -1649,7 +1645,7 @@ impl IweServer {
             serde_json::to_string_pretty(&output.documents).unwrap_or_else(|_| "[]".to_string());
 
         let messages = vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             format!(
                 "Analyze this document tree and suggest restructuring:\n\n```json\n{}\n```\n\nIdentify documents that are too large (should be extracted with iwe_extract), too small (should be inlined with iwe_inline), poorly named (should be renamed with iwe_rename), or missing connections. Propose a sequence of operations to improve the structure.",
                 json
@@ -1686,18 +1682,15 @@ impl ServerHandler for IweServer {
     ) -> Result<ListResourcesResult, McpError> {
         let graph = self.graph.lock().await;
         let mut resources = vec![
-            RawResource::new("iwe://tree", "tree")
+            Resource::new("iwe://tree", "tree")
                 .with_description("Full document tree structure")
-                .with_mime_type("application/json")
-                .no_annotation(),
-            RawResource::new("iwe://stats", "stats")
+                .with_mime_type("application/json"),
+            Resource::new("iwe://stats", "stats")
                 .with_description("Aggregate graph statistics")
-                .with_mime_type("application/json")
-                .no_annotation(),
-            RawResource::new("iwe://config", "config")
+                .with_mime_type("application/json"),
+            Resource::new("iwe://config", "config")
                 .with_description("Project configuration: markdown options, templates, actions")
-                .with_mime_type("application/json")
-                .no_annotation(),
+                .with_mime_type("application/json"),
         ];
 
         for key in graph.keys().iter().take(100) {
@@ -1705,24 +1698,19 @@ impl ServerHandler for IweServer {
                 .get_key_title(key)
                 .unwrap_or_else(|| key.to_string());
             resources.push(
-                RawResource::new(format!("iwe://documents/{}", key), title)
-                    .with_mime_type("text/markdown")
-                    .no_annotation(),
+                Resource::new(format!("iwe://documents/{}", key), title)
+                    .with_mime_type("text/markdown"),
             );
         }
 
-        Ok(ListResourcesResult {
-            resources,
-            next_cursor: None,
-            meta: None,
-        })
+        Ok(ListResourcesResult::with_all_items(resources))
     }
 
     async fn read_resource(
         &self,
         request: ReadResourceRequestParams,
         _: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, McpError> {
+    ) -> Result<ReadResourceResponse, McpError> {
         let uri = &request.uri;
         let graph = self.graph.lock().await;
 
@@ -1746,20 +1734,18 @@ impl ServerHandler for IweServer {
             }
             let json = serde_json::to_string_pretty(&trees)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(ReadResourceResult::new(vec![ResourceContents::text(
-                json,
-                uri.clone(),
-            )]));
+            return Ok(
+                ReadResourceResult::new(vec![ResourceContents::text(json, uri.clone())]).into(),
+            );
         }
 
         if uri == "iwe://stats" {
             let stats = GraphStatistics::from_graph(&graph);
             let json = serde_json::to_string_pretty(&stats)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(ReadResourceResult::new(vec![ResourceContents::text(
-                json,
-                uri.clone(),
-            )]));
+            return Ok(
+                ReadResourceResult::new(vec![ResourceContents::text(json, uri.clone())]).into(),
+            );
         }
 
         if uri == "iwe://config" {
@@ -1767,10 +1753,9 @@ impl ServerHandler for IweServer {
                 .map_err(|e| McpError::internal_error(e, None))?;
             let json = serde_json::to_string_pretty(&config_view)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(ReadResourceResult::new(vec![ResourceContents::text(
-                json,
-                uri.clone(),
-            )]));
+            return Ok(
+                ReadResourceResult::new(vec![ResourceContents::text(json, uri.clone())]).into(),
+            );
         }
 
         if let Some(key_str) = uri.strip_prefix("iwe://documents/") {
@@ -1781,10 +1766,9 @@ impl ServerHandler for IweServer {
                     McpError::resource_not_found(format!("Document '{}' not found", key_str), None)
                 })?
                 .to_string();
-            return Ok(ReadResourceResult::new(vec![ResourceContents::text(
-                content,
-                uri.clone(),
-            )]));
+            return Ok(
+                ReadResourceResult::new(vec![ResourceContents::text(content, uri.clone())]).into(),
+            );
         }
 
         Err(McpError::resource_not_found(
@@ -1798,16 +1782,11 @@ impl ServerHandler for IweServer {
         _request: Option<PaginatedRequestParams>,
         _: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, McpError> {
-        Ok(ListResourceTemplatesResult {
-            resource_templates: vec![
-                RawResourceTemplate::new("iwe://documents/{key}", "document")
-                    .with_description("A document in the knowledge graph by key")
-                    .with_mime_type("text/markdown")
-                    .no_annotation(),
-            ],
-            next_cursor: None,
-            meta: None,
-        })
+        Ok(ListResourceTemplatesResult::with_all_items(vec![
+            ResourceTemplate::new("iwe://documents/{key}", "document")
+                .with_description("A document in the knowledge graph by key")
+                .with_mime_type("text/markdown"),
+        ]))
     }
 }
 
@@ -1829,8 +1808,6 @@ impl IweServer {
             config: configuration.clone(),
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
-            tool_router: Self::tool_router(),
-            prompt_router: Self::prompt_router(),
         }
     }
 
@@ -1853,8 +1830,6 @@ impl IweServer {
             config,
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
-            tool_router: Self::tool_router(),
-            prompt_router: Self::prompt_router(),
         }
     }
 

@@ -640,7 +640,8 @@ impl Fixture {
         let params = serde_json::to_value(workspace_symbol_params(query)).unwrap();
         let response = self.raw_response("workspace/symbol", params);
         let mut names: Vec<String> = response
-            .result
+            .response_result
+            .ok()
             .and_then(|value| value.as_array().cloned())
             .unwrap_or_default()
             .iter()
@@ -749,8 +750,9 @@ impl Fixture {
             params,
         ));
 
-        assert_eq!(response.result, None);
-        let actual = response.error.expect("expected an error response");
+        let actual = response
+            .response_result
+            .expect_err("expected an error response");
         assert_json_eq!(&expected, &actual);
         self
     }
@@ -906,10 +908,10 @@ impl Fixture {
 
     fn send_request_(&self, r: Request) -> Value {
         let response = self.recv_response_(r);
-        if let Some(err) = response.error {
-            panic!("error response: {err:#?}");
+        match response.response_result {
+            Ok(value) => value,
+            Err(err) => panic!("error response: {err:#?}"),
         }
-        response.result.unwrap()
     }
 
     fn recv_response_(&self, r: Request) -> lsp_server::Response {

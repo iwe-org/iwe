@@ -1,10 +1,10 @@
 use crate::fixture::Fixture;
-use rmcp::model::{PromptMessage, PromptMessageContent};
+use rmcp::model::{ContentBlock, PromptMessage};
 use serde_json::json;
 
 fn prompt_text(msg: &PromptMessage) -> String {
     match &msg.content {
-        PromptMessageContent::Text { text } => text.clone(),
+        ContentBlock::Text(t) => t.text.clone(),
         other => panic!("expected text content, got: {other:?}"),
     }
 }

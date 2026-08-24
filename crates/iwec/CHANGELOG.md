@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- MCP protocol support now spans revisions `2024-11-05` through `2026-07-28` (was capped at `2025-06-18`), including the `server/discover` method
+
+### Fixed
+- An `initialize` request without a `protocolVersion` receives a JSON-RPC error response (previously the server exited without answering)
+- Version negotiation no longer echoes back an unknown protocol version; the server answers with a revision it supports
+
 ## [0.20.0](https://github.com/iwe-org/iwe/compare/iwec-v0.19.1...iwec-v0.20.0) - 2026-08-23
 
 ### Fixed

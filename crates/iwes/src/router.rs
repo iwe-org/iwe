@@ -242,8 +242,7 @@ impl Router {
         if request.method == "shutdown" {
             self.respond(Response {
                 id: request.id.clone(),
-                result: Some(serde_json::Value::Null),
-                error: None,
+                response_result: Ok(serde_json::Value::Null),
             });
 
             return true;
@@ -318,8 +317,7 @@ impl Router {
                     Err(err) => {
                         self.respond(Response {
                             id: request.id.clone(),
-                            result: None,
-                            error: Some(err),
+                            response_result: Err(err),
                         });
                         return false;
                     }
@@ -343,8 +341,7 @@ impl Router {
             Ok(value) => {
                 self.respond(Response {
                     id: request.id,
-                    result: Some(value),
-                    error: None,
+                    response_result: Ok(value),
                 });
                 if request.method.as_str() == "codeAction/resolve"
                     && self.inlay_hints_used.load(Ordering::Relaxed)

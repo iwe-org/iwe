@@ -10,9 +10,9 @@ fn unknown_method_returns_method_not_found_without_hanging() {
         json!({ "command": "generate", "arguments": [] }),
     );
 
-    assert_eq!(response.result, None);
-
-    let error = response.error.expect("expected an error response");
+    let error = response
+        .response_result
+        .expect_err("expected an error response");
     assert_eq!(error.code, ErrorCode::MethodNotFound as i32);
     assert_eq!(error.message, "unhandled method: workspace/executeCommand");
 }
