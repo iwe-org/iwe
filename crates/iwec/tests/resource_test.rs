@@ -9,11 +9,7 @@ async fn list_resources_includes_documents() {
     let result = f.list_resources().await;
     assert!(result.resources.len() >= 5);
 
-    let uris: Vec<&str> = result
-        .resources
-        .iter()
-        .map(|r| r.raw.uri.as_str())
-        .collect();
+    let uris: Vec<&str> = result.resources.iter().map(|r| r.uri.as_str()).collect();
     assert!(uris.contains(&"iwe://tree"));
     assert!(uris.contains(&"iwe://stats"));
     assert!(uris.contains(&"iwe://documents/1"));
@@ -65,11 +61,7 @@ async fn list_resources_includes_config() {
     let f = Fixture::with_documents(vec![("1", "# Doc\n")]).await;
 
     let result = f.list_resources().await;
-    let uris: Vec<&str> = result
-        .resources
-        .iter()
-        .map(|r| r.raw.uri.as_str())
-        .collect();
+    let uris: Vec<&str> = result.resources.iter().map(|r| r.uri.as_str()).collect();
     assert!(uris.contains(&"iwe://config"));
 }
 

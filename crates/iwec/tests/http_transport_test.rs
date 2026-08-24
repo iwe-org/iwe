@@ -3,7 +3,7 @@ use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
 use rmcp::model::{
-    CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, RawContent,
+    CallToolRequestParams, ClientCapabilities, ClientInfo, ContentBlock, Implementation,
 };
 use rmcp::transport::StreamableHttpClientTransport;
 use rmcp::ServiceExt;
@@ -65,8 +65,8 @@ async fn find_welcome_over_http(addr: &str) -> serde_json::Value {
     let text = result
         .content
         .iter()
-        .filter_map(|c| match &c.raw {
-            RawContent::Text(t) => Some(t.text.clone()),
+        .filter_map(|c| match c {
+            ContentBlock::Text(t) => Some(t.text.clone()),
             _ => None,
         })
         .collect::<String>();
