@@ -23,24 +23,9 @@ IWE is for people who want database-style queries on their notes — "all drafts
 - **A graph, not a folder tree.** Link notes together and the same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
 - **IDE features for your editor.** Real LSP integration with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/) — search, refactor, rename, autocomplete.
 - **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) give agents parent context and structural navigation over the same notes you edit by hand — retrieval by structure, not similarity guessing.
-- **Memory for your coding agent.** The [IWE plugin for Claude Code](#memory-for-claude-code) captures what a session established into the repository's own IWE workspace — markdown you review as an ordinary diff, not a store you can't inspect.
+- **Memory for your coding agent.** The [IWE plugin for Claude Code](https://github.com/iwe-org/skills) captures what a session established into the repository's own IWE workspace — markdown you review as an ordinary diff, not a store you can't inspect.
 - **Speaks OKF.** An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle is markdown with YAML frontmatter — the format IWE already manages. `iwe init --okf` scaffolds a conformant bundle, `iwe schema validate` checks conformance mechanically, and `iwe find --filter '{type: …}'` queries OKF frontmatter directly.
 - **Fast.** Built in Rust, [processes 20,000 files in under a second](docs/benchmark.md).
-
-## Instructions Aren't Memory
-
-Agents ship with an instructions file — CLAUDE.md, AGENTS.md — and it's tempting to let memory accumulate there too. It doesn't hold. Instructions are rules; memory is what builds up: decisions, corrections, the state of everything in flight. Kept in one flat file, the agent appends, contradictions pile up side by side each looking authoritative, and every session re-reads the whole thing.
-
-IWE stores memory as many small linked documents, so the agent asks instead of re-reading. Most recall is a structured question — what's still open, what did we decide about X, which notes mention this person — answered by a query and one retrieve call that expands the linked context. The rest of the graph stays out of the context window. And because it's markdown in git, the memory is inspectable: open what the agent believes, diff what changed, git-blame when.
-
-## Memory for Claude Code
-
-The [`iwe` plugin](https://github.com/iwe-org/skills) gives Claude Code memory that lives in your repository: notes captured from your sessions, written into the repository's own IWE workspace beside the markdown they describe. There is no separate memory directory, no second graph, and no service — memory is reviewed as a normal diff and versioned with everything else.
-
-- **`MEMORY.md` is the switch, and the policy.** A workspace remembers when it holds a `MEMORY.md` document; delete it and every hook goes silent. The document is prose you own — what's worth capturing, how documents in *this* store are written, how to dedup, how far curation may go. The plugin ships no document types, no schemas, and no opinion about your knowledge base: capture reads your policy, studies the store, and writes documents that look like the ones already there.
-- **Two hooks, nothing resident.** Session start injects a token-budgeted index of recent memory — titles and keys, never content — plus how to go deeper. Session stop sweeps the un-captured transcript tail in your idle time, once it crosses a threshold, and hands it to a background agent to distill. The cost is one cheap subagent run per sweep, not AI on every tool call.
-- **The workspace is the state.** Watermarks and provenance are documents under `sessions/`, each capture linking to every document it wrote — so "which sessions produced this note" is a query, not a log file. A capture that dies leaves its work pending, and the next sweep resumes at the exact line it reached.
-- **Three skills.** `/iwe:init` writes the policy with you, then drains the sessions that already happened into it. `/iwe:distill` records something worth keeping from the session at hand. `/iwe:reflect` evolves the store with you — index fields, areas and hub pages, entity extraction, pruning and merging. Nothing reorganizes memory in the background.
 
 ### Install
 
