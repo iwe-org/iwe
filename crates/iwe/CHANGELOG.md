@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0](https://github.com/iwe-org/iwe/compare/iwe-v0.19.1...iwe-v0.20.0) - 2026-08-23
+
 ### Added
 - `iwe internal` — hidden commands backing the Claude Code memory integration: enabling memory, session hooks, transcript digests, and the capture queue an agent works through
 - Capture chunks — the raw transcript digests the memory queue serves — live under `.iwe/claude-sessions/` at the workspace root (or `$IWE_MEMORY_STATE`), ignored by git and outside the graph; only the `MEMORY.md` policy and the `sessions/<id>` records are store documents
