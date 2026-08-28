@@ -113,6 +113,43 @@ fn append_under_header() {
 }
 
 #[test]
+fn append_with_bare_markdown_is_refused_with_the_mapping_shape() {
+    let notes = "# Status\n\nexisting\n";
+    let temp = setup(vec![("notes", notes)]);
+    let output = run_update(
+        temp.path(),
+        &["-k", "notes", "--append", "[Title](notes/slug)"],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        stderr,
+        indoc! {r#"
+            error: invalid --append argument: deserializing from YAML containing more than one document is not supported
+            hint: --append takes one YAML mapping '{ <selector>, content: <markdown> }', e.g. --append '{ $header: Notes, content: "[Title](notes/slug)" }'; quote a value that contains brackets or colons
+        "#}
+    );
+    assert_eq!(read_to_string(temp.path().join("notes.md")).unwrap(), notes);
+}
+
+#[test]
+fn block_operator_with_a_scalar_argument_is_refused_with_the_mapping_shape() {
+    let notes = "# Status\n\nexisting\n";
+    let temp = setup(vec![("notes", notes)]);
+    let output = run_update(temp.path(), &["-k", "notes", "--delete", "Status"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        stderr,
+        indoc! {"
+            error: invalid --delete argument: expected a YAML mapping, got a string
+            hint: --delete takes one YAML mapping '{ <selector> }', e.g. --delete '{ $header: Notes }'; quote a value that contains brackets or colons
+        "}
+    );
+    assert_eq!(read_to_string(temp.path().join("notes.md")).unwrap(), notes);
+}
+
+#[test]
 fn expect_violation_aborts_without_writing() {
     let original = indoc! {"
         # Doc

@@ -10,6 +10,6 @@ pub use enable::{enable_memory, EnableOptions};
 pub use hook::{enter_memory_store, post_tool_report, read_hook_payload, render_memory_index};
 pub use prompt::prompt_body;
 pub use session::{
-    session_adopt, session_brief, session_complete, session_list, session_migrate, session_read,
-    CompleteOptions, SessionOptions,
+    session_adopt, session_brief, session_complete, session_list, session_read, CompleteOptions,
+    SessionOptions,
 };

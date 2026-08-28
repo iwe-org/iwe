@@ -109,8 +109,6 @@ done
 iwe schema validate
 ```
 
-A store from an earlier release keeps its session records in the library as `sessions/<id>`; `iwe internal claude session migrate` moves them under `.iwe/claude/sessions/` and deletes the documents — the brief's policy check names the count until it runs.
-
-Then `iwe internal claude session adopt` so old transcripts are not re-read. Leave `memory/` and any `.iwe/claude-sessions/` directory for the user to delete. A policy still carrying `sweep_threshold_lines`, `max_chunks_per_sweep`, `inflight_ttl_minutes` or `max_items_per_chunk` predates manual distill; nothing reads them — offer `iwe update -k MEMORY --unset sweep_threshold_lines --expect 1`.
+Then `iwe internal claude session adopt` so old transcripts are not re-read. Leave `memory/`, any `sessions/<id>` documents an earlier release kept in the store, and any `.iwe/claude-sessions/` directory for the user to delete. A policy still carrying `sweep_threshold_lines`, `max_chunks_per_sweep`, `inflight_ttl_minutes` or `max_items_per_chunk` predates manual distill; nothing reads them — offer `iwe update -k MEMORY --unset sweep_threshold_lines --expect 1`.
 
 A session marked read that nobody read is reset by setting `distilled_lines: 0` in `.iwe/claude/sessions/<id>.yaml`; the next distill run re-reads it, and writes dedup.

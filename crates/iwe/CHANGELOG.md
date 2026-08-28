@@ -9,18 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `iwe normalize -k <key>` normalizes only the named documents, leaves their frontmatter as written and prints only the paths that changed
-- `iwe internal claude session <brief|list|read|complete|adopt|migrate>` — the commands behind the foreground distill flow: list sessions with their undistilled span and state, read a bounded window of one, mark it distilled and record what was written, or adopt sessions without reading them
+- `iwe internal claude session <brief|list|read|complete|adopt>` — the commands behind the foreground distill flow: list sessions with their undistilled span and state, read a bounded window of one, mark it distilled and record what was written, or adopt sessions without reading them
 - `iwe internal claude hook post-tool` — a `PostToolUse` hook that normalizes a markdown document written with the Write or Edit tool and reports schema violations and near-duplicates back through `additionalContext`; it never blocks the tool call
 - `knowledge_filter`, `recency_field`, `injection`, `max_proposals_per_read` and `remind_every_days` knobs on `MEMORY.md`; `injection` lists the slices (`filter`, `recent`, `changed`) session start puts in front of every session, and `enable --knobs <yaml>` writes knobs into a composed policy
 - `session brief` prints a policy check (missing sections, a `knowledge_filter` that does not parse, `iwe` invocations this binary lacks), the effective filter, the bound schemas and an area-hub census
-- `session complete --wrote <key>` links the written document into its area hub when one exists
+- `session complete --wrote <key>` links the written document into its area hub when one exists, and warns when a written document is not selected by the knowledge filter
 - `enable` installs a default `.iwe/schemas/memory.yaml` that constrains only the `created` and `session` fields
 - Session start reports how many sessions are undistilled and, at most once per `remind_every_days`, asks to offer a distill run; each session record keeps a selection ledger (`offered`, `kept`, `rejected`)
 
 ### Changed
-- Session records live under `.iwe/claude/sessions/<id>.yaml`, outside the graph (previously `sessions/<id>` store documents); `session migrate` moves existing ones. The default `knowledge_filter` is `{ $key: { $nin: [MEMORY, queries] } }` (was `{ distilled_lines: { $exists: false }, $key: { $nin: [MEMORY, queries] } }`)
+- `update` block operators (`--append`, `--replace`, `--delete`, …) given an argument that is not a YAML mapping now report the flag, the mapping shape it takes and an example (previously the raw parser error)
+- Session records live under `.iwe/claude/sessions/<id>.yaml`, outside the graph (previously `sessions/<id>` store documents). The default `knowledge_filter` is `{ $key: { $nin: [MEMORY, queries] } }` (was `{ distilled_lines: { $exists: false }, $key: { $nin: [MEMORY, queries] } }`)
 - The `init`, `distill` and `reflect` prompts are about half their previous length and carry procedure only; the shape of a memory document is the `MEMORY.md` policy's alone, read by section name (`## How to write it`, `## Dedup and updates`, `## Curation`)
-- The `distill` prompt is a foreground propose → select → write flow that reads the current session first and offers the backlog afterwards
+- The `distill` prompt is a foreground propose → select → write flow that reads the current session first and offers the backlog afterwards; every proposal is prepared and dedup-checked before the first question, the questions come one after another with `Remember`, `Skip` or `Edit` (the user's own wording on the item), and nothing is written until the last one is answered
 - The session-start block's closing lines come from the policy's `## At session start` section (previously hard-coded), and the search hint carries the store's knowledge filter
 - `iwe create` and `iwe update --content` normalize the body on the way in, leaving the frontmatter as written
 - The current session is identified from the hook's `session_id` or `CLAUDE_CODE_SESSION_ID`; any other session active in the last 30 minutes is refused by `adopt` and `complete --lines now`

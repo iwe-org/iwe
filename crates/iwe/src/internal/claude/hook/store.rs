@@ -477,6 +477,10 @@ impl MemoryStore {
         &self.config
     }
 
+    pub fn reloaded_graph(&self) -> Graph {
+        load_store_graph(&self.config)
+    }
+
     pub fn knob(&self, name: &str) -> Option<String> {
         let text = self.knobs.get(YamlValue::String(name.to_string()))?;
         let text = scalar_text(text)?;

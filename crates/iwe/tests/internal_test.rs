@@ -812,17 +812,6 @@ impl HookFixture {
         String::from_utf8(self.iwe(args).stdout).expect("Valid UTF-8 output")
     }
 
-    fn legacy_records(&self) -> PathBuf {
-        self.store()
-            .canonicalize()
-            .expect("the store resolves")
-            .join("sessions")
-    }
-
-    fn migrate(&self) -> String {
-        self.iwe_ok(&["internal", "claude", "session", "migrate"])
-    }
-
     fn session_ok(&self, args: &[&str]) -> String {
         self.session_ok_env(args, &[])
     }
@@ -2174,139 +2163,6 @@ fn record_title_and_summary_are_set_once() {
         record
     );
     assert!(!record.contains("later"), "{}", record);
-}
-
-const LEGACY_RECORD: &str = indoc! {"
-    ---
-    session: \"session-one\"
-    created: \"2026-08-19 08:00\"
-    distilled_lines: 12
-    distilled_at: \"2026-08-19 08:30\"
-    transcript: /elsewhere/session-one.jsonl
-    transcript_bytes: 1034
-    transcript_lines: 12
-    started: \"2026-08-19 07:00\"
-    ended: \"2026-08-19 07:11\"
-    offered: 4
-    kept: 2
-    rejected:
-    - A recommendation nobody confirmed
-    ---
-
-    # Cache warmup investigation
-
-    Traced the warmup order.
-
-    2026-08-19 08:10 — captured 1 item(s) through line 6
-
-    [Kept fact](../kept-fact)
-
-    2026-08-19 08:30 — captured 1 item(s)
-
-    [Another fact](../another-fact)
-"};
-
-const LEGACY_ADOPTED: &str = indoc! {"
-    ---
-    session: \"session-two\"
-    created: \"2026-08-19 08:00\"
-    distilled_lines: 8
-    ---
-
-    # Session session-two
-
-    Agent session in this workspace.
-"};
-
-fn legacy_fixture() -> HookFixture {
-    let fixture = backlog_fixture();
-    fixture.write("sessions/session-one.md", LEGACY_RECORD);
-    fixture.write("sessions/session-two.md", LEGACY_ADOPTED);
-    fixture.write("sessions/.gitignore", ".reminded\n");
-    fixture
-}
-
-#[test]
-fn migrate_moves_legacy_records_out_of_the_store() {
-    let fixture = legacy_fixture();
-
-    assert_eq!(
-        fixture.migrate(),
-        "migrated 2 session record(s) to .iwe/claude/sessions\n"
-    );
-
-    assert_eq!(
-        fixture.read(".iwe/claude/sessions/session-one.yaml"),
-        indoc! {"
-            session: session-one
-            title: Cache warmup investigation
-            summary: Traced the warmup order.
-            transcript: /elsewhere/session-one.jsonl
-            transcript_bytes: 1034
-            transcript_lines: 12
-            started: 2026-08-19 07:00
-            ended: 2026-08-19 07:11
-            distilled_lines: 12
-            distilled_at: 2026-08-19 08:30
-            offered: 4
-            kept: 2
-            rejected:
-            - A recommendation nobody confirmed
-            captures:
-            - at: 2026-08-19 08:10
-              through: 6
-              wrote:
-              - kept-fact
-            - at: 2026-08-19 08:30
-              wrote:
-              - another-fact
-        "}
-    );
-    assert_eq!(
-        fixture.read(".iwe/claude/sessions/session-two.yaml"),
-        "session: session-two\ndistilled_lines: 8\n"
-    );
-    assert!(!fixture.exists("sessions/session-one.md"));
-    assert!(!fixture.exists("sessions/session-two.md"));
-    assert!(!fixture.exists("sessions/.gitignore"));
-    assert!(!fixture.exists("sessions"));
-
-    assert_eq!(
-        fixture.migrate(),
-        format!(
-            "no session records under {}\n",
-            fixture.legacy_records().display()
-        )
-    );
-}
-
-#[test]
-fn brief_and_list_name_legacy_records_until_they_are_migrated() {
-    let fixture = legacy_fixture();
-    let notice = format!(
-        "2 session record(s) still under {} — run `iwe internal claude session migrate`",
-        fixture.legacy_records().display()
-    );
-
-    assert!(fixture.brief().contains(&notice), "{}", fixture.brief());
-    assert!(
-        fixture.session_ok(&["list"]).contains(&notice),
-        "{}",
-        fixture.session_ok(&["list"])
-    );
-
-    fixture.migrate();
-
-    assert!(
-        !fixture.brief().contains("still under"),
-        "{}",
-        fixture.brief()
-    );
-    assert!(
-        !fixture.session_ok(&["list"]).contains("still under"),
-        "{}",
-        fixture.session_ok(&["list"])
-    );
 }
 
 #[test]
@@ -3684,6 +3540,93 @@ fn complete_links_a_written_document_into_its_area_hub_once() {
         brief.contains("postgres — includes all 2 document(s) under postgres/"),
         "{}",
         brief
+    );
+}
+
+#[test]
+fn complete_warns_when_a_written_document_is_outside_the_knowledge_filter() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        knowledge_filter:
+          type: note
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
+    fixture.transcript_with_timestamps("session-one", 12);
+    fixture.age("session-one", OLD_ENOUGH);
+    fixture.write(
+        "kept.md",
+        "---\ntype: note\ncreated: \"2026-08-19 07:00\"\n---\n\n# Kept\n\nIt holds.\n",
+    );
+    fixture.write(
+        "stray.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Stray\n\nNo type field.\n",
+    );
+
+    let report = fixture.session_ok(&[
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "kept",
+        "--wrote",
+        "stray",
+    ]);
+    assert_eq!(
+        report,
+        indoc! {"
+            completed session-one: distilled through line 12, 2 link(s)
+            warning: stray is not selected by the knowledge filter { type: note } — session start will not list it
+        "}
+    );
+}
+
+#[test]
+fn complete_counts_the_hub_link_it_made_toward_the_knowledge_filter() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        knowledge_filter:
+          $includedBy: notes
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
+    fixture.transcript_with_timestamps("session-one", 12);
+    fixture.age("session-one", OLD_ENOUGH);
+    fixture.write("notes.md", "# Notes\n\n[Existing](notes/existing)\n");
+    fixture.write("notes/existing.md", "# Existing\n\nAlready a member.\n");
+    fixture.write(
+        "notes/pooling.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Pooling\n\nUse pgbouncer.\n",
+    );
+    fixture.write(
+        "loose.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Loose\n\nNot under the hub.\n",
+    );
+
+    let report = fixture.session_ok(&[
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "notes/pooling",
+        "--wrote",
+        "loose",
+    ]);
+    assert_eq!(
+        report,
+        indoc! {"
+            completed session-one: distilled through line 12, 2 link(s)
+            linked notes/pooling into its area hub notes
+            warning: loose is not selected by the knowledge filter { $includedBy: notes } — session start will not list it
+        "}
     );
 }
 

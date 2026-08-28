@@ -29,7 +29,7 @@ use iwe::init::{current_root, init_library, InitOptions, Overrides};
 use iwe::internal::claude::{
     digest_claude_transcript, enable_memory, enter_memory_store, post_tool_report, prompt_body,
     read_hook_payload, render_memory_index, session_adopt, session_brief, session_complete,
-    session_list, session_migrate, session_read, CompleteOptions, EnableOptions, SessionOptions,
+    session_list, session_read, CompleteOptions, EnableOptions, SessionOptions,
 };
 use iwe::new::{
     normalize_content, read_stdin, read_stdin_if_available, write_document, ContentOptions,
@@ -227,7 +227,6 @@ enum SessionCommand {
     Read(SessionRead),
     Complete(SessionComplete),
     Adopt(SessionAdopt),
-    Migrate(SessionMigrate),
 }
 
 #[derive(Debug, Args)]
@@ -343,13 +342,6 @@ struct SessionAdopt {
     #[clap(long, help = "Directory holding the session transcripts")]
     transcripts: Option<PathBuf>,
 }
-
-#[derive(Debug, Args)]
-#[clap(
-    about = "Move the sessions/<id> records an earlier release kept in the store to \
-             .iwe/claude/sessions/, and delete the store documents"
-)]
-struct SessionMigrate {}
 
 #[derive(Debug, Args)]
 #[clap(about = "Session hooks for agent memory integrations")]
@@ -1494,7 +1486,6 @@ fn claude_session_command(args: ClaudeSession) {
             return;
         }
         SessionCommand::List(list) => session_list(
-            &store,
             &SessionOptions {
                 transcripts: list.transcripts,
                 current: None,
@@ -1534,7 +1525,6 @@ fn claude_session_command(args: ClaudeSession) {
             },
             &adopt.sessions,
         ),
-        SessionCommand::Migrate(_) => session_migrate(&store),
     };
 
     match report {
@@ -3533,19 +3523,103 @@ fn inline_command(args: Inline) {
     }
 }
 
+struct BlockEdit<'a> {
+    op: &'static str,
+    flag: &'static str,
+    shape: &'static str,
+    example: &'static str,
+    arg: &'a str,
+}
+
+const CONTENT_SHAPE: &str = "{ <selector>, content: <markdown> }";
+const CONTENT_EXAMPLE: &str = "{ $header: Notes, content: \"[Title](notes/slug)\" }";
+
 impl Update {
-    fn block_edits(&self) -> Vec<(&'static str, &str)> {
+    fn block_edits(&self) -> Vec<BlockEdit<'_>> {
         [
-            ("$replace", &self.replace),
-            ("$replaceText", &self.replace_text),
-            ("$insertBefore", &self.insert_before),
-            ("$insertAfter", &self.insert_after),
-            ("$append", &self.append),
-            ("$delete", &self.delete),
+            (
+                "$replace",
+                "--replace",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.replace,
+            ),
+            (
+                "$replaceText",
+                "--replace-text",
+                "{ <selector>, from: <text>, to: <text> }",
+                "{ $header: Notes, from: \"old\", to: \"new\" }",
+                &self.replace_text,
+            ),
+            (
+                "$insertBefore",
+                "--insert-before",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.insert_before,
+            ),
+            (
+                "$insertAfter",
+                "--insert-after",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.insert_after,
+            ),
+            (
+                "$append",
+                "--append",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.append,
+            ),
+            (
+                "$delete",
+                "--delete",
+                "{ <selector> }",
+                "{ $header: Notes }",
+                &self.delete,
+            ),
         ]
         .into_iter()
-        .filter_map(|(op, value)| value.as_deref().map(|arg| (op, arg)))
+        .filter_map(|(op, flag, shape, example, value)| {
+            value.as_deref().map(|arg| BlockEdit {
+                op,
+                flag,
+                shape,
+                example,
+                arg,
+            })
+        })
         .collect()
+    }
+}
+
+fn block_edit_value(edit: &BlockEdit) -> serde_yaml::Value {
+    use serde_yaml::Value;
+    let parsed = serde_yaml::from_str::<Value>(edit.arg);
+    let problem = match parsed {
+        Ok(Value::Mapping(mapping)) => return Value::Mapping(mapping),
+        Ok(other) => format!("expected a YAML mapping, got {}", yaml_kind(&other)),
+        Err(error) => error.to_string(),
+    };
+    eprintln!("error: invalid {} argument: {}", edit.flag, problem);
+    eprintln!(
+        "hint: {} takes one YAML mapping '{}', e.g. {} '{}'; quote a value that contains brackets or colons",
+        edit.flag, edit.shape, edit.flag, edit.example
+    );
+    std::process::exit(2);
+}
+
+fn yaml_kind(value: &serde_yaml::Value) -> &'static str {
+    use serde_yaml::Value;
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Sequence(_) => "a sequence",
+        Value::Mapping(_) => "a mapping",
+        Value::Tagged(_) => "a tagged value",
     }
 }
 
@@ -3701,12 +3775,9 @@ fn update_mutation(args: Update) {
     };
 
     let mut update_map = Mapping::new();
-    for (op, arg) in args.block_edits() {
-        let value: Value = serde_yaml::from_str(arg).unwrap_or_else(|e| {
-            eprintln!("error: invalid {} argument: {}", op, e);
-            std::process::exit(2);
-        });
-        update_map.insert(Value::String(op.to_string()), value);
+    for edit in args.block_edits() {
+        let value = block_edit_value(&edit);
+        update_map.insert(Value::String(edit.op.to_string()), value);
     }
 
     let mut set_map = Mapping::new();

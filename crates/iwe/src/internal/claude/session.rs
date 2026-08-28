@@ -8,19 +8,18 @@ use chrono::{DateTime, Duration, Local};
 use clap::Command;
 use diwe::schema::SchemaBindings;
 use liwe::model::Key;
-use regex::Regex;
+use liwe::query::evaluate as evaluate_filter;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 
 use crate::internal::claude::digest::{count_user_turns, digest_claude_chunks, value_time};
 use crate::internal::claude::hook::store::{
-    body_at, field_int, field_text, fields_at, flow_yaml, is_safe_id, library_path_of,
-    non_empty_var, project_slug, MemoryStore,
+    flow_yaml, is_safe_id, non_empty_var, project_slug, MemoryStore,
 };
 use crate::internal::claude::prompt::unknown_invocations;
 use crate::internal::claude::record::{
-    all_session_records, load_session_record, mark_reminded, record_path, reminded_at,
-    save_session_record, Capture, SessionRecord, RECORDS_DIRECTORY,
+    all_session_records, load_session_record, mark_reminded, reminded_at, save_session_record,
+    SessionRecord,
 };
 use crate::new::normalize_content;
 use crate::schema::render_schema;
@@ -36,7 +35,6 @@ const REJECTION_SAMPLE: usize = 20;
 const HEAD_SCAN_LINES: usize = 200;
 const TAIL_SCAN_BYTES: u64 = 64 * 1024;
 const TAIL_SCAN_LIMIT: u64 = 4 * 1024 * 1024;
-const LEGACY_SUMMARY: &str = "Agent session in this workspace.";
 
 pub const POLICY_SECTIONS: [&str; 3] = ["What to capture", "How to write it", "Dedup and updates"];
 
@@ -147,25 +145,7 @@ pub fn policy_problems(store: &MemoryStore, app: &Command) -> Vec<String> {
         problems.push(problem);
     }
     problems.extend(unknown_invocations(app, &store.policy_body()));
-    if let Some(notice) = legacy_records_notice(store) {
-        problems.push(notice);
-    }
     problems
-}
-
-fn legacy_directory(store: &MemoryStore) -> PathBuf {
-    library_path_of(store.config()).join("sessions")
-}
-
-fn legacy_records_notice(store: &MemoryStore) -> Option<String> {
-    let count = legacy_session_records(store).len();
-    (count > 0).then(|| {
-        format!(
-            "{} session record(s) still under {} — run `iwe internal claude session migrate`",
-            count,
-            legacy_directory(store).display()
-        )
-    })
 }
 
 pub fn session_brief(store: &MemoryStore, app: &Command) -> String {
@@ -232,11 +212,7 @@ pub fn session_brief(store: &MemoryStore, app: &Command) -> String {
     brief
 }
 
-pub fn session_list(
-    store: &MemoryStore,
-    options: &SessionOptions,
-    all: bool,
-) -> Result<String, String> {
+pub fn session_list(options: &SessionOptions, all: bool) -> Result<String, String> {
     let directory = directory_or_error(options)?;
     let rows = rows_of(&directory, options, Scan::Full);
 
@@ -293,10 +269,6 @@ pub fn session_list(
     if hidden > 0 && !all {
         report.push_str("--all lists the distilled and adopted sessions too\n");
     }
-    if let Some(notice) = legacy_records_notice(store) {
-        report.push_str(&format!("{}\n", notice));
-    }
-
     Ok(report)
 }
 
@@ -413,6 +385,7 @@ pub fn session_complete(
 
     let keys = resolve_links(store, &complete.wrote)?;
     let linked = link_into_hubs(store, &keys);
+    let outside = outside_knowledge_filter(store, &keys);
 
     let now = Local::now().format("%Y-%m-%d %H:%M").to_string();
     let mut record = load_session_record(&session).unwrap_or_else(|| SessionRecord::new(&session));
@@ -460,6 +433,13 @@ pub fn session_complete(
     };
     for (key, area) in &linked {
         report.push_str(&format!("linked {} into its area hub {}\n", key, area));
+    }
+    for key in &outside {
+        report.push_str(&format!(
+            "warning: {} is not selected by the knowledge filter {} — session start will not list it\n",
+            key,
+            store.knowledge_filter_text()
+        ));
     }
     Ok(report)
 }
@@ -521,7 +501,7 @@ fn included_by(store: &MemoryStore, hub: &str) -> HashSet<String> {
     );
     store
         .filter_of(&expression)
-        .map(|filter| liwe::query::evaluate(&filter, store.graph()))
+        .map(|filter| evaluate_filter(&filter, store.graph()))
         .unwrap_or_default()
         .into_iter()
         .map(|key| key.to_string())
@@ -599,6 +579,21 @@ fn hub_census_text(store: &MemoryStore, keys: &[Key]) -> String {
         ));
     }
     text
+}
+
+fn outside_knowledge_filter(store: &MemoryStore, keys: &[String]) -> Vec<String> {
+    if keys.is_empty() {
+        return Vec::new();
+    }
+    let graph = store.reloaded_graph();
+    let selected: HashSet<String> = evaluate_filter(&store.knowledge_filter(), &graph)
+        .into_iter()
+        .map(|key| key.to_string())
+        .collect();
+    keys.iter()
+        .filter(|key| !selected.contains(key.as_str()))
+        .cloned()
+        .collect()
 }
 
 fn link_into_hubs(store: &MemoryStore, keys: &[String]) -> Vec<(String, String)> {
@@ -1066,7 +1061,7 @@ fn recent_rejections() -> Vec<String> {
 }
 
 fn knowledge_keys(store: &MemoryStore) -> Vec<Key> {
-    liwe::query::evaluate(&store.knowledge_filter(), store.graph())
+    evaluate_filter(&store.knowledge_filter(), store.graph())
 }
 
 fn recent_keys(store: &MemoryStore, keys: &[Key]) -> Vec<(String, String)> {
@@ -1124,149 +1119,4 @@ fn resolve_links(store: &MemoryStore, wrote: &[String]) -> Result<Vec<String>, S
     }
 
     Ok(keys)
-}
-
-pub fn legacy_session_records(store: &MemoryStore) -> Vec<PathBuf> {
-    let directory = legacy_directory(store);
-    let extension = store.config().format.extension();
-    let entries = match std::fs::read_dir(&directory) {
-        Ok(entries) => entries,
-        Err(_) => return Vec::new(),
-    };
-
-    let mut found: Vec<PathBuf> = entries
-        .flatten()
-        .filter_map(|entry| {
-            let path = entry.path();
-            if path.extension().and_then(|value| value.to_str()) != Some(extension) {
-                return None;
-            }
-            let stem = path.file_stem().and_then(|value| value.to_str())?;
-            if !is_safe_id(stem) {
-                return None;
-            }
-            let fields = fields_at(&path)?;
-            field_int(&fields, "distilled_lines")?;
-            Some(path)
-        })
-        .collect();
-
-    found.sort();
-    found
-}
-
-pub fn session_migrate(store: &MemoryStore) -> Result<String, String> {
-    let legacy = legacy_session_records(store);
-    if legacy.is_empty() {
-        return Ok(format!(
-            "no session records under {}\n",
-            legacy_directory(store).display()
-        ));
-    }
-
-    let mut migrated = 0;
-    for path in &legacy {
-        let record = legacy_record_at(path)?;
-        if !record_path(&record.session).is_file() && !save_session_record(&record) {
-            return Err(format!(
-                "could not write the session record for {}",
-                record.session
-            ));
-        }
-        std::fs::remove_file(path)
-            .map_err(|error| format!("could not remove {}: {}", path.display(), error))?;
-        migrated += 1;
-    }
-
-    let directory = legacy_directory(store);
-    std::fs::remove_file(directory.join(".gitignore")).ok();
-    std::fs::remove_dir(&directory).ok();
-
-    Ok(format!(
-        "migrated {} session record(s) to {}\n",
-        migrated, RECORDS_DIRECTORY
-    ))
-}
-
-fn legacy_record_at(path: &Path) -> Result<SessionRecord, String> {
-    let fields = fields_at(path)
-        .ok_or_else(|| format!("could not read the frontmatter of {}", path.display()))?;
-    let stem = path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default();
-
-    let session = field_text(&fields, "session")
-        .filter(|session| is_safe_id(session))
-        .unwrap_or_else(|| stem.to_string());
-    let mut record = SessionRecord::new(&session);
-    record.distilled_lines = field_int(&fields, "distilled_lines").unwrap_or(0);
-    record.distilled_at = field_text(&fields, "distilled_at");
-    record.transcript = field_text(&fields, "transcript");
-    record.transcript_bytes = field_int(&fields, "transcript_bytes").map(|bytes| bytes as u64);
-    record.transcript_lines = field_int(&fields, "transcript_lines");
-    record.started = field_text(&fields, "started");
-    record.ended = field_text(&fields, "ended");
-    record.offered = field_int(&fields, "offered");
-    record.kept = field_int(&fields, "kept");
-    record.rejected = fields
-        .get(YamlValue::String("rejected".to_string()))
-        .and_then(|value| value.as_sequence())
-        .map(|titles| {
-            titles
-                .iter()
-                .filter_map(|title| title.as_str().map(str::to_string))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let body = body_at(path).unwrap_or_default();
-    read_legacy_body(&mut record, &body);
-    Ok(record)
-}
-
-fn read_legacy_body(record: &mut SessionRecord, body: &str) {
-    let stamp = Regex::new(
-        r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) — captured (\d+) item\(s\)(?: through line (\d+))?$",
-    )
-    .expect("the capture stamp pattern compiles");
-    let link = Regex::new(r"^\[[^\]]*\]\(([^)]+)\)$").expect("the link pattern compiles");
-    let default_title = format!("# Session {}", record.session);
-
-    let mut pending = false;
-    for paragraph in body.split("\n\n") {
-        let paragraph = paragraph.trim();
-        if paragraph.is_empty() {
-            continue;
-        }
-        if let Some(title) = paragraph.strip_prefix("# ") {
-            if paragraph != default_title {
-                record.title = Some(title.trim().to_string());
-            }
-            pending = true;
-            continue;
-        }
-        if let Some(found) = stamp.captures(paragraph) {
-            record.captures.push(Capture {
-                at: found[1].to_string(),
-                through: found.get(3).and_then(|lines| lines.as_str().parse().ok()),
-                wrote: Vec::new(),
-            });
-            continue;
-        }
-        if let Some(found) = link.captures(paragraph) {
-            if let Some(capture) = record.captures.last_mut() {
-                capture
-                    .wrote
-                    .push(Key::from_rel_link_url(&found[1], "sessions").to_string());
-            }
-            continue;
-        }
-        if pending {
-            pending = false;
-            if paragraph != LEGACY_SUMMARY {
-                record.summary = Some(paragraph.to_string());
-            }
-        }
-    }
 }
