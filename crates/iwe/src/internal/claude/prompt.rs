@@ -1,6 +1,6 @@
 use clap::{Arg, Command};
 
-pub const PROMPTS: [(&str, &str); 4] = [
+pub const PROMPTS: [(&str, &str); 3] = [
     (
         "init",
         include_str!("../../../templates/claude/prompts/init.md"),
@@ -12,10 +12,6 @@ pub const PROMPTS: [(&str, &str); 4] = [
     (
         "reflect",
         include_str!("../../../templates/claude/prompts/reflect.md"),
-    ),
-    (
-        "distill-agent",
-        include_str!("../../../templates/claude/prompts/distill-agent.md"),
     ),
 ];
 
@@ -178,7 +174,7 @@ mod tests {
             .subcommand(
                 Command::new("internal").subcommand(
                     Command::new("claude")
-                        .subcommand(Command::new("job").subcommand(Command::new("brief")))
+                        .subcommand(Command::new("session").subcommand(Command::new("brief")))
                         .subcommand(
                             Command::new("enable")
                                 .arg(Arg::new("typed").long("typed").action(ArgAction::SetTrue)),
@@ -191,12 +187,12 @@ mod tests {
 
     #[test]
     fn finds_backticked_and_block_invocations() {
-        let body = "Run `iwe find --lexical x` first.\n```bash\niwe internal claude job brief | head\niwe schema   # only if bound\n```\nThe liwe crate.";
+        let body = "Run `iwe find --lexical x` first.\n```bash\niwe internal claude session brief | head\niwe schema   # only if bound\n```\nThe liwe crate.";
         assert_eq!(
             invocations(body),
             vec![
                 "iwe find --lexical x",
-                "iwe internal claude job brief",
+                "iwe internal claude session brief",
                 "iwe schema"
             ]
         );
@@ -210,7 +206,7 @@ mod tests {
 
     #[test]
     fn accepts_known_paths_flags_and_placeholders() {
-        let body = "`iwe internal claude job brief`, `iwe internal claude enable --typed`, `iwe find --lexical \"<terms>\" -v`, `iwe <command> --help`, `iwe stats --format json`, `iwe stats similarity -t 0.85`, `iwe stats --format=csv`";
+        let body = "`iwe internal claude session brief`, `iwe internal claude enable --typed`, `iwe find --lexical \"<terms>\" -v`, `iwe <command> --help`, `iwe stats --format json`, `iwe stats similarity -t 0.85`, `iwe stats --format=csv`";
         assert!(unknown_invocations(&app(), body).is_empty());
     }
 
@@ -218,7 +214,7 @@ mod tests {
     fn rejects_unknown_subcommands_and_flags() {
         let problems = unknown_invocations(
             &app(),
-            "`iwe internal claude job brif` then `iwe find --lexcal x` then `iwe memory on`",
+            "`iwe internal claude session brif` then `iwe find --lexcal x` then `iwe memory on`",
         );
         assert_eq!(problems.len(), 3);
         assert!(problems[0].contains("unknown subcommand brif"));

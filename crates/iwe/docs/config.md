@@ -3,7 +3,8 @@
 An IWE project is a directory containing a `.iwe/` marker directory. All
 settings live in `.iwe/config.toml`; every section and field is optional,
 and an absent field takes its default. `iwe init` creates the marker with a
-starter config.
+starter config. `.iwe/schemas/` holds document schemas and `.iwe/claude/` the
+Claude Code memory integration's own state; neither is part of the graph.
 
 A complete configuration with every field at its default (unless noted):
 

@@ -1,0 +1,10 @@
+
+# --- IWE memory: starter schema -------------------------------------------
+# Installed by `iwe internal claude enable` alongside the starter policy. It
+# binds every document in the library, and bites only on the ones that carry
+# the `created` stamp the policy's dedup filter treats as memory: the stamp
+# must be `YYYY-MM-DD HH:MM`, and `session` a non-empty string. Bodies are
+# unconstrained; tighten `.iwe/schemas/memory.yaml` in a reflect session.
+
+[schemas.memory]
+match = "**"

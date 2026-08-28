@@ -3,17 +3,21 @@ use std::path::{Path, PathBuf};
 
 use chrono::Local;
 use diwe::config::load_config;
+use serde_yaml::Mapping;
 
 use crate::init::{current_root, init_library, InitOptions, Overrides};
-use crate::internal::claude::hook::store::{
-    library_path_of, state_directory, workspace_root, SESSIONS_PREFIX,
-};
+use crate::internal::claude::hook::store::library_path_of;
+use crate::internal::claude::record::{ensure_state_ignore, RECORDS_DIRECTORY};
 use crate::new::{write_document, ContentOptions, DocumentCreator, IfExists};
 
-const STARTER_BODY: &str = include_str!("../../../templates/claude/enable/starter.md");
-const TYPED_BODY: &str = include_str!("../../../templates/claude/enable/typed.md");
+pub const STARTER_BODY: &str = include_str!("../../../templates/claude/enable/starter.md");
+pub const TYPED_BODY: &str = include_str!("../../../templates/claude/enable/typed.md");
 const QUERIES_BODY: &str = include_str!("../../../templates/claude/enable/queries.md");
 const TYPED_CONFIG: &str = include_str!("../../../templates/claude/enable/typed.toml");
+const STARTER_CONFIG: &str = include_str!("../../../templates/claude/enable/starter.toml");
+const STARTER_SCHEMA: &str = include_str!("../../../templates/claude/enable/schemas/memory.yaml");
+const TYPED_KNOBS: &str =
+    "knowledge_filter:\n  type: { $in: [decision, learning, gotcha, topic] }\n";
 
 const TYPED_SCHEMAS: [(&str, &str); 4] = [
     (
@@ -40,6 +44,7 @@ pub struct EnableOptions {
     pub body: Option<PathBuf>,
     pub config: Option<PathBuf>,
     pub schemas: Vec<PathBuf>,
+    pub knobs: Option<PathBuf>,
     pub root: Option<PathBuf>,
 }
 
@@ -62,6 +67,14 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         eprintln!("error: --typed installs its own ontology; drop --typed or --config/--schema");
         return 1;
     }
+
+    let knobs = match knobs_text(options) {
+        Ok(text) => text,
+        Err(message) => {
+            eprintln!("error: {}", message);
+            return 1;
+        }
+    };
 
     let config_text = match &options.config {
         Some(path) => match std::fs::read_to_string(path) {
@@ -166,6 +179,20 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         ) {
             return code;
         }
+    } else if body.is_none() {
+        if starter_schema_present() {
+            println!("kept the memory schema this workspace already binds");
+        } else if ensure_config_file().is_err() {
+            eprintln!("error: could not create .iwe/config.toml");
+            return 1;
+        } else if let Some(code) = install_ontology(
+            "starter schema",
+            STARTER_CONFIG,
+            &[("memory.yaml".to_string(), STARTER_SCHEMA.to_string())],
+            &["remove the clashing [schemas.memory] table or .iwe/schemas/memory.yaml and enable again"],
+        ) {
+            return code;
+        }
     }
 
     let policy = match &body {
@@ -174,7 +201,7 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         None => STARTER_BODY,
     };
     let now = Local::now().format("%Y-%m-%d %H:%M").to_string();
-    let document = format!("---\ncreated: \"{}\"\n---\n\n{}", now, policy);
+    let document = format!("---\ncreated: \"{}\"\n{}---\n\n{}", now, knobs, policy);
 
     let config = match load_config() {
         Ok(config) => config,
@@ -187,14 +214,11 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         return 1;
     }
     println!("wrote the MEMORY.md policy document — memory is on for this workspace");
-    println!(
-        "session records will land under {}",
-        library.join(SESSIONS_PREFIX).display()
-    );
-    println!(
-        "capture chunks stay out of the graph, under {}",
-        state_directory(&workspace_root()).display()
-    );
+    ensure_state_ignore();
+    if std::fs::remove_dir(".iwe/claude-sessions").is_ok() {
+        println!("removed the empty .iwe/claude-sessions directory the retired sweep left behind");
+    }
+    println!("session records will land under {}", RECORDS_DIRECTORY);
 
     if options.queries && !library.join(format!("queries.{}", extension)).is_file() {
         if !create_document(&config, "queries", QUERIES_BODY) {
@@ -205,6 +229,47 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
 
     println!("nothing was committed; review it as a normal diff");
     0
+}
+
+fn ensure_config_file() -> std::io::Result<()> {
+    let path = Path::new(".iwe/config.toml");
+    if path.is_file() {
+        return Ok(());
+    }
+    std::fs::create_dir_all(".iwe")?;
+    std::fs::write(path, "")
+}
+
+fn starter_schema_present() -> bool {
+    let bound = std::fs::read_to_string(".iwe/config.toml")
+        .map(|config| config.lines().any(|line| line.trim() == "[schemas.memory]"))
+        .unwrap_or(false);
+    bound || Path::new(".iwe/schemas/memory.yaml").is_file()
+}
+
+fn knobs_text(options: &EnableOptions) -> Result<String, String> {
+    let mut text = String::new();
+    if options.typed {
+        text.push_str(TYPED_KNOBS);
+    }
+    if let Some(path) = &options.knobs {
+        let extra = std::fs::read_to_string(path)
+            .map_err(|_| format!("{} is not a readable file", path.display()))?;
+        let extra = extra.trim_end();
+        if !extra.is_empty() {
+            text.push_str(extra);
+            text.push('\n');
+        }
+    }
+    if text.is_empty() {
+        return Ok(text);
+    }
+    let parsed: Mapping = serde_yaml::from_str(&format!("created: probe\n{}", text))
+        .map_err(|error| format!("--knobs must be a YAML mapping of knobs: {}", error))?;
+    if parsed.len() < 2 {
+        return Err("--knobs must be a YAML mapping of knobs".to_string());
+    }
+    Ok(text)
 }
 
 fn create_document(config: &diwe::config::Configuration, key: &str, content: &str) -> bool {

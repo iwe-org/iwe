@@ -1,0 +1,15 @@
+$schema: https://document-schema.org/draft/2026-06/schema
+description: a memory document, as MEMORY.md "How to write it" shapes it
+frontmatter:
+  type: object
+  if:
+    required: [created]
+  then:
+    properties:
+      created:
+        type: string
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$"
+        description: the occurred stamp of the span this came from, YYYY-MM-DD HH:MM, quoted
+      session:
+        type: string
+        minLength: 1

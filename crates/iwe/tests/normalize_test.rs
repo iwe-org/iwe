@@ -720,3 +720,116 @@ fn test_normalize_keeps_link_to_grandparent_hub() {
         "},
     );
 }
+
+fn run_normalize_keys(work_dir: &std::path::Path, keys: &[&str]) -> std::process::Output {
+    let mut command = Command::new(crate::common::get_iwe_binary_path());
+    command.arg("normalize");
+    for key in keys {
+        command.arg("-k").arg(key);
+    }
+    command
+        .current_dir(work_dir)
+        .output()
+        .expect("Failed to execute iwe normalize -k")
+}
+
+#[test]
+fn scoped_normalize_rewrites_only_the_named_document() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("named.md"), "#  Named\n\n*  one\n*  two\n").expect("Should write file");
+    write(temp_path.join("other.md"), "#  Other\n\n*  three\n").expect("Should write file");
+
+    let output = run_normalize_keys(temp_path, &["named"]);
+    assert!(output.status.success());
+
+    assert_eq!(
+        read_to_string(temp_path.join("named.md")).unwrap(),
+        indoc! {"
+            # Named
+
+            - one
+            - two
+        "},
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("other.md")).unwrap(),
+        "#  Other\n\n*  three\n",
+    );
+}
+
+#[test]
+fn scoped_normalize_prints_the_paths_it_changed() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("messy.md"), "#  Messy\n\n*  one\n").expect("Should write file");
+    write(temp_path.join("clean.md"), "# Clean\n\n- one\n").expect("Should write file");
+
+    let output = run_normalize_keys(temp_path, &["messy", "clean"]);
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8");
+    assert_eq!(stdout.lines().count(), 1);
+    assert!(stdout.trim().ends_with("messy.md"));
+}
+
+#[test]
+fn scoped_normalize_leaves_frontmatter_exactly_as_written() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+
+    write(
+        temp_path.join("stamped.md"),
+        "---\ncreated: \"2026-08-25 10:00\"\n---\n\n#  Stamped\n\n*  one\n",
+    )
+    .expect("Should write file");
+
+    let output = run_normalize_keys(temp_path, &["stamped"]);
+    assert!(output.status.success());
+
+    assert_eq!(
+        read_to_string(temp_path.join("stamped.md")).unwrap(),
+        indoc! {"
+            ---
+            created: \"2026-08-25 10:00\"
+            ---
+
+            # Stamped
+
+            - one
+        "},
+    );
+}
+
+#[test]
+fn scoped_normalize_is_idempotent() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("doc.md"), "#  Doc\n\n*  one\n").expect("Should write file");
+
+    assert!(run_normalize_keys(temp_path, &["doc"]).status.success());
+    let once = read_to_string(temp_path.join("doc.md")).unwrap();
+
+    let output = run_normalize_keys(temp_path, &["doc"]);
+    assert!(output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(read_to_string(temp_path.join("doc.md")).unwrap(), once);
+}
+
+#[test]
+fn scoped_normalize_refuses_a_key_that_is_not_there() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+
+    let output = run_normalize_keys(temp_path, &["missing"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("'missing' not found"));
+}

@@ -9,8 +9,12 @@ use rand::distr::Alphanumeric;
 use rand::Rng;
 
 use diwe::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
+use liwe::graph::Graph;
 use liwe::locale::get_locale;
-use liwe::model::{prepend_frontmatter, strip_doc_extension, Frontmatter, Key};
+use liwe::markdown::MarkdownReader;
+use liwe::model::{
+    prepend_frontmatter, split_raw_frontmatter, strip_doc_extension, Frontmatter, Key,
+};
 
 pub const BODY_VARIABLE: &str = "body";
 pub const LEGACY_BODY_VARIABLE: &str = "content";
@@ -250,6 +254,25 @@ impl<'a> DocumentCreator<'a> {
             })),
             None => Ok(None),
         }
+    }
+}
+
+pub fn normalize_content(config: &Configuration, key: &Key, content: &str) -> String {
+    let (front, body) = split_raw_frontmatter(content);
+    if body.trim().is_empty() {
+        return content.to_string();
+    }
+
+    let mut graph = Graph::new_with_options(config.format_options());
+    graph.from_markdown(key.clone(), body, MarkdownReader::new());
+    let normalized = graph.to_markdown_skip_frontmatter(key);
+    if normalized.trim().is_empty() {
+        return content.to_string();
+    }
+
+    match front {
+        Some(front) => format!("{}\n\n{}", front.trim_end_matches('\n'), normalized),
+        None => normalized,
     }
 }
 

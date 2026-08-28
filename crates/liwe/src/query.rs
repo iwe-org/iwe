@@ -18,8 +18,8 @@ pub mod update;
 pub mod wire;
 
 pub use builder::{
-    build_projection, build_update_doc, parse_expect, parse_filter_expression, parse_operation,
-    ParseError,
+    build_projection, build_update_doc, parse_expect, parse_filter_expression,
+    parse_filter_mapping, parse_operation, ParseError,
 };
 pub use document::{
     BlockUpdate, BlockUpdateOp, CountCmp, CountOp, CountPred, DeleteOp, Expect, FieldOp, FieldPath,

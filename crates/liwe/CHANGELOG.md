@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `parse_filter_mapping` — build a query `Filter` from an already-parsed YAML `Mapping`
+
+### Changed
+- `$set` accepts reserved-prefix keys (`$`, `_`, `.`, `#`, `@`) inside a value; the field path itself is still refused when a segment starts with one
+
 ## [0.20.1](https://github.com/iwe-org/iwe/compare/liwe-v0.20.0...liwe-v0.20.1) - 2026-08-24
 
 Workspace version bump — no user-visible changes in this crate.

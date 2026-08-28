@@ -308,7 +308,7 @@ fn body_overwrite_preserves_dot_closed_frontmatter() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("d.md")).unwrap(),
-        "---\ntype: note\n...\n# Doc\n\nnew\n"
+        "---\ntype: note\n...\n\n# Doc\n\nnew\n"
     );
 }
 
@@ -328,5 +328,29 @@ fn body_overwrite_with_own_frontmatter_replaces_the_existing_block() {
     assert_eq!(
         read_to_string(temp.path().join("d.md")).unwrap(),
         "---\ntype: page\n---\n\n# Doc\n\nnew\n"
+    );
+}
+
+#[test]
+fn body_overwrite_normalizes_what_it_writes() {
+    let temp = setup(vec![(
+        "note",
+        "---\ncreated: \"2026-08-24 10:00\"\n---\n\n# Note\n\nOriginal.\n",
+    )]);
+
+    let output = run_update(
+        temp.path(),
+        &[
+            "-k",
+            "note",
+            "--content",
+            "#  Rewritten   note\n\nWrapped\nacross lines.\n\n* one\n",
+        ],
+    );
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("note.md")).expect("read"),
+        "---\ncreated: \"2026-08-24 10:00\"\n---\n\n# Rewritten note\n\nWrapped across lines.\n\n- one\n"
     );
 }

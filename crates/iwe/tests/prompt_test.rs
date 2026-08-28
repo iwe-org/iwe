@@ -30,8 +30,31 @@ fn works_outside_any_workspace() {
 }
 
 #[test]
+fn every_write_in_the_distill_body_is_strict() {
+    let output = run_prompt(&["distill"]);
+    let body = String::from_utf8_lossy(&output.stdout).to_string();
+    let writes: Vec<&str> = body
+        .lines()
+        .map(str::trim)
+        .filter(|line| {
+            (line.starts_with("iwe create") || line.starts_with("iwe update"))
+                && line.contains("--content")
+        })
+        .collect();
+    assert!(!writes.is_empty(), "the body writes documents");
+    for line in writes {
+        assert!(
+            line.contains("--strict"),
+            "a write that is not checked: {}",
+            line
+        );
+    }
+}
+
+#[test]
 fn rejects_unknown_names() {
     let output = run_prompt(&["remember"]);
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("distill-agent"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("distill"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("distill-agent"));
 }

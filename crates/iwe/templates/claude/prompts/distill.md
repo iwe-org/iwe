@@ -1,160 +1,108 @@
 # Distill
 
-Write one or more durable items into this repository's IWE workspace. You
-already hold the context; this skill is the write path, not a research task —
-the interactive twin of the automatic capture that runs at turn boundaries.
+Read this session with the user and write what they select. Nothing captures memory on its own: this skill is the only write path, and every document it writes was chosen by the user — by name ("remember that X") or from the proposals in §3.
 
-Installed as part of the `iwe` plugin this skill is `/iwe:distill`; installed
-with the skills CLI it is plain `/distill`.
+Every command is a plain `iwe` command run from the repository root; the only permission needed is `Bash(iwe:*)`. A run is read → propose → select → write → record, the current session first, then the backlog.
 
-Every command here is a plain `iwe` command run from the repository root — the
-workspace *is* the store, so there is no `-C` and no separate memory directory.
-The only permission any of this needs is `Bash(iwe:*)`.
+Unattended (`claude -p`, a routine, a subagent — anywhere nobody can answer): read, list what you would have proposed, write nothing, advance nothing, and say so. An item named in the instruction is still written.
 
-## 0. Check that memory is on here, and read the store
+## 1. Check that memory is on
 
 ```bash
-iwe internal claude job brief
+iwe internal claude session brief
 ```
 
-One command answers both questions. It prints this store's `MEMORY.md`
-policy — the switch, and the rules — then the frontmatter its own documents
-actually carry and its ten most recent keys and titles, with the capture
-machinery's own documents left out of both.
+Prints the `MEMORY.md` policy, a policy check, the knowledge filter, the frontmatter the store's documents carry, the schemas that bind them, the area hubs and what they include, the ten most recent documents and the recent rejections. A non-zero exit means memory is not enabled here: do not improvise a policy, `/iwe:init` turns it on. A policy check that is not `ok` is fixed with the user first (§6).
 
-A non-zero exit means the `MEMORY.md` document is missing: this workspace does
-not have memory enabled, or the directory is not a workspace at all. Do not
-improvise one and do not scaffold anything by hand — the `init` skill turns
-memory on in one step (`/iwe:init`), and it decides *with the user* what shape
-this store's documents take.
+**The policy defines what is worth keeping and what a document looks like.** This body is procedure only; a policy silent on some part of the shape is followed as written, never filled in from habit.
 
-## 1. Choose what to write
+## 2. Read the current session
 
-The policy's "what to capture" section is the bar. Hold user-invoked items to
-it too — typically:
-
-- it stays true after this session ends;
-- it is not already obvious from the code, the README, `CLAUDE.md`, or the git
-  history;
-- a future session would act differently for knowing it.
-
-When the user names the thing to remember, write that thing. When they say
-"remember this" about the session at large, pick at most three items and name
-them back.
-
-Give each item a title that is a specific noun phrase rather than a sentence,
-and a body of two to six sentences that states the fact, then why it matters,
-naming the files, commands, error strings, and identifiers involved so lexical
-search finds it later.
-
-## 2. Write it the way this store writes
-
-The policy's "how to write it" section is authoritative: it names the
-templates to use, or the frontmatter shape to compose, the key convention, and
-whether schemas bind. §0's brief already showed you what is actually here — the
-fields with their coverage, the key convention, the recent titles. Read one of
-those documents in full before writing the first one, because a schema table
-does not show body length, heading style or how links are used:
+Prefer the conversation you already hold. Read the transcript only when context was compacted away:
 
 ```bash
-iwe retrieve -k <one of the keys the brief listed>
+iwe internal claude session read
 ```
 
-The brief leaves the capture machinery's own documents out of both its schema
-and its sample — session records carry `distilled_lines`, raw capture chunks
-carry `covers_lines` — because they are never examples to copy and never
-documents to write to.
+serves the current session from its distilled line, one `chunk_chars` window at a time; the header names `covers_from`, `covers_lines`, `transcript_lines` and `max_proposals`. Repeat with `--from <covers_lines>` until `covers_lines` reaches `transcript_lines`.
 
-Then either compose the document:
+The current session is the row marked `current` in `session list`; none marked, name the newest and ask. `<session-id>/subagents/` directories are never read.
 
-```bash
-iwe create <key> --content - <<'EOF'
----
-created: "<today, as YYYY-MM-DD HH:MM>"
-origin: user
----
+## 3. Propose, and let the user select
 
-# <Title>
+At most `max_proposals` candidates against the policy, each with a **title** (a specific noun phrase, not a sentence), a **one-line body**, the **target key** in the convention "how to write it" names, whatever classification "what to capture" asks for, and the **evidence** — a short quote or a line reference. No quotable evidence, no proposal: an idea you raised and argued well is a suggestion, not a decision.
 
-<body>
-EOF
-```
+Put them up as a numbered list and take a selection — the host's selection control where there is one, otherwise free-text indices. **Selecting nothing is a valid and common answer**: take it without argument and never re-propose the same items.
 
-or use the store's template when the policy names one:
+## 4. Write what was selected
 
-```bash
-iwe create --template <name> --strict --var title="<title>" --var body="<body>"
-```
+"How to write it" is the whole of the shape: follow it verbatim and add no field, directory or link it does not name. Before the first write, read one recent document in full (`iwe retrieve -k <a key the brief listed>`) — the schema table shows fields, not body length, heading style or link usage.
 
-Stamp only the fields the policy names, under the store's own names.
-`origin: user` is the common case here — a hand capture is the user asking to
-remember — and `created` is now, because a hand capture records the fact as it
-comes about. Write it in the shape the store's other documents use, so one
-field never mixes date formats. When the policy names a template, pass the
-date explicitly rather than letting the template fall back to its own clock. `--strict` validates against the bound schema before anything is
-written; when it fails, fix the item rather than dropping the flag, and never
-pass `--set` alongside a template. Never hand-write a file into the workspace — the CLI is
-the write path. The body always goes on stdin (`--content -` with a quoted
-heredoc): inlining a multi-line document in a quoted argument trips the
-harness's shell-safety prompt on every write.
-
-## 3. Dedup before writing
+Dedup every item first, as "dedup and updates" says. When it names no query:
 
 ```bash
 iwe find --lexical "<the item's distinctive nouns>" --limit 5 \
-  --filter '{ distilled_lines: { $exists: false }, covers_lines: { $exists: false } }' \
+  --filter '<the knowledge filter from the brief>' \
   --project 'title=$title,key=$key'
 ```
 
-Keep that filter on the search: a raw capture chunk holds a whole span of
-conversation, so it matches almost any query and would otherwise rank first.
+Read the plausible hits with `iwe retrieve -k <key>`. Update only a document covering the *same fact*; a related but different fact is a new document.
 
-Read the plausible hits with `iwe retrieve -k <key>`. Update an existing document
-only when it covers the *same fact*; a related but different fact is a new
-document. Never route by search rank alone.
+Then write, in the form the policy names:
 
 ```bash
-iwe update -k <existing-key> --content - <<'EOF'
-# <title>
-
-<merged body>
+iwe create <key> --strict --content - <<'EOF'
+<the document, exactly as the policy shapes it>
 EOF
 ```
 
-Keep the existing `created` stamp when you update.
+```bash
+iwe create --template <name> --strict --var <name>=<value>
+```
 
-## 4. Anything else the policy asks for
+```bash
+iwe update -k <existing-key> --strict --content - <<'EOF'
+<the merged document>
+EOF
+```
 
-Some stores attach new documents to a daily hub (`iwe attach -k <key> --to daily
---quiet`), some carry a `session` provenance field, some do neither. Do what the
-policy says and nothing more.
+Whatever the policy says:
 
-When the policy declares entity types — pages for the people, releases,
-components, tools or other things the store's facts are about — list them
-first (`iwe find --filter '{ type: { $in: [...] } }' --project
-'key=$key,title=$title'`) and link every one the item mentions inline in the
-body, by root-absolute key (`[watermark](/components/watermark)`; a relative
-key resolves against the document's own directory and dangles). Never mint an
-entity page — `/iwe:reflect` names them — and never leave an entity link alone
-in its own paragraph, which makes it an inclusion and the fact the entity's
-parent.
+- `--strict` on every write. It enforces whatever the brief's schemas section names; when it fails, fix the item against the report, never drop the flag, and never pass `--set` alongside a template.
+- After a create, the `PostToolUse` net may report that the new document closely matches one the store already has. Read the match; if it is the same fact, merge into the older key and delete the newer one, as "dedup and updates" says — then tell the user which key survived.
+- The CLI is the write path, never the Write or Edit tool. When the `PostToolUse` hook reports a document written around the CLI, redo it through `iwe`.
+- The body goes on stdin — `--content -` with a quoted heredoc; an inlined multi-line argument trips the shell-safety prompt.
+- Provenance values come from the `session read` header for a transcript span, from the current time and `$CLAUDE_CODE_SESSION_ID` for the live conversation, in the shape the store's other documents use.
+- Links are graph semantics: a link alone in its paragraph makes the target a child, inline or in a list item it is a reference. A key resolves against the document's own directory, a root-absolute one (`/components/session-record`) from the library root. Never mint a page the policy leaves to `/iwe:reflect`.
 
-## 5. Report
+## 5. Record what happened
 
-Name each key you wrote and whether it was new or an update — one line each.
-Nothing commits: the new documents are working-tree changes the user reviews as
-a normal diff.
+```bash
+iwe internal claude session complete --lines now --wrote <key> --offered <count> --rejected "<a title the user turned down>" --title "<short subject>" --summary "<one line on what the session was about>"
+```
 
-## Drain past sessions
+Run this even when nothing was kept: `--lines now` moves the distilled line past this exchange, and the rejections are the only signal the policy loop learns from. `--wrote` and `--rejected` repeat; the command accumulates. `--wrote` is what ties a document to its session in the record; the document's own `session` field is the other direction. A written key under an area directory (`<area>/<slug>`) whose hub document `<area>` exists is linked into that hub by the command itself — it reports `linked <key> into its area hub <area>` — so a policy that groups into areas needs no separate append step. For a backlog session: `iwe internal claude session complete <id> --lines <covers_lines>`. Without `--lines` the distilled line stays put — that is how an offer declined mid-conversation is recorded.
 
-Processing sessions that already happened is the `init` skill's job — it claims
-the pending tails in waves and curates between them. When the user asks for it
-here, hand off rather than reimplementing.
+## 6. Suggest a policy edit, when the rejections say something
 
-## Related
+When the recent rejections show a pattern — the same kind of item declined repeatedly, or a kind the user keeps accepting that the policy never asked for — propose one concrete `MEMORY.md` edit with exact wording and apply it only after they confirm:
 
-- `/iwe:init` switches memory on for a workspace and drains the sessions that
-  already happened into it.
-- The background `distill` agent writes through this same policy at
-  turn boundaries; you are its interactive twin.
-- `/iwe:reflect` evolves the policy and the store's structure with the user.
+```bash
+iwe update -k MEMORY --strict --content - <<'EOF'
+<the edited policy body>
+EOF
+```
+
+A problem the policy check reported is proposed the same way. Otherwise say nothing.
+
+## 7. Then offer the backlog
+
+```bash
+iwe internal claude session list
+```
+
+Report the count and ask whether to continue — all, a few named ones, or none. Each chosen session runs §2–§5 again, one at a time, with a "keep going?" between sessions. Rows marked `active` are other conversations in flight: leave them out unless the user names one. A large stale backlog need not be read: `iwe internal claude session adopt` marks every pending session distilled without reading a word, `iwe internal claude session adopt <id>` a named one; both refuse current and active rows.
+
+## 8. Report
+
+Name each key written, new or updated, and what is left in the backlog. Nothing commits: the documents are working-tree changes the user reviews as a diff.
