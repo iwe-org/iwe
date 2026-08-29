@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0](https://github.com/iwe-org/iwe/compare/iwe-v0.20.1...iwe-v0.21.0) - 2026-08-29
+
 ### Added
 - `iwe normalize -k <key>` normalizes only the named documents, leaves their frontmatter as written and prints only the paths that changed
 - `knowledge_filter`, `recency_field`, `injection`, `max_proposals_per_read` and `remind_every_days` knobs on `MEMORY.md`

@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "diwe"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "bm25",
  "crossbeam-channel",
@@ -1467,7 +1467,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "iwe"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "iwec"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1523,7 +1523,7 @@ dependencies = [
 
 [[package]]
 name = "iwes"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -1692,7 +1692,7 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "liwe"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "chrono",
  "env_logger",
