@@ -149,3 +149,30 @@ fn test_schema_doc_config_examples_parse() {
         }
     }
 }
+
+#[test]
+fn help_and_docs_omit_the_hidden_command_tree() {
+    let mut outputs = vec![
+        String::from_utf8(run_docs(&[]).stdout).expect("Valid UTF-8 output"),
+        INDEX.to_string(),
+        QUERY.to_string(),
+        CONFIG.to_string(),
+        SCHEMA.to_string(),
+        AGENT.to_string(),
+    ];
+    for args in [vec!["--help"], vec!["help"]] {
+        let output = Command::new(crate::common::get_iwe_binary_path())
+            .args(&args)
+            .output()
+            .expect("Failed to execute iwe");
+        assert!(output.status.success(), "iwe {}", args.join(" "));
+        outputs.push(String::from_utf8(output.stdout).expect("Valid UTF-8 output"));
+    }
+
+    for output in &outputs {
+        for hidden in ["internal", "session stage", "session inbox"] {
+            assert!(!output.contains(hidden), "{} leaked:\n{}", hidden, output);
+        }
+        assert!(output.contains("iwe"), "{}", output);
+    }
+}

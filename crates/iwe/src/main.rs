@@ -281,19 +281,15 @@ struct SessionRead {
 }
 
 #[derive(Debug, Args)]
-#[clap(
-    about = "Stage one candidate on a session record, before anyone has been asked about it: \
-             the inbox a backlog read fills and a selection run empties. Nothing reaches the \
-             store until `complete --wrote` says so."
-)]
+#[clap(about = "Stage one candidate on a session record, before anyone has been asked about it")]
 struct SessionStage {
     #[clap(help = "Session id the candidate came from; defaults to the current session")]
     session: Option<String>,
 
     #[clap(
         long,
-        help = "The candidate as a YAML mapping of `title`, `key`, `body` and `evidence`, plus \
-                `classification` and `updates` where they apply. Use '-' to read from stdin."
+        help = "The candidate as YAML: `title`, `key`, `body`, `evidence`, and `classification` \
+                and `updates` where they apply. Use '-' to read from stdin."
     )]
     content: Option<String>,
 
@@ -304,8 +300,7 @@ struct SessionStage {
 #[derive(Debug, Args)]
 #[clap(
     about = "Print the staged candidates nobody has been asked about yet, grouped by the key \
-             they target so a fact several sessions raised shows up once. With a session id, \
-             print that session's entries in full, evidence included."
+             they target; with a session id, that session's entries in full"
 )]
 struct SessionInbox {
     #[clap(help = "Session id; omit it for every session's staged candidates")]
@@ -351,9 +346,8 @@ struct SessionComplete {
     #[clap(
         long = "drop-pending",
         help = "Turn down every candidate still staged on this session, recording each title \
-                in the ledger: the sweep that closes a selection run once the kept ones are \
-                named. Only after the last answer — it cannot tell an unasked candidate from \
-                a skipped one."
+                in the ledger. Only after the last answer: it cannot tell an unasked candidate \
+                from a skipped one."
     )]
     drop_pending: bool,
 
