@@ -1,128 +1,78 @@
 # Memory policy
 
-This document — `MEMORY.md` — is the switch and the policy for durable memory in
-this workspace. While it exists, session capture runs here; delete it and every
-memory hook goes silent. Everything below is yours to edit — capture re-reads
-it on every run, so a change here takes effect immediately.
+`MEMORY.md` is the switch and the policy for durable memory in this workspace. While it exists, session start puts recent memory in front of every session and `/iwe:distill` writes here; delete it and both go silent. Every run re-reads it, so an edit takes effect immediately. Nothing captures memory on its own: `/iwe:distill` reads a session *with you*, proposes, and writes only what you select.
 
-The frontmatter of this document carries the mechanical knobs. Every one of
-them is optional and has a default: `sweep_threshold_lines` (120),
-`chunk_chars` (10000), `max_chunks_per_sweep` (30), `max_items_per_chunk` (3),
-`inflight_ttl_minutes` (60), `injection_max_tokens` (2000). A knob set here
-wins; where one is absent, an `IWE_<KNOB>` environment variable — say
-`IWE_SWEEP_THRESHOLD_LINES` — moves the default machine-wide.
+The sections below are read by name: `/iwe:distill` follows "what to capture", "how to write it" and "dedup and updates"; `/iwe:reflect` follows "curation"; "at session start" goes in front of every session verbatim. A missing section is followed as missing.
+
+The frontmatter carries the knobs, all optional: `chunk_chars` (10000), `max_proposals_per_read` (5), `remind_every_days` (7), `injection_max_tokens` (2000), `recency_field` (`created`), `knowledge_filter`, the query that says which documents are this store's memory — by default everything but the machinery's own pages — and `injection`, the slices session start puts in front of every session, by default the most recent documents:
+
+```yaml
+knowledge_filter:
+  $key: { $nin: [MEMORY, queries] }
+injection:
+  - { recent: true }
+```
+
+`/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_CHUNK_CHARS`) moves a default machine-wide.
 
 ## What to capture
 
-The few things a future session in this repository would be worse off not
-knowing. Keep an item only when all of these hold:
+The few things a future session in this repository would be worse off not knowing: still true after the session ends, not obvious from the code, the README, `CLAUDE.md`, the git history or a document already here, and enough to make a future session act differently. Prefer none over noise: most sessions produce nothing durable. The opposite failure is folding: two traps and one settled question are three items, not one.
 
-- It stays true after the session that produced it ends. Anything scoped to the
-  task at hand is not memory.
-- It is not already obvious from the code, the README, `CLAUDE.md`, the git
-  history, or a document already in this store.
-- A future session would act differently for knowing it.
+Nearly always worth keeping:
 
-Prefer none over noise. An empty extraction is a correct, common outcome: most
-sessions produce nothing durable. Never invent an item to fill a quota.
+- a trap the session actually hit — a command failed, the cause was found, something made it work. The error text is its fingerprint.
+- a rule stated in the conversation — "never do X", "always Y" — especially when nothing in the repository records it.
+- a correction the user made — the assistant did, assumed or proposed something and the user reversed it. Write the mistaken form, in the words that were wrong, then what is right. A correction scoped to a single reply ("shorter", "not now") is not kept unless it recurs.
 
-The opposite failure is folding: a session that hits two different traps and
-settles one question holds three items, not one. Each distinct failure mode
-keeps its own item with its own symptom.
+**A decision is recorded only when the user requested or confirmed it, in their own words.** An assistant recommendation, however well argued, is not a decision, nor is a proposal that went unanswered — drop it, or write it as an open question, never as settled.
 
-Two patterns are nearly always worth keeping:
-
-- a trap the session actually hit — a command failed, the cause was found, and
-  something made it work. The error text is its fingerprint.
-- a rule stated in the conversation: "never do X", "always Y", "this stays Z" —
-  especially when nothing in the repository records it.
-
-Write nothing about the mechanics of the conversation itself, the tools that
-were used, or how the session went. Memory is about the project, not the
-session.
+Write nothing about the conversation itself. Memory is about the project, not the session.
 
 ## How to write it
 
-One document per fact, keyed by a slug of its title at the top level of the
-workspace (`cache-warmup-order`, not `notes/2026/misc-3`). A specific title is
-therefore also a readable filename and a stable handle for deduplication.
-
-No template and no schema binds these documents. Compose them with
-`--content -`, the document on stdin via a quoted heredoc — never inline in a
-quoted argument, where a multi-line body trips the harness's shell-safety
-prompt:
+One document per fact, keyed by a slug of its title at the top level of the workspace (`cache-warmup-order`, not `notes/2026/misc-3`). The `memory` schema in `.iwe/schemas/` binds every key and `--strict` enforces it: a document carrying `created` stamps it `YYYY-MM-DD HH:MM` and keeps `session` a non-empty string; a write that fails is fixed, never retried without the flag. Compose them with `--content -`, the document on stdin via a quoted heredoc:
 
 ```
-iwe create <slug> --content - <<'EOF'
+iwe create <slug> --strict --content - <<'EOF'
 ---
-created: "<the chunk's occurred stamp>"
-session: "<the chunk's session id>"
-origin: <user or claude>
+created: "<the occurred stamp of the span this came from>"
+session: "<the session id it came from>"
 ---
 
 # <Title: a specific noun phrase, not a sentence>
 
 <Two to six sentences. State the fact, then why it matters. Quote error
-messages verbatim — codes, ticket identifiers, environment variable names
-included — and name the files and commands involved, so the item is findable
-by lexical search later.>
+messages verbatim — codes, identifiers, environment variable names — and name
+the files and commands involved, so the item is findable by lexical search.>
 EOF
 ```
 
-`created` and `session` are copied verbatim from the capture chunk header —
-never invented, never reformatted. One date is enough, and it is the one that
-says when the fact came about: `created` takes the chunk's `occurred` stamp,
-which is when the conversation happened, falling back to the chunk's `created`
-stamp when the header shows no `occurred` line. That is what keeps a
-backfilled transcript's dates honest, and it is what session-start reads to
-surface recent memory. When capturing by hand rather than from a chunk, use
-the current time in the same `YYYY-MM-DD HH:MM` shape — one field must never
-mix date formats, or a range query over it stops working — and leave `session`
-out unless the session id is known.
+`created` and `session` are copied from the header `iwe internal claude session read` prints: `created` is the `occurred` stamp — when the fact came about, not when it was written down. For something established in the live conversation, use the current time in the same `YYYY-MM-DD HH:MM` shape and `$CLAUDE_CODE_SESSION_ID`. One field never mixes date formats.
 
 ## Dedup and updates
 
-Search before every write, and judge the hits by reading them rather than by
-rank:
+Search before every write, and judge the hits by reading them:
 
 ```
 iwe find --lexical "<the item's distinctive nouns>" --limit 5 \
-  --filter '{ created: { $exists: true }, distilled_lines: { $exists: false } }' \
+  --filter '{ created: { $exists: true } }' \
   --project 'title=$title,key=$key'
 iwe retrieve -k <key>
 ```
 
-That filter is what makes the search mean "memory documents". Documents carrying
-`distilled_lines` are the capture machinery's own session records, whose capture
-notes name every document a session produced and so match many searches. The raw
-capture chunks never enter the store: they wait outside the graph, under
-`.iwe/claude-sessions/` at the workspace root (or `$IWE_MEMORY_STATE`), until a
-completion retires them. Documents with no `created` stamp are this repository's
-own markdown — README, docs, runbooks — which memory records facts *about* and
-never rewrites. Never update either kind.
-
-Update an existing document only when the new item covers the *same fact* — a
-sharper version, a correction, a second occurrence. A related but different
-fact is a new document. When updating, keep the existing `created` stamp.
+The filter selects memory documents: those without `created` are the repository's own markdown, which is never updated. Update an existing document only when the new item covers the *same fact*, keeping its `created` stamp; a related but different fact is a new document.
 
 ## Provenance
 
-`origin` records who asserted the fact: `user` when the user stated it — a
-rule, a correction, an explicit "remember this" — and `claude` when it was
-inferred from the work. `session` names the session record (`sessions/<id>`)
-the fact came from. The other half of provenance is the graph: the capture
-note in the session document holds an inclusion link to every document the
-session produced, so `iwe find --filter '{ $includedBy: sessions/<id> }' -f
-keys` answers "what did that session produce" and `iwe find --filter '{
-$includes: <key> }' -f keys` answers "which sessions produced this".
+`session` names the session the fact came from. `iwe find --filter '{ session: "<id>" }' -f keys` is what a session produced; a document's own `session` field is where it came from. The session's own record — what was read, offered and turned down — is `.iwe/claude/sessions/<id>.yaml`, outside the graph.
 
 ## Curation
 
-Curation is human-invoked, through `/iwe:reflect`. When asked, it may:
+Human-invoked, through `/iwe:reflect`. When asked, it may merge two documents that state the same fact, keeping the older key and deleting the other with `--expect 1`, at most five merges a pass — and nothing else. No pruning by age; reorganizing the store (new fields, hubs, schemas) is a human decision.
 
-- merge two documents that state the same fact, keeping the older key as the
-  survivor and deleting the other with `--expect 1`; at most five merges a
-  pass;
-- do nothing else. This store does not prune knowledge documents by age, and
-  reorganizing it — new frontmatter fields, topic hubs, schemas — is a decision
-  a human makes, never a background pass.
+## At session start
+
+Nothing here writes to memory on its own. When this session establishes something the policy keeps — a trap hit and fixed, a rule the user stated, a correction the user made — end that turn with a one-line offer: "Worth remembering: <title> — say the word and I'll record it." One offer per item, at most one per turn, nothing written until the user says yes. A yes runs `/iwe:distill` for that item; a no is recorded once with `iwe internal claude session complete --offered 1 --rejected "<title>"` (no `--lines`) and never re-offered.
+
+`/iwe:distill` records something worth keeping, `/iwe:reflect` reorganizes the store.

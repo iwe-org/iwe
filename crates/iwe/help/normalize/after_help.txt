@@ -9,13 +9,20 @@ OPERATIONS PERFORMED:
 
 EXAMPLES:
 
-  # Normalize all documents
+  # Normalize every document in the library
   iwe normalize
+
+  # Normalize one document, leaving its frontmatter untouched
+  iwe normalize -k notes/meeting
+
+  # Normalize several
+  iwe normalize -k notes/meeting -k notes/retro
 
   # Preview changes with verbose logging
   RUST_LOG=debug iwe normalize --verbose 2
 
 OUTPUT:
 
-  Modifies files in place. No stdout output on success. Changes are
-  written directly to the markdown files in your library.
+  Modifies files in place. Without `-k` there is no stdout output on success.
+  With `-k` each document that actually changed prints its path, one per line,
+  and documents already in canonical form print nothing.

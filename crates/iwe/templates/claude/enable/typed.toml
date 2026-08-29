@@ -7,15 +7,15 @@
 
 [templates.learning]
 key_template = "learnings/{{slug}}"
-document_template = "---\ntype: learning\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}{% if origin %}origin: \"{{origin}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
+document_template = "---\ntype: learning\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
 
 [templates.decision]
 key_template = "decisions/{{slug}}"
-document_template = "---\ntype: decision\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}{% if origin %}origin: \"{{origin}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
+document_template = "---\ntype: decision\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
 
 [templates.gotcha]
 key_template = "gotchas/{{slug}}"
-document_template = "---\ntype: gotcha\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}{% if origin %}origin: \"{{origin}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
+document_template = "---\ntype: gotcha\ncreated: \"{% if created %}{{created}}{% else %}{{now}}{% endif %}\"\n{% if session %}session: \"{{session}}\"\n{% endif %}---\n\n# {{title}}\n\n{{body}}\n"
 
 [templates.topic]
 key_template = "topics/{{slug}}"

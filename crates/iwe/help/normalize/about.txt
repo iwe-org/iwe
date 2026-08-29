@@ -1,1 +1,1 @@
-Normalize all markdown files in the project
+Normalize markdown files into the project's canonical form

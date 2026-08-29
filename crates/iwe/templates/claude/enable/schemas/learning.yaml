@@ -6,7 +6,6 @@ frontmatter:
     type: { const: learning }
     created: { type: string }
     session: { type: string }
-    origin: { type: string }
   additionalProperties: true
 maxTokens: 400
 maxDepth: 2

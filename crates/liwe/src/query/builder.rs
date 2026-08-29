@@ -366,6 +366,10 @@ pub fn parse_filter_expression(expr: &str) -> Result<Filter, ParseError> {
     build_filter_at(mapping, &[])
 }
 
+pub fn parse_filter_mapping(mapping: Mapping) -> Result<Filter, ParseError> {
+    build_filter_at(mapping, &[])
+}
+
 fn parse_to_mapping(yaml: &str) -> Result<Mapping, serde_yaml::Error> {
     let value: Value = serde_yaml::from_str(yaml)?;
     match value {
@@ -1238,37 +1242,12 @@ fn walk_update_set(
         };
         check_path_segments(&segments)?;
         check_reserved_prefix(&segments)?;
-        check_value_for_reserved(v, &segments)?;
         out.push(UpdateOperator::Set {
             path: FieldPath(segments),
             value: v.clone(),
         });
     }
     Ok(())
-}
-
-fn check_value_for_reserved(value: &Value, parent: &[String]) -> Result<(), ParseError> {
-    match value {
-        Value::Mapping(m) => {
-            for (k, inner) in m {
-                let key_str = k.as_str().ok_or(ParseError::NonStringKey)?;
-                let mut child = parent.to_vec();
-                child.push(key_str.to_string());
-                if matches!(key_str.chars().next(), Some('_' | '$' | '.' | '#' | '@')) {
-                    return Err(ParseError::ReservedPrefixField { path: child });
-                }
-                check_value_for_reserved(inner, &child)?;
-            }
-            Ok(())
-        }
-        Value::Sequence(seq) => {
-            for elem in seq {
-                check_value_for_reserved(elem, parent)?;
-            }
-            Ok(())
-        }
-        _ => Ok(()),
-    }
 }
 
 fn walk_update_unset(
@@ -2075,21 +2054,20 @@ mod tests {
     }
 
     #[test]
-    fn update_reserved_prefix_in_nested_value_rejected() {
-        let err = parse_err(
-            "filter: {}\nupdate:\n  $set:\n    author:\n      _hidden: 1\n",
+    fn update_reserved_prefix_inside_a_value_is_data() {
+        let parsed = parse(
+            "filter: {}\nupdate:\n  $set:\n    knowledge_filter:\n      type: { $in: [note, decision] }\n",
             OperationKind::Update,
-        );
-        assert!(matches!(err, ParseError::ReservedPrefixField { .. }));
-    }
-
-    #[test]
-    fn update_reserved_prefix_in_deeply_nested_value_rejected() {
-        let err = parse_err(
-            "filter: {}\nupdate:\n  $set:\n    author:\n      review:\n        \"#tag\": foo\n",
-            OperationKind::Update,
-        );
-        assert!(matches!(err, ParseError::ReservedPrefixField { .. }));
+        )
+        .expect("a reserved prefix inside a value is data, not a field");
+        let Operation::Update(op) = parsed else {
+            panic!("expected an update operation");
+        };
+        assert_eq!(op.update.operators.len(), 1);
+        assert!(matches!(
+            &op.update.operators[0],
+            UpdateOperator::Set { path, .. } if path.0 == vec!["knowledge_filter".to_string()]
+        ));
     }
 
     #[test]

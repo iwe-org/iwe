@@ -416,7 +416,7 @@ fn template_mode_renders_the_stock_template() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("my-note.md")).unwrap(),
-        "# My Note\n\n"
+        "# My Note\n"
     );
 }
 
@@ -444,7 +444,7 @@ fn template_mode_uses_a_named_template() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("meetings/sync.md")).unwrap(),
-        "# Sync\n\n## Notes\n\nAgreed."
+        "# Sync\n\n## Notes\n\nAgreed.\n"
     );
 }
 
@@ -460,7 +460,7 @@ fn template_mode_ignores_piped_stdin() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("piped.md")).unwrap(),
-        "# Piped\n\n"
+        "# Piped\n"
     );
 }
 
@@ -488,7 +488,7 @@ fn template_mode_binds_the_legacy_content_variable_to_the_body() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("legacy.md")).unwrap(),
-        "# Legacy\n\nProse."
+        "# Legacy\n\nProse.\n"
     );
 }
 
@@ -510,7 +510,7 @@ fn template_mode_accepts_content_as_a_body_spelling() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("alias.md")).unwrap(),
-        "# Alias\n\nProse."
+        "# Alias\n\nProse.\n"
     );
 }
 
@@ -538,7 +538,7 @@ fn template_mode_takes_typed_variables_from_vars_yaml() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("meetings/sync.md")).unwrap(),
-        "# Sync\n\n- ada\n- alan\n\nAgreed."
+        "# Sync\n\n- ada\n- alan\n\nAgreed.\n"
     );
 }
 
@@ -561,7 +561,7 @@ fn template_mode_var_overrides_a_vars_yaml_field() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "# From flag\n\nProse."
+        "# From flag\n\nProse.\n"
     );
 }
 
@@ -584,7 +584,7 @@ fn template_mode_var_overrides_a_vars_json_field() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "# From flag\n\nProse."
+        "# From flag\n\nProse.\n"
     );
 }
 
@@ -607,7 +607,7 @@ fn template_mode_var_wins_over_a_later_bulk_mapping() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "# From flag\n\nProse."
+        "# From flag\n\nProse.\n"
     );
 }
 
@@ -715,7 +715,7 @@ fn template_mode_uses_var_values_verbatim() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "# Title\n\n## Notes"
+        "# Title\n\n## Notes\n"
     );
 }
 
@@ -744,7 +744,7 @@ fn template_mode_treats_a_var_value_as_a_string() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("typed.md")).unwrap(),
-        "# Typed\n\nDraft"
+        "# Typed\n\nDraft\n"
     );
 }
 
@@ -759,7 +759,7 @@ fn typed_template() -> TempDir {
     )
 }
 
-const TYPED_DOCUMENT: &str = "# Typed\n\nFinal, 42\n\n- one\n- two\n\nLine one.\nLine two.\n";
+const TYPED_DOCUMENT: &str = "# Typed\n\nFinal, 42\n\n- one\n- two\n\nLine one. Line two.\n";
 
 #[test]
 fn template_mode_keeps_value_types_from_vars_yaml() {
@@ -863,7 +863,7 @@ fn template_mode_derives_a_key_from_a_non_string_title() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("2026.md")).unwrap(),
-        "# 2026\n\n"
+        "# 2026\n"
     );
 }
 
@@ -917,7 +917,7 @@ fn template_mode_writes_frontmatter_above_the_render() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "---\ntype: note\ntags:\n- demo\n---\n\n# Title\n\n"
+        "---\ntype: note\ntags:\n- demo\n---\n\n# Title\n"
     );
 }
 
@@ -942,7 +942,7 @@ fn template_mode_applies_set_fields_in_command_line_order() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "---\nstatus: draft\ntype: note\n---\n\n# Title\n\n"
+        "---\nstatus: draft\ntype: note\n---\n\n# Title\n"
     );
 }
 
@@ -969,7 +969,7 @@ fn template_mode_replaces_a_repeated_set_field_in_place() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "---\ntype: page\nstatus: draft\n---\n\n# Title\n\n"
+        "---\ntype: page\nstatus: draft\n---\n\n# Title\n"
     );
 }
 
@@ -994,7 +994,7 @@ fn template_mode_last_set_for_a_field_wins() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "---\nstatus: final\n---\n\n# Title\n\n"
+        "---\nstatus: final\n---\n\n# Title\n"
     );
 }
 
@@ -1019,7 +1019,7 @@ fn template_mode_drops_reserved_frontmatter_fields() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "---\ntype: note\n---\n\n# Title\n\n"
+        "---\ntype: note\n---\n\n# Title\n"
     );
 }
 
@@ -1123,7 +1123,7 @@ fn template_mode_keeps_a_frontmatter_template_without_the_flags() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "---\nkind: page\n---\n\n# Title"
+        "---\nkind: page\n---\n\n# Title\n"
     );
 }
 
@@ -1172,27 +1172,6 @@ fn template_mode_rejects_body_and_content_together() {
     assert_eq!(
         stderr_of(&output),
         "error: 'body' and 'content' name the same variable; pass only one\n"
-    );
-}
-
-#[test]
-fn template_mode_writes_a_body_with_a_frontmatter_block_verbatim() {
-    let temp = setup();
-    let output = run(
-        temp.path(),
-        &[
-            "doc",
-            "--template",
-            "default",
-            "--vars-yaml",
-            "title: Title\nbody: |\n  ---\n  type: note\n  ---\n\n  Prose.\n",
-        ],
-    );
-
-    assert!(output.status.success());
-    assert_eq!(
-        read_to_string(temp.path().join("doc.md")).unwrap(),
-        "# Title\n\n---\ntype: note\n---\n\nProse.\n"
     );
 }
 
@@ -1250,7 +1229,7 @@ fn template_mode_suffixes_a_derived_key_that_exists() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("my-note-1.md")).unwrap(),
-        "# My Note\n\n"
+        "# My Note\n"
     );
 }
 
@@ -1319,5 +1298,102 @@ fn template_mode_rejects_an_empty_template_name() {
     assert_eq!(
         stderr_of(&output),
         "error: --template needs a template name, got an empty value\n"
+    );
+}
+
+#[test]
+fn content_mode_normalizes_the_body_and_keeps_the_frontmatter_verbatim() {
+    let temp = setup();
+    let sloppy = indoc! {"
+        ---
+        created: \"2026-08-24 10:00\"
+        ---
+
+        #  Sloppy   title
+
+        A paragraph that is hard wrapped
+        across two source lines.
+
+        * one
+        * two
+
+        1) first
+        3) third
+    "};
+
+    let output = run_piped(temp.path(), &["sloppy", "--content", "-"], sloppy);
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("sloppy.md")).unwrap(),
+        indoc! {"
+            ---
+            created: \"2026-08-24 10:00\"
+            ---
+
+            # Sloppy title
+
+            A paragraph that is hard wrapped across two source lines.
+
+            - one
+            - two
+
+            1. first
+            2. third
+        "}
+    );
+}
+
+#[test]
+fn template_mode_normalizes_the_rendered_body() {
+    let temp = with_template(
+        "note",
+        NoteTemplate {
+            key_template: "{{slug}}".to_string(),
+            document_template: "# {{title}}\n\n{{body}}".to_string(),
+        },
+    );
+    let output = run(
+        temp.path(),
+        &[
+            "--template",
+            "note",
+            "--var",
+            "title=Sloppy   title",
+            "--var",
+            "body=Wrapped\nacross lines.\n\n* one\n* two\n\n1) first\n3) third",
+        ],
+    );
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("sloppy-title.md")).unwrap(),
+        indoc! {"
+            # Sloppy title
+
+            Wrapped across lines.
+
+            - one
+            - two
+
+            1. first
+            2. third
+        "}
+    );
+}
+
+#[test]
+fn content_mode_normalizes_a_document_with_no_frontmatter() {
+    let temp = setup();
+    let output = run_piped(
+        temp.path(),
+        &["plain", "--content", "-"],
+        "#   Plain\n\nWrapped\nacross lines.\n",
+    );
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("plain.md")).unwrap(),
+        "# Plain\n\nWrapped across lines.\n"
     );
 }

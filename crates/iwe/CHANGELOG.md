@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe normalize -k <key>` normalizes only the named documents, leaves their frontmatter as written and prints only the paths that changed
+- `knowledge_filter`, `recency_field`, `injection`, `max_proposals_per_read` and `remind_every_days` knobs on `MEMORY.md`
+- Switching memory on installs a default `.iwe/schemas/memory.yaml` that constrains only the `created` and `session` fields
+- A document written with the Write or Edit tool is normalized, checked against the schemas that bind it, and reported when it closely matches one the store already has
+- A captured document under an area directory is linked into that area's hub when one exists
+- Session start reports how many sessions are undistilled and, at most once per `remind_every_days`, offers to read them
+
+### Changed
+- `update` block operators (`--append`, `--replace`, `--delete`, …) given an argument that is not a YAML mapping now report the flag, the mapping shape it takes and an example (previously the raw parser error)
+- Memory's own state lives under `.iwe/claude/`, outside the graph (previously `sessions/<id>` documents in the store). The default `knowledge_filter` is `{ $key: { $nin: [MEMORY, queries] } }` (was `{ distilled_lines: { $exists: false }, $key: { $nin: [MEMORY, queries] } }`)
+- The `init`, `distill` and `reflect` prompts carry procedure only; the shape of a memory document is the `MEMORY.md` policy's alone, read by section name (`## How to write it`, `## Dedup and updates`, `## Curation`)
+- `/iwe:distill` asks about every candidate before anything is written — `Keep all` / `Skip all` / `Let me pick`, then one candidate at a time for a handful, or a numbered list with batched multi-select questions for more — and reads a backlog with one reader per session, so a fact several sessions raised is asked about once (previously it walked the backlog session by session and re-proposed what recurred)
+- Reading a session can now run unattended; selection never does
+- `/iwe:init` sets memory up and hands the sessions on disk to `/iwe:distill`; it reads none of them itself
+- The session-start block's closing lines come from the policy's `## At session start` section (previously hard-coded)
+- `iwe create` and `iwe update --content` normalize the body on the way in, leaving the frontmatter as written
+
+### Removed
+- Automatic capture: nothing reads a transcript on its own any more, and the chunks it kept under `.iwe/claude-sessions/` are gone
+- The `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` knobs; a policy that still sets one is ignored
+
 ## [0.20.1](https://github.com/iwe-org/iwe/compare/iwe-v0.20.0...iwe-v0.20.1) - 2026-08-24
 
 Workspace version bump — no user-visible changes in this crate.

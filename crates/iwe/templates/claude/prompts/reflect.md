@@ -1,142 +1,114 @@
 # Reflect
 
-The interactive layer of memory maintenance — and the only one: nothing curates
-this store in the background. Everything here needs a human: **policy and
-taxonomy evolution**, curation as far as the policy's curation section directs,
-and the forget verbs on demand.
-
-Invoke as `/iwe:reflect` from the plugin, `/reflect` when installed with the
-skills CLI. Every command is a plain `iwe` command run from the repository root
-— the workspace is the store. If there is no `MEMORY.md` document there is
-nothing here to govern: say so and point at the `init` skill.
-
-**Never commit.** Every change here is a working-tree edit the user reviews as a
-diff; deletions included. Do not run `git add` or `git commit`.
+The interactive layer of memory maintenance, and the only one: policy and taxonomy evolution, curation as far as the policy's curation section allows, and the forget verbs on demand — all with the user. Every command is a plain `iwe` command run from the repository root. No `MEMORY.md` document means nothing to govern: say so and point at `/iwe:init`. Never commit: every change, deletions included, is a working-tree edit the user reviews as a diff.
 
 ## The MEMORY.md document is the policy
 
 ```bash
-iwe retrieve -k MEMORY
-iwe find --filter '{ $key: MEMORY }' --project 'fm=$frontmatter' -f json
+iwe internal claude session brief
 ```
 
-Its body governs capture and curation: what to capture, how to write it,
-dedup, provenance, and curation. Its frontmatter carries the sweep's knobs.
-Changing behaviour means editing this document — nothing caches it, so the next
-pass follows the new copy:
+Prints the policy body, a policy check, the knowledge filter, the frontmatter the store's documents carry, the schemas that bind them (`=== schemas ===`), the area hubs with what each includes and the documents outside every area (`=== hubs ===`), the most recent documents, and the recent rejections. A failing check is the first thing to fix, with the user; the schemas and hubs sections are the census every pass ends with, so nothing here is counted by hand.
+
+The body is a contract of level-two sections, read by name:
+
+- `## What to capture` — what a distill run proposes.
+- `## How to write it` — the whole shape of a document: keys, frontmatter, body, templates, schemas, hubs, pages. What it does not say is not done.
+- `## Dedup and updates` — the search before every write.
+- `## Provenance` — which fields say where a fact came from.
+- `## Curation` — what this skill may do to the store. Absent, it may only edit the policy.
+- `## At session start` — put in front of every session verbatim.
+
+The first three are required. Nothing caches the policy, so the next run follows the edited copy:
 
 ```bash
 iwe update -k MEMORY --content - <<'EOF'
 <edited body>
 EOF
-iwe update -k MEMORY --set sweep_threshold_lines=60 --set max_items_per_chunk=2 --expect 1
+iwe update -k MEMORY --set chunk_chars=25000 --set max_proposals_per_read=3 --expect 1
 ```
 
-The knobs, with their defaults: `sweep_threshold_lines` (120) — how much a
-transcript must grow before it is worth a pass; `chunk_chars` (10000) — how much
-conversation one capture pass reads; `max_chunks_per_sweep` (30);
-`max_items_per_chunk` (3); `inflight_ttl_minutes` (60) — how long a dead
-capture's claim on its chunks survives; `injection_max_tokens` (2000) — what
-session start puts in front of every session.
+The frontmatter knobs, with defaults: `chunk_chars` (10000) — how much conversation one `session read` serves; `max_proposals_per_read` (5); `remind_every_days` (7) — how often session start reminds about the backlog, `0` never; `injection_max_tokens` (2000) — the session-start budget; `recency_field` (`created`) — what session start and the brief order by; `knowledge_filter` — the query that says which documents are memory, read by session start, the brief and every census below; and `injection` — what session start puts in front of every session, as a list of slices the binary runs in order, each a `filter` (ANDed with the knowledge filter), `recent: true` (the default listing), or `changed: true` (documents whose bodies name a file `git status` reports), with an optional `heading`, `limit` and `sort: <field>:-1`. A document listed by one slice is not repeated by a later one, and the whole block stays inside `injection_max_tokens`. The default is one `recent` slice; a store with `kind` and `status` fields usually wants the rules and the open traps first:
 
-`chunk_chars` and `max_items_per_chunk` are read at import time and stamped
-into each chunk, so a change to either governs the next sweep, never the chunks
-already queued. `/iwe:init` raises both for a backfill and restores them
-afterwards; if a store is sitting on `25000`/`7`, that is a drain that never
-put them back, and the live-capture values are `10000`/`3`.
+```yaml
+knowledge_filter:
+  $key: { $nin: [MEMORY, queries] }
+injection:
+  - { heading: "Rules this store keeps:", filter: { kind: rule }, limit: 10 }
+  - { heading: "Still open:", filter: { kind: trap, status: open }, limit: 10 }
+  - { heading: "Mentioning files changed in the working tree:", changed: true, limit: 5 }
+  - { heading: "Most recently recorded:", recent: true, limit: 10 }
+```
 
-Two edits worth offering explicitly, because they are the ones users ask for
-without knowing the vocabulary:
+`--set` takes YAML, so a store whose notes carry a `type` sets it once:
 
-- **"capture less / capture more"** — the "what to capture" section, and
-  `max_items_per_chunk`.
-- **"stop reorganizing my notes"** — delete the policy's curation section, and
-  this skill refuses to merge, promote, prune or regroup.
+```bash
+iwe update -k MEMORY --set 'knowledge_filter={ type: { $in: [decision, learning, gotcha] } }' --expect 1
+```
 
-Turning memory off entirely is `iwe delete MEMORY --expect 1`: every hook goes
-silent, and nothing else in the store changes.
+Each knob has an `IWE_<KNOB>` environment twin. `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` are dead knobs from before capture became manual; `--unset` clears one.
+
+Requests users make without knowing the vocabulary:
+
+- **"capture less / more"** — "what to capture", and `max_proposals_per_read`.
+- **"stop asking me about memory"** — `remind_every_days=0`, and "at session start".
+- **"show me the rules / what is still broken when I start"** — an `injection` slice per question.
+- **"stop reorganizing my notes"** — delete the curation section.
+- **"that is not memory"** — the `knowledge_filter`.
+- **"turn it off"** — `iwe delete MEMORY --expect 1`; nothing else in the store changes.
 
 ## Analyze
 
+Widen the brief's listing when ten is not enough, and read `iwe schema` — coverage, types, distinct counts, value distributions — before proposing anything:
+
 ```bash
-iwe schema
-iwe find --filter '{ distilled_lines: { $exists: false }, covers_lines: { $exists: false }, $key: { $nin: [MEMORY] } }' \
-  --sort 'created:-1' --limit 40 --project 'title=$title,key=$key,created=created'
+iwe find --filter '<the knowledge filter from the brief>' \
+  --sort '<the recency field>:-1' --limit 40 --project 'title=$title,key=$key'
 ```
 
-`iwe schema` infers the store's real frontmatter: per-field coverage, type
-distribution, distinct counts, and value distributions for low-cardinality
-fields. Read it before proposing anything. Then mine the dimensions the
-frontmatter does not carry yet:
+Then mine the dimensions the frontmatter does not carry:
 
 ```bash
 iwe find --matches '(?i)\b(postgres|redis|ci|docker|auth)\b' --limit 40 \
-  --filter '{ distilled_lines: { $exists: false }, covers_lines: { $exists: false } }' \
+  --filter '<the knowledge filter from the brief>' \
   --project 'title=$title,key=$key'
 ```
 
-Recurring components, tools, people, and error classes that show up in bodies
-but not in frontmatter are the candidates — for an index field when the value
-needs no description and has no parts (an enum, a severity), for an entity
-page (§Extract entities) when the thing has an identity worth describing,
-changes over time, or has parts. A user who wants both gets both.
+Recurring components, tools, people and error classes in bodies but not in frontmatter are the candidates: an index field when the value needs no description and has no parts (an enum, a severity); an entity page (§Reorganize) when the thing has an identity, changes over time, or has parts.
 
 ## Propose
 
-Present candidates to the user as a short list: the field name, the values you
-actually observed with their counts, and the query each would unlock. Then stop
-and let them pick. Reflect never invents taxonomy unilaterally: a field the user
-did not choose is noise in every future `iwe find`, and it costs a backfill to
-remove.
+A short list: field name, the values observed with counts, and the query each unlocks. Then stop and let the user pick. A field nobody chose is noise in every future `iwe find` and costs a backfill to remove.
 
 ## Apply
 
-For each field the user picked, in this order:
+For each field the user picked, in order:
 
-1. **Extend the schema**, if this store binds one — edit `.iwe/schemas/<name>.yaml`,
-   adding the property as optional so existing documents keep validating while
-   the backfill runs.
-2. **Backfill**, one atomic mutation per value, preview first:
+1. **Extend the schema**, if one binds — add the property to `.iwe/schemas/<name>.yaml` as optional. If the brief's schemas section says nothing binds, write one first: the frontmatter fields and enums "how to write it" names, `required` for the provenance fields, and as much body shape as the store keeps (`iwe docs schema`); bind it in `.iwe/config.toml` to the keys the knowledge filter selects, run `iwe schema validate`, and fix or exempt what fails with the user. From then on `--strict` refuses what the policy forbids instead of asking the next distill run to remember it.
+2. **Backfill**, one mutation per value, preview first:
 
    ```bash
-   iwe update --filter '{ $content: { $text: "postgres" } }' --set component=postgres --dry-run
-   iwe update --filter '{ $content: { $text: "postgres" } }' --set component=postgres --expect <count from the dry run>
+   iwe update --filter '{ $and: [ <the knowledge filter>, { $content: { $text: "postgres" } } ] }' --set component=postgres --dry-run
+   iwe update --filter '<the same filter>' --set component=postgres --expect <count from the dry run>
    ```
 
-   The `--expect` guard is what makes this safe: it aborts if the match set moved
-   between the preview and the write. Exclude the machinery from filter-wide
-   updates with `distilled_lines: { $exists: false }, covers_lines: { $exists: false }`.
-3. **Teach the write path.** Describe the new field in the policy's "how to
-   write it" section, and add it to the template in `.iwe/config.toml` if the
-   store uses templates. This is what closes the loop — capture re-reads the
-   policy on its next run, so the field starts populating itself instead of
-   decaying into a one-time backfill.
-4. **Refresh the `queries` document**, if the store has one, with the
-   invocations the new field unlocks. Session start points every future session
-   at it.
+   `--expect` aborts if the match set moved; the knowledge filter inside the `$and` keeps the update off the machinery and the repository's own markdown.
+3. **Teach the write path** — describe the field in "how to write it" and add it to the template in `.iwe/config.toml`, or the backfill decays into a one-off.
+4. **Refresh the `queries` document**, if the store has one.
 
 ## Forget, on request
 
 ```bash
-iwe find --filter '{ created: { $lt: "2026-01-01" }, distilled_lines: { $exists: false }, covers_lines: { $exists: false } }' --format keys
-iwe delete --filter '{ created: { $lt: "2026-01-01" }, distilled_lines: { $exists: false }, covers_lines: { $exists: false } }' --dry-run
+iwe find --filter '{ $and: [ <the knowledge filter>, { created: { $lt: "2026-01-01" } } ] }' --format keys
+iwe delete --filter '{ $and: [ <the knowledge filter>, { created: { $lt: "2026-01-01" } } ] }' --dry-run
 iwe delete --filter '<the same filter>' --expect <count from the dry run>
 ```
 
-`iwe delete` cleans up inbound references — inclusion links go, inline links
-become plain text — so the capture notes in session documents do not rot. Always
-dry-run first and always name the count. Read the output too, not just the
-exit: the `Updated N document(s)` line counts referrer cleanups, so deleting
-an unreferenced document prints `Updated 0 document(s)` and reads like a
-no-op. Never redirect a curation command's output to `/dev/null` — a failure
-you intended to assume away is exactly the one that leaves stray documents
-behind. To change the policy rather than one
-document, edit the curation section of `MEMORY.md` and show the user the diff.
+Always dry-run first and name the count. `iwe delete` cleans up inbound references, so `Updated N document(s)` counts referrer cleanups and `Updated 0` is not a no-op; never send a curation command's output to `/dev/null`. To change the policy rather than one document, edit the curation section and show the diff.
 
 ## Merge and promote, on request
 
-Only as far as the policy's curation section allows — no curation section, no
-merges:
+Only as far as the curation section allows — no section, no merges. Keep the older document as the survivor:
 
 ```bash
 iwe update -k <survivor-key> --content - <<'EOF'
@@ -147,103 +119,48 @@ EOF
 iwe delete <duplicate-key> --expect 1
 ```
 
-Keep the older document as the survivor so its `created` stamp and its place in
-the timeline hold.
+When the curation section declares a lifecycle field (`superseded_by`), tombstone instead: `iwe update -k <duplicate-key> --set superseded_by=<survivor-key> --expect 1`, and exclude `superseded_by: { $exists: true }` from later passes.
 
-When the policy's curation section declares a lifecycle field
-(`superseded_by`), tombstone instead of deleting: stamp the losing document
-with `iwe update -k <duplicate-key> --set superseded_by=<survivor-key>
---expect 1`, and exclude `superseded_by: { $exists: true }` from later
-passes. No declaration means the delete above.
+## Reorganize, when the policy allows it
 
-## Organize into areas, on request
+Two reshapings, both curation — `## Curation` has to allow them, and the shape goes into `## How to write it` before capture is expected to follow it. A policy that allows neither gets the offer, not the reorganization; the same holds for any other shape a user asks for — policy edit first, shown as exact wording, backfill second. Both follow this skill's discipline: propose from counts and stop for the user to pick, `--dry-run` every bulk write and guard it with `--expect`, prove the result with a query, and end by editing the policy. The names — areas, types, hub titles — are the user's.
 
-Grouping is curation, so the same gate applies: no curation section, no
-reorganizing. The shape this skill builds is one level of subdirectories — a
-note lives in exactly one area, keyed `<area>/<slug>` — and each area has a
-**hub**: a top-level document keyed `<area>`, a plain page of inclusion links:
+Two link forms carry the graph semantics both rely on, and rendering cannot tell them apart:
 
-```markdown
-# Postgres
+- A link alone in its paragraph is an **inclusion**: the target gains `$includedBy`, nests under the source in `iwe tree`, and expands with `--expand-includes`. The same link as a list item or inside a sentence is a **reference**: `$references` on the source, `referencedBy:` on the target, no parentage.
+- Links resolve against the source document's directory: `components/x` written in `capture/y.md` resolves to `capture/components/x` and dangles silently. Write cross-directory links root-absolute (`/components/x`); `iwe` normalizes them on write, and `iwe rename` rewrites either form.
 
-[Connection pooling](postgres/connection-pooling)
+### Areas
 
-[Vacuum tuning](postgres/vacuum-tuning)
-```
+One level of `<area>/<slug>` directories and a top-level hub keyed `<area>` — a page of inclusion links, one per paragraph, never a bulleted list — so `iwe tree` shows the store's shape and a note has one home. The directory and the hub carry the grouping twice, and the convention that hub `<area>` includes exactly the notes under `<area>/` is what keeps the two checkable. Hubs stay at the top level. Flat is correct at small scale; a hub wrapping two notes is worse than no hub. An area name that doubles as an enum value is picked with its key in view: an area named after the store's own prefix stutters (`memory/memory/<slug>`), and renaming it later is a three-step enum migration.
 
-Two rules look like style but are graph semantics:
-
-- **One link per paragraph, never a bulleted list.** A standalone link
-  paragraph is an inclusion link — the member gains `$includedBy`, nests under
-  the hub in `iwe tree`, and expands with `--expand-includes`. The same link
-  as a list item is a plain reference, and the member floats to the top of the
-  tree as if the hub did not exist.
-- **Hubs stay at the top level.** Links resolve relative to the containing
-  document's directory, so a hub moved into a subdirectory points its
-  root-style keys at the wrong documents.
-
-The directory and the hub carry the same grouping twice — the directory for
-humans, git and key uniqueness; the hub for the graph — and the convention
-that hub `<area>` includes exactly the notes under `<area>/` is what keeps the
-two aligned and checkable.
-
-Start from the current shape — `iwe tree --depth 2` and the §Analyze listing —
-then propose groups exactly as §Propose handles fields: names, observed member
-counts, example keys, and stop for the user to pick. Flat is correct at small
-scale; a hub wrapping two notes is worse than no hub. When an area name will
-double as a frontmatter enum value, pick both at once and check the key it
-produces for stutter: an area named after the store's own prefix yields
-`memory/memory/<slug>`, and renaming it later is a three-step enum migration
-(widen, rewrite every member, narrow) rather than one edit.
-
-For each area the user picked:
-
-1. **Move the members.** `iwe rename` rewrites every inbound link — capture
-   notes included — so provenance survives the move. Never move `sessions/…`
-   or `MEMORY`; the machinery owns those keys.
+1. **Propose** from `iwe tree --depth 2` and the listing above: names, member counts, example keys.
+2. **Move the members.** `iwe rename` rewrites every inbound link, so provenance survives the move. Never move `MEMORY`.
 
    ```bash
    iwe rename <slug> <area>/<slug> --dry-run
    iwe rename <slug> <area>/<slug>
    ```
 
-2. **Create the hub** with the final keys, one inclusion link per paragraph. A
-   note already sitting on the `<area>` key is either the natural hub seed —
-   append into it — or one more member to rename first; `--if-exists fail`
-   surfaces the clash instead of overwriting.
+3. **Create the hub** with the final keys. A note already on the `<area>` key is either the hub seed — append into it — or one more member to rename first; `--if-exists fail` surfaces the clash.
 
    ```bash
-   iwe create <area> --if-exists fail --content - <<'EOF'
+   iwe create <area> --if-exists fail --strict --content - <<'EOF'
    # <Area title>
 
    [<title>](<area>/<slug>)
    EOF
    ```
 
-3. **Prove the hierarchy exists.** Rendering cannot tell an inclusion link
-   from a reference, so never trust the look of the page — a store of hubs
-   that establish no parentage passes every visual inspection. One query per
-   hub, and the count must equal the member count:
+4. **Prove it**, one query per hub; the count must equal the member count. Zero behind a full-looking hub means the links are list items — rewrite the body with `iwe update -k <area> --content -` and re-run.
 
    ```bash
    iwe find --filter '{ $includedBy: <area> }' -f keys
    ```
 
-   Zero members behind a full-looking hub means the links are list items:
-   find such reference-style hubs wherever members float to the top of `iwe
-   tree` despite a hub naming them, convert the body to one link per
-   paragraph with `iwe update -k <area> --content -`, and re-run the proof.
+5. **Teach the write path.** `## How to write it` gains the areas, keys as `<area>/<slug>`, hub bodies as one inclusion link per paragraph, and that a note fitting no area stays a flat slug — capture never invents an area; grouping strays is this skill's job on a later pass. `## Curation` gains the proof query.
 
-4. **Teach the write path.** Add the convention to the policy's "how to write
-   it" section: the list of areas, keys as `<area>/<slug>`, hub bodies as one
-   inclusion link per paragraph, and that capture appends each document it
-   creates to its area's hub with the guarded form below. A note that fits no
-   existing area stays a flat slug at the top level — capture never invents an
-   area; grouping the strays is this skill's job on a later pass.
-
-The append — the one the policy teaches capture, and the one this skill uses
-to adopt strays — is safe to repeat because the membership check and the write
-are one atomic command:
+`iwe internal claude session complete --wrote <area>/<slug>` links a written document into hub `<area>` on its own, once. Adopting a stray is the same append, atomic and safe to repeat — already linked means the filter matches nothing and the command exits 2 with `$append expects 1 block, selected 0`:
 
 ```bash
 iwe update -k <area> \
@@ -252,175 +169,46 @@ iwe update -k <area> \
   --expect 1
 ```
 
-Already linked means the filter matches nothing and the command exits 2 with
-`$append expects 1 block, selected 0` — a refusal to write twice, not an
-error. The command does not validate the target, and a typo becomes a dangling
-link the hub then carries: create the document first, append second, and
-append only keys that exist. The mirror, for removing a member, is `--delete
-'{ $ref: { $references: <area>/<slug> }, expect: 1 }'`.
+Nothing validates the target: create the document first, append second. The mirror for removing a member is `--delete '{ $ref: { $references: <area>/<slug> }, expect: 1 }'`. The brief's `=== hubs ===` section is the stray census; in a store whose hubs carry a type it is one query — `{ $includedBy: { match: { type: topic }, $size: 0 } }` inside the knowledge filter. Never build it from `type: { $nin: [topic] }`, which also matches every document with no `type` at all. A document included by several hubs is the multi-parent case inclusion links exist for; the directory names the primary home, and only that hub has to include it.
 
-Strays — notes no hub includes — are the recurring maintenance question. In a
-store whose hubs carry a type, the census needs no enumeration:
+### Entities
 
-```bash
-iwe find --filter '{ type: { $in: [<knowledge types>] }, $includedBy: { match: { type: topic }, $size: 0 } }' -f keys
-```
+Pages for the things facts are about — a person, a release, a component, a tool — that the facts link to. An area gives a fact its one home; an entity is many-to-many, so entities are never directories facts live in. One level per **entity type** the user names: a directory `<type>/`, a top-level hub keyed `<type>`, and `type: <value>` on every page (`components/<slug>` with `type: component` under a "Components" hub). No generic bucket: a thing without a type worth naming is a noun, not an entity. Three edges: fact → entity is a reference in the fact's own prose or a trailing list item — derived from the body, nothing to drift, and `iwe retrieve -k <key>` prints `referencedBy:` with every fact about it; type hub → entity is an inclusion, as for an area; entity → part is an optional inclusion in the entity's own body, so `iwe tree --depth 3` shows the component map.
 
-Untyped hubs anchor on the list the user just confirmed instead:
-
-```bash
-iwe find --filter '{ $nor: [ { $includedBy: { match: { $key: { $in: [<hub>, <hub>] } } } } ], distilled_lines: { $exists: false }, covers_lines: { $exists: false }, $key: { $nin: [MEMORY, <hub>, <hub>] } }' -f keys
-```
-
-Never build the census from `$nin` on the type field: `type: { $nin: [topic]
-}` also matches every document with no `type` at all — the machinery's
-records and the repository's own markdown — and reports a store-sized orphan
-count.
-
-Propose a home for each stray — an existing area, a new one, or leave it flat
-— and apply with the same rename-then-append steps. The alignment check in
-the other direction is the hierarchy proof above: a member key outside the
-hub's own directory is drift only when it claims this hub as its home — a
-document may be included by several hubs, and a secondary listing from
-another area is the multi-parent case inclusion links exist for. The
-directory names the one primary home; enforce that the directory's hub
-includes it, and leave cross-area listings alone.
-
-## Extract entities, on request
-
-The nouns the census keeps surfacing — a person, a release, an application, a
-competitor, a component, a tool — are entities: the things the facts are
-*about*, and the second axis the graph can carry. An area gives a fact its one
-home; an entity is many-to-many — a fact about the watermark is also about
-chunks and the sweep — so entities are never directories facts live in. They
-are pages of their own, and facts point at them.
-
-The shape mirrors areas, one level per **entity type** the user names: a
-directory `<type>/`, a top-level hub keyed `<type>`, and `type: <value>` on
-every page — `people/<slug>` with `type: person` under a "People" hub,
-`releases/<slug>` with `type: release`, `components/<slug>` with `type:
-component`. There is no generic bucket: a thing without a type worth naming is
-a noun, not an entity.
-
-Three edges, and only the first is new:
-
-- **fact → entity is a reference.** The link sits in the fact's own prose —
-  `the [watermark](/components/watermark) must never advance…` — or in a
-  trailing bulleted list. It is derived from the body, so there is nothing to
-  append, nothing to drift and nothing to prove: `iwe retrieve -k
-  components/watermark` prints `referencedBy:` with every fact about it, and
-  the fact keeps its two parents in `iwe tree`.
-- **type hub → entity is an inclusion**, one link per paragraph, with the same
-  proof as an area hub: `{ $includedBy: components }` must count exactly the
-  pages under `components/`.
-- **entity → part is an inclusion**, optional: a page whose thing has parts
-  includes them, one link per paragraph, in its own body. `iwe tree --depth 3`
-  then shows the component map, and the transitive query below walks it.
-
-The link form is the whole semantics, and two traps sit in it:
-
-- A link alone in its paragraph is an inclusion, so a fact that ends with one
-  bare entity link has just made itself the entity's parent. Inline in a
-  sentence, or `- [Title](key)` as a list item — the form that is wrong for a
-  hub is exactly right here.
-- Links resolve against the source document's directory: `components/watermark`
-  written inside `capture/x.md` resolves to `capture/components/watermark` and
-  dangles silently. Write every entity link root-absolute —
-  `/components/watermark` — and let `iwe` normalize it on write. `iwe rename`
-  rewrites either form.
-
-**Mine and propose.** The §Analyze census names the candidates; count the
-facts per noun with the memory filter:
-
-```bash
-iwe find --matches '(?i)\bwatermark\b' --limit 100 -f keys \
-  --filter '{ created: { $exists: true }, distilled_lines: { $exists: false }, covers_lines: { $exists: false }, $key: { $nin: [MEMORY] } }' | wc -l
-```
-
-Present types and members exactly as §Propose handles fields — each type with
-its directory, `type` value and hub title, each member with its count — then
-stop. Fewer than three facts is a word, not a page, and a page nothing links to
-is pure upkeep.
-
-**Apply**, for each type the user picked:
-
-1. **Create the type hub** at the top level with `--if-exists fail`, as in
-   §Organize.
-2. **Create the pages.** Two to four sentences: what the thing is, where it
-   lives (files, commands, versions, people), and the one thing a future
-   session should know before reading facts about it. Stamp `created` and
-   `origin` the way the policy stamps them, `type` as the user named it, and no
-   `kind` — that is fact taxonomy. Then the guarded hub append from §Organize,
-   and, for a thing with parts, one inclusion link per part in the parent's
-   body; parts are pages too, created first.
-3. **Backfill the links.** One guarded bulk command per entity, preview first,
-   the same discipline as a field backfill: every fact whose body mentions the
-   thing and does not yet reference the page gets one list item appended.
+1. **Propose** by counting facts per noun — fewer than three is a word, not a page, and a page nothing links to is pure upkeep:
 
    ```bash
-   iwe update --filter '{ created: { $exists: true }, distilled_lines: { $exists: false }, covers_lines: { $exists: false }, $key: { $nin: [MEMORY] }, $content: { $matches: "(?i)\\bwatermark" }, $nor: [ { $references: components/watermark } ] }' \
-     --append '{ content: "- [Watermark](/components/watermark)" }' --dry-run
+   iwe find --matches '(?i)\bsession record\b' --limit 100 -f keys --filter '<the knowledge filter>' | wc -l
+   ```
+
+2. **Create the type hub** at the top level, then the pages: two to four sentences — what the thing is, where it lives, the one thing to know before reading facts about it — with the fields the policy stamps, `type` as the user named it, no fact taxonomy. Then the guarded hub append above; for a thing with parts, one inclusion link per part in the parent's body, parts created first.
+3. **Backfill the links**, one guarded bulk command per entity. The `$nor … $references` guard makes it idempotent, so a clean re-run reports `$append expects 1 block, selected 0`. Read the dry-run keys — a fact the regex catches that is not about the thing gets the link by hand or not at all. `$content: { $text: … }` is the stemmed alternative; `$matches` narrows when the noun is also an ordinary word. `--replace-text` cannot do this in bulk, so backfill writes the trailing list item and capture writes the inline form from then on.
+
+   ```bash
+   iwe update --filter '{ $and: [ <the knowledge filter>, { $content: { $matches: "(?i)\\bsession record" } }, { $nor: [ { $references: components/session-record } ] } ] }' \
+     --append '{ content: "- [Session record](/components/session-record)" }' --dry-run
    iwe update --filter '<the same filter>' --append '<the same append>' --expect <count from the dry run>
    ```
 
-   `$content: { $text: "chunk" }` is the stemmed alternative (it matches
-   "Chunks"); `$matches` takes a regex when the noun is also an ordinary word
-   (`hook`, `schema`) and the match must be narrower. The `$nor … $references`
-   guard is what makes the command idempotent, and it is why a clean re-run
-   reports `$append expects 1 block, selected 0`: a zero-match filter, not a
-   broken selector. Read the dry-run keys before writing — a fact the regex
-   catches that is not about the thing gets the link by hand or not at all.
-   `--replace-text` cannot do this in bulk (it demands the text occur exactly
-   once per block), so the trailing list is what backfill writes, and the
-   inline-prose form is what capture writes from then on.
-4. **Prove it**, one query per type and per page, and every count must match:
+4. **Prove it**, every count matching:
 
    ```bash
-   iwe find --filter '{ $includedBy: components }' -f keys                          # = the pages under components/
-   iwe find --filter '{ type: component, $referencedBy: { $size: 0 } }' -f keys     # orphans: must be empty
-   iwe find --matches '(?i)\bwatermark' --filter '{ created: { $exists: true }, $nor: [ { $references: components/watermark } ] }' -f keys   # strays: read each
+   iwe find --filter '{ $includedBy: components }' -f keys                        # = the pages under components/
+   iwe find --filter '{ type: component, $referencedBy: { $size: 0 } }' -f keys   # orphans: must be empty
+   iwe find --matches '(?i)\bsession record' --filter '{ $and: [ <the knowledge filter>, { $nor: [ { $references: components/session-record } ] } ] }' -f keys   # strays: read each
    ```
 
-   The type hubs join the area hubs in every explicit-hub census above, or
-   the pages report as strays of the area axis.
-5. **Teach the write path.** The policy's "how to write it" gains the entity
-   types — directory, `type` value, hub title — and the rule capture follows:
-   before composing, list the pages (`iwe find --filter '{ type: { $in:
-   [component, tool] } }' --project 'key=$key,title=$title'`), link every one
-   the item mentions inline by its root-absolute key, and **never mint one** —
-   a noun with no page stays plain text, and naming it is this skill's job once
-   three facts share it. Same invariant as areas: capture links, reflect names.
-   The curation section gains the three proofs.
+5. **Teach the write path.** `## How to write it` gains the types — directory, `type` value, hub title — and the rule capture follows: list the pages before composing (`iwe find --filter '{ type: { $in: [component, tool] } }' --project 'key=$key,title=$title'`), link every one the item mentions inline by root-absolute key, and never mint one — naming a noun is this skill's job once three facts share it. `## Curation` gains the three proofs.
 
-What it unlocks:
-
-```bash
-iwe find --filter '{ $references: components/watermark }' -f keys
-iwe find --filter '{ kind: trap, status: open, $references: components/job-queue }' -f keys
-iwe find --filter '{ created: { $exists: true }, $references: { match: { $includedBy: { match: { $key: components/stop-sweep-hook }, maxDepth: 0 } } } }' -f keys
-iwe retrieve -k components/watermark
-```
-
-The third is the hierarchy paying off: every fact about any part of a thing,
-however deep the parts nest. The last is the dossier — description, parts and
-`referencedBy` on one page, nothing maintained by hand.
-
-Connections between facts use the same edge. When a merge or a status flip
-rewrites a body, name the other document inline — *fixed by the claim-on-serve
-heartbeat in [spawn guard leak](/capture/spawn-guard-duplicate-agent-leak)* —
-so `$referencedBy` on the trap answers what resolved it. Typed relations the
-policy declares (`superseded_by`) stay frontmatter.
+What it unlocks: `{ $references: components/session-record }` alone or beside `kind` and `status`; every fact about any part of a thing, however deep the parts nest — `{ $references: { match: { $includedBy: { match: { $key: components/session-start-hook }, maxDepth: 0 } } } }`; and `iwe retrieve -k <key>` as the dossier, nothing maintained by hand. Connections between facts use the same edge: when a merge or a status flip rewrites a body, name the other document inline so `$referencedBy` on a trap answers what resolved it. Typed relations the policy declares (`superseded_by`) stay frontmatter.
 
 ## Verify
 
 ```bash
 iwe schema validate     # only if this store binds schemas
 iwe schema
-iwe tree --depth 2      # if the store groups into areas
-iwe tree --depth 3      # if the store has entity pages with parts
+iwe tree --depth 2      # if the store groups into areas or has entity pages
+iwe internal claude session brief
 ```
 
-Confirm the new field's coverage moved where you expected, then end with a
-summary of the working-tree diff: documents touched, fields added, keys
-moved, hubs created, entity pages created and facts linked to them, documents
-deleted, and what changed in the policy. No commit.
+Confirm coverage moved as expected, the policy check is `ok`, the schemas section binds every document the filter selects, the hubs section shows every area complete and names no stray the user did not choose to leave, and the brief's listing shows what the user calls memory and nothing else. End with a summary of the working-tree diff: documents touched, fields added, keys moved, hubs and pages created, documents deleted, policy changes. No commit.

@@ -401,21 +401,22 @@ fn update_set_reserved_dotted_segment_rejected() {
 }
 
 #[test]
-fn update_set_reserved_in_nested_value_rejected() {
+fn update_set_reserved_prefix_inside_a_value_is_data() {
     let dir = setup();
     let (_, stderr, ok) = run(
         dir.path(),
         "update",
-        &["-k", "a", "--set", "author={_hidden: 1}"],
+        &[
+            "-k",
+            "a",
+            "--set",
+            "knowledge_filter={ type: { $in: [note] } }",
+        ],
     );
-    assert!(!ok);
-    assert!(
-        stderr.contains("reserved prefix"),
-        "expected reserved-prefix error, got: {}",
-        stderr
-    );
+    assert!(ok, "a reserved prefix inside a value is data: {}", stderr);
     let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
-    assert!(!body.contains("_hidden"));
+    assert!(body.contains("knowledge_filter:"), "{}", body);
+    assert!(body.contains("$in"), "{}", body);
 }
 
 #[test]
@@ -549,6 +550,7 @@ fn update_body_preserves_frontmatter() {
             status: draft
             priority: 3
             ---
+
             # New Body
 
             New content.

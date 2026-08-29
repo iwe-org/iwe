@@ -232,6 +232,7 @@ pub fn init_library(root: &Path, options: &InitOptions) -> i32 {
             body: None,
             config: None,
             schemas: Vec::new(),
+            knobs: None,
             root: Some(root.to_path_buf()),
         });
         if code == EXIT_ERROR {

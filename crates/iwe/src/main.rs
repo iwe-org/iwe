@@ -27,15 +27,15 @@ use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
 use iwe::init::{current_root, init_library, InitOptions, Overrides};
 use iwe::internal::claude::{
-    capture_brief, complete_capture_chunk, digest_claude_transcript, enable_memory,
-    enter_memory_store, frontier_capture_chunks, next_capture_chunk, prompt_body,
-    read_hook_payload, render_memory_index, reset_capture_session, run_memory_sweep,
-    skip_capture_chunk, EnableOptions, SweepMode, SweepOptions, DEFAULT_FRONTIER_CHARS,
+    digest_claude_transcript, enable_memory, enter_memory_store, post_tool_report, prompt_body,
+    read_hook_payload, render_memory_index, session_adopt, session_brief, session_complete,
+    session_inbox, session_list, session_read, session_stage, CompleteOptions, EnableOptions,
+    SessionOptions, StageOptions,
 };
 use iwe::new::{
-    read_stdin, read_stdin_if_available, write_document, ContentOptions, CreateOptions,
-    DocumentCreator, IfExists, PreparedDocument, Variables, BODY_VARIABLE, LEGACY_BODY_VARIABLE,
-    RESERVED_VARIABLES, TITLE_VARIABLE,
+    normalize_content, read_stdin, read_stdin_if_available, write_document, ContentOptions,
+    CreateOptions, DocumentCreator, IfExists, PreparedDocument, Variables, BODY_VARIABLE,
+    LEGACY_BODY_VARIABLE, RESERVED_VARIABLES, TITLE_VARIABLE,
 };
 use iwe::projection_args::{parse_projection_extend, parse_projection_replace};
 use iwe::render::{FindBlockRenderer, RetrieveRenderer};
@@ -131,7 +131,7 @@ enum ClaudeCommand {
     Digest(ClaudeDigest),
     Enable(ClaudeEnable),
     Hook(ClaudeHook),
-    Job(ClaudeJob),
+    Session(ClaudeSession),
     Prompt(ClaudePrompt),
 }
 
@@ -150,7 +150,6 @@ enum PromptName {
     Init,
     Distill,
     Reflect,
-    DistillAgent,
 }
 
 impl PromptName {
@@ -159,7 +158,6 @@ impl PromptName {
             PromptName::Init => "init",
             PromptName::Distill => "distill",
             PromptName::Reflect => "reflect",
-            PromptName::DistillAgent => "distill-agent",
         }
     }
 }
@@ -204,122 +202,183 @@ struct ClaudeEnable {
         help = "Schema YAML file installed into .iwe/schemas/; repeatable"
     )]
     schemas: Vec<PathBuf>,
+
+    #[clap(
+        long,
+        help = "YAML file of knobs written into the policy's frontmatter, verbatim — \
+                `knowledge_filter`, `recency_field`, `chunk_chars` and the rest"
+    )]
+    knobs: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
-#[clap(about = "Capture chunk machinery for the memory agents")]
-struct ClaudeJob {
+#[clap(
+    about = "The sessions this workspace has had, and what memory has read of them: \
+             the reads and the completions the foreground distill flow runs"
+)]
+struct ClaudeSession {
     #[command(subcommand)]
-    command: JobCommand,
+    command: SessionCommand,
 }
 
 #[derive(Debug, Subcommand)]
-enum JobCommand {
-    Brief(JobBrief),
-    Next(JobNext),
-    Frontier(JobFrontier),
-    Complete(JobComplete),
-    Skip(JobSkip),
-    Reset(JobReset),
+enum SessionCommand {
+    Brief(SessionBrief),
+    List(SessionList),
+    Read(SessionRead),
+    Stage(SessionStage),
+    Inbox(SessionInbox),
+    Complete(SessionComplete),
+    Adopt(SessionAdopt),
 }
 
 #[derive(Debug, Args)]
 #[clap(
-    about = "Print what capture needs before its first chunk: the MEMORY.md policy, the \
-             frontmatter this store's own documents carry, and the most recent of them"
+    about = "Print what a distill run needs before its first proposal: the MEMORY.md policy \
+             and whether it carries the sections and commands this binary reads, the filter \
+             that selects this store's knowledge documents, the frontmatter they carry, the \
+             most recent of them, and the proposals the user has recently turned down"
 )]
-struct JobBrief {}
-
-#[derive(Debug, Args)]
-#[clap(about = "Print the pending capture chunk of the most recent session; \
-             empty output means the queue is drained")]
-struct JobNext {}
+struct SessionBrief {}
 
 #[derive(Debug, Args)]
 #[clap(
-    about = "Print one pending capture chunk per session, newest session first: the batch a \
-             drain triages before it spends a full curation pass on any of them"
+    about = "List this project's sessions newest first: how much of each is still undistilled, \
+             how many user turns that span carries, and whether it is the current conversation, \
+             another live one, pending, distilled or adopted"
 )]
-struct JobFrontier {
+struct SessionList {
+    #[clap(long, help = "List the distilled and adopted sessions too")]
+    all: bool,
+
+    #[clap(long, help = "Directory holding the session transcripts")]
+    transcripts: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Print a bounded digest of one session's undistilled span, so a long transcript \
+             is read a window at a time"
+)]
+struct SessionRead {
+    #[clap(help = "Session id to read; defaults to the current session")]
+    session: Option<String>,
+
     #[clap(
-        long = "limit",
-        default_value = "10",
-        help = "Serve at most this many sessions' chunks"
+        long,
+        help = "Start at this line; defaults to the line this session is distilled through"
     )]
-    limit: usize,
+    from: Option<usize>,
 
     #[clap(
         long = "max-chars",
-        default_value_t = DEFAULT_FRONTIER_CHARS,
-        help = "Stop the batch once it would print more than this, so no digest is cut in half"
+        help = "Character budget for the digest; defaults to the chunk_chars knob"
     )]
-    max_chars: usize,
+    max_chars: Option<usize>,
+
+    #[clap(long, help = "Directory holding the session transcripts")]
+    transcripts: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[clap(about = "Stage one candidate on a session record, before anyone has been asked about it")]
+struct SessionStage {
+    #[clap(help = "Session id the candidate came from; defaults to the current session")]
+    session: Option<String>,
+
+    #[clap(
+        long,
+        help = "The candidate as YAML: `title`, `key`, `body`, `evidence`, and `classification` \
+                and `updates` where they apply. Use '-' to read from stdin."
+    )]
+    content: Option<String>,
+
+    #[clap(long, help = "Directory holding the session transcripts")]
+    transcripts: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 #[clap(
-    about = "Refuse the chunk currently served for a session: the queue moves on to the other \
-             sessions, and the chunk returns to a fresh agent after the in-flight TTL"
+    about = "Print the staged candidates nobody has been asked about yet, grouped by the key \
+             they target; with a session id, that session's entries in full"
 )]
-struct JobSkip {
-    #[clap(help = "Session id of the chunk to skip")]
-    session: String,
-
-    #[clap(
-        long = "lines",
-        help = "The chunk's covers_lines, as printed by `job next`"
-    )]
-    lines: usize,
+struct SessionInbox {
+    #[clap(help = "Session id; omit it for every session's staged candidates")]
+    session: Option<String>,
 }
 
 #[derive(Debug, Args)]
 #[clap(
-    about = "Rewind a session so its span sweeps again: set the watermark and drop the chunks \
-             past it; the next sweep re-imports the span from the transcript"
+    about = "Record what a distill run did to a session: advance the line it is distilled \
+             through, record the documents written, and add to the selection ledger"
 )]
-struct JobReset {
-    #[clap(help = "Session id to rewind")]
-    session: String,
+struct SessionComplete {
+    #[clap(help = "Session id; defaults to the current session")]
+    session: Option<String>,
 
     #[clap(
-        long = "to",
-        default_value = "0",
-        help = "Line to rewind the watermark to"
+        long,
+        help = "Distill through this line, or through `now` — the transcript's current \
+                length. Omit it and the distilled line does not move: that is how an offer the \
+                user declined is recorded without a read."
     )]
-    to: usize,
-}
-
-#[derive(Debug, Args)]
-#[clap(
-    about = "Complete a capture chunk: advance the watermark, append the capture note, stamp the chunk captured"
-)]
-struct JobComplete {
-    #[clap(help = "Session id of the capture chunk to complete")]
-    session: String,
-
-    #[clap(
-        long = "lines",
-        help = "The chunk's covers_lines, as printed by `job next`"
-    )]
-    lines: usize,
+    lines: Option<String>,
 
     #[clap(
         long = "wrote",
-        help = "Key of a document this capture created or updated; repeatable, omit when nothing was kept"
+        help = "Key of a document this run created or updated; repeatable, omit when nothing was kept"
     )]
     wrote: Vec<String>,
 
     #[clap(
         long,
-        help = "Title for the session record; applied only while it still carries the default title"
+        help = "How many items were proposed to the user in this exchange"
+    )]
+    offered: Option<usize>,
+
+    #[clap(
+        long = "rejected",
+        help = "Title of a proposal the user turned down; repeatable. Rejections are the \
+                feedback loop's signal — record them even when nothing was written."
+    )]
+    rejected: Vec<String>,
+
+    #[clap(
+        long = "drop-pending",
+        help = "Turn down every candidate still staged on this session, recording each title \
+                in the ledger. Only after the last answer: it cannot tell an unasked candidate \
+                from a skipped one."
+    )]
+    drop_pending: bool,
+
+    #[clap(
+        long,
+        help = "Title for the session record; set once, later calls leave it"
     )]
     title: Option<String>,
 
     #[clap(
         long,
-        help = "One-line summary for the session record; applied only while it still carries the default body"
+        help = "One-line summary for the session record; set once, later calls leave it"
     )]
     summary: Option<String>,
+
+    #[clap(long, help = "Directory holding the session transcripts")]
+    transcripts: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Mark sessions as seen without reading them: they are distilled through the \
+             transcript's end and memory starts from here. No ids means every pending \
+             session; the current and any live conversation are always refused."
+)]
+struct SessionAdopt {
+    #[clap(help = "Session ids to adopt; empty means every pending session")]
+    sessions: Vec<String>,
+
+    #[clap(long, help = "Directory holding the session transcripts")]
+    transcripts: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -332,47 +391,16 @@ struct ClaudeHook {
 #[derive(Debug, Subcommand)]
 enum HookCommand {
     SessionStart(HookSessionStart),
-    Stop(HookStop),
+    PostTool(HookPostTool),
 }
 
 #[derive(Debug, Args)]
 #[clap(about = "Print the memory index block for a starting session")]
-struct HookSessionStart {
-    #[clap(long, help = "Closing line to print inside the memory index block")]
-    footer: Option<String>,
-}
+struct HookSessionStart {}
 
 #[derive(Debug, Args)]
-#[clap(about = "Sweep the session transcripts and import the spans worth capturing")]
-struct HookStop {
-    #[clap(
-        long,
-        conflicts_with = "adopt",
-        help = "Report what the sweep would claim, without writing anything"
-    )]
-    survey: bool,
-
-    #[clap(
-        long,
-        help = "Mark every transcript as already captured, without reading any"
-    )]
-    adopt: bool,
-
-    #[clap(
-        long = "max-chunks",
-        help = "Import at most this many chunks, overriding the MEMORY.md knob"
-    )]
-    max_chunks: Option<usize>,
-
-    #[clap(long, help = "Directory holding the session transcripts")]
-    transcripts: Option<PathBuf>,
-
-    #[clap(
-        long = "capture-reason",
-        help = "Reason to answer with when a capture job is claimed"
-    )]
-    capture_reason: Option<String>,
-}
+#[clap(about = "Check a document the agent just wrote, and report back what it got wrong")]
+struct HookPostTool {}
 
 #[derive(Debug, Args)]
 #[clap(about = "Summarize an agent transcript tail into a bounded digest")]
@@ -658,7 +686,15 @@ struct Count {
     long_about = help::normalize::LONG_ABOUT,
     after_help = help::normalize::AFTER_HELP
 )]
-struct Normalize {}
+struct Normalize {
+    #[clap(
+        long = "key",
+        short = 'k',
+        value_name = "KEY",
+        help = "Normalize only this document, leaving its frontmatter as written. Repeatable; omit to rewrite the whole library"
+    )]
+    key: Vec<String>,
+}
 
 #[derive(Debug, Args)]
 #[clap(
@@ -1454,6 +1490,7 @@ fn internal_claude_command(args: InternalClaude) {
                 body: enable.body,
                 config: enable.config,
                 schemas: enable.schemas,
+                knobs: enable.knobs,
                 root: enable.root,
             });
             if code != 0 {
@@ -1461,7 +1498,7 @@ fn internal_claude_command(args: InternalClaude) {
             }
         }
         ClaudeCommand::Hook(hook) => claude_hook_command(hook),
-        ClaudeCommand::Job(job) => claude_job_command(job),
+        ClaudeCommand::Session(session) => claude_session_command(session),
         ClaudeCommand::Prompt(prompt) => match prompt_body(prompt.name.as_str()) {
             Some(body) => print!("{body}"),
             None => {
@@ -1472,62 +1509,85 @@ fn internal_claude_command(args: InternalClaude) {
     }
 }
 
-fn claude_job_command(args: ClaudeJob) {
+fn claude_session_command(args: ClaudeSession) {
     let Some(store) = enter_memory_store(None) else {
         eprintln!("error: this directory is not a memory-enabled iwe workspace");
+        eprintln!("hint: run `iwe internal claude enable` (or /iwe:init) first");
         std::process::exit(1);
     };
 
-    match args.command {
-        JobCommand::Brief(_) => print!("{}", capture_brief(&store)),
-        JobCommand::Next(_) => match next_capture_chunk(&store) {
-            Ok(Some(chunk)) => print!("{}", chunk),
-            Ok(None) => {}
-            Err(error) => {
-                eprintln!("error: {}", error);
-                std::process::exit(1);
-            }
-        },
-        JobCommand::Frontier(frontier) => {
-            match frontier_capture_chunks(&store, frontier.limit, frontier.max_chars) {
-                Ok(Some(batch)) => print!("{}", batch),
-                Ok(None) => {}
-                Err(error) => {
-                    eprintln!("error: {}", error);
-                    std::process::exit(1);
-                }
-            }
+    let report = match args.command {
+        SessionCommand::Brief(_) => {
+            let mut app = App::command();
+            app.build();
+            print!("{}", session_brief(&store, &app));
+            return;
         }
-        JobCommand::Complete(complete) => {
-            match complete_capture_chunk(
-                &store,
-                &complete.session,
-                complete.lines,
-                &complete.wrote,
-                complete.title.as_deref(),
-                complete.summary.as_deref(),
-            ) {
-                Ok(report) => println!("{}", report),
-                Err(error) => {
-                    eprintln!("error: {}", error);
-                    std::process::exit(1);
-                }
-            }
+        SessionCommand::List(list) => session_list(
+            &SessionOptions {
+                transcripts: list.transcripts,
+                current: None,
+            },
+            list.all,
+        ),
+        SessionCommand::Read(read) => session_read(
+            &store,
+            &SessionOptions {
+                transcripts: read.transcripts,
+                current: None,
+            },
+            read.session.as_deref(),
+            read.from,
+            read.max_chars,
+        ),
+        SessionCommand::Stage(stage) => session_stage(
+            &store,
+            &SessionOptions {
+                transcripts: stage.transcripts,
+                current: None,
+            },
+            &StageOptions {
+                session: stage.session,
+                content: match stage.content.as_deref() {
+                    Some("-") => read_stdin(),
+                    None => read_stdin_if_available(),
+                    Some(inline) => inline.to_string(),
+                },
+            },
+        ),
+        SessionCommand::Inbox(inbox) => session_inbox(inbox.session.as_deref()),
+        SessionCommand::Complete(complete) => session_complete(
+            &store,
+            &SessionOptions {
+                transcripts: complete.transcripts,
+                current: None,
+            },
+            &CompleteOptions {
+                session: complete.session,
+                lines: complete.lines,
+                wrote: complete.wrote,
+                offered: complete.offered,
+                rejected: complete.rejected,
+                drop_pending: complete.drop_pending,
+                title: complete.title,
+                summary: complete.summary,
+            },
+        ),
+        SessionCommand::Adopt(adopt) => session_adopt(
+            &SessionOptions {
+                transcripts: adopt.transcripts,
+                current: None,
+            },
+            &adopt.sessions,
+        ),
+    };
+
+    match report {
+        Ok(report) => print!("{}", report),
+        Err(error) => {
+            eprintln!("error: {}", error);
+            std::process::exit(1);
         }
-        JobCommand::Skip(skip) => match skip_capture_chunk(&store, &skip.session, skip.lines) {
-            Ok(report) => println!("{}", report),
-            Err(error) => {
-                eprintln!("error: {}", error);
-                std::process::exit(1);
-            }
-        },
-        JobCommand::Reset(reset) => match reset_capture_session(&store, &reset.session, reset.to) {
-            Ok(report) => println!("{}", report),
-            Err(error) => {
-                eprintln!("error: {}", error);
-                std::process::exit(1);
-            }
-        },
     }
 }
 
@@ -1535,64 +1595,24 @@ fn claude_hook_command(args: ClaudeHook) {
     let payload = read_hook_payload();
 
     let output = match args.command {
-        HookCommand::SessionStart(start) => {
-            let footer = non_empty_text(start.footer);
-            enter_memory_store(payload.text("cwd"))
-                .and_then(|store| render_memory_index(&store, footer.as_deref()))
-        }
-        HookCommand::Stop(stop) => {
-            if payload.is_true("stop_hook_active") {
-                None
-            } else {
-                let loud = stop.survey || stop.adopt;
-                let options = SweepOptions {
-                    mode: if stop.survey {
-                        SweepMode::Survey
-                    } else if stop.adopt {
-                        SweepMode::Adopt
-                    } else {
-                        SweepMode::Claim
-                    },
-                    max_chunks: stop.max_chunks,
-                    transcripts: stop.transcripts,
-                    transcript_path: payload.text("transcript_path"),
-                    capture_reason: non_empty_text(stop.capture_reason),
-                };
-                let store = enter_memory_store(payload.text("cwd"));
-                if store.is_none() && loud {
-                    eprintln!(
-                        "error: this directory is not a memory-enabled iwe workspace — \
-                         there is no MEMORY document to sweep against"
-                    );
-                    eprintln!("hint: run `iwe internal claude enable` (or /iwe:init) first");
-                    std::process::exit(1);
-                }
-                let swept = match store {
-                    Some(mut store) => match run_memory_sweep(&mut store, &options) {
-                        Ok(swept) => swept,
-                        Err(error) => {
-                            eprintln!("error: {}", error);
-                            std::process::exit(1);
-                        }
-                    },
-                    None => None,
-                };
-                if swept.is_none() && loud {
-                    eprintln!("error: no transcript directory found for this project");
-                    std::process::exit(1);
-                }
-                swept
-            }
-        }
+        HookCommand::SessionStart(_) => enter_memory_store(payload.text("cwd"))
+            .and_then(|store| render_memory_index(&store, payload.text("session_id"))),
+        HookCommand::PostTool(_) => post_tool_report(&payload).map(|report| {
+            let body = serde_json::json!({
+                "suppressOutput": true,
+                "systemMessage": report.notice,
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "additionalContext": report.context,
+                },
+            });
+            format!("{}\n", body)
+        }),
     };
 
     if let Some(output) = output {
         print!("{}", output);
     }
-}
-
-fn non_empty_text(value: Option<String>) -> Option<String> {
-    value.filter(|text| !text.trim().is_empty())
 }
 
 fn claude_digest_command(args: ClaudeDigest) {
@@ -2142,7 +2162,7 @@ fn create_command(args: Create) {
         prepare_from_content(&args, &creator)
     };
 
-    let prepared = match prepared {
+    let mut prepared = match prepared {
         Ok(Some(prepared)) => prepared,
         Ok(None) => return,
         Err(e) => {
@@ -2150,6 +2170,8 @@ fn create_command(args: Create) {
             std::process::exit(1);
         }
     };
+
+    prepared.content = normalize_content(&config, &prepared.key, &prepared.content);
 
     if args.strict {
         gate_pending(&config, &[(prepared.key.clone(), prepared.content.clone())]);
@@ -2658,8 +2680,37 @@ fn build_tree_lines(
 #[tracing::instrument(level = "debug")]
 fn normalize_command(args: Normalize) {
     let configuration = get_configuration();
-    let graph = load_graph(&configuration);
-    write_graph(graph, &configuration);
+
+    if args.key.is_empty() {
+        let graph = load_graph(&configuration);
+        write_graph(graph, &configuration);
+        return;
+    }
+
+    let library_path = get_library_path(&configuration);
+    for key_str in &args.key {
+        let key = Key::name(key_str);
+        let path = library_path.join(format!("{}.{}", key, configuration.format.extension()));
+
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(raw) => raw,
+            Err(_) => {
+                eprintln!("Error: Document '{}' not found", key_str);
+                std::process::exit(1);
+            }
+        };
+
+        let normalized = normalize_content(&configuration, &key, &raw);
+        if normalized == raw {
+            continue;
+        }
+
+        if std::fs::write(&path, &normalized).is_err() {
+            eprintln!("Error: Failed to write '{}'", path.display());
+            std::process::exit(1);
+        }
+        println!("{}", path.display());
+    }
 }
 
 #[tracing::instrument(level = "debug")]
@@ -3527,19 +3578,103 @@ fn inline_command(args: Inline) {
     }
 }
 
+struct BlockEdit<'a> {
+    op: &'static str,
+    flag: &'static str,
+    shape: &'static str,
+    example: &'static str,
+    arg: &'a str,
+}
+
+const CONTENT_SHAPE: &str = "{ <selector>, content: <markdown> }";
+const CONTENT_EXAMPLE: &str = "{ $header: Notes, content: \"[Title](notes/slug)\" }";
+
 impl Update {
-    fn block_edits(&self) -> Vec<(&'static str, &str)> {
+    fn block_edits(&self) -> Vec<BlockEdit<'_>> {
         [
-            ("$replace", &self.replace),
-            ("$replaceText", &self.replace_text),
-            ("$insertBefore", &self.insert_before),
-            ("$insertAfter", &self.insert_after),
-            ("$append", &self.append),
-            ("$delete", &self.delete),
+            (
+                "$replace",
+                "--replace",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.replace,
+            ),
+            (
+                "$replaceText",
+                "--replace-text",
+                "{ <selector>, from: <text>, to: <text> }",
+                "{ $header: Notes, from: \"old\", to: \"new\" }",
+                &self.replace_text,
+            ),
+            (
+                "$insertBefore",
+                "--insert-before",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.insert_before,
+            ),
+            (
+                "$insertAfter",
+                "--insert-after",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.insert_after,
+            ),
+            (
+                "$append",
+                "--append",
+                CONTENT_SHAPE,
+                CONTENT_EXAMPLE,
+                &self.append,
+            ),
+            (
+                "$delete",
+                "--delete",
+                "{ <selector> }",
+                "{ $header: Notes }",
+                &self.delete,
+            ),
         ]
         .into_iter()
-        .filter_map(|(op, value)| value.as_deref().map(|arg| (op, arg)))
+        .filter_map(|(op, flag, shape, example, value)| {
+            value.as_deref().map(|arg| BlockEdit {
+                op,
+                flag,
+                shape,
+                example,
+                arg,
+            })
+        })
         .collect()
+    }
+}
+
+fn block_edit_value(edit: &BlockEdit) -> serde_yaml::Value {
+    use serde_yaml::Value;
+    let parsed = serde_yaml::from_str::<Value>(edit.arg);
+    let problem = match parsed {
+        Ok(Value::Mapping(mapping)) => return Value::Mapping(mapping),
+        Ok(other) => format!("expected a YAML mapping, got {}", yaml_kind(&other)),
+        Err(error) => error.to_string(),
+    };
+    eprintln!("error: invalid {} argument: {}", edit.flag, problem);
+    eprintln!(
+        "hint: {} takes one YAML mapping '{}', e.g. {} '{}'; quote a value that contains brackets or colons",
+        edit.flag, edit.shape, edit.flag, edit.example
+    );
+    std::process::exit(2);
+}
+
+fn yaml_kind(value: &serde_yaml::Value) -> &'static str {
+    use serde_yaml::Value;
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Sequence(_) => "a sequence",
+        Value::Mapping(_) => "a mapping",
+        Value::Tagged(_) => "a tagged value",
     }
 }
 
@@ -3623,6 +3758,7 @@ fn update_body(args: Update) {
             None => content,
         }
     };
+    let output = normalize_content(&config, &key, &output);
     if output == existing {
         if !args.quiet {
             println!("'{}' unchanged", key_str);
@@ -3694,12 +3830,9 @@ fn update_mutation(args: Update) {
     };
 
     let mut update_map = Mapping::new();
-    for (op, arg) in args.block_edits() {
-        let value: Value = serde_yaml::from_str(arg).unwrap_or_else(|e| {
-            eprintln!("error: invalid {} argument: {}", op, e);
-            std::process::exit(2);
-        });
-        update_map.insert(Value::String(op.to_string()), value);
+    for edit in args.block_edits() {
+        let value = block_edit_value(&edit);
+        update_map.insert(Value::String(edit.op.to_string()), value);
     }
 
     let mut set_map = Mapping::new();
@@ -4064,6 +4197,7 @@ fn render_document_template(
 #[cfg(test)]
 mod prompt_tests {
     use clap::CommandFactory;
+    use iwe::internal::claude::enable::{STARTER_BODY, TYPED_BODY};
     use iwe::internal::claude::prompt::{invocations, unknown_invocations, PROMPTS};
 
     use super::{help, App};
@@ -4075,7 +4209,11 @@ mod prompt_tests {
         let bodies: Vec<(&str, &str)> = PROMPTS
             .iter()
             .copied()
-            .chain([("docs agent", help::docs::AGENT)])
+            .chain([
+                ("docs agent", help::docs::AGENT),
+                ("enable starter", STARTER_BODY),
+                ("enable typed", TYPED_BODY),
+            ])
             .collect();
         for (name, body) in &bodies {
             assert!(

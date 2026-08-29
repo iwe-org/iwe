@@ -23,13 +23,13 @@ IWE is for people who want database-style queries on their notes — "all drafts
 - **A graph, not a folder tree.** Link notes together and the same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
 - **IDE features for your editor.** Real LSP integration with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/) — search, refactor, rename, autocomplete.
 - **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) give agents parent context and structural navigation over the same notes you edit by hand — retrieval by structure, not similarity guessing.
-- **Memory for your coding agent.** The [IWE plugin for Claude Code](https://github.com/iwe-org/skills) captures what a session established into the repository's own IWE workspace — markdown you review as an ordinary diff, not a store you can't inspect.
+- **Memory for your coding agent.** The [IWE plugin for Claude Code](https://github.com/iwe-org/skills) reads a session *with you* and writes what you pick into the repository's own IWE workspace — markdown you review as an ordinary diff, not a store you can't inspect.
 - **Speaks OKF.** An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle is markdown with YAML frontmatter — the format IWE already manages. `iwe init --okf` scaffolds a conformant bundle, `iwe schema validate` checks conformance mechanically, and `iwe find --filter '{type: …}'` queries OKF frontmatter directly.
 - **Fast.** Built in Rust, [processes 20,000 files in under a second](docs/benchmark.md).
 
 ### Install
 
-The hooks are `iwe` subcommands, so the plugin ships no runtime scripts — the only requirement is the IWE CLI (`0.20.0` or newer) on your `PATH`.
+The hook is an `iwe` subcommand, so the plugin ships no runtime scripts — the only requirement is the IWE CLI (`0.21.0` or newer) on your `PATH`.
 
 ```
 /plugin marketplace add iwe-org/skills
@@ -42,13 +42,13 @@ Then, in the repository you want remembered:
 /iwe:init
 ```
 
-Let the background capture agent run the CLI — it runs `iwe` and nothing else:
+Let the memory skills run the CLI — they run `iwe` and nothing else:
 
 ```json
 { "permissions": { "allow": ["Bash(iwe:*)"] } }
 ```
 
-Without a `MEMORY.md` — or without the CLI installed — every hook exits silently, so the plugin stays inert in every other repository. `iwe init` also offers to write the policy for you when it finds a `.claude/` directory.
+Without a `MEMORY.md` — or without the CLI installed — the session-start hook exits silently, so the plugin stays inert in every other repository. `iwe init` also offers to write the policy for you when it finds a `.claude/` directory.
 
 The plugin carries the `graph` skill too, giving the agent bounded, graph-aware routes for finding, retrieving, creating, and refactoring notes. All four skills reach Codex, Cursor, and OpenCode through the `skills` CLI, where they install as ordinary project skills (`/init`, `/distill`, `/reflect`, `/graph`):
 
@@ -56,7 +56,7 @@ The plugin carries the `graph` skill too, giving the agent bounded, graph-aware 
 npx skills add iwe-org/skills
 ```
 
-Automatic session capture is the Claude Code plugin's — other runtimes get the skills, invoked by hand.
+Nothing reaches memory unselected: `/iwe:distill` proposes, you select, and only then is anything written.
 
 More information: [plugin repository](https://github.com/iwe-org/skills)
 

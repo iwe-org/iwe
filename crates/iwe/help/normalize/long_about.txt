@@ -1,4 +1,5 @@
-Perform comprehensive document normalization across all markdown files.
+Perform comprehensive document normalization across the library, or over
+named documents only.
 
 Operations performed:
 - Update link titles to match target document headers
@@ -7,3 +8,12 @@ Operations performed:
 - Fix markdown formatting (newlines, indentation)
 - Standardize list formatting
 - Normalize document structure
+
+With no `-k`, every document in the library is rewritten and frontmatter is
+re-serialized along the way. With `-k`, only the named documents are touched,
+frontmatter is left exactly as written, and the result is byte-identical to
+what `iwe create` and `iwe update --content` produce — so a document
+normalized this way matches one written through the CLI. One difference: a
+named document is normalized on its own, without the rest of the library, so
+its link titles keep the text they were written with. Only the unscoped run
+refreshes them to match the target headers.

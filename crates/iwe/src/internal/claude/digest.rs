@@ -405,16 +405,15 @@ fn take_chars(text: &str, limit: usize) -> String {
     text.chars().take(limit).collect()
 }
 
-pub fn value_occurred(value: &Value) -> Option<String> {
+pub fn value_time(value: &Value) -> Option<chrono::DateTime<chrono::Local>> {
     let stamp = value.get("timestamp").and_then(Value::as_str)?;
     chrono::DateTime::parse_from_rfc3339(stamp)
         .ok()
-        .map(|parsed| {
-            parsed
-                .with_timezone(&chrono::Local)
-                .format("%Y-%m-%d %H:%M")
-                .to_string()
-        })
+        .map(|parsed| parsed.with_timezone(&chrono::Local))
+}
+
+pub fn value_occurred(value: &Value) -> Option<String> {
+    value_time(value).map(|time| time.format("%Y-%m-%d %H:%M").to_string())
 }
 
 fn render_claude_value(value: &Value) -> Option<String> {
