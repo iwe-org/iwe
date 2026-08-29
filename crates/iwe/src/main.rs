@@ -29,7 +29,8 @@ use iwe::init::{current_root, init_library, InitOptions, Overrides};
 use iwe::internal::claude::{
     digest_claude_transcript, enable_memory, enter_memory_store, post_tool_report, prompt_body,
     read_hook_payload, render_memory_index, session_adopt, session_brief, session_complete,
-    session_list, session_read, CompleteOptions, EnableOptions, SessionOptions,
+    session_inbox, session_list, session_read, session_stage, CompleteOptions, EnableOptions,
+    SessionOptions, StageOptions,
 };
 use iwe::new::{
     normalize_content, read_stdin, read_stdin_if_available, write_document, ContentOptions,
@@ -225,6 +226,8 @@ enum SessionCommand {
     Brief(SessionBrief),
     List(SessionList),
     Read(SessionRead),
+    Stage(SessionStage),
+    Inbox(SessionInbox),
     Complete(SessionComplete),
     Adopt(SessionAdopt),
 }
@@ -279,6 +282,38 @@ struct SessionRead {
 
 #[derive(Debug, Args)]
 #[clap(
+    about = "Stage one candidate on a session record, before anyone has been asked about it: \
+             the inbox a backlog read fills and a selection run empties. Nothing reaches the \
+             store until `complete --wrote` says so."
+)]
+struct SessionStage {
+    #[clap(help = "Session id the candidate came from; defaults to the current session")]
+    session: Option<String>,
+
+    #[clap(
+        long,
+        help = "The candidate as a YAML mapping of `title`, `key`, `body` and `evidence`, plus \
+                `classification` and `updates` where they apply. Use '-' to read from stdin."
+    )]
+    content: Option<String>,
+
+    #[clap(long, help = "Directory holding the session transcripts")]
+    transcripts: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Print the staged candidates nobody has been asked about yet, grouped by the key \
+             they target so a fact several sessions raised shows up once. With a session id, \
+             print that session's entries in full, evidence included."
+)]
+struct SessionInbox {
+    #[clap(help = "Session id; omit it for every session's staged candidates")]
+    session: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[clap(
     about = "Record what a distill run did to a session: advance the line it is distilled \
              through, record the documents written, and add to the selection ledger"
 )]
@@ -312,6 +347,15 @@ struct SessionComplete {
                 feedback loop's signal — record them even when nothing was written."
     )]
     rejected: Vec<String>,
+
+    #[clap(
+        long = "drop-pending",
+        help = "Turn down every candidate still staged on this session, recording each title \
+                in the ledger: the sweep that closes a selection run once the kept ones are \
+                named. Only after the last answer — it cannot tell an unasked candidate from \
+                a skipped one."
+    )]
+    drop_pending: bool,
 
     #[clap(
         long,
@@ -1502,6 +1546,22 @@ fn claude_session_command(args: ClaudeSession) {
             read.from,
             read.max_chars,
         ),
+        SessionCommand::Stage(stage) => session_stage(
+            &store,
+            &SessionOptions {
+                transcripts: stage.transcripts,
+                current: None,
+            },
+            &StageOptions {
+                session: stage.session,
+                content: match stage.content.as_deref() {
+                    Some("-") => read_stdin(),
+                    None => read_stdin_if_available(),
+                    Some(inline) => inline.to_string(),
+                },
+            },
+        ),
+        SessionCommand::Inbox(inbox) => session_inbox(inbox.session.as_deref()),
         SessionCommand::Complete(complete) => session_complete(
             &store,
             &SessionOptions {
@@ -1514,6 +1574,7 @@ fn claude_session_command(args: ClaudeSession) {
                 wrote: complete.wrote,
                 offered: complete.offered,
                 rejected: complete.rejected,
+                drop_pending: complete.drop_pending,
                 title: complete.title,
                 summary: complete.summary,
             },

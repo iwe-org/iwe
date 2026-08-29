@@ -19,7 +19,7 @@ use crate::internal::claude::hook::store::{
 use crate::internal::claude::prompt::unknown_invocations;
 use crate::internal::claude::record::{
     all_session_records, load_session_record, mark_reminded, reminded_at, save_session_record,
-    SessionRecord,
+    Proposal, ProposalStatus, SessionRecord,
 };
 use crate::new::normalize_content;
 use crate::schema::render_schema;
@@ -52,12 +52,18 @@ impl SessionOptions {
     }
 }
 
+pub struct StageOptions {
+    pub session: Option<String>,
+    pub content: String,
+}
+
 pub struct CompleteOptions {
     pub session: Option<String>,
     pub lines: Option<String>,
     pub wrote: Vec<String>,
     pub offered: Option<usize>,
     pub rejected: Vec<String>,
+    pub drop_pending: bool,
     pub title: Option<String>,
     pub summary: Option<String>,
 }
@@ -269,6 +275,13 @@ pub fn session_list(options: &SessionOptions, all: bool) -> Result<String, Strin
     if hidden > 0 && !all {
         report.push_str("--all lists the distilled and adopted sessions too\n");
     }
+    let (staged, staged_sessions) = staged_census();
+    if staged > 0 {
+        report.push_str(&format!(
+            "{} staged proposal(s) wait in {} session record(s) — `session inbox` prints them\n",
+            staged, staged_sessions
+        ));
+    }
     Ok(report)
 }
 
@@ -316,27 +329,238 @@ pub fn session_read(
     Ok(report)
 }
 
+pub fn session_stage(
+    store: &MemoryStore,
+    options: &SessionOptions,
+    stage: &StageOptions,
+) -> Result<String, String> {
+    let session = session_id(
+        options.current_session().as_deref(),
+        stage.session.as_deref(),
+    )?;
+    let transcript = transcript_path(options, &session);
+    if transcript.is_none() && load_session_record(&session).is_none() {
+        return Err(format!("{}: no transcript and no session record", session));
+    }
+
+    let proposal = parse_proposal(store, &stage.content)?;
+    let title = proposal.title.clone();
+    let target = match &proposal.updates {
+        Some(key) => format!("an update of {}", key),
+        None => format!("the new document {}", proposal.key),
+    };
+
+    let mut record = load_session_record(&session).unwrap_or_else(|| SessionRecord::new(&session));
+    if let Some(path) = &transcript {
+        record.set_transcript(path);
+    }
+    record.stage_proposal(proposal);
+    let pending = record.pending_proposals().len();
+
+    if !save_session_record(&record) {
+        return Err(format!(
+            "could not write the session record for {}",
+            session
+        ));
+    }
+
+    Ok(format!(
+        "staged \"{}\" as {} in {}: {} proposal(s) pending\n",
+        title, target, session, pending
+    ))
+}
+
+pub fn session_inbox(session: Option<&str>) -> Result<String, String> {
+    match session {
+        Some(session) => one_session_inbox(session),
+        None => Ok(grouped_inbox()),
+    }
+}
+
+fn one_session_inbox(session: &str) -> Result<String, String> {
+    if !is_safe_id(session) {
+        return Err(format!("'{}' is not a session id", session));
+    }
+    let record = load_session_record(session);
+    let pending = record
+        .as_ref()
+        .map(|record| record.pending_proposals())
+        .unwrap_or_default();
+    if pending.is_empty() {
+        return Ok(format!("inbox: {} — nothing staged\n", session));
+    }
+
+    let mut report = format!(
+        "inbox: {} — {} pending proposal(s)\n",
+        session,
+        pending.len()
+    );
+    for proposal in pending {
+        report.push('\n');
+        report.push_str(&entry_field("title", &proposal.title));
+        report.push_str(&entry_field("key", &proposal.key));
+        if let Some(classification) = &proposal.classification {
+            report.push_str(&entry_field("classification", classification));
+        }
+        if let Some(updates) = &proposal.updates {
+            report.push_str(&entry_field("updates", updates));
+        }
+        report.push_str(&entry_field("body", &proposal.body));
+        report.push_str(&entry_field("evidence", &proposal.evidence));
+    }
+    Ok(report)
+}
+
+fn grouped_inbox() -> String {
+    let records = all_session_records();
+    let mut groups: BTreeMap<String, Vec<(&str, &Proposal)>> = BTreeMap::new();
+    let mut sessions = 0;
+    let mut staged = 0;
+
+    for record in &records {
+        let pending = record.pending_proposals();
+        if pending.is_empty() {
+            continue;
+        }
+        sessions += 1;
+        staged += pending.len();
+        for proposal in pending {
+            groups
+                .entry(proposal.target().to_string())
+                .or_default()
+                .push((record.session.as_str(), proposal));
+        }
+    }
+
+    if staged == 0 {
+        return "inbox: nothing staged\n".to_string();
+    }
+
+    let mut ordered: Vec<(&String, &Vec<(&str, &Proposal)>)> = groups.iter().collect();
+    ordered.sort_by(|left, right| right.1.len().cmp(&left.1.len()).then(left.0.cmp(right.0)));
+
+    let mut report = format!(
+        "inbox: {} pending proposal(s) staged in {} session record(s), \
+         over {} candidate key(s)\n",
+        staged,
+        sessions,
+        ordered.len()
+    );
+    for (number, (key, entries)) in ordered.into_iter().enumerate() {
+        let contributors: HashSet<&str> = entries.iter().map(|(session, _)| *session).collect();
+        report.push_str(&format!(
+            "\n=== {}. {} — {} proposal(s) from {} session(s) ===\n",
+            number + 1,
+            key,
+            entries.len(),
+            contributors.len()
+        ));
+        for (session, proposal) in entries {
+            let classification = match &proposal.classification {
+                Some(classification) => format!(" [{}]", classification),
+                None => String::new(),
+            };
+            let shape = match &proposal.updates {
+                Some(updates) => format!("an update of {}", updates),
+                None => format!("new, as {}", proposal.key),
+            };
+            report.push_str(&format!(
+                "{}{} — {} — {}\n",
+                proposal.title, classification, session, shape
+            ));
+            let summary = proposal.summary();
+            if !summary.is_empty() {
+                report.push_str(&format!("  {}\n", summary));
+            }
+        }
+    }
+    report.push_str(
+        "\n`session inbox <id>` prints one session's staged proposals with their evidence\n",
+    );
+    report
+}
+
+fn entry_field(name: &str, value: &str) -> String {
+    if value.contains('\n') {
+        let indented: Vec<String> = value.lines().map(|line| format!("  {}", line)).collect();
+        format!("{}:\n{}\n", name, indented.join("\n"))
+    } else {
+        format!("{}: {}\n", name, value)
+    }
+}
+
+fn parse_proposal(store: &MemoryStore, content: &str) -> Result<Proposal, String> {
+    if content.trim().is_empty() {
+        return Err(
+            "--content: no proposal — pass the entry as YAML on stdin with `--content -`"
+                .to_string(),
+        );
+    }
+
+    let mut proposal: Proposal = serde_yaml::from_str(content).map_err(|error| {
+        format!(
+            "--content: {} — a proposal is a YAML mapping of title, key, body and evidence, \
+             with classification and updates when they apply",
+            error
+        )
+    })?;
+
+    proposal.status = ProposalStatus::Pending;
+    proposal.title = proposal.title.trim().to_string();
+    proposal.key = proposal.key.trim().trim_start_matches('/').to_string();
+    proposal.body = proposal.body.trim().to_string();
+    proposal.evidence = proposal.evidence.trim().to_string();
+    proposal.classification = proposal
+        .classification
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    proposal.updates = proposal
+        .updates
+        .map(|value| value.trim().trim_start_matches('/').to_string())
+        .filter(|value| !value.is_empty());
+
+    for (name, value) in [
+        ("title", &proposal.title),
+        ("key", &proposal.key),
+        ("body", &proposal.body),
+        ("evidence", &proposal.evidence),
+    ] {
+        if value.is_empty() {
+            return Err(format!("--content: {} is empty", name));
+        }
+    }
+
+    proposal.key = Key::name(&proposal.key).to_string();
+    if proposal.key == "MEMORY" {
+        return Err(
+            "--content: key MEMORY: the machinery's own documents are not capture output"
+                .to_string(),
+        );
+    }
+
+    if let Some(updates) = &proposal.updates {
+        let key = Key::name(updates).to_string();
+        if !store.has_document(&key) {
+            return Err(format!(
+                "--content: updates {}: no such document in this store",
+                key
+            ));
+        }
+        proposal.updates = Some(key);
+    }
+
+    Ok(proposal)
+}
+
 pub fn session_complete(
     store: &MemoryStore,
     options: &SessionOptions,
     complete: &CompleteOptions,
 ) -> Result<String, String> {
     let current = options.current_session();
-    let session = match complete.session.clone().or(current.clone()) {
-        Some(session) => session,
-        None => {
-            return Err(
-                "no session id: pass one, or run where CLAUDE_CODE_SESSION_ID is set".to_string(),
-            )
-        }
-    };
-    if !is_safe_id(&session) {
-        return Err(format!("'{}' is not a session id", session));
-    }
+    let session = session_id(current.as_deref(), complete.session.as_deref())?;
 
-    let transcript = transcripts_directory(options.transcripts.as_deref())
-        .map(|directory| directory.join(format!("{}.jsonl", session)))
-        .filter(|path| path.is_file());
+    let transcript = transcript_path(options, &session);
 
     if transcript.is_none() && load_session_record(&session).is_none() {
         return Err(format!("{}: no transcript and no session record", session));
@@ -403,12 +627,19 @@ pub fn session_complete(
         record.set_size(size, total);
     }
     record.add_ledger(complete.offered.unwrap_or(0), &complete.rejected);
+    let settled = record.settle_proposals(&keys, &complete.rejected);
+    let swept = match complete.drop_pending {
+        true => record.reject_pending_proposals(),
+        false => Vec::new(),
+    };
+    record.add_ledger(0, &swept);
     let kept = keys.len();
     if kept > 0 {
         record.add_capture(&now, advanced, keys);
     }
     record.set_title_once(complete.title.as_deref());
     record.set_summary_once(complete.summary.as_deref());
+    let pending = record.pending_proposals().len();
 
     if !save_session_record(&record) {
         return Err(format!(
@@ -431,6 +662,32 @@ pub fn session_complete(
             session, distilled, kept
         ),
     };
+    for item in &settled {
+        match item.status {
+            ProposalStatus::Written => report.push_str(&format!(
+                "settled the staged proposal \"{}\": written to {}\n",
+                item.title, item.key
+            )),
+            ProposalStatus::Rejected => report.push_str(&format!(
+                "settled the staged proposal \"{}\": rejected\n",
+                item.title
+            )),
+            ProposalStatus::Pending => {}
+        }
+    }
+    if !swept.is_empty() {
+        report.push_str(&format!(
+            "dropped {} staged proposal(s) nobody kept: {}\n",
+            swept.len(),
+            swept.join(", ")
+        ));
+    }
+    if pending > 0 {
+        report.push_str(&format!(
+            "{} staged proposal(s) still pending in {}\n",
+            pending, session
+        ));
+    }
     for (key, area) in &linked {
         report.push_str(&format!("linked {} into its area hub {}\n", key, area));
     }
@@ -688,10 +945,17 @@ pub fn session_adopt(options: &SessionOptions, sessions: &[String]) -> Result<St
         record.distilled_lines = row.lines;
         record.set_transcript(&row.path);
         record.set_size(row.size, row.lines);
+        let dropped = record.drop_pending_proposals();
         if !save_session_record(&record) {
             continue;
         }
-        report.push_str(&format!("adopted {} at line {}\n", row.session, row.lines));
+        match dropped {
+            0 => report.push_str(&format!("adopted {} at line {}\n", row.session, row.lines)),
+            dropped => report.push_str(&format!(
+                "adopted {} at line {}, dropping {} staged proposal(s)\n",
+                row.session, row.lines, dropped
+            )),
+        }
         adopted += 1;
     }
 
@@ -749,6 +1013,40 @@ pub fn reminder_due(store: &MemoryStore) -> bool {
         }
         None => true,
     }
+}
+
+fn session_id(current: Option<&str>, explicit: Option<&str>) -> Result<String, String> {
+    let session = match explicit.or(current) {
+        Some(session) => session.to_string(),
+        None => {
+            return Err(
+                "no session id: pass one, or run where CLAUDE_CODE_SESSION_ID is set".to_string(),
+            )
+        }
+    };
+    if !is_safe_id(&session) {
+        return Err(format!("'{}' is not a session id", session));
+    }
+    Ok(session)
+}
+
+fn transcript_path(options: &SessionOptions, session: &str) -> Option<PathBuf> {
+    transcripts_directory(options.transcripts.as_deref())
+        .map(|directory| directory.join(format!("{}.jsonl", session)))
+        .filter(|path| path.is_file())
+}
+
+fn staged_census() -> (usize, usize) {
+    let mut staged = 0;
+    let mut sessions = 0;
+    for record in all_session_records() {
+        let pending = record.pending_proposals().len();
+        if pending > 0 {
+            sessions += 1;
+            staged += pending;
+        }
+    }
+    (staged, sessions)
 }
 
 fn directory_or_error(options: &SessionOptions) -> Result<PathBuf, String> {

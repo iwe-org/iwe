@@ -9,27 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `iwe normalize -k <key>` normalizes only the named documents, leaves their frontmatter as written and prints only the paths that changed
-- `iwe internal claude session <brief|list|read|complete|adopt>` — the commands behind the foreground distill flow: list sessions with their undistilled span and state, read a bounded window of one, mark it distilled and record what was written, or adopt sessions without reading them
-- `iwe internal claude hook post-tool` — a `PostToolUse` hook that normalizes a markdown document written with the Write or Edit tool and reports schema violations and near-duplicates back through `additionalContext`; it never blocks the tool call
-- `knowledge_filter`, `recency_field`, `injection`, `max_proposals_per_read` and `remind_every_days` knobs on `MEMORY.md`; `injection` lists the slices (`filter`, `recent`, `changed`) session start puts in front of every session, and `enable --knobs <yaml>` writes knobs into a composed policy
-- `session brief` prints a policy check (missing sections, a `knowledge_filter` that does not parse, `iwe` invocations this binary lacks), the effective filter, the bound schemas and an area-hub census
-- `session complete --wrote <key>` links the written document into its area hub when one exists, and warns when a written document is not selected by the knowledge filter
-- `enable` installs a default `.iwe/schemas/memory.yaml` that constrains only the `created` and `session` fields
-- Session start reports how many sessions are undistilled and, at most once per `remind_every_days`, asks to offer a distill run; each session record keeps a selection ledger (`offered`, `kept`, `rejected`)
+- `knowledge_filter`, `recency_field`, `injection`, `max_proposals_per_read` and `remind_every_days` knobs on `MEMORY.md`
+- Switching memory on installs a default `.iwe/schemas/memory.yaml` that constrains only the `created` and `session` fields
+- A document written with the Write or Edit tool is normalized, checked against the schemas that bind it, and reported when it closely matches one the store already has
+- A captured document under an area directory is linked into that area's hub when one exists
+- Session start reports how many sessions are undistilled and, at most once per `remind_every_days`, offers to read them
 
 ### Changed
 - `update` block operators (`--append`, `--replace`, `--delete`, …) given an argument that is not a YAML mapping now report the flag, the mapping shape it takes and an example (previously the raw parser error)
-- Session records live under `.iwe/claude/sessions/<id>.yaml`, outside the graph (previously `sessions/<id>` store documents). The default `knowledge_filter` is `{ $key: { $nin: [MEMORY, queries] } }` (was `{ distilled_lines: { $exists: false }, $key: { $nin: [MEMORY, queries] } }`)
-- The `init`, `distill` and `reflect` prompts are about half their previous length and carry procedure only; the shape of a memory document is the `MEMORY.md` policy's alone, read by section name (`## How to write it`, `## Dedup and updates`, `## Curation`)
-- The `distill` prompt is a foreground propose → select → write flow that reads the current session first and offers the backlog afterwards; every proposal is prepared and dedup-checked before the first question, the questions come one after another with `Remember`, `Skip` or `Edit` (the user's own wording on the item), and nothing is written until the last one is answered
-- The session-start block's closing lines come from the policy's `## At session start` section (previously hard-coded), and the search hint carries the store's knowledge filter
+- Memory's own state lives under `.iwe/claude/`, outside the graph (previously `sessions/<id>` documents in the store). The default `knowledge_filter` is `{ $key: { $nin: [MEMORY, queries] } }` (was `{ distilled_lines: { $exists: false }, $key: { $nin: [MEMORY, queries] } }`)
+- The `init`, `distill` and `reflect` prompts carry procedure only; the shape of a memory document is the `MEMORY.md` policy's alone, read by section name (`## How to write it`, `## Dedup and updates`, `## Curation`)
+- `/iwe:distill` asks about every candidate before anything is written — `Keep all` / `Skip all` / `Let me pick`, then one candidate at a time for a handful, or a numbered list with batched multi-select questions for more — and reads a backlog with one reader per session, so a fact several sessions raised is asked about once (previously it walked the backlog session by session and re-proposed what recurred)
+- Reading a session can now run unattended; selection never does
+- `/iwe:init` sets memory up and hands the sessions on disk to `/iwe:distill`; it reads none of them itself
+- The session-start block's closing lines come from the policy's `## At session start` section (previously hard-coded)
 - `iwe create` and `iwe update --content` normalize the body on the way in, leaving the frontmatter as written
-- The current session is identified from the hook's `session_id` or `CLAUDE_CODE_SESSION_ID`; any other session active in the last 30 minutes is refused by `adopt` and `complete --lines now`
 
 ### Removed
-- The Stop hook: `iwe internal claude hook stop` and its flags, the `iwe internal claude job` commands, the `distill-agent` prompt and the capture chunks under `.iwe/claude-sessions/`. Nothing reads a transcript unattended any more
+- Automatic capture: nothing reads a transcript on its own any more, and the chunks it kept under `.iwe/claude-sessions/` are gone
 - The `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` knobs; a policy that still sets one is ignored
-- `hook session-start --footer` — the closing line comes from the policy's `## At session start` section
 
 ## [0.20.1](https://github.com/iwe-org/iwe/compare/iwe-v0.20.0...iwe-v0.20.1) - 2026-08-24
 

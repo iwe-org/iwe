@@ -41,6 +41,8 @@ pub struct SessionRecord {
     pub rejected: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub captures: Vec<Capture>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub proposals: Vec<Proposal>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -50,6 +52,60 @@ pub struct Capture {
     pub through: Option<usize>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub wrote: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ProposalStatus {
+    #[default]
+    Pending,
+    Written,
+    Rejected,
+}
+
+impl ProposalStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ProposalStatus::Pending => "pending",
+            ProposalStatus::Written => "written",
+            ProposalStatus::Rejected => "rejected",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct Proposal {
+    pub title: String,
+    pub key: String,
+    pub body: String,
+    pub evidence: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub classification: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updates: Option<String>,
+    #[serde(default)]
+    pub status: ProposalStatus,
+}
+
+impl Proposal {
+    pub fn is_pending(&self) -> bool {
+        self.status == ProposalStatus::Pending
+    }
+
+    pub fn target(&self) -> &str {
+        self.updates.as_deref().unwrap_or(&self.key)
+    }
+
+    pub fn summary(&self) -> &str {
+        self.body.lines().next().unwrap_or("").trim()
+    }
+}
+
+pub struct Settled {
+    pub title: String,
+    pub status: ProposalStatus,
+    pub key: String,
 }
 
 impl SessionRecord {
@@ -102,6 +158,67 @@ impl SessionRecord {
             through,
             wrote,
         });
+    }
+
+    pub fn stage_proposal(&mut self, proposal: Proposal) {
+        self.proposals.push(proposal);
+    }
+
+    pub fn pending_proposals(&self) -> Vec<&Proposal> {
+        self.proposals
+            .iter()
+            .filter(|proposal| proposal.is_pending())
+            .collect()
+    }
+
+    pub fn settle_proposals(&mut self, wrote: &[String], rejected: &[String]) -> Vec<Settled> {
+        let mut settled = Vec::new();
+        for key in wrote {
+            let found = self.proposals.iter_mut().find(|proposal| {
+                proposal.is_pending()
+                    && (proposal.key == *key || proposal.updates.as_deref() == Some(key))
+            });
+            if let Some(proposal) = found {
+                proposal.status = ProposalStatus::Written;
+                settled.push(Settled {
+                    title: proposal.title.clone(),
+                    status: ProposalStatus::Written,
+                    key: key.clone(),
+                });
+            }
+        }
+        for line in rejected {
+            let found = self
+                .proposals
+                .iter_mut()
+                .find(|proposal| proposal.is_pending() && rejects(line, &proposal.title));
+            if let Some(proposal) = found {
+                proposal.status = ProposalStatus::Rejected;
+                settled.push(Settled {
+                    title: proposal.title.clone(),
+                    status: ProposalStatus::Rejected,
+                    key: proposal.key.clone(),
+                });
+            }
+        }
+        settled
+    }
+
+    pub fn reject_pending_proposals(&mut self) -> Vec<String> {
+        let mut titles = Vec::new();
+        for proposal in self.proposals.iter_mut() {
+            if proposal.is_pending() {
+                proposal.status = ProposalStatus::Rejected;
+                titles.push(proposal.title.clone());
+            }
+        }
+        titles
+    }
+
+    pub fn drop_pending_proposals(&mut self) -> usize {
+        let before = self.proposals.len();
+        self.proposals.retain(|proposal| !proposal.is_pending());
+        before - self.proposals.len()
     }
 
     pub fn set_title_once(&mut self, title: Option<&str>) {
@@ -194,6 +311,15 @@ pub fn mark_reminded(now: &str) -> bool {
 fn read_session_record(path: &Path) -> Option<SessionRecord> {
     let raw = std::fs::read_to_string(path).ok()?;
     serde_yaml::from_str(&raw).ok()
+}
+
+fn rejects(line: &str, title: &str) -> bool {
+    let head = line
+        .split_once(" — ")
+        .or_else(|| line.split_once(" - "))
+        .map(|(head, _)| head)
+        .unwrap_or(line);
+    head.trim().eq_ignore_ascii_case(title.trim())
 }
 
 fn single_line(value: Option<&str>) -> Option<String> {

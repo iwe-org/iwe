@@ -56,7 +56,7 @@ The plugin carries the `graph` skill too, giving the agent bounded, graph-aware 
 npx skills add iwe-org/skills
 ```
 
-Nothing is captured unattended: `/iwe:distill` proposes, you select, and only then is anything written.
+Nothing reaches memory unselected: `/iwe:distill` proposes, you select, and only then is anything written.
 
 More information: [plugin repository](https://github.com/iwe-org/skills)
 

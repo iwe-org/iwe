@@ -13,9 +13,10 @@ the store.
 
 ## What memory has read, and what it has not
 
-Nothing reads a session unattended: `/iwe:distill` reads with you, and
-`.iwe/claude/sessions/<id>.yaml` holds the whole of the state for one session —
-outside the graph, so these are commands, not queries.
+Nothing reaches memory unselected: `/iwe:distill` reads with you and writes
+only what you pick, and `.iwe/claude/sessions/<id>.yaml` holds the whole of the
+state for one session, staged candidates included — outside the graph, so these
+are commands, not queries.
 
 - What is still undistilled on disk (transcripts are files, not documents, so
   this one is a command): `iwe internal claude session list`

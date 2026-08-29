@@ -76,16 +76,16 @@ iwe internal claude session list
 
 One row per session, newest first: started, last activity, lines, user turns, distilled line, pending lines, state. Do not hand-roll it with `ls` and `wc`.
 
-Report the numbers and get a scope before spending anything: every session read is a pass a human sits through. Propose the scope in user turns, not lines — a session with three hundred pending lines and two turns is an autonomous run that settled nothing; one with forty turns is where the choices were made. The usual recommendation is "read these few, adopt the rest", both numbers named.
+Report the numbers and get a scope before spending anything. Propose the scope in user turns, not lines — a session with three hundred pending lines and two turns is an autonomous run that settled nothing; one with forty turns is where the choices were made. The usual recommendation is "read these few, adopt the rest", both numbers named.
 
 ```bash
 iwe internal claude session adopt
 iwe internal claude session adopt <id>
 ```
 
-Adopting marks pending sessions distilled through their current length without reading a word; it refuses the current session and any other live conversation.
+Adopting marks pending sessions distilled through their current length without reading a word and drops whatever was staged against them; it refuses the current session and any other live conversation.
 
-This skill does not read the backlog. Once the policy is written and the scope agreed, hand over to `/iwe:distill` by name: it starts with the current session, then walks the rest newest-first, and stopping half-way keeps everything already written.
+This skill does not read sessions. Once the policy is written and the scope agreed, hand over to `/iwe:distill` by name: it reads the scoped sessions into an inbox, puts every candidate to the user, and stopping half-way keeps everything already written and everything still staged.
 
 ## 4. Finish
 
@@ -95,7 +95,7 @@ iwe internal claude session brief
 iwe internal claude session list
 ```
 
-Then tell the user: what the policy says (editing `MEMORY.md` changes what is captured, deleting it turns memory off); how much backlog is waiting and that `/iwe:distill` reads it with them; that everything is uncommitted, nothing is captured automatically, and every document is one they selected; that session start shows the undistilled count and, at most weekly, offers to work it; that `/iwe:reflect` reorganizes the store; and to allowlist `Bash(iwe:*)`.
+Then tell the user: what the policy says (editing `MEMORY.md` changes what is captured, deleting it turns memory off); how much backlog is waiting and that `/iwe:distill` reads it with them; that reading a transcript can run unattended but nothing reaches memory unselected, and every document written is one they chose; that everything is uncommitted and reviewed as a diff; that session start shows the undistilled count and, at most weekly, offers to work it; that `/iwe:reflect` reorganizes the store once it has something to group; and to allowlist `Bash(iwe:*)`.
 
 ## Migrating from a `memory/` store
 

@@ -762,6 +762,79 @@ impl HookFixture {
         self.session_env(args, &[])
     }
 
+    fn stage(&self, session: &str, proposal: &str) -> Output {
+        let transcripts = self.transcripts();
+        let mut command = Command::new(crate::common::get_iwe_binary_path());
+        command
+            .args(["internal", "claude", "session", "stage", session])
+            .args(["--content", "-"])
+            .arg("--transcripts")
+            .arg(transcripts.to_str().expect("path"))
+            .current_dir(self.store())
+            .env_remove("IWE_MEMORY_TRANSCRIPTS")
+            .env_remove("CLAUDE_CONFIG_DIR")
+            .env_remove("CLAUDE_CODE_SESSION_ID")
+            .env("TZ", "UTC")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        without_knob_variables(&mut command);
+
+        let mut child = command
+            .spawn()
+            .expect("Failed to spawn iwe internal claude session stage");
+        child
+            .stdin
+            .as_mut()
+            .expect("stdin is piped")
+            .write_all(proposal.as_bytes())
+            .expect("Failed to write the proposal");
+        drop(child.stdin.take());
+        child.wait_with_output().expect("Failed to run stage")
+    }
+
+    fn inbox(&self, args: &[&str]) -> String {
+        let mut command = Command::new(crate::common::get_iwe_binary_path());
+        command
+            .args(["internal", "claude", "session", "inbox"])
+            .args(args)
+            .current_dir(self.store())
+            .env_remove("IWE_MEMORY_TRANSCRIPTS")
+            .env_remove("CLAUDE_CONFIG_DIR")
+            .env_remove("CLAUDE_CODE_SESSION_ID")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let output = without_knob_variables(&mut command)
+            .output()
+            .expect("Failed to execute iwe internal claude session inbox");
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("Valid UTF-8 output")
+    }
+
+    fn stage_ok(&self, session: &str, proposal: &str) -> String {
+        let output = self.stage(session, proposal);
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("Valid UTF-8 output")
+    }
+
+    fn stage_err(&self, session: &str, proposal: &str) -> String {
+        let output = self.stage(session, proposal);
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        String::from_utf8(output.stderr).expect("Valid UTF-8 output")
+    }
+
     fn session_env(&self, args: &[&str], env: &[(&str, &str)]) -> Output {
         let transcripts = self.transcripts();
         let mut command = Command::new(crate::common::get_iwe_binary_path());
@@ -2176,6 +2249,346 @@ fn complete_refuses_a_line_count_that_is_neither_a_number_nor_now() {
         "{}",
         stderr
     );
+}
+
+const A_PROPOSAL: &str = indoc! {"
+    title: Cache warmup order
+    key: cache-warmup-order
+    body: Warm the index before the graph.
+    evidence: lines 4-9, \"the index warms first\"
+    classification: decision
+"};
+
+const ANOTHER_PROPOSAL: &str = indoc! {"
+    title: Cache warmup ordering
+    key: cache-warmup-order
+    body: The index is warmed ahead of the graph.
+    evidence: lines 1-6, \"index, then graph\"
+"};
+
+const A_THIRD_PROPOSAL: &str = indoc! {"
+    title: Retry budget
+    key: retry-budget
+    body: Three retries, then give up.
+    evidence: lines 2-5, \"three tries is the budget\"
+"};
+
+#[test]
+fn stage_appends_a_pending_proposal_to_the_session_record() {
+    let fixture = backlog_fixture();
+
+    let report = fixture.stage_ok("session-one", A_PROPOSAL);
+
+    assert_eq!(
+        report,
+        "staged \"Cache warmup order\" as the new document cache-warmup-order in session-one: \
+         1 proposal(s) pending\n"
+    );
+    assert_eq!(
+        fixture.read(".iwe/claude/sessions/session-one.yaml"),
+        format!(
+            "session: session-one\ntranscript: {}\nstarted: 2026-08-19 07:00\n\
+             ended: 2026-08-19 07:11\ndistilled_lines: 0\nproposals:\n\
+             - title: Cache warmup order\n  key: cache-warmup-order\n  \
+             body: Warm the index before the graph.\n  evidence: lines 4-9, \"the index warms first\"\n  \
+             classification: decision\n  status: pending\n",
+            fixture.transcripts().join("session-one.jsonl").display()
+        )
+    );
+}
+
+#[test]
+fn stage_writes_nothing_into_the_store() {
+    let fixture = backlog_fixture();
+
+    fixture.stage_ok("session-one", A_PROPOSAL);
+
+    assert_eq!(
+        fixture.iwe_ok(&["find", "--filter", "{}", "-f", "keys"]),
+        "MEMORY\n"
+    );
+}
+
+#[test]
+fn stage_refuses_a_proposal_with_a_field_missing_or_unknown() {
+    let fixture = backlog_fixture();
+
+    let missing = fixture.stage_err(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\n",
+    );
+    assert!(
+        missing.starts_with("error: --content: missing field `evidence`"),
+        "{}",
+        missing
+    );
+    assert!(
+        missing.ends_with("a proposal is a YAML mapping of title, key, body and evidence, with classification and updates when they apply\n"),
+        "{}",
+        missing
+    );
+
+    let unknown = fixture.stage_err(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\nevidence: line 3\nreason: because\n",
+    );
+    assert!(
+        unknown.starts_with("error: --content: unknown field `reason`"),
+        "{}",
+        unknown
+    );
+
+    let empty = fixture.stage_err(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\nevidence: '   '\n",
+    );
+    assert_eq!(empty, "error: --content: evidence is empty\n");
+
+    assert!(!fixture.exists(".iwe/claude/sessions/session-one.yaml"));
+}
+
+#[test]
+fn stage_refuses_an_update_of_a_document_the_store_does_not_have() {
+    let fixture = backlog_fixture();
+
+    let stderr = fixture.stage_err(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\nevidence: line 3\nupdates: nope\n",
+    );
+
+    assert_eq!(
+        stderr,
+        "error: --content: updates nope: no such document in this store\n"
+    );
+}
+
+#[test]
+fn inbox_groups_the_staged_proposals_by_the_key_they_target() {
+    let fixture = backlog_fixture();
+    fixture.stage_ok("session-one", A_PROPOSAL);
+    fixture.stage_ok("session-two", ANOTHER_PROPOSAL);
+    fixture.stage_ok("session-two", A_THIRD_PROPOSAL);
+
+    assert_eq!(
+        fixture.inbox(&[]),
+        indoc! {"
+            inbox: 3 pending proposal(s) staged in 2 session record(s), over 2 candidate key(s)
+
+            === 1. cache-warmup-order — 2 proposal(s) from 2 session(s) ===
+            Cache warmup order [decision] — session-one — new, as cache-warmup-order
+              Warm the index before the graph.
+            Cache warmup ordering — session-two — new, as cache-warmup-order
+              The index is warmed ahead of the graph.
+
+            === 2. retry-budget — 1 proposal(s) from 1 session(s) ===
+            Retry budget — session-two — new, as retry-budget
+              Three retries, then give up.
+
+            `session inbox <id>` prints one session's staged proposals with their evidence
+        "}
+    );
+}
+
+#[test]
+fn inbox_for_one_session_prints_its_entries_with_their_evidence() {
+    let fixture = backlog_fixture();
+    fixture.stage_ok("session-one", A_PROPOSAL);
+
+    assert_eq!(
+        fixture.inbox(&["session-one"]),
+        indoc! {"
+            inbox: session-one — 1 pending proposal(s)
+
+            title: Cache warmup order
+            key: cache-warmup-order
+            classification: decision
+            body: Warm the index before the graph.
+            evidence: lines 4-9, \"the index warms first\"
+        "}
+    );
+    assert_eq!(
+        fixture.inbox(&["session-two"]),
+        "inbox: session-two — nothing staged\n"
+    );
+    assert_eq!(
+        fixture.inbox(&[]),
+        indoc! {"
+            inbox: 1 pending proposal(s) staged in 1 session record(s), over 1 candidate key(s)
+
+            === 1. cache-warmup-order — 1 proposal(s) from 1 session(s) ===
+            Cache warmup order [decision] — session-one — new, as cache-warmup-order
+              Warm the index before the graph.
+
+            `session inbox <id>` prints one session's staged proposals with their evidence
+        "}
+    );
+}
+
+#[test]
+fn an_empty_inbox_says_so() {
+    let fixture = backlog_fixture();
+
+    assert_eq!(fixture.inbox(&[]), "inbox: nothing staged\n");
+}
+
+#[test]
+fn list_reports_the_proposals_waiting_in_the_inbox() {
+    let fixture = backlog_fixture();
+    fixture.stage_ok("session-one", A_PROPOSAL);
+    fixture.stage_ok("session-two", A_THIRD_PROPOSAL);
+
+    let listing = fixture.session_ok(&["list"]);
+
+    assert!(
+        listing.ends_with(
+            "2 staged proposal(s) wait in 2 session record(s) — `session inbox` prints them\n"
+        ),
+        "{}",
+        listing
+    );
+}
+
+#[test]
+fn complete_settles_the_proposals_it_wrote_and_the_ones_it_turned_down() {
+    let fixture = backlog_fixture();
+    fixture.write(
+        "cache-warmup-order.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Cache warmup order\n\nIndex first.\n",
+    );
+    fixture.stage_ok("session-one", A_PROPOSAL);
+    fixture.stage_ok("session-one", A_THIRD_PROPOSAL);
+
+    let report = fixture.session_ok(&[
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "cache-warmup-order",
+        "--offered",
+        "2",
+        "--rejected",
+        "Retry budget — the user never confirmed it",
+    ]);
+
+    assert_eq!(
+        report,
+        "completed session-one: distilled through line 12, 1 link(s)\n\
+         settled the staged proposal \"Cache warmup order\": written to cache-warmup-order\n\
+         settled the staged proposal \"Retry budget\": rejected\n"
+    );
+
+    let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    assert!(record.contains("  status: written\n"), "{}", record);
+    assert!(record.contains("  status: rejected\n"), "{}", record);
+    assert_eq!(fixture.inbox(&[]), "inbox: nothing staged\n");
+}
+
+#[test]
+fn complete_settles_a_proposal_written_to_the_key_it_updates() {
+    let fixture = backlog_fixture();
+    fixture.write(
+        "cache-warmup-order.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Cache warmup order\n\nIndex first.\n",
+    );
+    fixture.stage_ok(
+        "session-one",
+        "title: Cache warmup order\nkey: cache-warmup-order-2026\nbody: Index first.\n\
+         evidence: line 3\nupdates: cache-warmup-order\n",
+    );
+
+    let report = fixture.session_ok(&["complete", "session-one", "--wrote", "cache-warmup-order"]);
+
+    assert_eq!(
+        report,
+        "recorded session-one: distilled line unchanged at 0, 1 link(s)\n\
+         settled the staged proposal \"Cache warmup order\": written to cache-warmup-order\n"
+    );
+}
+
+#[test]
+fn complete_says_what_is_still_pending_after_it_settles() {
+    let fixture = backlog_fixture();
+    fixture.stage_ok("session-one", A_PROPOSAL);
+    fixture.stage_ok("session-one", A_THIRD_PROPOSAL);
+
+    let report = fixture.session_ok(&[
+        "complete",
+        "session-one",
+        "--offered",
+        "2",
+        "--rejected",
+        "Retry budget",
+    ]);
+
+    assert_eq!(
+        report,
+        "recorded session-one: distilled line unchanged at 0, 0 link(s)\n\
+         settled the staged proposal \"Retry budget\": rejected\n\
+         1 staged proposal(s) still pending in session-one\n"
+    );
+}
+
+#[test]
+fn drop_pending_turns_down_everything_the_selection_left_over() {
+    let fixture = backlog_fixture();
+    fixture.write(
+        "cache-warmup-order.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Cache warmup order\n\nIndex first.\n",
+    );
+    fixture.stage_ok("session-one", A_PROPOSAL);
+    fixture.stage_ok("session-one", A_THIRD_PROPOSAL);
+
+    let report = fixture.session_ok(&[
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "cache-warmup-order",
+        "--offered",
+        "2",
+        "--drop-pending",
+    ]);
+
+    assert_eq!(
+        report,
+        "completed session-one: distilled through line 12, 1 link(s)\n\
+         settled the staged proposal \"Cache warmup order\": written to cache-warmup-order\n\
+         dropped 1 staged proposal(s) nobody kept: Retry budget\n"
+    );
+
+    let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    assert!(record.contains("rejected:\n- Retry budget\n"), "{}", record);
+    assert_eq!(fixture.inbox(&[]), "inbox: nothing staged\n");
+}
+
+#[test]
+fn drop_pending_on_a_session_with_nothing_staged_says_nothing() {
+    let fixture = backlog_fixture();
+
+    let report = fixture.session_ok(&["complete", "session-one", "--drop-pending"]);
+
+    assert_eq!(
+        report,
+        "recorded session-one: distilled line unchanged at 0, 0 link(s)\n"
+    );
+}
+
+#[test]
+fn adopt_drops_the_proposals_staged_against_the_sessions_it_takes() {
+    let fixture = backlog_fixture();
+    fixture.stage_ok("session-one", A_PROPOSAL);
+    fixture.stage_ok("session-one", A_THIRD_PROPOSAL);
+
+    let report = fixture.session_ok(&["adopt", "session-one"]);
+
+    assert_eq!(
+        report,
+        "adopted session-one at line 12, dropping 2 staged proposal(s)\n\
+         \n1 session(s) adopted without reading, 0 refused\n"
+    );
+    assert_eq!(fixture.inbox(&[]), "inbox: nothing staged\n");
 }
 
 #[test]
