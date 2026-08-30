@@ -157,4 +157,4 @@ A problem the policy check reported is proposed the same way. Otherwise say noth
 
 ## 9. Report
 
-Name each key written, new or updated, anything still staged in the inbox, and what is left in the backlog. Nothing commits: the documents are working-tree changes the user reviews as a diff.
+Name each key written, new or updated, anything still staged in the inbox, and what is left in the backlog. Nothing commits: the documents are files in the store the user reviews.

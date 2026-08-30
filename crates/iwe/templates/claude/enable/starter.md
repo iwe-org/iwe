@@ -4,20 +4,18 @@
 
 The sections below are read by name: `/iwe:distill` follows "what to capture", "how to write it" and "dedup and updates"; `/iwe:reflect` follows "curation"; "at session start" goes in front of every session verbatim. A missing section is followed as missing.
 
-The frontmatter carries the knobs, all optional: `chunk_chars` (10000), `max_proposals_per_read` (5), `remind_every_days` (7), `injection_max_tokens` (2000), `recency_field` (`created`), `knowledge_filter`, the query that says which documents are this store's memory — by default everything but the machinery's own pages — and `injection`, the slices session start puts in front of every session, by default the most recent documents:
+The frontmatter carries the knobs, all optional: `chunk_chars` (10000), `max_proposals_per_read` (5), `remind_every_days` (7), `injection_max_tokens` (2000), and `injection`, the queries session start lists, by default the documents carrying `created`, newest first:
 
 ```yaml
-knowledge_filter:
-  $key: { $nin: [MEMORY, queries] }
 injection:
-  - { recent: true }
+  - { filter: { created: { $exists: true } }, sort: created:-1 }
 ```
 
 `/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_CHUNK_CHARS`) moves a default machine-wide.
 
 ## What to capture
 
-The few things a future session in this repository would be worse off not knowing: still true after the session ends, not obvious from the code, the README, `CLAUDE.md`, the git history or a document already here, and enough to make a future session act differently. Prefer none over noise: most sessions produce nothing durable. The opposite failure is folding: two traps and one settled question are three items, not one.
+The few things a future session in this repository would be worse off not knowing: still true after the session ends, not obvious from the code, the README, `CLAUDE.md`, the history or a document already here, and enough to make a future session act differently. Prefer none over noise: most sessions produce nothing durable. The opposite failure is folding: two traps and one settled question are three items, not one.
 
 Nearly always worth keeping:
 

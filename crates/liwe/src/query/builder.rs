@@ -2140,7 +2140,7 @@ mod tests {
     #[test]
     fn update_dollar_prefix_inside_a_value_is_data() {
         let parsed = parse(
-            "filter: {}\nupdate:\n  $set:\n    knowledge_filter:\n      type: { $in: [note, decision] }\n",
+            "filter: {}\nupdate:\n  $set:\n    selector:\n      type: { $in: [note, decision] }\n",
             OperationKind::Update,
         )
         .expect("a $ prefix inside a value is data, not a field");
@@ -2150,7 +2150,7 @@ mod tests {
         assert_eq!(op.update.operators.len(), 1);
         assert!(matches!(
             &op.update.operators[0],
-            UpdateOperator::Set { path, .. } if path.0 == vec!["knowledge_filter".to_string()]
+            UpdateOperator::Set { path, .. } if path.0 == vec!["selector".to_string()]
         ));
     }
 

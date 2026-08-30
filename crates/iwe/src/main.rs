@@ -215,7 +215,7 @@ struct ClaudeEnable {
     #[clap(
         long,
         help = "YAML file of knobs written into the policy's frontmatter, verbatim — \
-                `knowledge_filter`, `recency_field`, `chunk_chars` and the rest"
+                `injection`, `chunk_chars` and the rest"
     )]
     knobs: Option<PathBuf>,
 }

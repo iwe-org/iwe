@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `iwe docs query-schema` prints a JSON Schema (draft 2020-12) for the query language, also published at `https://iwe.md/schemas/query/draft/2026-08/schema` so an editor, an agent or another schema can point at it; it is checked against the parser on every example in `iwe docs query`
 
+### Changed
+- `injection` slices are plain queries: each is a `filter` and/or a `sort` with an optional `heading` and `limit`, and session start lists what they select from the store minus `MEMORY` and `queries` (previously every slice was ANDed with `knowledge_filter`, and `recent: true` / `changed: true` were separate sources)
+- `iwe internal claude session brief` prints what session start lists (previously the knowledge filter and a recent section ordered by `recency_field`)
+- `iwe internal claude enable` no longer stamps `created` on `MEMORY.md`
+
+### Removed
+- `knowledge_filter` and `recency_field` knobs and their `IWE_*` environment twins, the `recent` and `changed` slice sources, and the `session complete` warning about a document outside the knowledge filter
+- Session start no longer runs `git status`; nothing in memory assumes the store is in a git repository
+
 ## [0.22.0](https://github.com/iwe-org/iwe/compare/iwe-v0.21.0...iwe-v0.22.0) - 2026-08-29
 
 ### Changed

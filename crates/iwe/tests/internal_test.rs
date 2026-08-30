@@ -1173,13 +1173,13 @@ fn session_start_indexes_dated_documents_newest_first() {
         fixture.session_start(None),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
             Most recently recorded, newest first — titles and keys only:
 
             - [Beta Note](beta) · created: 2026-08-05 11:00
             - [Alpha Note](alpha) · created: 2026-08-01 10:00
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             </iwe-memory>
         "}
@@ -1206,12 +1206,12 @@ fn session_start_drops_the_oldest_entries_over_the_token_budget() {
         fixture.session_start_env(&[("IWE_INJECTION_MAX_TOKENS", "20")]),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
             Most recently recorded, newest first — titles and keys only:
 
             - [Gamma Note](gamma) · created: 2026-08-09 12:00
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             </iwe-memory>
         "}
@@ -1231,12 +1231,12 @@ fn session_start_names_the_query_cookbook_when_present() {
         fixture.session_start(None),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
             Most recently recorded, newest first — titles and keys only:
 
             - [Alpha Note](alpha) · created: 2026-08-01 10:00
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             The `queries` document is this store's query cookbook.
             </iwe-memory>
@@ -1245,24 +1245,11 @@ fn session_start_names_the_query_cookbook_when_present() {
 }
 
 #[test]
-fn session_start_falls_back_to_undated_documents() {
+fn session_start_lists_nothing_when_no_document_carries_the_sort_field() {
     let fixture = HookFixture::new(Some(MEMORY_POLICY));
     fixture.write("alpha.md", "# Alpha Note\n\nBody one.\n");
 
-    assert_eq!(
-        fixture.session_start(None),
-        indoc! {"
-            <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
-            Most recently recorded, newest first — titles and keys only:
-
-            - [Alpha Note](alpha)
-
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
-            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
-            </iwe-memory>
-        "}
-    );
+    assert_eq!(fixture.session_start(None), "");
 }
 
 #[test]
@@ -1285,12 +1272,12 @@ fn session_start_falls_back_on_an_unusable_token_budget() {
         fixture.session_start(None),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
             Most recently recorded, newest first — titles and keys only:
 
             - [Alpha Note](alpha) · created: 2026-08-01 10:00
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             </iwe-memory>
         "}
@@ -1337,12 +1324,12 @@ fn session_start_injects_the_policy_at_session_start_section() {
         fixture.session_start(None),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
             Most recently recorded, newest first — titles and keys only:
 
             - [Alpha Note](alpha) · created: 2026-08-01 10:00
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             Offer once per turn: \"Worth remembering: <title>\".
 
@@ -1353,12 +1340,11 @@ fn session_start_injects_the_policy_at_session_start_section() {
 }
 
 #[test]
-fn session_start_lists_what_the_knowledge_filter_selects_by_the_recency_field() {
+fn session_start_lists_what_the_slice_selects_in_its_sort_order() {
     let fixture = HookFixture::new(Some(indoc! {"
         ---
-        recency_field: date
-        knowledge_filter:
-          type: note
+        injection:
+          - { filter: { type: note, date: { $exists: true } }, sort: date:-1 }
         ---
 
         # Memory policy
@@ -1382,13 +1368,13 @@ fn session_start_lists_what_the_knowledge_filter_selects_by_the_recency_field() 
         fixture.session_start(None),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
-            Most recently recorded, newest first — titles and keys only:
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Matching `{ type: note, date: { $exists: true } }`:
 
             - [Beta Note](beta) · date: 2026-08-05
             - [Alpha Note](alpha) · date: 2026-08-01
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ type: note }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             </iwe-memory>
         "}
@@ -1450,12 +1436,12 @@ fn hook_reads_the_store_from_the_payload_cwd() {
         String::from_utf8(output.stdout).expect("Valid UTF-8 output"),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
             Most recently recorded, newest first — titles and keys only:
 
             - [Alpha Note](alpha) · created: 2026-08-01 10:00
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             </iwe-memory>
         "}
@@ -1507,11 +1493,14 @@ fn enable_switches_a_bare_directory_on() {
         stdout
     );
     assert!(stdout.contains("wrote the queries cookbook"), "{}", stdout);
-    assert!(stdout.contains("nothing was committed"), "{}", stdout);
+    assert!(
+        stdout.contains("nothing outside the store was touched"),
+        "{}",
+        stdout
+    );
 
     let policy = read_to_string(root.path().join("MEMORY.md")).expect("policy written");
-    assert!(policy.starts_with("---\ncreated: \""), "{}", policy);
-    assert!(policy.contains("# Memory policy"));
+    assert!(policy.starts_with("# Memory policy"), "{}", policy);
     assert!(root.path().join("queries.md").is_file());
     let config = read_to_string(root.path().join(".iwe/config.toml")).expect("config written");
     assert!(config.contains("date_format = \"%Y-%m-%d\""), "{}", config);
@@ -1546,12 +1535,14 @@ fn enable_typed_installs_the_ontology_and_refuses_a_clash() {
         "{}",
         policy
     );
-    assert!(
-        policy.contains(
-            "\nknowledge_filter:\n  type: { $in: [decision, learning, gotcha, topic] }\n---\n"
-        ),
-        "{}",
-        policy
+    assert_eq!(
+        policy.lines().take(5).collect::<Vec<_>>().join("\n"),
+        indoc! {"
+            ---
+            injection:
+              - { heading: \"Decisions:\", filter: { type: decision }, limit: 10 }
+              - { heading: \"Most recently recorded:\", filter: { created: { $exists: true } }, sort: created:-1, limit: 10 }
+            ---"}
     );
 
     let clashing = TempDir::new().expect("Failed to create temp directory");
@@ -1648,7 +1639,7 @@ fn enable_knobs_writes_them_into_the_policy_frontmatter() {
     let knobs = root.path().join("knobs.yaml");
     write(
         &knobs,
-        "recency_field: date\nknowledge_filter:\n  type: note\n",
+        "chunk_chars: 30\ninjection:\n  - { sort: date:-1 }\n",
     )
     .expect("knobs");
 
@@ -1669,16 +1660,38 @@ fn enable_knobs_writes_them_into_the_policy_frontmatter() {
     );
 
     let policy = read_to_string(root.path().join("MEMORY.md")).expect("policy written");
-    let (front, rest) = policy
-        .trim_start_matches("---\n")
-        .split_once("---\n")
-        .expect("frontmatter");
-    assert!(front.starts_with("created: \""), "{}", policy);
     assert_eq!(
-        front.split_once('\n').expect("created line").1,
-        "recency_field: date\nknowledge_filter:\n  type: note\n"
+        policy,
+        indoc! {"
+            ---
+            chunk_chars: 30
+            injection:
+              - { sort: date:-1 }
+            ---
+
+            # My own policy
+
+            This store's shape.
+        "}
     );
-    assert_eq!(rest, "\n# My own policy\n\nThis store's shape.\n");
+
+    let plain = TempDir::new().expect("Failed to create temp directory");
+    let plain_body = plain.path().join("policy-body.md");
+    write(&plain_body, "# My own policy\n\nThis store's shape.\n").expect("body");
+    let output = run_enable(
+        plain.path(),
+        &["--body", plain_body.to_str().expect("path")],
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        read_to_string(plain.path().join("MEMORY.md")).expect("policy written"),
+        "# My own policy\n\nThis store's shape.\n"
+    );
 
     let broken = TempDir::new().expect("Failed to create temp directory");
     let bad = broken.path().join("knobs.yaml");
@@ -3107,7 +3120,7 @@ fn the_knobs_read_the_store_then_the_environment_then_the_default() {
 }
 
 #[test]
-fn brief_serves_the_policy_check_filter_schema_recent_documents_and_rejections() {
+fn brief_serves_the_policy_check_schema_injection_and_rejections() {
     let fixture = backlog_fixture();
     fixture.write(
         "kept-fact.md",
@@ -3127,10 +3140,7 @@ fn brief_serves_the_policy_check_filter_schema_recent_documents_and_rejections()
             missing section: ## How to write it
             missing section: ## Dedup and updates
 
-            === knowledge filter ===
-            { $key: { $nin: [MEMORY, queries] } }
-
-            === schema: 1 document(s) the filter selects ===
+            === schema: 1 document(s) the injection selects ===
             | Field   | Types         | Coverage | Distinct | Values |
             | ------- | ------------- | -------- | -------- | --- |
             | created | string (100%) | 1 (100%) | 0        | --- |
@@ -3141,8 +3151,10 @@ fn brief_serves_the_policy_check_filter_schema_recent_documents_and_rejections()
             === hubs: area documents and what they include ===
             no area hubs: no top-level document shares its key with a directory of these documents (a reflect session groups them when the policy allows)
 
-            === recent: 1 of 1 document(s), newest by created ===
-            kept-fact — Kept fact
+            === injection: what session start lists ===
+            Most recently recorded, newest first — titles and keys only:
+
+            - [Kept fact](kept-fact) · created: 2026-08-19 07:00
 
             === rejected: 0 recent proposal(s) the user turned down ===
             nothing rejected yet
@@ -3166,11 +3178,11 @@ fn brief_serves_the_policy_check_filter_schema_recent_documents_and_rejections()
 }
 
 #[test]
-fn brief_checks_the_policy_sections_the_filter_and_the_invocations() {
+fn brief_checks_the_policy_sections_the_injection_and_the_invocations() {
     let fixture = HookFixture::new(Some(indoc! {"
         ---
-        knowledge_filter:
-          type: note
+        injection:
+          - { filter: { type: note } }
         ---
 
         # Memory policy
@@ -3217,10 +3229,7 @@ fn brief_checks_the_policy_sections_the_filter_and_the_invocations() {
             === policy check ===
             `iwe find --lexcal \"<terms>\" --limit 5`: unknown flag --lexcal
 
-            === knowledge filter ===
-            { type: note }
-
-            === schema: 1 document(s) the filter selects ===
+            === schema: 1 document(s) the injection selects ===
             | Field   | Types         | Coverage | Distinct | Values |
             | ------- | ------------- | -------- | -------- | --- |
             | created | string (100%) | 1 (100%) | 0        | --- |
@@ -3232,8 +3241,10 @@ fn brief_checks_the_policy_sections_the_filter_and_the_invocations() {
             === hubs: area documents and what they include ===
             no area hubs: no top-level document shares its key with a directory of these documents (a reflect session groups them when the policy allows)
 
-            === recent: 1 of 1 document(s), newest by created ===
-            note-one — Note One
+            === injection: what session start lists ===
+            Matching `{ type: note }`:
+
+            - [Note One](note-one)
 
             === rejected: 0 recent proposal(s) the user turned down ===
             nothing rejected yet
@@ -3242,8 +3253,8 @@ fn brief_checks_the_policy_sections_the_filter_and_the_invocations() {
 
     let broken = HookFixture::new(Some(indoc! {"
         ---
-        knowledge_filter:
-          $bogus: 1
+        injection:
+          - { limit: 5 }
         ---
 
         # Memory policy
@@ -3260,14 +3271,14 @@ fn brief_checks_the_policy_sections_the_filter_and_the_invocations() {
     let check = brief
         .split("=== policy check ===\n")
         .nth(1)
-        .and_then(|rest| rest.split("\n=== knowledge filter ===\n").next())
+        .and_then(|rest| rest.split("\n=== schema: ").next())
         .expect("policy check");
     assert_eq!(
         check,
-        "missing section: ## What to capture\nmissing section: ## How to write it\nknowledge_filter: unknown operator '$bogus'\n"
+        "missing section: ## What to capture\nmissing section: ## How to write it\ninjection[1]: needs a `filter` or a `sort`\n"
     );
     assert!(
-        brief.contains("=== knowledge filter ===\n{ $key: { $nin: [MEMORY, queries] } }\n"),
+        brief.contains("=== injection: what session start lists ===\nnothing listed yet\n"),
         "{}",
         brief
     );
@@ -3797,7 +3808,7 @@ fn session_start_renders_the_injection_slices_in_order_without_repeats() {
         ---
         injection:
           - { heading: \"Rules this store keeps:\", filter: { kind: rule }, limit: 5 }
-          - { heading: \"Most recently recorded:\", recent: true }
+          - { heading: \"Most recently recorded:\", filter: { created: { $exists: true } }, sort: created:-1 }
         ---
 
         # Memory policy
@@ -3817,19 +3828,136 @@ fn session_start_renders_the_injection_slices_in_order_without_repeats() {
         fixture.session_start(None),
         indoc! {"
             <iwe-memory>
-            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
             Rules this store keeps:
 
-            - [Rule One](rule-one) · created: 2026-08-05 10:00
+            - [Rule One](rule-one)
 
             Most recently recorded:
 
             - [Trap One](trap-one) · created: 2026-08-09 10:00
 
-            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5 --filter '{ $key: { $nin: [MEMORY, queries] } }'`.
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
             `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
             </iwe-memory>
         "}
+    );
+}
+
+#[test]
+fn session_start_never_runs_git() {
+    let policy = indoc! {"
+        ---
+        injection:
+          - { heading: \"Everything here:\", sort: created:-1 }
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "};
+    let outside = HookFixture::new(Some(policy));
+    outside.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+
+    let inside = HookFixture::new(Some(policy));
+    inside.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+    let git = Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(inside.store())
+        .output();
+    assert!(git.is_ok_and(|output| output.status.success()));
+
+    assert_eq!(outside.session_start(None), inside.session_start(None));
+    assert_eq!(
+        outside.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Everything here:
+
+            - [Alpha Note](alpha) · created: 2026-08-01 10:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn session_start_excludes_the_machinery_pages() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        created: \"2026-08-20 10:00\"
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
+    fixture.write(
+        "queries.md",
+        "---\ncreated: \"2026-08-21 10:00\"\n---\n\n# Queries\n\nThe cookbook.\n",
+    );
+    fixture.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Most recently recorded, newest first — titles and keys only:
+
+            - [Alpha Note](alpha) · created: 2026-08-01 10:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            The `queries` document is this store's query cookbook.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn brief_census_covers_the_union_of_the_slices() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        injection:
+          - { filter: { kind: rule } }
+          - { filter: { kind: trap } }
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
+    fixture.write(
+        "rule-one.md",
+        "---\nkind: rule\n---\n\n# Rule One\n\nNever do X.\n",
+    );
+    fixture.write(
+        "trap-one.md",
+        "---\nkind: trap\n---\n\n# Trap One\n\nIt failed.\n",
+    );
+    fixture.write(
+        "note-one.md",
+        "---\nkind: note\n---\n\n# Note One\n\nBody.\n",
+    );
+
+    let brief = fixture.brief();
+    assert!(
+        brief.contains("=== schema: 2 document(s) the injection selects ===\n"),
+        "{}",
+        brief
     );
 }
 
@@ -3860,48 +3988,10 @@ fn session_start_falls_back_to_the_default_listing_when_the_injection_knob_is_br
     );
     let brief = fixture.brief();
     assert!(
-        brief.contains("injection[1]: needs one of `filter`, `recent: true` or `changed: true`"),
+        brief.contains("injection[1]: needs a `filter` or a `sort`"),
         "{}",
         brief
     );
-}
-
-#[test]
-fn session_start_changed_slice_lists_documents_naming_working_tree_files() {
-    let fixture = HookFixture::new(Some(indoc! {"
-        ---
-        injection:
-          - { heading: \"Touching the working tree:\", changed: true }
-        ---
-
-        # Memory policy
-
-        How this store is written.
-    "}));
-    let git = Command::new("git")
-        .args(["init", "-q"])
-        .current_dir(fixture.store())
-        .output();
-    if !git.is_ok_and(|output| output.status.success()) {
-        return;
-    }
-    fixture.write("hooks.json", "{}\n");
-    fixture.write(
-        "matcher-trap.md",
-        "---\ncreated: \"2026-08-05 10:00\"\n---\n\n# Matcher trap\n\nThe matcher in `hooks.json` never fires for forks.\n",
-    );
-    fixture.write(
-        "unrelated.md",
-        "---\ncreated: \"2026-08-09 10:00\"\n---\n\n# Unrelated\n\nNothing about that file.\n",
-    );
-
-    let index = fixture.session_start(None);
-    assert!(
-        index.contains("Touching the working tree:\n\n- [Matcher trap](matcher-trap) · created: 2026-08-05 10:00\n\nRead one"),
-        "{}",
-        index
-    );
-    assert!(!index.contains("Unrelated"), "{}", index);
 }
 
 #[test]
@@ -3953,96 +4043,9 @@ fn complete_links_a_written_document_into_its_area_hub_once() {
 
     let brief = fixture.brief();
     assert!(
-        brief.contains("postgres — includes all 2 document(s) under postgres/"),
+        brief.contains("postgres — includes all 1 document(s) under postgres/"),
         "{}",
         brief
-    );
-}
-
-#[test]
-fn complete_warns_when_a_written_document_is_outside_the_knowledge_filter() {
-    let fixture = HookFixture::new(Some(indoc! {"
-        ---
-        knowledge_filter:
-          type: note
-        ---
-
-        # Memory policy
-
-        How this store is written.
-    "}));
-    fixture.transcript_with_timestamps("session-one", 12);
-    fixture.age("session-one", OLD_ENOUGH);
-    fixture.write(
-        "kept.md",
-        "---\ntype: note\ncreated: \"2026-08-19 07:00\"\n---\n\n# Kept\n\nIt holds.\n",
-    );
-    fixture.write(
-        "stray.md",
-        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Stray\n\nNo type field.\n",
-    );
-
-    let report = fixture.session_ok(&[
-        "complete",
-        "session-one",
-        "--lines",
-        "12",
-        "--wrote",
-        "kept",
-        "--wrote",
-        "stray",
-    ]);
-    assert_eq!(
-        report,
-        indoc! {"
-            completed session-one: distilled through line 12, 2 link(s)
-            warning: stray is not selected by the knowledge filter { type: note } — session start will not list it
-        "}
-    );
-}
-
-#[test]
-fn complete_counts_the_hub_link_it_made_toward_the_knowledge_filter() {
-    let fixture = HookFixture::new(Some(indoc! {"
-        ---
-        knowledge_filter:
-          $includedBy: notes
-        ---
-
-        # Memory policy
-
-        How this store is written.
-    "}));
-    fixture.transcript_with_timestamps("session-one", 12);
-    fixture.age("session-one", OLD_ENOUGH);
-    fixture.write("notes.md", "# Notes\n\n[Existing](notes/existing)\n");
-    fixture.write("notes/existing.md", "# Existing\n\nAlready a member.\n");
-    fixture.write(
-        "notes/pooling.md",
-        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Pooling\n\nUse pgbouncer.\n",
-    );
-    fixture.write(
-        "loose.md",
-        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Loose\n\nNot under the hub.\n",
-    );
-
-    let report = fixture.session_ok(&[
-        "complete",
-        "session-one",
-        "--lines",
-        "12",
-        "--wrote",
-        "notes/pooling",
-        "--wrote",
-        "loose",
-    ]);
-    assert_eq!(
-        report,
-        indoc! {"
-            completed session-one: distilled through line 12, 2 link(s)
-            linked notes/pooling into its area hub notes
-            warning: loose is not selected by the knowledge filter { $includedBy: notes } — session start will not list it
-        "}
     );
 }
 
@@ -4070,7 +4073,7 @@ fn brief_reports_schema_coverage_and_the_hub_census() {
 
     let brief = fixture.brief();
     assert!(
-        brief.contains("=== schemas: what `--strict` enforces on those documents ===\nnote — .iwe/schemas/note.yaml binds 2 document(s)\n2 document(s) bind no schema\n"),
+        brief.contains("=== schemas: what `--strict` enforces on those documents ===\nnote — .iwe/schemas/note.yaml binds 2 document(s)\n1 document(s) bind no schema\n"),
         "{}",
         brief
     );
@@ -4280,11 +4283,7 @@ fn policy_reports_a_renamed_section() {
 fn policy_reports_a_knob_the_loader_would_refuse() {
     let root = enabled_workspace(&[]);
     edit_policy(root.path(), |policy| {
-        policy.replacen(
-            "---\n\n# Memory policy",
-            "injection: []\n---\n\n# Memory policy",
-            1,
-        )
+        format!("---\ninjection: []\n---\n\n{}", policy)
     });
 
     let output = run_policy(root.path());
@@ -4308,10 +4307,9 @@ fn policy_checks_filters_against_the_query_schema_by_canonical_url() {
 
     let root = enabled_workspace(&[]);
     edit_policy(root.path(), |policy| {
-        policy.replacen(
-            "---\n\n# Memory policy",
-            "knowledge_filter:\n  type: { $bogus: decision }\n---\n\n# Memory policy",
-            1,
+        format!(
+            "---\ninjection:\n  - {{ filter: {{ type: {{ $bogus: decision }} }} }}\n---\n\n{}",
+            policy
         )
     });
 
@@ -4321,8 +4319,8 @@ fn policy_checks_filters_against_the_query_schema_by_canonical_url() {
         String::from_utf8_lossy(&output.stdout),
         indoc! {"
             MEMORY: 1 problem(s)
-            frontmatter › knowledge_filter › {\"type\":{\"$bogus\":\"decision\"}} is not valid under any of the schemas listed in the 'anyOf' keyword
-              hint: the query that says which documents are this store's memory, as a filter document or an inline flow-YAML string
+            frontmatter › injection › 0 › filter › {\"type\":{\"$bogus\":\"decision\"}} is not valid under any of the schemas listed in the 'anyOf' keyword
+              hint: the documents this slice lists, as a filter document or an inline flow-YAML string
         "}
     );
 }

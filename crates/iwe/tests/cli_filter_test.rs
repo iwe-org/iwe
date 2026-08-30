@@ -450,16 +450,11 @@ fn update_set_dollar_prefix_inside_a_value_is_data() {
     let (_, stderr, ok) = run(
         dir.path(),
         "update",
-        &[
-            "-k",
-            "a",
-            "--set",
-            "knowledge_filter={ type: { $in: [note] } }",
-        ],
+        &["-k", "a", "--set", "selector={ type: { $in: [note] } }"],
     );
     assert!(ok, "a $ prefix inside a value is data: {}", stderr);
     let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
-    assert!(body.contains("knowledge_filter:"), "{}", body);
+    assert!(body.contains("selector:"), "{}", body);
     assert!(body.contains("$in"), "{}", body);
 }
 
