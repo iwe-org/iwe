@@ -25,9 +25,16 @@ use crate::internal::claude::record::{
 use crate::new::normalize_content;
 use crate::schema::render_schema;
 
-pub const DEFAULT_CHUNK_CHARS: usize = 10000;
-pub const DEFAULT_MAX_PROPOSALS_PER_READ: usize = 5;
-pub const DEFAULT_REMIND_EVERY_DAYS: usize = 7;
+pub const DEFAULT_MAX_CHUNK_SIZE: usize = 25000;
+pub const DEFAULT_MAX_PROPOSALS: usize = 5;
+pub const DEFAULT_REMIND_AFTER_DAYS: i64 = 7;
+
+const LEGACY_KNOBS: [(&str, &str); 4] = [
+    ("chunk_chars", "distill.max_chunk_size"),
+    ("max_proposals_per_read", "distill.max_proposals"),
+    ("remind_every_days", "distill.remind_after_days"),
+    ("injection_max_tokens", "the slice's own max_tokens"),
+];
 
 const SESSION_VARIABLE: &str = "CLAUDE_CODE_SESSION_ID";
 const ACTIVE_MINUTES: i64 = 30;
@@ -147,8 +154,17 @@ pub fn policy_problems(store: &MemoryStore, app: &Command) -> Vec<String> {
     if let Err(problem) = store.injection_slices() {
         problems.push(problem);
     }
+    problems.extend(legacy_knobs(store));
     problems.extend(unknown_invocations(app, &store.policy_body()));
     problems
+}
+
+pub fn legacy_knobs(store: &MemoryStore) -> Vec<String> {
+    LEGACY_KNOBS
+        .into_iter()
+        .filter(|(legacy, _)| store.has_knob(legacy))
+        .map(|(legacy, path)| format!("`{}` is not read any more — it is `{}`", legacy, path))
+        .collect()
 }
 
 pub fn session_brief(store: &MemoryStore, app: &Command) -> String {
@@ -292,8 +308,9 @@ pub fn session_read(
 
     let distilled = distilled_lines_of(&transcript.session);
     let from = from.unwrap_or(distilled);
-    let max_chars = max_chars.unwrap_or_else(|| store.knob_int("chunk_chars", DEFAULT_CHUNK_CHARS));
-    let max_proposals = store.knob_int("max_proposals_per_read", DEFAULT_MAX_PROPOSALS_PER_READ);
+    let max_chars = max_chars
+        .unwrap_or_else(|| store.knob_int("distill.max_chunk_size", DEFAULT_MAX_CHUNK_SIZE));
+    let max_proposals = store.knob_int("distill.max_proposals", DEFAULT_MAX_PROPOSALS);
 
     let chunks = digest_claude_chunks(&transcript.path, from, max_chars, 1)
         .map_err(|error| format!("cannot read {}: {}", transcript.path.display(), error))?;
@@ -972,13 +989,16 @@ pub fn backlog_of(options: &SessionOptions) -> Option<Backlog> {
 }
 
 pub fn reminder_due(store: &MemoryStore) -> bool {
-    let days = store.knob_int("remind_every_days", DEFAULT_REMIND_EVERY_DAYS);
-    if days == 0 {
+    let days = store.knob_days("distill.remind_after_days", DEFAULT_REMIND_AFTER_DAYS);
+    if days < 0 {
         return false;
+    }
+    if days == 0 {
+        return true;
     }
     match reminded_at() {
         Some(stamp) => {
-            let cutoff = (Local::now() - Duration::days(days as i64))
+            let cutoff = (Local::now() - Duration::days(days))
                 .format("%Y-%m-%d %H:%M")
                 .to_string();
             stamp.as_str() < cutoff.as_str()

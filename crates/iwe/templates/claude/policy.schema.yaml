@@ -29,25 +29,30 @@ frontmatter:
             description: the ordering, as <field>:1 or <field>:-1
             type: string
             pattern: "^\\s*\\S+\\s*:\\s*(1|-1)\\s*$"
+          max_tokens:
+            description: the token budget for this slice, heading included
+            type: integer
+            minimum: 1
         anyOf:
           - required: [filter]
           - required: [sort]
-    max_proposals_per_read:
-      description: how many proposals one read of a session may put forward
-      type: integer
-      minimum: 0
-    remind_every_days:
-      description: how often the undistilled-sessions reminder comes back, in days
-      type: integer
-      minimum: 0
-    chunk_chars:
-      description: how much of a session transcript one read covers, in characters
-      type: integer
-      minimum: 0
-    injection_max_tokens:
-      description: the token budget for everything session start puts in front of a session
-      type: integer
-      minimum: 0
+    distill:
+      description: how /iwe:distill reads a session
+      type: object
+      additionalProperties: false
+      properties:
+        max_chunk_size:
+          description: how much of a session transcript one read covers, in characters
+          type: integer
+          minimum: 1
+        max_proposals:
+          description: how many proposals one read of a session may put forward
+          type: integer
+          minimum: 0
+        remind_after_days:
+          description: days after the last reminder before the undistilled-sessions reminder comes back; 0 every session, -1 never
+          type: integer
+          minimum: -1
 
 sections:
   - description: the policy opens with one title section; everything below it is read by heading

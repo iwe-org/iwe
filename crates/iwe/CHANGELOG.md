@@ -13,11 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `injection` slices are plain queries: each is a `filter` and/or a `sort` with an optional `heading` and `limit`, and session start lists what they select from the store minus `MEMORY` and `queries` (previously every slice was ANDed with `knowledge_filter`, and `recent: true` / `changed: true` were separate sources)
 - `iwe internal claude session brief` prints what session start lists (previously the knowledge filter and a recent section ordered by `recency_field`)
-- `iwe internal claude enable` no longer stamps `created` on `MEMORY.md`
+- `iwe internal claude enable` no longer stamps `created` on `MEMORY.md`, and writes an explicit `injection` slice into the frontmatter for the user to edit
+- `MEMORY.md` distill knobs are one nested group: `distill.max_chunk_size` (default 25000, was `chunk_chars` at 10000), `distill.max_proposals` (was `max_proposals_per_read`) and `distill.remind_after_days` (was `remind_every_days`; `-1` now disables the reminder and `0` reminds every session, previously `0` disabled it); their `IWE_DISTILL_*` environment twins follow the path, and `iwe internal claude policy` names a legacy key it finds with its new path
+- Each `injection` slice may set its own `max_tokens`; a slice with neither `limit` nor `max_tokens` lists everything it matches
 
 ### Removed
 - `knowledge_filter` and `recency_field` knobs and their `IWE_*` environment twins, the `recent` and `changed` slice sources, and the `session complete` warning about a document outside the knowledge filter
 - Session start no longer runs `git status`; nothing in memory assumes the store is in a git repository
+- `injection_max_tokens` knob and `IWE_INJECTION_MAX_TOKENS` — the budget is per slice
 
 ## [0.22.0](https://github.com/iwe-org/iwe/compare/iwe-v0.21.0...iwe-v0.22.0) - 2026-08-29
 

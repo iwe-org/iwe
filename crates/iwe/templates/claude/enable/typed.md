@@ -4,15 +4,17 @@
 
 This store uses the typed ontology: three document types, each with a template and a schema installed alongside this policy. The sections below are read by name: `/iwe:distill` follows "what to capture", "how to write it" and "dedup and updates"; `/iwe:reflect` follows "curation"; "at session start" goes in front of every session verbatim.
 
-The frontmatter carries the knobs, all optional: `chunk_chars` (10000), `max_proposals_per_read` (5), `remind_every_days` (7), `injection_max_tokens` (2000), and `injection`, the queries session start lists, here the decisions first:
+The frontmatter carries two things, both optional: `distill`, how sessions are read — `max_chunk_size` (25000), `max_proposals` (5), `remind_after_days` (7; `-1` never, `0` every session) — and `injection`, the queries session start lists, each with an optional `heading`, `limit` and `max_tokens`, here the decisions first:
 
 ```yaml
+distill:
+  max_chunk_size: 25000
 injection:
   - { heading: "Decisions:", filter: { type: decision }, limit: 10 }
   - { heading: "Most recently recorded:", filter: { created: { $exists: true } }, sort: created:-1, limit: 10 }
 ```
 
-`/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_CHUNK_CHARS`) moves a default machine-wide.
+`/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_DISTILL_MAX_PROPOSALS`) moves a default machine-wide.
 
 ## What to capture
 

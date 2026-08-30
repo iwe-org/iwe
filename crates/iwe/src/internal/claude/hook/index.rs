@@ -15,8 +15,6 @@ use crate::internal::claude::session::{backlog_of, reminder_due, Backlog, Sessio
 use crate::projection_args::parse_projection_replace;
 use crate::render::FindBlockRenderer;
 
-const DEFAULT_INJECTION_MAX_TOKENS: usize = 2000;
-
 const MEMORY_INDEX_TEMPLATE: &str =
     include_str!("../../../../templates/claude/memory_index.md.jinja");
 
@@ -29,26 +27,19 @@ pub struct Group {
 struct Listed {
     text: String,
     keys: Vec<String>,
-    tokens: usize,
 }
 
 pub fn injection_groups(store: &MemoryStore) -> Vec<Group> {
-    let budget = store.knob_int("injection_max_tokens", DEFAULT_INJECTION_MAX_TOKENS);
     let slices = store
         .injection_slices()
         .unwrap_or_else(|_| Slice::default_slices());
 
-    let mut remaining = budget;
     let mut seen: HashSet<String> = HashSet::new();
     let mut groups: Vec<Group> = Vec::new();
     for slice in &slices {
-        if remaining == 0 {
-            break;
-        }
-        let Some(listed) = list_slice(store, slice, &seen, remaining) else {
+        let Some(listed) = list_slice(store, slice, &seen) else {
             continue;
         };
-        remaining = remaining.saturating_sub(listed.tokens + count_tokens(&slice.heading));
         seen.extend(listed.keys);
         groups.push(Group {
             heading: slice.heading.clone(),
@@ -82,12 +73,11 @@ pub fn render_memory_index(store: &MemoryStore, current: Option<String>) -> Opti
     ))
 }
 
-fn list_slice(
-    store: &MemoryStore,
-    slice: &Slice,
-    seen: &HashSet<String>,
-    budget: usize,
-) -> Option<Listed> {
+fn list_slice(store: &MemoryStore, slice: &Slice, seen: &HashSet<String>) -> Option<Listed> {
+    let budget = match slice.max_tokens {
+        Some(max_tokens) => Some(max_tokens.checked_sub(count_tokens(&slice.heading))?),
+        None => None,
+    };
     let unseen = (!seen.is_empty()).then(|| {
         let mut keys: Vec<&String> = seen.iter().collect();
         keys.sort();
@@ -165,7 +155,7 @@ fn render_index_block(
         .expect("Failed to render template")
 }
 
-fn clip_to_budget(entries: &str, budget: usize) -> (String, usize, usize) {
+fn clip_to_budget(entries: &str, budget: usize) -> (String, usize) {
     let mut used = 0;
     let mut kept: Vec<&str> = Vec::new();
     for line in entries.lines() {
@@ -176,7 +166,7 @@ fn clip_to_budget(entries: &str, budget: usize) -> (String, usize, usize) {
         used += cost;
         kept.push(line);
     }
-    (kept.join("\n"), kept.len(), used)
+    (kept.join("\n"), kept.len())
 }
 
 fn find_entries(
@@ -185,7 +175,7 @@ fn find_entries(
     sort: Option<QuerySort>,
     projection: &str,
     limit: Option<usize>,
-    budget: usize,
+    budget: Option<usize>,
 ) -> Option<Listed> {
     let graph = store.graph();
     let options = FindOptions {
@@ -197,7 +187,7 @@ fn find_entries(
         limit,
         sort,
         project: parse_projection_replace(projection).ok(),
-        max_tokens: Some(budget),
+        max_tokens: budget,
         max_document_tokens: None,
     };
 
@@ -215,12 +205,15 @@ fn find_entries(
     if trimmed.is_empty() {
         return None;
     }
-    let (text, lines, tokens) = clip_to_budget(trimmed, budget);
+    let (text, lines) = match budget {
+        Some(budget) => clip_to_budget(trimmed, budget),
+        None => (trimmed.to_string(), output.keys.len()),
+    };
     let keys = output
         .keys
         .iter()
         .take(lines)
         .map(|key| key.to_string())
         .collect();
-    Some(Listed { text, keys, tokens })
+    Some(Listed { text, keys })
 }

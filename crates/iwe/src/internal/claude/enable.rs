@@ -2,10 +2,10 @@ use std::env::set_current_dir;
 use std::path::{Path, PathBuf};
 
 use diwe::config::load_config;
-use serde_yaml::Mapping;
+use serde_yaml::{Mapping, Value as YamlValue};
 
 use crate::init::{current_root, init_library, InitOptions, Overrides};
-use crate::internal::claude::hook::store::library_path_of;
+use crate::internal::claude::hook::store::{library_path_of, STARTER_KNOBS};
 use crate::internal::claude::record::{ensure_state_ignore, RECORDS_DIRECTORY};
 use crate::new::{write_document, ContentOptions, DocumentCreator, IfExists};
 
@@ -198,10 +198,7 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         None if options.typed => TYPED_BODY,
         None => STARTER_BODY,
     };
-    let document = match knobs.is_empty() {
-        true => policy.to_string(),
-        false => format!("---\n{}---\n\n{}", knobs, policy),
-    };
+    let document = format!("---\n{}---\n\n{}", knobs, policy);
 
     let config = match load_config() {
         Ok(config) => config,
@@ -248,27 +245,29 @@ fn starter_schema_present() -> bool {
 }
 
 fn knobs_text(options: &EnableOptions) -> Result<String, String> {
-    let mut text = String::new();
-    if options.typed {
-        text.push_str(TYPED_KNOBS);
-    }
-    if let Some(path) = &options.knobs {
-        let extra = std::fs::read_to_string(path)
-            .map_err(|_| format!("{} is not a readable file", path.display()))?;
-        let extra = extra.trim_end();
-        if !extra.is_empty() {
-            text.push_str(extra);
-            text.push('\n');
-        }
-    }
-    if text.is_empty() {
-        return Ok(text);
-    }
-    let parsed: Mapping = serde_yaml::from_str(&text)
+    let built_in = match options.typed {
+        true => TYPED_KNOBS,
+        false => STARTER_KNOBS,
+    };
+    let Some(path) = &options.knobs else {
+        return Ok(built_in.to_string());
+    };
+
+    let extra = std::fs::read_to_string(path)
+        .map_err(|_| format!("{} is not a readable file", path.display()))?;
+    let extra = extra.trim_end();
+    let parsed: Mapping = serde_yaml::from_str(extra)
         .map_err(|error| format!("--knobs must be a YAML mapping of knobs: {}", error))?;
     if parsed.is_empty() {
         return Err("--knobs must be a YAML mapping of knobs".to_string());
     }
+
+    let mut text = String::new();
+    if !parsed.contains_key(YamlValue::String("injection".to_string())) {
+        text.push_str(built_in);
+    }
+    text.push_str(extra);
+    text.push('\n');
     Ok(text)
 }
 

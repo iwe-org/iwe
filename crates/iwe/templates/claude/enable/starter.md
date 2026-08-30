@@ -4,14 +4,16 @@
 
 The sections below are read by name: `/iwe:distill` follows "what to capture", "how to write it" and "dedup and updates"; `/iwe:reflect` follows "curation"; "at session start" goes in front of every session verbatim. A missing section is followed as missing.
 
-The frontmatter carries the knobs, all optional: `chunk_chars` (10000), `max_proposals_per_read` (5), `remind_every_days` (7), `injection_max_tokens` (2000), and `injection`, the queries session start lists, by default the documents carrying `created`, newest first:
+The frontmatter carries two things, both optional: `distill`, how sessions are read — `max_chunk_size` (25000), `max_proposals` (5), `remind_after_days` (7; `-1` never, `0` every session) — and `injection`, the queries session start lists, each with an optional `heading`, `limit` and `max_tokens`, by default the documents carrying `created`, newest first:
 
 ```yaml
+distill:
+  max_chunk_size: 25000
 injection:
-  - { filter: { created: { $exists: true } }, sort: created:-1 }
+  - { heading: "Most recently recorded, newest first — titles and keys only:", filter: { created: { $exists: true } }, sort: created:-1, limit: 20 }
 ```
 
-`/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_CHUNK_CHARS`) moves a default machine-wide.
+`/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_DISTILL_MAX_PROPOSALS`) moves a default machine-wide.
 
 ## What to capture
 

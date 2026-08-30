@@ -215,7 +215,7 @@ struct ClaudeEnable {
     #[clap(
         long,
         help = "YAML file of knobs written into the policy's frontmatter, verbatim — \
-                `injection`, `chunk_chars` and the rest"
+                `distill`, `injection`"
     )]
     knobs: Option<PathBuf>,
 }
@@ -281,7 +281,7 @@ struct SessionRead {
 
     #[clap(
         long = "max-chars",
-        help = "Character budget for the digest; defaults to the chunk_chars knob"
+        help = "Character budget for the digest; defaults to distill.max_chunk_size (25000)"
     )]
     max_chars: Option<usize>,
 

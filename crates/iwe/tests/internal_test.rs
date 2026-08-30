@@ -1054,8 +1054,9 @@ fn collect_documents(root: &PathBuf, directory: &PathBuf, entries: &mut Vec<(Str
 
 const MEMORY_POLICY: &str = indoc! {"
     ---
-    chunk_chars: 30
-    max_proposals_per_read: 2
+    distill:
+      max_chunk_size: 30
+      max_proposals: 2
     ---
 
     # Memory policy
@@ -1063,13 +1064,11 @@ const MEMORY_POLICY: &str = indoc! {"
     How this store is written.
 "};
 
-const KNOB_VARIABLES: [&str; 6] = [
-    "IWE_CHUNK_CHARS",
-    "IWE_MAX_PROPOSALS_PER_READ",
-    "IWE_REMIND_EVERY_DAYS",
-    "IWE_INJECTION_MAX_TOKENS",
-    "IWE_KNOWLEDGE_FILTER",
-    "IWE_RECENCY_FIELD",
+const KNOB_VARIABLES: [&str; 4] = [
+    "IWE_DISTILL_MAX_CHUNK_SIZE",
+    "IWE_DISTILL_MAX_PROPOSALS",
+    "IWE_DISTILL_REMIND_AFTER_DAYS",
+    "IWE_INJECTION",
 ];
 
 fn without_knob_variables(command: &mut Command) -> &mut Command {
@@ -1187,8 +1186,17 @@ fn session_start_indexes_dated_documents_newest_first() {
 }
 
 #[test]
-fn session_start_drops_the_oldest_entries_over_the_token_budget() {
-    let fixture = HookFixture::new(Some(MEMORY_POLICY));
+fn session_start_drops_the_oldest_entries_over_the_slice_max_tokens() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        injection:
+          - { filter: { created: { $exists: true } }, sort: created:-1, max_tokens: 20 }
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
     fixture.write(
         "alpha.md",
         "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
@@ -1203,11 +1211,11 @@ fn session_start_drops_the_oldest_entries_over_the_token_budget() {
     );
 
     assert_eq!(
-        fixture.session_start_env(&[("IWE_INJECTION_MAX_TOKENS", "20")]),
+        fixture.session_start(None),
         indoc! {"
             <iwe-memory>
             This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
-            Most recently recorded, newest first — titles and keys only:
+            Matching `{ created: { $exists: true } }`:
 
             - [Gamma Note](gamma) · created: 2026-08-09 12:00
 
@@ -1253,10 +1261,11 @@ fn session_start_lists_nothing_when_no_document_carries_the_sort_field() {
 }
 
 #[test]
-fn session_start_falls_back_on_an_unusable_token_budget() {
+fn session_start_falls_back_when_a_slice_max_tokens_is_unusable() {
     let fixture = HookFixture::new(Some(indoc! {"
         ---
-        injection_max_tokens: \"lots\"
+        injection:
+          - { sort: created:-1, max_tokens: lots }
         ---
 
         # Memory policy
@@ -1296,7 +1305,8 @@ fn session_start_is_silent_when_only_policy_documents_exist() {
 fn session_start_injects_the_policy_at_session_start_section() {
     let fixture = HookFixture::new(Some(indoc! {"
         ---
-        chunk_chars: 30
+        distill:
+          max_chunk_size: 30
         ---
 
         # Memory policy
@@ -1500,7 +1510,15 @@ fn enable_switches_a_bare_directory_on() {
     );
 
     let policy = read_to_string(root.path().join("MEMORY.md")).expect("policy written");
-    assert!(policy.starts_with("# Memory policy"), "{}", policy);
+    assert_eq!(
+        policy.lines().take(4).collect::<Vec<_>>().join("\n"),
+        indoc! {"
+            ---
+            injection:
+              - { heading: \"Most recently recorded, newest first — titles and keys only:\", filter: { created: { $exists: true } }, sort: created:-1, limit: 20 }
+            ---"}
+    );
+    assert!(policy.contains("# Memory policy"), "{}", policy);
     assert!(root.path().join("queries.md").is_file());
     let config = read_to_string(root.path().join(".iwe/config.toml")).expect("config written");
     assert!(config.contains("date_format = \"%Y-%m-%d\""), "{}", config);
@@ -1639,7 +1657,7 @@ fn enable_knobs_writes_them_into_the_policy_frontmatter() {
     let knobs = root.path().join("knobs.yaml");
     write(
         &knobs,
-        "chunk_chars: 30\ninjection:\n  - { sort: date:-1 }\n",
+        "distill:\n  max_proposals: 3\ninjection:\n  - { sort: date:-1 }\n",
     )
     .expect("knobs");
 
@@ -1664,7 +1682,8 @@ fn enable_knobs_writes_them_into_the_policy_frontmatter() {
         policy,
         indoc! {"
             ---
-            chunk_chars: 30
+            distill:
+              max_proposals: 3
             injection:
               - { sort: date:-1 }
             ---
@@ -1673,24 +1692,6 @@ fn enable_knobs_writes_them_into_the_policy_frontmatter() {
 
             This store's shape.
         "}
-    );
-
-    let plain = TempDir::new().expect("Failed to create temp directory");
-    let plain_body = plain.path().join("policy-body.md");
-    write(&plain_body, "# My own policy\n\nThis store's shape.\n").expect("body");
-    let output = run_enable(
-        plain.path(),
-        &["--body", plain_body.to_str().expect("path")],
-    );
-    assert_eq!(
-        output.status.code(),
-        Some(0),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        read_to_string(plain.path().join("MEMORY.md")).expect("policy written"),
-        "# My own policy\n\nThis store's shape.\n"
     );
 
     let broken = TempDir::new().expect("Failed to create temp directory");
@@ -3064,8 +3065,9 @@ fn an_accepted_offer_alone_links_the_document_and_moves_nothing() {
 fn the_knobs_read_the_store_then_the_environment_then_the_default() {
     let fixture = HookFixture::new(Some(indoc! {"
         ---
-        chunk_chars: 30
-        max_proposals_per_read: nine
+        distill:
+          max_chunk_size: 30
+          max_proposals: nine
         ---
 
         # Memory policy
@@ -3082,8 +3084,8 @@ fn the_knobs_read_the_store_then_the_environment_then_the_default() {
     let store_wins = fixture.session_ok_env(
         &["read", "session-one"],
         &[
-            ("IWE_CHUNK_CHARS", "9000"),
-            ("IWE_MAX_PROPOSALS_PER_READ", "4"),
+            ("IWE_DISTILL_MAX_CHUNK_SIZE", "9000"),
+            ("IWE_DISTILL_MAX_PROPOSALS", "4"),
         ],
     );
     assert!(
@@ -3099,7 +3101,7 @@ fn the_knobs_read_the_store_then_the_environment_then_the_default() {
         .expect("a number");
     assert!(
         covered < 12,
-        "the store's chunk_chars wins over the variable: {}",
+        "the store's max_chunk_size wins over the variable: {}",
         store_wins
     );
 
@@ -3112,7 +3114,7 @@ fn the_knobs_read_the_store_then_the_environment_then_the_default() {
             "IWE_MEMORY_TRANSCRIPTS",
             transcripts.to_str().expect("path"),
         ),
-        ("IWE_REMIND_EVERY_DAYS", "0"),
+        ("IWE_DISTILL_REMIND_AFTER_DAYS", "-1"),
         ("TZ", "UTC"),
     ]);
     assert!(off.contains("are not distilled"), "{}", off);
@@ -3473,7 +3475,7 @@ fn the_reminder_knob_can_switch_the_nudge_off() {
             "IWE_MEMORY_TRANSCRIPTS",
             transcripts.to_str().expect("path"),
         ),
-        ("IWE_REMIND_EVERY_DAYS", "0"),
+        ("IWE_DISTILL_REMIND_AFTER_DAYS", "-1"),
     ]);
 
     assert!(index.contains("are not distilled"), "{}", index);
@@ -3842,6 +3844,129 @@ fn session_start_renders_the_injection_slices_in_order_without_repeats() {
             </iwe-memory>
         "}
     );
+}
+
+#[test]
+fn session_start_lists_every_match_when_a_slice_has_no_limit() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        injection:
+          - { heading: \"Everything here:\", sort: created:-1 }
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
+    for (key, title, stamp) in [
+        ("alpha", "Alpha Note", "2026-08-01 10:00"),
+        ("beta", "Beta Note", "2026-08-05 11:00"),
+        ("gamma", "Gamma Note", "2026-08-09 12:00"),
+    ] {
+        fixture.write(
+            &format!("{}.md", key),
+            &format!("---\ncreated: \"{}\"\n---\n\n# {}\n\nBody.\n", stamp, title),
+        );
+    }
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Everything here:
+
+            - [Gamma Note](gamma) · created: 2026-08-09 12:00
+            - [Beta Note](beta) · created: 2026-08-05 11:00
+            - [Alpha Note](alpha) · created: 2026-08-01 10:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn session_start_charges_each_slice_its_own_max_tokens() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        injection:
+          - { heading: \"Rules:\", filter: { kind: rule }, sort: created:-1, max_tokens: 20 }
+          - { heading: \"Traps:\", filter: { kind: trap }, sort: created:-1 }
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
+    for (key, title, kind, stamp) in [
+        ("rule-one", "Rule One", "rule", "2026-08-01 10:00"),
+        ("rule-two", "Rule Two", "rule", "2026-08-05 11:00"),
+        ("trap-one", "Trap One", "trap", "2026-08-02 10:00"),
+        ("trap-two", "Trap Two", "trap", "2026-08-06 11:00"),
+    ] {
+        fixture.write(
+            &format!("{}.md", key),
+            &format!(
+                "---\ncreated: \"{}\"\nkind: {}\n---\n\n# {}\n\nBody.\n",
+                stamp, kind, title
+            ),
+        );
+    }
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Rules:
+
+            - [Rule Two](rule-two) · created: 2026-08-05 11:00
+
+            Traps:
+
+            - [Trap Two](trap-two) · created: 2026-08-06 11:00
+            - [Trap One](trap-one) · created: 2026-08-02 10:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn reminder_fires_every_session_at_zero_and_never_at_minus_one() {
+    let fixture = backlog_fixture();
+    fixture.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+    let transcripts = fixture.transcripts();
+    let transcripts = transcripts.to_str().expect("path");
+
+    let every = fixture.session_start_env(&[
+        ("IWE_MEMORY_TRANSCRIPTS", transcripts),
+        ("IWE_DISTILL_REMIND_AFTER_DAYS", "0"),
+        ("TZ", "UTC"),
+    ]);
+    assert!(every.contains("At the first natural pause"), "{}", every);
+
+    let again = fixture.session_start_env(&[
+        ("IWE_MEMORY_TRANSCRIPTS", transcripts),
+        ("IWE_DISTILL_REMIND_AFTER_DAYS", "0"),
+        ("TZ", "UTC"),
+    ]);
+    assert!(again.contains("At the first natural pause"), "{}", again);
+
+    let never = fixture.session_start_env(&[
+        ("IWE_MEMORY_TRANSCRIPTS", transcripts),
+        ("IWE_DISTILL_REMIND_AFTER_DAYS", "-1"),
+        ("TZ", "UTC"),
+    ]);
+    assert!(never.contains("are not distilled"), "{}", never);
+    assert!(!never.contains("At the first natural pause"), "{}", never);
 }
 
 #[test]
@@ -4283,7 +4408,7 @@ fn policy_reports_a_renamed_section() {
 fn policy_reports_a_knob_the_loader_would_refuse() {
     let root = enabled_workspace(&[]);
     edit_policy(root.path(), |policy| {
-        format!("---\ninjection: []\n---\n\n{}", policy)
+        policy.replacen("---\n", "---\ndistill:\n  max_proposals: -1\n", 1)
     });
 
     let output = run_policy(root.path());
@@ -4292,8 +4417,8 @@ fn policy_reports_a_knob_the_loader_would_refuse() {
         String::from_utf8_lossy(&output.stdout),
         indoc! {"
             MEMORY: 1 problem(s)
-            frontmatter › injection › [] has less than 1 item
-              hint: the slices session start puts in front of every session; remove the knob to get the default rather than emptying the list
+            frontmatter › distill › max_proposals › -1 is less than the minimum of 0
+              hint: how many proposals one read of a session may put forward
         "}
     );
 }
@@ -4307,9 +4432,10 @@ fn policy_checks_filters_against_the_query_schema_by_canonical_url() {
 
     let root = enabled_workspace(&[]);
     edit_policy(root.path(), |policy| {
-        format!(
-            "---\ninjection:\n  - {{ filter: {{ type: {{ $bogus: decision }} }} }}\n---\n\n{}",
-            policy
+        policy.replacen(
+            "---\ninjection:\n",
+            "---\ninjection:\n  - { filter: { type: { $bogus: decision } } }\n",
+            1,
         )
     });
 
@@ -4321,6 +4447,31 @@ fn policy_checks_filters_against_the_query_schema_by_canonical_url() {
             MEMORY: 1 problem(s)
             frontmatter › injection › 0 › filter › {\"type\":{\"$bogus\":\"decision\"}} is not valid under any of the schemas listed in the 'anyOf' keyword
               hint: the documents this slice lists, as a filter document or an inline flow-YAML string
+        "}
+    );
+}
+
+#[test]
+fn policy_names_each_legacy_knob_with_its_new_path() {
+    let root = enabled_workspace(&[]);
+    edit_policy(root.path(), |policy| {
+        policy.replacen(
+            "---\n",
+            "---\nchunk_chars: 10000\nmax_proposals_per_read: 5\nremind_every_days: 7\ninjection_max_tokens: 2000\n",
+            1,
+        )
+    });
+
+    let output = run_policy(root.path());
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        indoc! {"
+            MEMORY: 4 problem(s)
+            `chunk_chars` is not read any more — it is `distill.max_chunk_size`
+            `max_proposals_per_read` is not read any more — it is `distill.max_proposals`
+            `remind_every_days` is not read any more — it is `distill.remind_after_days`
+            `injection_max_tokens` is not read any more — it is `the slice's own max_tokens`
         "}
     );
 }

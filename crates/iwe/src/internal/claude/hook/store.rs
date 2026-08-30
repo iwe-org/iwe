@@ -62,6 +62,8 @@ pub const SESSION_START_SECTION: &str = "At session start";
 
 pub const DEFAULT_HEADING: &str = "Most recently recorded, newest first — titles and keys only:";
 
+pub const STARTER_KNOBS: &str = "injection:\n  - { heading: \"Most recently recorded, newest first — titles and keys only:\", filter: { created: { $exists: true } }, sort: created:-1, limit: 20 }\n";
+
 pub const MACHINERY_KEYS: [&str; 2] = ["MEMORY", "queries"];
 
 pub fn machinery_exclusion() -> Filter {
@@ -75,18 +77,22 @@ pub struct Slice {
     pub filter: Option<(Filter, String)>,
     pub sort: Option<(String, SortDir)>,
     pub limit: Option<usize>,
+    pub max_tokens: Option<usize>,
 }
 
 impl Slice {
     pub fn default_slices() -> Vec<Slice> {
-        let filter = parse_filter_expression("{ created: { $exists: true } }")
-            .expect("the default slice filter parses");
-        vec![Slice {
-            heading: DEFAULT_HEADING.to_string(),
-            filter: Some((filter, "{ created: { $exists: true } }".to_string())),
-            sort: Some(("created".to_string(), SortDir::Desc)),
-            limit: None,
-        }]
+        slices_from_value(
+            &serde_yaml::from_str(STARTER_KNOBS)
+                .ok()
+                .and_then(|knobs: Mapping| {
+                    knobs
+                        .get(YamlValue::String("injection".to_string()))
+                        .cloned()
+                })
+                .expect("the starter knobs carry an injection list"),
+        )
+        .expect("the starter injection list parses")
     }
 }
 
@@ -213,8 +219,16 @@ fn knob_count(text: &str) -> Option<usize> {
     text.parse().ok()
 }
 
+fn knob_days(text: &str) -> Option<i64> {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok().filter(|days| *days >= -1)
+}
+
 fn knob_env(name: &str) -> Option<String> {
-    std::env::var(format!("IWE_{}", name.to_uppercase()))
+    std::env::var(format!("IWE_{}", name.replace('.', "_").to_uppercase()))
         .ok()
         .filter(|value| !value.trim().is_empty())
 }
@@ -311,7 +325,10 @@ fn slice_from_value(at: usize, value: &YamlValue) -> Result<Slice, String> {
     let field = |name: &str| map.get(YamlValue::String(name.to_string()));
 
     for name in map.keys() {
-        let known = matches!(name.as_str(), Some("heading" | "filter" | "limit" | "sort"));
+        let known = matches!(
+            name.as_str(),
+            Some("heading" | "filter" | "limit" | "sort" | "max_tokens")
+        );
         if !known {
             return Err(format!("{}: unknown key {}", label, flow_yaml(name)));
         }
@@ -322,19 +339,20 @@ fn slice_from_value(at: usize, value: &YamlValue) -> Result<Slice, String> {
         None => None,
     };
 
-    let limit = match field("limit") {
-        None => None,
+    let count = |name: &str| match field(name) {
+        None => Ok(None),
         Some(value) => match value.as_u64() {
-            Some(count) if count > 0 => Some(count as usize),
-            _ => {
-                return Err(format!(
-                    "{}: limit must be a positive number, got {}",
-                    label,
-                    flow_yaml(value)
-                ))
-            }
+            Some(count) if count > 0 => Ok(Some(count as usize)),
+            _ => Err(format!(
+                "{}: {} must be a positive number, got {}",
+                label,
+                name,
+                flow_yaml(value)
+            )),
         },
     };
+    let limit = count("limit")?;
+    let max_tokens = count("max_tokens")?;
 
     let sort = match field("sort") {
         None => None,
@@ -380,6 +398,7 @@ fn slice_from_value(at: usize, value: &YamlValue) -> Result<Slice, String> {
         filter,
         sort,
         limit,
+        max_tokens,
     })
 }
 
@@ -455,8 +474,7 @@ impl MemoryStore {
     }
 
     pub fn knob(&self, name: &str) -> Option<String> {
-        let text = self.knobs.get(YamlValue::String(name.to_string()))?;
-        let text = scalar_text(text)?;
+        let text = scalar_text(self.knob_value(name)?)?;
         if text.is_empty() || text == "null" {
             return None;
         }
@@ -470,10 +488,28 @@ impl MemoryStore {
             .unwrap_or(default)
     }
 
+    pub fn knob_days(&self, name: &str, default: i64) -> i64 {
+        self.knob(name)
+            .and_then(|text| knob_days(&text))
+            .or_else(|| knob_env(name).and_then(|text| knob_days(&text)))
+            .unwrap_or(default)
+    }
+
+    pub fn has_knob(&self, name: &str) -> bool {
+        self.knobs.contains_key(YamlValue::String(name.to_string()))
+    }
+
     fn knob_value(&self, name: &str) -> Option<&YamlValue> {
-        self.knobs
-            .get(YamlValue::String(name.to_string()))
-            .filter(|value| !matches!(value, YamlValue::Null))
+        let mut segments = name.split('.');
+        let mut value = self
+            .knobs
+            .get(YamlValue::String(segments.next()?.to_string()))?;
+        for segment in segments {
+            value = value
+                .as_mapping()?
+                .get(YamlValue::String(segment.to_string()))?;
+        }
+        (!matches!(value, YamlValue::Null)).then_some(value)
     }
 
     pub fn injection_slices(&self) -> Result<Vec<Slice>, String> {

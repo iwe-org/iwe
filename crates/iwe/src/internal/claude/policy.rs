@@ -3,6 +3,7 @@ use liwe::model::Key;
 use liwe::schema::{build_document, compile_schema};
 
 use crate::internal::claude::hook::store::MemoryStore;
+use crate::internal::claude::session::legacy_knobs;
 
 pub const POLICY_SCHEMA: &str = include_str!("../../../templates/claude/policy.schema.yaml");
 
@@ -21,22 +22,20 @@ pub fn policy_violations(store: &MemoryStore) -> Result<Vec<String>, Vec<String>
     })?;
 
     let document = build_document(store.graph(), &Key::name("MEMORY"), count_tokens);
-    Ok(compiled
-        .validate(&document)
-        .into_iter()
-        .map(|violation| {
-            let breadcrumb = violation.breadcrumb_text();
-            let mut line = if breadcrumb.is_empty() {
-                violation.message
-            } else {
-                format!("{} › {}", breadcrumb, violation.message)
-            };
-            if let Some(hint) = violation.hint {
-                line.push_str(&format!("\n  hint: {}", hint));
-            }
-            line
-        })
-        .collect())
+    let mut violations = legacy_knobs(store);
+    violations.extend(compiled.validate(&document).into_iter().map(|violation| {
+        let breadcrumb = violation.breadcrumb_text();
+        let mut line = if breadcrumb.is_empty() {
+            violation.message
+        } else {
+            format!("{} › {}", breadcrumb, violation.message)
+        };
+        if let Some(hint) = violation.hint {
+            line.push_str(&format!("\n  hint: {}", hint));
+        }
+        line
+    }));
+    Ok(violations)
 }
 
 pub fn policy_report(store: &MemoryStore) -> (String, bool) {

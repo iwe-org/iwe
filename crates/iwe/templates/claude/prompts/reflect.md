@@ -25,14 +25,16 @@ The first three are required. Nothing caches the policy, so the next run follows
 iwe update -k MEMORY --content - <<'EOF'
 <edited body>
 EOF
-iwe update -k MEMORY --set chunk_chars=25000 --set max_proposals_per_read=3 --expect 1
+iwe update -k MEMORY --set distill.max_proposals=3 --expect 1
 ```
 
-The frontmatter knobs, with defaults: `chunk_chars` (10000) — how much conversation one `session read` serves; `max_proposals_per_read` (5); `remind_every_days` (7) — how often session start reminds about the backlog, `0` never; `injection_max_tokens` (2000) — the session-start budget; and `injection` — what session start puts in front of every session, as a list of slices the binary runs in order, each a `filter` and/or a `sort: <field>:-1` with an optional `heading` and `limit`. A document listed by one slice is not repeated by a later one, and the whole block stays inside `injection_max_tokens`. The default is one slice listing the documents carrying `created`, newest first; a store with `kind` and `status` fields usually wants the rules and the open traps first:
+The frontmatter knobs, with defaults: `distill.max_chunk_size` (25000) — how much conversation one `session read` serves; `distill.max_proposals` (5); `distill.remind_after_days` (7) — how long before session start reminds about the backlog again, `0` every session, `-1` never; and `injection` — what session start puts in front of every session, as a list of slices the binary runs in order, each a `filter` and/or a `sort: <field>:-1` with an optional `heading`, `limit` and `max_tokens`. A document listed by one slice is not repeated by a later one, and a slice with neither `limit` nor `max_tokens` lists everything it matches. A store with `kind` and `status` fields usually wants the rules and the open traps first:
 
 ```yaml
+distill:
+  max_proposals: 3
 injection:
-  - { heading: "Rules this store keeps:", filter: { kind: rule }, limit: 10 }
+  - { heading: "Rules this store keeps:", filter: { kind: rule }, limit: 10, max_tokens: 400 }
   - { heading: "Still open:", filter: { kind: trap, status: open }, limit: 10 }
   - { heading: "Most recently recorded:", filter: { created: { $exists: true } }, sort: created:-1, limit: 10 }
 ```
@@ -43,12 +45,12 @@ injection:
 iwe update -k MEMORY --set 'injection=[{ filter: { type: { $in: [decision, learning, gotcha] } }, sort: created:-1, limit: 10 }]' --expect 1
 ```
 
-Each knob has an `IWE_<KNOB>` environment twin. `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` are dead knobs from before capture became manual; `--unset` clears one.
+Each knob has an environment twin named for its path with dots as underscores (`IWE_DISTILL_MAX_PROPOSALS`). `chunk_chars` (now `distill.max_chunk_size`), `max_proposals_per_read` (`distill.max_proposals`), `remind_every_days` (`distill.remind_after_days`) and `injection_max_tokens` (now the slice's own `max_tokens`) are the flat knobs the binary stopped reading; `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` are dead knobs from before capture became manual. `--unset` clears one.
 
 Requests users make without knowing the vocabulary:
 
-- **"capture less / more"** — "what to capture", and `max_proposals_per_read`.
-- **"stop asking me about memory"** — `remind_every_days=0`, and "at session start".
+- **"capture less / more"** — "what to capture", and `distill.max_proposals`.
+- **"stop asking me about memory"** — `distill.remind_after_days=-1`, and "at session start".
 - **"show me the rules / what is still broken when I start"** — an `injection` slice per question.
 - **"stop reorganizing my notes"** — delete the curation section.
 - **"turn it off"** — `iwe delete MEMORY --expect 1`; nothing else in the store changes.
