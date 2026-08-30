@@ -111,9 +111,9 @@ iwe update --filter 'status: draft' --set status=published --dry-run
 iwe update -k projects/alpha --filter 'status: draft' --set reviewed=true
 ```
 
-### Reserved-prefix protection
+### Field names you cannot target
 
-Frontmatter field names whose first character is `_`, `$`, `.`, `#`, or `@` are reserved by the engine. Targeting a reserved-prefix segment in a `$set` or `$unset` path — at any depth — is a parse-time error. See `docs/spec.md` §2.3 / §9.2 for the full rules.
+`$`-prefixed names are the query language's operator vocabulary. Targeting a `$`-prefixed segment in a `--set` or `--unset` path — at any depth — is a parse-time error. Every other field name, `_hidden` and `@user` included, is an ordinary target and survives writeback untouched. See `docs/spec.md` §2.3 / §9.2 for the full rules.
 
 ### Conflict detection
 

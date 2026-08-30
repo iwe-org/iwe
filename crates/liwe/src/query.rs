@@ -8,7 +8,6 @@ pub mod edges;
 mod eval;
 pub mod execute;
 pub mod filter;
-pub mod frontmatter;
 mod graph_match;
 pub mod project;
 pub mod scores;
@@ -18,14 +17,14 @@ pub mod update;
 pub mod wire;
 
 pub use builder::{
-    build_projection, build_update_doc, parse_expect, parse_filter_expression,
+    build_projection, build_update_doc, check_path_segments, parse_expect, parse_filter_expression,
     parse_filter_mapping, parse_operation, ParseError,
 };
 pub use document::{
-    BlockUpdate, BlockUpdateOp, CountCmp, CountOp, CountPred, DeleteOp, Expect, FieldOp, FieldPath,
-    Filter, FindOp, InclusionAnchor, KeyOp, Limit, Operation, OperationKind, Projection,
-    ProjectionBase, ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir,
-    Update, UpdateOp, UpdateOperator, YamlType,
+    is_operator_segment, BlockUpdate, BlockUpdateOp, CountCmp, CountOp, CountPred, DeleteOp,
+    Expect, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp, Limit, Operation,
+    OperationKind, Projection, ProjectionBase, ProjectionField, ProjectionSource, PseudoField,
+    ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
 pub use eval::evaluate;
 pub use execute::{execute, execute_with_scores, strict_guard_violations, FindMatch, Outcome};

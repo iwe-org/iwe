@@ -84,10 +84,10 @@ nothing. An empty schema (`{}`) passes every document.
   stripped.
 - **Token counts.** The same counting as the retrieve budgets, over rendered
   text, frontmatter excluded.
-- **The frontmatter mapping.** `{}` when the page has no frontmatter.
-  Reserved-prefix fields (`_`, `$`, `.`, `#`, `@` — see the
-  [query language](spec.md)) are invisible to the schema, mirroring the
-  query engine. YAML dates and datetimes are presented to the validator as
+- **The frontmatter mapping.** `{}` when the page has no frontmatter. Every
+  field is presented to the validator, at every depth, whatever its name
+  starts with — a stored query keyed on `$includedBy` validates like any
+  other mapping. YAML dates and datetimes are presented to the validator as
   ISO-8601 / RFC 3339 strings.
 
 ## 3. Document schema
@@ -515,5 +515,5 @@ frontmatter:
   its output and exit codes.
 - [Configuration](configuration.md) — the `[schemas]` section and glob
   binding.
-- [Query Language](spec.md) — the corpus model and reserved frontmatter
-  prefixes.
+- [Query Language](spec.md) — the corpus model and the field names the
+  language cannot address.

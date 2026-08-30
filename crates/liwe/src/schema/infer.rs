@@ -7,7 +7,6 @@ use crate::graph::Graph;
 use crate::model::Key;
 use crate::query::document::YamlType;
 use crate::query::filter::detect_type;
-use crate::query::frontmatter::is_reserved_segment;
 
 const MAX_DISTINCT_VALUES: usize = 100;
 
@@ -98,10 +97,6 @@ fn walk_mapping(
             Some(s) => s,
             None => continue,
         };
-
-        if is_reserved_segment(field_name) {
-            continue;
-        }
 
         let path = if prefix.is_empty() {
             field_name.to_string()
@@ -311,14 +306,26 @@ mod tests {
     }
 
     #[test]
-    fn reserved_fields_skipped() {
-        let graph = build_graph(&[("doc1", "---\ntype: post\n_internal: secret\n---\n# A\n")]);
+    fn prefixed_fields_listed() {
+        let graph = build_graph(&[(
+            "doc1",
+            "---\ntype: post\n_internal: secret\n\"$foo\": 1\nquery:\n  filter:\n    \"$includedBy\": 0\n---\n# A\n",
+        )]);
         let keys = vec![Key::name("doc1")];
         let fields = infer_schema(&graph, &keys);
 
         let names: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
-        assert!(names.contains(&"type"));
-        assert!(!names.contains(&"_internal"));
+        assert_eq!(
+            names,
+            vec![
+                "$foo",
+                "_internal",
+                "query",
+                "query.filter",
+                "query.filter.$includedBy",
+                "type",
+            ]
+        );
     }
 
     #[test]

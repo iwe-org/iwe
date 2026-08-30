@@ -8,7 +8,6 @@ use crate::model::Key;
 use crate::query::block_update::{self, DocRef, EvalError};
 use crate::query::document::{CountOp, DeleteOp, Filter, FindOp, Limit, Operation, Sort, UpdateOp};
 use crate::query::eval;
-use crate::query::frontmatter::strip_reserved;
 use crate::query::project::{apply_projection, ProjectionContext};
 use crate::query::scores::QueryScores;
 use crate::query::sort::sort_in_place;
@@ -187,7 +186,6 @@ fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
     let mut changes = Vec::new();
     for (key, mut mapping) in rows {
         update::apply(&op.update, &mut mapping);
-        strip_reserved(&mut mapping);
         let body = bodies.as_mut().and_then(|map| map.remove(&key));
         let markdown = render_with_frontmatter(graph, &key, body, mapping);
         changes.push((key, markdown));

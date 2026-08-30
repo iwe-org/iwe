@@ -31,32 +31,47 @@ fn assert_update(docs: &str, op: UpdateOp, expected: &str) {
     }
 }
 
+fn mapping(yaml: &str) -> Mapping {
+    match serde_yaml::from_str::<Value>(yaml).unwrap() {
+        Value::Mapping(m) => m,
+        other => panic!("expected a mapping, got {:?}", other),
+    }
+}
+
 #[test]
-fn reserved_prefix_keys_invisible_in_find_output() {
+fn prefixed_keys_visible_in_find_output() {
     let matches = run_find(
         indoc! {"
             ---
             _internal: 1
             $weird: 2
+            \"#hash\": 3
+            \"@user\": 4
             name: ok
             ---
             # A
         "},
         filter(Filter::all()),
     );
-    assert_eq!(matches.len(), 1);
-    let m = &matches[0];
-    assert!(!m.contains_key(Value::String("_internal".into())));
-    assert!(!m.contains_key(Value::String("$weird".into())));
-    assert!(m.contains_key(Value::String("name".into())));
+    assert_eq!(
+        matches,
+        vec![mapping(indoc! {"
+            _internal: 1
+            $weird: 2
+            \"#hash\": 3
+            \"@user\": 4
+            name: ok
+        "})]
+    );
 }
 
 #[test]
-fn update_round_trip_strips_pre_existing_reserved_keys() {
+fn update_round_trip_keeps_pre_existing_prefixed_keys() {
     assert_update(
         indoc! {"
             ---
             _internal: 1
+            $weird: 2
             name: original
             ---
             # A
@@ -67,6 +82,8 @@ fn update_round_trip_strips_pre_existing_reserved_keys() {
         ),
         indoc! {"
             ---
+            _internal: 1
+            $weird: 2
             name: updated
             ---
 

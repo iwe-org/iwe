@@ -6,7 +6,6 @@ use crate::graph::basic_iter::GraphNodePointer;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{Node, NodeIter, NodePointer};
 use crate::model::{Key, NodeId};
-use crate::query::frontmatter::is_reserved_segment;
 
 pub fn build_document(graph: &Graph, key: &Key, count: impl Fn(&str) -> usize + Copy) -> Document {
     let frontmatter = graph
@@ -187,9 +186,6 @@ fn yaml_mapping_to_object(mapping: &serde_yaml::Mapping) -> Map<String, Value> {
     let mut object = Map::new();
     for (key, value) in mapping {
         if let Some(name) = key.as_str() {
-            if is_reserved_segment(name) {
-                continue;
-            }
             object.insert(name.to_string(), yaml_to_json(value));
         }
     }
@@ -238,15 +234,20 @@ mod tests {
     }
 
     #[test]
-    fn builds_section_tree_with_levels_and_strips_reserved_frontmatter() {
+    fn builds_section_tree_with_levels_and_keeps_prefixed_frontmatter() {
         let graph = graph_from(
-            "---\nstatus: draft\n_internal: secret\n---\n# Summary\n\ntext\n\n## Details\n\n# Tasks\n",
+            "---\nstatus: draft\n_internal: secret\n\"$foo\": 1\nquery:\n  filter:\n    \"$includedBy\": 0\n---\n# Summary\n\ntext\n\n## Details\n\n# Tasks\n",
         );
         let document = build_document(&graph, &Key::name("doc"), |_| 0);
         assert_eq!(
             document,
             Document {
-                frontmatter: json!({ "status": "draft" }),
+                frontmatter: json!({
+                    "status": "draft",
+                    "_internal": "secret",
+                    "$foo": 1,
+                    "query": { "filter": { "$includedBy": 0 } },
+                }),
                 frontmatter_error: None,
                 body_tokens: 0,
                 blocks: vec![],
@@ -506,5 +507,37 @@ additionalSections: false
                 },
             ]
         );
+    }
+
+    #[test]
+    fn validates_dollar_named_frontmatter_fields() {
+        use crate::schema::compile_schema;
+
+        let schema = "\
+frontmatter:
+  type: object
+  required: [\"$foo\", query]
+  properties:
+    \"$foo\": { type: integer }
+    query:
+      type: object
+      required: [filter]
+      properties:
+        filter:
+          type: object
+          required: [\"$includedBy\"]
+          properties:
+            kind:
+              type: object
+              required: [\"$exists\"]
+            \"$includedBy\":
+              type: object
+";
+        let graph = graph_from(
+            "---\n\"$foo\": 1\nquery:\n  filter:\n    kind: { \"$exists\": true }\n    \"$includedBy\": { \"$size\": 0 }\n---\n# Summary\n",
+        );
+        let document = build_document(&graph, &Key::name("doc"), |_| 0);
+        let violations = compile_schema(schema).unwrap().validate(&document);
+        assert_eq!(violations, vec![]);
     }
 }

@@ -2,7 +2,6 @@ use pulldown_cmark::{Event, Parser, Tag};
 
 use crate::markdown::reader::PARSER_OPTIONS;
 use crate::model::{frontmatter_to_string, Frontmatter};
-use crate::query::frontmatter::strip_reserved;
 
 pub fn split_raw_frontmatter(content: &str) -> (Option<&str>, &str) {
     match leading_metadata_block_end(content) {
@@ -15,12 +14,11 @@ pub fn prepend_frontmatter(
     frontmatter: Option<Frontmatter>,
     rendered: &str,
 ) -> Result<String, String> {
-    let mut mapping = match frontmatter {
+    let mapping = match frontmatter {
         Some(mapping) => mapping,
         None => return Ok(rendered.to_string()),
     };
 
-    strip_reserved(&mut mapping);
     if mapping.is_empty() {
         return Ok(rendered.to_string());
     }
@@ -173,10 +171,10 @@ mod tests {
     }
 
     #[test]
-    fn prepends_nothing_when_all_keys_are_reserved() {
+    fn prepends_prefixed_keys() {
         assert_eq!(
             prepend_frontmatter(Some(mapping("_internal: 1\n$x: 2\n")), "# Title\n"),
-            Ok("# Title\n".to_string())
+            Ok("---\n_internal: 1\n$x: 2\n---\n\n# Title\n".to_string())
         );
     }
 
@@ -189,10 +187,10 @@ mod tests {
     }
 
     #[test]
-    fn prepends_mapping_without_reserved_keys() {
+    fn prepends_mapping_with_every_key() {
         assert_eq!(
             prepend_frontmatter(Some(mapping("_internal: 1\ntype: note\n")), "# Title\n"),
-            Ok("---\ntype: note\n---\n\n# Title\n".to_string())
+            Ok("---\n_internal: 1\ntype: note\n---\n\n# Title\n".to_string())
         );
     }
 

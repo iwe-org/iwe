@@ -650,16 +650,39 @@ fn delete_filter_required_at_parse() {
 }
 
 #[test]
-fn update_rejects_reserved_prefix_target() {
+fn update_rejects_dollar_prefix_target() {
     assert_parse_error(
         indoc! {"
             filter: {}
             update:
               $set:
-                _internal: 1
+                query.$includedBy: 1
         "},
         OperationKind::Update,
-        "ReservedPrefix",
+        "InvalidPathSegment",
+    );
+}
+
+#[test]
+fn update_accepts_prefixed_targets() {
+    assert_parse(
+        indoc! {"
+            filter: {}
+            update:
+              $set:
+                _internal: 1
+                \"#tag\": 2
+                \"@user\": 3
+        "},
+        OperationKind::Update,
+        update(update_op(
+            Filter::all(),
+            Update::new(vec![
+                UpdateOperator::set("_internal", 1),
+                UpdateOperator::set("#tag", 2),
+                UpdateOperator::set("@user", 3),
+            ]),
+        )),
     );
 }
 
