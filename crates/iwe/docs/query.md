@@ -846,6 +846,39 @@ update:
     expect: 1
 ```
 
+## Schema
+
+The language is published as a JSON Schema (draft 2020-12) at
+<https://iwe.md/schemas/query/draft/2026-08/schema>, and `iwe docs query-schema`
+prints the copy embedded in this binary. Every example above is checked
+against it, so the schema and the parser cannot drift apart.
+
+The operation kind comes from the subcommand rather than the document, so the
+root is a union of the four kinds. Point at a specific definition when the
+kind is known: `#/$defs/findOperation`, `#/$defs/countOperation`,
+`#/$defs/updateOperation`, `#/$defs/deleteOperation`, `#/$defs/filter` for a
+`--filter` argument, `#/$defs/blockPredicate` for a block-operator argument.
+
+In an editor with a YAML language server, name it on the first line:
+
+```yaml
+# yaml-language-server: $schema=https://iwe.md/schemas/query/draft/2026-08/schema
+filter: { type: note }
+limit: 10
+```
+
+The schema catches every parse-time error except seven the parser keeps to
+itself: regex compilation, a `$within` argument that cannot select content,
+the three inverted-range checks (`minDepth`/`maxDepth`,
+`minDistance`/`maxDistance`, `expect.min`/`expect.max`), `$set` / `$unset`
+path conflicts, `-k KEY` combined with a `--filter` carrying `$key`, integers
+written with a fraction or an exponent (`limit: 1.0`, `limit: 1e3` — the
+same number as `1` to JSON Schema, a parse error here), and the checks that
+happen at evaluation time. The schema is stricter in one place: an explicit
+YAML null on an optional key (`sort: null`, `match: null`, `lexical: null`),
+which the parser reads as the key being absent, and an empty document are
+schema errors — write the key or leave it out.
+
 ## CLI flags
 
 On the CLI, structural anchor flags lower to graph operators. A

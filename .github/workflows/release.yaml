@@ -108,6 +108,7 @@ jobs:
   npm-smoke-test:
     needs: publish-npm
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -117,15 +118,21 @@ jobs:
           node-version: 24
       - name: Run npx smoke test
         shell: bash
+        env:
+          npm_config_prefer_online: "true"
         run: |
           VERSION="${{ needs.publish-npm.outputs.version }}"
           for attempt in $(seq 1 10); do
-            if npx -y "@iwe-org/iwe@${VERSION}" --version && npx -y "@iwe-org/mcp@${VERSION}" --version; then
+            if npm view "@iwe-org/iwe@${VERSION}" version \
+              && npm view "@iwe-org/mcp@${VERSION}" version; then
+              npx -y "@iwe-org/iwe@${VERSION}" --version
+              npx -y "@iwe-org/mcp@${VERSION}" --version
               exit 0
             fi
             echo "registry not ready yet, retrying in 30s (attempt ${attempt}/10)"
             sleep 30
           done
+          echo "@iwe-org/iwe@${VERSION} or @iwe-org/mcp@${VERSION} never appeared on the registry"
           exit 1
 
   publish-mcp-registry:

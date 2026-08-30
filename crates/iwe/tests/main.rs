@@ -15,6 +15,7 @@ mod internal_test;
 mod new_test;
 mod normalize_test;
 mod prompt_test;
+mod query_schema_test;
 mod rename_test;
 mod retrieve_test;
 mod schema_strict_test;

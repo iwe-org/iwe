@@ -1479,6 +1479,7 @@ dependencies = [
  "graphviz-rust",
  "indoc",
  "itertools 0.15.0",
+ "jsonschema",
  "liwe",
  "log",
  "minijinja",
@@ -2506,9 +2507,9 @@ dependencies = [
 
 [[package]]
 name = "schematter-validator"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31acfc58254f34d5a00573d1472c5fa132e90e16dc8458a41f8c7c346f6e756f"
+checksum = "78c1ec54da5e4ef9df2937d6410a70448429f38a5e6e69aad365888f2f702a03"
 dependencies = [
  "jsonschema",
  "regex",

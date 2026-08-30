@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `iwe docs query-schema` prints a JSON Schema (draft 2020-12) for the query language, also published at `https://iwe.md/schemas/query/draft/2026-08/schema` so an editor, an agent or another schema can point at it; it is checked against the parser on every example in `iwe docs query`
+
 ## [0.22.0](https://github.com/iwe-org/iwe/compare/iwe-v0.21.0...iwe-v0.22.0) - 2026-08-29
 
 ### Changed
