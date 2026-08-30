@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0](https://github.com/iwe-org/iwe/compare/liwe-v0.21.0...liwe-v0.22.0) - 2026-08-29
+
 ### Changed
 - Frontmatter fields whose names start with `_`, `#` or `@` are ordinary fields — addressable, projected, sorted, validated, and kept on writeback (previously invisible to queries and dropped on `update`)
 - A `$`-prefixed segment anywhere in a field path is now an `InvalidPathSegment` parse error (was a runtime miss for filter, sort and projection, and `ReservedPrefixField` for `$set` / `$unset`)

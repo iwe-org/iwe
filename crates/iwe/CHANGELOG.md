@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0](https://github.com/iwe-org/iwe/compare/iwe-v0.21.0...iwe-v0.22.0) - 2026-08-29
+
 ### Changed
 - `find`, `update`, `create --set` and `schema` treat frontmatter fields starting with `_`, `#` or `@` as ordinary fields and never drop them (previously hidden from output and stripped on `update`); `$`-named fields are kept and validated but cannot be targeted by `--filter`, `--sort`, `--project`, `--set` or `--unset`
 
