@@ -27,10 +27,10 @@ use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
 use iwe::init::{current_root, init_library, InitOptions, Overrides};
 use iwe::internal::claude::{
-    digest_claude_transcript, enable_memory, enter_memory_store, post_tool_report, prompt_body,
-    read_hook_payload, render_memory_index, session_adopt, session_brief, session_complete,
-    session_inbox, session_list, session_read, session_stage, CompleteOptions, EnableOptions,
-    SessionOptions, StageOptions,
+    digest_claude_transcript, enable_memory, enter_memory_store, policy_report, post_tool_report,
+    prompt_body, read_hook_payload, render_memory_index, session_adopt, session_brief,
+    session_complete, session_inbox, session_list, session_read, session_stage, CompleteOptions,
+    EnableOptions, SessionOptions, StageOptions,
 };
 use iwe::new::{
     normalize_content, read_stdin, read_stdin_if_available, write_document, ContentOptions,
@@ -55,8 +55,8 @@ use liwe::query::block::{
     parse_block_predicate, BlockOp, BlockPredicate, BlockRegex, MatchesSource,
 };
 use liwe::query::{
-    check_path_segments, FieldPath, Filter, Projection as QueryProjection, ProjectionField,
-    ProjectionSource, Sort as QuerySort, SortDir,
+    check_path_segments, current_query_schema, FieldPath, Filter, Projection as QueryProjection,
+    ProjectionField, ProjectionSource, Sort as QuerySort, SortDir,
 };
 
 use log::{debug, error, info};
@@ -133,7 +133,16 @@ enum ClaudeCommand {
     Hook(ClaudeHook),
     Session(ClaudeSession),
     Prompt(ClaudePrompt),
+    Policy(ClaudePolicy),
 }
+
+#[derive(Debug, Args)]
+#[clap(
+    about = "Check the MEMORY.md policy document against the shape this binary reads: \
+             the frontmatter knobs and the sections a distill or reflect run follows. \
+             Exit codes: 0 well-formed, 1 problems reported."
+)]
+struct ClaudePolicy {}
 
 #[derive(Debug, Args)]
 #[clap(
@@ -432,6 +441,7 @@ enum DocsTopic {
     Config,
     Schema,
     Agent,
+    QuerySchema,
 }
 
 #[derive(Debug, Args)]
@@ -1499,6 +1509,18 @@ fn internal_claude_command(args: InternalClaude) {
         }
         ClaudeCommand::Hook(hook) => claude_hook_command(hook),
         ClaudeCommand::Session(session) => claude_session_command(session),
+        ClaudeCommand::Policy(_) => {
+            let Some(store) = enter_memory_store(None) else {
+                eprintln!("error: this directory is not a memory-enabled iwe workspace");
+                eprintln!("hint: run `iwe internal claude enable` (or /iwe:init) first");
+                std::process::exit(1);
+            };
+            let (report, ok) = policy_report(&store);
+            print!("{report}");
+            if !ok {
+                std::process::exit(1);
+            }
+        }
         ClaudeCommand::Prompt(prompt) => match prompt_body(prompt.name.as_str()) {
             Some(body) => print!("{body}"),
             None => {
@@ -1641,6 +1663,7 @@ fn docs_command(args: Docs) {
         Some(DocsTopic::Config) => print!("{}", help::docs::CONFIG),
         Some(DocsTopic::Schema) => print!("{}", help::docs::SCHEMA),
         Some(DocsTopic::Agent) => print!("{}", help::docs::AGENT),
+        Some(DocsTopic::QuerySchema) => print!("{}", current_query_schema()),
         None => print!("{}", help::docs::INDEX),
     }
 }

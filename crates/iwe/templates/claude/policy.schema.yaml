@@ -1,0 +1,92 @@
+$schema: https://document-schema.org/draft/2026-06/schema
+description: the MEMORY.md policy document, in the shape this binary reads it
+
+frontmatter:
+  type: object
+  properties:
+    knowledge_filter:
+      description: the query that says which documents are this store's memory, as a filter document or an inline flow-YAML string
+      anyOf:
+        - $ref: "https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/filter"
+        - type: string
+    recency_field:
+      description: the frontmatter field the recent slice orders by, one field path
+      $ref: "https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/fieldPath"
+    injection:
+      description: the slices session start puts in front of every session; remove the knob to get the default rather than emptying the list
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        properties:
+          heading:
+            description: the line printed above the slice
+            type: string
+            pattern: "\\S"
+          filter:
+            description: "source: the documents this query matches"
+            anyOf:
+              - $ref: "https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/filter"
+              - type: string
+          recent:
+            description: "source: the most recently recorded documents, newest first"
+            type: boolean
+          changed:
+            description: "source: the documents mentioning files changed in the working tree"
+            type: boolean
+          limit:
+            description: how many documents the slice lists
+            type: integer
+            minimum: 1
+          sort:
+            description: the ordering, as <field>:1 or <field>:-1
+            type: string
+            pattern: "^\\s*\\S+\\s*:\\s*(1|-1)\\s*$"
+        oneOf:
+          - required: [filter]
+          - required: [recent]
+            properties:
+              recent: { const: true }
+          - required: [changed]
+            properties:
+              changed: { const: true }
+    max_proposals_per_read:
+      description: how many proposals one read of a session may put forward
+      type: integer
+      minimum: 0
+    remind_every_days:
+      description: how often the undistilled-sessions reminder comes back, in days
+      type: integer
+      minimum: 0
+    chunk_chars:
+      description: how much of a session transcript one read covers, in characters
+      type: integer
+      minimum: 0
+    injection_max_tokens:
+      description: the token budget for everything session start puts in front of a session
+      type: integer
+      minimum: 0
+
+sections:
+  - description: the policy opens with one title section; everything below it is read by heading
+    header: { minLength: 1 }
+    maxContains: 1
+    sections:
+      - header: { const: What to capture }
+        maxContains: 1
+        description: what a future session would be worse off not knowing — read verbatim when a session is distilled
+      - header: { const: How to write it }
+        maxContains: 1
+        description: the shape and the write command a captured document uses — read verbatim when a session is distilled
+      - header: { const: Dedup and updates }
+        maxContains: 1
+        description: how to search before writing and when to update instead — read verbatim when a session is distilled
+      - header: { const: Curation }
+        maxContains: 1
+        description: how the store is reorganized — read verbatim when memory is reflected on
+      - header: { const: "At session start" }
+        maxContains: 1
+        description: the text that goes in front of every session, verbatim
+    additionalSections: true
+additionalSections: false

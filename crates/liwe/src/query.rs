@@ -10,6 +10,7 @@ pub mod execute;
 pub mod filter;
 mod graph_match;
 pub mod project;
+pub mod schemas;
 pub mod scores;
 pub mod search;
 pub mod sort;
@@ -28,5 +29,9 @@ pub use document::{
 };
 pub use eval::evaluate;
 pub use execute::{execute, execute_with_scores, strict_guard_violations, FindMatch, Outcome};
+pub use schemas::{
+    current_query_schema, query_schema, query_schema_uri, CURRENT_QUERY_SCHEMA_DRAFT,
+    QUERY_SCHEMA_DRAFTS,
+};
 pub use scores::QueryScores;
 pub use search::SearchSpec;

@@ -2,9 +2,11 @@ use std::process::Command;
 
 use diwe::config::Configuration;
 use liwe::query::block::parse_block_predicate;
-use liwe::query::{parse_filter_expression, parse_operation, OperationKind};
+use liwe::query::{current_query_schema, parse_filter_expression, parse_operation, OperationKind};
 use liwe::schema::compile_schema;
 use serde_yaml::Value;
+
+use crate::common::fenced_blocks;
 
 const INDEX: &str = include_str!("../docs/index.txt");
 const QUERY: &str = include_str!("../docs/query.md");
@@ -18,30 +20,6 @@ fn run_docs(args: &[&str]) -> std::process::Output {
         .args(args)
         .output()
         .expect("Failed to execute iwe docs")
-}
-
-fn fenced_blocks(source: &str, language: &str) -> Vec<String> {
-    let mut blocks = Vec::new();
-    let mut current: Option<String> = None;
-    for line in source.lines() {
-        match current.as_mut() {
-            Some(block) => {
-                if line.trim_end() == "```" {
-                    blocks.push(current.take().unwrap());
-                } else {
-                    block.push_str(line);
-                    block.push('\n');
-                }
-            }
-            None => {
-                let trimmed = line.trim_end();
-                if trimmed == format!("```{}", language) || trimmed == format!("``` {}", language) {
-                    current = Some(String::new());
-                }
-            }
-        }
-    }
-    blocks
 }
 
 #[test]
@@ -78,6 +56,17 @@ fn test_docs_agent() {
     assert!(output.status.success());
     assert_eq!(String::from_utf8_lossy(&output.stdout), AGENT);
     assert!(INDEX.contains("agent"));
+}
+
+#[test]
+fn test_docs_query_schema() {
+    let output = run_docs(&["query-schema"]);
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        current_query_schema()
+    );
+    assert!(INDEX.contains("query-schema"));
 }
 
 #[test]
@@ -159,6 +148,7 @@ fn help_and_docs_omit_the_hidden_command_tree() {
         CONFIG.to_string(),
         SCHEMA.to_string(),
         AGENT.to_string(),
+        current_query_schema().to_string(),
     ];
     for args in [vec!["--help"], vec!["help"]] {
         let output = Command::new(crate::common::get_iwe_binary_path())

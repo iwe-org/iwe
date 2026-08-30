@@ -1,17 +1,24 @@
 TOPICS:
 
-  query    Query language: filters, graph operators, search, projection,
-           and block operations for find/count/update/delete
-  config   Configuration: every .iwe/config.toml section, field, and default
-  schema   Document schemas: validating markdown structure and frontmatter
-           with `iwe schema validate`
-  agent    Agent policy: which command answers which task, in one bounded
-           call, so an agent never falls back to grep or the filesystem
+  query          Query language: filters, graph operators, search,
+                 projection, and block operations for
+                 find/count/update/delete
+  config         Configuration: every .iwe/config.toml section, field, and
+                 default
+  schema         Document schemas: validating markdown structure and
+                 frontmatter with `iwe schema validate`
+  agent          Agent policy: which command answers which task, in one
+                 bounded call, so an agent never falls back to grep or the
+                 filesystem
+  query-schema   JSON Schema (draft 2020-12) for the query language, also
+                 published at
+                 https://iwe.md/schemas/query/draft/2026-08/schema
 
 EXAMPLES:
 
-  iwe docs           # list the topics
-  iwe docs query     # the query language reference
-  iwe docs config    # the configuration reference
-  iwe docs schema    # the document schema reference
-  iwe docs agent     # the policy an agent follows to use this CLI
+  iwe docs                  # list the topics
+  iwe docs query            # the query language reference
+  iwe docs config           # the configuration reference
+  iwe docs schema           # the document schema reference
+  iwe docs agent            # the policy an agent follows to use this CLI
+  iwe docs query-schema     # the query language as a JSON Schema

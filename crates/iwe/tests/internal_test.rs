@@ -4,6 +4,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use indoc::indoc;
+use iwe::internal::claude::hook::store::SESSION_START_SECTION;
+use iwe::internal::claude::session::POLICY_SECTIONS;
+use liwe::schema::compile_schema;
 use tempfile::TempDir;
 
 fn run_digest(lines: &[&str], extra: &[&str]) -> Output {
@@ -4192,4 +4195,146 @@ fn enable_installs_the_starter_schema_and_strict_refuses_a_bad_stamp() {
 
     let again = run_enable(root.path(), &[]);
     assert_eq!(again.status.code(), Some(2));
+}
+
+const POLICY_SCHEMA: &str = include_str!("../templates/claude/policy.schema.yaml");
+
+fn run_policy(root: &Path) -> Output {
+    run_iwe(root, &["internal", "claude", "policy"])
+}
+
+fn enabled_workspace(args: &[&str]) -> TempDir {
+    let root = TempDir::new().expect("Failed to create temp directory");
+    let output = run_enable(root.path(), args);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    root
+}
+
+fn edit_policy(root: &Path, edit: impl Fn(String) -> String) {
+    let path = root.join("MEMORY.md");
+    let policy = read_to_string(&path).expect("policy written");
+    write(&path, edit(policy)).expect("policy rewritten");
+}
+
+#[test]
+fn policy_schema_compiles_and_names_every_section_the_binary_reads() {
+    compile_schema(POLICY_SCHEMA).expect("the embedded policy schema compiles");
+
+    for section in POLICY_SECTIONS
+        .iter()
+        .copied()
+        .chain([SESSION_START_SECTION])
+    {
+        assert!(
+            POLICY_SCHEMA.contains(&format!("const: {}", section))
+                || POLICY_SCHEMA.contains(&format!("const: \"{}\"", section)),
+            "the policy schema does not require the '{}' section the binary reads by name",
+            section
+        );
+    }
+}
+
+#[test]
+fn policy_accepts_both_shipped_policies() {
+    for args in [vec![], vec!["--typed"]] {
+        let root = enabled_workspace(&args);
+        let output = run_policy(root.path());
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            "MEMORY: ok — the policy carries the knobs and sections this binary reads\n"
+        );
+    }
+}
+
+#[test]
+fn policy_reports_a_renamed_section() {
+    let root = enabled_workspace(&[]);
+    edit_policy(root.path(), |policy| {
+        policy.replace("## At session start", "## Session start")
+    });
+
+    let output = run_policy(root.path());
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        indoc! {"
+            MEMORY: 1 problem(s)
+            Memory policy › required section \"At session start\" is missing
+              hint: the text that goes in front of every session, verbatim
+        "}
+    );
+}
+
+#[test]
+fn policy_reports_a_knob_the_loader_would_refuse() {
+    let root = enabled_workspace(&[]);
+    edit_policy(root.path(), |policy| {
+        policy.replacen(
+            "---\n\n# Memory policy",
+            "injection: []\n---\n\n# Memory policy",
+            1,
+        )
+    });
+
+    let output = run_policy(root.path());
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        indoc! {"
+            MEMORY: 1 problem(s)
+            frontmatter › injection › [] has less than 1 item
+              hint: the slices session start puts in front of every session; remove the knob to get the default rather than emptying the list
+        "}
+    );
+}
+
+#[test]
+fn policy_checks_filters_against_the_query_schema_by_canonical_url() {
+    assert!(
+        POLICY_SCHEMA.contains("https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/filter"),
+        "the policy schema stopped referencing the query schema by its canonical address"
+    );
+
+    let root = enabled_workspace(&[]);
+    edit_policy(root.path(), |policy| {
+        policy.replacen(
+            "---\n\n# Memory policy",
+            "knowledge_filter:\n  type: { $bogus: decision }\n---\n\n# Memory policy",
+            1,
+        )
+    });
+
+    let output = run_policy(root.path());
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        indoc! {"
+            MEMORY: 1 problem(s)
+            frontmatter › knowledge_filter › {\"type\":{\"$bogus\":\"decision\"}} is not valid under any of the schemas listed in the 'anyOf' keyword
+              hint: the query that says which documents are this store's memory, as a filter document or an inline flow-YAML string
+        "}
+    );
+}
+
+#[test]
+fn policy_refuses_a_directory_without_memory() {
+    let root = TempDir::new().expect("Failed to create temp directory");
+    let output = run_policy(root.path());
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("not a memory-enabled iwe workspace"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
