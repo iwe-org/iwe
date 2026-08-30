@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0](https://github.com/iwe-org/iwe/compare/liwe-v0.22.0...liwe-v0.23.0) - 2026-08-30
+
 ### Added
 - `query::QUERY_SCHEMA_DRAFTS`, `query::CURRENT_QUERY_SCHEMA_DRAFT`, `query::query_schema`, `query::current_query_schema` and `query::query_schema_uri` — the query language's JSON Schema, one entry per draft, addressed as `https://iwe.md/schemas/query/draft/<draft>/schema`
 - `schema::iwe_compile_options` returns the `CompileOptions` a document schema is compiled with, and `schema::CompileOptions` is re-exported
