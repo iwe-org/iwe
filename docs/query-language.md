@@ -239,9 +239,9 @@ update:
 
 Block update operators — `$replace`, `$replaceText`, `$insertBefore`, `$insertAfter`, `$append`, `$delete` — live in the same `update` document as siblings of `$set` / `$unset` and combine freely with them. See [Block update operators](#block-update-operators).
 
-### Reserved-prefix protection
+### Field names the language cannot address
 
-Frontmatter field names whose first character is `_`, `$`, `.`, `#`, or `@` are reserved by the engine. They are invisible to filters, projections, and sort, and `update` strips them on writeback. Targeting a reserved-prefix segment in a `$set` or `$unset` path — at any depth — is a parse-time error.
+The engine preserves every frontmatter field a document carries, whatever its name starts with. One name shape cannot be addressed: `$`-prefixed names are the operator vocabulary, so a path segment beginning with `$` — in a filter key, a sort key, a projection source, or a `$set` / `$unset` target, at any depth — is a parse-time error. Such a field is still stored, returned and validated; it just cannot be reached by a path.
 
 ## Blocks
 

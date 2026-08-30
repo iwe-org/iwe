@@ -3,8 +3,8 @@ use serde_yaml::Value;
 use crate::query::block::BlockPredicate;
 use crate::query::wire::RawProjection;
 use crate::query::{
-    build_projection, FieldPath, Projection, ProjectionBase, ProjectionField, ProjectionSource,
-    PseudoField,
+    build_projection, check_path_segments, FieldPath, Projection, ProjectionBase, ProjectionField,
+    ProjectionSource, PseudoField,
 };
 
 pub fn parse_projection(s: &str, base: ProjectionBase) -> Result<Projection, String> {
@@ -94,6 +94,7 @@ fn parse_source(src: &str) -> Result<ProjectionSource, String> {
         Ok(ProjectionSource::Pseudo(pf))
     } else if !src.is_empty() {
         let segments: Vec<String> = src.split('.').map(|s| s.to_string()).collect();
+        check_path_segments(&segments).map_err(|e| e.to_string())?;
         Ok(ProjectionSource::Frontmatter(FieldPath(segments)))
     } else {
         Err("projection source cannot be empty".to_string())
@@ -135,12 +136,6 @@ fn check_output_name(name: &str) -> Result<(), String> {
     if name.chars().any(|c| c.is_whitespace()) {
         return Err(format!(
             "projection output name '{}' must not contain whitespace",
-            name
-        ));
-    }
-    if matches!(name.chars().next(), Some('_' | '#' | '@')) {
-        return Err(format!(
-            "projection output name '{}' starts with reserved character",
             name
         ));
     }
@@ -324,5 +319,25 @@ mod tests {
     fn reserved_output_rejected() {
         let err = parse_projection_replace("$key=$key").unwrap_err();
         assert_eq!(err, "projection output name '$key' must not start with '$'");
+    }
+
+    #[test]
+    fn underscore_output_accepted() {
+        let p = parse_projection_replace("_private").unwrap();
+        assert_eq!(p.fields.len(), 1);
+        assert_eq!(p.fields[0].output, "_private");
+        assert_eq!(
+            p.fields[0].source,
+            ProjectionSource::Frontmatter(FieldPath(vec!["_private".to_string()]))
+        );
+    }
+
+    #[test]
+    fn comma_form_dollar_segment_source_rejected() {
+        let err = parse_projection_replace("x=a.$b").unwrap_err();
+        assert_eq!(
+            err,
+            "invalid path segment in 'a.$b': segment starts with '$'"
+        );
     }
 }

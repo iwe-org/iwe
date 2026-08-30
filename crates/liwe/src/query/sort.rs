@@ -3,9 +3,8 @@ use std::cmp::Ordering;
 use serde_yaml::{Mapping, Value};
 
 use crate::model::Key;
-use crate::query::document::{FieldPath, Sort, SortDir};
+use crate::query::document::{is_operator_segment, FieldPath, Sort, SortDir};
 use crate::query::filter::cmp_ordered;
-use crate::query::frontmatter::is_reserved_segment;
 
 pub fn sort_in_place(rows: &mut [(Key, Mapping)], sort: &Sort) {
     rows.sort_by(|a, b| {
@@ -19,7 +18,7 @@ fn lookup<'a>(doc: &'a Mapping, path: &FieldPath) -> Option<&'a Value> {
     if segments.is_empty() {
         return None;
     }
-    if segments.iter().any(|s| is_reserved_segment(s)) {
+    if segments.iter().any(|s| is_operator_segment(s)) {
         return None;
     }
     let mut current = doc.get(Value::String(segments[0].clone()))?;

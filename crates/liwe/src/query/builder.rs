@@ -3,10 +3,10 @@ use serde_yaml::{Mapping, Value};
 use crate::model::Key;
 use crate::query::block::{parse_block_predicate, parse_matches_source, BlockPredicate};
 use crate::query::document::{
-    BlockUpdate, BlockUpdateOp, CountCmp, CountOp, CountPred, DeleteOp, Expect, FieldOp, FieldPath,
-    Filter, FindOp, InclusionAnchor, KeyOp, Limit, Operation, OperationKind, Projection,
-    ProjectionBase, ProjectionField, ProjectionSource, PseudoField, ReferenceAnchor, Sort, SortDir,
-    Update, UpdateOp, UpdateOperator, YamlType,
+    is_operator_segment, BlockUpdate, BlockUpdateOp, CountCmp, CountOp, CountPred, DeleteOp,
+    Expect, FieldOp, FieldPath, Filter, FindOp, InclusionAnchor, KeyOp, Limit, Operation,
+    OperationKind, Projection, ProjectionBase, ProjectionField, ProjectionSource, PseudoField,
+    ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
 use crate::query::search::SearchSpec;
 use crate::query::wire::{
@@ -90,9 +90,6 @@ pub enum ParseError {
     },
     UpdateOperatorExpectedMapping {
         op: &'static str,
-    },
-    ReservedPrefixField {
-        path: Vec<String>,
     },
     SetUnsetConflict {
         path: Vec<String>,
@@ -258,9 +255,6 @@ impl std::fmt::Display for ParseError {
             }
             Self::UpdateOperatorExpectedMapping { op } => {
                 write!(f, "update operator '{}' expects a mapping", op)
-            }
-            Self::ReservedPrefixField { path } => {
-                write!(f, "field '{}' uses a reserved prefix", fmt_path(path))
             }
             Self::SetUnsetConflict { path } => {
                 write!(f, "field '{}' appears in both $set and $unset", fmt_path(path))
@@ -902,18 +896,13 @@ fn check_output_name(name: &str) -> Result<(), ParseError> {
             reason: "segment contains a control character",
         });
     }
-    if name.starts_with('$') {
+    if is_operator_segment(name) {
         return Err(ParseError::ReservedOutputName {
             name: name.to_string(),
         });
     }
     if name.contains('.') {
         return Err(ParseError::NestedProjectionOutput {
-            name: name.to_string(),
-        });
-    }
-    if matches!(name.chars().next(), Some('_' | '#' | '@')) {
-        return Err(ParseError::ReservedOutputName {
             name: name.to_string(),
         });
     }
@@ -1241,7 +1230,6 @@ fn walk_update_set(
             s
         };
         check_path_segments(&segments)?;
-        check_reserved_prefix(&segments)?;
         out.push(UpdateOperator::Set {
             path: FieldPath(segments),
             value: v.clone(),
@@ -1267,7 +1255,6 @@ fn walk_update_unset(
             s
         };
         check_path_segments(&segments)?;
-        check_reserved_prefix(&segments)?;
         out.push(UpdateOperator::Unset {
             path: FieldPath(segments),
         });
@@ -1275,27 +1262,18 @@ fn walk_update_unset(
     Ok(())
 }
 
-fn check_reserved_prefix(segments: &[String]) -> Result<(), ParseError> {
-    for seg in segments {
-        match seg.chars().next() {
-            None => return Err(ParseError::EmptyFieldPath),
-            Some('_' | '$' | '.' | '#' | '@') => {
-                return Err(ParseError::ReservedPrefixField {
-                    path: segments.to_vec(),
-                });
-            }
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
-fn check_path_segments(segments: &[String]) -> Result<(), ParseError> {
+pub fn check_path_segments(segments: &[String]) -> Result<(), ParseError> {
     for seg in segments {
         if seg.is_empty() {
             return Err(ParseError::InvalidPathSegment {
                 path: segments.to_vec(),
                 reason: "empty segment",
+            });
+        }
+        if is_operator_segment(seg) {
+            return Err(ParseError::InvalidPathSegment {
+                path: segments.to_vec(),
+                reason: "segment starts with '$'",
             });
         }
         if seg.chars().any(|c| c.is_whitespace()) {
@@ -2036,30 +2014,136 @@ mod tests {
     }
 
     #[test]
-    fn update_reserved_prefix_underscore_rejected() {
-        let err = parse_err(
+    fn update_underscore_field_accepted() {
+        let parsed = parse(
             "filter: {}\nupdate:\n  $set:\n    _x: 1\n",
             OperationKind::Update,
+        )
+        .expect("an underscore field is an ordinary field");
+        let Operation::Update(op) = parsed else {
+            panic!("expected an update operation");
+        };
+        assert_eq!(
+            op.update.operators,
+            vec![UpdateOperator::Set {
+                path: FieldPath(vec!["_x".to_string()]),
+                value: Value::Number(1.into()),
+            }]
         );
-        assert!(matches!(err, ParseError::ReservedPrefixField { .. }));
     }
 
     #[test]
-    fn update_reserved_prefix_at_rejected() {
-        let err = parse_err(
+    fn update_at_field_accepted() {
+        let parsed = parse(
             "filter: {}\nupdate:\n  $set:\n    \"@user\": foo\n",
             OperationKind::Update,
+        )
+        .expect("an at-sign field is an ordinary field");
+        let Operation::Update(op) = parsed else {
+            panic!("expected an update operation");
+        };
+        assert_eq!(
+            op.update.operators,
+            vec![UpdateOperator::Set {
+                path: FieldPath(vec!["@user".to_string()]),
+                value: Value::String("foo".to_string()),
+            }]
         );
-        assert!(matches!(err, ParseError::ReservedPrefixField { .. }));
     }
 
     #[test]
-    fn update_reserved_prefix_inside_a_value_is_data() {
+    fn update_hash_field_accepted() {
+        let parsed = parse(
+            "filter: {}\nupdate:\n  $set:\n    \"#tag\": 1\n",
+            OperationKind::Update,
+        )
+        .expect("a hash field is an ordinary field");
+        let Operation::Update(op) = parsed else {
+            panic!("expected an update operation");
+        };
+        assert_eq!(
+            op.update.operators,
+            vec![UpdateOperator::Set {
+                path: FieldPath(vec!["#tag".to_string()]),
+                value: Value::Number(1.into()),
+            }]
+        );
+    }
+
+    #[test]
+    fn update_dollar_field_rejected() {
+        let err = parse_err(
+            "filter: {}\nupdate:\n  $set:\n    a.$b: 1\n",
+            OperationKind::Update,
+        );
+        assert_eq!(
+            err.to_string(),
+            "invalid path segment in 'a.$b': segment starts with '$'"
+        );
+    }
+
+    #[test]
+    fn update_unset_dollar_field_rejected() {
+        let err = parse_err(
+            "filter: {}\nupdate:\n  $unset:\n    a.$b: true\n",
+            OperationKind::Update,
+        );
+        assert_eq!(
+            err.to_string(),
+            "invalid path segment in 'a.$b': segment starts with '$'"
+        );
+    }
+
+    #[test]
+    fn filter_dollar_segment_rejected() {
+        let err = parse_err("filter:\n  a.$b: 1\n", OperationKind::Find);
+        assert_eq!(
+            err.to_string(),
+            "invalid path segment in 'a.$b': segment starts with '$'"
+        );
+    }
+
+    #[test]
+    fn sort_dollar_segment_rejected() {
+        let err = parse_err("filter: {}\nsort:\n  a.$b: 1\n", OperationKind::Find);
+        assert_eq!(
+            err.to_string(),
+            "invalid path segment in 'a.$b': segment starts with '$'"
+        );
+    }
+
+    #[test]
+    fn projection_dollar_segment_source_rejected() {
+        let err = parse_err("filter: {}\nproject:\n  x: a.$b\n", OperationKind::Find);
+        assert_eq!(
+            err.to_string(),
+            "invalid path segment in 'a.$b': segment starts with '$'"
+        );
+    }
+
+    #[test]
+    fn projection_underscore_output_accepted() {
+        let parsed = parse("filter: {}\nproject:\n  _private: 1\n", OperationKind::Find)
+            .expect("an underscore output name is ordinary");
+        let Operation::Find(op) = parsed else {
+            panic!("expected a find operation");
+        };
+        assert_eq!(
+            op.project.fields,
+            vec![ProjectionField {
+                output: "_private".to_string(),
+                source: ProjectionSource::Frontmatter(FieldPath(vec!["_private".to_string()])),
+            }]
+        );
+    }
+
+    #[test]
+    fn update_dollar_prefix_inside_a_value_is_data() {
         let parsed = parse(
             "filter: {}\nupdate:\n  $set:\n    knowledge_filter:\n      type: { $in: [note, decision] }\n",
             OperationKind::Update,
         )
-        .expect("a reserved prefix inside a value is data, not a field");
+        .expect("a $ prefix inside a value is data, not a field");
         let Operation::Update(op) = parsed else {
             panic!("expected an update operation");
         };

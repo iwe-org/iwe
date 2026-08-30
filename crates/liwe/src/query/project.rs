@@ -6,10 +6,10 @@ use crate::graph::Graph;
 use crate::model::Key;
 use crate::query::block_eval::BlockIndex;
 use crate::query::document::{
-    FieldPath, Projection, ProjectionBase, ProjectionField, ProjectionSource, PseudoField,
+    is_operator_segment, FieldPath, Projection, ProjectionBase, ProjectionField, ProjectionSource,
+    PseudoField,
 };
 use crate::query::edges::EdgeRef;
-use crate::query::frontmatter::{is_reserved_segment, strip_reserved};
 
 pub struct ProjectionContext<'a> {
     pub graph: &'a Graph,
@@ -65,10 +65,9 @@ fn merge_over_defaults(fields: &[ProjectionField]) -> Vec<ProjectionField> {
 }
 
 fn merge_user_frontmatter(ctx: &ProjectionContext<'_>, out: &mut Mapping) {
-    let Some(mut fm) = ctx.graph.frontmatter(ctx.key).cloned() else {
+    let Some(fm) = ctx.graph.frontmatter(ctx.key).cloned() else {
         return;
     };
-    strip_reserved(&mut fm);
     for (k, v) in fm {
         if !out.contains_key(&k) {
             out.insert(k, v);
@@ -121,9 +120,7 @@ fn resolve_pseudo(ctx: &ProjectionContext<'_>, p: PseudoField) -> Value {
         }
         PseudoField::Content => Value::String(ctx.graph.to_markdown_skip_frontmatter(ctx.key)),
         PseudoField::Frontmatter => {
-            let mut fm = ctx.graph.frontmatter(ctx.key).cloned().unwrap_or_default();
-            strip_reserved(&mut fm);
-            Value::Mapping(fm)
+            Value::Mapping(ctx.graph.frontmatter(ctx.key).cloned().unwrap_or_default())
         }
         PseudoField::IncludedBy => {
             edges_to_value(crate::query::edges::included_by(ctx.graph, ctx.key))
@@ -139,13 +136,12 @@ fn resolve_pseudo(ctx: &ProjectionContext<'_>, p: PseudoField) -> Value {
 }
 
 fn resolve_frontmatter(ctx: &ProjectionContext<'_>, path: &FieldPath) -> Value {
-    let Some(mut fm) = ctx.graph.frontmatter(ctx.key).cloned() else {
+    let Some(fm) = ctx.graph.frontmatter(ctx.key).cloned() else {
         return Value::Null;
     };
-    strip_reserved(&mut fm);
     let mut current = Value::Mapping(fm);
     for segment in &path.0 {
-        if is_reserved_segment(segment) {
+        if is_operator_segment(segment) {
             return Value::Null;
         }
         match current {

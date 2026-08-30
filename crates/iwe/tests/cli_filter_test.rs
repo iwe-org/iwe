@@ -368,40 +368,84 @@ fn find_max_distance_widens_references_anchor() {
 }
 
 #[test]
-fn update_set_reserved_top_level_rejected() {
+fn update_set_underscore_top_level_accepted() {
     let dir = setup();
     let (_, stderr, ok) = run(dir.path(), "update", &["-k", "a", "--set", "_hidden=1"]);
-    assert!(!ok);
-    assert!(
-        stderr.contains("reserved prefix"),
-        "expected reserved-prefix error, got: {}",
-        stderr
-    );
+    assert!(ok, "an underscore field is an ordinary field: {}", stderr);
     let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
-    assert!(!body.contains("_hidden"));
+    assert_eq!(
+        body,
+        indoc! {"
+            ---
+            status: draft
+            priority: 3
+            _hidden: 1
+            ---
+            # Doc A
+
+            Discusses windmills at length.
+        "}
+    );
 }
 
 #[test]
-fn update_set_reserved_dotted_segment_rejected() {
+fn update_set_underscore_dotted_segment_accepted() {
     let dir = setup();
     let (_, stderr, ok) = run(
         dir.path(),
         "update",
         &["-k", "a", "--set", "author._hidden=1"],
     );
-    assert!(!ok);
-    assert!(
-        stderr.contains("reserved prefix"),
-        "expected reserved-prefix error, got: {}",
-        stderr
-    );
+    assert!(ok, "an underscore segment is an ordinary field: {}", stderr);
     let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
-    assert!(!body.contains("_hidden"));
-    assert!(!body.contains("author:"));
+    assert_eq!(
+        body,
+        indoc! {"
+            ---
+            status: draft
+            priority: 3
+            author:
+              _hidden: 1
+            ---
+            # Doc A
+
+            Discusses windmills at length.
+        "}
+    );
 }
 
 #[test]
-fn update_set_reserved_prefix_inside_a_value_is_data() {
+fn update_set_dollar_top_level_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(dir.path(), "update", &["-k", "a", "--set", "$hidden=1"]);
+    assert!(!ok);
+    assert_eq!(
+        stderr,
+        "error: invalid update: invalid path segment in '$hidden': segment starts with '$'\n"
+    );
+    let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
+    assert!(!body.contains("$hidden"));
+}
+
+#[test]
+fn update_set_dollar_dotted_segment_rejected() {
+    let dir = setup();
+    let (_, stderr, ok) = run(
+        dir.path(),
+        "update",
+        &["-k", "a", "--set", "query.$includedBy=1"],
+    );
+    assert!(!ok);
+    assert_eq!(
+        stderr,
+        "error: invalid update: invalid path segment in 'query.$includedBy': segment starts with '$'\n"
+    );
+    let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
+    assert!(!body.contains("$includedBy"));
+}
+
+#[test]
+fn update_set_dollar_prefix_inside_a_value_is_data() {
     let dir = setup();
     let (_, stderr, ok) = run(
         dir.path(),
@@ -413,7 +457,7 @@ fn update_set_reserved_prefix_inside_a_value_is_data() {
             "knowledge_filter={ type: { $in: [note] } }",
         ],
     );
-    assert!(ok, "a reserved prefix inside a value is data: {}", stderr);
+    assert!(ok, "a $ prefix inside a value is data: {}", stderr);
     let body = std::fs::read_to_string(dir.path().join("a.md")).unwrap();
     assert!(body.contains("knowledge_filter:"), "{}", body);
     assert!(body.contains("$in"), "{}", body);
@@ -496,11 +540,11 @@ fn count_rejects_sort_flag() {
 #[test]
 fn error_messages_are_human_readable() {
     let dir = setup();
-    let (_, stderr, code) = run_with_code(dir.path(), "update", &["-k", "a", "--set", "_bad=1"]);
+    let (_, stderr, code) = run_with_code(dir.path(), "update", &["-k", "a", "--set", " bad=1"]);
     assert_eq!(code, 2);
     assert_eq!(
         stderr,
-        "error: invalid update: field '_bad' uses a reserved prefix\n"
+        "error: invalid update: invalid path segment in ' bad': segment contains whitespace\n"
     );
 }
 

@@ -999,7 +999,7 @@ fn template_mode_last_set_for_a_field_wins() {
 }
 
 #[test]
-fn template_mode_drops_reserved_frontmatter_fields() {
+fn template_mode_keeps_prefixed_frontmatter_fields() {
     let temp = setup();
     let output = run(
         temp.path(),
@@ -1019,7 +1019,7 @@ fn template_mode_drops_reserved_frontmatter_fields() {
     assert!(output.status.success());
     assert_eq!(
         read_to_string(temp.path().join("doc.md")).unwrap(),
-        "---\ntype: note\n---\n\n# Title\n"
+        "---\n_internal: 1\ntype: note\n---\n\n# Title\n"
     );
 }
 

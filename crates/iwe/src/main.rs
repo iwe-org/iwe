@@ -55,8 +55,8 @@ use liwe::query::block::{
     parse_block_predicate, BlockOp, BlockPredicate, BlockRegex, MatchesSource,
 };
 use liwe::query::{
-    FieldPath, Filter, Projection as QueryProjection, ProjectionField, ProjectionSource,
-    Sort as QuerySort, SortDir,
+    check_path_segments, FieldPath, Filter, Projection as QueryProjection, ProjectionField,
+    ProjectionSource, Sort as QuerySort, SortDir,
 };
 
 use log::{debug, error, info};
@@ -2792,10 +2792,9 @@ fn parse_sort_arg(s: &str) -> Result<QuerySort, String> {
     if field.is_empty() {
         return Err(format!("invalid --sort value '{}': empty field", s));
     }
-    Ok(QuerySort {
-        key: FieldPath::from_dotted(field),
-        dir,
-    })
+    let key = FieldPath::from_dotted(field);
+    check_path_segments(key.segments()).map_err(|e| e.to_string())?;
+    Ok(QuerySort { key, dir })
 }
 
 fn resolve_filter(args: &FilterArgs, graph: &Graph) -> Option<Filter> {
@@ -3886,7 +3885,6 @@ fn update_mutation(args: Update) {
                 let (_, body) = split_raw_frontmatter(&raw_content);
                 let mut mapping = graph.frontmatter(&key).cloned().unwrap_or_default();
                 liwe::query::update::apply(&update_doc, &mut mapping);
-                liwe::query::frontmatter::strip_reserved(&mut mapping);
                 let yaml = if mapping.is_empty() {
                     String::new()
                 } else {

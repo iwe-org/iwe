@@ -2145,3 +2145,133 @@ fn test_find_content_filter_membership() {
     assert!(success, "stderr: {}", stderr);
     assert_eq!(stdout, "doc1\n");
 }
+
+fn setup_prefixed_frontmatter() -> TempDir {
+    let dir = setup_workspace();
+    write(
+        dir.path().join("doc1.md"),
+        indoc! {"
+            ---
+            kind: hub
+            \"$foo\": 1
+            _private: 1
+            query:
+              filter:
+                kind: { $exists: true }
+                $includedBy: { $size: 0 }
+            ---
+            # Doc One
+        "},
+    )
+    .unwrap();
+    dir
+}
+
+#[test]
+fn test_find_json_shows_prefixed_frontmatter_fields() {
+    let dir = setup_prefixed_frontmatter();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-f", "json"]);
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "doc1",
+            "title": "Doc One",
+            "references": [],
+            "includes": [],
+            "referencedBy": [],
+            "includedBy": [],
+            "kind": "hub",
+            "$foo": 1,
+            "_private": 1,
+            "query": {
+              "filter": {
+                "kind": {
+                  "$exists": true
+                },
+                "$includedBy": {
+                  "$size": 0
+                }
+              }
+            }
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_underscore_field_filters_sorts_and_projects() {
+    let dir = setup_prefixed_frontmatter();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "--filter",
+            "{ _private: 1 }",
+            "--sort",
+            "_private:1",
+            "--project",
+            "_private",
+            "-f",
+            "json",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+
+    let expected = indoc! {r##"
+        [
+          {
+            "_private": 1
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_find_dollar_segment_in_filter_rejected() {
+    let dir = setup_prefixed_frontmatter();
+
+    let (_stdout, stderr, success) =
+        run_iwe(dir.path(), &["--filter", "{ query.filter.$includedBy: 1 }"]);
+
+    assert!(!success);
+    assert_eq!(
+        stderr,
+        "error: invalid --filter expression: invalid path segment in 'query.filter.$includedBy': segment starts with '$'\n"
+    );
+}
+
+#[test]
+fn test_find_dollar_segment_in_sort_rejected() {
+    let dir = setup_prefixed_frontmatter();
+
+    let (_stdout, stderr, success) = run_iwe(dir.path(), &["--sort", "query.filter.$includedBy:1"]);
+
+    assert!(!success);
+    assert_eq!(
+        stderr,
+        "error: invalid path segment in 'query.filter.$includedBy': segment starts with '$'\n"
+    );
+}
+
+#[test]
+fn test_find_dollar_segment_in_projection_rejected() {
+    let dir = setup_prefixed_frontmatter();
+
+    let (_stdout, stderr, success) =
+        run_iwe(dir.path(), &["--project", "x=query.filter.$includedBy"]);
+
+    assert!(!success);
+    assert_eq!(
+        stderr,
+        "error: invalid value 'x=query.filter.$includedBy' for '--project <PROJECT>': invalid path segment in 'query.filter.$includedBy': segment starts with '$'\n\nFor more information, try '--help'.\n"
+    );
+}

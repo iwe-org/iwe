@@ -370,6 +370,10 @@ impl FieldPath {
     }
 }
 
+pub fn is_operator_segment(s: &str) -> bool {
+    s.starts_with('$')
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldOp {
     Eq(Value),
@@ -769,5 +773,24 @@ impl UpdateOperator {
         UpdateOperator::Unset {
             path: FieldPath::from_dotted(path),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_operator_segment;
+
+    #[test]
+    fn only_a_dollar_prefix_is_an_operator_segment() {
+        assert!(is_operator_segment("$eq"));
+        assert!(!is_operator_segment("_x"));
+        assert!(!is_operator_segment("#x"));
+        assert!(!is_operator_segment("@x"));
+        assert!(!is_operator_segment(".x"));
+        assert!(!is_operator_segment("foo"));
+        assert!(!is_operator_segment("2024"));
+        assert!(!is_operator_segment("-foo"));
+        assert!(!is_operator_segment("/foo"));
+        assert!(!is_operator_segment(""));
     }
 }

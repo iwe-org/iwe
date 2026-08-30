@@ -161,7 +161,6 @@ status: draft
 
 - `--set` is repeatable, its VALUE is parsed as YAML, and the last `--set` for a field wins. YAML typing means `--set version=1.10` stores the number `1.1` and `--set note=~` stores null; quote to force a string, `--set version='"1.10"'`.
 - Fields are applied in command-line order. A new field is appended; a repeated field is replaced in place, keeping its position. Values are replaced wholesale — there is no deep merge.
-- Fields starting with `_`, `$`, `.`, `#` or `@` are reserved by IWE and are dropped.
 - When the template already emits its own frontmatter, passing `--set` is an error. Drop the flag, or drop the frontmatter from the template.
 
 ### Mode boundaries

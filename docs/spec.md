@@ -4,7 +4,7 @@
 
 This document specifies the IWE query language: a YAML 1.2-based, MongoDB-style language for selecting, shaping, and mutating documents in an IWE workspace. It covers:
 
-- The **corpus model** — what a document is, the edge model, reserved prefixes.
+- The **corpus model** — what a document is, the edge model, field names.
 - The four **operations** — find, count, update, delete — and the shape of an operation document.
 - The **filter language** — operators, types, composition.
 - **Graph operators** — identity and relational walk operators over inclusion and reference edges.
@@ -26,22 +26,17 @@ Notes with no frontmatter participate in the corpus as documents with an empty m
 
 The **corpus** is every document in the IWE workspace.
 
-### 2.3 Reserved field-name prefixes
+### 2.3 Field names the language cannot address
 
-Frontmatter field names whose **first character is `_`, `$`, `.`, `#`, or `@`** are reserved by the engine. They are **invisible to user-facing query operations**: filter, sort, and projection paths that reference such names resolve as missing; reserved entries never appear in `find` output (with or without projection); and `update` strips them from each affected document before the new frontmatter is rendered.
+The engine **preserves every frontmatter field**. Whatever a document carries on disk survives `find` output, `$frontmatter` projection, `update` writeback, `create --set` and template prepend, and is visible to schema validation and inference. The engine never deletes a user field.
 
-A reserved-prefix entry may exist in a file's raw frontmatter on disk — the engine does not refuse to load it — but every user-visible touchpoint (queries, results, mutated output) behaves as if it weren't there. Update writeback is the round-trip moment when such entries are dropped: any document the user mutates loses its reserved-prefix entries on the way out.
+One name shape cannot be *addressed*: a field-path segment whose **first character is `$`**. `$`-prefixed names are the operator vocabulary everywhere in the language (`$eq`, `$set`, `$includedBy`, etc.), so a path segment beginning with `$` is a **parse-time error** wherever a path is parsed — filter keys, dotted paths, sort keys, projection sources, `$set` / `$unset` targets, and their CLI spellings. A `$`-named field is stored, returned and validated like any other field; it simply cannot be reached by a filter, sort, projection or update path.
 
-User frontmatter field names must not begin with any of the five reserved characters. Any other leading character — letter, digit, hyphen, slash, parenthesis, etc. — is unreserved and addressable as a regular field. Subsequent characters within a name are unconstrained per YAML rules, with one exception: a literal `.` is reserved as a path separator (§4.4) and cannot appear inside a single segment.
+Every other leading character — letter, digit, `_`, `#`, `@`, hyphen, slash, parenthesis, etc. — is an ordinary field name: addressable, sortable, projectable, and listed by schema inference. Subsequent characters within a name are unconstrained per YAML rules, with one exception: a literal `.` is reserved as a path separator (§4.4) and cannot appear inside a single segment.
 
-Beyond the reserved-prefix and dot rules, a field-path segment used in a filter, projection, sort, or update path must be a **non-empty** string with **no Unicode whitespace** (leading, trailing, or embedded) and **no Unicode control characters**. An empty-string segment, a whitespace-only segment, or a segment containing control characters is a parse-time error. Other characters — digits, hyphens, slashes, parentheses, Unicode letters — are unrestricted.
+Beyond the `$` and dot rules, a field-path segment used in a filter, projection, sort, or update path must be a **non-empty** string with **no Unicode whitespace** (leading, trailing, or embedded) and **no Unicode control characters**. An empty-string segment, a whitespace-only segment, or a segment containing control characters is a parse-time error. Other characters — digits, hyphens, slashes, parentheses, Unicode letters — are unrestricted.
 
-The reserved prefixes have distinct roles:
-
-- `$`-prefixed names — operator expressions everywhere in the language (`$eq`, `$set`, `$includedBy`, etc.). Never user field names.
-- `_`, `.`, `#`, `@` — held for engine use.
-
-This rule is what makes the operator vocabulary safe: `$`-prefixed keys in a filter or update document never collide with a user field of the same name, because such user fields cannot be referenced by query operations.
+This rule is what makes the operator vocabulary safe: because the parser dispatches on the leading `$`, a `$`-prefixed key in a filter or update document is always read as an operator, never as a field name.
 
 ### 2.4 Edge model
 
@@ -594,7 +589,7 @@ The language MUST express the following queries directly:
 
 ## 5. Graph operators
 
-Graph operators live inside filter documents alongside frontmatter predicates. They share the predicate algebra of filter: AND-composed at top level, composable under `$and` / `$or` / `$nor`, with the same operator-expression vocabulary as numeric frontmatter fields. Selection by graph relationship and selection by frontmatter content are written in the same filter document, distinguished only by whether the predicate key is a `$`-prefixed graph operator or a user frontmatter field name. The reserved-prefix rule (§2.3) makes this safe: user frontmatter fields cannot begin with `$`.
+Graph operators live inside filter documents alongside frontmatter predicates. They share the predicate algebra of filter: AND-composed at top level, composable under `$and` / `$or` / `$nor`, with the same operator-expression vocabulary as numeric frontmatter fields. Selection by graph relationship and selection by frontmatter content are written in the same filter document, distinguished only by whether the predicate key is a `$`-prefixed graph operator or a user frontmatter field name. The parser dispatch on the leading `$` (§2.3) makes this safe: a `$`-prefixed key in a filter is always an operator, so it never collides with a frontmatter field of the same name.
 
 | Category | Operator | Predicate over... |
 |---|---|---|
@@ -822,7 +817,7 @@ $includedBy:
 
 The empty mapping `$includedBy: {}` is a parse-time error. `match` is optional — a mapping that omits it (for example `$includedBy: { $size: 0 }`) is well-formed and defaults `match` to `{}` (any document). The array form `$includedBy: []` is a parse-time error.
 
-The set of recognized keys inside a `relational_obj` is closed: `match`, `maxDepth`, `minDepth`, `maxDistance`, `minDistance`, `$size`. Any other key — including misspellings (`maxDepht`, `match_`), other `$`-prefixed names, and reserved-prefix names — is a parse-time error. Implementations MUST reject unknown keys rather than silently ignoring them; this prevents typos from quietly widening or narrowing the walk.
+The set of recognized keys inside a `relational_obj` is closed: `match`, `maxDepth`, `minDepth`, `maxDistance`, `minDistance`, `$size`. Any other key — including misspellings (`maxDepht`, `match_`) and other `$`-prefixed names — is a parse-time error. Implementations MUST reject unknown keys rather than silently ignoring them; this prevents typos from quietly widening or narrowing the walk.
 
 A `match` filter that selects no documents is well-formed but contributes an empty anchor set; a `$size`-free predicate then matches nothing, and a `$size` predicate counts zero related documents for every candidate.
 
@@ -1041,7 +1036,7 @@ The `$`-prefix is a **source-side marker**, not an output-side marker. It says "
 | `$title` | string | The document's title. |
 | `$titleSlug` | string | Slugified form of `$title`: lowercase, ASCII, whitespace and non-alphanumerics replaced with `-`, leading/trailing `-` trimmed. Derived deterministically from `$title`; no separate corpus storage. |
 | `$content` | string | Rendered markdown body, frontmatter stripped. |
-| `$frontmatter` | mapping | Full user frontmatter, reserved entries already stripped per §2.3. |
+| `$frontmatter` | mapping | Full user frontmatter, exactly as the document carries it. |
 | `$includedBy` | `[EdgeRef]` | Inbound inclusion edges. |
 | `$includes` | `[EdgeRef]` | Outbound inclusion edges (= child documents). |
 | `$referencedBy` | `[EdgeRef]` | Inbound reference edges (= backlinks). |
@@ -1049,11 +1044,13 @@ The `$`-prefix is a **source-side marker**, not an output-side marker. It says "
 
 `EdgeRef` is the shape `{ key, title, sectionPath: [string] }` (canonical definition: §13.2.2). `EdgeRef` sub-fields are unprefixed — they are produced by projection (engine output), not addressed as sources.
 
-These source selectors are reserved permanently. User frontmatter fields whose names start with `$` are already forbidden (§2.3), so there is no collision risk between source names and user data.
+These source selectors are reserved permanently. A `$`-prefixed key in a projection document is always read as a source selector, never as a field path (§2.3), so there is no collision risk between source names and user data.
 
 Consumers MUST tolerate unknown fields in result documents (per the schema-evolution rule in §13.1.3).
 
-**All output keys are bare identifiers chosen by the projection author.** No `$`-prefix on output, ever. The `$`-prefix lives on the right-hand side (source selectors), not on the left (output keys). This applies recursively: `EdgeRef` sub-fields are bare (`key`, `title`, `sectionPath`), every level of the result document uses bare keys.
+**Every output name chosen by a projection is a bare identifier** — the left-hand side of `outputName: source`, an `addFields` name, and the default names of the `$`-selectors all carry no `$`. The `$`-prefix lives on the right-hand side (source selectors), not on the left. This applies recursively: `EdgeRef` sub-fields are bare (`key`, `title`, `sectionPath`), every level of the engine-authored result uses bare keys.
+
+User frontmatter keys are not projection-authored names: the default projection spreads them into the result document unchanged, so a document carrying `$foo` or `_private` yields a result document with those keys at the top level, beside `key` and `title`.
 
 The visual rule: `$X` in a projection document is a *reference* to engine-side data; bare keys are output names that ship to the consumer.
 
@@ -1325,43 +1322,40 @@ update:
 
 Values are ignored. Absent field → no-op. `$unset` requires at least one entry; empty `$unset: {}` is a parse-time error (same reason as `$set`).
 
-### 9.2 Reserved-prefix protection
+### 9.2 Operator names are not update targets
 
-Reserved-prefix names (`_`, `$`, `.`, `#`, `@`) are invisible to query operations and are dropped on update writeback — see §2.3. On the mutation side, **operators that target a reserved-prefix segment in any path are parse-time errors**. The check applies to every segment — top-level keys, dotted-shorthand segments, and nested-mapping keys at every depth — not only the leaf or the top-level segment.
+A path segment beginning with `$` cannot be addressed — see §2.3. On the mutation side, **operators that target a `$`-prefixed segment in any path are parse-time errors**. The check applies to every segment — top-level keys, dotted-shorthand segments, and nested-mapping keys at every depth — not only the leaf or the top-level segment.
 
 ```yaml
-# ERROR — top-level reserved-prefix names
+# ERROR — top-level $-prefixed name
 update:
   $set:
-    _hidden: 1
-    .secret: 2
-    "#tag": foo
-    "@user": bar
+    $hidden: 1
 ```
 
 ```yaml
-# ERROR — dotted segment with reserved prefix
+# ERROR — dotted segment with a $ prefix
 update:
   $set:
-    "author._hidden": 1
+    "query.$includedBy": 1
 ```
 
 ```yaml
-# ERROR — reserved prefix on a nested-mapping key (any depth)
+# ERROR — $ prefix on a nested-mapping key (any depth)
 update:
   $set:
-    author:
-      _hidden: 1
+    query:
+      $includedBy: 1
 ```
 
 ```yaml
-# ERROR — reserved prefix on a leaf segment
+# ERROR — $ prefix on a leaf segment
 update:
   $set:
-    "review.@user": alice
+    "review.$user": alice
 ```
 
-The error is detected during update-document validation. Without it, a top-level `$set: { _hidden: 1 }` would be silently lost when writeback strips reserved-prefix entries from the rendered frontmatter — the parse-time error makes the failure loud instead. Extending the check to every segment keeps the reserved namespace consistent across the language.
+The error is detected during update-document validation, and makes the failure loud rather than letting the write resolve as a miss. Other leading characters are ordinary: `$set: { _hidden: 1 }`, `$set: { "#tag": foo }` and `$set: { "@user": bar }` all write the named field.
 
 ### 9.3 Combining operators
 
@@ -1394,7 +1388,7 @@ The update document also accepts six **block operators** — `$replace`, `$repla
 
 ### 10.1 Per-document
 
-All operators in one update document apply atomically per matched document: either every operator succeeds and the engine emits a single rewritten document — frontmatter and body — for that document, or no replacement is emitted for it. There is no half-applied rewrite. `$set` and `$unset` have no evaluation-time failure modes — their invalid forms are rejected at parse time (`$set` / `$unset` conflict, reserved-prefix paths, etc.) before any matching runs. The block operators (§9.5) do have evaluation-time failure modes — type compatibility, `$replaceText` anchors, extent disjointness, `expect` guards; the operation validates fully against the original documents before anything is emitted, so a failure in any matched document means no document is rewritten and the frontmatter operators write nothing (semantics: [Validation and atomicity](query-language.md#validation-and-atomicity)).
+All operators in one update document apply atomically per matched document: either every operator succeeds and the engine emits a single rewritten document — frontmatter and body — for that document, or no replacement is emitted for it. There is no half-applied rewrite. `$set` and `$unset` have no evaluation-time failure modes — their invalid forms are rejected at parse time (`$set` / `$unset` conflict, `$`-prefixed path segments, etc.) before any matching runs. The block operators (§9.5) do have evaluation-time failure modes — type compatibility, `$replaceText` anchors, extent disjointness, `expect` guards; the operation validates fully against the original documents before anything is emitted, so a failure in any matched document means no document is rewritten and the frontmatter operators write nothing (semantics: [Validation and atomicity](query-language.md#validation-and-atomicity)).
 
 ### 10.2 Across-document
 
@@ -1842,7 +1836,7 @@ Markdown is a human surface and may omit detail (e.g. counts, edge metadata) for
 - Always emits `key`, `title`.
 - Emits `sectionPath` only when non-empty (the human surface tolerates omission; JSON/YAML always include it).
 
-User frontmatter inside markdown documents has reserved-prefix entries already stripped — they MUST NOT appear in any output.
+User frontmatter inside markdown documents is emitted as the document carries it — no field is dropped, whatever its name starts with.
 
 #### 13.3.3 `iwe find` (markdown / keys)
 
@@ -2535,8 +2529,8 @@ expect_val       ::= non_neg_int | { min?: non_neg_int, max?: non_neg_int }
 #   targets. $replaceText applies per selected block, un-coalesced; its expect
 #   counts blocks. Semantics: query-language.md#block-update-operators.
 # Empty $set: {} / $unset: {} is a parse-time error (grammar requires +).
-# Targeting a reserved-prefix segment (_, $, ., #, @ as first character of any segment in
-#   any path — top-level, dotted, or nested mapping key, recursively) is a parse-time error.
+# Targeting a $-prefixed segment ($ as first character of any segment in any path —
+#   top-level, dotted, or nested mapping key, recursively) is a parse-time error.
 # Two paths in $set / $unset conflict when, after canonicalizing nested-mapping form
 #   to dotted form per §4.4, one path equals or is a prefix of the other. Conflicts are
 #   parse-time errors. The check applies across operators ($set vs $unset) and within

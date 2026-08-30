@@ -2,8 +2,7 @@ use std::cmp::Ordering;
 
 use serde_yaml::{Mapping, Number, Value};
 
-use crate::query::document::{FieldOp, FieldPath, YamlType};
-use crate::query::frontmatter::is_reserved_segment;
+use crate::query::document::{is_operator_segment, FieldOp, FieldPath, YamlType};
 
 #[derive(Debug)]
 pub enum Resolution<'a> {
@@ -16,7 +15,7 @@ pub fn resolve_path<'a>(doc: &'a Mapping, path: &FieldPath) -> Resolution<'a> {
     if segments.is_empty() {
         return Resolution::Missing;
     }
-    if segments.iter().any(|s| is_reserved_segment(s)) {
+    if segments.iter().any(|s| is_operator_segment(s)) {
         return Resolution::Missing;
     }
     let mut current: &Value = match doc.get(Value::String(segments[0].clone())) {
