@@ -13,6 +13,7 @@ use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 
 use crate::internal::claude::digest::{count_user_turns, digest_claude_chunks, value_time};
+use crate::internal::claude::hook::index::injection_groups;
 use crate::internal::claude::hook::store::{
     flow_yaml, is_safe_id, non_empty_var, project_slug, MemoryStore,
 };
@@ -24,13 +25,19 @@ use crate::internal::claude::record::{
 use crate::new::normalize_content;
 use crate::schema::render_schema;
 
-pub const DEFAULT_CHUNK_CHARS: usize = 10000;
-pub const DEFAULT_MAX_PROPOSALS_PER_READ: usize = 5;
-pub const DEFAULT_REMIND_EVERY_DAYS: usize = 7;
+pub const DEFAULT_MAX_CHUNK_SIZE: usize = 25000;
+pub const DEFAULT_MAX_PROPOSALS: usize = 5;
+pub const DEFAULT_REMIND_AFTER_DAYS: i64 = 7;
+
+const LEGACY_KNOBS: [(&str, &str); 4] = [
+    ("chunk_chars", "distill.max_chunk_size"),
+    ("max_proposals_per_read", "distill.max_proposals"),
+    ("remind_every_days", "distill.remind_after_days"),
+    ("injection_max_tokens", "the slice's own max_tokens"),
+];
 
 const SESSION_VARIABLE: &str = "CLAUDE_CODE_SESSION_ID";
 const ACTIVE_MINUTES: i64 = 30;
-const BRIEF_SAMPLE: usize = 10;
 const REJECTION_SAMPLE: usize = 20;
 const HEAD_SCAN_LINES: usize = 200;
 const TAIL_SCAN_BYTES: u64 = 64 * 1024;
@@ -144,14 +151,20 @@ pub fn policy_problems(store: &MemoryStore, app: &Command) -> Vec<String> {
             problems.push(format!("missing section: ## {}", section));
         }
     }
-    if let Err(problem) = store.knowledge_filter_spec() {
-        problems.push(problem);
-    }
     if let Err(problem) = store.injection_slices() {
         problems.push(problem);
     }
+    problems.extend(legacy_knobs(store));
     problems.extend(unknown_invocations(app, &store.policy_body()));
     problems
+}
+
+pub fn legacy_knobs(store: &MemoryStore) -> Vec<String> {
+    LEGACY_KNOBS
+        .into_iter()
+        .filter(|(legacy, _)| store.has_knob(legacy))
+        .map(|(legacy, path)| format!("`{}` is not read any more — it is `{}`", legacy, path))
+        .collect()
 }
 
 pub fn session_brief(store: &MemoryStore, app: &Command) -> String {
@@ -169,13 +182,9 @@ pub fn session_brief(store: &MemoryStore, app: &Command) -> String {
         }
     }
 
-    brief.push_str("\n=== knowledge filter ===\n");
-    brief.push_str(&store.knowledge_filter_text());
-    brief.push('\n');
-
-    let keys = knowledge_keys(store);
+    let keys = injection_keys(store);
     brief.push_str(&format!(
-        "\n=== schema: {} document(s) the filter selects ===\n",
+        "\n=== schema: {} document(s) the injection selects ===\n",
         keys.len()
     ));
     let fields = liwe::schema::infer_schema(store.graph(), &keys);
@@ -191,15 +200,17 @@ pub fn session_brief(store: &MemoryStore, app: &Command) -> String {
     brief.push_str("\n=== hubs: area documents and what they include ===\n");
     brief.push_str(&hub_census_text(store, &keys));
 
-    let recent = recent_keys(store, &keys);
-    brief.push_str(&format!(
-        "\n=== recent: {} of {} document(s), newest by {} ===\n",
-        recent.len(),
-        keys.len(),
-        store.recency_field()
-    ));
-    for (key, title) in &recent {
-        brief.push_str(&format!("{} — {}\n", key, title));
+    brief.push_str("\n=== injection: what session start lists ===\n");
+    let groups = injection_groups(store);
+    if groups.is_empty() {
+        brief.push_str("nothing listed yet\n");
+    } else {
+        for (at, group) in groups.iter().enumerate() {
+            if at > 0 {
+                brief.push('\n');
+            }
+            brief.push_str(&format!("{}\n\n{}\n", group.heading, group.entries));
+        }
     }
 
     let rejected = recent_rejections();
@@ -297,8 +308,9 @@ pub fn session_read(
 
     let distilled = distilled_lines_of(&transcript.session);
     let from = from.unwrap_or(distilled);
-    let max_chars = max_chars.unwrap_or_else(|| store.knob_int("chunk_chars", DEFAULT_CHUNK_CHARS));
-    let max_proposals = store.knob_int("max_proposals_per_read", DEFAULT_MAX_PROPOSALS_PER_READ);
+    let max_chars = max_chars
+        .unwrap_or_else(|| store.knob_int("distill.max_chunk_size", DEFAULT_MAX_CHUNK_SIZE));
+    let max_proposals = store.knob_int("distill.max_proposals", DEFAULT_MAX_PROPOSALS);
 
     let chunks = digest_claude_chunks(&transcript.path, from, max_chars, 1)
         .map_err(|error| format!("cannot read {}: {}", transcript.path.display(), error))?;
@@ -609,7 +621,6 @@ pub fn session_complete(
 
     let keys = resolve_links(store, &complete.wrote)?;
     let linked = link_into_hubs(store, &keys);
-    let outside = outside_knowledge_filter(store, &keys);
 
     let now = Local::now().format("%Y-%m-%d %H:%M").to_string();
     let mut record = load_session_record(&session).unwrap_or_else(|| SessionRecord::new(&session));
@@ -690,13 +701,6 @@ pub fn session_complete(
     }
     for (key, area) in &linked {
         report.push_str(&format!("linked {} into its area hub {}\n", key, area));
-    }
-    for key in &outside {
-        report.push_str(&format!(
-            "warning: {} is not selected by the knowledge filter {} — session start will not list it\n",
-            key,
-            store.knowledge_filter_text()
-        ));
     }
     Ok(report)
 }
@@ -836,21 +840,6 @@ fn hub_census_text(store: &MemoryStore, keys: &[Key]) -> String {
         ));
     }
     text
-}
-
-fn outside_knowledge_filter(store: &MemoryStore, keys: &[String]) -> Vec<String> {
-    if keys.is_empty() {
-        return Vec::new();
-    }
-    let graph = store.reloaded_graph();
-    let selected: HashSet<String> = evaluate_filter(&store.knowledge_filter(), &graph)
-        .into_iter()
-        .map(|key| key.to_string())
-        .collect();
-    keys.iter()
-        .filter(|key| !selected.contains(key.as_str()))
-        .cloned()
-        .collect()
 }
 
 fn link_into_hubs(store: &MemoryStore, keys: &[String]) -> Vec<(String, String)> {
@@ -1000,13 +989,16 @@ pub fn backlog_of(options: &SessionOptions) -> Option<Backlog> {
 }
 
 pub fn reminder_due(store: &MemoryStore) -> bool {
-    let days = store.knob_int("remind_every_days", DEFAULT_REMIND_EVERY_DAYS);
-    if days == 0 {
+    let days = store.knob_days("distill.remind_after_days", DEFAULT_REMIND_AFTER_DAYS);
+    if days < 0 {
         return false;
+    }
+    if days == 0 {
+        return true;
     }
     match reminded_at() {
         Some(stamp) => {
-            let cutoff = (Local::now() - Duration::days(days as i64))
+            let cutoff = (Local::now() - Duration::days(days))
                 .format("%Y-%m-%d %H:%M")
                 .to_string();
             stamp.as_str() < cutoff.as_str()
@@ -1358,37 +1350,8 @@ fn recent_rejections() -> Vec<String> {
         .collect()
 }
 
-fn knowledge_keys(store: &MemoryStore) -> Vec<Key> {
-    evaluate_filter(&store.knowledge_filter(), store.graph())
-}
-
-fn recent_keys(store: &MemoryStore, keys: &[Key]) -> Vec<(String, String)> {
-    let graph = store.graph();
-    let field = store.recency_field();
-    let mut dated: Vec<(String, String, String)> = keys
-        .iter()
-        .map(|key| {
-            let created = graph
-                .frontmatter(key)
-                .and_then(|front| front.get(YamlValue::String(field.clone())))
-                .and_then(|value| {
-                    value
-                        .as_str()
-                        .map(str::to_string)
-                        .or_else(|| value.as_i64().map(|number| number.to_string()))
-                })
-                .unwrap_or_default();
-            let title = graph.get_key_title(key).unwrap_or_else(|| key.to_string());
-            (created, key.to_string(), title)
-        })
-        .collect();
-
-    dated.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1)));
-    dated
-        .into_iter()
-        .take(BRIEF_SAMPLE)
-        .map(|(_, key, title)| (key, title))
-        .collect()
+fn injection_keys(store: &MemoryStore) -> Vec<Key> {
+    evaluate_filter(&store.injection_scope(), store.graph())
 }
 
 fn resolve_links(store: &MemoryStore, wrote: &[String]) -> Result<Vec<String>, String> {

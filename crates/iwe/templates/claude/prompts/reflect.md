@@ -1,6 +1,6 @@
 # Reflect
 
-The interactive layer of memory maintenance, and the only one: policy and taxonomy evolution, curation as far as the policy's curation section allows, and the forget verbs on demand — all with the user. Every command is a plain `iwe` command run from the repository root. No `MEMORY.md` document means nothing to govern: say so and point at `/iwe:init`. Never commit: every change, deletions included, is a working-tree edit the user reviews as a diff.
+The interactive layer of memory maintenance, and the only one: policy and taxonomy evolution, curation as far as the policy's curation section allows, and the forget verbs on demand — all with the user. Every command is a plain `iwe` command run from the repository root. No `MEMORY.md` document means nothing to govern: say so and point at `/iwe:init`. Never commit: every change, deletions included, is a file the user reviews.
 
 ## The MEMORY.md document is the policy
 
@@ -8,7 +8,7 @@ The interactive layer of memory maintenance, and the only one: policy and taxono
 iwe internal claude session brief
 ```
 
-Prints the policy body, a policy check, the knowledge filter, the frontmatter the store's documents carry, the schemas that bind them (`=== schemas ===`), the area hubs with what each includes and the documents outside every area (`=== hubs ===`), the most recent documents, and the recent rejections. A failing check is the first thing to fix, with the user; the schemas and hubs sections are the census every pass ends with, so nothing here is counted by hand.
+Prints the policy body, a policy check, the frontmatter the store's documents carry, the schemas that bind them (`=== schemas ===`), the area hubs with what each includes and the documents outside every area (`=== hubs ===`), what session start lists, and the recent rejections. A failing check is the first thing to fix, with the user; the schemas and hubs sections are the census every pass ends with, so nothing here is counted by hand.
 
 The body is a contract of level-two sections, read by name:
 
@@ -25,36 +25,34 @@ The first three are required. Nothing caches the policy, so the next run follows
 iwe update -k MEMORY --content - <<'EOF'
 <edited body>
 EOF
-iwe update -k MEMORY --set chunk_chars=25000 --set max_proposals_per_read=3 --expect 1
+iwe update -k MEMORY --set distill.max_proposals=3 --expect 1
 ```
 
-The frontmatter knobs, with defaults: `chunk_chars` (10000) — how much conversation one `session read` serves; `max_proposals_per_read` (5); `remind_every_days` (7) — how often session start reminds about the backlog, `0` never; `injection_max_tokens` (2000) — the session-start budget; `recency_field` (`created`) — what session start and the brief order by; `knowledge_filter` — the query that says which documents are memory, read by session start, the brief and every census below; and `injection` — what session start puts in front of every session, as a list of slices the binary runs in order, each a `filter` (ANDed with the knowledge filter), `recent: true` (the default listing), or `changed: true` (documents whose bodies name a file `git status` reports), with an optional `heading`, `limit` and `sort: <field>:-1`. A document listed by one slice is not repeated by a later one, and the whole block stays inside `injection_max_tokens`. The default is one `recent` slice; a store with `kind` and `status` fields usually wants the rules and the open traps first:
+The frontmatter knobs, with defaults: `distill.max_chunk_size` (25000) — how much conversation one `session read` serves; `distill.max_proposals` (5); `distill.remind_after_days` (7) — how long before session start reminds about the backlog again, `0` every session, `-1` never; and `injection` — what session start puts in front of every session, as a list of slices the binary runs in order, each a `filter` and/or a `sort: <field>:-1` with an optional `heading`, `limit` and `max_tokens`. A document listed by one slice is not repeated by a later one, and a slice with neither `limit` nor `max_tokens` lists everything it matches. A store with `kind` and `status` fields usually wants the rules and the open traps first:
 
 ```yaml
-knowledge_filter:
-  $key: { $nin: [MEMORY, queries] }
+distill:
+  max_proposals: 3
 injection:
-  - { heading: "Rules this store keeps:", filter: { kind: rule }, limit: 10 }
+  - { heading: "Rules this store keeps:", filter: { kind: rule }, limit: 10, max_tokens: 400 }
   - { heading: "Still open:", filter: { kind: trap, status: open }, limit: 10 }
-  - { heading: "Mentioning files changed in the working tree:", changed: true, limit: 5 }
-  - { heading: "Most recently recorded:", recent: true, limit: 10 }
+  - { heading: "Most recently recorded:", filter: { created: { $exists: true } }, sort: created:-1, limit: 10 }
 ```
 
-`--set` takes YAML, so a store whose notes carry a `type` sets it once:
+`--set` takes YAML, so a store whose notes carry a `type` lists them once:
 
 ```bash
-iwe update -k MEMORY --set 'knowledge_filter={ type: { $in: [decision, learning, gotcha] } }' --expect 1
+iwe update -k MEMORY --set 'injection=[{ filter: { type: { $in: [decision, learning, gotcha] } }, sort: created:-1, limit: 10 }]' --expect 1
 ```
 
-Each knob has an `IWE_<KNOB>` environment twin. `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` are dead knobs from before capture became manual; `--unset` clears one.
+Each knob has an environment twin named for its path with dots as underscores (`IWE_DISTILL_MAX_PROPOSALS`). `chunk_chars` (now `distill.max_chunk_size`), `max_proposals_per_read` (`distill.max_proposals`), `remind_every_days` (`distill.remind_after_days`) and `injection_max_tokens` (now the slice's own `max_tokens`) are the flat knobs the binary stopped reading; `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` are dead knobs from before capture became manual. `--unset` clears one.
 
 Requests users make without knowing the vocabulary:
 
-- **"capture less / more"** — "what to capture", and `max_proposals_per_read`.
-- **"stop asking me about memory"** — `remind_every_days=0`, and "at session start".
+- **"capture less / more"** — "what to capture", and `distill.max_proposals`.
+- **"stop asking me about memory"** — `distill.remind_after_days=-1`, and "at session start".
 - **"show me the rules / what is still broken when I start"** — an `injection` slice per question.
 - **"stop reorganizing my notes"** — delete the curation section.
-- **"that is not memory"** — the `knowledge_filter`.
 - **"turn it off"** — `iwe delete MEMORY --expect 1`; nothing else in the store changes.
 
 ## Analyze
@@ -62,15 +60,13 @@ Requests users make without knowing the vocabulary:
 Widen the brief's listing when ten is not enough, and read `iwe schema` — coverage, types, distinct counts, value distributions — before proposing anything:
 
 ```bash
-iwe find --filter '<the knowledge filter from the brief>' \
-  --sort '<the recency field>:-1' --limit 40 --project 'title=$title,key=$key'
+iwe find --sort 'created:-1' --limit 40 --project 'title=$title,key=$key'
 ```
 
 Then mine the dimensions the frontmatter does not carry:
 
 ```bash
 iwe find --matches '(?i)\b(postgres|redis|ci|docker|auth)\b' --limit 40 \
-  --filter '<the knowledge filter from the brief>' \
   --project 'title=$title,key=$key'
 ```
 
@@ -84,23 +80,23 @@ A short list: field name, the values observed with counts, and the query each un
 
 For each field the user picked, in order:
 
-1. **Extend the schema**, if one binds — add the property to `.iwe/schemas/<name>.yaml` as optional. If the brief's schemas section says nothing binds, write one first: the frontmatter fields and enums "how to write it" names, `required` for the provenance fields, and as much body shape as the store keeps (`iwe docs schema`); bind it in `.iwe/config.toml` to the keys the knowledge filter selects, run `iwe schema validate`, and fix or exempt what fails with the user. From then on `--strict` refuses what the policy forbids instead of asking the next distill run to remember it.
-2. **Backfill**, one mutation per value, preview first:
+1. **Extend the schema**, if one binds — add the property to `.iwe/schemas/<name>.yaml` as optional. If the brief's schemas section says nothing binds, write one first: the frontmatter fields and enums "how to write it" names, `required` for the provenance fields, and as much body shape as the store keeps (`iwe docs schema`); bind it in `.iwe/config.toml` to the keys the injection selects, run `iwe schema validate`, and fix or exempt what fails with the user. From then on `--strict` refuses what the policy forbids instead of asking the next distill run to remember it.
+2. **Backfill**, one mutation per value, preview first. Every bulk `update` and `delete` carries the machinery exclusion `{ $key: { $nin: [MEMORY, queries] } }` so it cannot touch the policy or the cookbook:
 
    ```bash
-   iwe update --filter '{ $and: [ <the knowledge filter>, { $content: { $text: "postgres" } } ] }' --set component=postgres --dry-run
+   iwe update --filter '{ $and: [ <the machinery exclusion>, { $content: { $text: "postgres" } } ] }' --set component=postgres --dry-run
    iwe update --filter '<the same filter>' --set component=postgres --expect <count from the dry run>
    ```
 
-   `--expect` aborts if the match set moved; the knowledge filter inside the `$and` keeps the update off the machinery and the repository's own markdown.
+   `--expect` aborts if the match set moved.
 3. **Teach the write path** — describe the field in "how to write it" and add it to the template in `.iwe/config.toml`, or the backfill decays into a one-off.
 4. **Refresh the `queries` document**, if the store has one.
 
 ## Forget, on request
 
 ```bash
-iwe find --filter '{ $and: [ <the knowledge filter>, { created: { $lt: "2026-01-01" } } ] }' --format keys
-iwe delete --filter '{ $and: [ <the knowledge filter>, { created: { $lt: "2026-01-01" } } ] }' --dry-run
+iwe find --filter '{ created: { $lt: "2026-01-01" } }' --format keys
+iwe delete --filter '{ $and: [ <the machinery exclusion>, { created: { $lt: "2026-01-01" } } ] }' --dry-run
 iwe delete --filter '<the same filter>' --expect <count from the dry run>
 ```
 
@@ -169,7 +165,7 @@ iwe update -k <area> \
   --expect 1
 ```
 
-Nothing validates the target: create the document first, append second. The mirror for removing a member is `--delete '{ $ref: { $references: <area>/<slug> }, expect: 1 }'`. The brief's `=== hubs ===` section is the stray census; in a store whose hubs carry a type it is one query — `{ $includedBy: { match: { type: topic }, $size: 0 } }` inside the knowledge filter. Never build it from `type: { $nin: [topic] }`, which also matches every document with no `type` at all. A document included by several hubs is the multi-parent case inclusion links exist for; the directory names the primary home, and only that hub has to include it.
+Nothing validates the target: create the document first, append second. The mirror for removing a member is `--delete '{ $ref: { $references: <area>/<slug> }, expect: 1 }'`. The brief's `=== hubs ===` section is the stray census; in a store whose hubs carry a type it is one query — `{ $includedBy: { match: { type: topic }, $size: 0 } }` over the injection scope. Never build it from `type: { $nin: [topic] }`, which also matches every document with no `type` at all. A document included by several hubs is the multi-parent case inclusion links exist for; the directory names the primary home, and only that hub has to include it.
 
 ### Entities
 
@@ -178,14 +174,14 @@ Pages for the things facts are about — a person, a release, a component, a too
 1. **Propose** by counting facts per noun — fewer than three is a word, not a page, and a page nothing links to is pure upkeep:
 
    ```bash
-   iwe find --matches '(?i)\bsession record\b' --limit 100 -f keys --filter '<the knowledge filter>' | wc -l
+   iwe find --matches '(?i)\bsession record\b' --limit 100 -f keys | wc -l
    ```
 
 2. **Create the type hub** at the top level, then the pages: two to four sentences — what the thing is, where it lives, the one thing to know before reading facts about it — with the fields the policy stamps, `type` as the user named it, no fact taxonomy. Then the guarded hub append above; for a thing with parts, one inclusion link per part in the parent's body, parts created first.
 3. **Backfill the links**, one guarded bulk command per entity. The `$nor … $references` guard makes it idempotent, so a clean re-run reports `$append expects 1 block, selected 0`. Read the dry-run keys — a fact the regex catches that is not about the thing gets the link by hand or not at all. `$content: { $text: … }` is the stemmed alternative; `$matches` narrows when the noun is also an ordinary word. `--replace-text` cannot do this in bulk, so backfill writes the trailing list item and capture writes the inline form from then on.
 
    ```bash
-   iwe update --filter '{ $and: [ <the knowledge filter>, { $content: { $matches: "(?i)\\bsession record" } }, { $nor: [ { $references: components/session-record } ] } ] }' \
+   iwe update --filter '{ $and: [ <the machinery exclusion>, { $content: { $matches: "(?i)\\bsession record" } }, { $nor: [ { $references: components/session-record } ] } ] }' \
      --append '{ content: "- [Session record](/components/session-record)" }' --dry-run
    iwe update --filter '<the same filter>' --append '<the same append>' --expect <count from the dry run>
    ```
@@ -195,7 +191,7 @@ Pages for the things facts are about — a person, a release, a component, a too
    ```bash
    iwe find --filter '{ $includedBy: components }' -f keys                        # = the pages under components/
    iwe find --filter '{ type: component, $referencedBy: { $size: 0 } }' -f keys   # orphans: must be empty
-   iwe find --matches '(?i)\bsession record' --filter '{ $and: [ <the knowledge filter>, { $nor: [ { $references: components/session-record } ] } ] }' -f keys   # strays: read each
+   iwe find --matches '(?i)\bsession record' --filter '{ $nor: [ { $references: components/session-record } ] }' -f keys   # strays: read each
    ```
 
 5. **Teach the write path.** `## How to write it` gains the types — directory, `type` value, hub title — and the rule capture follows: list the pages before composing (`iwe find --filter '{ type: { $in: [component, tool] } }' --project 'key=$key,title=$title'`), link every one the item mentions inline by root-absolute key, and never mint one — naming a noun is this skill's job once three facts share it. `## Curation` gains the three proofs.
@@ -211,4 +207,4 @@ iwe tree --depth 2      # if the store groups into areas or has entity pages
 iwe internal claude session brief
 ```
 
-Confirm coverage moved as expected, the policy check is `ok`, the schemas section binds every document the filter selects, the hubs section shows every area complete and names no stray the user did not choose to leave, and the brief's listing shows what the user calls memory and nothing else. End with a summary of the working-tree diff: documents touched, fields added, keys moved, hubs and pages created, documents deleted, policy changes. No commit.
+Confirm coverage moved as expected, the policy check is `ok`, the schemas section binds every document the injection selects, the hubs section shows every area complete and names no stray the user did not choose to leave, and the brief's listing shows what the user calls memory and nothing else. End with a summary of what changed: documents touched, fields added, keys moved, hubs and pages created, documents deleted, policy changes. No commit.

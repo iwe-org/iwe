@@ -1,12 +1,12 @@
 <iwe-memory>
-This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, reviewed as ordinary diffs.
+This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
 {% for group in groups %}
 {{ group.heading }}
 
 {{ group.entries }}
 
 {% endfor %}
-Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical "<terms>" --limit 5 --filter '{{ filter }}'`.
+Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical "<terms>" --limit 5`.
 `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
 {% if queries %}
 The `queries` document is this store's query cookbook.

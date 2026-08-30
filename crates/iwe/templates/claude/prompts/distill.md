@@ -41,7 +41,7 @@ For the current session, prefer the conversation you already hold; read the tran
 iwe internal claude session read
 ```
 
-serves a session from its distilled line, one `chunk_chars` window at a time; the header names `covers_from`, `covers_lines`, `transcript_lines` and `max_proposals`. Repeat with `--from <covers_lines>` until `covers_lines` reaches `transcript_lines`. `<session-id>/subagents/` directories are never read.
+serves a session from its distilled line, one window at a time (`distill.max_chunk_size`, 25000 characters by default); the header names `covers_from`, `covers_lines`, `transcript_lines` and `max_proposals`. Repeat with `--from <covers_lines>` until `covers_lines` reaches `transcript_lines`. `<session-id>/subagents/` directories are never read.
 
 At most `max_proposals` candidates per window, each weighed against the policy, with a **title** (a specific noun phrase, not a sentence), a **one-line body**, the **target key** in the convention "how to write it" names, whatever classification "what to capture" asks for, and the **evidence** — the line range plus a short quote. No quotable evidence, no candidate: an idea you raised and argued well is a suggestion, not a decision.
 
@@ -157,4 +157,4 @@ A problem the policy check reported is proposed the same way. Otherwise say noth
 
 ## 9. Report
 
-Name each key written, new or updated, anything still staged in the inbox, and what is left in the backlog. Nothing commits: the documents are working-tree changes the user reviews as a diff.
+Name each key written, new or updated, anything still staged in the inbox, and what is left in the backlog. Nothing commits: the documents are files in the store the user reviews.

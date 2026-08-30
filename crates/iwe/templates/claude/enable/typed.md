@@ -4,17 +4,17 @@
 
 This store uses the typed ontology: three document types, each with a template and a schema installed alongside this policy. The sections below are read by name: `/iwe:distill` follows "what to capture", "how to write it" and "dedup and updates"; `/iwe:reflect` follows "curation"; "at session start" goes in front of every session verbatim.
 
-The frontmatter carries the knobs, all optional: `chunk_chars` (10000), `max_proposals_per_read` (5), `remind_every_days` (7), `injection_max_tokens` (2000), `recency_field` (`created`), `knowledge_filter`, the query that says which documents are this store's memory — here the typed documents — and `injection`, the slices session start puts in front of every session, here the decisions first:
+The frontmatter carries two things, both optional: `distill`, how sessions are read — `max_chunk_size` (25000), `max_proposals` (5), `remind_after_days` (7; `-1` never, `0` every session) — and `injection`, the queries session start lists, each with an optional `heading`, `limit` and `max_tokens`, here the decisions first:
 
 ```yaml
-knowledge_filter:
-  type: { $in: [decision, learning, gotcha, topic] }
+distill:
+  max_chunk_size: 25000
 injection:
   - { heading: "Decisions:", filter: { type: decision }, limit: 10 }
-  - { heading: "Most recently recorded:", recent: true, limit: 10 }
+  - { heading: "Most recently recorded:", filter: { created: { $exists: true } }, sort: created:-1, limit: 10 }
 ```
 
-`/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_CHUNK_CHARS`) moves a default machine-wide.
+`/iwe:reflect` tunes them; an `IWE_<KNOB>` environment variable (`IWE_DISTILL_MAX_PROPOSALS`) moves a default machine-wide.
 
 ## What to capture
 
@@ -24,7 +24,7 @@ The few things a future session in this repository would be worse off not knowin
 - **learning** — a durable fact about this codebase, its infrastructure or the way the team works, not obvious from the code.
 - **gotcha** — a trap that cost time, with the symptom that identifies it and the way around it.
 
-Keep an item only when it stays true after the session ends, is not obvious from the code, the README, `CLAUDE.md`, the git history or a document already here, and would make a future session act differently. Prefer none over noise: most sessions produce nothing durable. The opposite failure is folding: two traps and one settled question are three items, not one.
+Keep an item only when it stays true after the session ends, is not obvious from the code, the README, `CLAUDE.md`, the history or a document already here, and would make a future session act differently. Prefer none over noise: most sessions produce nothing durable. The opposite failure is folding: two traps and one settled question are three items, not one.
 
 Nearly always worth keeping: a trap the session actually hit — a gotcha, and the error text is its fingerprint; a rule stated in the conversation, "never do X", "always Y" — a decision, even when nothing in the repository records it; and a correction the user made — the assistant did, assumed or proposed something and the user reversed it — a decision whose body opens with the mistaken form, in the words that were wrong, then what is right. A correction scoped to a single reply ("shorter", "not now") is not kept unless it recurs.
 

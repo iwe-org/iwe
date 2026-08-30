@@ -1,12 +1,11 @@
 use std::env::set_current_dir;
 use std::path::{Path, PathBuf};
 
-use chrono::Local;
 use diwe::config::load_config;
-use serde_yaml::Mapping;
+use serde_yaml::{Mapping, Value as YamlValue};
 
 use crate::init::{current_root, init_library, InitOptions, Overrides};
-use crate::internal::claude::hook::store::library_path_of;
+use crate::internal::claude::hook::store::{library_path_of, STARTER_KNOBS};
 use crate::internal::claude::record::{ensure_state_ignore, RECORDS_DIRECTORY};
 use crate::new::{write_document, ContentOptions, DocumentCreator, IfExists};
 
@@ -16,8 +15,7 @@ const QUERIES_BODY: &str = include_str!("../../../templates/claude/enable/querie
 const TYPED_CONFIG: &str = include_str!("../../../templates/claude/enable/typed.toml");
 const STARTER_CONFIG: &str = include_str!("../../../templates/claude/enable/starter.toml");
 const STARTER_SCHEMA: &str = include_str!("../../../templates/claude/enable/schemas/memory.yaml");
-const TYPED_KNOBS: &str =
-    "knowledge_filter:\n  type: { $in: [decision, learning, gotcha, topic] }\n";
+const TYPED_KNOBS: &str = "injection:\n  - { heading: \"Decisions:\", filter: { type: decision }, limit: 10 }\n  - { heading: \"Most recently recorded:\", filter: { created: { $exists: true } }, sort: created:-1, limit: 10 }\n";
 
 const TYPED_SCHEMAS: [(&str, &str); 4] = [
     (
@@ -200,8 +198,7 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         None if options.typed => TYPED_BODY,
         None => STARTER_BODY,
     };
-    let now = Local::now().format("%Y-%m-%d %H:%M").to_string();
-    let document = format!("---\ncreated: \"{}\"\n{}---\n\n{}", now, knobs, policy);
+    let document = format!("---\n{}---\n\n{}", knobs, policy);
 
     let config = match load_config() {
         Ok(config) => config,
@@ -227,7 +224,7 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         println!("wrote the queries cookbook");
     }
 
-    println!("nothing was committed; review it as a normal diff");
+    println!("nothing outside the store was touched; review the files it wrote");
     0
 }
 
@@ -248,27 +245,29 @@ fn starter_schema_present() -> bool {
 }
 
 fn knobs_text(options: &EnableOptions) -> Result<String, String> {
-    let mut text = String::new();
-    if options.typed {
-        text.push_str(TYPED_KNOBS);
-    }
-    if let Some(path) = &options.knobs {
-        let extra = std::fs::read_to_string(path)
-            .map_err(|_| format!("{} is not a readable file", path.display()))?;
-        let extra = extra.trim_end();
-        if !extra.is_empty() {
-            text.push_str(extra);
-            text.push('\n');
-        }
-    }
-    if text.is_empty() {
-        return Ok(text);
-    }
-    let parsed: Mapping = serde_yaml::from_str(&format!("created: probe\n{}", text))
+    let built_in = match options.typed {
+        true => TYPED_KNOBS,
+        false => STARTER_KNOBS,
+    };
+    let Some(path) = &options.knobs else {
+        return Ok(built_in.to_string());
+    };
+
+    let extra = std::fs::read_to_string(path)
+        .map_err(|_| format!("{} is not a readable file", path.display()))?;
+    let extra = extra.trim_end();
+    let parsed: Mapping = serde_yaml::from_str(extra)
         .map_err(|error| format!("--knobs must be a YAML mapping of knobs: {}", error))?;
-    if parsed.len() < 2 {
+    if parsed.is_empty() {
         return Err("--knobs must be a YAML mapping of knobs".to_string());
     }
+
+    let mut text = String::new();
+    if !parsed.contains_key(YamlValue::String("injection".to_string())) {
+        text.push_str(built_in);
+    }
+    text.push_str(extra);
+    text.push('\n');
     Ok(text)
 }
 

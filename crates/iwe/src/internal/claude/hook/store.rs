@@ -6,7 +6,7 @@ use diwe::config::{load_config, Configuration};
 use diwe::graph_from_path;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::{frontmatter_from_str, split_raw_frontmatter, Key};
-use liwe::query::{parse_filter_expression, parse_filter_mapping, Filter, SortDir};
+use liwe::query::{parse_filter_expression, parse_filter_mapping, Filter, KeyOp, SortDir};
 use log::debug;
 use serde_json::Value as JsonValue;
 use serde_yaml::{Mapping, Value as YamlValue};
@@ -58,38 +58,41 @@ impl HookPayload {
     }
 }
 
-pub const DEFAULT_KNOWLEDGE_FILTER: &str = "{ $key: { $nin: [MEMORY, queries] } }";
-
-pub const DEFAULT_RECENCY_FIELD: &str = "created";
-
 pub const SESSION_START_SECTION: &str = "At session start";
 
-pub const DEFAULT_RECENT_HEADING: &str =
-    "Most recently recorded, newest first — titles and keys only:";
+pub const DEFAULT_HEADING: &str = "Most recently recorded, newest first — titles and keys only:";
 
-pub const DEFAULT_CHANGED_HEADING: &str = "Mentioning files changed in the working tree:";
+pub const STARTER_KNOBS: &str = "injection:\n  - { heading: \"Most recently recorded, newest first — titles and keys only:\", filter: { created: { $exists: true } }, sort: created:-1, limit: 20 }\n";
 
-pub enum SliceSource {
-    Recent,
-    Filter(Filter, String),
-    Changed,
+pub const MACHINERY_KEYS: [&str; 2] = ["MEMORY", "queries"];
+
+pub fn machinery_exclusion() -> Filter {
+    Filter::Key(KeyOp::Nin(
+        MACHINERY_KEYS.iter().map(|key| Key::name(key)).collect(),
+    ))
 }
 
 pub struct Slice {
     pub heading: String,
-    pub source: SliceSource,
-    pub limit: Option<usize>,
+    pub filter: Option<(Filter, String)>,
     pub sort: Option<(String, SortDir)>,
+    pub limit: Option<usize>,
+    pub max_tokens: Option<usize>,
 }
 
 impl Slice {
     pub fn default_slices() -> Vec<Slice> {
-        vec![Slice {
-            heading: DEFAULT_RECENT_HEADING.to_string(),
-            source: SliceSource::Recent,
-            limit: None,
-            sort: None,
-        }]
+        slices_from_value(
+            &serde_yaml::from_str(STARTER_KNOBS)
+                .ok()
+                .and_then(|knobs: Mapping| {
+                    knobs
+                        .get(YamlValue::String("injection".to_string()))
+                        .cloned()
+                })
+                .expect("the starter knobs carry an injection list"),
+        )
+        .expect("the starter injection list parses")
     }
 }
 
@@ -216,8 +219,16 @@ fn knob_count(text: &str) -> Option<usize> {
     text.parse().ok()
 }
 
+fn knob_days(text: &str) -> Option<i64> {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok().filter(|days| *days >= -1)
+}
+
 fn knob_env(name: &str) -> Option<String> {
-    std::env::var(format!("IWE_{}", name.to_uppercase()))
+    std::env::var(format!("IWE_{}", name.replace('.', "_").to_uppercase()))
         .ok()
         .filter(|value| !value.trim().is_empty())
 }
@@ -316,69 +327,32 @@ fn slice_from_value(at: usize, value: &YamlValue) -> Result<Slice, String> {
     for name in map.keys() {
         let known = matches!(
             name.as_str(),
-            Some("heading" | "filter" | "recent" | "changed" | "limit" | "sort")
+            Some("heading" | "filter" | "limit" | "sort" | "max_tokens")
         );
         if !known {
             return Err(format!("{}: unknown key {}", label, flow_yaml(name)));
         }
     }
 
-    let mut sources = Vec::new();
-    if let Some(filter) = field("filter") {
-        let (filter, text) = filter_from_value(filter, &format!("{}.filter", label))?;
-        sources.push(SliceSource::Filter(filter, text));
-    }
-    if field("recent").is_some_and(is_truthy) {
-        sources.push(SliceSource::Recent);
-    }
-    if field("changed").is_some_and(is_truthy) {
-        sources.push(SliceSource::Changed);
-    }
-    let source = match sources.len() {
-        1 => sources.pop().expect("one source"),
-        0 => {
-            return Err(format!(
-                "{}: needs one of `filter`, `recent: true` or `changed: true`",
-                label
-            ))
-        }
-        _ => {
-            return Err(format!(
-                "{}: `filter`, `recent` and `changed` are exclusive",
-                label
-            ))
-        }
-    };
-
-    let heading = match field("heading") {
-        Some(YamlValue::String(text)) if !text.trim().is_empty() => text.trim().to_string(),
-        Some(other) => {
-            return Err(format!(
-                "{}: heading must be a non-empty string, got {}",
-                label,
-                flow_yaml(other)
-            ))
-        }
-        None => match &source {
-            SliceSource::Recent => DEFAULT_RECENT_HEADING.to_string(),
-            SliceSource::Filter(_, text) => format!("Matching `{}`:", text),
-            SliceSource::Changed => DEFAULT_CHANGED_HEADING.to_string(),
-        },
-    };
-
-    let limit = match field("limit") {
+    let filter = match field("filter") {
+        Some(value) => Some(filter_from_value(value, &format!("{}.filter", label))?),
         None => None,
+    };
+
+    let count = |name: &str| match field(name) {
+        None => Ok(None),
         Some(value) => match value.as_u64() {
-            Some(count) if count > 0 => Some(count as usize),
-            _ => {
-                return Err(format!(
-                    "{}: limit must be a positive number, got {}",
-                    label,
-                    flow_yaml(value)
-                ))
-            }
+            Some(count) if count > 0 => Ok(Some(count as usize)),
+            _ => Err(format!(
+                "{}: {} must be a positive number, got {}",
+                label,
+                name,
+                flow_yaml(value)
+            )),
         },
     };
+    let limit = count("limit")?;
+    let max_tokens = count("max_tokens")?;
 
     let sort = match field("sort") {
         None => None,
@@ -398,16 +372,34 @@ fn slice_from_value(at: usize, value: &YamlValue) -> Result<Slice, String> {
         }
     };
 
+    if filter.is_none() && sort.is_none() {
+        return Err(format!("{}: needs a `filter` or a `sort`", label));
+    }
+
+    let heading = match field("heading") {
+        Some(YamlValue::String(text)) if !text.trim().is_empty() => text.trim().to_string(),
+        Some(other) => {
+            return Err(format!(
+                "{}: heading must be a non-empty string, got {}",
+                label,
+                flow_yaml(other)
+            ))
+        }
+        None => match (&filter, &sort) {
+            (Some((_, text)), _) => format!("Matching `{}`:", text),
+            (None, Some((field, SortDir::Desc))) => format!("By `{}`, newest first:", field),
+            (None, Some((field, SortDir::Asc))) => format!("By `{}`, oldest first:", field),
+            (None, None) => unreachable!(),
+        },
+    };
+
     Ok(Slice {
         heading,
-        source,
-        limit,
+        filter,
         sort,
+        limit,
+        max_tokens,
     })
-}
-
-fn is_truthy(value: &YamlValue) -> bool {
-    matches!(value, YamlValue::Bool(true))
 }
 
 fn parse_sort_spec(text: &str) -> Option<(String, SortDir)> {
@@ -482,8 +474,7 @@ impl MemoryStore {
     }
 
     pub fn knob(&self, name: &str) -> Option<String> {
-        let text = self.knobs.get(YamlValue::String(name.to_string()))?;
-        let text = scalar_text(text)?;
+        let text = scalar_text(self.knob_value(name)?)?;
         if text.is_empty() || text == "null" {
             return None;
         }
@@ -497,20 +488,28 @@ impl MemoryStore {
             .unwrap_or(default)
     }
 
-    fn knob_value(&self, name: &str) -> Option<&YamlValue> {
-        self.knobs
-            .get(YamlValue::String(name.to_string()))
-            .filter(|value| !matches!(value, YamlValue::Null))
+    pub fn knob_days(&self, name: &str, default: i64) -> i64 {
+        self.knob(name)
+            .and_then(|text| knob_days(&text))
+            .or_else(|| knob_env(name).and_then(|text| knob_days(&text)))
+            .unwrap_or(default)
     }
 
-    pub fn knowledge_filter_spec(&self) -> Result<(Filter, String), String> {
-        if let Some(value) = self.knob_value("knowledge_filter") {
-            return filter_from_value(value, "knowledge_filter");
+    pub fn has_knob(&self, name: &str) -> bool {
+        self.knobs.contains_key(YamlValue::String(name.to_string()))
+    }
+
+    fn knob_value(&self, name: &str) -> Option<&YamlValue> {
+        let mut segments = name.split('.');
+        let mut value = self
+            .knobs
+            .get(YamlValue::String(segments.next()?.to_string()))?;
+        for segment in segments {
+            value = value
+                .as_mapping()?
+                .get(YamlValue::String(segment.to_string()))?;
         }
-        if let Some(text) = knob_env("knowledge_filter") {
-            return filter_from_text(&text, "knowledge_filter");
-        }
-        filter_from_text(DEFAULT_KNOWLEDGE_FILTER, "knowledge_filter")
+        (!matches!(value, YamlValue::Null)).then_some(value)
     }
 
     pub fn injection_slices(&self) -> Result<Vec<Slice>, String> {
@@ -525,26 +524,23 @@ impl MemoryStore {
         Ok(Slice::default_slices())
     }
 
-    pub fn knowledge_filter(&self) -> Filter {
-        self.knowledge_filter_spec()
-            .or_else(|_| filter_from_text(DEFAULT_KNOWLEDGE_FILTER, "knowledge_filter"))
-            .map(|(filter, _)| filter)
-            .unwrap_or(Filter::And(Vec::new()))
-    }
-
-    pub fn knowledge_filter_text(&self) -> String {
-        match self.knowledge_filter_spec() {
-            Ok((_, text)) => text,
-            Err(_) => DEFAULT_KNOWLEDGE_FILTER.to_string(),
-        }
-    }
-
-    pub fn recency_field(&self) -> String {
-        self.knob("recency_field")
-            .or_else(|| knob_env("recency_field"))
-            .map(|text| text.trim().to_string())
-            .filter(|text| !text.is_empty())
-            .unwrap_or_else(|| DEFAULT_RECENCY_FIELD.to_string())
+    pub fn injection_scope(&self) -> Filter {
+        let slices = self
+            .injection_slices()
+            .unwrap_or_else(|_| Slice::default_slices());
+        let mut parts: Vec<Filter> = slices
+            .into_iter()
+            .map(|slice| match slice.filter {
+                Some((filter, _)) => filter,
+                None => Filter::And(Vec::new()),
+            })
+            .collect();
+        let selected = if parts.len() == 1 {
+            parts.pop().expect("one slice")
+        } else {
+            Filter::Or(parts)
+        };
+        Filter::And(vec![selected, machinery_exclusion()])
     }
 
     pub fn policy_body(&self) -> String {

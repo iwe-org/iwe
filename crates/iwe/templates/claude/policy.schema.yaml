@@ -4,14 +4,6 @@ description: the MEMORY.md policy document, in the shape this binary reads it
 frontmatter:
   type: object
   properties:
-    knowledge_filter:
-      description: the query that says which documents are this store's memory, as a filter document or an inline flow-YAML string
-      anyOf:
-        - $ref: "https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/filter"
-        - type: string
-    recency_field:
-      description: the frontmatter field the recent slice orders by, one field path
-      $ref: "https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/fieldPath"
     injection:
       description: the slices session start puts in front of every session; remove the knob to get the default rather than emptying the list
       type: array
@@ -25,16 +17,10 @@ frontmatter:
             type: string
             pattern: "\\S"
           filter:
-            description: "source: the documents this query matches"
+            description: the documents this slice lists, as a filter document or an inline flow-YAML string
             anyOf:
               - $ref: "https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/filter"
               - type: string
-          recent:
-            description: "source: the most recently recorded documents, newest first"
-            type: boolean
-          changed:
-            description: "source: the documents mentioning files changed in the working tree"
-            type: boolean
           limit:
             description: how many documents the slice lists
             type: integer
@@ -43,30 +29,30 @@ frontmatter:
             description: the ordering, as <field>:1 or <field>:-1
             type: string
             pattern: "^\\s*\\S+\\s*:\\s*(1|-1)\\s*$"
-        oneOf:
+          max_tokens:
+            description: the token budget for this slice, heading included
+            type: integer
+            minimum: 1
+        anyOf:
           - required: [filter]
-          - required: [recent]
-            properties:
-              recent: { const: true }
-          - required: [changed]
-            properties:
-              changed: { const: true }
-    max_proposals_per_read:
-      description: how many proposals one read of a session may put forward
-      type: integer
-      minimum: 0
-    remind_every_days:
-      description: how often the undistilled-sessions reminder comes back, in days
-      type: integer
-      minimum: 0
-    chunk_chars:
-      description: how much of a session transcript one read covers, in characters
-      type: integer
-      minimum: 0
-    injection_max_tokens:
-      description: the token budget for everything session start puts in front of a session
-      type: integer
-      minimum: 0
+          - required: [sort]
+    distill:
+      description: how /iwe:distill reads a session
+      type: object
+      additionalProperties: false
+      properties:
+        max_chunk_size:
+          description: how much of a session transcript one read covers, in characters
+          type: integer
+          minimum: 1
+        max_proposals:
+          description: how many proposals one read of a session may put forward
+          type: integer
+          minimum: 0
+        remind_after_days:
+          description: days after the last reminder before the undistilled-sessions reminder comes back; 0 every session, -1 never
+          type: integer
+          minimum: -1
 
 sections:
   - description: the policy opens with one title section; everything below it is read by heading
