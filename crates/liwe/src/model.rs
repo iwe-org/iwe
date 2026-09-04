@@ -273,9 +273,18 @@ pub trait InlinesContext: Copy {
 }
 
 pub fn is_ref_url(url: &str) -> bool {
-    !(url.to_lowercase().starts_with("http://")
-        || url.to_lowercase().starts_with("https://")
-        || url.to_lowercase().starts_with("mailto:"))
+    !has_uri_scheme(url)
+}
+
+fn has_uri_scheme(url: &str) -> bool {
+    let Some((scheme, _)) = url.split_once(':') else {
+        return false;
+    };
+    scheme.len() >= 2
+        && scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+        && scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
 }
 
 pub fn normalize_url(url: &str, extension: &str) -> String {
@@ -289,5 +298,66 @@ pub fn normalize_url(url: &str, extension: &str) -> String {
             fragment
         ),
         None => url.strip_suffix(extension).unwrap_or(url).to_string(),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{is_ref_url, normalize_url};
+
+    #[test]
+    fn tel_url_is_external() {
+        assert!(!is_ref_url("tel:+15551234"));
+    }
+
+    #[test]
+    fn app_and_transport_schemes_are_external() {
+        assert!(!is_ref_url("ftp://example.org/file"));
+        assert!(!is_ref_url("file:///home/user/notes.md"));
+        assert!(!is_ref_url("obsidian://open?vault=notes"));
+        assert!(!is_ref_url("zotero://select/items/1_ABCDEFGH"));
+    }
+
+    #[test]
+    fn web_schemes_stay_external_regardless_of_case() {
+        assert!(!is_ref_url("http://example.org"));
+        assert!(!is_ref_url("https://example.org"));
+        assert!(!is_ref_url("mailto:someone@example.org"));
+        assert!(!is_ref_url("HTTPS://example.org"));
+        assert!(!is_ref_url("MailTo:someone@example.org"));
+    }
+
+    #[test]
+    fn windows_drive_letters_are_internal() {
+        assert!(is_ref_url("C:/Users/notes/file.md"));
+        assert!(is_ref_url("D:\\notes\\file.md"));
+    }
+
+    #[test]
+    fn leading_digit_is_not_a_scheme() {
+        assert!(is_ref_url("2024: review.md"));
+    }
+
+    #[test]
+    fn fragment_only_url_is_internal() {
+        assert!(is_ref_url("#anchor"));
+    }
+
+    #[test]
+    fn paths_are_internal() {
+        assert!(is_ref_url("./file.md"));
+        assert!(is_ref_url("file.md"));
+        assert!(is_ref_url("/abs/file.md"));
+        assert!(is_ref_url("../up/file.md"));
+    }
+
+    #[test]
+    fn normalize_url_leaves_scheme_urls_untouched() {
+        assert_eq!("tel:+15551234", normalize_url("tel:+15551234", ".md"));
+    }
+
+    #[test]
+    fn normalize_url_strips_extension_from_paths() {
+        assert_eq!("folder/file", normalize_url("folder/file.md", ".md"));
     }
 }
