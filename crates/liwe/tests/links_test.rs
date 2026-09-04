@@ -7,7 +7,8 @@ use liwe::model::config::{MarkdownOptions, RefsPath, RefsText, WikiLinkPath};
 use liwe::{
     graph::Graph,
     markdown::MarkdownReader,
-    model::State,
+    model::{Key, State},
+    operations::rename,
     state::{from_indoc, to_indoc},
 };
 
@@ -813,6 +814,86 @@ fn refs_path_absolute_emits_root_absolute_link_on_normalize() {
             refs_text: RefsText::Normalize,
             ..Default::default()
         },
+    );
+}
+
+#[test]
+fn wiki_link_resolves_key_with_different_case() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[Target]]\n"),
+            ("clippings/Target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[[target]]\n"),
+            ("clippings/Target", "# Target\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Short,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wiki_link_keeps_full_path_when_only_case_distinguishes_keys() {
+    compare_state_with_options(
+        vec![
+            ("notes/note", "[[clippings/Target]]\n"),
+            ("clippings/Target", "# Target\n"),
+            ("clippings/target", "# Other\n"),
+        ],
+        vec![
+            ("notes/note", "[[clippings/Target]]\n"),
+            ("clippings/Target", "# Target\n"),
+            ("clippings/target", "# Other\n"),
+        ],
+        MarkdownOptions {
+            wiki_link_path: WikiLinkPath::Short,
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn inline_link_case_is_not_folded() {
+    compare_state(
+        vec![
+            ("notes/note", "[text](Target)\n"),
+            ("notes/target", "# Target\n"),
+        ],
+        vec![
+            ("notes/note", "[text](Target)\n"),
+            ("notes/target", "# Target\n"),
+        ],
+    );
+}
+
+#[test]
+fn rename_rewrites_wiki_link_with_different_case() {
+    setup();
+
+    let state: State = vec![
+        ("notes/note".to_string(), "[[target]]\n".to_string()),
+        ("clippings/Target".to_string(), "# Target\n".to_string()),
+    ]
+    .into_iter()
+    .collect();
+
+    let graph = Graph::import(&state, MarkdownOptions::default(), None);
+    let changes = rename(
+        &graph,
+        &Key::name("clippings/Target"),
+        &Key::name("clippings/Renamed"),
+    )
+    .expect("rename should succeed");
+
+    assert_eq!(
+        vec![(
+            Key::name("notes/note"),
+            "[[clippings/Renamed]]\n".to_string()
+        )],
+        changes.updates
     );
 }
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Go-to-definition, hover and code actions skip links with a URI scheme (`tel:`, `ftp:`, `file:`, …) instead of treating them as document references
+- Wikilinks resolve regardless of case, so `[[target]]` opens `Target.md`
+
 ## [0.23.0](https://github.com/iwe-org/iwe/compare/iwes-v0.22.0...iwes-v0.23.0) - 2026-08-30
 
 Workspace version bump — no user-visible changes in this crate.

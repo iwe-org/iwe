@@ -15,4 +15,4 @@ IWE allows you to build a notes library that can support basic journaling as wel
 
 This is all possible because of IWE's unique [Architecture](architecture.md). IWE loads notes into an in-memory graph structure, which understands the hierarchy of headers and lists. This allows it to go through the graph, reorganize, and transform the content as needed using graph iterators.
 
-[Unique Features](comparison.md)
+[Feature Overview](feature-overview.md)

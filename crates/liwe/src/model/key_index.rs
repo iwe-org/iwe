@@ -17,7 +17,7 @@ impl KeyIndex {
 
         for key in keys {
             by_basename
-                .entry(key.source())
+                .entry(fold(&key.source()))
                 .or_default()
                 .push(key.clone());
         }
@@ -37,7 +37,7 @@ impl KeyIndex {
     }
 
     pub fn insert(&mut self, key: &Key) {
-        let bucket = self.by_basename.entry(key.source()).or_default();
+        let bucket = self.by_basename.entry(fold(&key.source())).or_default();
         if !bucket.contains(key) {
             bucket.push(key.clone());
             bucket.sort_by(resolution_order);
@@ -45,10 +45,11 @@ impl KeyIndex {
     }
 
     pub fn remove(&mut self, key: &Key) {
-        if let Some(bucket) = self.by_basename.get_mut(&key.source()) {
+        let basename = fold(&key.source());
+        if let Some(bucket) = self.by_basename.get_mut(&basename) {
             bucket.retain(|existing| existing != key);
             if bucket.is_empty() {
-                self.by_basename.remove(&key.source());
+                self.by_basename.remove(&basename);
             }
         }
     }
@@ -61,13 +62,18 @@ impl KeyIndex {
         let Some(basename) = segs.last() else {
             return Key::name(&target);
         };
-        let Some(bucket) = self.by_basename.get(*basename) else {
+        let Some(bucket) = self.by_basename.get(&fold(basename)) else {
             return Key::name(&target);
         };
 
         bucket
             .iter()
             .find(|key| ends_with_segments(key, &segs))
+            .or_else(|| {
+                bucket
+                    .iter()
+                    .find(|key| ends_with_segments_folded(key, &segs))
+            })
             .or_else(|| bucket.first())
             .cloned()
             .unwrap_or_else(|| Key::name(&target))
@@ -81,13 +87,15 @@ impl KeyIndex {
         let Some(basename) = segs.last() else {
             return path;
         };
-        let Some(bucket) = self.by_basename.get(*basename) else {
+        let Some(bucket) = self.by_basename.get(&fold(basename)) else {
             return path;
         };
 
         for length in 1..=segs.len() {
             let suffix = &segs[segs.len() - length..];
-            let mut matching = bucket.iter().filter(|key| ends_with_segments(key, suffix));
+            let mut matching = bucket
+                .iter()
+                .filter(|key| ends_with_segments_folded(key, suffix));
             if let (Some(only), None) = (matching.next(), matching.next()) {
                 if only == target {
                     return suffix.join("/");
@@ -118,6 +126,19 @@ fn segments(path: &str) -> Vec<&str> {
 fn ends_with_segments(key: &Key, suffix: &[&str]) -> bool {
     let key_segs = segments(key.as_str());
     key_segs.len() >= suffix.len() && key_segs[key_segs.len() - suffix.len()..] == *suffix
+}
+
+fn ends_with_segments_folded(key: &Key, suffix: &[&str]) -> bool {
+    let key_segs = segments(key.as_str());
+    key_segs.len() >= suffix.len()
+        && key_segs[key_segs.len() - suffix.len()..]
+            .iter()
+            .zip(suffix)
+            .all(|(left, right)| fold(left) == fold(right))
+}
+
+fn fold(text: &str) -> String {
+    text.to_lowercase()
 }
 
 fn segment_count(key: &Key) -> usize {
@@ -287,5 +308,121 @@ mod test {
         let mut index = index(&["first/note", "second/target"]);
         index.remove(&Key::name("second/target"));
         assert_eq!(Key::name("target"), index.resolve_wiki("target"));
+    }
+
+    #[test]
+    fn lowercase_name_resolves_capitalized_key() {
+        let index = index(&["notes/Target"]);
+        assert_eq!(Key::name("notes/Target"), index.resolve_wiki("target"));
+    }
+
+    #[test]
+    fn capitalized_name_resolves_lowercase_key() {
+        let index = index(&["notes/target"]);
+        assert_eq!(Key::name("notes/target"), index.resolve_wiki("Target"));
+    }
+
+    #[test]
+    fn folded_directory_segment_resolves() {
+        let index = index(&["Notes/Target"]);
+        assert_eq!(
+            Key::name("Notes/Target"),
+            index.resolve_wiki("notes/target")
+        );
+    }
+
+    #[test]
+    fn exact_case_wins_over_folded_match() {
+        let index = index(&["notes/Target", "notes/target"]);
+        assert_eq!(Key::name("notes/target"), index.resolve_wiki("target"));
+        assert_eq!(Key::name("notes/Target"), index.resolve_wiki("Target"));
+    }
+
+    #[test]
+    fn unmatched_case_picks_deterministically() {
+        let index = index(&["notes/Target", "notes/target"]);
+        assert_eq!(Key::name("notes/Target"), index.resolve_wiki("TARGET"));
+        assert_eq!(Key::name("notes/Target"), index.resolve_wiki("TARGET"));
+    }
+
+    #[test]
+    fn shorten_keeps_full_path_when_only_case_differs() {
+        let index = index(&["notes/Target", "notes/target"]);
+        assert_eq!(
+            "notes/Target",
+            index.shorten_wiki(&Key::name("notes/Target"))
+        );
+        assert_eq!(
+            "notes/target",
+            index.shorten_wiki(&Key::name("notes/target"))
+        );
+    }
+
+    #[test]
+    fn shorten_keeps_full_path_when_case_differs_across_directories() {
+        let index = index(&["first/Target", "second/target"]);
+        assert_eq!(
+            "first/Target",
+            index.shorten_wiki(&Key::name("first/Target"))
+        );
+        assert_eq!(
+            "second/target",
+            index.shorten_wiki(&Key::name("second/target"))
+        );
+    }
+
+    #[test]
+    fn shorten_then_resolve_round_trips_with_mixed_case() {
+        let index = index(&["first/Target", "second/target"]);
+        let shortened = index.shorten_wiki(&Key::name("first/Target"));
+        assert_eq!(Key::name("first/Target"), index.resolve_wiki(&shortened));
+    }
+
+    #[test]
+    fn non_ascii_name_folds() {
+        let index = index(&["notes/Caf\u{e9}"]);
+        assert_eq!(
+            Key::name("notes/Caf\u{e9}"),
+            index.resolve_wiki("caf\u{e9}")
+        );
+    }
+
+    #[test]
+    fn astral_name_resolves_unchanged() {
+        let index = index(&["notes/\u{1f600}note"]);
+        assert_eq!(
+            Key::name("notes/\u{1f600}note"),
+            index.resolve_wiki("\u{1f600}note")
+        );
+    }
+
+    #[test]
+    fn insert_and_remove_keep_case_variants_apart() {
+        let mut index = index(&["notes/Target"]);
+        index.insert(&Key::name("notes/target"));
+        assert_eq!(Key::name("notes/target"), index.resolve_wiki("target"));
+        assert_eq!(Key::name("notes/Target"), index.resolve_wiki("Target"));
+
+        index.remove(&Key::name("notes/Target"));
+        assert_eq!(Key::name("notes/target"), index.resolve_wiki("target"));
+        assert_eq!(Key::name("notes/target"), index.resolve_wiki("Target"));
+    }
+
+    #[test]
+    fn markdown_links_do_not_fold_case() {
+        let index = index(&["notes/target"]);
+        assert_eq!(
+            Key::name("notes/Target"),
+            index.resolve_link_key("Target.md", "notes", ReferenceType::Regular)
+        );
+    }
+
+    #[test]
+    fn wiki_links_fold_case_through_resolve_link_key() {
+        let index = index(&["notes/Target"]);
+        assert_eq!(
+            Key::name("notes/Target"),
+            index.resolve_link_key("target", "notes", ReferenceType::WikiLink)
+        );
     }
 }
