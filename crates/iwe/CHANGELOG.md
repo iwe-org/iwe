@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `iwe stats` no longer reports links with a URI scheme (`tel:`, `ftp:`, `file:`, …) as broken — they are external links, not document references
 - `[[target]]` resolves to `Target.md`, and `iwe normalize` rewrites and shortens such links to the document they point at
+- `iwe normalize` keeps existing line breaks when `wrap_column` and `preserve_newlines` are both set (the two options together used to collapse a paragraph into a single reflowed block)
+- `iwe normalize` applies `preserve_newlines` and `wrap_column` to djot documents, which previously ignored both
+- `iwe normalize` no longer turns an escaped block marker at the start of a djot paragraph (`\- `, `\# `, `\> `, `1\. `, `\|`) into a real list, heading, quote or table
 
 ## [0.23.0](https://github.com/iwe-org/iwe/compare/iwe-v0.22.0...iwe-v0.23.0) - 2026-08-30
 

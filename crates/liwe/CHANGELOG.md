@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `is_ref_url` treats any URL with a URI scheme (`tel:`, `ftp:`, `file:`, `obsidian:`, `zotero:`, …) as external instead of only `http:`, `https:` and `mailto:`, so those links no longer turn into document keys; a Windows drive letter such as `C:/notes/file.md` stays a path
 - Wikilink lookup ignores case, so `[[target]]` finds `Target.md`; an exact-case match still wins, keys stay case-preserving, and `iwe normalize` keeps the full path rather than shortening a link that two keys differing only by case would both answer to
+- `wrap_column` no longer discards preserved soft line breaks: with `preserve_newlines` on, each line is wrapped on its own instead of the whole paragraph being reflowed into one block
+- Djot honors `preserve_newlines`: soft line breaks in a `.dj` paragraph are kept instead of always being joined into one line
+- Djot honors `wrap_column`, wrapping paragraphs the same way markdown does — inline code, math and link URLs stay atomic, and list and blockquote indents are subtracted from the effective width
+- `[djot.formatting]` values are range-checked on load like `[markdown.formatting]`, so an out-of-range `wrap_column` falls back to the default instead of being used as written
+- Djot keeps escaped block markers escaped when writing, so a paragraph starting with `\- `, `\# `, `\> `, `1\. ` or `\|` is not silently turned into a list, heading, quote or table on the next normalize
 
 ## [0.23.0](https://github.com/iwe-org/iwe/compare/liwe-v0.22.0...liwe-v0.23.0) - 2026-08-30
 
