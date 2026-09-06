@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.1](https://github.com/iwe-org/iwe/compare/liwe-v0.23.0...liwe-v0.23.1) - 2026-09-06
+
 ### Fixed
 - `is_ref_url` treats any URL with a URI scheme (`tel:`, `ftp:`, `file:`, `obsidian:`, `zotero:`, …) as external instead of only `http:`, `https:` and `mailto:`, so those links no longer turn into document keys; a Windows drive letter such as `C:/notes/file.md` stays a path
 - Wikilink lookup ignores case, so `[[target]]` finds `Target.md`; an exact-case match still wins, keys stay case-preserving, and `iwe normalize` keeps the full path rather than shortening a link that two keys differing only by case would both answer to
