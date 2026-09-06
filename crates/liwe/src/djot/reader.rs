@@ -94,12 +94,16 @@ impl DjotEventsReader {
                 }
                 Event::FootnoteReference(_) => {}
                 Event::Softbreak => {
-                    self.push_inline(
+                    let inline = if self.options.formatting.preserve_newlines() {
+                        DocumentInline::SoftBreak(SoftBreak {
+                            inline_range: InlineRange::default(),
+                        })
+                    } else {
                         DocumentInline::Space(Space {
                             inline_range: InlineRange::default(),
-                        }),
-                        self.to_line_range(range),
-                    );
+                        })
+                    };
+                    self.push_inline(inline, self.to_line_range(range));
                     self.pop_inline();
                 }
                 Event::Hardbreak => {

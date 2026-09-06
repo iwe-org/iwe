@@ -1,7 +1,8 @@
 use crate::model::config::DjotOptions;
 use crate::model::document::{LinkType, MathType};
 use crate::model::inline::{
-    append_refs_extension, detect_and_strip_checkbox, Attributes, Inline, Inlines,
+    append_refs_extension, detect_and_strip_checkbox, text_to_inlines, Attributes, Inline, Inlines,
+    TextSink, TokenStream,
 };
 use crate::model::is_ref_url;
 use crate::model::node::ColumnAlignment;
@@ -23,24 +24,29 @@ impl DjotWriter {
 
 impl DjotWriter {
     pub fn write(&self, blocks: &Blocks, options: &DjotOptions) -> String {
-        blocks_to_djot(blocks, options, false)
+        blocks_to_djot(blocks, options, false, 0)
     }
 
     pub fn write_skip_frontmatter(&self, blocks: &Blocks, options: &DjotOptions) -> String {
-        blocks_to_djot(blocks, options, true)
+        blocks_to_djot(blocks, options, true, 0)
     }
 }
 
-fn blocks_to_djot(blocks: &Blocks, options: &DjotOptions, skip_frontmatter: bool) -> String {
+fn blocks_to_djot(
+    blocks: &Blocks,
+    options: &DjotOptions,
+    skip_frontmatter: bool,
+    indent: usize,
+) -> String {
     let parts: Vec<String> = blocks
         .iter()
         .filter(|block| !(skip_frontmatter && matches!(block, Block::Frontmatter(_))))
-        .map(|block| block_to_djot(block, options))
+        .map(|block| block_to_djot(block, options, indent))
         .collect();
     ensure_trailing_newline(parts.join("\n"))
 }
 
-fn block_to_djot(block: &Block, options: &DjotOptions) -> String {
+fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String {
     match block {
         Block::Frontmatter(mapping) => {
             format!("---\n{}---\n", frontmatter_to_yaml(mapping))
@@ -53,7 +59,7 @@ fn block_to_djot(block: &Block, options: &DjotOptions) -> String {
             )
         }
         Block::Para(inlines) | Block::Plain(inlines) => {
-            format!("{}\n", inlines_to_djot(inlines, options))
+            format!("{}\n", wrap_inlines_djot(inlines, options, indent))
         }
         Block::LineBlock(lines) => {
             let body = lines
@@ -73,7 +79,7 @@ fn block_to_djot(block: &Block, options: &DjotOptions) -> String {
         }
         Block::RawBlock(_, text) => ensure_trailing_newline(text.clone()),
         Block::BlockQuote(blocks) => {
-            let inner = blocks_to_djot(blocks, options, false);
+            let inner = blocks_to_djot(blocks, options, false, indent + 2);
             let quoted = inner
                 .lines()
                 .map(|line| {
@@ -87,13 +93,13 @@ fn block_to_djot(block: &Block, options: &DjotOptions) -> String {
                 .join("\n");
             format!("{}\n", quoted)
         }
-        Block::BulletList(items) => list_to_djot(items, options, false),
-        Block::OrderedList(items) => list_to_djot(items, options, true),
+        Block::BulletList(items) => list_to_djot(items, options, false, indent),
+        Block::OrderedList(items) => list_to_djot(items, options, true, indent),
         Block::Table(header, alignment, rows) => table_to_djot(header, alignment, rows, options),
     }
 }
 
-fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool) -> String {
+fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool, indent: usize) -> String {
     let mut out = String::new();
     for (index, item) in items.iter().enumerate() {
         let marker = if ordered {
@@ -105,7 +111,7 @@ fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool) -> Strin
         let pad = marker.chars().count() + 1;
         let item_text: String = item
             .iter()
-            .map(|block| block_to_djot(block, options))
+            .map(|block| block_to_djot(block, options, indent + pad))
             .collect::<Vec<String>>()
             .join("\n");
         for (n, line) in item_text.lines().enumerate() {
@@ -184,94 +190,149 @@ fn table_to_djot(
 
 fn inlines_to_djot(inlines: &Inlines, options: &DjotOptions) -> String {
     let mut out = String::new();
-    for inline in inlines {
-        render_inline_djot(inline, options, &mut out);
-    }
+    render_inlines_djot(inlines, options, &mut out, false);
     out
 }
 
-fn render_inline_djot(inline: &Inline, options: &DjotOptions, out: &mut String) {
+#[derive(Clone, Copy, PartialEq)]
+enum BlockPos {
+    Start,
+    AfterDigits,
+    Mid,
+}
+
+fn render_inlines_djot<S: TextSink>(
+    inlines: &Inlines,
+    options: &DjotOptions,
+    out: &mut S,
+    block_start: bool,
+) {
+    let mut pos = if block_start {
+        BlockPos::Start
+    } else {
+        BlockPos::Mid
+    };
+    for (index, inline) in inlines.iter().enumerate() {
+        let next = inlines.get(index + 1);
+        let followed_by_space = next.is_none_or(|inline| matches!(inline, Inline::Space));
+        render_inline_djot(inline, options, out, pos, followed_by_space);
+        pos = advance_block_pos(pos, inline);
+    }
+}
+
+fn advance_block_pos(pos: BlockPos, inline: &Inline) -> BlockPos {
     match inline {
-        Inline::Str(text) => out.push_str(&escape_djot(text)),
-        Inline::Space => out.push(' '),
-        Inline::SoftBreak => out.push('\n'),
-        Inline::LineBreak => out.push_str("\\\n"),
+        Inline::Space if pos == BlockPos::Start => BlockPos::Start,
+        Inline::Str(text)
+            if pos == BlockPos::Start
+                && !text.is_empty()
+                && text.chars().all(|c| c.is_ascii_digit()) =>
+        {
+            BlockPos::AfterDigits
+        }
+        _ => BlockPos::Mid,
+    }
+}
+
+fn wrap_inlines_djot(inlines: &Inlines, options: &DjotOptions, indent: usize) -> String {
+    let Some(width) = options.formatting.wrap_column() else {
+        let mut out = String::new();
+        render_inlines_djot(inlines, options, &mut out, true);
+        return out;
+    };
+    let mut stream = TokenStream::default();
+    render_inlines_djot(inlines, options, &mut stream, true);
+    stream.wrap(width.saturating_sub(indent).max(20))
+}
+
+fn render_inline_djot<S: TextSink>(
+    inline: &Inline,
+    options: &DjotOptions,
+    out: &mut S,
+    pos: BlockPos,
+    followed_by_space: bool,
+) {
+    match inline {
+        Inline::Str(text) => out.push(&escape_djot_at(text, pos, followed_by_space)),
+        Inline::Space => out.space(),
+        Inline::SoftBreak => out.soft_break(),
+        Inline::LineBreak => out.line_break("\\\n"),
         Inline::Emph(inner) => {
-            out.push('_');
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push('_');
+            out.push("_");
+            render_inlines_djot(inner, options, out, false);
+            out.push("_");
         }
         Inline::Strong(inner) => {
-            out.push('*');
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push('*');
+            out.push("*");
+            render_inlines_djot(inner, options, out, false);
+            out.push("*");
         }
         Inline::Strikeout(inner) => {
-            out.push_str("{-");
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push_str("-}");
+            out.push("{-");
+            render_inlines_djot(inner, options, out, false);
+            out.push("-}");
         }
         Inline::Underline(inner) => {
-            out.push_str("{+");
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push_str("+}");
+            out.push("{+");
+            render_inlines_djot(inner, options, out, false);
+            out.push("+}");
         }
         Inline::Insert(inner) => {
-            out.push_str("{+");
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push_str("+}");
+            out.push("{+");
+            render_inlines_djot(inner, options, out, false);
+            out.push("+}");
         }
         Inline::Delete(inner) => {
-            out.push_str("{-");
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push_str("-}");
+            out.push("{-");
+            render_inlines_djot(inner, options, out, false);
+            out.push("-}");
         }
         Inline::Mark(inner) => {
-            out.push_str("{=");
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push_str("=}");
+            out.push("{=");
+            render_inlines_djot(inner, options, out, false);
+            out.push("=}");
         }
         Inline::Symbol(text) => {
-            out.push(':');
-            out.push_str(text);
-            out.push(':');
+            out.push(":");
+            out.push(text);
+            out.push(":");
         }
         Inline::Span(attr, inner) => {
-            out.push('[');
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push(']');
-            out.push_str(&render_attributes(attr));
+            out.push("[");
+            render_inlines_djot(inner, options, out, false);
+            out.push("]");
+            out.push(&render_attributes(attr));
         }
         Inline::Superscript(inner) => {
-            out.push('^');
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push('^');
+            out.push("^");
+            render_inlines_djot(inner, options, out, false);
+            out.push("^");
         }
         Inline::Subscript(inner) => {
-            out.push('~');
-            out.push_str(&inlines_to_djot(inner, options));
-            out.push('~');
+            out.push("~");
+            render_inlines_djot(inner, options, out, false);
+            out.push("~");
         }
-        Inline::SmallCaps(inner) => out.push_str(&inlines_to_djot(inner, options)),
+        Inline::SmallCaps(inner) => render_inlines_djot(inner, options, out, false),
         Inline::Code(_, body) => render_verbatim(body, out),
         Inline::Math(math_type, body) => {
-            out.push_str(if *math_type == MathType::DisplayMath {
+            out.push(if *math_type == MathType::DisplayMath {
                 "$$"
             } else {
                 "$"
             });
             render_verbatim(body, out);
         }
-        Inline::RawInline(_, content) => out.push_str(content),
+        Inline::RawInline(_, content) => out.push(content),
         Inline::Link(url, _, link_type, inlines) => {
             let inner = inlines_to_djot(inlines, options);
             if *link_type == LinkType::Markdown
                 && !is_ref_url(url)
                 && inner.eq_ignore_ascii_case(url)
             {
-                out.push('<');
-                out.push_str(url);
-                out.push('>');
+                out.push("<");
+                out.push(url);
+                out.push(">");
                 return;
             }
             let final_url = if is_ref_url(url) {
@@ -279,32 +340,32 @@ fn render_inline_djot(inline: &Inline, options: &DjotOptions, out: &mut String) 
             } else {
                 url.to_string()
             };
-            out.push('[');
-            out.push_str(&inner);
-            out.push_str("](");
-            out.push_str(&final_url);
-            out.push(')');
+            out.push("[");
+            render_inlines_djot(inlines, options, out, false);
+            out.push("](");
+            out.push(&final_url);
+            out.push(")");
         }
         Inline::Reference(reference) => {
             let url =
                 append_refs_extension(&reference.key.to_library_url(), &options.refs_extension);
-            out.push('[');
-            out.push_str(&escape_djot(&reference.text));
-            out.push_str("](");
-            out.push_str(&url);
-            out.push(')');
+            out.push("[");
+            render_inlines_djot(&text_to_inlines(&reference.text), options, out, false);
+            out.push("](");
+            out.push(&url);
+            out.push(")");
         }
         Inline::Image(url, _, alt) => {
-            out.push_str("![");
-            out.push_str(&inlines_to_djot(alt, options));
-            out.push_str("](");
-            out.push_str(url);
-            out.push(')');
+            out.push("![");
+            render_inlines_djot(alt, options, out, false);
+            out.push("](");
+            out.push(url);
+            out.push(")");
         }
     }
 }
 
-fn render_verbatim(body: &str, out: &mut String) {
+fn render_verbatim<S: TextSink>(body: &str, out: &mut S) {
     let mut max_run = 0;
     let mut run = 0;
     for ch in body.chars() {
@@ -317,15 +378,22 @@ fn render_verbatim(body: &str, out: &mut String) {
     }
     let fence = "`".repeat(max_run + 1);
     let padded = body.starts_with('`') || body.ends_with('`');
-    out.push_str(&fence);
+    out.push(&fence);
     if padded {
-        out.push(' ');
+        out.push(" ");
     }
-    out.push_str(body);
+    out.push(body);
     if padded {
-        out.push(' ');
+        out.push(" ");
     }
-    out.push_str(&fence);
+    out.push(&fence);
+}
+
+fn escape_djot_at(text: &str, pos: BlockPos, followed_by_space: bool) -> String {
+    match block_marker_escape(text, pos, followed_by_space) {
+        Some(escaped) => escaped,
+        None => escape_djot(text),
+    }
 }
 
 fn escape_djot(text: &str) -> String {
@@ -340,6 +408,34 @@ fn escape_djot(text: &str) -> String {
         out.push(ch);
     }
     out
+}
+
+fn block_marker_escape(word: &str, pos: BlockPos, followed_by_space: bool) -> Option<String> {
+    if word.is_empty() {
+        return None;
+    }
+    let all = |c: char| word.chars().all(|ch| ch == c);
+
+    match pos {
+        BlockPos::AfterDigits if followed_by_space && matches!(word, "." | ")") => {
+            Some(format!("\\{}", word))
+        }
+        BlockPos::Start => {
+            let marker = if word.starts_with('|') {
+                true
+            } else if all('-') {
+                followed_by_space || word.len() >= 3
+            } else if word == "+" || word == ":" || word.starts_with('>') {
+                followed_by_space
+            } else if all('#') {
+                word.len() <= 6 && followed_by_space
+            } else {
+                false
+            };
+            marker.then(|| format!("\\{}", escape_djot(word)))
+        }
+        _ => None,
+    }
 }
 
 fn render_attributes(attr: &Attributes) -> String {

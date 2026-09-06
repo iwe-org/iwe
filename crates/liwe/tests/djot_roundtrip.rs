@@ -1,6 +1,6 @@
 use indoc::indoc;
 use liwe::graph::Graph;
-use liwe::model::config::{DjotOptions, FormatOptions};
+use liwe::model::config::{DjotOptions, FormatOptions, FormattingOptions};
 
 fn djot_options() -> FormatOptions {
     FormatOptions::Djot(DjotOptions::default())
@@ -217,4 +217,181 @@ fn span_with_attribute_pair() {
         A [x]{lang=en} span.
         "};
     assert_eq!(input, roundtrip(input));
+}
+
+fn format_with(input: &str, formatting: FormattingOptions) -> String {
+    let mut graph = Graph::new_with_options(FormatOptions::Djot(DjotOptions {
+        formatting,
+        ..Default::default()
+    }));
+    graph.insert_document("key".into(), input.to_string());
+    graph.to_markdown(&"key".into())
+}
+
+#[test]
+fn preserve_newlines_keeps_soft_breaks() {
+    let input = indoc! {"
+        first line
+        second line
+        "};
+    assert_eq!(
+        input,
+        format_with(
+            input,
+            FormattingOptions {
+                preserve_newlines: Some(true),
+                ..Default::default()
+            }
+        )
+    );
+}
+
+#[test]
+fn soft_breaks_join_with_space_by_default() {
+    assert_eq!(
+        "first line second line\n",
+        format_with(
+            indoc! {"
+                first line
+                second line
+                "},
+            FormattingOptions::default()
+        )
+    );
+}
+
+#[test]
+fn wrap_column_wraps_long_paragraph() {
+    assert_eq!(
+        indoc! {"
+            alpha beta gamma delta epsilon
+            zeta eta theta iota kappa
+            "},
+        format_with(
+            "alpha beta gamma delta epsilon zeta eta theta iota kappa\n",
+            FormattingOptions {
+                wrap_column: Some(30),
+                ..Default::default()
+            }
+        )
+    );
+}
+
+#[test]
+fn wrap_column_keeps_inline_code_and_link_url_atomic() {
+    assert_eq!(
+        indoc! {"
+            alpha `code with spaces` [link
+            text](https://example.com/a/b)
+            omega
+            "},
+        format_with(
+            "alpha `code with spaces` [link text](https://example.com/a/b) omega\n",
+            FormattingOptions {
+                wrap_column: Some(30),
+                ..Default::default()
+            }
+        )
+    );
+}
+
+#[test]
+fn wrap_column_wraps_each_preserved_newline_separately() {
+    assert_eq!(
+        indoc! {"
+            alpha beta gamma delta
+            epsilon zeta
+            eta theta iota
+            "},
+        format_with(
+            "alpha beta gamma delta epsilon zeta\neta theta iota\n",
+            FormattingOptions {
+                wrap_column: Some(25),
+                preserve_newlines: Some(true),
+                ..Default::default()
+            }
+        )
+    );
+}
+
+#[test]
+fn wrap_column_subtracts_list_indent() {
+    assert_eq!(
+        indoc! {"
+            - alpha beta gamma
+              delta epsilon zeta
+            "},
+        format_with(
+            "- alpha beta gamma delta epsilon zeta\n",
+            FormattingOptions {
+                wrap_column: Some(20),
+                ..Default::default()
+            }
+        )
+    );
+}
+
+#[test]
+fn escaped_bullet_marker_survives_normalization() {
+    let input = "\\- not a list\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn escaped_heading_marker_survives_normalization() {
+    let input = "\\# not a heading\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn escaped_quote_marker_survives_normalization() {
+    let input = "\\> not a quote\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn escaped_ordered_marker_survives_normalization() {
+    let input = "1\\. not ordered\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn escaped_table_marker_survives_normalization() {
+    let input = "\\| not a table\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn escaped_marker_inside_list_item_survives_normalization() {
+    let input = "- \\- not nested\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn block_markers_are_not_escaped_mid_paragraph() {
+    let input = "normal - dash - text\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn marker_without_trailing_space_is_not_escaped() {
+    let input = "-dash no space\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn wrapped_continuation_line_does_not_escape_markers() {
+    assert_eq!(
+        indoc! {"
+            alphabeta gammadelta
+            - epsilon
+            "},
+        format_with(
+            "alphabeta gammadelta - epsilon\n",
+            FormattingOptions {
+                wrap_column: Some(20),
+                ..Default::default()
+            }
+        )
+    );
 }

@@ -309,14 +309,14 @@ impl Inline {
     }
 }
 
-trait MarkdownSink {
+pub(crate) trait TextSink {
     fn push(&mut self, s: &str);
     fn space(&mut self);
     fn soft_break(&mut self);
     fn line_break(&mut self, marker: &str);
 }
 
-impl MarkdownSink for String {
+impl TextSink for String {
     fn push(&mut self, s: &str) {
         self.push_str(s);
     }
@@ -333,11 +333,11 @@ impl MarkdownSink for String {
 
 enum WrapToken {
     Word(String),
-    Break,
+    Break(String),
 }
 
 #[derive(Default)]
-struct TokenStream {
+pub(crate) struct TokenStream {
     tokens: Vec<WrapToken>,
     current: String,
 }
@@ -354,9 +354,26 @@ impl TokenStream {
         self.flush();
         self.tokens
     }
+
+    pub(crate) fn wrap(self, width: usize) -> String {
+        let mut wrapped = String::new();
+        let mut buf: Vec<String> = Vec::new();
+        for token in self.finish() {
+            match token {
+                WrapToken::Word(s) => buf.push(s),
+                WrapToken::Break(separator) => {
+                    wrapped.push_str(&greedy_wrap(&buf, width));
+                    wrapped.push_str(&separator);
+                    buf.clear();
+                }
+            }
+        }
+        wrapped.push_str(&greedy_wrap(&buf, width));
+        wrapped
+    }
 }
 
-impl MarkdownSink for TokenStream {
+impl TextSink for TokenStream {
     fn push(&mut self, s: &str) {
         self.current.push_str(s);
     }
@@ -365,10 +382,11 @@ impl MarkdownSink for TokenStream {
     }
     fn soft_break(&mut self) {
         self.flush();
+        self.tokens.push(WrapToken::Break("\n".to_string()));
     }
-    fn line_break(&mut self, _marker: &str) {
+    fn line_break(&mut self, marker: &str) {
         self.flush();
-        self.tokens.push(WrapToken::Break);
+        self.tokens.push(WrapToken::Break(marker.to_string()));
     }
 }
 
@@ -392,7 +410,7 @@ enum RenderCtx {
     Block { top_level: bool },
 }
 
-fn render_inlines<S: MarkdownSink>(
+fn render_inlines<S: TextSink>(
     inlines: &Inlines,
     options: &MarkdownOptions,
     out: &mut S,
@@ -436,7 +454,7 @@ fn render_inlines<S: MarkdownSink>(
     }
 }
 
-fn render_inline<S: MarkdownSink>(
+fn render_inline<S: TextSink>(
     inline: &Inline,
     options: &MarkdownOptions,
     out: &mut S,
@@ -569,7 +587,7 @@ fn render_inline<S: MarkdownSink>(
     }
 }
 
-fn render_code_span<S: MarkdownSink>(body: &str, out: &mut S) {
+fn render_code_span<S: TextSink>(body: &str, out: &mut S) {
     let mut max_run = 0;
     let mut run = 0;
     for ch in body.chars() {
@@ -595,7 +613,7 @@ fn render_code_span<S: MarkdownSink>(body: &str, out: &mut S) {
     out.push(&fence);
 }
 
-fn escape_str<S: MarkdownSink>(text: &str, pos: LinePos, ctx: EscapeCtx, out: &mut S) {
+fn escape_str<S: TextSink>(text: &str, pos: LinePos, ctx: EscapeCtx, out: &mut S) {
     let line_start = pos == LinePos::Start;
     let block_start = ctx.top_level && line_start;
     let lead = text.as_bytes().first().copied();
@@ -682,7 +700,7 @@ fn is_thematic_break(inlines: &Inlines) -> bool {
     dashes >= 3 && iter.all(|inline| matches!(inline, Inline::Space))
 }
 
-fn emit_link<S: MarkdownSink>(
+fn emit_link<S: TextSink>(
     url: &str,
     link_type: LinkType,
     inlines: &Inlines,
@@ -718,7 +736,7 @@ fn emit_link<S: MarkdownSink>(
     }
 }
 
-fn text_to_inlines(text: &str) -> Vec<Inline> {
+pub(crate) fn text_to_inlines(text: &str) -> Vec<Inline> {
     let mut out = Vec::new();
     split_text_words(text, &mut out);
     out
@@ -732,7 +750,6 @@ pub(crate) fn wrap_inlines(inlines: &Inlines, options: &MarkdownOptions, indent:
         return out;
     };
     let effective = width.saturating_sub(indent).max(20);
-    let marker = options.formatting.line_break_marker();
     let mut stream = TokenStream::default();
     render_inlines(
         inlines,
@@ -740,20 +757,7 @@ pub(crate) fn wrap_inlines(inlines: &Inlines, options: &MarkdownOptions, indent:
         &mut stream,
         RenderCtx::Block { top_level },
     );
-
-    let mut segments: Vec<String> = Vec::new();
-    let mut buf: Vec<String> = Vec::new();
-    for token in stream.finish() {
-        match token {
-            WrapToken::Word(s) => buf.push(s),
-            WrapToken::Break => {
-                segments.push(greedy_wrap(&buf, effective));
-                buf.clear();
-            }
-        }
-    }
-    segments.push(greedy_wrap(&buf, effective));
-    segments.join(marker)
+    stream.wrap(effective)
 }
 
 fn greedy_wrap(tokens: &[String], width: usize) -> String {

@@ -282,6 +282,31 @@ fn format_wraps_and_preserves_breaks() {
 }
 
 #[test]
+fn format_wraps_and_preserves_newlines() {
+    Fixture::with_options(
+        "alpha beta gamma delta epsilon zeta eta theta\niota kappa lambda mu nu xi omicron pi rho\n",
+        MarkdownOptions {
+            formatting: FormattingOptions {
+                wrap_column: Some(35),
+                preserve_newlines: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .format_document(
+        uri(1).to_document_formatting_params(),
+        vec![indoc! {"
+            alpha beta gamma delta epsilon zeta
+            eta theta
+            iota kappa lambda mu nu xi omicron
+            pi rho
+        "}
+        .to_text_edit_full()],
+    );
+}
+
+#[test]
 fn format_preserves_newlines() {
     Fixture::with_options(
         "first line\nsecond line\nthird line\n",

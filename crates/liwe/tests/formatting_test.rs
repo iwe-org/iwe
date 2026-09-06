@@ -555,6 +555,71 @@ fn wrap_column_wraps_each_segment_between_preserved_breaks() {
 }
 
 #[test]
+fn wrap_column_wraps_each_preserved_newline_separately() {
+    compare(
+        indoc! {"
+        alpha beta gamma delta epsilon zeta
+        eta theta
+        iota kappa lambda mu nu xi omicron
+        pi rho
+        "},
+        indoc! {"
+        alpha beta gamma delta epsilon zeta eta theta
+        iota kappa lambda mu nu xi omicron pi rho
+        "},
+        FormattingOptions {
+            wrap_column: Some(35),
+            preserve_newlines: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_keeps_preserved_newlines_in_short_lines() {
+    compare(
+        indoc! {"
+        first line
+        second line
+        "},
+        indoc! {"
+        first line
+        second line
+        "},
+        FormattingOptions {
+            wrap_column: Some(123),
+            preserve_newlines: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn wrap_column_keeps_preserved_newlines_and_line_breaks_apart() {
+    let expected = indoc! {"
+        alpha beta<SP><SP>
+        gamma delta
+        epsilon zeta
+    "}
+    .replace("<SP>", " ");
+    compare(
+        &expected,
+        indoc! {"
+        alpha beta\\
+        gamma delta
+        epsilon zeta
+        "},
+        FormattingOptions {
+            wrap_column: Some(40),
+            preserve_newlines: Some(true),
+            preserve_line_breaks: Some(true),
+            line_break_style: Some(LineBreakStyle::Spaces),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
 fn wrap_column_disabled_returns_input() {
     compare(
         "alpha beta gamma delta epsilon zeta\n",
