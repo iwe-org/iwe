@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.2](https://github.com/iwe-org/iwe/compare/liwe-v0.23.1...liwe-v0.23.2) - 2026-09-08
+
 ### Fixed
 - `wrap_column` escapes a block marker that wrapping moves to the start of a line — list, quote and heading markers, code fences, HTML tags and a `---` or `===` left alone on a line — so a reflowed paragraph is not silently turned into another block, or dropped, on the next read
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.2](https://github.com/iwe-org/iwe/compare/iwe-v0.23.1...iwe-v0.23.2) - 2026-09-08
+
 ### Fixed
 - `iwe normalize` no longer turns a wrapped paragraph into a list, quote, heading, code block or HTML when `wrap_column` moves a marker such as `-`, `#`, `>`, `1.`, ```` ``` ````, `~~~`, `<div>` or a lone `---` to the start of a line — those markers are escaped now, and the HTML case used to drop the rest of the paragraph
 
