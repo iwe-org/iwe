@@ -101,7 +101,13 @@ edges (inline links).
 $key: notes/foo
 # $key: { $in: [a, b, c] }                       # any of these
 # $key: { $nin: [drafts/scratch, drafts/temp] }  # none of these
+# $key: { $startsWith: notes/ }                  # everything under notes/
 ```
+
+Every form matches the key as stored, with the document extension already
+stripped. `$startsWith` is a plain string prefix, so `notes` also matches
+`notes-archive/gamma` and the hub note `notes` itself; write the trailing
+separator when you mean the directory alone.
 
 ### Relational operators
 

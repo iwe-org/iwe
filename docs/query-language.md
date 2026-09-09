@@ -86,7 +86,10 @@ Graph operators live alongside frontmatter predicates inside the same filter. Th
 $key: notes/foo                                # implicit $eq
 $key: { $in: [a, b, c] }                       # any of these
 $key: { $nin: [drafts/scratch, drafts/temp] }  # none of these
+$key: { $startsWith: notes/ }                  # everything under notes/
 ```
+
+Every form matches the key as stored, with the document extension already stripped. `$startsWith` is a plain string prefix, not a path-segment match, so `notes` also matches `notes-archive/gamma` and the hub note `notes` itself; write the trailing separator when you mean the directory alone. The prefix is case-sensitive, unlike wiki link resolution.
 
 ### Relational operators
 

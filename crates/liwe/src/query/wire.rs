@@ -76,6 +76,8 @@ pub struct RawKeyOpMap {
     pub in_: Option<Vec<Value>>,
     #[serde(rename = "$nin", default)]
     pub nin: Option<Vec<Value>>,
+    #[serde(rename = "$startsWith", default)]
+    pub starts_with: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

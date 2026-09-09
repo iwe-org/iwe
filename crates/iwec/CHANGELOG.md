@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `iwe_query` accepts `$startsWith` on `$key` — `{ $key: { $startsWith: notes/ } }` selects documents by key prefix.
+
 ## [0.23.2](https://github.com/iwe-org/iwe/compare/iwec-v0.23.1...iwec-v0.23.2) - 2026-09-08
 
 Workspace version bump — no user-visible changes in this crate.

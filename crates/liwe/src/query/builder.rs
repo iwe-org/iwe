@@ -39,6 +39,7 @@ pub enum ParseError {
     EmptyOperatorList {
         op: &'static str,
     },
+    EmptyKeyPrefix,
     OperatorExpectedList {
         op: &'static str,
     },
@@ -206,6 +207,10 @@ impl std::fmt::Display for ParseError {
                 }
             }
             Self::EmptyOperatorList { op } => write!(f, "'{}' requires a non-empty list", op),
+            Self::EmptyKeyPrefix => write!(
+                f,
+                "'$startsWith' requires a non-empty prefix; an empty prefix matches every document"
+            ),
             Self::OperatorExpectedList { op } => write!(f, "'{}' expects a list", op),
             Self::OperatorExpectedMapping { op } => write!(f, "'{}' expects a mapping", op),
             Self::OperatorExpectedString { op } => write!(f, "'{}' expects a string", op),
@@ -287,7 +292,12 @@ impl std::fmt::Display for ParseError {
                 op
             ),
             Self::KeyOpForbidden { op } => {
-                write!(f, "$key predicates are not allowed inside '{}'", op)
+                write!(
+                    f,
+                    "'{}' expects a key, or exactly one of '$eq', '$ne', '$in', '$nin', \
+                     '$startsWith' with a string operand",
+                    op
+                )
             }
             Self::InvalidDepthValue { op, modifier } => {
                 write!(f, "'{}' has an invalid '{}' value; expected a non-negative integer", op, modifier)
@@ -1300,7 +1310,7 @@ fn parse_key_op(value: &Value, op: &'static str) -> Result<KeyOp, ParseError> {
         return Err(ParseError::GraphOpExpectedScalarOrMapping { op });
     }
     if let Some(mapping) = value.as_mapping() {
-        let known = ["$eq", "$ne", "$in", "$nin"];
+        let known = ["$eq", "$ne", "$in", "$nin", "$startsWith"];
         for (k, _) in mapping {
             if let Some(key_str) = k.as_str() {
                 if key_str.starts_with('$') && !known.contains(&key_str) {
@@ -1318,8 +1328,11 @@ fn parse_key_op(value: &Value, op: &'static str) -> Result<KeyOp, ParseError> {
 }
 
 fn key_op_from_map(m: RawKeyOpMap, op: &'static str) -> Result<KeyOp, ParseError> {
-    let count =
-        m.eq.is_some() as u8 + m.ne.is_some() as u8 + m.in_.is_some() as u8 + m.nin.is_some() as u8;
+    let count = m.eq.is_some() as u8
+        + m.ne.is_some() as u8
+        + m.in_.is_some() as u8
+        + m.nin.is_some() as u8
+        + m.starts_with.is_some() as u8;
     if count != 1 {
         return Err(ParseError::KeyOpForbidden { op });
     }
@@ -1334,6 +1347,12 @@ fn key_op_from_map(m: RawKeyOpMap, op: &'static str) -> Result<KeyOp, ParseError
     }
     if let Some(list) = m.nin {
         return Ok(KeyOp::Nin(string_list(list, op)?));
+    }
+    if let Some(prefix) = m.starts_with {
+        if prefix.is_empty() {
+            return Err(ParseError::EmptyKeyPrefix);
+        }
+        return Ok(KeyOp::StartsWith(Key::name(&prefix)));
     }
     unreachable!()
 }

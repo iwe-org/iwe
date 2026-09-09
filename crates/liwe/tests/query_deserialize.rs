@@ -1,8 +1,8 @@
 use crate::blocks as blk;
 use crate::queries::{
     all, and, asc, blocks, content, content_filter, count, delete, desc, eq, exists, field, fields,
-    filter, find, grep, gt, gte, in_, included_by, includes, key_eq, key_in, lt, lte, ne, nin, nor,
-    or, referenced_by, references, size, type_of, update, update_op,
+    filter, find, grep, gt, gte, in_, included_by, includes, key_eq, key_in, key_starts_with, lt,
+    lte, ne, nin, nor, or, referenced_by, references, size, type_of, update, update_op,
 };
 use indoc::indoc;
 use liwe::query::{
@@ -745,6 +745,54 @@ fn key_gt_rejected() {
         "},
         OperationKind::Find,
         "UnknownOperator",
+    );
+}
+
+#[test]
+fn key_starts_with_prefix() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $key: { $startsWith: notes/ }
+        "},
+        OperationKind::Find,
+        find(filter(key_starts_with("notes/"))),
+    );
+}
+
+#[test]
+fn key_starts_with_strips_document_extension() {
+    assert_parse(
+        indoc! {"
+            filter:
+              $key: { $startsWith: notes/foo.md }
+        "},
+        OperationKind::Find,
+        find(filter(key_starts_with("notes/foo"))),
+    );
+}
+
+#[test]
+fn key_starts_with_empty_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $key: { $startsWith: \"\" }
+        "},
+        OperationKind::Find,
+        "EmptyKeyPrefix",
+    );
+}
+
+#[test]
+fn key_starts_with_combined_with_eq_rejected() {
+    assert_parse_error(
+        indoc! {"
+            filter:
+              $key: { $startsWith: notes/, $eq: notes/foo }
+        "},
+        OperationKind::Find,
+        "KeyOpForbidden",
     );
 }
 

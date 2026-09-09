@@ -192,6 +192,7 @@ const POSITIVES: &[(Reading, &str)] = &[
     (Reading::Filter, "status: { $not: { $eq: draft } }\n"),
     (Reading::Filter, "status: { $type: [string, \"null\"] }\n"),
     (Reading::Filter, "$key: { $in: [notes/alpha, notes/beta] }\n"),
+    (Reading::Filter, "$key: { $startsWith: notes/ }\n"),
     (Reading::Filter, "$content: {}\n"),
     (Reading::Filter, "$includes: { $size: { $gte: 2, $lt: 9 } }\n"),
     (
@@ -255,6 +256,12 @@ const NEGATIVES: &[(Reading, &str, bool)] = &[
         false,
     ),
     (Reading::Filter, "$key: { $bogus: notes/alpha }\n", false),
+    (
+        Reading::Filter,
+        "$key: { $startsWith: notes/, $eq: notes/alpha }\n",
+        false,
+    ),
+    (Reading::Filter, "$key: { $startsWith: \"\" }\n", false),
     (Reading::Filter, "$includes: { $size: -1 }\n", false),
     (Reading::Filter, "tags: { $size: { $bogus: 1 } }\n", false),
     (Reading::Filter, "\"author.$name\": alice\n", false),

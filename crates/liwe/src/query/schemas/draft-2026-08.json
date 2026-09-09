@@ -192,7 +192,7 @@
       ]
     },
     "keyOperator": {
-      "description": "`$key` — document identity. A scalar is the key itself; the mapping form carries exactly one of `$eq`, `$ne`, `$in`, `$nin`.",
+      "description": "`$key` — document identity. A scalar is the key itself; the mapping form carries exactly one of `$eq`, `$ne`, `$in`, `$nin`, `$startsWith`. Every form is matched against the key as stored, with the document extension already stripped.",
       "oneOf": [
         { "type": "string" },
         {
@@ -221,6 +221,14 @@
           "required": ["$nin"],
           "properties": {
             "$nin": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["$startsWith"],
+          "properties": {
+            "$startsWith": { "type": "string", "minLength": 1 }
           }
         }
       ]

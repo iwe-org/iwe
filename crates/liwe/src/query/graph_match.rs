@@ -7,5 +7,6 @@ pub fn match_key_op(op: &KeyOp, key: &Key) -> bool {
         KeyOp::Ne(target) => key != target,
         KeyOp::In(targets) => targets.iter().any(|t| t == key),
         KeyOp::Nin(targets) => !targets.iter().any(|t| t == key),
+        KeyOp::StartsWith(prefix) => key.as_str().starts_with(prefix.as_str()),
     }
 }

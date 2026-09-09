@@ -593,7 +593,7 @@ Graph operators live inside filter documents alongside frontmatter predicates. T
 
 | Category | Operator | Predicate over... |
 |---|---|---|
-| Identity (§5.1) | `$key` | the document's own key |
+| Identity (§5.1) | `$key` | the document's own key, by equality, membership or prefix |
 | Relational (§5.2) | `$includes` | the document's outbound inclusion relation to an anchor set |
 | Relational (§5.2) | `$includedBy` | the document's inbound inclusion relation to an anchor set |
 | Relational (§5.2) | `$references` | the document's outbound reference relation to an anchor set |
@@ -620,6 +620,7 @@ key_expr ::=
   | { $ne:  key }
   | { $in:  [key, key, ...] }    # non-empty array
   | { $nin: [key, key, ...] }    # non-empty array
+  | { $startsWith: key }         # non-empty string
 ```
 
 #### 5.1.2 Examples
@@ -631,12 +632,17 @@ filter:
   $key: { $ne: drafts/scratch }                # exclude one
   $key: { $in: [a, b, c] }                     # any of these
   $key: { $nin: [drafts/a, drafts/b] }         # none of these
+  $key: { $startsWith: notes/ }                # everything under notes/
 ```
 
 #### 5.1.3 Constraints
 
 - `$key` accepts strings only. Operator expressions on `$key` use the comparison set above; `$gt` / `$gte` / `$lt` / `$lte` are parse-time errors (keys are identifiers, not ordered values).
+- A key expression carries exactly one operator. Two or more in the same mapping is a parse-time error.
 - Empty `$in: []` and `$nin: []` are parse-time errors.
+- Empty `$startsWith: ""` is a parse-time error: an empty prefix matches every document, which is never what the writer meant.
+- Every operand is normalized as a key before matching, so a trailing `.md` or `.dj` is stripped — `$startsWith: notes/foo.md` tests the prefix `notes/foo`.
+- `$startsWith` tests a **string** prefix of the key, not a path-segment prefix, and it is case-sensitive. `$startsWith: notes` matches `notes`, `notes/alpha` and `notes-archive/gamma` alike; `$startsWith: notes/` matches only documents under the directory. Selecting a subtree together with the hub note that names it is `$or: [{ $key: notes }, { $key: { $startsWith: notes/ } }]`. Document-level negation is `$nor`, as for every other filter clause.
 
 `$key` has only one role in the language: a top-level filter predicate over this document's own key. It also appears inside the `match` filter of relational operators (§5.2.2), but only because `match` is itself a filter document — there it carries the same semantics as any other filter-level `$key` predicate.
 
@@ -2383,7 +2389,9 @@ key_expr ::=
   | { $ne:  key }
   | { $in:  [key, ...] }                           # non-empty
   | { $nin: [key, ...] }                           # non-empty
+  | { $startsWith: key }                           # non-empty
 
+# Exactly one operator per key expression.
 # $gt / $gte / $lt / $lte on $key are parse-time errors.
 ```
 
