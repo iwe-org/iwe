@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0](https://github.com/iwe-org/iwe/compare/iwe-v0.23.2...iwe-v0.24.0) - 2026-09-08
+
 ### Added
 
 - `--filter '$key: { $startsWith: notes/ }'` selects documents by key prefix. The prefix is a case-sensitive string, not a path segment, so `notes` also matches the hub note `notes` and a sibling directory like `notes-archive/`; write the trailing separator to mean the directory alone.

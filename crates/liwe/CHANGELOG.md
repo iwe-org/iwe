@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0](https://github.com/iwe-org/iwe/compare/liwe-v0.23.2...liwe-v0.24.0) - 2026-09-08
+
 ### Added
 
 - `KeyOp::StartsWith` — `$key: { $startsWith: notes/ }` matches documents whose key begins with the given prefix. The operand is normalized as a key, so a trailing `.md` / `.dj` is stripped, and the test is a case-sensitive string prefix rather than a path-segment match. An empty prefix is a parse error.
