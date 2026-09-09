@@ -131,6 +131,10 @@ pub fn key_nin(keys: &[&str]) -> Filter {
     Filter::Key(KeyOp::nin(keys))
 }
 
+pub fn key_starts_with(prefix: impl Into<String>) -> Filter {
+    Filter::Key(KeyOp::starts_with(prefix))
+}
+
 pub fn includes(anchor: InclusionAnchor) -> Filter {
     Filter::Includes(Box::new(anchor))
 }

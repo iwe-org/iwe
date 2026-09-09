@@ -1,6 +1,6 @@
 use crate::queries::{
     and, any_document, eq, filter, find, included_by, includes, inclusion_count, key_eq, key_in,
-    key_ne, key_nin, nor, or, reference_count, referenced_by, references,
+    key_ne, key_nin, key_starts_with, nor, or, reference_count, referenced_by, references,
 };
 use indoc::indoc;
 use liwe::graph::Graph;
@@ -68,6 +68,86 @@ fn key_ne_excludes() {
         "},
         filter(key_ne("2")),
         &["1", "3"],
+    );
+}
+
+fn assert_named_keys(docs: &[(&str, &str)], op: FindOp, expected: &[&str]) {
+    let state: liwe::model::State = docs
+        .iter()
+        .map(|(key, text)| (key.to_string(), text.to_string()))
+        .collect();
+    let graph = Graph::import(&state, MarkdownOptions::default(), None);
+    let mut actual: Vec<String> = match execute(&find(op), &graph).expect("query succeeds") {
+        Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.key.to_string()).collect(),
+        other => panic!("expected Find, got {:?}", other),
+    };
+    actual.sort();
+    let mut expected: Vec<String> = expected.iter().map(|s| s.to_string()).collect();
+    expected.sort();
+    assert_eq!(actual, expected);
+}
+
+const NESTED_DOCS: &[(&str, &str)] = &[
+    (
+        "notes", "# Notes
+",
+    ),
+    (
+        "notes/alpha",
+        "# Alpha
+",
+    ),
+    (
+        "notes/deep/beta",
+        "# Beta
+",
+    ),
+    (
+        "notes-archive/gamma",
+        "# Gamma
+",
+    ),
+    (
+        "other/delta",
+        "# Delta
+",
+    ),
+];
+
+#[test]
+fn key_starts_with_selects_subtree_and_hub() {
+    assert_named_keys(
+        NESTED_DOCS,
+        filter(key_starts_with("notes")),
+        &[
+            "notes",
+            "notes/alpha",
+            "notes/deep/beta",
+            "notes-archive/gamma",
+        ],
+    );
+}
+
+#[test]
+fn key_starts_with_separator_excludes_hub_and_siblings() {
+    assert_named_keys(
+        NESTED_DOCS,
+        filter(key_starts_with("notes/")),
+        &["notes/alpha", "notes/deep/beta"],
+    );
+}
+
+#[test]
+fn key_starts_with_is_case_sensitive() {
+    assert_named_keys(NESTED_DOCS, filter(key_starts_with("Notes/")), &[]);
+}
+
+#[test]
+fn key_starts_with_negates_under_nor() {
+    assert_named_keys(
+        NESTED_DOCS,
+        filter(nor(vec![key_starts_with("notes/")])),
+        &["notes", "notes-archive/gamma", "other/delta"],
     );
 }
 
