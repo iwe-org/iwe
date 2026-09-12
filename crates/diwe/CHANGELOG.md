@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `write_file_if_changed` writes a file only when its content differs from what is on disk, and returns whether it wrote. `write_file` and `apply_changes` now go through it, so no document is replaced with the bytes it already holds.
+
 ## [0.24.0](https://github.com/iwe-org/iwe/compare/diwe-v0.23.2...diwe-v0.24.0) - 2026-09-08
 
 Workspace version bump — no user-visible changes in this crate.

@@ -11,7 +11,7 @@ use diwe::config::{
     MarkdownOptions, NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
-use diwe::fs::{new_for_path, new_from_hashmap};
+use diwe::fs::{new_for_path, new_from_hashmap, write_file_if_changed};
 use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use diwe::schema::{
     pending_from_changes, render_reports_text, validate_pending_documents,
@@ -1913,7 +1913,7 @@ impl IweServer {
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent).ok();
             }
-            std::fs::write(&file_path, content).ok();
+            write_file_if_changed(&file_path, content).ok();
         }
     }
 

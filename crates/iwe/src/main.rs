@@ -11,6 +11,7 @@ mod help;
 use itertools::Itertools;
 
 use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
+use diwe::fs::write_file_if_changed;
 use diwe::graph_from_path;
 use diwe::schema::{
     explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
@@ -2724,15 +2725,15 @@ fn normalize_command(args: Normalize) {
         };
 
         let normalized = normalize_content(&configuration, &key, &raw);
-        if normalized == raw {
-            continue;
-        }
 
-        if std::fs::write(&path, &normalized).is_err() {
-            eprintln!("Error: Failed to write '{}'", path.display());
-            std::process::exit(1);
+        match write_file_if_changed(&path, &normalized) {
+            Ok(true) => println!("{}", path.display()),
+            Ok(false) => continue,
+            Err(_) => {
+                eprintln!("Error: Failed to write '{}'", path.display());
+                std::process::exit(1);
+            }
         }
-        println!("{}", path.display());
     }
 }
 
