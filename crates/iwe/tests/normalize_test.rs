@@ -473,6 +473,77 @@ fn count_markdown_files(dir: &std::path::Path) -> usize {
         .count()
 }
 
+fn modified_at(path: &std::path::Path) -> std::time::SystemTime {
+    std::fs::metadata(path).unwrap().modified().unwrap()
+}
+
+fn backdate(path: &std::path::Path) -> std::time::SystemTime {
+    let past = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(past)
+        .unwrap();
+    modified_at(path)
+}
+
+#[test]
+fn test_normalize_leaves_already_normalized_files_untouched() {
+    let temp_dir = setup_test_workspace_with_content();
+    let temp_path = temp_dir.path();
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize command should succeed");
+
+    let file_path = temp_path.join("test.md");
+    let content = read_to_string(&file_path).expect("Should read normalized file");
+    let stamp = backdate(&file_path);
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize command should succeed");
+
+    assert_eq!(
+        modified_at(&file_path),
+        stamp,
+        "a document that normalizing does not change must keep its modification time"
+    );
+    assert_eq!(read_to_string(&file_path).unwrap(), content);
+}
+
+#[test]
+fn test_normalize_writes_only_the_files_it_changes() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    write(temp_path.join("one.md"), "# One\n").expect("Should write file");
+    write(temp_path.join("two.md"), "#    Two\n\n\n\nbody\n").expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize command should succeed");
+
+    let formatted = temp_path.join("one.md");
+    let unformatted = temp_path.join("two.md");
+    let formatted_stamp = backdate(&formatted);
+    let unformatted_stamp = backdate(&unformatted);
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize command should succeed");
+
+    assert_eq!(
+        modified_at(&formatted),
+        formatted_stamp,
+        "an unchanged document must keep its modification time"
+    );
+    assert_eq!(
+        modified_at(&unformatted),
+        unformatted_stamp,
+        "a document normalized on the first run is unchanged on the second"
+    );
+}
+
 fn run_normalize_command(work_dir: &std::path::Path) -> std::process::Output {
     Command::new(crate::common::get_iwe_binary_path())
         .arg("normalize")
