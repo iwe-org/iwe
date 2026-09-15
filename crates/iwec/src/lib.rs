@@ -11,7 +11,7 @@ use diwe::config::{
     MarkdownOptions, NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
-use diwe::fs::{new_for_path, new_from_hashmap, write_file_if_changed};
+use diwe::fs::{key_is_safe, new_for_path, new_from_hashmap, safe_join, write_file_if_changed};
 use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use diwe::schema::{
     pending_from_changes, render_reports_text, validate_pending_documents,
@@ -715,6 +715,16 @@ fn op_error_to_mcp(e: OperationError) -> McpError {
     McpError::invalid_params(e.to_string(), None)
 }
 
+fn unsafe_key_error(key: &str) -> McpError {
+    McpError::invalid_params(
+        format!(
+            "Key '{}' must be a relative path inside the library: no leading '/' and no '..' segments",
+            key
+        ),
+        None,
+    )
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ReviewPromptArgs {
     #[schemars(description = "Document key to review")]
@@ -943,6 +953,9 @@ impl IweServer {
                         None,
                     ));
                 }
+                if !key_is_safe(key.as_str()) {
+                    return Err(unsafe_key_error(k));
+                }
                 key.to_string()
             }
             None => {
@@ -1013,6 +1026,9 @@ impl IweServer {
         Parameters(params): Parameters<UpdateParams>,
     ) -> Result<CallToolResult, McpError> {
         let key = Key::name(&params.key);
+        if !key_is_safe(key.as_str()) {
+            return Err(unsafe_key_error(&params.key));
+        }
         let mut graph = self.graph.lock().await;
 
         if (&*graph).get_node_id(&key).is_none() {
@@ -1068,6 +1084,9 @@ impl IweServer {
         Parameters(params): Parameters<DeleteParams>,
     ) -> Result<CallToolResult, McpError> {
         let key = Key::name(&params.key);
+        if !key_is_safe(key.as_str()) {
+            return Err(unsafe_key_error(&params.key));
+        }
         let mut graph = self.graph.lock().await;
         let changes = op_delete(&graph, &key).map_err(op_error_to_mcp)?;
 
@@ -1200,6 +1219,12 @@ impl IweServer {
     ) -> Result<CallToolResult, McpError> {
         let old_key = Key::name(&params.old_key);
         let new_key = Key::name(&params.new_key);
+        if !key_is_safe(old_key.as_str()) {
+            return Err(unsafe_key_error(&params.old_key));
+        }
+        if !key_is_safe(new_key.as_str()) {
+            return Err(unsafe_key_error(&params.new_key));
+        }
         let mut graph = self.graph.lock().await;
         let changes = op_rename(&graph, &old_key, &new_key).map_err(op_error_to_mcp)?;
 
@@ -1900,7 +1925,7 @@ impl IweServer {
     fn document_path(&self, key: &Key) -> Option<PathBuf> {
         let base_path = self.base_path.as_ref()?;
         let extension = self.config.format.extension();
-        Some(base_path.join(format!("{}.{}", key, extension)))
+        safe_join(base_path, key.as_str(), extension)
     }
 
     fn document_file_exists(&self, key: &Key) -> bool {

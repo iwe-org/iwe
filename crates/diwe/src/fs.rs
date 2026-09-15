@@ -11,17 +11,48 @@ use liwe::model::config::Format;
 use liwe::model::{Content, State};
 use liwe::operations::Changes;
 
+/// True if `key`, joined onto any base directory, cannot escape that
+/// directory — i.e. it is not an absolute path and has no `..` component.
+pub fn key_is_safe(key: &str) -> bool {
+    let relative = Path::new(key);
+    if relative.is_absolute() {
+        return false;
+    }
+    !relative.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir
+                | std::path::Component::RootDir
+                | std::path::Component::Prefix(_)
+        )
+    })
+}
+
+/// Joins `base_path` with a document key + extension, refusing any key that
+/// would escape `base_path` via an absolute path or a `..` component.
+/// Returns `None` for a key that is not a safe, contained relative path.
+pub fn safe_join(base_path: &Path, key: &str, extension: &str) -> Option<PathBuf> {
+    if !key_is_safe(key) {
+        return None;
+    }
+    Some(base_path.join(format!("{}.{}", key, extension)))
+}
+
+fn rejected_key_error(key: impl std::fmt::Display) -> std::io::Error {
+    std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        format!("rejected key that would escape the library root: {key}"),
+    )
+}
+
 pub fn write_file(
     key: &String,
     content: &Content,
     to: &Path,
     format: Format,
 ) -> std::io::Result<()> {
-    write_file_if_changed(
-        &to.join(format!("{}.{}", key, format.extension())),
-        content.as_str(),
-    )
-    .map(|_| ())
+    let file_path = safe_join(to, key, format.extension()).ok_or_else(|| rejected_key_error(key))?;
+    write_file_if_changed(&file_path, content.as_str()).map(|_| ())
 }
 
 pub fn write_file_if_changed(path: &Path, content: &str) -> std::io::Result<bool> {
@@ -192,7 +223,8 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     let extension = format.extension();
 
     for key in &changes.removes {
-        let file_path = base_path.join(format!("{}.{}", key, extension));
+        let file_path =
+            safe_join(base_path, key.as_str(), extension).ok_or_else(|| rejected_key_error(key))?;
         if file_path.exists() {
             fs::remove_file(&file_path)?;
         }
@@ -200,7 +232,8 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     }
 
     for (key, markdown) in &changes.creates {
-        let file_path = base_path.join(format!("{}.{}", key, extension));
+        let file_path =
+            safe_join(base_path, key.as_str(), extension).ok_or_else(|| rejected_key_error(key))?;
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -208,7 +241,8 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     }
 
     for (key, markdown) in &changes.updates {
-        let file_path = base_path.join(format!("{}.{}", key, extension));
+        let file_path =
+            safe_join(base_path, key.as_str(), extension).ok_or_else(|| rejected_key_error(key))?;
         write_file_if_changed(&file_path, markdown)?;
     }
 
