@@ -391,3 +391,23 @@ fn body_overwrite_normalizes_what_it_writes() {
         "---\ncreated: \"2026-08-24 10:00\"\n---\n\n# Rewritten note\n\nWrapped across lines.\n\n- one\n"
     );
 }
+
+#[test]
+fn body_overwrite_rejects_a_key_outside_the_workspace() {
+    let temp = setup(vec![("d", "# Doc\n")]);
+    write(temp.path().join("outside.md"), "# Outside\n").unwrap();
+    let output = run_update(
+        temp.path(),
+        &["-k", "../outside", "--content", "# Replaced\n"],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr).unwrap(),
+        "error: document '../outside' not found\n"
+    );
+    assert_eq!(
+        read_to_string(temp.path().join("outside.md")).unwrap(),
+        "# Outside\n"
+    );
+}

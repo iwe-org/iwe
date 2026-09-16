@@ -11,7 +11,10 @@ use diwe::config::{
     MarkdownOptions, NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
-use diwe::fs::{new_for_path, new_from_hashmap, write_file_if_changed};
+use diwe::fs::{
+    key_escapes_workspace, new_for_path, new_from_hashmap, workspace_document_path,
+    write_file_if_changed,
+};
 use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use diwe::schema::{
     pending_from_changes, render_reports_text, validate_pending_documents,
@@ -715,6 +718,17 @@ fn op_error_to_mcp(e: OperationError) -> McpError {
     McpError::invalid_params(e.to_string(), None)
 }
 
+fn escaping_key_error(key: &str) -> McpError {
+    McpError::invalid_params(
+        format!("Key '{key}' must stay inside the workspace: no leading '/' and no '..' segments"),
+        None,
+    )
+}
+
+fn write_error_to_mcp(e: std::io::Error) -> McpError {
+    McpError::internal_error(format!("Failed to write to the workspace: {e}"), None)
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ReviewPromptArgs {
     #[schemars(description = "Document key to review")]
@@ -943,6 +957,9 @@ impl IweServer {
                         None,
                     ));
                 }
+                if key_escapes_workspace(key.as_str()) {
+                    return Err(escaping_key_error(k));
+                }
                 key.to_string()
             }
             None => {
@@ -985,7 +1002,8 @@ impl IweServer {
         self.ensure_schema_clean(&[(key.clone(), markdown.clone())])?;
 
         graph.insert_document(key.clone(), markdown.clone());
-        self.write_file(&key, &markdown);
+        self.write_file(&key, &markdown)
+            .map_err(write_error_to_mcp)?;
 
         let warnings = self
             .stats_warnings(
@@ -1029,7 +1047,8 @@ impl IweServer {
         self.ensure_schema_clean(&[(key.clone(), params.content.clone())])?;
 
         graph.update_document(key.clone(), params.content.clone());
-        self.write_file(&key, &params.content);
+        self.write_file(&key, &params.content)
+            .map_err(write_error_to_mcp)?;
 
         let new_title = (&*graph)
             .get_key_title(&key)
@@ -1075,7 +1094,7 @@ impl IweServer {
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes);
+            self.write_changes(&changes).map_err(write_error_to_mcp)?;
             warnings = self.stats_after_delete(&graph, &changes).await;
         }
 
@@ -1161,7 +1180,7 @@ impl IweServer {
                     self.ensure_schema_clean(&changes)?;
                     for (key, content) in &changes {
                         graph.update_document(key.clone(), content.clone());
-                        self.write_file(key, content);
+                        self.write_file(key, content).map_err(write_error_to_mcp)?;
                     }
                     let touched: Vec<Key> = changes.iter().map(|(key, _)| key.clone()).collect();
                     warnings = self.stats_warnings(&graph, &touched, &[], &touched).await;
@@ -1183,7 +1202,7 @@ impl IweServer {
                 if !dry_run {
                     self.ensure_schema_clean(&pending_from_changes(&combined))?;
                     Self::apply_changes(&mut graph, &combined);
-                    self.write_changes(&combined);
+                    self.write_changes(&combined).map_err(write_error_to_mcp)?;
                     warnings = self.stats_after_delete(&graph, &combined).await;
                 }
                 to_json_result_with_warnings(&ChangesOutput::from(&combined), &warnings)
@@ -1200,13 +1219,16 @@ impl IweServer {
     ) -> Result<CallToolResult, McpError> {
         let old_key = Key::name(&params.old_key);
         let new_key = Key::name(&params.new_key);
+        if key_escapes_workspace(new_key.as_str()) {
+            return Err(escaping_key_error(&params.new_key));
+        }
         let mut graph = self.graph.lock().await;
         let changes = op_rename(&graph, &old_key, &new_key).map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes);
+            self.write_changes(&changes).map_err(write_error_to_mcp)?;
         }
 
         to_json_result(&ChangesOutput::from(&changes))
@@ -1293,7 +1315,7 @@ impl IweServer {
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes);
+            self.write_changes(&changes).map_err(write_error_to_mcp)?;
         }
 
         to_json_result(&ChangesOutput::from(&changes))
@@ -1384,7 +1406,7 @@ impl IweServer {
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
             Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes);
+            self.write_changes(&changes).map_err(write_error_to_mcp)?;
         }
 
         to_json_result(&ChangesOutput::from(&changes))
@@ -1403,7 +1425,8 @@ impl IweServer {
             for (key_str, normalized_content) in &state {
                 let key = Key::name(key_str);
                 if self.read_file(&key).as_deref() != Some(normalized_content.as_str()) {
-                    self.write_file(&key, normalized_content);
+                    self.write_file(&key, normalized_content)
+                        .map_err(write_error_to_mcp)?;
                     changed += 1;
                 }
             }
@@ -1516,7 +1539,7 @@ impl IweServer {
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&combined))?;
             Self::apply_changes(&mut graph, &combined);
-            self.write_changes(&combined);
+            self.write_changes(&combined).map_err(write_error_to_mcp)?;
         }
 
         to_json_result(&ChangesOutput::from(&combined))
@@ -1900,7 +1923,7 @@ impl IweServer {
     fn document_path(&self, key: &Key) -> Option<PathBuf> {
         let base_path = self.base_path.as_ref()?;
         let extension = self.config.format.extension();
-        Some(base_path.join(format!("{}.{}", key, extension)))
+        workspace_document_path(base_path, key.as_str(), extension).ok()
     }
 
     fn document_file_exists(&self, key: &Key) -> bool {
@@ -1908,22 +1931,26 @@ impl IweServer {
             .is_some_and(|file_path| file_path.exists())
     }
 
-    fn write_file(&self, key: &Key, content: &str) {
-        if let Some(file_path) = self.document_path(key) {
-            if let Some(parent) = file_path.parent() {
-                std::fs::create_dir_all(parent).ok();
-            }
-            write_file_if_changed(&file_path, content).ok();
+    fn write_file(&self, key: &Key, content: &str) -> std::io::Result<()> {
+        let Some(base_path) = &self.base_path else {
+            return Ok(());
+        };
+        let extension = self.config.format.extension();
+        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent)?;
         }
+        write_file_if_changed(&file_path, content).map(|_| ())
     }
 
     fn read_file(&self, key: &Key) -> Option<String> {
         std::fs::read_to_string(self.document_path(key)?).ok()
     }
 
-    fn write_changes(&self, changes: &Changes) {
-        if let Some(base_path) = &self.base_path {
-            let _ = diwe::fs::apply_changes(changes, base_path, self.config.format);
+    fn write_changes(&self, changes: &Changes) -> std::io::Result<()> {
+        match &self.base_path {
+            Some(base_path) => diwe::fs::apply_changes(changes, base_path, self.config.format),
+            None => Ok(()),
         }
     }
 

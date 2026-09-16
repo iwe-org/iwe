@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Writing a document leaves the file alone when the content is unchanged, instead of rewriting it and moving its modification time.
+- `iwe_create` and `iwe_rename` reject a key with a `..` segment or a leading `/` before touching the graph. Such a key used to create, overwrite or delete a file outside the workspace.
+- A write that fails on disk is reported as an error by every mutating tool. Previously the tool reported success and left the graph and the files out of step.
 
 ## [0.24.0](https://github.com/iwe-org/iwe/compare/iwec-v0.23.2...iwec-v0.24.0) - 2026-09-08
 

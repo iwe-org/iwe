@@ -391,3 +391,26 @@ fn definition_in_table_header_wiki_link() {
         goto_definition_response_single(file_uri("link.md")),
     );
 }
+
+#[test]
+fn definition_of_a_link_outside_the_workspace_is_empty() {
+    Fixture::with(indoc! {"
+            # test
+
+            [test](../outside)
+
+            "})
+    .go_to_definition(
+        uri(1).to_goto_definition_params(2, 0),
+        goto_definition_response_empty(),
+    );
+}
+
+#[test]
+fn definition_of_a_parent_link_inside_the_workspace() {
+    Fixture::with_documents(vec![("notes/a", "[link](../top)\n"), ("top", "# top\n")])
+        .go_to_definition(
+            uri_from("notes/a").to_goto_definition_params(0, 0),
+            goto_definition_response_single(file_uri("top.md")),
+        );
+}

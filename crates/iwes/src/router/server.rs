@@ -1,6 +1,6 @@
 use actions::{all_action_types, ActionContext, ActionProvider};
 use diwe::config::{Command, Configuration, FormatOptions, MarkdownOptions};
-use diwe::fs::read_md_file;
+use diwe::fs::{key_escapes_workspace, read_md_file};
 use itertools::Itertools;
 use liwe::model::node::Node;
 use liwe::{
@@ -363,7 +363,12 @@ impl Server {
         }
 
         let location_url = match self.ref_type_at(&key, position.to_model()) {
-            ReferenceType::Regular => self.base_path.resolve_relative_url(&url, &relative_to),
+            ReferenceType::Regular => {
+                if key_escapes_workspace(Key::from_rel_link_url(&url, &relative_to).as_str()) {
+                    return DefinitionResult::Internal(GotoDefinitionResponse::Array(vec![]));
+                }
+                self.base_path.resolve_relative_url(&url, &relative_to)
+            }
             ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => self
                 .base_path
                 .key_to_url(&self.graph.key_index().resolve_wiki(&url)),
@@ -534,6 +539,17 @@ impl Server {
         let reference_type = self.ref_type_at(&doc_key, position);
 
         let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
+
+        if key_escapes_workspace(new_key.as_str()) {
+            return Result::Err(ResponseError {
+                code: 1,
+                message: format!(
+                    "The file name {} would leave the workspace",
+                    params.new_name
+                ),
+                data: None,
+            });
+        }
 
         if query::key_exists(&self.graph, &new_key) {
             return Result::Err(ResponseError {

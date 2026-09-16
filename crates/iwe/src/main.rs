@@ -11,7 +11,7 @@ mod help;
 use itertools::Itertools;
 
 use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
-use diwe::fs::write_file_if_changed;
+use diwe::fs::{key_escapes_workspace, write_file_if_changed};
 use diwe::graph_from_path;
 use diwe::schema::{
     explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
@@ -2714,6 +2714,13 @@ fn normalize_command(args: Normalize) {
     let library_path = get_library_path(&configuration);
     for key_str in &args.key {
         let key = Key::name(key_str);
+        if key_escapes_workspace(key.as_str()) {
+            eprintln!(
+                "Error: Key '{}' must stay inside the workspace: no leading '/' and no '..' segments",
+                key_str
+            );
+            std::process::exit(1);
+        }
         let path = library_path.join(format!("{}.{}", key, configuration.format.extension()));
 
         let raw = match std::fs::read_to_string(&path) {
@@ -2764,12 +2771,14 @@ fn write_graph(graph: Graph, configuration: &Configuration) {
 }
 
 fn apply_changes(changes: &Changes, configuration: &Configuration) {
-    diwe::fs::apply_changes(
+    if let Err(e) = diwe::fs::apply_changes(
         changes,
         &get_library_path(configuration),
         configuration.format,
-    )
-    .expect("Failed to write document file");
+    ) {
+        eprintln!("Error: Failed to write document file: {}", e);
+        std::process::exit(1);
+    }
 }
 
 fn load_graph(configuration: &Configuration) -> Graph {
@@ -3171,6 +3180,13 @@ fn rename_command(args: Rename) {
 
     let old_key = Key::name(&args.old_key);
     let new_key = Key::name(&args.new_key);
+    if key_escapes_workspace(new_key.as_str()) {
+        eprintln!(
+            "Error: Key '{}' must stay inside the workspace: no leading '/' and no '..' segments",
+            args.new_key
+        );
+        std::process::exit(1);
+    }
 
     let result = match op_rename(&graph, &old_key, &new_key) {
         Ok(changes) => changes,

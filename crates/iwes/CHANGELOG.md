@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Rename rejects a new name that resolves outside the workspace. Previously the graph kept a key such as `../note` while the file was created inside the workspace, and the links written for it dangled after a reload.
+- Go to definition returns no location for a link that resolves outside the workspace (previously it pointed the editor at a path above the workspace root).
+
 ## [0.24.0](https://github.com/iwe-org/iwe/compare/iwes-v0.23.2...iwes-v0.24.0) - 2026-09-08
 
 Workspace version bump — no user-visible changes in this crate.
