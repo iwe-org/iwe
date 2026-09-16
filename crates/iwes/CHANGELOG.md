@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1](https://github.com/iwe-org/iwe/compare/iwes-v0.24.0...iwes-v0.24.1) - 2026-09-16
+
 ### Fixed
 
 - Rename rejects a new name that resolves outside the workspace. Previously the graph kept a key such as `../note` while the file was created inside the workspace, and the links written for it dangled after a reload.

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1](https://github.com/iwe-org/iwe/compare/iwe-v0.24.0...iwe-v0.24.1) - 2026-09-16
+
 ### Fixed
 
 - `create`, `normalize --key` and `rename` refuse a key with a `..` segment or a leading `/` instead of writing, rewriting or moving a file outside the workspace. A document write that fails now prints an error instead of a panic.

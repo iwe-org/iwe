@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1](https://github.com/iwe-org/iwe/compare/iwec-v0.24.0...iwec-v0.24.1) - 2026-09-16
+
 ### Fixed
 
 - Writing a document leaves the file alone when the content is unchanged, instead of rewriting it and moving its modification time.
