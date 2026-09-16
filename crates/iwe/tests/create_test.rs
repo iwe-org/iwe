@@ -1397,3 +1397,47 @@ fn content_mode_normalizes_a_document_with_no_frontmatter() {
         "# Plain\n\nWrapped across lines.\n"
     );
 }
+
+fn setup_workspace_inside_a_parent_directory() -> TempDir {
+    let temp = TempDir::new().expect("tempdir");
+    let workspace = temp.path().join("workspace");
+    create_dir_all(workspace.join(".iwe")).expect("mkdir .iwe");
+    write_config(&workspace, Configuration::default());
+    temp
+}
+
+#[test]
+fn content_mode_rejects_a_key_outside_the_workspace() {
+    let temp = setup_workspace_inside_a_parent_directory();
+    let output = run(
+        &temp.path().join("workspace"),
+        &["../escaped", "--content", "# Escaped\n"],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr_of(&output),
+        "Error: Key '../escaped' must stay inside the workspace: no leading '/' and no '..' segments\n"
+    );
+    assert!(!temp.path().join("escaped.md").exists());
+}
+
+#[test]
+fn content_mode_rejects_an_absolute_key() {
+    let temp = setup_workspace_inside_a_parent_directory();
+    let absolute = temp.path().join("absolute");
+    let output = run(
+        &temp.path().join("workspace"),
+        &[absolute.to_str().unwrap(), "--content", "# Absolute\n"],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr_of(&output),
+        format!(
+            "Error: Key '{}' must stay inside the workspace: no leading '/' and no '..' segments\n",
+            absolute.display()
+        )
+    );
+    assert!(!temp.path().join("absolute.md").exists());
+}

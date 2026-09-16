@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `create`, `normalize --key` and `rename` refuse a key with a `..` segment or a leading `/` instead of writing, rewriting or moving a file outside the workspace. A document write that fails now prints an error instead of a panic.
 - `normalize` no longer rewrites documents it does not change. Run over a whole library it wrote every file unconditionally, giving all of them the same modification time and losing the library's edit history; it now writes only the documents whose formatting actually moved. `normalize --key` already behaved this way. The same guard now covers `update`, `rename`, `attach`, `extract`, `inline` and `squash`, which wrote unconditionally when a change turned out to be a no-op.
 
 ## [0.24.0](https://github.com/iwe-org/iwe/compare/iwe-v0.23.2...iwe-v0.24.0) - 2026-09-08

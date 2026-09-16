@@ -904,3 +904,25 @@ fn scoped_normalize_refuses_a_key_that_is_not_there() {
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("'missing' not found"));
 }
+
+#[test]
+fn scoped_normalize_rejects_a_key_outside_the_workspace() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    let workspace = temp_path.join("workspace");
+    create_dir_all(workspace.join(".iwe")).expect("Failed to create .iwe directory");
+    setup_iwe_config(&workspace);
+    write(temp_path.join("outside.md"), "#  Outside\n").expect("Should write file");
+
+    let output = run_normalize_keys(&workspace, &["../outside"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr).unwrap(),
+        "Error: Key '../outside' must stay inside the workspace: no leading '/' and no '..' segments\n"
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("outside.md")).unwrap(),
+        "#  Outside\n"
+    );
+}

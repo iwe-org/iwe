@@ -247,3 +247,39 @@ fn assert_rename_updates_second_file(source: &str, expected1: &str, expected2: &
         .to_workspace_edit(),
     );
 }
+
+#[test]
+fn rename_to_a_key_outside_the_workspace() {
+    assert_rename_error(
+        indoc! {"
+            [](1)
+            _
+            # file 2
+            "},
+        "The file name ../outside would leave the workspace",
+        lsp_types::Position::new(0, 0),
+        "../outside",
+    );
+}
+
+#[test]
+fn rename_to_a_parent_key_that_stays_inside_the_workspace() {
+    let new_uri = uri_from("top");
+
+    Fixture::with_documents(vec![("notes/a", "[link](b)\n"), ("notes/b", "# b\n")]).rename(
+        uri_from("notes/a").to_rename_params(0, 0, "../top".to_string()),
+        vec![
+            uri_from("notes/a").to_edit("[link](../top)\n"),
+            uri_from("notes/b").to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                "# b\n",
+                lsp_types::Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            ),
+        ]
+        .to_workspace_edit(),
+    );
+}

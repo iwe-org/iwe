@@ -9,6 +9,7 @@ use rand::distr::Alphanumeric;
 use rand::Rng;
 
 use diwe::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
+use diwe::fs::key_escapes_workspace;
 use liwe::graph::Graph;
 use liwe::locale::get_locale;
 use liwe::markdown::MarkdownReader;
@@ -103,6 +104,12 @@ impl<'a> DocumentCreator<'a> {
         let base_key = Key::name(relative_key);
         if base_key.as_str().is_empty() {
             return Err(empty_key_error.to_string());
+        }
+        if key_escapes_workspace(base_key.as_str()) {
+            return Err(format!(
+                "Key '{}' must stay inside the workspace: no leading '/' and no '..' segments",
+                base_key
+            ));
         }
 
         let path_str = base_key.to_path(self.config.format);

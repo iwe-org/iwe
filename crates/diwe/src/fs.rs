@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use std::{collections::HashMap, fs};
 
@@ -11,17 +11,37 @@ use liwe::model::config::Format;
 use liwe::model::{Content, State};
 use liwe::operations::Changes;
 
+pub fn key_escapes_workspace(key: &str) -> bool {
+    Path::new(key).components().any(|component| {
+        matches!(
+            component,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
+    })
+}
+
+pub fn workspace_document_path(
+    base_path: &Path,
+    key: &str,
+    extension: &str,
+) -> std::io::Result<PathBuf> {
+    if key_escapes_workspace(key) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("key '{key}' escapes the workspace"),
+        ));
+    }
+    Ok(base_path.join(format!("{key}.{extension}")))
+}
+
 pub fn write_file(
     key: &String,
     content: &Content,
     to: &Path,
     format: Format,
 ) -> std::io::Result<()> {
-    write_file_if_changed(
-        &to.join(format!("{}.{}", key, format.extension())),
-        content.as_str(),
-    )
-    .map(|_| ())
+    let file_path = workspace_document_path(to, key, format.extension())?;
+    write_file_if_changed(&file_path, content.as_str()).map(|_| ())
 }
 
 pub fn write_file_if_changed(path: &Path, content: &str) -> std::io::Result<bool> {
@@ -192,7 +212,7 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     let extension = format.extension();
 
     for key in &changes.removes {
-        let file_path = base_path.join(format!("{}.{}", key, extension));
+        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
         if file_path.exists() {
             fs::remove_file(&file_path)?;
         }
@@ -200,7 +220,7 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     }
 
     for (key, markdown) in &changes.creates {
-        let file_path = base_path.join(format!("{}.{}", key, extension));
+        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -208,7 +228,7 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     }
 
     for (key, markdown) in &changes.updates {
-        let file_path = base_path.join(format!("{}.{}", key, extension));
+        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
         write_file_if_changed(&file_path, markdown)?;
     }
 
@@ -241,6 +261,7 @@ fn sanitize_content(content: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use liwe::model::Key;
 
     #[test]
     fn sanitize_content_strips_crlf() {
@@ -428,5 +449,114 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(keys, vec!["sub/dir/note".to_string()]);
+    }
+
+    #[test]
+    fn a_nested_key_stays_inside_the_workspace() {
+        assert!(!key_escapes_workspace("note"));
+        assert!(!key_escapes_workspace("people/ada"));
+        assert!(!key_escapes_workspace("./note"));
+    }
+
+    #[test]
+    fn a_parent_segment_escapes_the_workspace() {
+        assert!(key_escapes_workspace(".."));
+        assert!(key_escapes_workspace("../note"));
+        assert!(key_escapes_workspace("people/../../note"));
+    }
+
+    #[test]
+    fn an_absolute_key_escapes_the_workspace() {
+        assert!(key_escapes_workspace("/note"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_windows_path_escapes_the_workspace() {
+        assert!(key_escapes_workspace("..\\note"));
+        assert!(key_escapes_workspace("\\note"));
+        assert!(key_escapes_workspace("C:\\note"));
+        assert!(key_escapes_workspace("C:note"));
+    }
+
+    #[test]
+    fn a_nested_key_joins_onto_the_workspace() {
+        let path = workspace_document_path(Path::new("workspace"), "people/ada", "md").unwrap();
+
+        assert_eq!(path, Path::new("workspace").join("people/ada.md"));
+    }
+
+    #[test]
+    fn an_escaping_key_does_not_join_onto_the_workspace() {
+        let error = workspace_document_path(Path::new("workspace"), "../note", "md").unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert_eq!(error.to_string(), "key '../note' escapes the workspace");
+    }
+
+    fn workspace_beside_a_victim() -> (tempfile::TempDir, PathBuf) {
+        let base = tempfile::tempdir().unwrap();
+        let workspace = base.path().join("workspace");
+        std::fs::create_dir_all(&workspace).unwrap();
+        std::fs::write(base.path().join("victim.md"), "# Victim\n").unwrap();
+        (base, workspace)
+    }
+
+    #[test]
+    fn write_file_refuses_a_key_outside_the_workspace() {
+        let (base, workspace) = workspace_beside_a_victim();
+
+        let error = write_file(
+            &"../victim".to_string(),
+            &"# Escaped\n".to_string(),
+            &workspace,
+            Format::Markdown,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "key '../victim' escapes the workspace");
+        assert_eq!(
+            std::fs::read_to_string(base.path().join("victim.md")).unwrap(),
+            "# Victim\n"
+        );
+    }
+
+    #[test]
+    fn apply_changes_refuses_a_create_outside_the_workspace() {
+        let (base, workspace) = workspace_beside_a_victim();
+        let changes = Changes::new().create(Key::name("../escaped"), "# Escaped\n".to_string());
+
+        let error = apply_changes(&changes, &workspace, Format::Markdown).unwrap_err();
+
+        assert_eq!(error.to_string(), "key '../escaped' escapes the workspace");
+        assert!(!base.path().join("escaped.md").exists());
+    }
+
+    #[test]
+    fn apply_changes_refuses_an_update_outside_the_workspace() {
+        let (base, workspace) = workspace_beside_a_victim();
+        let changes = Changes::new().update(Key::name("../victim"), "# Replaced\n".to_string());
+
+        let error = apply_changes(&changes, &workspace, Format::Markdown).unwrap_err();
+
+        assert_eq!(error.to_string(), "key '../victim' escapes the workspace");
+        assert_eq!(
+            std::fs::read_to_string(base.path().join("victim.md")).unwrap(),
+            "# Victim\n"
+        );
+    }
+
+    #[test]
+    fn apply_changes_refuses_a_remove_outside_the_workspace() {
+        let (base, workspace) = workspace_beside_a_victim();
+        let changes = Changes::new().remove(Key::name("../victim"));
+
+        let error = apply_changes(&changes, &workspace, Format::Markdown).unwrap_err();
+
+        assert_eq!(error.to_string(), "key '../victim' escapes the workspace");
+        assert_eq!(
+            std::fs::read_to_string(base.path().join("victim.md")).unwrap(),
+            "# Victim\n"
+        );
     }
 }

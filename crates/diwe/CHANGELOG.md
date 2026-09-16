@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `write_file_if_changed` writes a file only when its content differs from what is on disk, and returns whether it wrote. `write_file` and `apply_changes` now go through it, so no document is replaced with the bytes it already holds.
+- `key_escapes_workspace` tells whether a document key would leave the workspace root through a `..` segment or an absolute path, and `workspace_document_path` joins a key onto the workspace root only when it stays inside.
+
+### Fixed
+
+- `write_file` and `apply_changes` refuse a key that escapes the workspace root with an `InvalidInput` error, instead of creating, overwriting or deleting a file outside it.
 
 ## [0.24.0](https://github.com/iwe-org/iwe/compare/diwe-v0.23.2...diwe-v0.24.0) - 2026-09-08
 

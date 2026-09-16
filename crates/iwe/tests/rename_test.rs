@@ -351,3 +351,30 @@ fn run_rename_command(work_dir: &std::path::Path, args: &[&str]) -> std::process
 
     command.output().expect("Failed to execute iwe rename")
 }
+
+#[test]
+fn test_rename_to_a_key_outside_the_workspace() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    let workspace = temp_path.join("workspace");
+    create_dir_all(&workspace).expect("Failed to create workspace directory");
+    setup_iwe_config(&workspace);
+    write(workspace.join("note.md"), "# Note\n").expect("Should write file");
+    write(temp_path.join("victim.md"), "# Victim\n").expect("Should write file");
+
+    let output = run_rename_command(&workspace, &["note", "../victim"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stderr).unwrap(),
+        "Error: Key '../victim' must stay inside the workspace: no leading '/' and no '..' segments\n"
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("victim.md")).unwrap(),
+        "# Victim\n"
+    );
+    assert_eq!(
+        read_to_string(workspace.join("note.md")).unwrap(),
+        "# Note\n"
+    );
+}

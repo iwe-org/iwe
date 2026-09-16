@@ -512,3 +512,109 @@ async fn round_trip_create_retrieve_update_delete() {
     let find = f.call_tool("iwe_find", json!({})).await;
     assert_eq!(Fixture::result_json(&find).as_array().unwrap().len(), 0);
 }
+
+#[tokio::test]
+async fn create_rejects_a_key_that_escapes_the_workspace() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let workspace = base.join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    let f = Fixture::with_path(workspace.to_str().unwrap(), Configuration::default()).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": "../escaped", "content": "# Escaped\n"}),
+        )
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Key '../escaped' must stay inside the workspace: no leading '/' and no '..' segments"
+    );
+    assert!(!base.join("escaped.md").exists());
+
+    let find = f.call_tool("iwe_find", json!({"fuzzy": "Escaped"})).await;
+    assert_eq!(Fixture::result_json(&find), json!([]));
+}
+
+#[tokio::test]
+async fn create_rejects_an_absolute_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let workspace = base.join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    let f = Fixture::with_path(workspace.to_str().unwrap(), Configuration::default()).await;
+
+    let absolute = base.join("absolute");
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": absolute.to_str().unwrap(), "content": "# Absolute\n"}),
+        )
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        format!(
+            "Mcp error: -32602: Key '{}' must stay inside the workspace: no leading '/' and no '..' segments",
+            absolute.display()
+        )
+    );
+    assert!(!base.join("absolute.md").exists());
+}
+
+#[tokio::test]
+async fn rename_rejects_a_new_key_that_escapes_the_workspace() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    let workspace = base.join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::write(workspace.join("note.md"), "# Note\n").unwrap();
+    std::fs::write(base.join("victim.md"), "# Victim\n").unwrap();
+    let f = Fixture::with_path(workspace.to_str().unwrap(), Configuration::default()).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_rename",
+            json!({"old_key": "note", "new_key": "../victim"}),
+        )
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32602: Key '../victim' must stay inside the workspace: no leading '/' and no '..' segments"
+    );
+    assert_eq!(
+        std::fs::read_to_string(base.join("victim.md")).unwrap(),
+        "# Victim\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(workspace.join("note.md")).unwrap(),
+        "# Note\n"
+    );
+
+    let retrieve = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["note"], "depth": 0, "backlinks": false}),
+        )
+        .await;
+    let docs = Fixture::result_json(&retrieve);
+    assert_eq!(docs[0]["title"], "Note");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn rename_reports_a_write_that_fails_on_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    std::fs::write(base.join("note.md"), "# Note\n").unwrap();
+    std::fs::create_dir_all(base.join("other.md")).unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    let result = f
+        .try_call_tool("iwe_rename", json!({"old_key": "note", "new_key": "other"}))
+        .await;
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Mcp error: -32603: Failed to write to the workspace: Is a directory (os error 21)"
+    );
+}
