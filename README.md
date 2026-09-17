@@ -24,6 +24,7 @@ IWE is for people who want database-style queries on their notes — "all drafts
 - **IDE features for your editor.** Real LSP integration with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/) — search, refactor, rename, autocomplete.
 - **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) give agents parent context and structural navigation over the same notes you edit by hand — retrieval by structure, not similarity guessing.
 - **Memory for your coding agent.** [IWE Skills](https://github.com/iwe-org/skills) a set of extensions for Claude Code and other AI agents
+- **A native Mac app.** [iWe for Mac](#iwe-for-mac-early-version) opens the same folder as a keyboard-driven app with Claude Code built in — early version, DMG on the [releases page](https://github.com/iwe-org/iwe-mac/releases).
 - **Speaks OKF.** An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle is markdown with YAML frontmatter — the format IWE already manages. `iwe init --okf` scaffolds a conformant bundle, `iwe schema validate` checks conformance mechanically, and `iwe find --filter '{type: …}'` queries OKF frontmatter directly.
 - **Fast.** Built in Rust, [processes 20,000 files in under a second](docs/benchmark.md).
 
@@ -101,6 +102,14 @@ IWE gives your editor IDE-like features for markdown notes. It works with [VS Co
 - **Outline conversion** — switch between headers and lists
 
 More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
+
+## iWe for Mac (early version)
+
+A native macOS app for the same folder of markdown. SwiftUI and AppKit over the same Rust engine the CLI uses — no Electron, no web view. It shows the folder as a graph you move through with the keyboard (vim keys, optional), renders Mermaid diagrams natively, runs the same query language as `iwe find` in its search and sidebar, and hosts Claude Code as its assistant: agent edits stream into the document block by block, one undo step per run.
+
+<a href="https://github.com/iwe-org/iwe-mac/releases"><img src="docs/app-intro-screenshot.png" alt="iWe for Mac showing a note with nested child documents, cross-references, and a natively rendered Mermaid diagram" width="820"></a>
+
+This is an early version: expect rough edges, and keep your workspace in git so any surprise is reversible. Requires macOS 15 or later. Download the DMG from the [releases page](https://github.com/iwe-org/iwe-mac/releases); the app keeps itself up to date from there. Feedback and bug reports go to the [alpha discussion](https://github.com/iwe-org/iwe/discussions/392). Your editor keeps working on the same files — the app is one more way in, not a replacement.
 
 ## Quick Start
 
