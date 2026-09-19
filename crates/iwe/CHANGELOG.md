@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Commands no longer crash on a flat document — a note with a few hundred headings, paragraphs or list items in a row and no nesting used to abort the process while the library was loading.
+
 ## [0.24.1](https://github.com/iwe-org/iwe/compare/iwe-v0.24.0...iwe-v0.24.1) - 2026-09-16
 
 ### Fixed

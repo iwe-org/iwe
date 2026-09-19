@@ -47,13 +47,13 @@ impl<'a> GraphBuilder<'a> {
     }
 
     pub fn to_parent(&mut self) -> &mut Self {
-        let id = self.id;
-        self.id = self.node().prev_id().unwrap();
+        loop {
+            let id = self.id;
+            self.id = self.node().prev_id().unwrap();
 
-        if self.node().is_parent_of(id) {
-            self
-        } else {
-            self.to_parent()
+            if self.node().is_parent_of(id) {
+                return self;
+            }
         }
     }
 
@@ -243,20 +243,18 @@ impl<'a> GraphBuilder<'a> {
                 .update_node(self.id, &mut |n| n.set_next_id(child_id));
         }
 
-        self.id = node.id();
-        self.store.add_graph_node(node.clone());
+        let insertable = node.insertable();
+        self.id = child_id;
+        self.store.add_graph_node(node);
 
         f(&mut GraphBuilder {
-            id: self.id,
+            id: child_id,
             store: &mut *self.store,
-            insert: node.insertable(),
+            insert: insertable,
         });
     }
 
-    fn add_node_and2<F>(&mut self, node: GraphNode, f: F)
-    where
-        F: FnOnce(&mut GraphBuilder<'_>),
-    {
+    fn attach_node(&mut self, node: GraphNode) -> GraphBuilder<'_> {
         let child_id = node.id();
         if self.insert {
             self.store
@@ -267,13 +265,14 @@ impl<'a> GraphBuilder<'a> {
                 .update_node(self.id, &mut |n| n.set_next_id(child_id));
         }
 
-        self.store.add_graph_node(node.clone());
+        let insertable = node.insertable();
+        self.store.add_graph_node(node);
 
-        f(&mut GraphBuilder {
-            id: node.id(),
+        GraphBuilder {
+            id: child_id,
             store: &mut *self.store,
-            insert: node.insertable(),
-        });
+            insert: insertable,
+        }
     }
 
     #[cfg(test)]
@@ -282,66 +281,50 @@ impl<'a> GraphBuilder<'a> {
         F: FnOnce(&mut GraphBuilder),
     {
         let id = self.store.new_node_id();
-        self.add_new_node_with_id(node, id, f);
+        f(&mut self.add_new_node_with_id(node, id));
     }
 
-    fn add_new_node_with_id<F>(&mut self, node: Node, id: NodeId, f: F)
-    where
-        F: FnOnce(&mut GraphBuilder),
-    {
+    fn add_new_node_with_id(&mut self, node: Node, id: NodeId) -> GraphBuilder<'_> {
         match node {
             Node::Document(_, _) => panic!("Document node is not allowed"),
             Node::Section(inlines) => {
                 let line_id = self.store.add_line(inlines);
-                self.add_node_and2(GraphNode::new_section(self.id, id, line_id), f);
+                self.attach_node(GraphNode::new_section(self.id, id, line_id))
             }
-            Node::Quote() => {
-                self.add_node_and2(GraphNode::new_quote(self.id, id), f);
-            }
-            Node::BulletList() => {
-                self.add_node_and2(GraphNode::new_bullet_list(self.id, id), f);
-            }
-            Node::OrderedList() => {
-                self.add_node_and2(GraphNode::new_ordered_list(self.id, id), f);
-            }
+            Node::Quote() => self.attach_node(GraphNode::new_quote(self.id, id)),
+            Node::BulletList() => self.attach_node(GraphNode::new_bullet_list(self.id, id)),
+            Node::OrderedList() => self.attach_node(GraphNode::new_ordered_list(self.id, id)),
             Node::Leaf(inlines) => {
                 let line_id = self.store.add_line(inlines);
-                self.add_node_and2(GraphNode::new_leaf(self.id, id, line_id), f);
+                self.attach_node(GraphNode::new_leaf(self.id, id, line_id))
             }
             Node::Item(checked, inlines) => {
                 let line_id = self
                     .store
                     .add_line(crate::model::inline::prepend_checkbox(checked, inlines));
-                self.add_node_and2(GraphNode::new_section(self.id, id, line_id), f);
+                self.attach_node(GraphNode::new_section(self.id, id, line_id))
             }
-            Node::Raw(lang, content) => {
-                self.add_node_and2(
-                    GraphNode::new_raw_leaf(self.id, id, content.to_string(), lang),
-                    f,
-                );
-            }
-            Node::HorizontalRule() => {
-                self.add_node_and2(GraphNode::new_rule(self.id, id), f);
-            }
+            Node::Raw(lang, content) => self.attach_node(GraphNode::new_raw_leaf(
+                self.id,
+                id,
+                content.to_string(),
+                lang,
+            )),
+            Node::HorizontalRule() => self.attach_node(GraphNode::new_rule(self.id, id)),
             Node::Reference(Reference {
                 key,
                 text: title,
                 reference_type,
                 url,
                 display_url: _,
-            }) => {
-                self.add_node_and2(
-                    GraphNode::new_ref(
-                        self.id,
-                        id,
-                        key.clone(),
-                        title.to_string(),
-                        reference_type,
-                        url.clone(),
-                    ),
-                    f,
-                );
-            }
+            }) => self.attach_node(GraphNode::new_ref(
+                self.id,
+                id,
+                key.clone(),
+                title.to_string(),
+                reference_type,
+                url.clone(),
+            )),
             Node::Table(table) => {
                 let header_line_ids = table
                     .header
@@ -359,41 +342,14 @@ impl<'a> GraphBuilder<'a> {
                     })
                     .collect();
 
-                self.add_node_and2(
-                    GraphNode::new_table(
-                        self.id,
-                        id,
-                        header_line_ids,
-                        table.alignment.clone(),
-                        rows,
-                    ),
-                    f,
-                );
+                self.attach_node(GraphNode::new_table(
+                    self.id,
+                    id,
+                    header_line_ids,
+                    table.alignment.clone(),
+                    rows,
+                ))
             }
-        }
-    }
-
-    fn append_nodes<'b>(&mut self, iter: impl NodeIter<'b>, ids: &mut ImportIds) {
-        self.insert = false;
-
-        if iter.is_document() {
-            self.append_nodes(iter.child().unwrap(), ids);
-            return;
-        }
-
-        if let Some(node) = iter.node() {
-            let id = ids.resolve(iter.iter_id());
-            if let Some(range) = iter.line_range() {
-                ids.map.push((id, range));
-            }
-            self.add_new_node_with_id(node, id, |builder| {
-                if let Some(child) = iter.child() {
-                    builder.insert_nodes(child, &mut *ids);
-                }
-                if let Some(next) = iter.next() {
-                    builder.append_nodes(next, &mut *ids);
-                }
-            });
         }
     }
 
@@ -404,26 +360,37 @@ impl<'a> GraphBuilder<'a> {
     }
 
     fn insert_nodes<'b>(&mut self, iter: impl NodeIter<'b>, ids: &mut ImportIds) {
-        self.insert = true;
+        self.walk_nodes(iter, ids, true);
+    }
+
+    fn walk_nodes<'b>(&mut self, iter: impl NodeIter<'b>, ids: &mut ImportIds, insert: bool) {
+        self.insert = insert;
 
         if iter.is_document() {
-            self.insert_nodes(iter.child().unwrap(), ids);
+            self.walk_nodes(iter.child().unwrap(), ids, insert);
             return;
         }
 
-        if let Some(node) = iter.node() {
-            let id = ids.resolve(iter.iter_id());
-            if let Some(range) = iter.line_range() {
+        let mut cursor = Some(iter);
+
+        while let Some(current) = cursor {
+            let Some(node) = current.node() else { return };
+
+            let id = ids.resolve(current.iter_id());
+            if let Some(range) = current.line_range() {
                 ids.map.push((id, range));
             }
-            self.add_new_node_with_id(node, id, |builder| {
-                if let Some(child) = iter.child() {
-                    builder.insert_nodes(child, &mut *ids);
-                }
-                if let Some(next) = iter.next() {
-                    builder.append_nodes(next, &mut *ids);
-                }
-            });
+
+            let mut anchor = self.add_new_node_with_id(node, id);
+
+            if let Some(child) = current.child() {
+                anchor.walk_nodes(child, ids, true);
+            }
+
+            self.id = id;
+            self.insert = false;
+
+            cursor = current.next();
         }
     }
 
