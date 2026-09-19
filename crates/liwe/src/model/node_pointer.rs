@@ -49,14 +49,17 @@ pub trait NodePointer<'a>: NodeIter<'a> {
 
     fn get_next_sections(&self) -> Vec<NodeId> {
         let mut sections = vec![];
-        if self.is_section() {
-            if let Some(id) = self.id() {
-                sections.push(id);
+        let mut cursor = self.to_self();
+
+        while let Some(node) = cursor {
+            if node.is_section() {
+                if let Some(id) = node.id() {
+                    sections.push(id);
+                }
             }
+            cursor = node.to_next();
         }
-        if let Some(next) = self.to_next() {
-            sections.extend(next.get_next_sections());
-        }
+
         sections
     }
 
@@ -85,15 +88,16 @@ pub trait NodePointer<'a>: NodeIter<'a> {
     }
 
     fn to_parent(&self) -> Option<Self> {
-        if let Some(prev) = self.to_prev() {
-            if let Some(id) = self.id() {
+        let mut cursor = self.to_self()?;
+
+        loop {
+            let prev = cursor.to_prev()?;
+            if let Some(id) = cursor.id() {
                 if prev.is_parent_of(id) {
                     return Some(prev);
                 }
             }
-            prev.to_parent()
-        } else {
-            None
+            cursor = prev;
         }
     }
 
@@ -122,10 +126,13 @@ pub trait NodePointer<'a>: NodeIter<'a> {
     }
 
     fn to_document(&self) -> Option<Self> {
-        if self.is_document() {
-            Some(self.to_node(self.id()?))
-        } else {
-            self.to_prev().and_then(|prev| prev.to_document())
+        let mut cursor = self.to_self()?;
+
+        loop {
+            if cursor.is_document() {
+                return Some(cursor);
+            }
+            cursor = cursor.to_prev()?;
         }
     }
 
@@ -139,26 +146,31 @@ pub trait NodePointer<'a>: NodeIter<'a> {
     }
 
     fn get_all_sub_nodes(&self) -> Vec<NodeId> {
-        let mut nodes = vec![self.id().unwrap_or_default()];
-        if let Some(child) = self.to_child() {
-            nodes.extend(child.get_all_sub_nodes());
+        let mut nodes = vec![];
+        let mut cursor = self.to_self();
+
+        while let Some(node) = cursor {
+            nodes.push(node.id().unwrap_or_default());
+            if let Some(child) = node.to_child() {
+                nodes.extend(child.get_all_sub_nodes());
+            }
+            cursor = node.to_next();
         }
-        nodes.extend(
-            self.to_next()
-                .map(|n| n.get_all_sub_nodes())
-                .unwrap_or_else(Vec::new),
-        );
+
         nodes
     }
 
     fn get_next_nodes(&self) -> Vec<NodeId> {
         let mut nodes = vec![];
-        if let Some(id) = self.id() {
-            nodes.push(id);
+        let mut cursor = self.to_self();
+
+        while let Some(node) = cursor {
+            if let Some(id) = node.id() {
+                nodes.push(id);
+            }
+            cursor = node.to_next();
         }
-        if let Some(next) = self.to_next() {
-            nodes.extend(next.get_next_nodes());
-        }
+
         nodes
     }
 
@@ -176,25 +188,34 @@ pub trait NodePointer<'a>: NodeIter<'a> {
             panic!("get_all_sub_headers called on non-section node")
         }
         let mut headers = vec![];
-        if let Some(id) = self.id() {
-            headers.push(id);
+        let mut cursor = self.to_self();
+
+        while let Some(node) = cursor {
+            if let Some(id) = node.id() {
+                headers.push(id);
+            }
+            if let Some(child) = node.to_child() {
+                headers.extend(child.get_all_sub_headers());
+            }
+            cursor = node.to_next();
         }
-        if let Some(child) = self.to_child() {
-            headers.extend(child.get_all_sub_headers());
-        }
-        headers.extend(
-            self.to_next()
-                .map(|n| n.get_all_sub_headers())
-                .unwrap_or_else(Vec::new),
-        );
+
         headers
     }
 
     fn to_first_section_at_the_same_level(&self) -> Self {
-        self.to_prev()
-            .filter(|p| p.is_section() && p.is_prev_of(self.id().expect("Expected node ID")))
-            .map(|p| p.to_first_section_at_the_same_level())
-            .unwrap_or_else(|| self.id().map(|id| self.to_node(id)).unwrap())
+        let mut cursor = self.to_self().expect("Expected node ID");
+
+        loop {
+            let prev = cursor
+                .to_prev()
+                .filter(|p| p.is_section() && p.is_prev_of(cursor.id().expect("Expected node ID")));
+
+            match prev {
+                Some(prev) => cursor = prev,
+                None => return cursor,
+            }
+        }
     }
 
     fn is_prev_of(&self, other: NodeId) -> bool {
