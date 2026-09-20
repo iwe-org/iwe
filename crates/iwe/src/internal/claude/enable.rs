@@ -191,6 +191,22 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
         ) {
             return code;
         }
+    } else if config.schemas.is_empty() {
+        if body.as_deref().is_some_and(policy_demands_strict) {
+            eprintln!(
+                "error: this policy tells the agent to pass --strict, but no schema binds in this workspace"
+            );
+            eprintln!(
+                "error: pass this store's schema with --schema, bound in --config, or drop --strict from the policy body"
+            );
+            return 1;
+        }
+        println!(
+            "no schema installed — `--body` is the existing store's path, and the starter schema describes the starter's shape"
+        );
+        println!(
+            "nothing enforces \"how to write it\" until this store's own schema goes in with --schema, bound in --config (`iwe docs schema`)"
+        );
     }
 
     let policy = match &body {
@@ -235,6 +251,11 @@ fn ensure_config_file() -> std::io::Result<()> {
     }
     std::fs::create_dir_all(".iwe")?;
     std::fs::write(path, "")
+}
+
+fn policy_demands_strict(body: &str) -> bool {
+    body.lines()
+        .any(|line| line.contains("iwe ") && line.contains("--strict"))
 }
 
 fn starter_schema_present() -> bool {

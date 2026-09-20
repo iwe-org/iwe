@@ -194,7 +194,9 @@ struct ClaudeEnable {
 
     #[clap(
         long,
-        help = "File whose content becomes the policy body, verbatim; the created frontmatter is added here"
+        help = "File whose content becomes the policy body, verbatim; the created frontmatter is added here. \
+                Installs no schema — pass this store's own with --schema, bound in --config; \
+                refused when the body passes --strict and nothing binds"
     )]
     body: Option<PathBuf>,
 

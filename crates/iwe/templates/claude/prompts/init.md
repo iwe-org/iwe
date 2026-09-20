@@ -33,6 +33,8 @@ iwe internal claude enable
 
 That also installs `.iwe/schemas/memory.yaml`, bound to every key: a document carrying `created` must stamp it `YYYY-MM-DD HH:MM` and keep `session` a non-empty string, and nothing else is constrained — the shape "how to write it" describes is enforced by `--strict` from the first write, and a reflect session tightens it later.
 
+A bare repository that wants the starter policy with a few sentences changed still runs the flagless command and edits the result with `iwe update -k MEMORY --content -`. Passing an edited starter through `--body` is the wrong path: it installs no schema, and the starter's "how to write it" both claims one binds every key and passes `--strict`, so `enable` refuses it rather than ship a rule nothing enforces.
+
 Existing knowledge base — a store with a shape of its own must not be given the starter's, since a distill run follows the policy literally. Compose the body first, then:
 
 ```bash
@@ -45,7 +47,7 @@ iwe internal claude enable --body <file> --config <ontology.toml> --schema <type
 - "How to write it" states what §1 observed: the key convention, the frontmatter fields, the template names and whether `--strict` applies, the body shape. What it does not say is not done. A store with pages for the things its notes are about (people, releases, components) gets those named too, with the rule that capture links a page by root-absolute key and never creates one.
 - Provenance: adopt the starter's `created` and `session` under the store's own names. One date per document — the span's `occurred` stamp, when the fact came about — never a second stamp for the distill run. A store whose documents carry `date:` gets the value there, and an injection slice that sorts by `date`.
 - Carry the decision rule across: a decision is recorded only when the user requested or confirmed it in their own words.
-- `--body` is the body only, no frontmatter. `--knobs` is plain YAML for `injection`, the queries session start lists — what the brief infers a schema from, what every `/iwe:reflect` census walks:
+- `--body` is the body only, no frontmatter, and installs no schema — the starter's describes the starter's shape, so this store's own goes in with `--schema`/`--config` below; without one `--strict` enforces nothing, and a body whose commands pass `--strict` is refused outright. `--knobs` is plain YAML for `injection`, the queries session start lists — what the brief infers a schema from, what every `/iwe:reflect` census walks:
 
   ```yaml
   injection:
