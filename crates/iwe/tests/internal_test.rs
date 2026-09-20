@@ -1,9 +1,10 @@
-use std::fs::{create_dir_all, read_to_string, write};
+use std::fs::{create_dir_all, read_dir, read_to_string, write};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use indoc::indoc;
+use iwe::internal::claude::enable::STARTER_BODY;
 use iwe::internal::claude::hook::store::SESSION_START_SECTION;
 use iwe::internal::claude::session::POLICY_SECTIONS;
 use liwe::schema::compile_schema;
@@ -1647,6 +1648,304 @@ fn enable_body_writes_the_policy_verbatim() {
     assert!(policy.contains("# My own policy"), "{}", policy);
     assert!(policy.contains("This store's shape."));
     assert!(!policy.contains("# Memory policy"));
+}
+
+const CUSTOM_SCHEMA: &str = "$schema: https://document-schema.org/draft/2026-06/schema\ndescription: a document of this store's own shape\nfrontmatter:\n  type: object\n";
+const CUSTOM_CONFIG: &str = "\n[schemas.note]\nmatch = \"**\"\n";
+const CUSTOM_BODY: &str = "# My own policy\n\nThis store's shape.\n";
+
+struct OntologyCase {
+    label: &'static str,
+    args: fn(&Path) -> Vec<String>,
+    schemas: &'static [&'static str],
+    bindings: &'static [&'static str],
+    notices: &'static [&'static str],
+}
+
+fn ontology_notices(stdout: &str) -> Vec<&str> {
+    stdout
+        .lines()
+        .filter(|line| !line.starts_with("initialized the iwe workspace at"))
+        .filter(|line| line.contains("schema") || line.contains("ontology"))
+        .collect()
+}
+
+fn schema_bindings(config: &str) -> Vec<&str> {
+    config
+        .lines()
+        .filter(|line| line.trim_start().starts_with("[schemas."))
+        .collect()
+}
+
+fn installed_schemas(root: &Path) -> Vec<String> {
+    let directory = root.join(".iwe/schemas");
+    if !directory.is_dir() {
+        return Vec::new();
+    }
+    let mut names: Vec<String> = read_dir(&directory)
+        .expect("schemas directory")
+        .map(|entry| {
+            entry
+                .expect("schema entry")
+                .file_name()
+                .to_string_lossy()
+                .to_string()
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn enable_installs_the_ontology_every_flag_combination_asks_for() {
+    let fixtures = TempDir::new().expect("Failed to create temp directory");
+    write(fixtures.path().join("body.md"), CUSTOM_BODY).expect("body");
+    write(fixtures.path().join("note.yaml"), CUSTOM_SCHEMA).expect("schema");
+    write(fixtures.path().join("ontology.toml"), CUSTOM_CONFIG).expect("ontology");
+
+    let cases = [
+        OntologyCase {
+            label: "flagless installs the starter schema",
+            args: |_| Vec::new(),
+            schemas: &["memory.yaml"],
+            bindings: &["[schemas.memory]"],
+            notices: &[
+                "appended the starter schema to .iwe/config.toml",
+                "wrote .iwe/schemas/memory.yaml",
+            ],
+        },
+        OntologyCase {
+            label: "--typed installs the typed ontology",
+            args: |_| vec!["--typed".to_string()],
+            schemas: &["decision.yaml", "gotcha.yaml", "learning.yaml", "topic.yaml"],
+            bindings: &[
+                "[schemas.learning]",
+                "[schemas.decision]",
+                "[schemas.gotcha]",
+                "[schemas.topic]",
+            ],
+            notices: &[
+                "appended the typed ontology to .iwe/config.toml",
+                "wrote .iwe/schemas/learning.yaml",
+                "wrote .iwe/schemas/decision.yaml",
+                "wrote .iwe/schemas/gotcha.yaml",
+                "wrote .iwe/schemas/topic.yaml",
+            ],
+        },
+        OntologyCase {
+            label: "--body alone installs nothing and says so",
+            args: |fixtures| {
+                vec![
+                    "--body".to_string(),
+                    fixtures.join("body.md").to_string_lossy().to_string(),
+                ]
+            },
+            schemas: &[],
+            bindings: &[],
+            notices: &[
+                "no schema installed — `--body` is the existing store's path, and the starter schema describes the starter's shape",
+                "nothing enforces \"how to write it\" until this store's own schema goes in with --schema, bound in --config (`iwe docs schema`)",
+            ],
+        },
+        OntologyCase {
+            label: "--body with --schema and --config installs what it was given",
+            args: |fixtures| {
+                vec![
+                    "--body".to_string(),
+                    fixtures.join("body.md").to_string_lossy().to_string(),
+                    "--schema".to_string(),
+                    fixtures.join("note.yaml").to_string_lossy().to_string(),
+                    "--config".to_string(),
+                    fixtures.join("ontology.toml").to_string_lossy().to_string(),
+                ]
+            },
+            schemas: &["note.yaml"],
+            bindings: &["[schemas.note]"],
+            notices: &[
+                "appended the composed ontology to .iwe/config.toml",
+                "wrote .iwe/schemas/note.yaml",
+            ],
+        },
+        OntologyCase {
+            label: "--config alone binds without installing a file",
+            args: |fixtures| {
+                vec![
+                    "--config".to_string(),
+                    fixtures.join("ontology.toml").to_string_lossy().to_string(),
+                ]
+            },
+            schemas: &[],
+            bindings: &["[schemas.note]"],
+            notices: &["appended the composed ontology to .iwe/config.toml"],
+        },
+        OntologyCase {
+            label: "--schema alone installs a file without binding it",
+            args: |fixtures| {
+                vec![
+                    "--schema".to_string(),
+                    fixtures.join("note.yaml").to_string_lossy().to_string(),
+                ]
+            },
+            schemas: &["note.yaml"],
+            bindings: &[],
+            notices: &["wrote .iwe/schemas/note.yaml"],
+        },
+    ];
+
+    for case in &cases {
+        let root = TempDir::new().expect("Failed to create temp directory");
+        let owned = (case.args)(fixtures.path());
+        let args: Vec<&str> = owned.iter().map(|argument| argument.as_str()).collect();
+
+        let output = run_enable(root.path(), &args);
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{}: stderr: {}",
+            case.label,
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(
+            ontology_notices(&stdout),
+            case.notices.to_vec(),
+            "{}: {}",
+            case.label,
+            stdout
+        );
+        assert_eq!(
+            installed_schemas(root.path()),
+            case.schemas.to_vec(),
+            "{}",
+            case.label
+        );
+        let config = read_to_string(root.path().join(".iwe/config.toml")).expect("config written");
+        assert_eq!(
+            schema_bindings(&config),
+            case.bindings.to_vec(),
+            "{}: {}",
+            case.label,
+            config
+        );
+    }
+}
+
+#[test]
+fn enable_refuses_a_body_that_demands_strict_when_nothing_binds() {
+    let root = TempDir::new().expect("Failed to create temp directory");
+    let fixtures = TempDir::new().expect("Failed to create temp directory");
+    let body = fixtures.path().join("body.md");
+    write(&body, STARTER_BODY).expect("body");
+
+    let output = run_enable(root.path(), &["--body", body.to_str().expect("path")]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "error: this policy tells the agent to pass --strict, but no schema binds in this workspace\nerror: pass this store's schema with --schema, bound in --config, or drop --strict from the policy body\n"
+    );
+    assert!(!root.path().join("MEMORY.md").exists());
+}
+
+#[test]
+fn enable_accepts_a_body_that_demands_strict_when_a_schema_comes_with_it() {
+    let root = TempDir::new().expect("Failed to create temp directory");
+    let fixtures = TempDir::new().expect("Failed to create temp directory");
+    let body = fixtures.path().join("body.md");
+    write(&body, STARTER_BODY).expect("body");
+    let schema = fixtures.path().join("note.yaml");
+    write(&schema, CUSTOM_SCHEMA).expect("schema");
+    let ontology = fixtures.path().join("ontology.toml");
+    write(&ontology, CUSTOM_CONFIG).expect("ontology");
+
+    let output = run_enable(
+        root.path(),
+        &[
+            "--body",
+            body.to_str().expect("path"),
+            "--schema",
+            schema.to_str().expect("path"),
+            "--config",
+            ontology.to_str().expect("path"),
+        ],
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(root.path().join("MEMORY.md").is_file());
+}
+
+#[test]
+fn enable_accepts_a_body_that_demands_strict_when_the_store_already_binds_one() {
+    let root = TempDir::new().expect("Failed to create temp directory");
+    let fixtures = TempDir::new().expect("Failed to create temp directory");
+    let body = fixtures.path().join("body.md");
+    write(&body, STARTER_BODY).expect("body");
+
+    create_dir_all(root.path().join(".iwe/schemas")).expect("schemas directory");
+    write(root.path().join(".iwe/schemas/note.yaml"), CUSTOM_SCHEMA).expect("schema");
+    write(root.path().join(".iwe/config.toml"), CUSTOM_CONFIG).expect("config");
+
+    let output = run_enable(root.path(), &["--body", body.to_str().expect("path")]);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        ontology_notices(&String::from_utf8_lossy(&output.stdout)),
+        Vec::<&str>::new()
+    );
+    assert!(root.path().join("MEMORY.md").is_file());
+}
+
+#[test]
+fn enable_ships_no_built_in_policy_that_demands_strict_without_binding_a_schema() {
+    for (label, args, key, rejected) in [
+        (
+            "flagless",
+            Vec::new(),
+            "probe",
+            "---\ncreated: \"not a stamp\"\n---\n\n# Probe\n\nBody.\n",
+        ),
+        (
+            "--typed",
+            vec!["--typed"],
+            "learnings/probe",
+            "---\ncreated: \"2026-08-01\"\n---\n\n# Probe\n\nBody.\n",
+        ),
+    ] {
+        let root = TempDir::new().expect("Failed to create temp directory");
+        let output = run_enable(root.path(), &args);
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{}: stderr: {}",
+            label,
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        let policy = read_to_string(root.path().join("MEMORY.md")).expect("policy written");
+        assert!(policy.contains("--strict"), "{}", label);
+
+        let config = read_to_string(root.path().join(".iwe/config.toml")).expect("config written");
+        assert_ne!(schema_bindings(&config), Vec::<&str>::new(), "{}", label);
+
+        let bad = run_iwe(
+            root.path(),
+            &["create", key, "--strict", "--content", rejected],
+        );
+        assert_ne!(bad.status.code(), Some(0), "{}", label);
+        assert!(
+            !root.path().join(format!("{}.md", key)).exists(),
+            "{}",
+            label
+        );
+    }
 }
 
 #[test]
