@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.2](https://github.com/iwe-org/iwe/compare/liwe-v0.24.1...liwe-v0.24.2) - 2026-09-20
+
 ### Fixed
 
 - Documents with a long run of blocks at the same level no longer abort the process. Reading a document into the graph, rebuilding it from a tree and writing it back out all walked the run of siblings by recursion, so a flat note — a few hundred headings, paragraphs or list items in a row, with nothing nested under them — could exhaust the stack. The host got no error it could catch, only a crash.

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.2](https://github.com/iwe-org/iwe/compare/iwes-v0.24.1...iwes-v0.24.2) - 2026-09-20
+
 ### Fixed
 
 - The server no longer crashes when the workspace holds a flat document — a note with a few hundred headings, paragraphs or list items in a row and no nesting used to abort it during load.
