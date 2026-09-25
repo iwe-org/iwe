@@ -129,7 +129,7 @@ Whatever the policy says:
 - The CLI is the write path, never the Write or Edit tool. When the `PostToolUse` hook reports a document written around the CLI, redo it through `iwe`.
 - The body goes on stdin — `--content -` with a quoted heredoc; an inlined multi-line argument trips the shell-safety prompt.
 - Provenance values come from the `session read` header for a transcript span, from the current time and `$CLAUDE_CODE_SESSION_ID` for the live conversation, in the shape the store's other documents use.
-- Links are graph semantics: a link alone in its paragraph makes the target a child, inline or in a list item it is a reference. A key resolves against the document's own directory, a root-absolute one (`/components/session-record`) from the library root. Never mint a page the policy leaves to `/iwe:reflect`.
+- Links are graph semantics: a link alone in its paragraph makes the target a child, inline or in a list item it is a reference. A key resolves against the document's own directory, a root-absolute one (`/components/session-record`) from the workspace root. Never mint a page the policy leaves to `/iwe:reflect`.
 
 ## 7. Record what happened
 

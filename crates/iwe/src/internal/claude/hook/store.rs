@@ -152,17 +152,17 @@ pub fn project_slug(project: &str) -> String {
 
 fn load_store_graph(config: &Configuration) -> Graph {
     graph_from_path(
-        &library_path_of(config),
+        &workspace_path_of(config),
         false,
         config.format_options(),
-        config.library.frontmatter_document_title.clone(),
+        config.workspace.frontmatter_document_title.clone(),
     )
 }
 
-pub fn library_path_of(config: &Configuration) -> PathBuf {
+pub fn workspace_path_of(config: &Configuration) -> PathBuf {
     let mut path = std::env::current_dir().unwrap_or_default();
-    if !config.library.path.is_empty() {
-        path.push(config.library.path.clone());
+    if !config.workspace.path.is_empty() {
+        path.push(config.workspace.path.clone());
     }
     path
 }
@@ -556,7 +556,7 @@ impl MemoryStore {
     }
 
     pub fn document_path(&self, key: &str) -> PathBuf {
-        library_path_of(&self.config).join(format!(
+        workspace_path_of(&self.config).join(format!(
             "{}.{}",
             Key::name(key),
             self.config.format.extension()

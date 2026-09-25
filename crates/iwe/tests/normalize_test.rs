@@ -1,4 +1,4 @@
-use diwe::config::{Configuration, FormattingOptions, LibraryOptions, MarkdownOptions, RefsText};
+use diwe::config::{Configuration, FormattingOptions, MarkdownOptions, RefsText, WorkspaceOptions};
 use indoc::indoc;
 use std::fs::{create_dir_all, read_to_string, write};
 use std::process::Command;
@@ -420,7 +420,7 @@ fn setup_iwe_config_with_refs_text(temp_path: &std::path::Path, refs_text: RefsT
     create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
 
     let config = Configuration {
-        library: LibraryOptions {
+        workspace: WorkspaceOptions {
             path: "".to_string(),
             ..Default::default()
         },
@@ -441,7 +441,7 @@ fn setup_iwe_config_with_formatting(temp_path: &std::path::Path, formatting: For
     create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
 
     let config = Configuration {
-        library: LibraryOptions {
+        workspace: WorkspaceOptions {
             path: "".to_string(),
             ..Default::default()
         },

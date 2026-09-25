@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `iwe://config` resource reports the document collection under a `workspace` object (was `library`).
+- The `[library]` configuration table is now `[workspace]`. A config that still says `[library]` keeps working.
+
+### Deprecated
+
+- The `iwe://config` resource still carries a `library` object, a copy of `workspace`, for clients that read the old name.
+
 ## [0.24.2](https://github.com/iwe-org/iwe/compare/iwec-v0.24.1...iwec-v0.24.2) - 2026-09-20
 
 ### Fixed

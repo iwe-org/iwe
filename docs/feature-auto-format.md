@@ -127,6 +127,6 @@ See [Configuration](configuration.md) for all available formatting options.
 
 ## Tips
 
-- **Enable format-on-save** for consistent formatting across your library
+- **Enable format-on-save** for consistent formatting across your workspace
 - **Use with version control** to easily review formatting changes
 - If you notice unexpected formatting, check [Header Levels Normalization](feature-normalization.md) for detailed header adjustment rules

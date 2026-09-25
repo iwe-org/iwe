@@ -1,8 +1,8 @@
 # IWE New
 
-Creates a new document from a title — the quick-capture form of document creation. The title is the positional argument, `-c` or piped stdin fills the template's content slot, and `library.default_template` picks the template when `-t` is not given.
+Creates a new document from a title — the quick-capture form of document creation. The title is the positional argument, `-c` or piped stdin fills the template's content slot, and `workspace.default_template` picks the template when `-t` is not given.
 
-For composing from named templates with typed variables, or for writing a complete document verbatim, see [`iwe create`](cli-create.md). The commands overlap but differ: `iwe create` requires an explicit template name (it never reads `library.default_template`), takes no positional title, and its template mode never reads stdin.
+For composing from named templates with typed variables, or for writing a complete document verbatim, see [`iwe create`](cli-create.md). The commands overlap but differ: `iwe create` requires an explicit template name (it never reads `workspace.default_template`), takes no positional title, and its template mode never reads stdin.
 
 | `iwe new`                          | `iwe create` equivalent                             |
 | ---------------------------------- | --------------------------------------------------- |
@@ -23,7 +23,7 @@ iwe new <TITLE> [OPTIONS]
 
 ## Options
 
-- `-t, --template <NAME>`: Template name from config (default: `library.default_template`, or "default" when unset)
+- `-t, --template <NAME>`: Template name from config (default: `workspace.default_template`, or "default" when unset)
 - `-c, --content <CONTENT>`: Initial content for the document
 - `-k, --key <KEY>`: Explicit document key, bypassing the template's key derivation. Subdirectory keys are allowed (e.g. `people/ada`). Omit the file extension.
 - `-i, --if-exists <MODE>`: Behavior when file already exists (default: "suffix", or "fail" when `--key` is given)
@@ -55,8 +55,8 @@ Templates support the following variables:
 
 - `{{title}}`: The provided title argument
 - `{{slug}}`: Slugified title (kebab-case)
-- `{{today}}`: Current date (uses `library.date_format` for key, `markdown.date_format` for content). Intended for date-only formatting.
-- `{{now}}`: Current date/time (uses `library.time_format` for key, `markdown.time_format` for content). Falls back to `date_format` if `time_format` is not set. Supports both date specifiers (`%Y`, `%m`, `%d`) and time specifiers (`%H`, `%M`, `%S`).
+- `{{today}}`: Current date (uses `workspace.date_format` for key, `markdown.date_format` for content). Intended for date-only formatting.
+- `{{now}}`: Current date/time (uses `workspace.time_format` for key, `markdown.time_format` for content). Falls back to `date_format` if `time_format` is not set. Supports both date specifiers (`%Y`, `%m`, `%d`) and time specifiers (`%H`, `%M`, `%S`).
 - `{{id}}`: Random 8-character alphanumeric ID
 - `{{content}}`: Content from `-c` option or stdin
 
@@ -97,7 +97,7 @@ iwe new "Ada Lovelace" --key people/ada --if-exists skip
 Templates are defined in `.iwe/config.toml`:
 
 ``` toml
-[library]
+[workspace]
 default_template = "default"  # Optional: set default template
 
 [templates.default]

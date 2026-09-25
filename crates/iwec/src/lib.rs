@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use chrono::Local;
 use diwe::config::{
-    library_path_in, schemas_dir_in, ActionDefinition, CompletionOptions, Configuration,
+    schemas_dir_in, workspace_path_in, ActionDefinition, CompletionOptions, Configuration,
     MarkdownOptions, NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
@@ -648,14 +648,15 @@ struct AttachActionEntry {
 #[derive(Debug, Serialize)]
 struct ConfigResource {
     markdown: MarkdownOptions,
-    library: LibraryResourceView,
+    workspace: WorkspaceResourceView,
+    library: WorkspaceResourceView,
     completion: CompletionOptions,
     templates: HashMap<String, NoteTemplate>,
     actions: Vec<ActionResourceView>,
 }
 
-#[derive(Debug, Serialize)]
-struct LibraryResourceView {
+#[derive(Debug, Clone, Serialize)]
+struct WorkspaceResourceView {
     date_format: Option<String>,
     default_template: Option<String>,
     frontmatter_document_title: Option<String>,
@@ -699,14 +700,17 @@ impl ConfigResource {
             })
             .collect::<Result<Vec<_>, String>>()?;
 
+        let workspace = WorkspaceResourceView {
+            date_format: config.workspace.date_format.clone(),
+            default_template: config.workspace.default_template.clone(),
+            frontmatter_document_title: config.workspace.frontmatter_document_title.clone(),
+            locale: config.workspace.locale.clone(),
+        };
+
         Ok(Self {
             markdown: config.markdown.clone(),
-            library: LibraryResourceView {
-                date_format: config.library.date_format.clone(),
-                default_template: config.library.default_template.clone(),
-                frontmatter_document_title: config.library.frontmatter_document_title.clone(),
-                locale: config.library.locale.clone(),
-            },
+            library: workspace.clone(),
+            workspace,
             completion: config.completion.clone(),
             templates: config.templates.clone(),
             actions,
@@ -1816,17 +1820,17 @@ impl ServerHandler for IweServer {
 impl IweServer {
     pub fn new(project_path: &str, configuration: &Configuration) -> Self {
         let root = PathBuf::from_str(project_path).expect("valid path");
-        let library = library_path_in(&root, configuration);
-        let state = new_for_path(&library, configuration.format);
+        let workspace = workspace_path_in(&root, configuration);
+        let state = new_for_path(&workspace, configuration.format);
         let graph = Graph::from_state(
             &state,
             false,
             configuration.format_options(),
-            configuration.library.frontmatter_document_title.clone(),
+            configuration.workspace.frontmatter_document_title.clone(),
         );
         Self {
             graph: Arc::new(Mutex::new(graph)),
-            base_path: Some(library),
+            base_path: Some(workspace),
             project_path: Some(root),
             config: configuration.clone(),
             index: Arc::new(Mutex::new(None)),
@@ -1964,7 +1968,7 @@ impl IweServer {
         let now = Local::now();
         let date_format = self
             .config
-            .library
+            .workspace
             .date_format
             .as_deref()
             .unwrap_or(DEFAULT_KEY_DATE_FORMAT);

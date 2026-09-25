@@ -1,6 +1,6 @@
 # Files Renaming
 
-IWE provides file renaming through the LSP `rename` refactoring feature. When you rename a note file, IWE automatically updates all references throughout your entire library.
+IWE provides file renaming through the LSP `rename` refactoring feature. When you rename a note file, IWE automatically updates all references throughout your entire workspace.
 
 ## How It Works
 

@@ -82,7 +82,7 @@ document_template = "# Meeting Notes - {{today}}\n\n{{content}}\n\n"
 Attach actions support two template variables:
 
 - `{{today}}`: Current date formatted using your configured date format
-  - In `key_template`: Uses `library.date_format` (default: `"%Y-%m-%d"`)
+  - In `key_template`: Uses `workspace.date_format` (default: `"%Y-%m-%d"`)
   - In `document_template`: Uses `markdown.date_format` (default: `"%b %d, %Y"`)
 - `{{content}}`: The actual content being attached
 

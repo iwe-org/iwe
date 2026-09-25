@@ -52,7 +52,7 @@ iwe [OPTIONS] <COMMAND>
 Commands respect settings in `.iwe/config.toml`:
 
 ``` toml
-[library]
+[workspace]
 path = ""  # Subdirectory containing markdown files
 
 [markdown]

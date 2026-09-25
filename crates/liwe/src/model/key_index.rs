@@ -32,7 +32,7 @@ impl KeyIndex {
     pub fn wiki_target(&self, target: &Key, mode: WikiLinkPath) -> String {
         match mode {
             WikiLinkPath::Short => self.shorten_wiki(target),
-            WikiLinkPath::Full | WikiLinkPath::Preserve => target.to_library_url(),
+            WikiLinkPath::Full | WikiLinkPath::Preserve => target.to_workspace_url(),
         }
     }
 

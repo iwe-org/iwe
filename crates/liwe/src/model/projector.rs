@@ -60,7 +60,7 @@ impl Projector {
                     ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => reference
                         .display_url
                         .clone()
-                        .unwrap_or_else(|| reference.key.to_library_url()),
+                        .unwrap_or_else(|| reference.key.to_workspace_url()),
                 };
                 let inlines = match reference.reference_type {
                     ReferenceType::WikiLink => vec![],
@@ -164,7 +164,7 @@ impl Projector {
                         ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => reference
                             .display_url
                             .clone()
-                            .unwrap_or_else(|| reference.key.to_library_url()),
+                            .unwrap_or_else(|| reference.key.to_workspace_url()),
                     };
 
                     let link = Inline::Link(

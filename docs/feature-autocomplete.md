@@ -79,7 +79,7 @@ The length is measured against the search query after any leading `[` or `[[` is
 By default, IWE uses the first header of a document as its title in completion suggestions. You can configure IWE to use a YAML frontmatter field instead:
 
 ``` toml
-[library]
+[workspace]
 frontmatter_document_title = "title"
 ```
 

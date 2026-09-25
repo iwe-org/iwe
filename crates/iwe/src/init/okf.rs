@@ -34,24 +34,24 @@ fn schema_files() -> [(&'static str, &'static str); 3] {
     ]
 }
 
-pub fn planned_artifacts(root: &Path, library: &str) -> Vec<String> {
+pub fn planned_artifacts(root: &Path, workspace: &str) -> Vec<String> {
     let mut lines = Vec::new();
     for (name, _) in schema_files() {
         lines.push(format!("would write .iwe/schemas/{name}"));
     }
-    let index = index_path(root, library);
+    let index = index_path(root, workspace);
     if index.exists() {
         lines.push(format!(
             "would keep the existing {}",
-            index_display(library)
+            index_display(workspace)
         ));
     } else {
-        lines.push(format!("would write {}", index_display(library)));
+        lines.push(format!("would write {}", index_display(workspace)));
     }
     lines
 }
 
-pub fn write_artifacts(root: &Path, library: &str) -> Vec<String> {
+pub fn write_artifacts(root: &Path, workspace: &str) -> Vec<String> {
     let mut lines = Vec::new();
 
     let dir = root.join(".iwe").join("schemas");
@@ -69,9 +69,9 @@ pub fn write_artifacts(root: &Path, library: &str) -> Vec<String> {
         }
     }
 
-    let index = index_path(root, library);
+    let index = index_path(root, workspace);
     if index.exists() {
-        lines.push(format!("kept the existing {}", index_display(library)));
+        lines.push(format!("kept the existing {}", index_display(workspace)));
         return lines;
     }
     if let Some(parent) = index.parent() {
@@ -84,28 +84,28 @@ pub fn write_artifacts(root: &Path, library: &str) -> Vec<String> {
         }
     }
     match write(&index, index_document()) {
-        Ok(()) => lines.push(format!("wrote {}", index_display(library))),
+        Ok(()) => lines.push(format!("wrote {}", index_display(workspace))),
         Err(error) => lines.push(format!(
             "warning: failed to write {}: {error}",
-            index_display(library)
+            index_display(workspace)
         )),
     }
     lines
 }
 
-fn index_path(root: &Path, library: &str) -> std::path::PathBuf {
-    if library.is_empty() {
+fn index_path(root: &Path, workspace: &str) -> std::path::PathBuf {
+    if workspace.is_empty() {
         root.join(INDEX_FILE_NAME)
     } else {
-        root.join(library).join(INDEX_FILE_NAME)
+        root.join(workspace).join(INDEX_FILE_NAME)
     }
 }
 
-fn index_display(library: &str) -> String {
-    if library.is_empty() {
+fn index_display(workspace: &str) -> String {
+    if workspace.is_empty() {
         INDEX_FILE_NAME.to_string()
     } else {
-        format!("{library}/{INDEX_FILE_NAME}")
+        format!("{workspace}/{INDEX_FILE_NAME}")
     }
 }
 
@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn write_artifacts_places_the_index_inside_the_library() {
+    fn write_artifacts_places_the_index_inside_the_workspace() {
         let temp = TempDir::new().unwrap();
         let lines = write_artifacts(temp.path(), "data");
         assert_eq!(lines.last().unwrap(), "wrote data/index.md");

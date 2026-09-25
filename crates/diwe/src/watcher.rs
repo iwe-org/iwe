@@ -283,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_keeps_library_writes_and_drops_ignored_ones() {
+    fn dispatch_keeps_workspace_writes_and_drops_ignored_ones() {
         use notify::event::ModifyKind;
 
         let dir = workspace_with_ignored_files();
@@ -295,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_keeps_library_deletions_and_drops_ignored_ones() {
+    fn dispatch_keeps_workspace_deletions_and_drops_ignored_ones() {
         use notify::event::RemoveKind;
 
         let dir = workspace_with_ignored_files();

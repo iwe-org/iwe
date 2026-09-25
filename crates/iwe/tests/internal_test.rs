@@ -3900,7 +3900,7 @@ fn a_file_of_another_type_is_not_touched() {
 }
 
 #[test]
-fn a_document_outside_the_library_is_not_touched() {
+fn a_document_outside_the_workspace_is_not_touched() {
     let fixture = HookFixture::new(Some("# Memory\n\nKeep decisions.\n"));
     let outside = fixture.root.path().join("elsewhere.md");
     write(&outside, "#  Outside\n\n*  one\n").expect("Failed to write");
@@ -4081,7 +4081,7 @@ fn a_global_flag_with_a_value_does_not_hide_the_verb() {
 }
 
 #[test]
-fn the_net_covers_every_document_in_the_library() {
+fn the_net_covers_every_document_in_the_workspace() {
     let fixture = HookFixture::new(Some("# Memory\n\nKeep decisions.\n"));
     fixture.write("docs/guide.md", "#  Guide\n\n*  one\n");
 

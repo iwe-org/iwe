@@ -9,7 +9,7 @@ OPERATIONS PERFORMED:
 
 EXAMPLES:
 
-  # Normalize every document in the library
+  # Normalize every document in the workspace
   iwe normalize
 
   # Normalize one document, leaving its frontmatter untouched

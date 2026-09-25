@@ -25,7 +25,7 @@ pub struct EvidenceSummary {
     pub files: usize,
     pub scanned_files: usize,
     pub capped: bool,
-    pub library_path: String,
+    pub workspace_path: String,
     pub markdown_files: usize,
     pub djot_files: usize,
     pub wiki_links: usize,
@@ -43,7 +43,7 @@ pub fn summarize(evidence: &Evidence) -> EvidenceSummary {
         files: evidence.files,
         scanned_files: evidence.scanned_files,
         capped: evidence.capped,
-        library_path: evidence.library_path.clone(),
+        workspace_path: evidence.workspace_path.clone(),
         markdown_files: evidence.markdown_files,
         djot_files: evidence.djot_files,
         wiki_links: evidence.wiki_links,
@@ -68,10 +68,10 @@ fn counted(count: usize, singular: &str, plural: &str) -> String {
 pub fn summary_line(evidence: &Evidence) -> String {
     let mut parts = Vec::new();
 
-    let location = if evidence.library_path.is_empty() {
+    let location = if evidence.workspace_path.is_empty() {
         "here".to_string()
     } else {
-        format!("in {}/", evidence.library_path)
+        format!("in {}/", evidence.workspace_path)
     };
     parts.push(format!(
         "{} {}",
@@ -107,7 +107,7 @@ pub fn warnings(evidence: &Evidence, settings: &Settings, probes: &Probes) -> Ve
 
     if evidence.root_relative_links > 0 {
         warnings.push(format!(
-            "{} from the library root but carry no leading slash — normalize rewrites to /path form",
+            "{} from the workspace root but carry no leading slash — normalize rewrites to /path form",
             counted(evidence.root_relative_links, "link resolves", "links resolve")
         ));
     }
@@ -154,8 +154,11 @@ pub fn warnings(evidence: &Evidence, settings: &Settings, probes: &Probes) -> Ve
         ));
     }
 
-    if let Some(parent) = &probes.nested_library {
-        warnings.push(format!("nested library — {} already contains .iwe", parent));
+    if let Some(parent) = &probes.nested_workspace {
+        warnings.push(format!(
+            "nested workspace — {} already contains .iwe",
+            parent
+        ));
     }
 
     warnings

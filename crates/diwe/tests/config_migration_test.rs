@@ -1,5 +1,6 @@
 use diwe::config::{
-    migrate_v2_to_v3, ActionDefinition, Configuration, DjotOptions, Format, FormatOptions,
+    migrate_v2_to_v3, migrate_v3_to_v4, ActionDefinition, Configuration, DjotOptions, Format,
+    FormatOptions,
 };
 use indoc::indoc;
 
@@ -157,9 +158,9 @@ fn test_default_configuration_has_version_1() {
 }
 
 #[test]
-fn test_template_configuration_has_version_3() {
+fn test_template_configuration_has_version_4() {
     let config = Configuration::template();
-    assert_eq!(config.version, Some(3));
+    assert_eq!(config.version, Some(4));
 
     assert!(!config.actions.is_empty());
     assert!(config.actions.contains_key("extract"));
@@ -326,4 +327,127 @@ fn test_migrated_v2_config_parses_correctly() {
     } else {
         panic!("extract should be Extract type");
     }
+}
+
+#[test]
+fn test_library_table_is_still_read_as_workspace() {
+    let config_str = indoc! {r#"
+        version = 3
+
+        [library]
+        path = "notes"
+        date_format = "%Y-%m-%d"
+        locale = "en_US"
+    "#};
+
+    let parsed: Configuration =
+        toml::from_str(config_str).expect("the old table name must still parse");
+
+    assert_eq!(parsed.workspace.path, "notes");
+    assert_eq!(parsed.workspace.date_format, Some("%Y-%m-%d".to_string()));
+    assert_eq!(parsed.workspace.locale, Some("en_US".to_string()));
+}
+
+#[test]
+fn test_migrate_v3_to_v4_renames_library_to_workspace() {
+    let v3_config = indoc! {r#"
+        version = 3
+
+        [library]
+        path = "notes"
+        date_format = "%Y-%m-%d"
+
+        [markdown]
+        refs_extension = ""
+    "#};
+
+    assert_eq!(
+        migrate_v3_to_v4(v3_config),
+        indoc! {r#"
+            version = 3
+
+            [workspace]
+            path = "notes"
+            date_format = "%Y-%m-%d"
+
+            [markdown]
+            refs_extension = ""
+        "#}
+    );
+}
+
+#[test]
+fn test_migrate_v3_to_v4_keeps_a_config_without_the_old_table_unchanged() {
+    let v3_config = indoc! {r#"
+        version = 3
+
+        [markdown]
+        refs_extension = ""
+    "#};
+
+    assert_eq!(migrate_v3_to_v4(v3_config), v3_config);
+}
+
+#[test]
+fn test_migrate_v3_to_v4_drops_the_old_table_when_both_are_present() {
+    let v3_config = indoc! {r#"
+        version = 3
+
+        [workspace]
+        path = "notes"
+
+        [library]
+        path = "stale"
+    "#};
+
+    assert_eq!(
+        migrate_v3_to_v4(v3_config),
+        indoc! {r#"
+            version = 3
+
+            [workspace]
+            path = "notes"
+        "#}
+    );
+}
+
+#[test]
+fn test_migrated_v3_config_parses_correctly() {
+    let v3_config = indoc! {r#"
+        version = 3
+
+        [library]
+        path = "notes"
+        frontmatter_document_title = "title"
+
+        [markdown]
+        refs_extension = ""
+    "#};
+
+    let parsed: Configuration =
+        toml::from_str(&migrate_v3_to_v4(v3_config)).expect("Failed to parse migrated config");
+
+    assert_eq!(parsed.workspace.path, "notes");
+    assert_eq!(
+        parsed.workspace.frontmatter_document_title,
+        Some("title".to_string())
+    );
+}
+
+#[test]
+fn test_migrate_v3_to_v4_renames_the_old_table_written_as_dotted_keys() {
+    let v3_config = indoc! {r#"
+        version = 3
+        library.path = "notes"
+        markdown.refs_extension = ""
+    "#};
+
+    assert_eq!(
+        migrate_v3_to_v4(v3_config),
+        indoc! {r#"
+            version = 3
+            markdown.refs_extension = ""
+            workspace.path = "notes"
+        "#}
+    );
 }

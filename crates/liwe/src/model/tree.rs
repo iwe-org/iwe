@@ -409,7 +409,7 @@ impl Tree {
                     text: reference.text.clone(),
                     reference_type: reference.reference_type,
                     url: if reference.key.eq(target_key) {
-                        updated_key.to_library_url()
+                        updated_key.to_workspace_url()
                     } else {
                         reference.url.clone()
                     },

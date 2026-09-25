@@ -11,7 +11,7 @@ So, I developed an LSP called IWE. It includes essential features such as note s
 - Code actions for various text transformations.
 - And more
 
-IWE allows you to build a notes library that can support basic journaling as well as GTD, Zettelkasten, PARA, you name it methods of note-taking. IWE does not enforce any structure on you notes library. It doesn't care about your file names preference. It's only give you tools to manage the documents and connections between them with least possible effort automating routine operations such as formatting, keeping link titles up to date and many other.
+IWE allows you to build a notes workspace that can support basic journaling as well as GTD, Zettelkasten, PARA, you name it methods of note-taking. IWE does not enforce any structure on you notes workspace. It doesn't care about your file names preference. It's only give you tools to manage the documents and connections between them with least possible effort automating routine operations such as formatting, keeping link titles up to date and many other.
 
 This is all possible because of IWE's unique [Architecture](architecture.md). IWE loads notes into an in-memory graph structure, which understands the hierarchy of headers and lists. This allows it to go through the graph, reorganize, and transform the content as needed using graph iterators.
 

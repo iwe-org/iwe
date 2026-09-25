@@ -1,6 +1,6 @@
 use diwe::config::{
-    CompletionOptions, Configuration, LibraryOptions, LinkType, MarkdownOptions, RefsPath,
-    WikiLinkPath,
+    CompletionOptions, Configuration, LinkType, MarkdownOptions, RefsPath, WikiLinkPath,
+    WorkspaceOptions,
 };
 use indoc::indoc;
 
@@ -480,7 +480,7 @@ fn completion_with_wikilink_and_refs_extension() {
 #[test]
 fn completion_uses_frontmatter_title() {
     let config = diwe::config::Configuration {
-        library: LibraryOptions {
+        workspace: WorkspaceOptions {
             frontmatter_document_title: Some("title".to_string()),
             ..Default::default()
         },
@@ -524,7 +524,7 @@ fn completion_uses_frontmatter_title() {
 #[test]
 fn completion_fallback_to_header_when_frontmatter_missing() {
     let config = diwe::config::Configuration {
-        library: LibraryOptions {
+        workspace: WorkspaceOptions {
             frontmatter_document_title: Some("title".to_string()),
             ..Default::default()
         },

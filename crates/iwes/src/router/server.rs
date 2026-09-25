@@ -48,7 +48,7 @@ impl Server {
             config.configuration.format_options(),
             config
                 .configuration
-                .library
+                .workspace
                 .frontmatter_document_title
                 .clone(),
         );

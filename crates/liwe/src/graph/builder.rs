@@ -203,7 +203,7 @@ impl<'a> GraphBuilder<'a> {
             key.clone(),
             String::default(),
             ReferenceType::Regular,
-            key.to_library_url(),
+            key.to_workspace_url(),
         ));
     }
 

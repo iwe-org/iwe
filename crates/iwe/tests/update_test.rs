@@ -1,4 +1,4 @@
-use diwe::config::{Configuration, LibraryOptions, MarkdownOptions};
+use diwe::config::{Configuration, MarkdownOptions, WorkspaceOptions};
 use indoc::indoc;
 use std::fs::{create_dir_all, read_to_string, write};
 use std::path::Path;
@@ -10,7 +10,7 @@ fn setup(docs: Vec<(&str, &str)>) -> TempDir {
     let temp_path = temp_dir.path();
     create_dir_all(temp_path.join(".iwe")).expect("mkdir .iwe");
     let config = Configuration {
-        library: LibraryOptions {
+        workspace: WorkspaceOptions {
             path: "".to_string(),
             ..Default::default()
         },

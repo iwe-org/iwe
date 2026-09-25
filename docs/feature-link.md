@@ -132,7 +132,7 @@ Link actions support several template variables:
 - **{{id}}**: Auto-generated unique numeric ID
 - **{{slug}}**: Slugified version of the text (lowercase, hyphens instead of spaces)
 - **{{title}}**: Sanitized version of the text (safe for filenames)
-- **{{today}}**: Current date formatted using your configured date format from `library.date_format` (default: `"%Y-%m-%d"`)
+- **{{today}}**: Current date formatted using your configured date format from `workspace.date_format` (default: `"%Y-%m-%d"`)
 
 ## Key Collision Handling
 

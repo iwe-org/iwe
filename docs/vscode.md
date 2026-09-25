@@ -180,7 +180,7 @@ For global IWE configuration, edit your VS Code user settings:
     - Verify the file is saved as `.md`
     - Check VS Code status bar for IWE indicator
 3.  **Performance Issues**
-    - Large workspaces may be slow; consider using library path configuration
+    - Large workspaces may be slow; consider using workspace path configuration
     - Disable unnecessary VS Code extensions
     - Check system resources
 

@@ -86,7 +86,8 @@ async fn read_config_resource() {
     };
     let json: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert!(json["markdown"].is_object());
-    assert!(json["library"].is_object());
+    assert!(json["workspace"].is_object());
+    assert_eq!(json["library"], json["workspace"]);
     assert!(json["actions"].is_array());
 
     let actions = json["actions"].as_array().unwrap();

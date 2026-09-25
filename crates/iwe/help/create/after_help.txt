@@ -75,9 +75,9 @@ TEMPLATE VARIABLES:
   - {{title}}: from --var title=VALUE
   - {{body}}: from --var body=VALUE ({{content}} is an alias)
   - {{slug}}: URL-safe form of the title variable
-  - {{today}}: current date (library.date_format for the key,
+  - {{today}}: current date (workspace.date_format for the key,
                markdown.date_format for the document)
-  - {{now}}: current date and time (library.time_format for the key,
+  - {{now}}: current date and time (workspace.time_format for the key,
              markdown.time_format for the document; each falls back to the
              matching date_format when unset)
   - {{id}}: unique identifier
@@ -86,6 +86,6 @@ OUTPUT:
 
   Prints the absolute path to the created file:
 
-    /path/to/library/projects/overview.md
+    /path/to/workspace/projects/overview.md
 
   Returns empty output if --if-exists skip and the document exists.

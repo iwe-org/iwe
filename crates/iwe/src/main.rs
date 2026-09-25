@@ -26,7 +26,7 @@ use diwe::tokens::Truncation;
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
-use iwe::init::{current_root, init_library, InitOptions, Overrides};
+use iwe::init::{current_root, init_workspace, InitOptions, Overrides};
 use iwe::internal::claude::{
     digest_claude_transcript, enable_memory, enter_memory_store, policy_report, post_tool_report,
     prompt_body, read_hook_payload, render_memory_index, session_adopt, session_brief,
@@ -704,7 +704,7 @@ struct Normalize {
         long = "key",
         short = 'k',
         value_name = "KEY",
-        help = "Normalize only this document, leaving its frontmatter as written. Repeatable; omit to rewrite the whole library"
+        help = "Normalize only this document, leaving its frontmatter as written. Repeatable; omit to rewrite the whole workspace"
     )]
     key: Vec<String>,
 }
@@ -741,8 +741,12 @@ struct Init {
     )]
     okf: bool,
 
-    #[clap(long, help = "Subdirectory holding the markdown files")]
-    library: Option<String>,
+    #[clap(
+        long,
+        alias = "library",
+        help = "Subdirectory holding the markdown files"
+    )]
+    workspace: Option<String>,
 
     #[clap(long, value_parser = ["wiki", "markdown"], help = "Link format to write")]
     link_format: Option<String>,
@@ -750,7 +754,7 @@ struct Init {
     #[clap(long, help = "File extension written inside markdown links")]
     refs_extension: Option<String>,
 
-    #[clap(long, value_parser = ["markdown", "djot"], help = "Source format for the library")]
+    #[clap(long, value_parser = ["markdown", "djot"], help = "Source format for the workspace")]
     format: Option<String>,
 
     #[clap(long, help = "Date format used for keys of date-named documents")]
@@ -2098,7 +2102,7 @@ fn init_command(init: Init) {
         json: init.json,
         okf: init.okf,
         overrides: Overrides {
-            library: init.library,
+            workspace: init.workspace,
             link_format: init.link_format,
             refs_extension: init.refs_extension,
             format: init.format,
@@ -2106,7 +2110,7 @@ fn init_command(init: Init) {
         },
     };
 
-    let code = init_library(&current_root(), &options);
+    let code = init_workspace(&current_root(), &options);
     if code != 0 {
         std::process::exit(code);
     }
@@ -2115,7 +2119,7 @@ fn init_command(init: Init) {
 #[tracing::instrument(level = "debug")]
 fn new_command(args: New) {
     let config = get_configuration();
-    let library_path = get_library_path(&config);
+    let workspace_path = get_workspace_path(&config);
 
     let content = args.content.unwrap_or_else(read_stdin_if_available);
 
@@ -2135,7 +2139,7 @@ fn new_command(args: New) {
         serde_yaml::Value::String(content),
     );
 
-    let creator = DocumentCreator::new(&config, library_path);
+    let creator = DocumentCreator::new(&config, workspace_path);
     let options = CreateOptions {
         template_name: args.template,
         variables,
@@ -2179,8 +2183,8 @@ fn create_command(args: Create) {
     }
 
     let config = get_configuration();
-    let library_path = get_library_path(&config);
-    let creator = DocumentCreator::new(&config, library_path);
+    let workspace_path = get_workspace_path(&config);
+    let creator = DocumentCreator::new(&config, workspace_path);
 
     let prepared = if args.template.is_some() {
         prepare_from_template(&args, &creator)
@@ -2713,7 +2717,7 @@ fn normalize_command(args: Normalize) {
         return;
     }
 
-    let library_path = get_library_path(&configuration);
+    let workspace_path = get_workspace_path(&configuration);
     for key_str in &args.key {
         let key = Key::name(key_str);
         if key_escapes_workspace(key.as_str()) {
@@ -2723,7 +2727,7 @@ fn normalize_command(args: Normalize) {
             );
             std::process::exit(1);
         }
-        let path = library_path.join(format!("{}.{}", key, configuration.format.extension()));
+        let path = workspace_path.join(format!("{}.{}", key, configuration.format.extension()));
 
         let raw = match std::fs::read_to_string(&path) {
             Ok(raw) => raw,
@@ -2766,7 +2770,7 @@ fn squash_command(args: Squash) {
 fn write_graph(graph: Graph, configuration: &Configuration) {
     diwe::fs::write_store_at_path(
         &graph.export(),
-        &get_library_path(configuration),
+        &get_workspace_path(configuration),
         configuration.format,
     )
     .expect("Failed to write graph")
@@ -2775,7 +2779,7 @@ fn write_graph(graph: Graph, configuration: &Configuration) {
 fn apply_changes(changes: &Changes, configuration: &Configuration) {
     if let Err(e) = diwe::fs::apply_changes(
         changes,
-        &get_library_path(configuration),
+        &get_workspace_path(configuration),
         configuration.format,
     ) {
         eprintln!("Error: Failed to write document file: {}", e);
@@ -2785,10 +2789,10 @@ fn apply_changes(changes: &Changes, configuration: &Configuration) {
 
 fn load_graph(configuration: &Configuration) -> Graph {
     graph_from_path(
-        &get_library_path(configuration),
+        &get_workspace_path(configuration),
         false,
         configuration.format_options(),
-        configuration.library.frontmatter_document_title.clone(),
+        configuration.workspace.frontmatter_document_title.clone(),
     )
 }
 
@@ -2798,16 +2802,16 @@ fn load_search_graph(configuration: &Configuration) -> (Graph, diwe::search::Bm2
     (graph, index)
 }
 
-fn get_library_path(configuration: &Configuration) -> PathBuf {
+fn get_workspace_path(configuration: &Configuration) -> PathBuf {
     let current_dir = env::current_dir().expect("to get current dir");
 
-    let mut library_path = current_dir;
+    let mut workspace_path = current_dir;
 
-    if !configuration.library.path.is_empty() {
-        library_path.push(configuration.library.path.clone());
+    if !configuration.workspace.path.is_empty() {
+        workspace_path.push(configuration.workspace.path.clone());
     }
 
-    library_path
+    workspace_path
 }
 
 fn parse_sort_arg(s: &str) -> Result<QuerySort, String> {
@@ -3442,12 +3446,12 @@ fn extract_command(args: Extract) {
     let section_id = selected.id;
 
     let (key_template, link_type) = get_extract_config(&config, args.action.as_deref());
-    let locale = get_locale(config.library.locale.as_deref());
+    let locale = get_locale(config.workspace.locale.as_deref());
     let extract_config = ExtractConfig {
         key_template,
         link_type,
         key_date_format: config
-            .library
+            .workspace
             .date_format
             .clone()
             .unwrap_or_else(|| "%Y-%m-%d".to_string()),
@@ -3784,8 +3788,8 @@ fn update_body(args: Update) {
         return;
     }
 
-    let library_path = get_library_path(&config);
-    let file_path = library_path.join(format!("{}.{}", key, config.format.extension()));
+    let workspace_path = get_workspace_path(&config);
+    let file_path = workspace_path.join(format!("{}.{}", key, config.format.extension()));
     if let Some(parent) = file_path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
@@ -3903,7 +3907,7 @@ fn update_mutation(args: Update) {
         enforce_strict_update(doc_expect.is_some(), &update_doc);
     }
 
-    let library_path = get_library_path(&config);
+    let workspace_path = get_workspace_path(&config);
     let ext = config.format.extension();
 
     let docs: Vec<(Key, String)> = if update_doc.block_ops.is_empty() {
@@ -3922,7 +3926,7 @@ fn update_mutation(args: Update) {
         }
         keys.into_iter()
             .filter_map(|key| {
-                let file_path = library_path.join(format!("{}.{}", key, ext));
+                let file_path = workspace_path.join(format!("{}.{}", key, ext));
                 let raw_content = std::fs::read_to_string(&file_path).ok()?;
                 let (_, body) = split_raw_frontmatter(&raw_content);
                 let mut mapping = graph.frontmatter(&key).cloned().unwrap_or_default();
@@ -3957,7 +3961,7 @@ fn update_mutation(args: Update) {
         gate_pending(&config, &docs);
     }
 
-    let (matched, changed) = write_changed_documents(&library_path, ext, &docs, args.dry_run);
+    let (matched, changed) = write_changed_documents(&workspace_path, ext, &docs, args.dry_run);
 
     if args.strict && !args.dry_run {
         let targets: Vec<Key> = docs.iter().map(|(key, _)| key.clone()).collect();
@@ -4013,14 +4017,14 @@ fn enforce_strict_update(has_doc_expect: bool, update_doc: &liwe::query::Update)
 }
 
 fn write_changed_documents(
-    library_path: &std::path::Path,
+    workspace_path: &std::path::Path,
     ext: &str,
     docs: &[(Key, String)],
     dry_run: bool,
 ) -> (usize, usize) {
     let mut changed = 0;
     for (key, content) in docs {
-        let file_path = library_path.join(format!("{}.{}", key, ext));
+        let file_path = workspace_path.join(format!("{}.{}", key, ext));
         let existing = std::fs::read_to_string(&file_path).unwrap_or_default();
         if *content == existing {
             continue;
@@ -4132,7 +4136,7 @@ fn attach_command(args: Attach) {
         .get_key_title(&source_key)
         .unwrap_or_else(|| source_key_str.clone());
 
-    let library_path = get_library_path(&config);
+    let workspace_path = get_workspace_path(&config);
 
     for action_name in &args.to {
         let attach = match config.actions.get(action_name) {
@@ -4179,7 +4183,7 @@ fn attach_command(args: Attach) {
         }
 
         let target_path =
-            library_path.join(format!("{}.{}", target_key, config.format.extension()));
+            workspace_path.join(format!("{}.{}", target_key, config.format.extension()));
         if let Some(parent) = target_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }

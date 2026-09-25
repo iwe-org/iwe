@@ -10,7 +10,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub enum SettingId {
-    LibraryPath,
+    WorkspacePath,
     Format,
     LinkFormat,
     RefsExtension,
@@ -41,7 +41,7 @@ pub enum SettingId {
 }
 
 pub const ALL_SETTINGS: [SettingId; 28] = [
-    SettingId::LibraryPath,
+    SettingId::WorkspacePath,
     SettingId::Format,
     SettingId::LinkFormat,
     SettingId::RefsExtension,
@@ -74,16 +74,16 @@ pub const ALL_SETTINGS: [SettingId; 28] = [
 impl SettingId {
     pub fn key(&self) -> &'static str {
         match self {
-            SettingId::LibraryPath => "library.path",
+            SettingId::WorkspacePath => "workspace.path",
             SettingId::Format => "format",
             SettingId::LinkFormat => "completion.link_format",
             SettingId::RefsExtension => "markdown.refs_extension",
             SettingId::RefsPath => "markdown.refs_path",
             SettingId::WikiLinkPath => "markdown.wiki_link_path",
             SettingId::RefsText => "markdown.refs_text",
-            SettingId::KeyDateFormat => "library.date_format",
+            SettingId::KeyDateFormat => "workspace.date_format",
             SettingId::DisplayDateFormat => "markdown.date_format",
-            SettingId::FrontmatterTitle => "library.frontmatter_document_title",
+            SettingId::FrontmatterTitle => "workspace.frontmatter_document_title",
             SettingId::KeyTemplate => "templates.default.key_template",
             SettingId::SearchLanguage => "search.language",
             SettingId::ListToken => "markdown.formatting.list_token",
@@ -111,7 +111,7 @@ impl SettingId {
 
     pub fn label(&self) -> &'static str {
         match self {
-            SettingId::LibraryPath => "library",
+            SettingId::WorkspacePath => "workspace",
             SettingId::Format => "format",
             SettingId::LinkFormat => "links",
             SettingId::RefsExtension => "link extension",
@@ -300,7 +300,7 @@ pub fn defaults() -> Settings {
     let note = "iwe default";
 
     settings.set(
-        SettingId::LibraryPath,
+        SettingId::WorkspacePath,
         Value::text(""),
         Confidence::Assumed,
         note,
@@ -542,9 +542,9 @@ fn formatting_options(settings: &Settings) -> FormattingOptions {
 pub fn to_configuration(settings: &Settings) -> Configuration {
     let mut config = Configuration::template();
 
-    config.library.path = optional_text(settings, SettingId::LibraryPath).unwrap_or_default();
-    config.library.date_format = optional_text(settings, SettingId::KeyDateFormat);
-    config.library.frontmatter_document_title =
+    config.workspace.path = optional_text(settings, SettingId::WorkspacePath).unwrap_or_default();
+    config.workspace.date_format = optional_text(settings, SettingId::KeyDateFormat);
+    config.workspace.frontmatter_document_title =
         optional_text(settings, SettingId::FrontmatterTitle);
 
     config.format = match settings.get(SettingId::Format).as_text() {

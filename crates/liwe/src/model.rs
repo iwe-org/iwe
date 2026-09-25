@@ -172,14 +172,19 @@ impl Key {
         }
     }
 
-    pub fn to_library_url(&self) -> String {
+    pub fn to_workspace_url(&self) -> String {
         self.as_str().to_string()
+    }
+
+    #[deprecated(since = "0.25.0", note = "renamed to `to_workspace_url`")]
+    pub fn to_library_url(&self) -> String {
+        self.to_workspace_url()
     }
 
     pub fn link_url(&self, relative_to: &str, refs_path: RefsPath) -> String {
         match refs_path {
             RefsPath::Relative => self.to_rel_link_url(relative_to),
-            RefsPath::Absolute => format!("/{}", self.to_library_url()),
+            RefsPath::Absolute => format!("/{}", self.to_workspace_url()),
         }
     }
 
@@ -261,6 +266,9 @@ pub type NodesMap = Vec<(NodeId, LineRange)>;
 pub type DocumentNodesMap = (Key, NodesMap);
 
 pub type Lang = String;
+pub type WorkspaceUrl = String;
+
+#[deprecated(since = "0.25.0", note = "renamed to `WorkspaceUrl`")]
 pub type LibraryUrl = String;
 
 pub type Level = u8;

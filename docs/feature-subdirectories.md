@@ -6,11 +6,11 @@ IWE supports organizing your markdown files in subdirectories while maintaining 
 
 ### Recursive Directory Scanning
 
-IWE recursively scans the configured library path and all its subdirectories:
+IWE recursively scans the configured workspace path and all its subdirectories:
 
 - **Includes**: All `.md` files in any subdirectory level
 - **Excludes**: Hidden files and directories (starting with `.`)
-- **File Keys**: Include the relative path from library root
+- **File Keys**: Include the relative path from workspace root
 
 ### File Path Resolution
 
@@ -26,7 +26,7 @@ your-project/
 │   │   └── reference.md  → Key: "docs/api/reference"
 │   └── examples/
 │       └── basic.md      → Key: "docs/examples/basic"
-└── README.md             → Key: "README" (if library.path = "")
+└── README.md             → Key: "README" (if workspace.path = "")
 ```
 
 ### Cross-Directory Linking

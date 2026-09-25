@@ -107,7 +107,7 @@ impl Graph {
 
     pub fn wiki_display(&self, key: &Key, original_url: &str) -> String {
         match self.format_options.markdown_options().wiki_link_path {
-            WikiLinkPath::Full => key.to_library_url(),
+            WikiLinkPath::Full => key.to_workspace_url(),
             WikiLinkPath::Short => self.key_index.shorten_wiki(key),
             WikiLinkPath::Preserve => original_url.to_string(),
         }

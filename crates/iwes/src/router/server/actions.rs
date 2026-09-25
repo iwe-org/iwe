@@ -268,7 +268,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
     ];
 
     let format_options = configuration.format_options();
-    let key_locale = get_locale(configuration.library.locale.as_deref());
+    let key_locale = get_locale(configuration.workspace.locale.as_deref());
     let content_locale = get_locale(format_options.locale());
 
     actions.extend(configuration.actions.iter().map(|(identifier, action)| {
@@ -288,7 +288,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     .to_string();
                 let key_date_fmt = configuration
                     .clone()
-                    .library
+                    .workspace
                     .date_format
                     .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into());
                 ActionEnum::AttachAction(AttachAction {
@@ -304,7 +304,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                     key_date_format: key_date_fmt.clone(),
                     key_time_format: configuration
                         .clone()
-                        .library
+                        .workspace
                         .time_format
                         .unwrap_or_else(|| key_date_fmt.clone()),
                     key_locale,
@@ -329,7 +329,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                 key_template: extract.key_template.clone(),
                 key_date_format: configuration
                     .clone()
-                    .library
+                    .workspace
                     .date_format
                     .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
                 locale: key_locale,
@@ -341,7 +341,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                 key_template: extract_all.key_template.clone(),
                 key_date_format: configuration
                     .clone()
-                    .library
+                    .workspace
                     .date_format
                     .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
                 locale: key_locale,
@@ -353,7 +353,7 @@ pub fn all_action_types(configuration: &Configuration) -> Vec<ActionEnum> {
                 key_template: link.key_template.clone(),
                 key_date_format: configuration
                     .clone()
-                    .library
+                    .workspace
                     .date_format
                     .unwrap_or(DEFAULT_KEY_DATE_FORMAT.into()),
                 locale: key_locale,
