@@ -32,7 +32,7 @@ refs_path = "relative"
 date_format = "%b %d, %Y"
 wiki_link_path = "preserve"
 
-[library]
+[workspace]
 path = ""
 date_format = "%Y-%m-%d"
 
@@ -69,7 +69,7 @@ document_template = "# {{title}}\n\n{{content}}"
 
 ## Configuration Options
 
-### Library Section
+### Workspace Section
 
 | Option             | Default    | Description                                                   |
 | ------------------ | ---------- | ------------------------------------------------------------- |
@@ -113,7 +113,7 @@ ls -la .iwe/
 
 After initialization, edit `.iwe/config.toml` to:
 
-- Store markdown files in a subdirectory: set `library.path = "docs"`
+- Store markdown files in a subdirectory: set `workspace.path = "docs"`
 - Use wiki-style links: set `completion.link_format = "wiki"`
 - Change completion trigger characters: set `completion.trigger_characters = ["[", "+"]`
 - Define custom templates for document creation

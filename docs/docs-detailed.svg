@@ -891,7 +891,7 @@
 <!-- 841 -->
 <g id="node89" class="node">
 <title>841</title>
-<text xml:space="preserve" text-anchor="middle" x="2150.59" y="-1285.19" font-family="Verdana" font-size="14.00">Large Library Management</text>
+<text xml:space="preserve" text-anchor="middle" x="2150.59" y="-1285.19" font-family="Verdana" font-size="14.00">Large Workspace Management</text>
 </g>
 <!-- 833&#45;&gt;841 -->
 <g id="edge359" class="edge">
@@ -3621,7 +3621,7 @@
 <!-- 308 -->
 <g id="node105" class="node">
 <title>308</title>
-<text xml:space="preserve" text-anchor="middle" x="1270.39" y="-1470.23" font-family="Verdana" font-size="14.00">Library Section</text>
+<text xml:space="preserve" text-anchor="middle" x="1270.39" y="-1470.23" font-family="Verdana" font-size="14.00">Workspace Section</text>
 </g>
 <!-- 307&#45;&gt;308 -->
 <g id="edge386" class="edge">
@@ -3940,7 +3940,7 @@
 <!-- 930 -->
 <g id="node99" class="node">
 <title>930</title>
-<text xml:space="preserve" text-anchor="middle" x="1123.51" y="-389.24" font-family="Verdana" font-size="14.00">Library Settings</text>
+<text xml:space="preserve" text-anchor="middle" x="1123.51" y="-389.24" font-family="Verdana" font-size="14.00">Workspace Settings</text>
 </g>
 <!-- 2519 -->
 <g id="node100" class="node">

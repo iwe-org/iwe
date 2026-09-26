@@ -38,7 +38,7 @@ preserve_line_breaks = false
 line_break_style = "backslash"
 preserve_newlines = false
 
-[library]
+[workspace]
 path = ""
 date_format = "%Y-%m-%d"
 time_format = "%Y-%m-%d %H:%M"
@@ -75,7 +75,7 @@ match = "notes/**"
 ## Top level
 
 - `version`: config format version; current is `3`.
-- `format`: source format for the library, `"markdown"` (default) or
+- `format`: source format for the workspace, `"markdown"` (default) or
   `"djot"`. With `"djot"`, a `[djot]` section mirrors `[markdown]` (same
   fields except `wiki_link_path`).
 
@@ -86,8 +86,8 @@ match = "notes/**"
 - `refs_path`: how the path inside a regular markdown link (`[…](…)`) is
   written (default `"relative"`). `"relative"` writes each link relative to
   the linking document's directory; `"absolute"` writes a root-absolute path
-  from the library root (`/dir/note.md`). Resolution is unaffected — a link
-  with a leading `/` always resolves from the library root regardless.
+  from the workspace root (`/dir/note.md`). Resolution is unaffected — a link
+  with a leading `/` always resolves from the workspace root regardless.
 - `refs_text`: how the text of a regular markdown link is written (default
   `"preserve"`). `"preserve"` keeps the text as typed; `"normalize"`
   rewrites it to the linked document's title. Wiki links are unaffected.
@@ -134,7 +134,7 @@ values fall back to defaults.
   joining the lines (default `false`) — supports one-sentence-per-line
   authoring through normalization.
 
-## `[library]`
+## `[workspace]`
 
 - `path`: subdirectory holding the markdown files, relative to the project
   root (default empty — the root itself).
@@ -180,7 +180,7 @@ Template variables come from `--var NAME=VALUE` (one variable, VALUE used
 verbatim as a string) and from `--vars-yaml` / `--vars-json` (all of them at
 once, keeping their types), each available under its own name. iwe adds
 the computed `{{slug}}` (slugified `title` variable), `{{today}}` (date, via
-`library.date_format` for keys and `markdown.date_format` for content),
+`workspace.date_format` for keys and `markdown.date_format` for content),
 `{{now}}` (date/time, via the `time_format` fields) and `{{id}}` (random
 8-character alphanumeric); those four names are reserved. By convention
 `{{title}}` names the title and `{{body}}` the prose slot, which piped input
@@ -291,7 +291,7 @@ match = ["journal/*", "meetings/**"]
   `.iwe/schemas/person.yaml`.
 - `match` globs follow gitignore/globset syntax: `*` stays within a path
   segment, `**` crosses segments; a leading `/` is optional — patterns are
-  anchored at the library root.
+  anchored at the workspace root.
 - Binding is order-free: a document is validated against **every** schema
   whose `match` hits. A document matching no entry is unvalidated.
 

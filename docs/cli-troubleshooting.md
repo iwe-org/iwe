@@ -9,7 +9,7 @@ Best practices and solutions to common issues when using the IWE CLI.
 3.  **Use debug mode**: Add `-v 2` to see detailed debug information
 4.  **Iterate gradually**: Use increasing depth values to explore graph complexity
 5.  **Visualize regularly**: Export graphs to understand document relationships
-6.  **Monitor root documents**: Use `tree` to track entry points as your library grows
+6.  **Monitor root documents**: Use `tree` to track entry points as your workspace grows
 
 ## Common issues
 

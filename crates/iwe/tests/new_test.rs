@@ -446,7 +446,7 @@ fn test_new_with_german_locale_formats_date() {
     let config_path = temp_dir.path().join(".iwe").join("config.toml");
     let config_content = read_to_string(&config_path).expect("Read config");
     let mut config: Configuration = toml::from_str(&config_content).expect("Parse config");
-    config.library.locale = Some("de_DE".to_string());
+    config.workspace.locale = Some("de_DE".to_string());
     config.markdown.locale = Some("de_DE".to_string());
     config.markdown.date_format = Some("%A, %d. %B %Y".to_string());
     let updated_config = toml::to_string(&config).expect("Serialize config");

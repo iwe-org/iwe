@@ -41,7 +41,7 @@ See the [Project Documentation](project-docs) for details.
 
 ### Link Path Rewriting
 
-Every markdown link is rewritten according to the `refs_path` setting (see below). With `refs_path = "absolute"`, a link written relative to the current document is rewritten as a root-absolute path from the library root.
+Every markdown link is rewritten according to the `refs_path` setting (see below). With `refs_path = "absolute"`, a link written relative to the current document is rewritten as a root-absolute path from the workspace root.
 
 Before (in `guide/intro.md`, with `refs_path = "absolute"`):
 
@@ -55,7 +55,7 @@ After:
 See the [API](/reference/api) for details.
 ```
 
-Regardless of the setting, a link that already starts with `/` is resolved from the library root, and any `#section` fragment is preserved.
+Regardless of the setting, a link that already starts with `/` is resolved from the workspace root, and any `#section` fragment is preserved.
 
 ### List Renumbering
 

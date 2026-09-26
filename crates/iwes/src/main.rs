@@ -131,18 +131,18 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         serde_json::from_value(initialization_params_value).unwrap();
 
     let current_dir = env::current_dir().expect("to get current dir");
-    let mut library_path = current_dir.clone();
+    let mut workspace_path = current_dir.clone();
 
     debug!("config: {:?}", configuration);
 
-    if !configuration.library.path.is_empty() {
-        library_path.push(configuration.clone().library.path);
+    if !configuration.workspace.path.is_empty() {
+        workspace_path.push(configuration.clone().workspace.path);
     }
 
     let server_params = ServerParams {
         client_name: initialize_params.client_info.map(|it| it.name),
         configuration: configuration.clone(),
-        base_path: library_path.to_string_lossy().to_string(),
+        base_path: workspace_path.to_string_lossy().to_string(),
         ..Default::default()
     };
 

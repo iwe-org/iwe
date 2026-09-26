@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `migrate_v3_to_v4` renames a configuration's `[library]` table to `[workspace]`.
+
+### Changed
+
+- `Configuration::workspace` is a `WorkspaceOptions` (was `library: LibraryOptions`); the field still accepts `library` when reading a config file.
+- `workspace_path_in` replaces `library_path_in`.
+- `Configuration::template()` writes `version = 4`.
+
+### Deprecated
+
+- `LibraryOptions` and `library_path_in` retained as deprecated aliases.
+
 ## [0.24.2](https://github.com/iwe-org/iwe/compare/diwe-v0.24.1...diwe-v0.24.2) - 2026-09-20
 
 Workspace version bump — no user-visible changes in this crate.

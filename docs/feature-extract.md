@@ -156,7 +156,7 @@ The `key_template` supports several template variables for flexible file naming:
 ### Basic Variables
 
 - **`{{id}}`**: Random unique identifier (e.g., `123`, `456`)
-- **`{{today}}`**: Current date formatted using `date_format` from `[library]` section (default: `%Y-%m-%d`)
+- **`{{today}}`**: Current date formatted using `date_format` from `[workspace]` section (default: `%Y-%m-%d`)
 - **`{{title}}`**: The section title being extracted (automatically sanitized for filenames)
 - **`{{slug}}`**: URL-friendly version of the title (lowercase, alphanumeric characters only, non-alphanumeric replaced with dashes, no consecutive dashes)
 
@@ -366,10 +366,10 @@ Content 3
 
 ## Date Formatting
 
-The `{{today}}` variable uses the `date_format` setting from the `[library]` section:
+The `{{today}}` variable uses the `date_format` setting from the `[workspace]` section:
 
 ``` toml
-[library]
+[workspace]
 date_format = "%Y-%m-%d"  # Results in: 2024-01-15
 
 [actions]

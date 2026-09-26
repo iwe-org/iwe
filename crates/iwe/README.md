@@ -90,7 +90,7 @@ iwe new "Maybe Duplicate" --if-exists skip
 ```
 
 Options:
-- `-t, --template <NAME>` - template name from config (default: `library.default_template`)
+- `-t, --template <NAME>` - template name from config (default: `workspace.default_template`)
 - `-c, --content <TEXT>` - document content
 - `-k, --key <KEY>` - explicit document key, bypassing the template's key derivation
 - `-i, --if-exists <MODE>` - behavior when file exists: `suffix` (default), `override`, `skip`, `fail` (default when `--key` is given)
@@ -361,7 +361,7 @@ Supported shells: `bash`, `elvish`, `fish`, `nushell`, `powershell`, `zsh`.
 IWE uses `.iwe/config.toml` for workspace configuration:
 
 ```toml
-[library]
+[workspace]
 path = ""
 
 [markdown]

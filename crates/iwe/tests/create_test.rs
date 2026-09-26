@@ -1,5 +1,5 @@
 use diwe::config::{
-    Configuration, LibraryOptions, MarkdownOptions, NoteTemplate, Patterns, SchemaBinding,
+    Configuration, MarkdownOptions, NoteTemplate, Patterns, SchemaBinding, WorkspaceOptions,
 };
 use indoc::indoc;
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ fn setup() -> TempDir {
 }
 
 fn write_config(path: &Path, mut config: Configuration) {
-    config.library.path = "".to_string();
+    config.workspace.path = "".to_string();
     config.markdown.refs_extension = "".to_string();
     write(
         path.join(".iwe/config.toml"),
@@ -391,7 +391,7 @@ fn setup_with_schema() -> TempDir {
     write_config(
         temp.path(),
         Configuration {
-            library: LibraryOptions::default(),
+            workspace: WorkspaceOptions::default(),
             markdown: MarkdownOptions::default(),
             schemas,
             ..Default::default()

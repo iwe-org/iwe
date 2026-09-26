@@ -17,7 +17,7 @@ fn share(part: usize, total: usize) -> usize {
 pub fn detect(evidence: &Evidence, probes: &Probes) -> Settings {
     let mut settings = defaults();
 
-    detect_library(&mut settings, evidence);
+    detect_workspace(&mut settings, evidence);
     detect_format(&mut settings, evidence);
     detect_link_format(&mut settings, evidence);
     detect_refs_extension(&mut settings, evidence);
@@ -35,17 +35,17 @@ pub fn detect(evidence: &Evidence, probes: &Probes) -> Settings {
     settings
 }
 
-fn detect_library(settings: &mut Settings, evidence: &Evidence) {
-    if evidence.library_path.is_empty() {
+fn detect_workspace(settings: &mut Settings, evidence: &Evidence) {
+    if evidence.workspace_path.is_empty() {
         return;
     }
     settings.set(
-        SettingId::LibraryPath,
-        Value::text(&evidence.library_path),
+        SettingId::WorkspacePath,
+        Value::text(&evidence.workspace_path),
         Confidence::Detected,
         &format!(
             "{} of {} files live under {}/",
-            evidence.scanned_files, evidence.files, evidence.library_path
+            evidence.scanned_files, evidence.files, evidence.workspace_path
         ),
     );
 }
@@ -143,7 +143,7 @@ fn detect_refs_path(settings: &mut Settings, evidence: &Evidence) {
         Value::text(value),
         Confidence::Detected,
         &format!(
-            "{} links resolve relative to their own directory, {} from the library root",
+            "{} links resolve relative to their own directory, {} from the workspace root",
             evidence.refs_relative_votes, evidence.refs_absolute_votes
         ),
     );

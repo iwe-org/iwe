@@ -4,7 +4,7 @@ use crate::model::config::MarkdownOptions;
 use crate::model::document::{DocumentInline, DocumentInlines, MathType};
 use crate::model::key_index::KeyIndex;
 use crate::model::reference::{Reference, ReferenceType};
-use crate::model::{InlinesContext, Key, Lang, LibraryUrl, Title};
+use crate::model::{InlinesContext, Key, Lang, Title, WorkspaceUrl};
 
 pub type Inlines = Vec<Inline>;
 
@@ -25,9 +25,9 @@ impl Attributes {
 pub enum Inline {
     Code(Option<Lang>, String),
     Emph(Inlines),
-    Image(LibraryUrl, Title, Inlines),
+    Image(WorkspaceUrl, Title, Inlines),
     LineBreak,
-    Link(LibraryUrl, Title, LinkType, Inlines),
+    Link(WorkspaceUrl, Title, LinkType, Inlines),
     Reference(Reference),
     Math(MathType, String),
     RawInline(Lang, String),
@@ -294,7 +294,7 @@ impl Inline {
                         key: updated_key.clone(),
                         text: reference.text.clone(),
                         reference_type: reference.reference_type,
-                        url: updated_key.to_library_url(),
+                        url: updated_key.to_workspace_url(),
                         display_url: None,
                     });
                 }
@@ -574,7 +574,7 @@ fn render_inline<S: TextSink>(
             LinePos::Mid
         }
         Inline::Reference(reference) => {
-            let url = reference.key.to_library_url();
+            let url = reference.key.to_workspace_url();
             let inlines = text_to_inlines(&reference.text);
             emit_link(
                 &url,

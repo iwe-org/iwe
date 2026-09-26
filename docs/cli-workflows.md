@@ -31,7 +31,7 @@ iwe squash research-index --depth 4 > consolidated-research.md
 iwe squash project-summary --depth 2 > project-overview.md
 ```
 
-## Large Library Management
+## Large Workspace Management
 
 ``` bash
 iwe normalize -v 2

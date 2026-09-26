@@ -267,7 +267,7 @@ fn write_config(path: &Path) {
     create_dir_all(path.join(".iwe")).unwrap();
     write(
         path.join(".iwe/config.toml"),
-        "library.path = \"\"\nmarkdown.refs_extension = \"\"\n",
+        "workspace.path = \"\"\nmarkdown.refs_extension = \"\"\n",
     )
     .unwrap();
 }

@@ -22,7 +22,7 @@ pub const IWE_MARKER: &str = ".iwe";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LibraryOptions {
+pub struct WorkspaceOptions {
     #[serde(default)]
     pub path: String,
     pub date_format: Option<String>,
@@ -31,6 +31,9 @@ pub struct LibraryOptions {
     pub frontmatter_document_title: Option<String>,
     pub locale: Option<String>,
 }
+
+#[deprecated(since = "0.25.0", note = "renamed to `WorkspaceOptions`")]
+pub type LibraryOptions = WorkspaceOptions;
 
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -59,7 +62,7 @@ impl Default for SearchOptions {
     }
 }
 
-impl Default for LibraryOptions {
+impl Default for WorkspaceOptions {
     fn default() -> Self {
         Self {
             path: String::new(),
@@ -82,8 +85,8 @@ pub struct Configuration {
     pub markdown: MarkdownOptions,
     #[serde(default)]
     pub djot: DjotOptions,
-    #[serde(default)]
-    pub library: LibraryOptions,
+    #[serde(default, alias = "library")]
+    pub workspace: WorkspaceOptions,
     #[serde(default)]
     pub completion: CompletionOptions,
     #[serde(default)]
@@ -219,7 +222,7 @@ impl Default for Configuration {
             format: Default::default(),
             markdown: Default::default(),
             djot: Default::default(),
-            library: Default::default(),
+            workspace: Default::default(),
             completion: Default::default(),
             search: Default::default(),
             commands: Default::default(),
@@ -244,7 +247,7 @@ impl Configuration {
 
     pub fn template() -> Self {
         let mut template = Self {
-            version: Some(3),
+            version: Some(4),
             ..Default::default()
         };
 
@@ -449,12 +452,17 @@ pub fn schemas_dir_in(base: &Path) -> PathBuf {
     base.join(IWE_MARKER).join("schemas")
 }
 
-pub fn library_path_in(project_root: &Path, configuration: &Configuration) -> PathBuf {
-    if configuration.library.path.is_empty() {
+pub fn workspace_path_in(project_root: &Path, configuration: &Configuration) -> PathBuf {
+    if configuration.workspace.path.is_empty() {
         project_root.to_path_buf()
     } else {
-        project_root.join(&configuration.library.path)
+        project_root.join(&configuration.workspace.path)
     }
+}
+
+#[deprecated(since = "0.25.0", note = "renamed to `workspace_path_in`")]
+pub fn library_path_in(project_root: &Path, configuration: &Configuration) -> PathBuf {
+    workspace_path_in(project_root, configuration)
 }
 
 pub fn load_config() -> Result<Configuration, String> {
@@ -528,6 +536,14 @@ fn migrate(config: &str) -> Result<String, String> {
         debug!("applying migrations from version 2 to 3");
         updated = migrate_v2_to_v3(&updated);
         updated = set_config_version(&updated, 3);
+        needs_update = true;
+    }
+
+    // Migrate from version 3 to version 4
+    if current_version < 4 {
+        debug!("applying migrations from version 3 to 4");
+        updated = migrate_v3_to_v4(&updated);
+        updated = set_config_version(&updated, 4);
         needs_update = true;
     }
 
@@ -731,6 +747,28 @@ pub fn migrate_v2_to_v3(input: &str) -> String {
     doc.to_string()
 }
 
+pub fn migrate_v3_to_v4(input: &str) -> String {
+    let mut doc = input.parse::<DocumentMut>().expect("valid TOML");
+
+    if doc.get("workspace").is_some() {
+        doc.remove("library");
+        return doc.to_string();
+    }
+
+    if let Some(library) = doc.remove("library") {
+        let position = library
+            .as_table()
+            .and_then(|table| table.position())
+            .or(Some(0));
+        doc.insert("workspace", library);
+        if let Some(Item::Table(workspace)) = doc.get_mut("workspace") {
+            workspace.set_position(position);
+        }
+    }
+
+    doc.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
@@ -748,7 +786,7 @@ mod tests {
                   |
                 3 | [schema.note]
                   |  ^^^^^^
-                unknown field `schema`, expected one of `version`, `format`, `markdown`, `djot`, `library`, `completion`, `search`, `commands`, `actions`, `templates`, `schemas`
+                unknown field `schema`, expected one of `version`, `format`, `markdown`, `djot`, `library`, `workspace`, `completion`, `search`, `commands`, `actions`, `templates`, `schemas`
             "#}
         );
     }

@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use diwe::config::load_config;
 use serde_yaml::{Mapping, Value as YamlValue};
 
-use crate::init::{current_root, init_library, InitOptions, Overrides};
-use crate::internal::claude::hook::store::{library_path_of, STARTER_KNOBS};
+use crate::init::{current_root, init_workspace, InitOptions, Overrides};
+use crate::internal::claude::hook::store::{workspace_path_of, STARTER_KNOBS};
 use crate::internal::claude::record::{ensure_state_ignore, RECORDS_DIRECTORY};
 use crate::new::{write_document, ContentOptions, DocumentCreator, IfExists};
 
@@ -111,7 +111,7 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
     }
 
     if !Path::new("iwe.toml").is_file() && !Path::new(".iwe").is_dir() {
-        let code = init_library(
+        let code = init_workspace(
             &current_root(),
             &InitOptions {
                 auto: false,
@@ -144,10 +144,10 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
             return 1;
         }
     };
-    let library = library_path_of(&config);
+    let workspace = workspace_path_of(&config);
     let extension = config.format.extension();
 
-    if library.join(format!("MEMORY.{}", extension)).is_file() {
+    if workspace.join(format!("MEMORY.{}", extension)).is_file() {
         eprintln!("already memory-enabled — inspect the policy with `iwe retrieve -k MEMORY`");
         return 2;
     }
@@ -233,7 +233,7 @@ pub fn enable_memory(options: &EnableOptions) -> i32 {
     }
     println!("session records will land under {}", RECORDS_DIRECTORY);
 
-    if options.queries && !library.join(format!("queries.{}", extension)).is_file() {
+    if options.queries && !workspace.join(format!("queries.{}", extension)).is_file() {
         if !create_document(&config, "queries", QUERIES_BODY) {
             return 1;
         }
@@ -293,7 +293,7 @@ fn knobs_text(options: &EnableOptions) -> Result<String, String> {
 }
 
 fn create_document(config: &diwe::config::Configuration, key: &str, content: &str) -> bool {
-    let creator = DocumentCreator::new(config, library_path_of(config));
+    let creator = DocumentCreator::new(config, workspace_path_of(config));
     let prepared = creator.prepare_content(ContentOptions {
         key: key.to_string(),
         content: content.to_string(),
@@ -411,7 +411,7 @@ fn iso_date_formats(config: &str) -> String {
         if line.starts_with('[') {
             section = line.trim().to_string();
         }
-        if (section == "[markdown]" || section == "[library]")
+        if (section == "[markdown]" || section == "[workspace]" || section == "[library]")
             && line.trim_start().starts_with("date_format = ")
         {
             out.push("date_format = \"%Y-%m-%d\"".to_string());

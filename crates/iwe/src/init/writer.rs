@@ -33,7 +33,7 @@ pub fn render(settings: &Settings) -> String {
 }
 
 const TABLE_ORDER: [&str; 9] = [
-    "library",
+    "workspace",
     "markdown",
     "djot",
     "completion",

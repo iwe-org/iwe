@@ -348,7 +348,7 @@ fn render_inline_djot<S: TextSink>(
         }
         Inline::Reference(reference) => {
             let url =
-                append_refs_extension(&reference.key.to_library_url(), &options.refs_extension);
+                append_refs_extension(&reference.key.to_workspace_url(), &options.refs_extension);
             out.push("[");
             render_inlines_djot(&text_to_inlines(&reference.text), options, out, false);
             out.push("](");

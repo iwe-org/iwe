@@ -1,5 +1,5 @@
 use crate::fixture::Fixture;
-use diwe::config::{Configuration, LibraryOptions, Patterns, SchemaBinding};
+use diwe::config::{Configuration, Patterns, SchemaBinding, WorkspaceOptions};
 use rmcp::model::ErrorData;
 use rmcp::ServiceError;
 use serde_json::json;
@@ -138,17 +138,17 @@ async fn normalize_is_not_gated_by_a_pre_existing_violation() {
 }
 
 #[tokio::test]
-async fn schema_is_read_from_the_project_root_when_library_path_is_set() {
+async fn schema_is_read_from_the_project_root_when_workspace_path_is_set() {
     let dir = TempDir::new().unwrap();
     let base = dir.path();
     create_dir_all(base.join(".iwe/schemas")).unwrap();
     write(base.join(".iwe/schemas/person.yaml"), PERSON_SCHEMA).unwrap();
-    create_dir_all(base.join("library/docs")).unwrap();
-    write(base.join("library/docs/one.md"), CLEAN).unwrap();
+    create_dir_all(base.join("workspace/docs")).unwrap();
+    write(base.join("workspace/docs/one.md"), CLEAN).unwrap();
 
     let mut configuration = config("person", "docs/**");
-    configuration.library = LibraryOptions {
-        path: "library".to_string(),
+    configuration.workspace = WorkspaceOptions {
+        path: "workspace".to_string(),
         ..Default::default()
     };
     let f = Fixture::with_path(base.to_str().unwrap(), configuration).await;
@@ -166,23 +166,23 @@ async fn schema_is_read_from_the_project_root_when_library_path_is_set() {
         "schema validation failed; change rejected:\ndocs/one: required section \"Tasks\" is missing\n"
     );
     assert_eq!(
-        read_to_string(base.join("library/docs/one.md")).unwrap(),
+        read_to_string(base.join("workspace/docs/one.md")).unwrap(),
         CLEAN
     );
 }
 
 #[tokio::test]
-async fn clean_change_is_written_under_the_library_path() {
+async fn clean_change_is_written_under_the_workspace_path() {
     let dir = TempDir::new().unwrap();
     let base = dir.path();
     create_dir_all(base.join(".iwe/schemas")).unwrap();
     write(base.join(".iwe/schemas/person.yaml"), PERSON_SCHEMA).unwrap();
-    create_dir_all(base.join("library/docs")).unwrap();
-    write(base.join("library/docs/one.md"), CLEAN).unwrap();
+    create_dir_all(base.join("workspace/docs")).unwrap();
+    write(base.join("workspace/docs/one.md"), CLEAN).unwrap();
 
     let mut configuration = config("person", "docs/**");
-    configuration.library = LibraryOptions {
-        path: "library".to_string(),
+    configuration.workspace = WorkspaceOptions {
+        path: "workspace".to_string(),
         ..Default::default()
     };
     let f = Fixture::with_path(base.to_str().unwrap(), configuration).await;
@@ -195,7 +195,7 @@ async fn clean_change_is_written_under_the_library_path() {
     .await;
 
     assert_eq!(
-        read_to_string(base.join("library/docs/one.md")).unwrap(),
+        read_to_string(base.join("workspace/docs/one.md")).unwrap(),
         new_content
     );
 }

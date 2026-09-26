@@ -81,7 +81,7 @@ Because the key is explicit it *is* the document's identity, so `--if-exists` ac
 
 ## Template mode
 
-`--template NAME` composes the document from a template in `.iwe/config.toml`. The name is always required — nothing about template mode is implicit: `--var`, `--vars-yaml`, `--vars-json` and `--set` all require `--template`, and `--template` in turn requires a name. (`library.default_template` applies to [`iwe new`](cli-new.md) only.)
+`--template NAME` composes the document from a template in `.iwe/config.toml`. The name is always required — nothing about template mode is implicit: `--var`, `--vars-yaml`, `--vars-json` and `--set` all require `--template`, and `--template` in turn requires a name. (`workspace.default_template` applies to [`iwe new`](cli-new.md) only.)
 
 ``` bash
 # The stock template shipped in every configuration
@@ -182,8 +182,8 @@ Without a `<KEY>` the key comes from the template's `key_template`. With a `<KEY
 | `{{title}}`   | The `title` variable                                                                            |
 | `{{body}}`    | The `body` variable. `{{content}}` is a legacy alias                                            |
 | `{{slug}}`    | URL-safe form of the `title` variable                                                           |
-| `{{today}}`   | Current date — `library.date_format` for the key, `markdown.date_format` for the document       |
-| `{{now}}`     | Current date and time — `library.time_format` / `markdown.time_format`, each falling back to the matching `date_format` |
+| `{{today}}`   | Current date — `workspace.date_format` for the key, `markdown.date_format` for the document       |
+| `{{now}}`     | Current date and time — `workspace.time_format` / `markdown.time_format`, each falling back to the matching `date_format` |
 | `{{id}}`      | Random 8-character alphanumeric ID                                                              |
 
 Any other name passed with `--var`, `--vars-yaml` or `--vars-json` is available under that name.
@@ -224,4 +224,4 @@ iwe create docs/one --content "$(cat one.md)" --strict
 ## See also
 
 - [`iwe update`](cli-update.md) — replace or mutate an existing document
-- [`iwe new`](cli-new.md) — title-first quick capture with `library.default_template`
+- [`iwe new`](cli-new.md) — title-first quick capture with `workspace.default_template`

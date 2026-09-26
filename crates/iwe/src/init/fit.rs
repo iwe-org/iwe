@@ -20,30 +20,30 @@ impl Churn {
     }
 }
 
-fn library_path(root: &Path, config: &Configuration) -> PathBuf {
-    if config.library.path.is_empty() {
+fn workspace_path(root: &Path, config: &Configuration) -> PathBuf {
+    if config.workspace.path.is_empty() {
         root.to_path_buf()
     } else {
-        root.join(&config.library.path)
+        root.join(&config.workspace.path)
     }
 }
 
 pub fn measure(root: &Path, config: &Configuration) -> Churn {
-    let library = library_path(root, config);
-    if !library.exists() {
+    let workspace = workspace_path(root, config);
+    if !workspace.exists() {
         return Churn::default();
     }
 
-    let before = new_for_path(&library, config.format);
+    let before = new_for_path(&workspace, config.format);
     if before.is_empty() {
         return Churn::default();
     }
 
     let graph = graph_from_path(
-        &library,
+        &workspace,
         false,
         config.format_options(),
-        config.library.frontmatter_document_title.clone(),
+        config.workspace.frontmatter_document_title.clone(),
     );
     let after = graph.export();
 
@@ -63,17 +63,17 @@ pub fn measure(root: &Path, config: &Configuration) -> Churn {
 }
 
 pub fn sample_diff(root: &Path, config: &Configuration) -> Option<String> {
-    let library = library_path(root, config);
-    if !library.exists() {
+    let workspace = workspace_path(root, config);
+    if !workspace.exists() {
         return None;
     }
 
-    let before = new_for_path(&library, config.format);
+    let before = new_for_path(&workspace, config.format);
     let graph = graph_from_path(
-        &library,
+        &workspace,
         false,
         config.format_options(),
-        config.library.frontmatter_document_title.clone(),
+        config.workspace.frontmatter_document_title.clone(),
     );
     let after = graph.export();
 

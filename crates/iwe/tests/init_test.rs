@@ -67,9 +67,9 @@ fn init_writes_a_parsable_config_in_an_empty_directory() {
     assert!(temp.path().join(".iwe").is_dir());
 
     let config = written_config(temp.path());
-    assert_eq!("", config.library.path);
+    assert_eq!("", config.workspace.path);
     assert_eq!(Format::Markdown, config.format);
-    assert_eq!(Some(3), config.version);
+    assert_eq!(Some(4), config.version);
 }
 
 #[test]
@@ -102,17 +102,17 @@ fn init_exits_with_two_when_the_marker_is_a_file() {
 }
 
 #[test]
-fn init_detects_the_library_directory() {
+fn init_detects_the_workspace_directory() {
     let temp = TempDir::new().expect("Failed to create temp directory");
     wiki_vault(temp.path());
 
     run_init(temp.path(), &[]);
 
-    assert_eq!("notes", written_config(temp.path()).library.path);
+    assert_eq!("notes", written_config(temp.path()).workspace.path);
 }
 
 #[test]
-fn init_ignores_root_meta_files_when_choosing_the_library() {
+fn init_ignores_root_meta_files_when_choosing_the_workspace() {
     let temp = TempDir::new().expect("Failed to create temp directory");
     wiki_vault(temp.path());
     note(temp.path(), "README.md", "# Readme\n");
@@ -120,7 +120,7 @@ fn init_ignores_root_meta_files_when_choosing_the_library() {
 
     run_init(temp.path(), &[]);
 
-    assert_eq!("notes", written_config(temp.path()).library.path);
+    assert_eq!("notes", written_config(temp.path()).workspace.path);
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn init_detects_the_daily_note_date_format() {
     run_init(temp.path(), &[]);
 
     let config = written_config(temp.path());
-    assert_eq!(Some("%Y-%m-%d".to_string()), config.library.date_format);
+    assert_eq!(Some("%Y-%m-%d".to_string()), config.workspace.date_format);
     assert_eq!(Some("%b %d, %Y".to_string()), config.markdown.date_format);
 }
 
@@ -275,7 +275,7 @@ fn init_defaults_skips_detection() {
     assert_eq!(Some(0), output.status.code());
 
     let config = written_config(temp.path());
-    assert_eq!("", config.library.path);
+    assert_eq!("", config.workspace.path);
     assert_eq!(Some(LinkType::Markdown), config.completion.link_format);
 }
 
@@ -304,12 +304,22 @@ fn init_overrides_win_over_detection() {
 
     run_init(
         temp.path(),
-        &["--link-format", "markdown", "--library", "."],
+        &["--link-format", "markdown", "--workspace", "."],
     );
 
     let config = written_config(temp.path());
     assert_eq!(Some(LinkType::Markdown), config.completion.link_format);
-    assert_eq!(".", config.library.path);
+    assert_eq!(".", config.workspace.path);
+}
+
+#[test]
+fn init_accepts_the_deprecated_workspace_flag_name() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+    wiki_vault(temp.path());
+
+    run_init(temp.path(), &["--library", "."]);
+
+    assert_eq!(".", written_config(temp.path()).workspace.path);
 }
 
 #[test]
@@ -364,7 +374,7 @@ fn init_json_reports_settings_confidence_and_churn() {
     );
     assert_eq!(
         &serde_json::json!("notes"),
-        &report["settings"]["library.path"]
+        &report["settings"]["workspace.path"]
     );
     assert_eq!(
         &serde_json::json!("wiki"),
@@ -611,14 +621,14 @@ fn init_okf_keeps_an_existing_index() {
 }
 
 #[test]
-fn init_okf_places_the_index_inside_the_detected_library() {
+fn init_okf_places_the_index_inside_the_detected_workspace() {
     let temp = TempDir::new().expect("Failed to create temp directory");
     wiki_vault(temp.path());
 
     run_init(temp.path(), &["--okf", "--auto"]);
 
     let config = written_config(temp.path());
-    assert_eq!("notes", config.library.path);
+    assert_eq!("notes", config.workspace.path);
     assert_eq!(true, temp.path().join("notes").join("index.md").is_file());
 }
 

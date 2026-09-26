@@ -13,7 +13,7 @@ iwe schema
 iwe retrieve -k <two or three representative keys>
 ```
 
-Is memory already on (a `MEMORY.md` that is not a memory policy is a naming clash to surface, not to overwrite)? What is the key convention (`--limit 40` in a large store), which frontmatter do the documents carry, what does a body look like? Then read `.iwe/config.toml` and `CLAUDE.md` with the Read tool for the library path, the templates and their `key_template`s, schema bindings and stated conventions. Prefer these over `ls`, `find` and `cat`: the graph's keys are not the filesystem's paths.
+Is memory already on (a `MEMORY.md` that is not a memory policy is a naming clash to surface, not to overwrite)? What is the key convention (`--limit 40` in a large store), which frontmatter do the documents carry, what does a body look like? Then read `.iwe/config.toml` and `CLAUDE.md` with the Read tool for the workspace path, the templates and their `key_template`s, schema bindings and stated conventions. Prefer these over `ls`, `find` and `cat`: the graph's keys are not the filesystem's paths.
 
 Three outcomes:
 
@@ -59,7 +59,7 @@ iwe internal claude enable --body <file> --config <ontology.toml> --schema <type
 
 `enable` exits 2 if `MEMORY.md` exists and writes nothing else. Two options, both off by default: `--queries` also writes a `queries` cookbook document; `--typed` installs the typed ontology (`decision`, `learning`, `gotcha` and `topic` templates and schemas, a daily hub) with its own policy body — offer it, never assume it: right for a repository with no knowledge base whose user wants structure, wrong for a store with conventions.
 
-The machinery writes one document into the library, `MEMORY.md`; its own state lives under `.iwe/claude/`, outside the graph. Keys are relative to the library path, so a store with `path = "docs"` gets `docs/MEMORY.md`; say so before anything runs.
+The machinery writes one document into the workspace, `MEMORY.md`; its own state lives under `.iwe/claude/`, outside the graph. Keys are relative to the workspace path, so a store with `path = "docs"` gets `docs/MEMORY.md`; say so before anything runs.
 
 **Then check the policy and run every command it embeds, once** — a broken `iwe find` in a distill run prints nothing and reads as "no duplicates found":
 

@@ -273,7 +273,7 @@ fn assert_attached_template(source: &str, line: u32, expected: &str, expected_ke
 fn attach_with_time_format() {
     let mut configuration = Configuration::default();
     configuration.markdown.date_format = Some("%b %d, %Y %H:%M".into());
-    configuration.library.date_format = Some("%Y%m%d%H%M".into());
+    configuration.workspace.date_format = Some("%Y%m%d%H%M".into());
 
     configuration.actions.insert(
         "attach".into(),
@@ -311,8 +311,8 @@ fn attach_with_time_format() {
 #[test]
 fn attach_with_separate_locales() {
     let mut configuration = Configuration::default();
-    configuration.library.locale = Some("en_US".into());
-    configuration.library.date_format = Some("%A-%B-%d".into());
+    configuration.workspace.locale = Some("en_US".into());
+    configuration.workspace.date_format = Some("%A-%B-%d".into());
     configuration.markdown.locale = Some("de_DE".into());
     configuration.markdown.date_format = Some("%A, %d. %B %Y".into());
 
@@ -352,8 +352,8 @@ fn attach_with_separate_locales() {
 #[test]
 fn attach_with_separate_time_format() {
     let mut configuration = Configuration::default();
-    configuration.library.date_format = Some("%Y-%m-%d".into());
-    configuration.library.time_format = Some("%Y-%m-%d-%H%M".into());
+    configuration.workspace.date_format = Some("%Y-%m-%d".into());
+    configuration.workspace.time_format = Some("%Y-%m-%d-%H%M".into());
     configuration.markdown.date_format = Some("%b %d, %Y".into());
     configuration.markdown.time_format = Some("%b %d, %Y %H:%M".into());
 

@@ -10,7 +10,7 @@ would rewrite under each column. Answer y (or press Enter) to write the
 detected settings, n to write the defaults, or q to quit without writing.
 With no terminal attached, init behaves as --auto.
 
-Detection covers the library directory, source format, link style and path
+Detection covers the workspace directory, source format, link style and path
 conventions, date formats, key naming, search language, and the markdown
 formatting tokens. Every value is labelled detected, assumed, or overridden,
 and each detected value is written with a comment citing its evidence.
@@ -30,7 +30,7 @@ okf_version when none exists. An explicit --refs-extension still wins.
 `iwe schema validate` then checks conformance on demand or in CI.
 
 Per-setting overrides apply on top of detection in every mode:
---library, --link-format, --refs-extension, --format, --date-format
+--workspace, --link-format, --refs-extension, --format, --date-format
 
 Exit codes:
 - 0: configuration written, or dry run completed

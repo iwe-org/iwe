@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `Key::to_workspace_url()` replaces `Key::to_library_url()`, and `WorkspaceUrl` replaces the `LibraryUrl` type alias.
+
+### Deprecated
+
+- `Key::to_library_url()` and `LibraryUrl` retained as deprecated aliases.
+
 ## [0.24.2](https://github.com/iwe-org/iwe/compare/liwe-v0.24.1...liwe-v0.24.2) - 2026-09-20
 
 ### Fixed

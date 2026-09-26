@@ -186,7 +186,7 @@ Follow the operator's requested answer shape and stop when supported. Do not add
 
 ## Advanced and control-plane routes
 
-Use this section only when the request explicitly needs graph analytics, duplicate review, reusable artifacts, whole-library normalization, workspace initialization, shell completion, embedded reference text, or unresolved CLI syntax after a failed direct correction. Normal `find`, `retrieve`, `count`, `tree`, `schema`, create, update, and structural write work is complete above; do not consult this section for those routes.
+Use this section only when the request explicitly needs graph analytics, duplicate review, reusable artifacts, whole-workspace normalization, workspace initialization, shell completion, embedded reference text, or unresolved CLI syntax after a failed direct correction. Normal `find`, `retrieve`, `count`, `tree`, `schema`, create, update, and structural write work is complete above; do not consult this section for those routes.
 
 ### Analyze and render uncommon artifacts
 
@@ -198,13 +198,13 @@ Use this section only when the request explicitly needs graph analytics, duplica
 
 These commands are read-only unless their stdout is redirected into a file. Do not retrieve documents first.
 
-### Whole-library work
+### Whole-workspace work
 
-- **H3 Normalize:** `iwe normalize` rewrites the entire library in place and has no dry-run. Require explicit scope, an established rollback point, and fresh focused confirmation. Verify afterward.
+- **H3 Normalize:** `iwe normalize` rewrites the entire workspace in place and has no dry-run. Require explicit scope, an established rollback point, and fresh focused confirmation. Verify afterward.
 
 ### Setup and control plane
 
-- **I1 Initialization proposal:** `iwe init --dry-run --json`; add only already-supplied `--library`, `--link-format`, `--refs-extension`, `--format`, or `--date-format` choices.
+- **I1 Initialization proposal:** `iwe init --dry-run --json`; add only already-supplied `--workspace`, `--link-format`, `--refs-extension`, `--format`, or `--date-format` choices.
 - **I2 Initialize:** `iwe init --auto <accepted-overrides>` applies detected conventions. Use `--defaults` only when static defaults are explicitly preferred.
 - **I3 Completions:** `iwe completions <bash|elvish|fish|nushell|powershell|zsh>` for an already-known shell.
 - **I4 Embedded reference:** `docs <query|config|schema|agent>` is the IWE subcommand route only when that reference itself is requested, never as routine task discovery.

@@ -31,7 +31,7 @@ pub struct Probes {
     pub editors: Vec<Editor>,
     pub git_repository: bool,
     pub git_clean: bool,
-    pub nested_library: Option<String>,
+    pub nested_workspace: Option<String>,
 }
 
 impl Probes {
@@ -85,7 +85,7 @@ pub fn probe(root: &Path) -> Probes {
         probes.git_clean = git_is_clean(root);
     }
 
-    probes.nested_library = find_parent_library(root);
+    probes.nested_workspace = find_parent_workspace(root);
 
     probes
 }
@@ -100,7 +100,7 @@ fn git_is_clean(root: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn find_parent_library(root: &Path) -> Option<String> {
+fn find_parent_workspace(root: &Path) -> Option<String> {
     let mut current = root.parent();
     while let Some(directory) = current {
         if directory.join(".iwe").is_dir() {

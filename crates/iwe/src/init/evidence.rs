@@ -175,7 +175,7 @@ pub struct Evidence {
     pub capped: bool,
     pub markdown_files: usize,
     pub djot_files: usize,
-    pub library_path: String,
+    pub workspace_path: String,
 
     pub wiki_links: usize,
     pub markdown_links: usize,
@@ -272,30 +272,30 @@ pub fn scan(root: &Path) -> Evidence {
     };
     paths.sort();
 
-    evidence.library_path = detect_library_path(&paths);
+    evidence.workspace_path = detect_workspace_path(&paths);
 
-    let prefix = if evidence.library_path.is_empty() {
+    let prefix = if evidence.workspace_path.is_empty() {
         String::new()
     } else {
-        format!("{}/", evidence.library_path)
+        format!("{}/", evidence.workspace_path)
     };
 
-    let mut in_library: Vec<(String, PathBuf)> = paths
+    let mut in_workspace: Vec<(String, PathBuf)> = paths
         .into_iter()
         .filter(|(key, _)| prefix.is_empty() || key.starts_with(&prefix))
         .map(|(key, path)| (key[prefix.len()..].to_string(), path))
         .collect();
 
-    if in_library.len() > SCAN_CAP {
+    if in_workspace.len() > SCAN_CAP {
         evidence.capped = true;
-        in_library.truncate(SCAN_CAP);
+        in_workspace.truncate(SCAN_CAP);
     }
-    evidence.scanned_files = in_library.len();
+    evidence.scanned_files = in_workspace.len();
 
-    let keys: BTreeSet<String> = in_library.iter().map(|(key, _)| key.clone()).collect();
+    let keys: BTreeSet<String> = in_workspace.iter().map(|(key, _)| key.clone()).collect();
 
     let mut facts = Vec::new();
-    for (key, path) in &in_library {
+    for (key, path) in &in_workspace {
         match std::fs::read(path) {
             Ok(bytes) => match String::from_utf8(bytes) {
                 Ok(raw) => facts.push(scan_file(key, &raw, &mut evidence)),
@@ -328,7 +328,7 @@ fn is_root_meta_file(key: &str) -> bool {
     !key.contains('/') && ROOT_META_FILES.contains(&key.to_lowercase().as_str())
 }
 
-fn detect_library_path(all_paths: &[(String, PathBuf)]) -> String {
+fn detect_workspace_path(all_paths: &[(String, PathBuf)]) -> String {
     let paths: Vec<&(String, PathBuf)> = all_paths
         .iter()
         .filter(|(key, _)| !is_root_meta_file(key))

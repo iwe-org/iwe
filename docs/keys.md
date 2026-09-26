@@ -28,7 +28,7 @@ Every link is resolved to a `Key` when a document is read. How the link text map
 
 Markdown links resolve **relative to the document that contains them**. A link `[text](../shared/topic.md)` inside `projects/plan` resolves to the key `shared/topic`. The `.md` extension is dropped, and `..` segments walk up from the containing document's directory.
 
-A link that starts with `/` resolves **from the library root** instead, regardless of where the linking document lives: `[text](/shared/topic.md)` resolves to the key `shared/topic` whether it is written from the root or from a nested document. A `#section` fragment is dropped before the key is computed, so `[text](/shared/topic.md#usage)` resolves to the same key as `[text](/shared/topic.md)`. Set `refs_path = "absolute"` in `[markdown]` to have write-time normalization emit every markdown link in this root-absolute form.
+A link that starts with `/` resolves **from the workspace root** instead, regardless of where the linking document lives: `[text](/shared/topic.md)` resolves to the key `shared/topic` whether it is written from the root or from a nested document. A `#section` fragment is dropped before the key is computed, so `[text](/shared/topic.md#usage)` resolves to the same key as `[text](/shared/topic.md)`. Set `refs_path = "absolute"` in `[markdown]` to have write-time normalization emit every markdown link in this root-absolute form.
 
 ### Wiki links
 
@@ -75,7 +75,7 @@ Whichever value you choose, write-time normalization, completion, and the link a
 
 ### Markdown links and the reference extension
 
-By default markdown links are written as paths **relative** to the containing document — a link from `guide/intro` to `reference/api` is written `../reference/api`. Set `refs_path = "absolute"` in `[markdown]` to instead write every markdown link as a root-absolute path from the library root, so the same link becomes `/reference/api`. This only changes how links are *written*; resolution is unaffected, and a leading `/` is always resolved from the library root regardless of the setting.
+By default markdown links are written as paths **relative** to the containing document — a link from `guide/intro` to `reference/api` is written `../reference/api`. Set `refs_path = "absolute"` in `[markdown]` to instead write every markdown link as a root-absolute path from the workspace root, so the same link becomes `/reference/api`. This only changes how links are *written*; resolution is unaffected, and a leading `/` is always resolved from the workspace root regardless of the setting.
 
 The two settings compose. `refs_extension` (for example `".md"`) appends an extension to written markdown links, so with `refs_path = "absolute"` and `refs_extension = ".md"` the link is written `/reference/api.md`. Wiki links never receive an extension. Fragment anchors (`#section`) are preserved.
 

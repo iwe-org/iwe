@@ -38,7 +38,7 @@ If you are weighing IWE against one specific tool, skip to that section. If you 
 | **Rename**                | ✅ Rename a file, all references follow                                                               | ✅ Rename updates cross-references in the configured link style            |
 | **Daily notes**           | ⚠️ Template-based via [attach](feature-attach.md); no date resolution                                | ❌ None                                                                    |
 | **Folding**               | ✅ Folding ranges over sections and lists                                                             | ❌ Not documented                                                          |
-| **Workspace scoping**     | Directory the server starts in, plus `library.path`; honors `.gitignore`                             | VCS root or `.marksman.toml`; honors `.gitignore`, `.hgignore`, `.ignore` |
+| **Workspace scoping**     | Directory the server starts in, plus `workspace.path`; honors `.gitignore`                             | VCS root or `.marksman.toml`; honors `.gitignore`, `.hgignore`, `.ignore` |
 | **Editors**               | ✅ Documented setup for VS Code, Neovim, Zed, Helix; any LSP client works                             | ✅ VS Code, Neovim, Vim, Emacs, Helix, Kakoune, Sublime Text, BBEdit, Zed  |
 | **Implementation**        | Rust; pulldown-cmark AST with wikilinks enabled                                                      | F#/.NET; custom parser built on Markdig                                   |
 

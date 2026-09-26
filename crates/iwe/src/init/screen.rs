@@ -199,7 +199,7 @@ mod tests {
         let base = defaults();
         let mut detected = base.clone();
         detected.set(
-            SettingId::LibraryPath,
+            SettingId::WorkspacePath,
             Value::text("notes"),
             Confidence::Detected,
             "3 of 3 files live under notes/",
@@ -274,7 +274,7 @@ mod tests {
                     .join(" ")
             })
             .filter(|line| {
-                line.starts_with("library")
+                line.starts_with("workspace")
                     || line.starts_with("links")
                     || line.starts_with("format")
             })
@@ -286,7 +286,7 @@ mod tests {
         let (selected, _) = drive("\n");
         let selected = selected.expect("screen writes on Enter");
 
-        assert_eq!(Value::text("notes"), selected.get(SettingId::LibraryPath));
+        assert_eq!(Value::text("notes"), selected.get(SettingId::WorkspacePath));
         assert_eq!(Value::text("wiki"), selected.get(SettingId::LinkFormat));
     }
 
@@ -295,7 +295,7 @@ mod tests {
         let (selected, _) = drive("y\n");
         let selected = selected.expect("screen writes on y");
 
-        assert_eq!(Value::text("notes"), selected.get(SettingId::LibraryPath));
+        assert_eq!(Value::text("notes"), selected.get(SettingId::WorkspacePath));
         assert_eq!(Value::text("wiki"), selected.get(SettingId::LinkFormat));
     }
 
@@ -304,7 +304,7 @@ mod tests {
         let (selected, _) = drive("n\n");
         let selected = selected.expect("screen writes on n");
 
-        assert_eq!(Value::text(""), selected.get(SettingId::LibraryPath));
+        assert_eq!(Value::text(""), selected.get(SettingId::WorkspacePath));
         assert_eq!(Value::text("markdown"), selected.get(SettingId::LinkFormat));
     }
 
@@ -332,7 +332,7 @@ mod tests {
             .collect();
 
         assert_eq!(vec!["> answer y, n or q"], asked);
-        assert_eq!(Value::text("notes"), selected.get(SettingId::LibraryPath));
+        assert_eq!(Value::text("notes"), selected.get(SettingId::WorkspacePath));
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod tests {
 
         assert_eq!(
             vec![
-                "library notes none".to_string(),
+                "workspace notes none".to_string(),
                 "format markdown".to_string(),
                 "links wiki markdown".to_string(),
             ],
@@ -354,7 +354,7 @@ mod tests {
         let base = defaults();
         let mut detected = base.clone();
         detected.set(
-            SettingId::LibraryPath,
+            SettingId::WorkspacePath,
             Value::text("notes"),
             Confidence::Detected,
             "3 of 3 files live under notes/",
@@ -371,13 +371,13 @@ mod tests {
 
         assert_eq!(
             vec![
-                "library notes none".to_string(),
+                "workspace notes none".to_string(),
                 "format markdown".to_string(),
                 "links wiki".to_string(),
             ],
             rows_of(&transcript)
         );
-        assert_eq!(Value::text(""), selected.get(SettingId::LibraryPath));
+        assert_eq!(Value::text(""), selected.get(SettingId::WorkspacePath));
         assert_eq!(Value::text("wiki"), selected.get(SettingId::LinkFormat));
     }
 
@@ -463,7 +463,7 @@ mod tests {
         let (selected, memory, _) = drive_probes("n\ny\ny\n", &detected, &base, &claude_probes());
         let selected = selected.expect("screen writes on n");
 
-        assert_eq!(Value::text(""), selected.get(SettingId::LibraryPath));
+        assert_eq!(Value::text(""), selected.get(SettingId::WorkspacePath));
         assert_eq!(Value::Bool(true), selected.get(SettingId::Agents));
         assert_eq!(true, memory);
     }

@@ -11,7 +11,7 @@ EXAMPLES:
 
   # Let an agent read the full report, then apply a reviewed decision
   iwe init --dry-run --json
-  iwe init --auto --link-format wiki --library notes
+  iwe init --auto --link-format wiki --workspace notes
 
   # Skip detection and write the static template
   iwe init --defaults

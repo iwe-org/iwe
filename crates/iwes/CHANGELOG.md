@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `[library]` configuration table is now `[workspace]`; the server reads the document path, date formats, locale and frontmatter title from it. A config that still says `[library]` keeps working.
+
 ## [0.24.2](https://github.com/iwe-org/iwe/compare/iwes-v0.24.1...iwes-v0.24.2) - 2026-09-20
 
 ### Fixed
