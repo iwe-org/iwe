@@ -112,6 +112,8 @@ The tool is **always strict**: every mutating application must carry an `expect`
 
 Output is seeds first (relevance order), then expansion. The edge-list toggles (`backlinks`, `children`) are unchanged. The pre-existing `depth`, `context`, and `links` parameters are **deprecated** aliases for `expand`'s `includes` / `includedBy` / `references`; passing `expand` together with any of them is an error.
 
+Keys listed in `keys` are named documents: a key that is not in the graph is refused with `Document '<key>' not found` rather than returned as a document with empty content. When `search` / `fuzzy` is present the same `keys` are used as the candidate set instead, so an empty result stays a successful empty result.
+
 ### Refactoring
 
 | Tool             | Description                                                |
@@ -137,6 +139,8 @@ The server provides three built-in prompts that guide AI agents through common w
 | `explore`  | Get an overview of the knowledge graph with key statistics |
 | `review`   | Review a specific document with full context              |
 | `refactor` | Analyze a document and suggest restructuring operations   |
+
+`review` and `refactor` take a required `key` and resolve it against the graph; a key that does not exist is refused with the same `Document '<key>' not found` error instead of producing a prompt that describes an empty document.
 
 ## Resources
 

@@ -733,6 +733,19 @@ fn write_error_to_mcp(e: std::io::Error) -> McpError {
     McpError::internal_error(format!("Failed to write to the workspace: {e}"), None)
 }
 
+fn missing_documents_error(missing: &[String]) -> McpError {
+    if let [key] = missing {
+        return McpError::invalid_params(format!("Document '{key}' not found"), None);
+    }
+
+    let listed = missing
+        .iter()
+        .map(|key| format!("'{key}'"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    McpError::invalid_params(format!("Documents {listed} not found"), None)
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ReviewPromptArgs {
     #[schemars(description = "Document key to review")]
@@ -811,6 +824,16 @@ impl IweServer {
             let seeds = diwe::search_query::ranked(&graph, &index, &candidates, &spec);
             reader.retrieve_many(&seeds, &options)
         } else {
+            let missing: Vec<String> = params
+                .keys
+                .iter()
+                .filter(|key| (&*graph).get_node_id(&Key::name(key)).is_none())
+                .cloned()
+                .collect();
+            if !missing.is_empty() {
+                return Err(missing_documents_error(&missing));
+            }
+
             options.filter = params.selector.to_filter();
             let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
             reader.retrieve_many(&keys, &options)
@@ -1623,6 +1646,10 @@ impl IweServer {
     ) -> Result<GetPromptResult, McpError> {
         let graph = self.graph.lock().await;
         let key = Key::name(&args.key);
+        if (&*graph).get_node_id(&key).is_none() {
+            return Err(missing_documents_error(std::slice::from_ref(&args.key)));
+        }
+
         let reader = DocumentReader::new(&graph);
         let output = reader.retrieve(
             &key,
@@ -1658,6 +1685,10 @@ impl IweServer {
     ) -> Result<GetPromptResult, McpError> {
         let graph = self.graph.lock().await;
         let key = Key::name(&args.key);
+        if (&*graph).get_node_id(&key).is_none() {
+            return Err(missing_documents_error(std::slice::from_ref(&args.key)));
+        }
+
         let reader = DocumentReader::new(&graph);
         let output = reader.retrieve(
             &key,
