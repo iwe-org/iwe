@@ -20,7 +20,7 @@ iwe find --lexical <QUERY> [OPTIONS]
 | `--lexical <QUERY>`             | Lexical (BM25) full-text match on title and body.                                            | none       |
 | `[QUERY]`                       | Deprecated: bare positional query. Behaves as `--fuzzy` and prints a warning.                | none       |
 | `--filter <EXPR>`               | Inline YAML filter expression. See [Query Language](query-language.md).                      | none       |
-| `-k, --key <KEY>`               | Match by document key. Repeatable: 1 key uses `$eq`, 2+ uses `$in`.                          | none       |
+| `-k, --key <KEY>`               | Match by document key. Repeatable: 1 key uses `$eq`, 2+ uses `$in`. Unknown keys match nothing.                          | none       |
 | `--includes <KEY[:DEPTH]>`      | `$includes` anchor. Repeatable; anchors are ANDed.                                           | none       |
 | `--included-by <KEY[:DEPTH]>`   | `$includedBy` anchor. Repeatable; anchors are ANDed.                                         | none       |
 | `--references <KEY[:DIST]>`     | `$references` anchor. Repeatable; anchors are ANDed.                                         | none       |

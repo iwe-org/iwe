@@ -274,3 +274,66 @@ async fn retrieve_max_document_tokens_clips_content_and_notes() {
     assert_eq!(note["tokens"], json!(13));
     assert_eq!(note.get("budget"), None);
 }
+
+#[tokio::test]
+async fn retrieve_rejects_unknown_key() {
+    let f = Fixture::with_documents(vec![("1", "# Doc\n")]).await;
+
+    let error = f
+        .try_call_tool("iwe_retrieve", json!({"keys": ["missing"], "depth": 0}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        Fixture::error_message(error),
+        "Document 'missing' not found"
+    );
+}
+
+#[tokio::test]
+async fn retrieve_rejects_batch_with_unknown_keys() {
+    let f = Fixture::with_documents(vec![("1", "# Doc\n")]).await;
+
+    let error = f
+        .try_call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["1", "missing", "other"], "depth": 0}),
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        Fixture::error_message(error),
+        "Documents not found: 'missing', 'other'"
+    );
+}
+
+#[tokio::test]
+async fn retrieve_rejects_unknown_key_with_selector() {
+    let f =
+        Fixture::with_documents(vec![("1", "# Parent\n\n[Child](2)\n"), ("2", "# Child\n")]).await;
+
+    let error = f
+        .try_call_tool("iwe_retrieve", json!({"keys": ["missing"], "in": ["1"]}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        Fixture::error_message(error),
+        "Document 'missing' not found"
+    );
+}
+
+#[tokio::test]
+async fn retrieve_search_treats_unknown_keys_as_candidates() {
+    let f = Fixture::with_documents(vec![("1", "# Doc\n\nalpha\n")]).await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({"keys": ["missing"], "search": "alpha", "depth": 0}),
+        )
+        .await;
+
+    assert_eq!(Fixture::result_json(&result), json!([]));
+}

@@ -2950,3 +2950,16 @@ fn test_retrieve_lexical_seeds() {
     assert!(success, "stderr: {}", stderr);
     assert_eq!(stdout, "ownership\n");
 }
+
+#[test]
+fn test_retrieve_lists_every_missing_document() {
+    let dir = setup_workspace();
+    write(dir.path().join("one.md"), "# One\n").expect("Should write document");
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "one", "-k", "missing", "-k", "other"]);
+
+    assert!(!success);
+    assert_eq!(stdout, "");
+    assert_eq!(stderr, "Error: Documents not found: 'missing', 'other'\n");
+}

@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0](https://github.com/iwe-org/iwe/compare/iwe-v0.24.2...iwe-v0.25.0) - 2026-10-02
+
 ### Changed
 
 - The `[library]` configuration table is now `[workspace]`. A config written for an earlier version is migrated in place the first time a command reads it — the table is renamed and the file's `version` becomes `4`. A config that still says `[library]` is read as before.
 - `iwe init --workspace <DIR>` names the subdirectory holding the markdown files (was `--library`).
 - `iwe init --json` reports the detected directory as `evidence.workspace_path` and keys its settings map with `workspace.path`, `workspace.date_format` and `workspace.frontmatter_document_title` (previously `library_path` and `library.*`).
 - Help text, examples and shipped documentation now call the document collection a workspace.
+
+### Fixed
+
+- `tree -k` with a filter or anchor, `export -k`, and `update -k` in mutation mode now fail on an unknown key (previously the key was silently dropped, producing empty output or `No documents matched`).
+- `retrieve` and every command above report all unknown keys in one error, `Documents not found: 'a', 'b'` (previously only the first).
 
 ### Deprecated
 

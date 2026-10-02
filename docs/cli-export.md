@@ -23,7 +23,7 @@ iwe export -f <FORMAT> [OPTIONS]
 | `-d, --depth <DEPTH>`           | `0`       | Maximum depth to include (0 = unlimited).                                            |
 | `--include-headers`             | false     | Include section headers and create detailed subgraphs.                               |
 | `--filter <EXPR>`               | -         | Inline YAML filter expression. See [Query Language](query-language.md).              |
-| `-k, --key <KEY>`                | all roots | Filter to specific document(s). Repeatable; 1 key = `$eq`, 2+ = `$in`.               |
+| `-k, --key <KEY>`                | all roots | Filter to specific document(s). Repeatable; 1 key = `$eq`, 2+ = `$in`. Unknown keys are an error.               |
 | `--includes <KEY[:DEPTH]>`      | -         | `$includes` anchor. Repeatable; anchors are ANDed.                                   |
 | `--included-by <KEY[:DEPTH]>`   | -         | `$includedBy` anchor. Repeatable; anchors are ANDed.                                 |
 | `--references <KEY[:DIST]>`     | -         | `$references` anchor. Repeatable; anchors are ANDed.                                 |

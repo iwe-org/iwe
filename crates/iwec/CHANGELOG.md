@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0](https://github.com/iwe-org/iwe/compare/iwec-v0.24.2...iwec-v0.25.0) - 2026-10-02
+
 ### Changed
 
 - The `iwe://config` resource reports the document collection under a `workspace` object (was `library`).
 - The `[library]` configuration table is now `[workspace]`. A config that still says `[library]` keeps working.
+
+### Fixed
+
+- `iwe_retrieve` and the `review` / `refactor` prompts reject an unknown key with a `Document '<key>' not found` error instead of returning an empty placeholder document; `keys` used as the candidate set for `search` / `fuzzy` still match nothing.
+- `iwe_tree` rejects unknown `keys` instead of silently leaving them out of the result.
 
 ### Deprecated
 

@@ -18,7 +18,7 @@ Without `-k` (and without a search flag), reads the document key from stdin (for
 
 | Flag                  | Description                                                            | Default  |
 | --------------------- | ---------------------------------------------------------------------- | -------- |
-| `-k, --key <KEY>`              | Document key(s) to retrieve, or the candidate set searched within when a search flag is present (repeatable). 1 key = `$eq`, 2+ = `$in`. | stdin      |
+| `-k, --key <KEY>`              | Document key(s) to retrieve, or the candidate set searched within when a search flag is present (repeatable). 1 key = `$eq`, 2+ = `$in`. Unknown keys are an error unless searching — see [Named Keys vs Filters](keys.md#named-keys-vs-filters). | stdin      |
 | `--expand-includes [N]`        | Follow inclusion edges downward, pulling child (sub-)documents to depth `N`. Bare = `1`; `0` = unbounded; omitted = not followed. | not followed |
 | `--expand-included-by [N]`     | Follow inclusion edges upward, pulling parent documents to depth `N`. Bare = `1`; `0` = unbounded; omitted = not followed. | not followed |
 | `--expand-references [N]`      | Follow outbound reference links, pulling documents this seed links to within `N` hops. Bare = `1`; `0` = unbounded; omitted = not followed. | not followed |

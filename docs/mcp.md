@@ -130,6 +130,10 @@ All write and refactoring tools support a `dry_run` parameter to preview changes
 
 `iwe_find`, `iwe_retrieve`, and `iwe_tree` accept a structural selector embedded in their tool input: `in`, `in_any`, `not_in`, and `max_depth`. Each entry is either a bare key or `{ key, depth }`. These are a convenience for the most common selection patterns; the full query surface — `--filter`-style documents, `$`-prefixed graph operators, block predicates, frontmatter and block mutation — is `iwe_query`, documented in the [Query Language](query-language.md) reference.
 
+### Unknown keys
+
+`keys` on `iwe_retrieve` and `iwe_tree`, and `key` on every single-document tool and on the `review` / `refactor` prompts, name documents: an unknown key is an `invalid_params` error that lists every missing key. Selector anchors, `exclude`, and `keys` used as the candidate set for `search` / `fuzzy` are filters and may match nothing. See [Named Keys vs Filters](keys.md#named-keys-vs-filters).
+
 ## Prompts
 
 The server provides three built-in prompts that guide AI agents through common workflows:

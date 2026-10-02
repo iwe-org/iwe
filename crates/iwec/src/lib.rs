@@ -15,6 +15,7 @@ use diwe::fs::{
     key_escapes_workspace, new_for_path, new_from_hashmap, workspace_document_path,
     write_file_if_changed,
 };
+use diwe::require_documents;
 use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use diwe::schema::{
     pending_from_changes, render_reports_text, validate_pending_documents,
@@ -289,7 +290,7 @@ pub struct ExpandParams {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RetrieveParams {
     #[schemars(
-        description = "Document keys to retrieve, or the candidate set searched within when `search`/`fuzzy` is present. Can be empty when a structural selector is provided."
+        description = "Document keys to retrieve, or the candidate set searched within when `search`/`fuzzy` is present. Unknown keys are an error unless searching, where they match nothing. Can be empty when a structural selector is provided."
     )]
     #[serde(default)]
     pub keys: Vec<String>,
@@ -402,7 +403,7 @@ impl RetrieveParams {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TreeParams {
     #[schemars(
-        description = "Starting document keys. If empty and no selector, shows all root documents."
+        description = "Starting document keys. Unknown keys are an error. If empty and no selector, shows all root documents."
     )]
     pub keys: Option<Vec<String>>,
     #[schemars(description = "Maximum traversal depth. Default: 4")]
@@ -733,19 +734,6 @@ fn write_error_to_mcp(e: std::io::Error) -> McpError {
     McpError::internal_error(format!("Failed to write to the workspace: {e}"), None)
 }
 
-fn missing_documents_error(missing: &[String]) -> McpError {
-    if let [key] = missing {
-        return McpError::invalid_params(format!("Document '{key}' not found"), None);
-    }
-
-    let listed = missing
-        .iter()
-        .map(|key| format!("'{key}'"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    McpError::invalid_params(format!("Documents {listed} not found"), None)
-}
-
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ReviewPromptArgs {
     #[schemars(description = "Document key to review")]
@@ -824,18 +812,9 @@ impl IweServer {
             let seeds = diwe::search_query::ranked(&graph, &index, &candidates, &spec);
             reader.retrieve_many(&seeds, &options)
         } else {
-            let missing: Vec<String> = params
-                .keys
-                .iter()
-                .filter(|key| (&*graph).get_node_id(&Key::name(key)).is_none())
-                .cloned()
-                .collect();
-            if !missing.is_empty() {
-                return Err(missing_documents_error(&missing));
-            }
-
-            options.filter = params.selector.to_filter();
             let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
+            require_documents(&graph, &keys).map_err(|e| McpError::invalid_params(e, None))?;
+            options.filter = params.selector.to_filter();
             reader.retrieve_many(&keys, &options)
         };
         to_json_result_with_truncation(&output.documents, &output.truncation)
@@ -856,6 +835,7 @@ impl IweServer {
             .filter(|k| !k.is_empty())
             .map(|ks| ks.iter().map(|k| Key::name(k)).collect())
             .unwrap_or_default();
+        require_documents(&graph, &explicit_keys).map_err(|e| McpError::invalid_params(e, None))?;
 
         let root_keys: Vec<Key> = if let Some(f) = filter {
             let selector_set: HashSet<Key> = query::evaluate(&f, &graph).into_iter().collect();
@@ -1646,10 +1626,8 @@ impl IweServer {
     ) -> Result<GetPromptResult, McpError> {
         let graph = self.graph.lock().await;
         let key = Key::name(&args.key);
-        if (&*graph).get_node_id(&key).is_none() {
-            return Err(missing_documents_error(std::slice::from_ref(&args.key)));
-        }
-
+        require_documents(&graph, std::slice::from_ref(&key))
+            .map_err(|e| McpError::invalid_params(e, None))?;
         let reader = DocumentReader::new(&graph);
         let output = reader.retrieve(
             &key,
@@ -1685,10 +1663,8 @@ impl IweServer {
     ) -> Result<GetPromptResult, McpError> {
         let graph = self.graph.lock().await;
         let key = Key::name(&args.key);
-        if (&*graph).get_node_id(&key).is_none() {
-            return Err(missing_documents_error(std::slice::from_ref(&args.key)));
-        }
-
+        require_documents(&graph, std::slice::from_ref(&key))
+            .map_err(|e| McpError::invalid_params(e, None))?;
         let reader = DocumentReader::new(&graph);
         let output = reader.retrieve(
             &key,
