@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0](https://github.com/iwe-org/iwe/compare/iwec-v0.24.2...iwec-v0.25.0) - 2026-10-02
+
 ### Changed
 
 - The `iwe://config` resource reports the document collection under a `workspace` object (was `library`).

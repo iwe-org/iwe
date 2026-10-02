@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0](https://github.com/iwe-org/iwe/compare/diwe-v0.24.2...diwe-v0.25.0) - 2026-10-02
+
 ### Added
 
 - `migrate_v3_to_v4` renames a configuration's `[library]` table to `[workspace]`.

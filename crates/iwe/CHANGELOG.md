@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0](https://github.com/iwe-org/iwe/compare/iwe-v0.24.2...iwe-v0.25.0) - 2026-10-02
+
 ### Changed
 
 - The `[library]` configuration table is now `[workspace]`. A config written for an earlier version is migrated in place the first time a command reads it — the table is renamed and the file's `version` becomes `4`. A config that still says `[library]` is read as before.
