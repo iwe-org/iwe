@@ -94,3 +94,16 @@ fn run_export_dot_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Ou
 
     cmd.output().expect("Failed to execute export dot command")
 }
+
+#[test]
+fn test_export_dot_rejects_unknown_key() {
+    let temp_dir = setup_test_workspace();
+    let output = run_export_dot_command(&temp_dir, &["-k", "missing"]);
+
+    assert!(!output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error: Document 'missing' not found\n"
+    );
+}

@@ -10,6 +10,15 @@ Each document is identified by a key — its path relative to the project root, 
 - **Extension handling**: Automatic `.md` extension management
 - **Relative linking**: Support for `../parent/document` syntax
 
+## Named Keys vs Filters
+
+A key passed to a command either **names a document** or **filters a set**.
+
+- **Named keys** must exist. The command fails before doing anything and lists every missing key: `Document 'a' not found`, or `Documents not found: 'a', 'b'`. This covers `-k` / `keys` on `retrieve`, `tree`, `export`, and `update`, the `key` of single-document commands such as `delete`, `rename`, `extract`, `inline`, `squash`, `stats`, and `attach`, and the `review` / `refactor` MCP prompts.
+- **Filters** narrow a set and may match nothing, which returns an empty result. This covers `find` / `count` `-k`, `--filter` and `$key`, structural anchors (`--included-by`, `--references`, …), `--exclude`, and `-k` / `keys` combined with `--lexical` / `--fuzzy` / `search`, where they are the candidate set searched within.
+
+When named keys are combined with a filter, the keys are checked first and the filter then narrows them.
+
 ## Reference Types
 
 IWE supports three reference types:

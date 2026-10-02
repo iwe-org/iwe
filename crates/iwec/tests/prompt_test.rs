@@ -57,3 +57,33 @@ async fn refactor_prompt() {
     let text = prompt_text(&result.messages[0]);
     assert!(text.contains("restructuring"));
 }
+
+#[tokio::test]
+async fn review_prompt_rejects_unknown_key() {
+    let f = Fixture::with_documents(vec![("1", "# Doc\n")]).await;
+
+    let error = f
+        .try_get_prompt("review", json!({"key": "missing"}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        Fixture::error_message(error),
+        "Document 'missing' not found"
+    );
+}
+
+#[tokio::test]
+async fn refactor_prompt_rejects_unknown_key() {
+    let f = Fixture::with_documents(vec![("1", "# Doc\n")]).await;
+
+    let error = f
+        .try_get_prompt("refactor", json!({"key": "missing"}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        Fixture::error_message(error),
+        "Document 'missing' not found"
+    );
+}

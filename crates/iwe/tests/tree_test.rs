@@ -728,3 +728,17 @@ fn run_tree_command(work_dir: &std::path::Path, args: &[&str]) -> std::process::
 
     command.output().expect("Failed to execute iwe tree")
 }
+
+#[test]
+fn test_tree_rejects_unknown_key_with_filter() {
+    let temp_dir = setup_workspace_with_linked_documents();
+
+    let output = run_tree_command(temp_dir.path(), &["-k", "missing", "--included-by", "main"]);
+
+    assert!(!output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error: Document 'missing' not found\n"
+    );
+}

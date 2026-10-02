@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iwe init --json` reports the detected directory as `evidence.workspace_path` and keys its settings map with `workspace.path`, `workspace.date_format` and `workspace.frontmatter_document_title` (previously `library_path` and `library.*`).
 - Help text, examples and shipped documentation now call the document collection a workspace.
 
+### Fixed
+
+- `tree -k` with a filter or anchor, `export -k`, and `update -k` in mutation mode now fail on an unknown key (previously the key was silently dropped, producing empty output or `No documents matched`).
+- `retrieve` and every command above report all unknown keys in one error, `Documents not found: 'a', 'b'` (previously only the first).
+
 ### Deprecated
 
 - `iwe init --library <DIR>` retained as a hidden alias for `--workspace`.
