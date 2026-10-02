@@ -17,7 +17,7 @@ iwe tree [OPTIONS]
 | `--project <EXPR>`              | -          | Projection for `json` / `yaml` nodes: same grammar as [`iwe find`](cli-find.md).     |
 | `--add-fields <EXPR>`           | -          | Additive projection: extends each node's default fields. Same grammar as `--project`. |
 | `--filter <EXPR>`               | -          | Inline YAML filter expression. See [Query Language](query-language.md).              |
-| `-k, --key <KEY>`               | -          | Start tree from specific document(s); repeatable.                                    |
+| `-k, --key <KEY>`               | -          | Start tree from specific document(s); repeatable. Unknown keys are an error.                                    |
 | `--includes <KEY[:DEPTH]>`      | -          | `$includes` anchor. Repeatable; anchors are ANDed.                                   |
 | `--included-by <KEY[:DEPTH]>`   | -          | `$includedBy` anchor. Repeatable; anchors are ANDed.                                 |
 | `--references <KEY[:DIST]>`     | -          | `$references` anchor. Repeatable; anchors are ANDed.                                 |

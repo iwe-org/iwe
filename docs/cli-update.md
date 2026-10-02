@@ -24,7 +24,7 @@ iwe update --filter "EXPR" --replace-text "{ <selector>, to: ... }"
 
 | Flag                       | Description                                                                                                  | Mode               |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------ |
-| `-k, --key <KEY>`          | Document key. Required for body-overwrite. Optional in mutation mode (combined with `--filter` via AND).     | both               |
+| `-k, --key <KEY>`          | Document key. Required for body-overwrite. Optional in mutation mode (combined with `--filter` via AND). Unknown keys are an error.     | both               |
 | `-c, --content <STR>`      | The complete document. Use `-` to read from stdin. Replaces the existing frontmatter block when it carries one of its own. | body-overwrite     |
 | `--filter <EXPR>`          | Inline YAML filter. Required if `-k` omitted in mutation mode.                                               | mutation           |
 | `--set <FIELD=VALUE>`      | `$set` assignment. `VALUE` is parsed as a YAML scalar. Repeatable.                                           | mutation           |

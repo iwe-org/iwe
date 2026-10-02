@@ -99,3 +99,33 @@ async fn tree_explicit_key_intersects_selector() {
     let output = Fixture::result_json(&result);
     assert!(output.as_array().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn tree_rejects_unknown_key() {
+    let f = Fixture::with_documents(vec![("a", "# A\n")]).await;
+
+    let error = f
+        .try_call_tool("iwe_tree", json!({"keys": ["a", "missing"]}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        Fixture::error_message(error),
+        "Document 'missing' not found"
+    );
+}
+
+#[tokio::test]
+async fn tree_rejects_unknown_key_with_selector() {
+    let f = Fixture::with_documents(vec![("a", "# A\n\n[X](x)\n"), ("x", "# X\n")]).await;
+
+    let error = f
+        .try_call_tool("iwe_tree", json!({"keys": ["missing"], "in": ["a"]}))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        Fixture::error_message(error),
+        "Document 'missing' not found"
+    );
+}

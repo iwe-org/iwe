@@ -2,8 +2,10 @@ pub mod config;
 pub mod file;
 pub mod find;
 pub mod fs;
+pub mod keys;
 pub mod loader;
 
+pub use keys::require_documents;
 pub use loader::graph_from_path;
 pub mod retrieve;
 pub mod schema;

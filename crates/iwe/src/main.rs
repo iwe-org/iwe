@@ -12,7 +12,6 @@ use itertools::Itertools;
 
 use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
 use diwe::fs::{key_escapes_workspace, write_file_if_changed};
-use diwe::graph_from_path;
 use diwe::schema::{
     explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
     validate_pending_documents,
@@ -23,6 +22,7 @@ use diwe::stats::{
     DEFAULT_SIMILARITY_THRESHOLD,
 };
 use diwe::tokens::Truncation;
+use diwe::{graph_from_path, require_documents};
 use iwe::export::{dot_details_exporter, dot_exporter, graph_data};
 use iwe::filter_args::FilterArgs;
 use iwe::find::{DocumentFinder, FindOptions};
@@ -1858,15 +1858,8 @@ fn retrieve_command(args: Retrieve) {
             explicit_keys
         };
 
-        let mut keys = Vec::new();
-        for key_str in &key_strings {
-            let key = Key::name(key_str);
-            if (&graph).get_node_id(&key).is_none() {
-                eprintln!("Error: Document '{}' not found", key_str);
-                std::process::exit(1);
-            }
-            keys.push(key);
-        }
+        let keys: Vec<Key> = key_strings.iter().map(|k| Key::name(k)).collect();
+        exit_on_missing_documents(&graph, &keys);
 
         options.filter = resolve_filter(&args.selector, &graph);
         reader.retrieve_many(&keys, &options)
@@ -2485,6 +2478,7 @@ fn tree_command(args: TreeArgs) {
     let graph = load_graph(&config);
 
     let explicit_keys: Vec<Key> = args.selector.key.iter().map(|k| Key::name(k)).collect();
+    exit_on_missing_documents(&graph, &explicit_keys);
     let other_selectors = args.selector.has_non_key_clauses();
     let filter_for_narrowing = if other_selectors {
         let mut s = args.selector.clone();
@@ -2521,13 +2515,6 @@ fn tree_command(args: TreeArgs) {
     } else {
         explicit_keys
     };
-
-    for root_key in &root_keys {
-        if (&graph).get_node_id(root_key).is_none() {
-            eprintln!("Error: Document '{}' not found", root_key);
-            std::process::exit(1);
-        }
-    }
 
     match args.format {
         TreeFormat::Json | TreeFormat::Yaml => {
@@ -2794,6 +2781,13 @@ fn load_graph(configuration: &Configuration) -> Graph {
         configuration.format_options(),
         configuration.workspace.frontmatter_document_title.clone(),
     )
+}
+
+fn exit_on_missing_documents(graph: &Graph, keys: &[Key]) {
+    if let Err(message) = require_documents(graph, keys) {
+        eprintln!("Error: {}", message);
+        std::process::exit(1);
+    }
 }
 
 fn load_search_graph(configuration: &Configuration) -> (Graph, diwe::search::Bm25Index) {
@@ -3139,6 +3133,7 @@ fn export_command(args: Export) {
     let graph = load_graph(&config);
 
     let explicit_keys: Vec<Key> = args.selector.key.iter().map(|s| Key::name(s)).collect();
+    exit_on_missing_documents(&graph, &explicit_keys);
     let filter_for_narrowing = if args.selector.has_non_key_clauses() {
         let mut s = args.selector.clone();
         s.key.clear();
@@ -3857,12 +3852,12 @@ fn update_mutation(args: Update) {
     if let Some(parsed) = parsed_filter {
         conjuncts.push(parsed);
     }
-    match args.key.len() {
+    let named_keys: Vec<Key> = args.key.iter().map(|k| Key::name(k)).collect();
+    exit_on_missing_documents(&graph, &named_keys);
+    match named_keys.len() {
         0 => {}
-        1 => conjuncts.push(Filter::Key(liwe::query::KeyOp::Eq(Key::name(&args.key[0])))),
-        _ => conjuncts.push(Filter::Key(liwe::query::KeyOp::In(
-            args.key.iter().map(|k| Key::name(k)).collect(),
-        ))),
+        1 => conjuncts.push(Filter::Key(liwe::query::KeyOp::Eq(named_keys[0].clone()))),
+        _ => conjuncts.push(Filter::Key(liwe::query::KeyOp::In(named_keys))),
     }
     if conjuncts.is_empty() {
         eprintln!("error: --filter or -k/--key required for mutation mode");
