@@ -1,215 +1,141 @@
-# IWE - Memory system for you and your AI agents
+# IWE — A shared memory for you and your AI agents
 
-> Turn your thinking into queryable context
+> Your notes are your agent’s memory. iWe is where you work on them together.
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
-[![Downloads](https://img.shields.io/crates/d/iwe.svg)](https://crates.io/crates/iwe)
 [![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
-[![Build](https://github.com/iwe-org/iwe/workflows/Rust/badge.svg)](https://github.com/iwe-org/iwe/actions)
 [![Documentation](https://img.shields.io/badge/docs-iwe.md-blue)](https://iwe.md)
-[![Discussions](https://img.shields.io/github/discussions/iwe-org/iwe)](https://github.com/iwe-org/iwe/discussions)
-[![Twitter](https://img.shields.io/badge/Twitter-@iwe__md-blue?logo=x)](https://x.com/iwe_md)
-[![Reddit](https://img.shields.io/badge/Reddit-r%2Fiwe-orange?logo=reddit)](https://www.reddit.com/r/iwe/)
 
-[![Knowledge Graph](docs/docs-detailed.svg)](https://iwe.md)
+Too many AI conversations start from zero. You explain your project, your decisions, your reasoning — then find yourself explaining it all again next session. Your own notes live somewhere else, out of the agent's reach.
 
-IWE turns a directory of markdown files into a knowledge graph — a connected structure you browse from your editor and your AI queries from the command line. Same files, same links, two interfaces. No cloud, no database, no lock-in. Version everything with git.
+Or worse, the agent “remembers” something in its own internal memory, but you can't easily see what it saved or correct what it got wrong. And that memory doesn't travel with you to the other agents you work with.
 
-IWE is for people who want database-style queries on their notes — "all drafts under this subtree", "every accepted decision in Q1" — without moving them into an actual database. Write in **Markdown**, structure with links, give AI agents the **tools** to navigate your knowledge. IWE itself has no built-in AI — it works alongside Claude, Codex, Gemini, and any tool that speaks the [Model Context Protocol](https://modelcontextprotocol.io).
+IWE gives you and your AI agents **one shared place to work, right inside your project**: a folder of connected Markdown documents — specs, plans, decisions, and more. Keep your own ideas there, ask your agent to save what you learn together, and return to that context as your work grows. You can read, edit, and organize those documents yourself — and they stay yours.
 
-## What You Get
+## Choose how you work
 
-- **Plain markdown, full ownership.** Your notes are `.md` files in a local directory. Read them, edit them, `git push` them. Nothing proprietary.
-- **A graph, not a folder tree.** Link notes together and the same note can belong to multiple topics without copying the file. ([How linking works](https://iwe.md/docs/concepts/inclusion-links/))
-- **IDE features for your editor.** Real LSP integration with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), and [Helix](https://iwe.md/docs/editors/helix/) — search, refactor, rename, autocomplete.
-- **Structured access for AI agents.** [CLI tools](https://iwe.md/docs/cli/) and an [MCP server](https://iwe.md/docs/agentic/mcp/) give agents parent context and structural navigation over the same notes you edit by hand — retrieval by structure, not similarity guessing.
-- **Memory for your coding agent.** [IWE Skills](https://github.com/iwe-org/skills) a set of extensions for Claude Code and other AI agents
-- **A native Mac app.** [iWe for Mac](#iwe-for-mac-early-version) opens the same folder as a keyboard-driven app with Claude Code built in — early version, DMG on the [releases page](https://github.com/iwe-org/iwe-mac/releases).
-- **Speaks OKF.** An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle is markdown with YAML frontmatter — the format IWE already manages. `iwe init --okf` scaffolds a conformant bundle, `iwe schema validate` checks conformance mechanically, and `iwe find --filter '{type: …}'` queries OKF frontmatter directly.
-- **Fast.** Built in Rust, [processes 20,000 files in under a second](docs/benchmark.md).
+There are four ways to work with IWE. Mix and match them to fit your day:
 
-## How It Works
+| Tool | How you'll use it |
+| --- | --- |
+| **[iWe for Mac](#iwe-for-mac)** | Write and browse in a native app, and connect your existing Claude/Codex agent. |
+| **[Your own editor](#your-own-editor)** | Stay in Neovim, Helix, VS Code, or Zed, with note navigation, backlinks, and autocomplete. |
+| **[CLI](#cli)** | Search and manage your notes from the terminal or scripts. |
+| **[Claude/Codex](#claudecodex)** | Let your agent read, write, and organize memory while you work through conversation. |
 
-IWE treats your notes as a connected structure. You organize them with two types of links:
+All four work with the same Markdown documents. Draft a spec in your editor, develop it with Claude/Codex, browse it in iWe, or search it from the CLI. Use any combination you like; each tool also works independently.
 
-- **Nesting** — a link on its own line means "this topic includes that subtopic." Your notes form a tree you can browse and refactor. IWE calls these [inclusion links](https://iwe.md/docs/concepts/inclusion-links/).
-- **Cross-references** — regular inline links connect notes across topics, creating a web of relationships.
-- **Multiple parents** — the same note can live under several places at once. A "Meditation" note can belong to both "Health" and "Productivity" without duplicating the file.
-- **Context from parents** — when you retrieve a note, IWE can include context from the notes above it in the hierarchy.
+**Bring your own AI.** Neither the IWE CLI nor the iWe Mac app includes an AI model. Both work on their own as tools for your notes. When you want AI help, use your existing Claude/Codex agent — in terminal or directly in the Mac app.
 
-This structure makes retrieval powerful — whether you're browsing in your editor or an agent is querying via CLI, ask for a topic and get its full context in a single call.
+<a href="https://iwe.md/images/app/GH-screen-1.1.png"><img src="https://iwe.md/images/app/GH-screen-1.1.png" alt="iWe for Mac showing project plans and connected documents" width="820"></a>
 
-## Working with AI
+<p>
+  <a href="https://iwe.md/images/app/GH-screen-2.png"><img src="https://iwe.md/images/app/GH-screen-2.png" alt="Bug tracking with charts" width="32%"></a>
+  <a href="https://iwe.md/images/app/GH-screen-3.png"><img src="https://iwe.md/images/app/GH-screen-3.png" alt="Technical documents with code" width="32%"></a>
+  <a href="https://iwe.md/images/app/GH-screen-4.png"><img src="https://iwe.md/images/app/GH-screen-4.png" alt="Release documents" width="32%"></a>
+</p>
 
-IWE gives AI agents structured access to your notes through two interfaces: a CLI for scripting and shell-based workflows, and an MCP server for native connection with AI tools. Both expose the same operations — search, retrieve, create, refactor — so you can choose whichever fits your setup.
+*Plans · Charts · Technical documents · Releases — click a screenshot to view it full size.*
 
-IWE pairs **search with structure**: built-in fuzzy and full-text search finds the entry point, and the graph turns a hit into usable context — parent context, children, cross-references, link-safe refactoring. It also composes cleanly with any external tooling you already use (ripgrep, full-text, vector): whatever finds the note, IWE supplies the context around it.
+## Why IWE
 
-### What the Engine Checks
+- **Shared context.** Your agent can use the same notes you write for yourself. Notes link to each other, and one note can belong to several topics, so you can follow an idea wherever it connects.
+- **Memory you can read.** Decisions and lessons saved by your agent are ordinary notes you can browse, correct, or delete.
+- **Your notes stay yours.** Everything is Markdown in a folder on your machine. Back it up, sync it, or keep it in git. You don't need an IWE cloud account to keep your notes; connecting an AI agent involves that agent's own setup and account requirements.
 
-Agent writes are checked, not trusted:
+## iWe for Mac
 
-- **Declared scope.** A mutation carries `expect` guards stating how many documents and blocks it may touch. The whole update validates before anything is written; a mismatch aborts with the offending blocks named. Over MCP the guards are mandatory — an edit that won't declare its blast radius is refused.
-- **Schemas.** Frontmatter and document structure are validated against per-type [document schemas](https://iwe.md/docs/concepts/document-schema/) — required fields, enums, ISO dates, required sections. A schema-violating MCP write is rejected with the violation named; from the CLI, `iwe schema validate` runs the same checks on demand.
-- **Graph hygiene.** Mutations surface warnings for what they disturbed — dangling links, orphan pages — and `iwe stats similarity` flags near-duplicates.
+If you'd like a dedicated space for your notes, use the native Mac app. Open a folder of notes and you get a fast, keyboard-friendly space to write and browse. You can also connect your existing Claude/Codex agent to work alongside you.
 
-### Integration Server (MCP)
+- **Works with your Claude/Codex agent.** Connect the agent you already use, ask questions about your notes, and have it draft or reorganize them. Watch its edits appear in the document as it works.
+- **Room to experiment.** Each agent run is one undo step — try an idea, and roll it back if you don't like it.
+- **Follow your ideas.** Jump between related notes, search in a few keystrokes, and view Mermaid diagrams right in your documents. Your editor and other tools can keep working on the same files.
 
-IWE includes a server (`iwec`) that lets AI tools like Claude Desktop, Cursor, and Windsurf work directly with your notes using the [Model Context Protocol](https://modelcontextprotocol.io). The server watches your files for changes, so edits you make in your editor are reflected immediately.
+**[Download iWe for Mac](https://github.com/iwe-org/iwe-mac/releases)**
 
-### Command-Line Tools
+Open a notes folder and start with a note about something you're working on. Once Claude/Codex is connected, try asking it to summarize that note or help you develop an idea.
 
-The CLI lets you (and AI agents) work with your notes from the terminal or in scripts.
+## Your Own Editor
 
-**Example: preparing context for an AI conversation**
+Keep writing in [Neovim](https://iwe.md/docs/editors/neovim/), [Helix](https://iwe.md/docs/editors/helix/), [VS Code](https://iwe.md/docs/editors/vscode/), or [Zed](https://iwe.md/docs/editors/zed/). IWE adds link autocomplete, backlinks, search, and safe renaming across your notes.
+
+Follow the guide for your editor, open your notes folder, and try linking two notes with autocomplete. You can use IWE for your own writing without connecting an AI agent.
+
+## CLI
+
+Prefer the terminal? Use IWE to search, create, and reorganize notes, or work it into your scripts. The CLI has no AI built in: these commands work on their own. Your existing Claude/Codex agent can use IWE's tools too.
+
+Install with Homebrew, or choose another option from the [installation guide](https://iwe.md/docs/getting-started/installation/):
+
 ```bash
-iwe find --fuzzy auth
-
-iwe retrieve --key authentication --expand-includes 2
-
-iwe tree --key oauth
+brew install iwe-org/iwe/iwe
 ```
 
-**Core commands:**
+Then run these commands inside your notes folder:
 
-| Command | What it does |
-|---|---|
-| `find` | Search with fuzzy and full-text ranking, plus filters over frontmatter and graph edges |
-| `retrieve` | Get a document with its linked context in one call |
-| `tree` | Show the hierarchy from any starting point |
-| `update` | Guarded edits: frontmatter changes and targeted block operations |
-| `schema` | Infer the store's schemas, or validate documents against them |
+```bash
+iwe init
+iwe find
+iwe find --lexical "project decisions"
+```
 
-The full set — `new`, `extract`, `inline`, `rename`, `delete`, `squash`, `stats`, `normalize`, `export` and more — is in the [CLI Reference](https://iwe.md/docs/cli/).
+`iwe find` lists your notes; `--lexical` searches their content. Explore more in the [CLI reference](https://iwe.md/docs/cli/) and [workflow examples](docs/cli-workflows.md).
 
-More information: [Working with AI](https://iwe.md/docs/agentic/) · [CLI Reference](https://iwe.md/docs/cli/) · [MCP Server](https://iwe.md/docs/agentic/mcp/)
+## Claude/Codex
 
-## Editor Integration
+You can use IWE entirely through your agent. Ask Claude/Codex to save decisions, look up past work, and organize what you've learned. The agent works with your notes through IWE, and you can open those files yourself whenever you want.
 
-IWE gives your editor IDE-like features for markdown notes. It works with [VS Code](https://iwe.md/docs/editors/vscode/), [Neovim](https://iwe.md/docs/editors/neovim/), [Zed](https://iwe.md/docs/editors/zed/), [Helix](https://iwe.md/docs/editors/helix/), and any editor that supports the Language Server Protocol (LSP).
+IWE isn't tied to one AI. The same notes work with Claude Code, Claude Desktop, Codex, Gemini, Cursor, and any tool that supports the [Model Context Protocol](https://modelcontextprotocol.io).
 
-- **Search** — find notes by title or content
-- **Navigate** — go to definition, find references (backlinks)
-- **Preview** — hover over links to see content
-- **Auto-complete** — link suggestions as you type
-- **Inlay hints** — show parent references and link counts
-- **Extract** — pull sections into new notes
-- **Inline** — embed note content back into parent
-- **Rename** — rename files with automatic link updates
-- **Format** — normalize documents, update link titles
-- **Transform** — pipe text through external commands
-- **Templates** — create notes from templates (daily notes, etc.)
-- **Outline conversion** — switch between headers and lists
+**Give Claude/Codex a memory** — for Claude Code, install the plugin, then run `/iwe:init` in any project you want remembered. For Codex, follow the agent connection steps below.
 
-More information: [Editor Features](https://iwe.md/docs/getting-started/usage/)
+```text
+/plugin marketplace add iwe-org/skills
+/plugin install iwe@iwe-org
+/iwe:init
+```
 
-## iWe for Mac (early version)
+Then try the decision-saving example above in your project.
 
-A native macOS app for the same folder of markdown. SwiftUI and AppKit over the same Rust engine the CLI uses — no Electron, no web view. It shows the folder as a graph you move through with the keyboard (vim keys, optional), renders Mermaid diagrams natively, runs the same query language as `iwe find` in its search and sidebar, and hosts Claude Code as its assistant: agent edits stream into the document block by block, one undo step per run.
+**Connect another agent** — with Homebrew installed, install IWE:
 
-<a href="https://github.com/iwe-org/iwe-mac/releases"><img src="docs/app-intro-screenshot.png" alt="iWe for Mac showing a note with nested child documents, cross-references, and a natively rendered Mermaid diagram" width="820"></a>
+```bash
+brew install iwe-org/iwe/iwe
+```
 
-This is an early version: expect rough edges, and keep your workspace in git so any surprise is reversible. Requires macOS 15 or later. Download the DMG from the [releases page](https://github.com/iwe-org/iwe-mac/releases); the app keeps itself up to date from there. Feedback and bug reports go to the [alpha discussion](https://github.com/iwe-org/iwe/discussions/392). Your editor keeps working on the same files — the app is one more way in, not a replacement.
+Run `iwe init` in your notes folder, then follow the **[agent connection guide](https://iwe.md/docs/agentic/)** to add the `iwec` MCP server with that folder as its working directory. For other installation options, see the [installation guide](https://iwe.md/docs/getting-started/installation/).
 
-## Quick Start
+Once connected, ask your agent: “Explore my IWE notes and summarize what's here.”
 
-1. **Install** the CLI and LSP server:
+Or let the agent set itself up — paste this into any agent that can run commands:
 
-   Using Homebrew (macOS/Linux):
-   ```bash
-   brew install iwe-org/iwe/iwe
-   ```
+```text
+Set up IWE for my notes: install it (brew install iwe-org/iwe/iwe,
+npm install -g @iwe-org/iwe, or cargo install iwe iwes iwec), run `iwe init`
+in my notes directory, then add the `iwec` MCP server with its working
+directory set to that folder.
+Docs: https://iwe.md/docs/agentic/
+```
 
-   Or using npm (macOS/Linux/Windows):
-   ```bash
-   npm install -g @iwe-org/iwe
-   ```
+## Learn More
 
-   Or using Cargo:
-   ```bash
-   cargo install iwe iwes iwec
-   ```
+- [Getting Started](https://iwe.md/docs/getting-started/installation/) — install and set up
+- [Working with AI](https://iwe.md/docs/agentic/) — connect your agents
+- [Usage Guide](https://iwe.md/docs/getting-started/usage/) — everyday workflows
+- [Examples](https://iwe.md/docs/examples/) — how people use IWE
+- [CLI Reference](https://iwe.md/docs/cli/) and [MCP Server](https://iwe.md/docs/agentic/mcp/) — for the technically curious
 
-   Or from [conda-forge](https://anaconda.org/conda-forge/iwe) (community-maintained — thanks, [salim-b](https://github.com/salim-b)):
-   ```bash
-   conda install -c conda-forge iwe
-   ```
-
-2. **Initialize** your workspace:
-   ```bash
-   cd ~/notes
-   iwe init
-   ```
-
-3. **Pick your path:**
-
-   **Set up your editor** — [VS Code](https://iwe.md/docs/editors/vscode/) · [Neovim](https://iwe.md/docs/editors/neovim/) · [Helix](https://iwe.md/docs/editors/helix/) · [Zed](https://iwe.md/docs/editors/zed/)
-
-   **Connect your AI agent** — point it at the MCP server. `iwec` serves the directory it runs in, so set the working directory to your notes:
-   ```json
-   {
-     "mcpServers": {
-       "iwe": {
-         "command": "iwec",
-         "cwd": "~/notes"
-       }
-     }
-   }
-   ```
-
-   No install needed — `npx` fetches the server on demand:
-   ```json
-   {
-     "mcpServers": {
-       "iwe": {
-         "command": "npx",
-         "args": ["-y", "@iwe-org/mcp"],
-         "cwd": "~/notes"
-       }
-     }
-   }
-   ```
-
-   **Give Claude Code memory** — install the plugin, then run `/iwe:init` in the repository you want remembered:
-   ```
-   /plugin marketplace add iwe-org/skills
-   /plugin install iwe@iwe-org
-   ```
-
-   Or hand the setup to the agent — paste this into Claude Code or any agent with shell access:
-
-   ```text
-   Set up IWE for my notes: install it (brew install iwe-org/iwe/iwe,
-   npm install -g @iwe-org/iwe, or cargo install iwe iwes iwec), run `iwe init`
-   in my notes directory, then add the `iwec` MCP server with its working
-   directory set to that folder.
-   Docs: https://iwe.md/docs/agentic/
-   ```
-
-## Documentation
-
-- [Getting Started](https://iwe.md/docs/getting-started/installation/) — Installation and setup
-- [Usage Guide](https://iwe.md/docs/getting-started/usage/) — Editor features and workflows
-- [CLI Reference](https://iwe.md/docs/cli/) — Command-line tools
-- [Working with AI](https://iwe.md/docs/agentic/) — AI agent integration
-- [MCP Server](https://iwe.md/docs/agentic/mcp/) — Native AI tool integration via Model Context Protocol
-- [OKF](https://iwe.md/docs/agentic/okf/) — Open Knowledge Format: scaffold, validate, and query conformant bundles
-- [Configuration](https://iwe.md/docs/configuration/) — Settings and customization
-- [Examples](https://iwe.md/docs/examples/) — Example projects and case studies
+**Ready-made workspaces:** [dev-workspace](https://github.com/iwe-org/dev-workspace) — project memory for a coding agent · [marketing-workspace](https://github.com/iwe-org/marketing-workspace) — campaign memory for a marketing agent.
 
 ## Get Involved
 
-IWE is open source and community-driven. Join the [discussions](https://github.com/iwe-org/iwe/discussions), report [issues](https://github.com/iwe-org/iwe/issues), or contribute to the [documentation](docs/).
+Trying IWE with your own notes? Tell us what felt useful and where you got stuck. Questions, rough edges, and examples of how you use it are all welcome in [Discussions](https://github.com/iwe-org/iwe/discussions).
+
+IWE is open source. You can also report a [bug](https://github.com/iwe-org/iwe/issues) or help improve the [documentation](docs/).
 
 **Community:** [Twitter/X](https://x.com/iwe_md) · [Reddit](https://www.reddit.com/r/iwe/) · [Discussions](https://github.com/iwe-org/iwe/discussions)
 
-**Editor plugins:** [VS Code](https://github.com/iwe-org/vscode-iwe) · [Neovim](https://github.com/iwe-org/iwe.nvim) · [Zed](https://github.com/iwe-org/zed-iwe)
-
-**Workspace templates:** [marketing-workspace](https://github.com/iwe-org/marketing-workspace) — campaign memory for a marketing agent · [dev-workspace](https://github.com/iwe-org/dev-workspace) — project memory for a coding agent. Both ship as conformant [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles, validated in CI on every commit.
-
-**Agentic skills:** [iwe-org/skills](https://github.com/iwe-org/skills) — the Claude Code memory plugin and the skills for knowledge graph management, usable from any agent runtime. Contributors welcome.
-
-**Building on IWE:** projects already embed IWE — as an agent-memory backend, as the graph layer of an LLM wiki engine, in research tooling. The practical integration surfaces today are the **CLI** and the **MCP server**; the [`liwe`](https://crates.io/crates/liwe) library is published but not yet API-stable, so pin your version if you build against it. A declared, stable integration surface is on the roadmap — if you're building on IWE, [tell us](https://github.com/iwe-org/iwe/discussions/362) what you depend on, so we know what not to break.
+**Building on IWE?** The CLI and MCP server are the supported ways to integrate today. [Tell us](https://github.com/iwe-org/iwe/discussions/362) what you depend on so we know what not to break.
 
 ## License
 
