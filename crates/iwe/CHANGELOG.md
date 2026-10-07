@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A markdown document edited with the editor tools in a Claude Code session is no longer rewritten into canonical form behind the edit; only writes through `iwe` normalize on the way in (previously the whole file was rewritten in place, which broke links and reformatted project markdown such as `README.md`). The schema check on such an edit is unchanged.
+
 ## [0.25.0](https://github.com/iwe-org/iwe/compare/iwe-v0.24.2...iwe-v0.25.0) - 2026-10-02
 
 ### Changed

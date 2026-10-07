@@ -3822,23 +3822,14 @@ const NOTE_SCHEMA: &str = indoc! {"
 "};
 
 #[test]
-fn a_document_written_outside_the_cli_is_normalized_in_place() {
+fn a_document_written_outside_the_cli_is_left_as_written() {
     let fixture = HookFixture::new(Some("# Memory\n\nKeep decisions.\n"));
     fixture.write("notes/loose.md", "#  Loose   Title\n\n*  one\n*  two\n");
 
-    let report = fixture.post_tool_report(&fixture.editor_write("notes/loose.md"));
-
-    assert!(report.contains("written outside the CLI"));
-    assert!(report.contains("`notes/loose`"));
-    assert!(report.contains("iwe update -k notes/loose --strict --content -"));
+    fixture.post_tool_quiet(&fixture.editor_write("notes/loose.md"));
     assert_eq!(
         fixture.read("notes/loose.md"),
-        indoc! {"
-            # Loose Title
-
-            - one
-            - two
-        "}
+        "#  Loose   Title\n\n*  one\n*  two\n"
     );
 }
 
@@ -3873,11 +3864,10 @@ fn the_machinery_s_own_document_is_never_rewritten_by_the_hook() {
         "#  Memory\n\n*  keep decisions\n"
     );
 
-    let report = fixture.post_tool_report(&fixture.editor_write("sessions/abc.md"));
-    assert!(report.contains("written outside the CLI"), "{}", report);
+    fixture.post_tool_quiet(&fixture.editor_write("sessions/abc.md"));
     assert_eq!(
         fixture.read("sessions/abc.md"),
-        "# An ordinary note\n\n- note\n"
+        "#  An   ordinary   note\n\n*  note\n"
     );
 }
 
@@ -4021,14 +4011,17 @@ fn an_iwe_write_is_never_normalized_by_the_hook() {
 }
 
 #[test]
-fn the_user_is_told_in_one_line_what_the_hook_did() {
+fn the_user_is_told_in_one_line_what_the_hook_found() {
     let fixture = HookFixture::new(Some("# Memory\n\nKeep decisions.\n"));
-    fixture.write("notes/loose.md", "#  Loose\n\n*  one\n");
+    fixture.bind_schema("note", "notes/**", NOTE_SCHEMA);
+    fixture.write("notes/bare.md", "#  Bare\n\n*  no type field\n");
 
-    let notice = fixture.post_tool_notice(&fixture.editor_write("notes/loose.md"));
-    assert!(notice.starts_with("iwe normalized "));
-    assert!(notice.ends_with("notes/loose.md"));
-    assert_eq!(notice.lines().count(), 1);
+    let notice = fixture.post_tool_notice(&fixture.editor_write("notes/bare.md"));
+    assert_eq!(notice, "iwe: notes/bare does not match its schema");
+    assert_eq!(
+        fixture.read("notes/bare.md"),
+        "#  Bare\n\n*  no type field\n"
+    );
 }
 
 #[test]
@@ -4081,13 +4074,18 @@ fn a_global_flag_with_a_value_does_not_hide_the_verb() {
 }
 
 #[test]
-fn the_net_covers_every_document_in_the_workspace() {
+fn no_document_in_the_workspace_is_rewritten_by_the_hook() {
     let fixture = HookFixture::new(Some("# Memory\n\nKeep decisions.\n"));
-    fixture.write("docs/guide.md", "#  Guide\n\n*  one\n");
+    fixture.write(
+        "docs/guide.md",
+        "# Guide\n\nSee [`.github/`](.github/) for _why_.\n\n```bash\nmake test\n```\n",
+    );
 
-    let report = fixture.post_tool_report(&fixture.editor_write("docs/guide.md"));
-    assert!(report.contains("written outside the CLI"));
-    assert_eq!(fixture.read("docs/guide.md"), "# Guide\n\n- one\n");
+    fixture.post_tool_quiet(&fixture.editor_write("docs/guide.md"));
+    assert_eq!(
+        fixture.read("docs/guide.md"),
+        "# Guide\n\nSee [`.github/`](.github/) for _why_.\n\n```bash\nmake test\n```\n"
+    );
 }
 
 fn run_iwe(root: &Path, args: &[&str]) -> Output {
