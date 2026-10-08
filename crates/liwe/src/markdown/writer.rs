@@ -173,7 +173,7 @@ impl CmarkTableWriter {
                         dest_url: reference.key.to_workspace_url().into(),
                         id: "".into(),
                     }));
-                    events.push(Event::Text(reference.text.into()));
+                    events.extend(self.inlines_to_events(reference.inlines));
                     events.push(Event::End(TagEnd::Link));
                 }
                 Inline::Math(math_type, math) => {

@@ -2,7 +2,7 @@ use serde_yaml::Mapping;
 
 use super::{InlineRange, Position};
 use crate::model;
-use crate::model::inline::{to_plain_text, Inline};
+use crate::model::inline::Inline;
 use crate::model::key_index::KeyIndex;
 use crate::model::node::ColumnAlignment;
 use crate::model::reference::{Reference, ReferenceType};
@@ -205,6 +205,16 @@ impl DocumentBlock {
     pub fn ref_text(&self) -> Option<String> {
         match self {
             DocumentBlock::Para(para) => para.inlines.first().map(|inline| inline.to_plain_text()),
+            _ => None,
+        }
+    }
+
+    pub fn ref_inlines(&self) -> Option<&DocumentInlines> {
+        match self {
+            DocumentBlock::Para(para) => para
+                .inlines
+                .first()
+                .and_then(|inline| inline.link_inlines()),
             _ => None,
         }
     }
@@ -585,14 +595,14 @@ impl DocumentInline {
             DocumentInline::LineBreak(_) => Inline::LineBreak,
             DocumentInline::Link(link) => {
                 let inlines = to_graph_inlines(&link.inlines, relative_to, key_index);
-                if model::is_ref_url(&link.target.url) && !link.target.url.starts_with('#') {
+                if model::is_document_url(&link.target.url) && !link.target.url.starts_with('#') {
                     Inline::Reference(Reference {
                         key: key_index.resolve_link_key(
                             &link.target.url,
                             relative_to,
                             link.link_type.to_ref_type(),
                         ),
-                        text: to_plain_text(&inlines),
+                        inlines,
                         reference_type: link.link_type.to_ref_type(),
                         url: link.target.url.clone(),
                         display_url: None,
@@ -652,8 +662,15 @@ impl DocumentInline {
 
     fn is_ref(&self) -> bool {
         match self {
-            DocumentInline::Link(link) => model::is_ref_url(&link.target.url),
+            DocumentInline::Link(link) => model::is_document_url(&link.target.url),
             _ => false,
+        }
+    }
+
+    pub fn link_inlines(&self) -> Option<&DocumentInlines> {
+        match self {
+            DocumentInline::Link(link) => Some(&link.inlines),
+            _ => None,
         }
     }
 

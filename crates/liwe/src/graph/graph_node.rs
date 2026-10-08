@@ -1,5 +1,5 @@
 use crate::model::node::{ColumnAlignment, ReferenceType};
-use crate::model::{Key, LineId, MaybeLineId, MaybeNodeId, NodeId};
+use crate::model::{to_plain_text, Inlines, Key, LineId, MaybeLineId, MaybeNodeId, NodeId};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphNode {
@@ -238,7 +238,7 @@ pub struct Reference {
     next: MaybeNodeId,
 
     key: Key,
-    text: String,
+    inlines: Inlines,
     reference_type: ReferenceType,
     url: String,
 }
@@ -252,8 +252,12 @@ impl Reference {
         &self.key
     }
 
-    pub fn text(&self) -> &str {
-        &self.text
+    pub fn text(&self) -> String {
+        to_plain_text(&self.inlines)
+    }
+
+    pub fn inlines(&self) -> &Inlines {
+        &self.inlines
     }
 
     pub fn url(&self) -> &str {
@@ -544,7 +548,7 @@ impl GraphNode {
         prev: NodeId,
         id: NodeId,
         key: Key,
-        text: String,
+        inlines: Inlines,
         reference_type: ReferenceType,
         url: String,
     ) -> GraphNode {
@@ -553,7 +557,7 @@ impl GraphNode {
             prev,
             next: None,
             key,
-            text,
+            inlines,
             reference_type,
             url,
         })
@@ -677,7 +681,7 @@ impl GraphNode {
 
     pub fn ref_text(&self) -> String {
         match self {
-            GraphNode::Reference(reference) => reference.text.clone(),
+            GraphNode::Reference(reference) => reference.text(),
             _ => panic!(),
         }
     }

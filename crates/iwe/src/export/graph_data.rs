@@ -241,7 +241,7 @@ mod tests {
                             4,
                             Node::Reference(Reference {
                                 key: Key::name("2"),
-                                text: "".into(),
+                                inlines: Vec::new(),
                                 reference_type: ReferenceType::Regular,
                                 url: String::new(),
                                 display_url: None,
@@ -256,7 +256,7 @@ mod tests {
                             6,
                             Node::Reference(Reference {
                                 key: Key::name("3"),
-                                text: "".into(),
+                                inlines: Vec::new(),
                                 reference_type: ReferenceType::Regular,
                                 url: String::new(),
                                 display_url: None,

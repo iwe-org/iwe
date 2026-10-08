@@ -133,13 +133,12 @@ fn extract_section_rec(
             Tree {
                 id: alloc_node_id(),
                 line_range: None,
-                node: Node::Reference(Reference {
-                    key: new_key.clone(),
-                    text: title.to_string(),
+                node: Node::Reference(Reference::plain(
+                    new_key.clone(),
+                    &title,
                     reference_type,
-                    url: new_key.to_workspace_url(),
-                    display_url: None,
-                }),
+                    new_key.to_workspace_url(),
+                )),
                 children: vec![],
             },
         );

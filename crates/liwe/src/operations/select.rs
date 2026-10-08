@@ -82,7 +82,7 @@ fn collect_references(tree: &Tree, out: &mut Vec<InclusionRef>) {
     if let Node::Reference(reference) = &tree.node {
         out.push(InclusionRef {
             number: out.len() + 1,
-            title: reference.text.clone(),
+            title: reference.text(),
             key: reference.key.clone(),
             id: tree.id,
         });

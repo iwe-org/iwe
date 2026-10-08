@@ -201,16 +201,16 @@ impl<'a> GraphBuilder<'a> {
             self.id,
             new_id,
             key.clone(),
-            String::default(),
+            Vec::new(),
             ReferenceType::Regular,
             key.to_workspace_url(),
         ));
     }
 
-    pub fn reference_with_text(
+    pub fn reference_with_inlines(
         &mut self,
         key: &Key,
-        text: &str,
+        inlines: Inlines,
         reference_type: ReferenceType,
         url: String,
     ) {
@@ -219,7 +219,7 @@ impl<'a> GraphBuilder<'a> {
             self.id,
             new_id,
             key.clone(),
-            text.to_string(),
+            inlines,
             reference_type,
             url,
         ));
@@ -313,7 +313,7 @@ impl<'a> GraphBuilder<'a> {
             Node::HorizontalRule() => self.attach_node(GraphNode::new_rule(self.id, id)),
             Node::Reference(Reference {
                 key,
-                text: title,
+                inlines,
                 reference_type,
                 url,
                 display_url: _,
@@ -321,7 +321,7 @@ impl<'a> GraphBuilder<'a> {
                 self.id,
                 id,
                 key.clone(),
-                title.to_string(),
+                inlines.clone(),
                 reference_type,
                 url.clone(),
             )),

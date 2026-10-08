@@ -170,12 +170,14 @@ impl<'a> SectionsBuilder<'a> {
                     let key = self
                         .key_index
                         .resolve_link_key(&url, &self.key.parent(), ref_type);
-                    self.builder.reference_with_text(
-                        &key,
-                        &block.ref_text().unwrap(),
-                        ref_type,
-                        url,
-                    )
+                    let inlines = block
+                        .ref_inlines()
+                        .map(|inlines| {
+                            to_graph_inlines(inlines, &self.key.parent(), self.key_index)
+                        })
+                        .unwrap_or_default();
+                    self.builder
+                        .reference_with_inlines(&key, inlines, ref_type, url)
                 } else {
                     self.builder.leaf(to_graph_inlines(
                         &para.inlines,

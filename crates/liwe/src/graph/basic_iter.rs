@@ -1,6 +1,7 @@
 use super::graph_node::GraphNode;
 use super::Graph;
 use super::GraphContext;
+use crate::model::inline::text_to_inlines;
 use crate::model::node::Node;
 use crate::model::node::NodeIter;
 use crate::model::node::NodePointer;
@@ -112,14 +113,16 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
             GraphNode::Raw(raw) => Some(Node::Raw(raw.lang(), raw.content().to_string())),
             GraphNode::HorizontalRule(_) => Some(Node::HorizontalRule()),
             GraphNode::Reference(reference) => {
-                let text = match reference.reference_type() {
+                let inlines = match reference.reference_type() {
                     ReferenceType::Regular if self.graph.normalize_ref_text() => self
                         .graph
                         .get_ref_text(reference.key())
-                        .unwrap_or(reference.text().to_string()),
-                    ReferenceType::Regular => reference.text().to_string(),
-                    ReferenceType::WikiLink => String::default(),
-                    ReferenceType::WikiLinkPiped => reference.text().to_string(),
+                        .map(|title| text_to_inlines(&title))
+                        .unwrap_or_else(|| reference.inlines().clone()),
+                    ReferenceType::Regular | ReferenceType::WikiLinkPiped => {
+                        reference.inlines().clone()
+                    }
+                    ReferenceType::WikiLink => Vec::new(),
                 };
 
                 let key = reference.key().clone();
@@ -132,7 +135,7 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
 
                 Some(Node::Reference(Reference {
                     key,
-                    text,
+                    inlines,
                     reference_type: reference.reference_type(),
                     url: reference.url().to_string(),
                     display_url,

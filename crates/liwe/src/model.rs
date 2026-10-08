@@ -284,6 +284,12 @@ pub fn is_ref_url(url: &str) -> bool {
     !has_uri_scheme(url)
 }
 
+pub fn is_document_url(url: &str) -> bool {
+    let path = url.split_once('#').map(|(path, _)| path).unwrap_or(url);
+    let last = path.rsplit('/').next().unwrap_or(path);
+    is_ref_url(url) && !path.ends_with('/') && last != "." && last != ".."
+}
+
 fn has_uri_scheme(url: &str) -> bool {
     let Some((scheme, _)) = url.split_once(':') else {
         return false;

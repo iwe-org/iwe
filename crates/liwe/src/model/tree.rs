@@ -86,13 +86,12 @@ impl Tree {
             Tree {
                 id: alloc_node_id(),
                 line_range: None,
-                node: Node::Reference(Reference {
+                node: Node::Reference(Reference::plain(
                     key,
-                    text,
-                    reference_type: ReferenceType::Regular,
-                    url: String::new(),
-                    display_url: None,
-                }),
+                    &text,
+                    ReferenceType::Regular,
+                    String::new(),
+                )),
                 children: vec![],
             }
         } else {
@@ -406,7 +405,7 @@ impl Tree {
                     } else {
                         reference.key.clone()
                     },
-                    text: reference.text.clone(),
+                    inlines: reference.inlines.clone(),
                     reference_type: reference.reference_type,
                     url: if reference.key.eq(target_key) {
                         updated_key.to_workspace_url()
@@ -704,44 +703,46 @@ impl Tree {
     fn remove_inline_links_to_rec(inlines: &[Inline], target_key: &Key) -> Vec<Inline> {
         inlines
             .iter()
-            .map(|inline| match inline {
-                Inline::Reference(reference) => {
-                    if &reference.key == target_key {
-                        Inline::Str(reference.text.clone())
-                    } else {
-                        inline.clone()
-                    }
+            .flat_map(|inline| match inline {
+                Inline::Reference(reference) if &reference.key == target_key => {
+                    reference.inlines.clone()
                 }
-                Inline::Link(url, title, link_type, nested) => Inline::Link(
-                    url.clone(),
-                    title.clone(),
-                    *link_type,
-                    Self::remove_inline_links_to_rec(nested, target_key),
-                ),
-                Inline::Emph(nested) => {
-                    Inline::Emph(Self::remove_inline_links_to_rec(nested, target_key))
-                }
-                Inline::Strong(nested) => {
-                    Inline::Strong(Self::remove_inline_links_to_rec(nested, target_key))
-                }
-                Inline::Strikeout(nested) => {
-                    Inline::Strikeout(Self::remove_inline_links_to_rec(nested, target_key))
-                }
-                Inline::Underline(nested) => {
-                    Inline::Underline(Self::remove_inline_links_to_rec(nested, target_key))
-                }
-                Inline::Superscript(nested) => {
-                    Inline::Superscript(Self::remove_inline_links_to_rec(nested, target_key))
-                }
-                Inline::Subscript(nested) => {
-                    Inline::Subscript(Self::remove_inline_links_to_rec(nested, target_key))
-                }
-                Inline::SmallCaps(nested) => {
-                    Inline::SmallCaps(Self::remove_inline_links_to_rec(nested, target_key))
-                }
-                _ => inline.clone(),
+                other => vec![Self::remove_inline_link_to(other, target_key)],
             })
             .collect()
+    }
+
+    fn remove_inline_link_to(inline: &Inline, target_key: &Key) -> Inline {
+        match inline {
+            Inline::Link(url, title, link_type, nested) => Inline::Link(
+                url.clone(),
+                title.clone(),
+                *link_type,
+                Self::remove_inline_links_to_rec(nested, target_key),
+            ),
+            Inline::Emph(nested) => {
+                Inline::Emph(Self::remove_inline_links_to_rec(nested, target_key))
+            }
+            Inline::Strong(nested) => {
+                Inline::Strong(Self::remove_inline_links_to_rec(nested, target_key))
+            }
+            Inline::Strikeout(nested) => {
+                Inline::Strikeout(Self::remove_inline_links_to_rec(nested, target_key))
+            }
+            Inline::Underline(nested) => {
+                Inline::Underline(Self::remove_inline_links_to_rec(nested, target_key))
+            }
+            Inline::Superscript(nested) => {
+                Inline::Superscript(Self::remove_inline_links_to_rec(nested, target_key))
+            }
+            Inline::Subscript(nested) => {
+                Inline::Subscript(Self::remove_inline_links_to_rec(nested, target_key))
+            }
+            Inline::SmallCaps(nested) => {
+                Inline::SmallCaps(Self::remove_inline_links_to_rec(nested, target_key))
+            }
+            _ => inline.clone(),
+        }
     }
 
     fn reference_key_direct(&self) -> Option<Key> {
@@ -764,7 +765,7 @@ impl Tree {
                     let mut inlines = vec![];
                     inlines.push(Inline::Reference(Reference {
                         key: reference.key.clone(),
-                        text: reference.text.clone(),
+                        inlines: reference.inlines.clone(),
                         reference_type: reference.reference_type,
                         url: reference.url.clone(),
                         display_url: reference.display_url.clone(),
@@ -777,13 +778,12 @@ impl Tree {
                             inlines.push(Inline::Str(",".to_string()));
                             inlines.push(Inline::Space);
                         }
-                        inlines.push(Inline::Reference(Reference {
-                            key: p_key.clone(),
-                            text: p_title.clone(),
-                            reference_type: ReferenceType::Regular,
-                            url: String::new(),
-                            display_url: None,
-                        }));
+                        inlines.push(Inline::Reference(Reference::plain(
+                            p_key.clone(),
+                            p_title,
+                            ReferenceType::Regular,
+                            String::new(),
+                        )));
                     }
 
                     Tree {
