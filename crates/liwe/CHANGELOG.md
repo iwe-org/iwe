@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.1](https://github.com/iwe-org/iwe/compare/liwe-v0.26.0...liwe-v0.26.1) - 2026-10-08
+
 ### Changed
 
 - `is_document_url` is false for a link to a local file that is not a document (such as `schema.yaml` or `image.png`), so such links stay an `Inline::Link` instead of becoming a reference
