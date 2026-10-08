@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `is_document_url` is false for a link to a local file that is not a document (such as `schema.yaml` or `image.png`), so such links stay an `Inline::Link` instead of becoming a reference
+
+### Fixed
+
+- `$referencedBy` and `$includedBy` no longer return keys for link targets that have no document, which made `$matches`, `$blocks` and `$content` panic
+
 ## [0.26.0](https://github.com/iwe-org/iwe/compare/liwe-v0.25.0...liwe-v0.26.0) - 2026-10-07
 
 ### Added
