@@ -167,6 +167,21 @@ fn included_by_direct() {
 }
 
 #[test]
+fn included_by_skips_missing_documents() {
+    assert_keys(
+        indoc! {"
+            [b](2)
+
+            [missing](missing)
+            _
+            # B
+        "},
+        filter(included_by(InclusionAnchor::with_max("1", 1))),
+        &["2"],
+    );
+}
+
+#[test]
 fn included_by_transitive() {
     assert_keys(
         indoc! {"
@@ -415,6 +430,51 @@ fn references_multi_hop() {
         "},
         filter(references(ReferenceAnchor::with_max("3", 2))),
         &["1", "2"],
+    );
+}
+
+#[test]
+fn referenced_by_skips_non_document_links() {
+    assert_keys(
+        indoc! {"
+            # A
+
+            See [b](2), [file](../dir/file.yaml) and [image](image.png).
+            _
+            # B
+        "},
+        filter(referenced_by(ReferenceAnchor::with_max("1", 1))),
+        &["2"],
+    );
+}
+
+#[test]
+fn referenced_by_skips_missing_documents() {
+    assert_keys(
+        indoc! {"
+            # A
+
+            See [b](2) and [missing](missing).
+            _
+            # B
+        "},
+        filter(referenced_by(ReferenceAnchor::with_max("1", 1))),
+        &["2"],
+    );
+}
+
+#[test]
+fn referenced_by_unknown_anchor_matches_nothing() {
+    assert_keys(
+        indoc! {"
+            # A
+
+            See [b](2).
+            _
+            # B
+        "},
+        filter(referenced_by(ReferenceAnchor::with_max("missing", 1))),
+        &[],
     );
 }
 

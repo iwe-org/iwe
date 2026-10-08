@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `iwe_query` no longer hangs when a query reaches a link to a missing document or to a non-markdown file
+
 ## [0.26.0](https://github.com/iwe-org/iwe/compare/iwec-v0.25.0...iwec-v0.26.0) - 2026-10-07
 
 ### Fixed

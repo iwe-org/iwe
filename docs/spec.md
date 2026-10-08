@@ -661,6 +661,8 @@ A **walk** is a BFS traversal from the anchor set over the operator's edge type,
 
 `$includes` and `$includedBy` walk only inclusion edges. `$references` and `$referencedBy` walk only reference edges.
 
+Walks only reach documents that exist in the workspace. A reference edge counts only for a link to a document (a `.md` or `.dj` file, or a path with no file extension); links to other local files such as `schema.yaml` or `image.png` are not edges. A link whose target document does not exist is skipped, so `$referencedBy` never returns a key that has no document. An anchor key that names no document, such as `$referencedBy: missing`, selects an empty anchor set, and the operator matches nothing.
+
 #### 5.2.1 Argument shape
 
 Each relational operator accepts either a scalar key (shorthand) or a mapping with an optional `match` field, optional walk parameters, and an optional `$size` count predicate:

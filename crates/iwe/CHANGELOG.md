@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `find` and `count` no longer crash or list non-documents when a document links to a missing document or to a non-markdown file; `--referenced-by` and `--included-by` only return existing documents
+
 ## [0.26.0](https://github.com/iwe-org/iwe/compare/iwe-v0.25.0...iwe-v0.26.0) - 2026-10-07
 
 ### Changed

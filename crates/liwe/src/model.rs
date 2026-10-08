@@ -287,7 +287,19 @@ pub fn is_ref_url(url: &str) -> bool {
 pub fn is_document_url(url: &str) -> bool {
     let path = url.split_once('#').map(|(path, _)| path).unwrap_or(url);
     let last = path.rsplit('/').next().unwrap_or(path);
-    is_ref_url(url) && !path.ends_with('/') && last != "." && last != ".."
+    is_ref_url(url)
+        && !path.ends_with('/')
+        && last != "."
+        && last != ".."
+        && (strip_doc_extension(last) != last || !has_file_extension(last))
+}
+
+pub(crate) fn has_file_extension(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|ext| ext.chars().any(|c| c.is_ascii_alphabetic()))
+        .unwrap_or(false)
 }
 
 fn has_uri_scheme(url: &str) -> bool {
@@ -317,7 +329,7 @@ pub fn normalize_url(url: &str, extension: &str) -> String {
 
 #[cfg(test)]
 mod test {
-    use super::{is_ref_url, normalize_url};
+    use super::{is_document_url, is_ref_url, normalize_url};
 
     #[test]
     fn tel_url_is_external() {
@@ -350,6 +362,22 @@ mod test {
     #[test]
     fn leading_digit_is_not_a_scheme() {
         assert!(is_ref_url("2024: review.md"));
+    }
+
+    #[test]
+    fn markdown_and_extensionless_urls_are_documents() {
+        assert!(is_document_url("file"));
+        assert!(is_document_url("file.md"));
+        assert!(is_document_url("file.dj"));
+        assert!(is_document_url("../dir/file.md#section"));
+        assert!(is_document_url("2024.10.08"));
+    }
+
+    #[test]
+    fn non_document_files_are_not_documents() {
+        assert!(!is_document_url("file.yaml"));
+        assert!(!is_document_url("../dir/file.pdf"));
+        assert!(!is_document_url("image.png#fragment"));
     }
 
     #[test]

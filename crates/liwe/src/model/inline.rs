@@ -4,7 +4,7 @@ use crate::model::config::MarkdownOptions;
 use crate::model::document::{DocumentInline, DocumentInlines, MathType};
 use crate::model::key_index::KeyIndex;
 use crate::model::reference::{Reference, ReferenceType};
-use crate::model::{InlinesContext, Key, Lang, Title, WorkspaceUrl};
+use crate::model::{has_file_extension, InlinesContext, Key, Lang, Title, WorkspaceUrl};
 
 pub type Inlines = Vec<Inline>;
 
@@ -957,14 +957,6 @@ pub(crate) fn append_refs_extension(url: &str, extension: &str) -> String {
         Some(f) => format!("{new_path}#{f}"),
         None => new_path,
     }
-}
-
-fn has_file_extension(path: &str) -> bool {
-    std::path::Path::new(path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(|ext| ext.chars().any(|c| c.is_ascii_alphabetic()))
-        .unwrap_or(false)
 }
 
 pub fn to_graph_inlines(
