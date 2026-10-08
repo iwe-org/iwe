@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0](https://github.com/iwe-org/iwe/compare/iwes-v0.25.0...iwes-v0.26.0) - 2026-10-07
+
 ### Fixed
 
 - Formatting keeps a link to a directory as written (`[docs](docs/)` no longer becomes `[docs](docs.md)`) and keeps code spans and emphasis inside link text instead of flattening them to plain words.

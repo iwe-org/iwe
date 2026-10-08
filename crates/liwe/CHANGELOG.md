@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0](https://github.com/iwe-org/iwe/compare/liwe-v0.25.0...liwe-v0.26.0) - 2026-10-07
+
 ### Added
 
 - `is_document_url` in `liwe::model` — true for a relative link that names a document, false for an external URL or a directory path (ending in `/`, or whose last segment is `.` or `..`).
