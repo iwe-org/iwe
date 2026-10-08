@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `is_document_url` in `liwe::model` — true for a relative link that names a document, false for an external URL or a directory path (ending in `/`, or whose last segment is `.` or `..`).
+
+### Changed
+
+- `Reference` stores the link text as written in an `inlines` field (code spans, emphasis and the like) instead of a plain `text` string; `text()` now derives the plain form from the inlines, and `Reference::plain` builds one from a plain string. `GraphNode::new_ref` takes the inlines where it took the text, and `GraphBuilder::reference_with_text` is now `reference_with_inlines`.
+- A link whose target is a directory (ends in `/`, or is `.` or `..`) is no longer turned into a reference: it stays an `Inline::Link` and is written back unchanged.
+
+### Fixed
+
+- Code spans and emphasis inside link text survive a round trip through the graph (previously flattened to plain words).
+
 ## [0.25.0](https://github.com/iwe-org/iwe/compare/liwe-v0.24.2...liwe-v0.25.0) - 2026-10-02
 
 ### Changed

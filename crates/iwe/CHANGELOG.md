@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A markdown document edited with the editor tools in a Claude Code session is no longer rewritten into canonical form behind the edit; only writes through `iwe` normalize on the way in (previously the whole file was rewritten in place, which broke links and reformatted project markdown such as `README.md`). The schema check on such an edit is unchanged.
+
+### Fixed
+
+- `iwe normalize` and every other document write keep a link to a directory as written: `[docs](docs/)` no longer becomes `[docs](docs.md)`, and `[up](..)` no longer becomes `[up](...md)`, both of which pointed at a file that does not exist.
+- Inline formatting inside link text survives a write: `` [`iwe` tool](setup.md) `` and `[the **setup** guide](setup.md)` keep their code spans and emphasis (previously the link text was flattened to plain words).
+
 ## [0.25.0](https://github.com/iwe-org/iwe/compare/iwe-v0.24.2...iwe-v0.25.0) - 2026-10-02
 
 ### Changed

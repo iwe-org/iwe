@@ -95,7 +95,7 @@ impl Inline {
             Inline::SoftBreak => "\n".into(),
             Inline::LineBreak => "\n".into(),
             Inline::Link(_, _, _, inlines) => to_plain_text(inlines),
-            Inline::Reference(reference) => reference.text.clone(),
+            Inline::Reference(reference) => reference.text(),
             Inline::Image(_, _, inlines) => to_plain_text(inlines),
             Inline::RawInline(_, content) => content.clone(),
             _ => "".into(),
@@ -196,13 +196,15 @@ impl Inline {
                 inner.iter().map(|i| i.normalize(context)).collect(),
             ),
             Inline::Reference(reference) => {
-                let new_text = match reference.reference_type {
+                let inlines = match reference.reference_type {
                     ReferenceType::Regular if context.normalize_ref_text() => context
                         .get_ref_title(&reference.key)
-                        .unwrap_or_else(|| reference.text.clone()),
-                    ReferenceType::Regular => reference.text.clone(),
-                    ReferenceType::WikiLink => String::new(),
-                    ReferenceType::WikiLinkPiped => reference.text.clone(),
+                        .map(|title| text_to_inlines(&title))
+                        .unwrap_or_else(|| reference.inlines.clone()),
+                    ReferenceType::Regular | ReferenceType::WikiLinkPiped => {
+                        reference.inlines.clone()
+                    }
+                    ReferenceType::WikiLink => Vec::new(),
                 };
 
                 let display_url = match reference.reference_type {
@@ -214,7 +216,7 @@ impl Inline {
 
                 Inline::Reference(Reference {
                     key: reference.key.clone(),
-                    text: new_text,
+                    inlines,
                     reference_type: reference.reference_type,
                     url: reference.url.clone(),
                     display_url,
@@ -292,7 +294,7 @@ impl Inline {
                 if reference.key.eq(target_key) {
                     return Inline::Reference(Reference {
                         key: updated_key.clone(),
-                        text: reference.text.clone(),
+                        inlines: reference.inlines.clone(),
                         reference_type: reference.reference_type,
                         url: updated_key.to_workspace_url(),
                         display_url: None,
@@ -575,11 +577,10 @@ fn render_inline<S: TextSink>(
         }
         Inline::Reference(reference) => {
             let url = reference.key.to_workspace_url();
-            let inlines = text_to_inlines(&reference.text);
             emit_link(
                 &url,
                 reference.reference_type.to_link_type(),
-                &inlines,
+                &reference.inlines,
                 options,
                 out,
             );
@@ -731,7 +732,7 @@ fn emit_link<S: TextSink>(
             out.push("]]");
         }
         LinkType::Markdown => {
-            let final_url = if model::is_ref_url(url) {
+            let final_url = if model::is_document_url(url) {
                 append_refs_extension(url, &options.refs_extension)
             } else {
                 url.to_string()
@@ -946,7 +947,7 @@ pub(crate) fn append_refs_extension(url: &str, extension: &str) -> String {
         None => (url, None),
     };
 
-    let new_path = if path.is_empty() || has_file_extension(path) {
+    let new_path = if path.is_empty() || path.ends_with('/') || has_file_extension(path) {
         path.to_string()
     } else {
         format!("{path}{extension}")

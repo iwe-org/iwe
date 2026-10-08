@@ -4,7 +4,7 @@ use crate::graph::{Graph, GraphContext};
 use crate::markdown::MarkdownReader;
 use crate::model::config::MarkdownOptions;
 use crate::model::ids::alloc_node_id;
-use crate::model::inline::Inline;
+use crate::model::inline::{text_to_inlines, Inline};
 use crate::model::node::Node;
 use crate::model::tree::Tree;
 use crate::model::{Key, NodeId};
@@ -651,7 +651,7 @@ fn with_ref_text(node: &Node, text: String) -> Node {
     match node {
         Node::Reference(reference) => {
             let mut updated = reference.clone();
-            updated.text = text;
+            updated.inlines = text_to_inlines(&text);
             Node::Reference(updated)
         }
         other => other.clone(),

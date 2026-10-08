@@ -126,7 +126,7 @@ Whatever the policy says:
 
 - `--strict` on every write. It enforces whatever the brief's schemas section names; when it fails, fix the item against the report, never drop the flag, and never pass `--set` alongside a template.
 - After a create, the `PostToolUse` net may report that the new document closely matches one the store already has. Read the match; if it is the same fact, merge into the older key and delete the newer one, as "dedup and updates" says — then tell the user which key survived.
-- The CLI is the write path, never the Write or Edit tool. When the `PostToolUse` hook reports a document written around the CLI, redo it through `iwe`.
+- The CLI is the write path, never the Write or Edit tool. Only a write through `iwe` lands in canonical form; a document written around it stays exactly as written.
 - The body goes on stdin — `--content -` with a quoted heredoc; an inlined multi-line argument trips the shell-safety prompt.
 - Provenance values come from the `session read` header for a transcript span, from the current time and `$CLAUDE_CODE_SESSION_ID` for the live conversation, in the shape the store's other documents use.
 - Links are graph semantics: a link alone in its paragraph makes the target a child, inline or in a list item it is a reference. A key resolves against the document's own directory, a root-absolute one (`/components/session-record`) from the workspace root. Never mint a page the policy leaves to `/iwe:reflect`.

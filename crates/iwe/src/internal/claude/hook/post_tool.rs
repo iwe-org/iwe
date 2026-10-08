@@ -7,7 +7,6 @@ use diwe::stats::{mutation_findings, Rule};
 use liwe::model::Key;
 
 use crate::internal::claude::hook::store::{enter_memory_store, workspace_path_of, HookPayload};
-use crate::new::normalize_content;
 
 const EDITOR_TOOLS: [&str; 3] = ["Write", "Edit", "MultiEdit"];
 const WRITE_VERBS: [&str; 5] = ["create", "update", "rename", "delete", "attach"];
@@ -52,29 +51,13 @@ fn editor_report(payload: &HookPayload) -> Option<PostToolReport> {
     }
 
     let path = document_path(config, &workspace, &key);
-    let raw = std::fs::read_to_string(&path).ok()?;
+    let content = std::fs::read_to_string(&path).ok()?;
+    let report = schema_report(config, &key, &content)?;
 
-    let mut notices = Vec::new();
-    let mut context = Vec::new();
-
-    let content = match normalized_in_place(config, &key, &path, &raw) {
-        Some(content) => {
-            notices.push(format!("iwe normalized {}", path.display()));
-            context.push(format!(
-                "`{}` was written outside the CLI, so it landed unnormalized. It has been rewritten into this store's canonical form — re-read it before editing it again, and prefer `iwe update -k {} --strict --content -`, which normalizes and validates on the way in.",
-                key, key
-            ));
-            content
-        }
-        None => raw,
-    };
-
-    if let Some(report) = schema_report(config, &key, &content) {
-        notices.push(format!("iwe: {} does not match its schema", key));
-        context.push(report);
-    }
-
-    report_of(notices, context)
+    report_of(
+        vec![format!("iwe: {} does not match its schema", key)],
+        vec![report],
+    )
 }
 
 fn command_report(payload: &HookPayload) -> Option<PostToolReport> {
@@ -147,20 +130,6 @@ fn report_of(notices: Vec<String>, context: Vec<String>) -> Option<PostToolRepor
         notice: notices.join("; "),
         context: context.join("\n\n"),
     })
-}
-
-fn normalized_in_place(
-    config: &Configuration,
-    key: &Key,
-    path: &Path,
-    raw: &str,
-) -> Option<String> {
-    let normalized = normalize_content(config, key, raw);
-    if normalized == raw {
-        return None;
-    }
-    std::fs::write(path, &normalized).ok()?;
-    Some(normalized)
 }
 
 fn schema_report(config: &Configuration, key: &Key, content: &str) -> Option<String> {

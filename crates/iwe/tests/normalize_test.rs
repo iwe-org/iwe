@@ -763,6 +763,57 @@ fn test_normalize_keeps_link_to_parent_hub() {
 }
 
 #[test]
+fn test_normalize_keeps_directory_links_and_formatted_link_text() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    create_dir_all(temp_path.join(".iwe")).expect("Failed to create .iwe directory");
+    write(
+        temp_path.join(".iwe").join("config.toml"),
+        indoc! {r#"
+            format = "markdown"
+            version = 4
+
+            [workspace]
+            path = ""
+
+            [markdown]
+            refs_extension = ".md"
+        "#},
+    )
+    .expect("Should write config file");
+    create_dir_all(temp_path.join("guides")).expect("Should create directory");
+
+    write(
+        temp_path.join("readme.md"),
+        indoc! {"
+            # Readme
+
+            See [`guides/`](guides/) and [the **setup** guide](setup.md) first.
+
+            [`setup`](setup.md)
+        "},
+    )
+    .expect("Should write file");
+    write(temp_path.join("setup.md"), "# Setup\n").expect("Should write file");
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success(), "Normalize should succeed");
+
+    let content = read_to_string(temp_path.join("readme.md")).unwrap();
+    assert_eq!(
+        content,
+        indoc! {"
+            # Readme
+
+            See [`guides/`](guides/) and [the **setup** guide](setup.md) first.
+
+            [`setup`](setup.md)
+        "},
+    );
+}
+
+#[test]
 fn test_normalize_keeps_link_to_grandparent_hub() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

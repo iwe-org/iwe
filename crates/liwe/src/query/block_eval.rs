@@ -316,7 +316,7 @@ impl BlockIndex {
             Node::Reference(reference)
                 if reference.reference_type == ReferenceType::WikiLinkPiped =>
             {
-                Some(reference.text.clone())
+                Some(reference.text())
             }
             _ => None,
         }

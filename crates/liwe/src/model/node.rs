@@ -28,7 +28,7 @@ impl Node {
             Node::Section(inlines) => inlines.iter().map(|i| i.plain_text()).collect(),
             Node::Leaf(inlines) => inlines.iter().map(|i| i.plain_text()).collect(),
             Node::Item(_, inlines) => inlines.iter().map(|i| i.plain_text()).collect(),
-            Node::Reference(reference) => reference.text.clone(),
+            Node::Reference(reference) => reference.text(),
             Node::Raw(_, content) => content.clone(),
             Node::Table(table) => table.plain_text(),
             _ => "".to_string(),
@@ -44,7 +44,7 @@ impl Node {
 
     pub fn reference_text(&self) -> Option<String> {
         match self {
-            Node::Reference(reference) => Some(reference.text.clone()),
+            Node::Reference(reference) => Some(reference.text()),
             _ => None,
         }
     }

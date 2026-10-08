@@ -20,13 +20,12 @@ pub fn attach_reference(
     let reference = Tree {
         id: alloc_node_id(),
         line_range: None,
-        node: Node::Reference(Reference {
-            key: reference_key.clone(),
-            text: reference_text.to_string(),
-            reference_type: ReferenceType::Regular,
-            url: String::new(),
-            display_url: None,
-        }),
+        node: Node::Reference(Reference::plain(
+            reference_key.clone(),
+            reference_text,
+            ReferenceType::Regular,
+            String::new(),
+        )),
         children: vec![],
     };
 

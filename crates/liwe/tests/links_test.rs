@@ -683,6 +683,62 @@ fn normalization_preserves_non_md_extension_in_subdir() {
 }
 
 #[test]
+fn link_to_a_directory_keeps_its_target() {
+    compare_with_extensions(
+        "# title\n\nSee [the docs](docs/) and [workflows](.github/workflows/) here.\n",
+        "# title\n\nSee [the docs](docs/) and [workflows](.github/workflows/) here.\n",
+    );
+}
+
+#[test]
+fn link_to_the_current_or_parent_directory_keeps_its_target() {
+    compare_with_extensions(
+        "# title\n\nSee [this folder](.) and [the parent](..) and [two up](../..) here.\n",
+        "# title\n\nSee [this folder](.) and [the parent](..) and [two up](../..) here.\n",
+    );
+}
+
+#[test]
+fn block_link_to_a_directory_keeps_its_target() {
+    compare_with_extensions(
+        "# title\n\n[the docs](docs/)\n",
+        "# title\n\n[the docs](docs/)\n",
+    );
+}
+
+#[test]
+fn code_span_in_link_text_is_preserved() {
+    compare_with_extensions(
+        "# title\n\nSee [`iwe` tool](other.md) and [**bold** name](other.md) here.\n",
+        "# title\n\nSee [`iwe` tool](other.md) and [**bold** name](other.md) here.\n",
+    );
+}
+
+#[test]
+fn code_span_in_block_link_text_is_preserved() {
+    compare_with_extensions(
+        "# title\n\n[`iwe` tool](other.md)\n",
+        "# title\n\n[`iwe` tool](other.md)\n",
+    );
+}
+
+#[test]
+fn code_span_in_link_text_gives_way_to_the_title_when_normalized() {
+    normalize(
+        indoc! {"
+            see [title](2) here
+            _
+            # title
+            "},
+        indoc! {"
+            see [`code` text](2) here
+            _
+            # title
+            "},
+    );
+}
+
+#[test]
 fn fragment_only_link_preserved() {
     setup();
 

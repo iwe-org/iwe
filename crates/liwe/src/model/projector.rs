@@ -64,7 +64,7 @@ impl Projector {
                 };
                 let inlines = match reference.reference_type {
                     ReferenceType::WikiLink => vec![],
-                    _ => vec![Inline::Str(reference.text)],
+                    _ => self.resolve_inlines(reference.inlines),
                 };
                 Inline::Link(
                     url,
@@ -152,11 +152,10 @@ impl Projector {
                 Node::Reference(reference) => {
                     let reference_type = reference.reference_type;
                     let inlines = match reference_type {
-                        ReferenceType::Regular => self.resolve_inlines(iter.inlines()),
-                        ReferenceType::WikiLink => vec![],
-                        ReferenceType::WikiLinkPiped => {
-                            vec![Inline::Str(iter.ref_text().unwrap_or_default())]
+                        ReferenceType::Regular | ReferenceType::WikiLinkPiped => {
+                            self.resolve_inlines(iter.inlines())
                         }
+                        ReferenceType::WikiLink => vec![],
                     };
 
                     let url = match reference_type {
