@@ -670,3 +670,46 @@ fn init_okf_yields_to_an_explicit_refs_extension() {
     let config = written_config(temp.path());
     assert_eq!("", config.markdown.refs_extension);
 }
+
+#[test]
+fn init_does_not_propose_a_published_docs_site() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+    note(temp.path(), "Cargo.toml", "[package]\nname = \"demo\"\n");
+    note(temp.path(), "mkdocs.yml", "site_name: Demo\n");
+    note(temp.path(), "docs/index.md", "# Home\n");
+    note(temp.path(), "docs/guide.md", "# Guide\n");
+
+    let output = run_init(temp.path(), &["--json"]);
+    let report: serde_json::Value =
+        serde_json::from_str(&stdout_of(&output)).expect("report is valid JSON");
+
+    assert_eq!("", written_config(temp.path()).workspace.path);
+    assert_eq!(
+        &serde_json::json!(
+            "docs/ is a published documentation site (MkDocs) — not proposed as the workspace"
+        ),
+        &report["notes"][0]
+    );
+}
+
+#[test]
+fn init_lists_the_candidates_when_two_folders_look_like_notes() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+    note(temp.path(), "Cargo.toml", "[package]\nname = \"demo\"\n");
+    for index in 0..3 {
+        note(temp.path(), &format!("notes/n{index}.md"), "# Note\n");
+        note(temp.path(), &format!("design/d{index}.md"), "# Design\n");
+    }
+
+    let output = run_init(temp.path(), &["--json"]);
+    let report: serde_json::Value =
+        serde_json::from_str(&stdout_of(&output)).expect("report is valid JSON");
+
+    assert_eq!("", written_config(temp.path()).workspace.path);
+    assert_eq!(
+        &serde_json::json!(
+            "no clear notes folder — workspace path left unset; candidates: design/ (3 files), notes/ (3 files) (set one with --workspace)"
+        ),
+        &report["notes"][0]
+    );
+}

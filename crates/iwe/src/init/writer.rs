@@ -1,7 +1,10 @@
-use diwe::config::Configuration;
+use diwe::config::{ActionDefinition, Configuration, LinkType};
+use liwe::model::config::{DjotOptions, Format, MarkdownOptions, RefsPath, RefsText, WikiLinkPath};
 use toml_edit::{DocumentMut, Item, Table};
 
-use crate::init::settings::{to_configuration, Confidence, SettingId, Settings, ALL_SETTINGS};
+use liwe::init::settings::{
+    formatting_options, optional_text, Confidence, SettingId, Settings, ALL_SETTINGS,
+};
 
 pub fn render(settings: &Settings) -> String {
     let config = to_configuration(settings);
@@ -103,4 +106,79 @@ fn annotate(document: &mut DocumentMut, key: &str, comment: &str) {
 
 pub fn parse(rendered: &str) -> Configuration {
     toml::from_str(rendered).expect("rendered configuration parses")
+}
+
+pub fn to_configuration(settings: &Settings) -> Configuration {
+    let mut config = Configuration::template();
+
+    config.workspace.path = optional_text(settings, SettingId::WorkspacePath).unwrap_or_default();
+    config.workspace.date_format = optional_text(settings, SettingId::KeyDateFormat);
+    config.workspace.frontmatter_document_title =
+        optional_text(settings, SettingId::FrontmatterTitle);
+
+    config.format = match settings.get(SettingId::Format).as_text() {
+        Some("djot") => Format::Djot,
+        _ => Format::Markdown,
+    };
+
+    let link_format = match settings.get(SettingId::LinkFormat).as_text() {
+        Some("wiki") => LinkType::WikiLink,
+        _ => LinkType::Markdown,
+    };
+    config.completion.link_format = Some(link_format.clone());
+
+    for action in config.actions.values_mut() {
+        match action {
+            ActionDefinition::Extract(extract) => extract.link_type = Some(link_format.clone()),
+            ActionDefinition::ExtractAll(extract_all) => {
+                extract_all.link_type = Some(link_format.clone())
+            }
+            ActionDefinition::Link(link) => link.link_type = Some(link_format.clone()),
+            _ => {}
+        }
+    }
+
+    let formatting = formatting_options(settings);
+
+    config.markdown = MarkdownOptions {
+        refs_extension: optional_text(settings, SettingId::RefsExtension).unwrap_or_default(),
+        refs_path: match settings.get(SettingId::RefsPath).as_text() {
+            Some("absolute") => RefsPath::Absolute,
+            _ => RefsPath::Relative,
+        },
+        refs_text: match settings.get(SettingId::RefsText).as_text() {
+            Some("normalize") => RefsText::Normalize,
+            _ => RefsText::Preserve,
+        },
+        date_format: optional_text(settings, SettingId::DisplayDateFormat),
+        time_format: None,
+        locale: None,
+        wiki_link_path: match settings.get(SettingId::WikiLinkPath).as_text() {
+            Some("full") => WikiLinkPath::Full,
+            Some("short") => WikiLinkPath::Short,
+            _ => WikiLinkPath::Preserve,
+        },
+        formatting: formatting.clone(),
+    };
+
+    config.djot = DjotOptions {
+        refs_extension: config.markdown.refs_extension.clone(),
+        refs_path: config.markdown.refs_path,
+        refs_text: config.markdown.refs_text,
+        date_format: config.markdown.date_format.clone(),
+        time_format: None,
+        locale: None,
+        formatting,
+    };
+
+    config.search.language =
+        optional_text(settings, SettingId::SearchLanguage).unwrap_or_else(|| "english".to_string());
+
+    if let Some(template) = config.templates.get_mut("default") {
+        if let Some(key_template) = optional_text(settings, SettingId::KeyTemplate) {
+            template.key_template = key_template;
+        }
+    }
+
+    config
 }

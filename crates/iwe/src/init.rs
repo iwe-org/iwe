@@ -1,13 +1,11 @@
 pub mod agents;
-pub mod detect;
-pub mod evidence;
 pub mod fit;
 pub mod okf;
-pub mod probe;
 pub mod report;
 pub mod screen;
-pub mod settings;
 pub mod writer;
+
+pub use liwe::init::{detect, evidence, notes, probe, settings};
 
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
@@ -23,8 +21,8 @@ use crate::init::report::{
     epilogue, notes, render_settings, summarize, summary_line, warnings, Report,
 };
 use crate::init::screen::{run, Outcome};
-use crate::init::settings::{defaults, to_configuration, Confidence, SettingId, Settings, Value};
-use crate::init::writer::render;
+use crate::init::settings::{defaults, Confidence, SettingId, Settings, Value};
+use crate::init::writer::{render, to_configuration};
 use crate::internal::claude::{enable_memory, EnableOptions};
 
 pub const IWE_MARKER: &str = ".iwe";

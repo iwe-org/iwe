@@ -2,6 +2,8 @@
 
 > Your notes are your agent’s memory. iWe is where you work on them together.
 
+**[iwe.md](https://iwe.md/?ref=readme-header)** · **[Download for Mac](https://iwe.md/?ref=readme-header#start)** · [Docs](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
+
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
 [![Documentation](https://img.shields.io/badge/docs-iwe.md-blue)](https://iwe.md)
@@ -18,30 +20,32 @@ There are four ways to work with IWE. Mix and match them to fit your day:
 
 | Tool | How you'll use it |
 | --- | --- |
-| **[iWe for Mac](#iwe-for-mac)** | Write and browse in a native app, and connect your existing Claude/Codex agent. |
-| **[Your own editor](#your-own-editor)** | Stay in Neovim, Helix, VS Code, or Zed, with note navigation, backlinks, and autocomplete. |
-| **[CLI](#cli)** | Search and manage your notes from the terminal or scripts. |
-| **[Claude/Codex](#claudecodex)** | Let your agent read, write, and organize memory while you work through conversation. |
+| **[iWe for Mac](#iwe-for-mac)** | Write and browse in a native app, and connect your existing Claude/Codex agent. [Tour →](https://iwe.md/?mode=app&ref=readme-table#start) |
+| **[Your own editor](#your-own-editor)** | Stay in Neovim, Helix, VS Code, or Zed, with note navigation, backlinks, and autocomplete. [Setup →](https://iwe.md/?mode=editor&ref=readme-table#start) |
+| **[CLI](#cli)** | Search and manage your notes from the terminal or scripts. [CLI docs →](https://iwe.md/docs/cli/?ref=readme-table) |
+| **[Claude/Codex](#claudecodex)** | Let your agent read, write, and organize memory while you work through conversation. [Connect →](https://iwe.md/docs/agentic/?ref=readme-table) |
 
 All four work with the same Markdown documents. Draft a spec in your editor, develop it with Claude/Codex, browse it in iWe, or search it from the CLI. Use any combination you like; each tool also works independently.
 
 **Bring your own AI.** Neither the IWE CLI nor the iWe Mac app includes an AI model. Both work on their own as tools for your notes. When you want AI help, use your existing Claude/Codex agent — in terminal or directly in the Mac app.
 
-<a href="https://iwe.md/images/app/GH-screen-1.1.png"><img src="https://iwe.md/images/app/GH-screen-1.1.png" alt="iWe for Mac showing project plans and connected documents" width="820"></a>
+<a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-1.1.png" alt="iWe for Mac showing project plans and connected documents" width="820"></a>
 
 <p>
-  <a href="https://iwe.md/images/app/GH-screen-2.png"><img src="https://iwe.md/images/app/GH-screen-2.png" alt="Bug tracking with charts" width="32%"></a>
-  <a href="https://iwe.md/images/app/GH-screen-3.png"><img src="https://iwe.md/images/app/GH-screen-3.png" alt="Technical documents with code" width="32%"></a>
-  <a href="https://iwe.md/images/app/GH-screen-4.png"><img src="https://iwe.md/images/app/GH-screen-4.png" alt="Release documents" width="32%"></a>
+  <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-2.png" alt="Bug tracking with charts" width="32%"></a>
+  <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-3.png" alt="Technical documents with code" width="32%"></a>
+  <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-4.png" alt="Release documents" width="32%"></a>
 </p>
 
-*Plans · Charts · Technical documents · Releases — click a screenshot to view it full size.*
+*Plans · Charts · Technical documents · Releases — click a screenshot to see iWe in action on iwe.md.*
 
 ## Why IWE
 
 - **Shared context.** Your agent can use the same notes you write for yourself. Notes link to each other, and one note can belong to several topics, so you can follow an idea wherever it connects.
 - **Memory you can read.** Decisions and lessons saved by your agent are ordinary notes you can browse, correct, or delete.
 - **Your notes stay yours.** Everything is Markdown in a folder on your machine. Back it up, sync it, or keep it in git. You don't need an IWE cloud account to keep your notes; connecting an AI agent involves that agent's own setup and account requirements.
+
+**[See it working on iwe.md →](https://iwe.md/?ref=readme-why)**
 
 ## iWe for Mac
 
@@ -51,7 +55,7 @@ If you'd like a dedicated space for your notes, use the native Mac app. Open a f
 - **Room to experiment.** Each agent run is one undo step — try an idea, and roll it back if you don't like it.
 - **Follow your ideas.** Jump between related notes, search in a few keystrokes, and view Mermaid diagrams right in your documents. Your editor and other tools can keep working on the same files.
 
-**[Download iWe for Mac](https://github.com/iwe-org/iwe-mac/releases)**
+**[See iWe for Mac on iwe.md →](https://iwe.md/app/?ref=readme-download)**
 
 Open a notes folder and start with a note about something you're working on. Once Claude/Codex is connected, try asking it to summarize that note or help you develop an idea.
 

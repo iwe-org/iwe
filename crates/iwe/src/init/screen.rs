@@ -5,9 +5,8 @@ use crate::init::evidence::Evidence;
 use crate::init::fit::measure;
 use crate::init::probe::Probes;
 use crate::init::report::summary_line;
-use crate::init::settings::{
-    to_configuration, Confidence, SettingId, Settings, Value, ALL_SETTINGS,
-};
+use crate::init::settings::{Confidence, SettingId, Settings, Value, ALL_SETTINGS};
+use crate::init::writer::to_configuration;
 
 pub enum Outcome {
     Write { settings: Settings, memory: bool },

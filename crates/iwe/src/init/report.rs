@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::init::evidence::{Evidence, SCAN_CAP};
 use crate::init::fit::Churn;
+use crate::init::notes::NotesConfidence;
 use crate::init::probe::Probes;
 use crate::init::settings::{Confidence, SettingId, Settings, Value, ALL_SETTINGS};
 
@@ -166,6 +167,31 @@ pub fn warnings(evidence: &Evidence, settings: &Settings, probes: &Probes) -> Ve
 
 pub fn notes(evidence: &Evidence) -> Vec<String> {
     let mut notes = Vec::new();
+
+    for folder in evidence.notes.excluded.iter().filter(|f| f.kind.is_site()) {
+        notes.push(format!(
+            "{}/ is {} — not proposed as the workspace",
+            folder.path,
+            folder.kind.describe()
+        ));
+    }
+
+    if evidence.notes.code_project && evidence.notes.confidence == NotesConfidence::Weak {
+        let candidates: Vec<String> = evidence
+            .notes
+            .candidates
+            .iter()
+            .map(|candidate| format!("{}/ ({} files)", candidate.path, candidate.files))
+            .collect();
+        let listed = match candidates.is_empty() {
+            true => "none".to_string(),
+            false => candidates.join(", "),
+        };
+        notes.push(format!(
+            "no clear notes folder — workspace path left unset; candidates: {} (set one with --workspace)",
+            listed
+        ));
+    }
 
     if evidence.unresolved_links > 0 {
         let mut note = format!(

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `liwe::init` module with the workspace scan, notes folder detection, environment probe and settings detection used by `iwe init`
+- `liwe::fs::walk_md_paths` to list the documents under a directory, honoring `.gitignore`
+
 ## [0.26.1](https://github.com/iwe-org/iwe/compare/liwe-v0.26.0...liwe-v0.26.1) - 2026-10-08
 
 ### Changed
