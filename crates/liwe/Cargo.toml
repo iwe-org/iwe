@@ -39,6 +39,7 @@ serde_yaml.workspace = true
 minijinja.workspace = true
 sanitize-filename.workspace = true
 percent-encoding.workspace = true
+ignore.workspace = true
 
 [[test]]
 name = "integration"

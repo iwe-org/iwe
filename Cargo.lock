@@ -1697,6 +1697,7 @@ version = "0.26.1"
 dependencies = [
  "chrono",
  "env_logger",
+ "ignore",
  "indoc",
  "itertools 0.15.0",
  "jotdown",

@@ -76,7 +76,7 @@ Every operation document is one YAML mapping. Top-level fields:
 | Field | Operations | Purpose |
 |---|---|---|
 | `filter` | all | Predicate document (§4). Required on `update` / `delete`. Graph operators that extend filter with cross-document selection are defined in §5. |
-| `search` | find | Relevance selection stage (§5A). Restricts membership to documents matching a `lexical` / `fuzzy` text query and supplies the default ordering. Semantics: [Search](query-language.md#search). |
+| `search` | find | Relevance selection stage (§5A). Restricts membership to documents matching a `lexical` / `fuzzy` text query and supplies the default ordering. Semantics: [Search](query-language.md#search-find-only). |
 | `project` | find | Projection (§6). Mutually exclusive with `addFields`. |
 | `addFields` | find | Additive projection (§6.3). Mutually exclusive with `project`. |
 | `sort` | all | §7. On `update` / `delete`, bounds iteration order before mutation. |
@@ -1024,7 +1024,7 @@ At least one of `lexical` / `fuzzy` must be present; the empty mapping `search: 
 
 **Requires the index.** `search` requires the search-indexed graph; running it against a graph built without a search language is an execution-time error naming the missing index.
 
-Grammar: §A.4A. Full semantics: [Search](query-language.md#search).
+Grammar: §A.4A. Full semantics: [Search](query-language.md#search-find-only).
 
 ## 6. Projection
 

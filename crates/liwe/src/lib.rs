@@ -1,7 +1,9 @@
 #[cfg(feature = "djot")]
 pub mod djot;
 pub mod format;
+pub mod fs;
 pub mod graph;
+pub mod init;
 pub mod locale;
 pub mod markdown;
 pub mod model;
