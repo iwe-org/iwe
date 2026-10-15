@@ -1,3 +1,5 @@
+#![cfg(feature = "engine")]
+
 use diwe::search::Language;
 use diwe::search_query::build_index;
 use diwe::stats::{

@@ -1,3 +1,5 @@
+#![cfg(feature = "engine")]
+
 use diwe::config::MarkdownOptions;
 use diwe::search::{Bm25Index, Language};
 use diwe::search_query::{self, execute, lexical_has_no_terms, no_terms_warning};

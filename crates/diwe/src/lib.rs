@@ -1,5 +1,6 @@
 pub mod config;
 pub mod file;
+#[cfg(feature = "engine")]
 pub mod find;
 pub mod fs;
 pub mod keys;
@@ -7,10 +8,17 @@ pub mod loader;
 
 pub use keys::require_documents;
 pub use loader::graph_from_path;
+#[cfg(feature = "engine")]
 pub mod retrieve;
+#[cfg(feature = "engine")]
 pub mod schema;
+#[cfg(feature = "engine")]
 pub mod search;
+#[cfg(feature = "engine")]
 pub mod search_query;
+#[cfg(feature = "engine")]
 pub mod stats;
+#[cfg(feature = "engine")]
 pub mod tokens;
+#[cfg(feature = "engine")]
 pub mod watcher;

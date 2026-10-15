@@ -10,6 +10,7 @@ use toml_edit::{value, DocumentMut, Item};
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "engine")]
 use crate::search::{parse_language, Language};
 pub use liwe::model::config::{
     DjotOptions, Format, FormatOptions, FormattingOptions, InlineType, LineBreakStyle, LinkType,
@@ -241,6 +242,7 @@ impl Configuration {
         }
     }
 
+    #[cfg(feature = "engine")]
     pub fn search_language(&self) -> Language {
         parse_language(&self.search.language)
     }

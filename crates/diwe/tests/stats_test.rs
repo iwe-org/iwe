@@ -1,3 +1,5 @@
+#![cfg(feature = "engine")]
+
 use diwe::stats::KeyStatistics;
 use indoc::indoc;
 use liwe::graph::Graph;
