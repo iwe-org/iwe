@@ -201,9 +201,13 @@ impl Graph {
     }
 
     fn node_key(&self, id: NodeId) -> Key {
-        match self.graph_node(id).key() {
-            Some(key) => key.clone(),
-            None => self.node_key(self.graph_node(id).prev_id().expect("to have a prev_id")),
+        let mut id = id;
+        loop {
+            let node = self.graph_node(id);
+            if let Some(key) = node.key() {
+                return key.clone();
+            }
+            id = node.prev_id().expect("to have a prev_id");
         }
     }
 

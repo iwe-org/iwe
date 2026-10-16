@@ -125,3 +125,15 @@ fn pointer_walks_wide_document() {
         assert!(last.to_document().is_some());
     });
 }
+
+#[test]
+fn reindex_keys_handles_link_after_wide_run_of_paragraphs() {
+    on_small_stack(|| {
+        let content = format!("{}\nsee [other](other)\n", paragraphs_document());
+        let mut graph = read_graph(&content);
+
+        graph.reindex_keys(&["key".into()]);
+
+        assert_eq!(1, graph.get_reference_edges_to(&"other".into()).len());
+    });
+}

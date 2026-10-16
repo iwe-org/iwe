@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `KeyIndex::resolve_link_key` is removed; use `KeyIndex::target_key` with `Target::from_link_url`
 - `delete` removes only the links that pointed at the deleted note; a `[[Name]]` link kept by hand points to another note with the same file name, if there is one
 
+### Fixed
+
+- `Graph::reindex_keys` and backlink cleanup no longer overflow the stack on documents with thousands of blocks in one run
+
 ## [0.26.1](https://github.com/iwe-org/iwe/compare/liwe-v0.26.0...liwe-v0.26.1) - 2026-10-08
 
 ### Changed
