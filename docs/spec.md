@@ -1276,6 +1276,8 @@ Documents missing the sort key sort as if the value were null. Null sorts before
 
 Ties — including the no-`sort` case — are broken by document key in ascending lexicographic order. The engine sorts the matched set by key first, then applies the user-provided sort with a stable algorithm; the result is deterministic given the same corpus and operation.
 
+The engine compares string values by codepoint. A host may supply a locale-aware collator (the Unicode Collation Algorithm with the CLDR rules of a locale, numeric ordering on, emoji removed before comparing); the `iwe` CLI, the `iwes` LSP server and the `iwec` MCP server do so from `workspace.locale`, so there case and accents only break ties and `Note 2` precedes `Note 10`. Two strings whose emoji-free text collates equal fall back to the full string with emoji and then to codepoint order. Collation applies to `sort` only; the ordering operators in §4.7 always use codepoint comparison.
+
 ## 8. Limit
 
 A non-negative integer cap.

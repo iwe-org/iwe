@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use itertools::Itertools;
@@ -545,26 +546,49 @@ impl Tree {
         matches!(self.node, Node::BulletList())
     }
 
-    pub fn sort_children(&self, node_id: NodeId, reverse: bool) -> Tree {
-        self.sort_children_rec(node_id, reverse)
+    pub fn sort_children(
+        &self,
+        node_id: NodeId,
+        reverse: bool,
+        compare: impl Fn(&str, &str) -> Ordering,
+    ) -> Tree {
+        self.sort_children_rec(node_id, reverse, &compare)
     }
 
-    pub fn is_sorted(&self, node_id: NodeId, reverse: bool) -> bool {
-        self.is_sorted_rec(node_id, reverse)
+    pub fn is_sorted(
+        &self,
+        node_id: NodeId,
+        reverse: bool,
+        compare: impl Fn(&str, &str) -> Ordering,
+    ) -> bool {
+        self.is_sorted_rec(node_id, reverse, &compare)
     }
 
-    fn sort_children_rec(&self, target_id: NodeId, reverse: bool) -> Tree {
+    fn sort_children_rec(
+        &self,
+        target_id: NodeId,
+        reverse: bool,
+        compare: &dyn Fn(&str, &str) -> Ordering,
+    ) -> Tree {
         if self.id_eq(target_id) {
-            let mut sorted_children = self.children.clone();
-            sorted_children.sort_by(|a, b| {
-                let a_text = a.node.plain_text().to_lowercase();
-                let b_text = b.node.plain_text().to_lowercase();
+            let texts: Vec<String> = self
+                .children
+                .iter()
+                .map(|child| child.node.plain_text())
+                .collect();
+            let mut order: Vec<usize> = (0..texts.len()).collect();
+            order.sort_by(|&a, &b| {
+                let ordering = compare(&texts[a], &texts[b]);
                 if reverse {
-                    b_text.cmp(&a_text)
+                    ordering.reverse()
                 } else {
-                    a_text.cmp(&b_text)
+                    ordering
                 }
             });
+            let sorted_children = order
+                .into_iter()
+                .map(|index| self.children[index].clone())
+                .collect();
 
             return Tree {
                 id: self.id,
@@ -581,40 +605,37 @@ impl Tree {
             children: self
                 .children
                 .iter()
-                .map(|child| child.sort_children_rec(target_id, reverse))
+                .map(|child| child.sort_children_rec(target_id, reverse, compare))
                 .collect(),
         }
     }
 
-    fn is_sorted_rec(&self, target_id: NodeId, reverse: bool) -> bool {
+    fn is_sorted_rec(
+        &self,
+        target_id: NodeId,
+        reverse: bool,
+        compare: &dyn Fn(&str, &str) -> Ordering,
+    ) -> bool {
         if self.id_eq(target_id) {
             let texts: Vec<String> = self
                 .children
                 .iter()
-                .map(|child| child.node.plain_text().to_lowercase())
+                .map(|child| child.node.plain_text())
                 .collect();
 
-            if texts.len() <= 1 {
-                return true;
-            }
-
-            for i in 1..texts.len() {
-                let comparison = texts[i - 1].cmp(&texts[i]);
+            return texts.windows(2).all(|pair| {
+                let ordering = compare(&pair[0], &pair[1]);
                 if reverse {
-                    if comparison == std::cmp::Ordering::Less {
-                        return false;
-                    }
-                } else if comparison == std::cmp::Ordering::Greater {
-                    return false;
+                    ordering != Ordering::Less
+                } else {
+                    ordering != Ordering::Greater
                 }
-            }
-
-            return true;
+            });
         }
 
         for child in &self.children {
             if child.contains(target_id) {
-                return child.is_sorted_rec(target_id, reverse);
+                return child.is_sorted_rec(target_id, reverse, compare);
             }
         }
 

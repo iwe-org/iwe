@@ -28,6 +28,7 @@ use diwe::stats::{
     SimilarityIndex,
 };
 use diwe::tokens::Truncation;
+use liwe::collation::TitleCollator;
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::node::NodePointer;
 use liwe::model::tree::{Tree, TreeIter};
@@ -1839,7 +1840,10 @@ impl IweServer {
             false,
             configuration.format_options(),
             configuration.workspace.frontmatter_document_title.clone(),
-        );
+        )
+        .with_collator(TitleCollator::for_locale(
+            configuration.workspace.locale.as_deref(),
+        ));
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: Some(workspace),
@@ -1861,7 +1865,9 @@ impl IweServer {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<HashMap<String, String>>(),
         );
-        let graph = Graph::from_state(&state, true, config.format_options(), None);
+        let graph = Graph::from_state(&state, true, config.format_options(), None).with_collator(
+            TitleCollator::for_locale(config.workspace.locale.as_deref()),
+        );
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,

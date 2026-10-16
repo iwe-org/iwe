@@ -13,6 +13,7 @@ fn setup_workspace() -> TempDir {
     let config = Configuration {
         workspace: WorkspaceOptions {
             path: "".to_string(),
+            locale: Some("en".to_string()),
             ..Default::default()
         },
         markdown: MarkdownOptions {

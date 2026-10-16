@@ -1,5 +1,6 @@
 use crate::queries::{and, eq, exists, filter, find, gte, or};
 use indoc::indoc;
+use liwe::collation::TitleCollator;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::execute;
@@ -12,7 +13,11 @@ use serde_yaml::{Mapping, Value};
 
 fn run_find(docs: &str, op: FindOp) -> Vec<(String, Mapping)> {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
-    match execute(&find(op), &graph).expect("query succeeds") {
+    run_find_in(&graph, op)
+}
+
+fn run_find_in(graph: &Graph, op: FindOp) -> Vec<(String, Mapping)> {
+    match execute(&find(op), graph).expect("query succeeds") {
         Outcome::Find { matches, .. } => matches
             .into_iter()
             .map(|m| (m.key.to_string(), m.document))
@@ -336,6 +341,106 @@ fn find_sort_and_limit() {
         "},
         filter(Filter::all()).sort(Sort::desc("modified")).limit(2),
         &["2", "3"],
+    );
+}
+
+fn names_sorted(names: &[&str], locale: Option<&str>, sort: Sort) -> Vec<String> {
+    let docs = names
+        .iter()
+        .map(|name| format!("---\nname: {}\n---\n# {}\n", name, name))
+        .collect::<Vec<_>>()
+        .join("\n_\n");
+    let mut graph = Graph::import(&from_indoc(&docs), MarkdownOptions::default(), None);
+    if let Some(locale) = locale {
+        graph = graph.with_collator(TitleCollator::for_locale(Some(locale)));
+    }
+    run_find_in(&graph, filter(Filter::all()).sort(sort))
+        .into_iter()
+        .map(|(key, _)| names[key.parse::<usize>().unwrap() - 1].to_string())
+        .collect()
+}
+
+#[test]
+fn find_sort_text_defaults_to_codepoint_order() {
+    assert_eq!(
+        names_sorted(
+            &["apple", "Zebra", "Note 10", "Note 2", "Émile"],
+            None,
+            Sort::asc("name")
+        ),
+        vec!["Note 10", "Note 2", "Zebra", "apple", "Émile"]
+    );
+}
+
+#[test]
+fn find_sort_text_with_locale_ignores_case_accents_and_compares_numbers_by_value() {
+    assert_eq!(
+        names_sorted(
+            &[
+                "Zebra",
+                "apple",
+                "Note 10",
+                "Émile",
+                "Note 2",
+                "Apple",
+                "🚀 banana"
+            ],
+            Some("en"),
+            Sort::asc("name")
+        ),
+        vec![
+            "apple",
+            "Apple",
+            "🚀 banana",
+            "Émile",
+            "Note 2",
+            "Note 10",
+            "Zebra"
+        ]
+    );
+}
+
+#[test]
+fn find_sort_text_with_locale_descending_reverses_natural_order() {
+    assert_eq!(
+        names_sorted(
+            &["apple", "Note 10", "Note 2"],
+            Some("en"),
+            Sort::desc("name")
+        ),
+        vec!["Note 10", "Note 2", "apple"]
+    );
+}
+
+#[test]
+fn find_sort_text_swedish_places_a_umlaut_after_z() {
+    assert_eq!(
+        names_sorted(
+            &["ähnlich", "zebra", "apple"],
+            Some("sv-SE"),
+            Sort::asc("name")
+        ),
+        vec!["apple", "zebra", "ähnlich"]
+    );
+}
+
+#[test]
+fn find_sort_text_czech_places_ch_after_h() {
+    assert_eq!(
+        names_sorted(
+            &["chata", "cesta", "hora", "dům"],
+            Some("cs"),
+            Sort::asc("name")
+        ),
+        vec!["cesta", "dům", "hora", "chata"]
+    );
+}
+
+#[test]
+fn find_sort_text_lithuanian_sorts_y_together_with_i() {
+    assert_eq!(
+        names_sorted(&["jau", "yra", "ir"], Some("lt"), Sort::asc("name")),
+        vec!["ir", "yra", "jau"]
     );
 }
 

@@ -18,6 +18,7 @@ use itertools::Itertools;
 use path::{graph_to_paths, NodePath};
 use rayon::prelude::*;
 
+use crate::collation::TitleCollator;
 use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
@@ -65,6 +66,7 @@ pub struct Graph {
     content: Documents,
     frontmatter_document_title: Option<String>,
     key_index: KeyIndex,
+    collator: TitleCollator,
 }
 
 pub trait Reader {
@@ -106,6 +108,15 @@ impl Graph {
         &self.format_options
     }
 
+    pub fn collator(&self) -> &TitleCollator {
+        &self.collator
+    }
+
+    pub fn with_collator(mut self, collator: TitleCollator) -> Graph {
+        self.collator = collator;
+        self
+    }
+
     pub fn wiki_display(&self, target: &Target) -> String {
         let resolved = self.resolve(target);
         match (
@@ -142,6 +153,7 @@ impl Graph {
             frontmatter: self.frontmatter.clone(),
             frontmatter_document_title: self.frontmatter_document_title.clone(),
             key_index: self.key_index.clone(),
+            collator: self.collator.clone(),
             ..Default::default()
         }
     }

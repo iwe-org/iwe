@@ -1,6 +1,7 @@
 use rayon::prelude::*;
 use serde_yaml::Mapping;
 
+use crate::collation::TitleCollator;
 use crate::graph::{Graph, GraphContext};
 use crate::model::node::{Node, NodeIter};
 use crate::model::tree::Tree;
@@ -108,12 +109,13 @@ fn apply_sort_and_limit(
     sort: Option<&Sort>,
     limit: Option<&Limit>,
     preserve_order: bool,
+    collator: &TitleCollator,
 ) -> Vec<(Key, Mapping)> {
     if !preserve_order {
         rows.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
     }
     if let Some(s) = sort {
-        sort_in_place(&mut rows, s);
+        sort_in_place(&mut rows, s, collator);
     }
     if let Some(l) = limit {
         if !l.is_unbounded() {
@@ -150,7 +152,13 @@ fn execute_find(op: &FindOp, graph: &Graph, scores: &QueryScores) -> Result<Outc
     };
 
     let rows = rows_for(keys, graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), preserve_order);
+    let rows = apply_sort_and_limit(
+        rows,
+        op.sort.as_ref(),
+        op.limit.as_ref(),
+        preserve_order,
+        graph.collator(),
+    );
     let matches: Vec<FindMatch> = rows
         .into_iter()
         .map(|(key, _)| {
@@ -164,13 +172,25 @@ fn execute_find(op: &FindOp, graph: &Graph, scores: &QueryScores) -> Result<Outc
 
 fn execute_count(op: &CountOp, graph: &Graph) -> Outcome {
     let rows = select(op.filter.as_ref(), graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), false);
+    let rows = apply_sort_and_limit(
+        rows,
+        op.sort.as_ref(),
+        op.limit.as_ref(),
+        false,
+        graph.collator(),
+    );
     Outcome::Count(rows.len())
 }
 
 fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
     let rows = select(Some(&op.filter), graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), false);
+    let rows = apply_sort_and_limit(
+        rows,
+        op.sort.as_ref(),
+        op.limit.as_ref(),
+        false,
+        graph.collator(),
+    );
     let mut bodies = if op.update.block_ops.is_empty() {
         None
     } else {
@@ -195,7 +215,13 @@ fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
 
 fn execute_delete(op: &DeleteOp, graph: &Graph) -> Result<Outcome, EvalError> {
     let rows = select(Some(&op.filter), graph);
-    let rows = apply_sort_and_limit(rows, op.sort.as_ref(), op.limit.as_ref(), false);
+    let rows = apply_sort_and_limit(
+        rows,
+        op.sort.as_ref(),
+        op.limit.as_ref(),
+        false,
+        graph.collator(),
+    );
     let documents: Vec<DocRef> = rows.iter().map(|(key, _)| doc_ref(graph, key)).collect();
     block_update::check_document_expect("delete", op.expect, &documents)?;
     let removed = rows.into_iter().map(|(k, _)| k).collect();

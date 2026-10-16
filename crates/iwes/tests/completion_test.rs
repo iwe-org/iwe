@@ -360,6 +360,144 @@ fn completion_with_wikilink_format_multiple_documents() {
 }
 
 #[test]
+fn completion_orders_titles_by_natural_order() {
+    let config = diwe::config::Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::WikiLink),
+            min_prefix_length: Some(0),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![
+            (
+                "first".to_string(),
+                indoc! {"
+                # Zebra
+            "}
+                .to_string(),
+            ),
+            (
+                "second".to_string(),
+                indoc! {"
+                # apple
+            "}
+                .to_string(),
+            ),
+            (
+                "third".to_string(),
+                indoc! {"
+                # Note 10
+            "}
+                .to_string(),
+            ),
+            (
+                "fourth".to_string(),
+                indoc! {"
+                # Note 2
+            "}
+                .to_string(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+        None,
+    )
+    .completion(
+        uri_from("first").to_completion_params(2, 0),
+        completion_list(vec![
+            completion_item(
+                "🔗 apple",
+                "[[second]]",
+                "apple",
+                "apple",
+                empty_range(2, 0),
+            ),
+            completion_item(
+                "🔗 Note 2",
+                "[[fourth]]",
+                "note2",
+                "Note 2",
+                empty_range(2, 0),
+            ),
+            completion_item(
+                "🔗 Note 10",
+                "[[third]]",
+                "note10",
+                "Note 10",
+                empty_range(2, 0),
+            ),
+            completion_item("🔗 Zebra", "[[first]]", "zebra", "Zebra", empty_range(2, 0)),
+        ]),
+    );
+}
+
+#[test]
+fn completion_orders_titles_by_workspace_locale() {
+    let config = diwe::config::Configuration {
+        completion: CompletionOptions {
+            link_format: Some(LinkType::WikiLink),
+            min_prefix_length: Some(0),
+            ..Default::default()
+        },
+        workspace: WorkspaceOptions {
+            locale: Some("cs".to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    Fixture::with_options_and_client(
+        vec![
+            (
+                "first".to_string(),
+                indoc! {"
+                # chata
+            "}
+                .to_string(),
+            ),
+            (
+                "second".to_string(),
+                indoc! {"
+                # cesta
+            "}
+                .to_string(),
+            ),
+            (
+                "third".to_string(),
+                indoc! {"
+                # hora
+            "}
+                .to_string(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        config,
+        "",
+        None,
+    )
+    .completion(
+        uri_from("first").to_completion_params(2, 0),
+        completion_list(vec![
+            completion_item(
+                "🔗 cesta",
+                "[[second]]",
+                "cesta",
+                "cesta",
+                empty_range(2, 0),
+            ),
+            completion_item("🔗 hora", "[[third]]", "hora", "hora", empty_range(2, 0)),
+            completion_item("🔗 chata", "[[first]]", "chata", "chata", empty_range(2, 0)),
+        ]),
+    );
+}
+
+#[test]
 fn completion_with_wikilink_format_shortens_nested_key_to_bare_name() {
     let config = diwe::config::Configuration {
         markdown: MarkdownOptions {

@@ -24,7 +24,13 @@ impl ActionProvider for SortAction {
         context
             .collect(&key)
             .get_surrounding_list_id(target_id)
-            .filter(|scope_id| !context.collect(&key).is_sorted(*scope_id, self.reverse))
+            .filter(|scope_id| {
+                !context
+                    .collect(&key)
+                    .is_sorted(*scope_id, self.reverse, |a, b| {
+                        context.graph().collator().compare(a, b)
+                    })
+            })
             .map(|_| Action {
                 title: self.title.clone(),
                 identifier: self.identifier(),
@@ -49,7 +55,9 @@ impl ActionProvider for SortAction {
                     key.clone(),
                     context
                         .collect(&key)
-                        .sort_children(scope_id, self.reverse)
+                        .sort_children(scope_id, self.reverse, |a, b| {
+                            context.graph().collator().compare(a, b)
+                        })
                         .iter()
                         .to_text(&key.parent(), &context.format_options()),
                 )

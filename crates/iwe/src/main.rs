@@ -42,6 +42,7 @@ use iwe::projection_args::{parse_projection_extend, parse_projection_replace};
 use iwe::render::{FindBlockRenderer, RetrieveRenderer};
 use iwe::retrieve::{DocumentReader, RetrieveOptions};
 use iwe::stats::{render_stats, GraphStatistics};
+use liwe::collation::TitleCollator;
 use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
 use liwe::model::node::NodePointer;
@@ -2781,6 +2782,9 @@ fn load_graph(configuration: &Configuration) -> Graph {
         configuration.format_options(),
         configuration.workspace.frontmatter_document_title.clone(),
     )
+    .with_collator(TitleCollator::for_locale(
+        configuration.workspace.locale.as_deref(),
+    ))
 }
 
 fn exit_on_missing_documents(graph: &Graph, keys: &[Key]) {

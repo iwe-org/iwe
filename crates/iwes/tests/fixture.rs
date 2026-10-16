@@ -501,10 +501,14 @@ impl Fixture {
 
     pub fn with_options_and_client(
         state: HashMap<String, String>,
-        configuration: Configuration,
+        mut configuration: Configuration,
         lsp_client_name: &str,
         override_now: Option<SystemTime>,
     ) -> Fixture {
+        configuration
+            .workspace
+            .locale
+            .get_or_insert_with(|| "en".to_string());
         let (connection, client) = Connection::memory();
         let client_name = Some(lsp_client_name.to_string());
 

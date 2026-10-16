@@ -146,7 +146,7 @@ impl<'a> DocumentFinder<'a> {
                 (k, m)
             })
             .collect();
-        sort_in_place(&mut rows, sort);
+        sort_in_place(&mut rows, sort, self.graph.collator());
         rows.into_iter().map(|(k, _)| k).collect()
     }
 

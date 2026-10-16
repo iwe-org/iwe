@@ -2,6 +2,7 @@ use actions::{all_action_types, ActionContext, ActionProvider};
 use diwe::config::{Command, Configuration, FormatOptions, MarkdownOptions};
 use diwe::fs::{key_escapes_workspace, read_md_file};
 use itertools::Itertools;
+use liwe::collation::TitleCollator;
 use liwe::model::node::Node;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
@@ -59,7 +60,10 @@ impl Server {
                 .workspace
                 .frontmatter_document_title
                 .clone(),
-        );
+        )
+        .with_collator(TitleCollator::for_locale(
+            config.configuration.workspace.locale.as_deref(),
+        ));
         Server {
             base_path: BasePath::from_path(&config.base_path, config.configuration.format),
             graph,
@@ -266,7 +270,7 @@ impl Server {
 
         let key_index = self.graph.key_index();
 
-        query::all_keys(&self.graph)
+        let mut items = query::all_keys(&self.graph)
             .iter()
             .map(|m| {
                 m.key.to_completion(
@@ -278,8 +282,11 @@ impl Server {
                     key_index,
                 )
             })
-            .sorted_by(|a, b| a.label.cmp(&b.label))
-            .collect_vec()
+            .collect_vec();
+        self.graph
+            .collator()
+            .sort_by_text(&mut items, |item| item.label.as_str());
+        items
     }
 
     pub fn handle_completion(&self, params: CompletionParams) -> CompletionResponse {

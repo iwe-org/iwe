@@ -1,3 +1,4 @@
+pub mod collation;
 #[cfg(feature = "djot")]
 pub mod djot;
 pub mod format;
