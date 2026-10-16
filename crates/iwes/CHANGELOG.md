@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `workspace/inlayHint/refresh` is sent when a document is created or removed
+
+### Changed
+
+- Backlinks, references and inlay hints follow wiki links to notes created, moved or removed after the linking note was opened (previously stale until the linking note was edited)
+- Rename sends no edits for notes whose wiki links still point at the moved note, and rewritten wiki links use the shortest name that resolves (was the full path)
+- Rename rewrites a `[[Name]]` link to another note that would otherwise start pointing at the renamed note, so it keeps its target
+
 ## [0.26.1](https://github.com/iwe-org/iwe/compare/iwes-v0.26.0...iwes-v0.26.1) - 2026-10-08
 
 Workspace version bump — no user-visible changes in this crate.

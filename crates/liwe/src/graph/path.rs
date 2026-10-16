@@ -95,7 +95,6 @@ pub fn graph_to_paths(graph: &Graph) -> Vec<NodePath> {
             path.first_id()
                 .map(|first_id| {
                     graph
-                        .index
                         .get_inclusion_edges_to(&graph.node_key(first_id))
                         .is_empty()
                         && graph
@@ -120,7 +119,6 @@ fn paths_for_node(graph: &Graph, id: NodeId, nodes: &mut HashSet<NodeId>) -> Vec
 
     let paths = match graph.graph_node(id) {
         GraphNode::Document(document) => graph
-            .index
             .get_inclusion_edges_to(document.key())
             .iter()
             .map(|node_id| graph.node(*node_id))

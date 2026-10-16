@@ -1,4 +1,5 @@
 use crate::fixture::Fixture;
+use diwe::config::{Configuration, MarkdownOptions, WikiLinkPath};
 use serde_json::json;
 
 #[tokio::test]
@@ -37,4 +38,29 @@ async fn squash_not_found() {
         .try_call_tool("iwe_squash", json!({"key": "nonexistent"}))
         .await;
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn squash_writes_resolved_wiki_link_in_full_mode() {
+    let f = Fixture::with_documents_and_config(
+        vec![
+            ("main", "# Main\n\ntext [[target]]\n"),
+            ("sub/target", "# Target\n"),
+        ],
+        Configuration {
+            markdown: MarkdownOptions {
+                wiki_link_path: WikiLinkPath::Full,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await;
+
+    let result = f.call_tool("iwe_squash", json!({"key": "main"})).await;
+
+    assert_eq!(
+        "# Main\n\ntext [[sub/target]]\n",
+        Fixture::result_text(&result)
+    );
 }

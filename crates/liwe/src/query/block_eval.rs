@@ -4,9 +4,10 @@ use crate::graph::{Graph, GraphContext};
 use crate::model::config::MarkdownOptions;
 use crate::model::ids::alloc_node_id;
 use crate::model::inline::{inlines_to_markdown, to_plain_text};
+use crate::model::key_index::KeyIndex;
 use crate::model::node::Node;
 use crate::model::projector::Projector;
-use crate::model::reference::ReferenceType;
+use crate::model::reference::{ReferenceType, Target as RefTarget};
 use crate::model::tree::{Tree, TreeIter};
 use crate::model::writer::{blocks_to_markdown_sparce, Block};
 use crate::model::{Key, NodeId};
@@ -92,12 +93,18 @@ impl BlockIndex {
         let tree = graph.collect(key);
         BlockIndex::from_tree(
             &tree,
+            graph.key_index(),
             graph.format_options().markdown_options(),
             key.parent(),
         )
     }
 
-    pub fn from_tree(tree: &Tree, options: MarkdownOptions, parent_dir: String) -> BlockIndex {
+    pub fn from_tree(
+        tree: &Tree,
+        key_index: &KeyIndex,
+        options: MarkdownOptions,
+        parent_dir: String,
+    ) -> BlockIndex {
         let mut index = BlockIndex {
             blocks: Vec::new(),
             roots: Vec::new(),
@@ -105,7 +112,7 @@ impl BlockIndex {
             parent_dir,
         };
         for child in &tree.children {
-            let i = index.add(child, None, 1, &[]);
+            let i = index.add(child, key_index, None, 1, &[]);
             index.roots.push(i);
         }
         index
@@ -220,8 +227,10 @@ impl BlockIndex {
                 return line.to_string();
             }
         }
-        if let Node::Reference(reference) = &self.blocks[i].node {
-            return reference.key.to_string();
+        if let (Node::Reference(_), Some(key)) =
+            (&self.blocks[i].node, self.blocks[i].ref_targets.first())
+        {
+            return key.to_string();
         }
         let mut mask = vec![false; self.blocks.len()];
         self.mark_subtree(i, &mut mask);
@@ -234,7 +243,14 @@ impl BlockIndex {
             .to_string()
     }
 
-    fn add(&mut self, tree: &Tree, parent: Option<usize>, level: u8, path: &[String]) -> usize {
+    fn add(
+        &mut self,
+        tree: &Tree,
+        key_index: &KeyIndex,
+        parent: Option<usize>,
+        level: u8,
+        path: &[String],
+    ) -> usize {
         let i = self.blocks.len();
         self.blocks.push(BlockInfo {
             id: Some(tree.id),
@@ -245,7 +261,10 @@ impl BlockIndex {
             own_text: self.compute_own_text(&tree.node),
             header_level: level,
             path: path.to_vec(),
-            ref_targets: ref_targets(&tree.node),
+            ref_targets: ref_targets(&tree.node)
+                .iter()
+                .map(|target| key_index.target_key(target))
+                .collect(),
         });
         let (child_level, child_path) = match &tree.node {
             Node::Section(inlines) => {
@@ -259,7 +278,7 @@ impl BlockIndex {
             _ => (level, path.to_vec()),
         };
         for child in &tree.children {
-            let c = self.add(child, Some(i), child_level, &child_path);
+            let c = self.add(child, key_index, Some(i), child_level, &child_path);
             self.blocks[i].children.push(c);
         }
         i
@@ -553,10 +572,10 @@ impl BlockIndex {
                     Value::String(b.kind.name().to_string()),
                 );
                 entry.insert(Value::String("path".to_string()), path_value(&b.path));
-                if let Node::Reference(reference) = &b.node {
+                if let (Node::Reference(_), Some(key)) = (&b.node, b.ref_targets.first()) {
                     entry.insert(
                         Value::String("target".to_string()),
-                        Value::String(reference.key.to_string()),
+                        Value::String(key.to_string()),
                     );
                 }
                 entry.insert(
@@ -609,18 +628,18 @@ fn kind_of(node: &Node) -> Kind {
     }
 }
 
-fn ref_targets(node: &Node) -> Vec<Key> {
+fn ref_targets(node: &Node) -> Vec<RefTarget> {
     match node {
-        Node::Reference(reference) => vec![reference.key.clone()],
+        Node::Reference(reference) => vec![reference.target.clone()],
         Node::Section(inlines) | Node::Leaf(inlines) | Node::Item(_, inlines) => {
-            inlines.iter().flat_map(|i| i.ref_keys()).collect()
+            inlines.iter().flat_map(|i| i.targets()).collect()
         }
         Node::Table(table) => table
             .header
             .iter()
             .chain(table.rows.iter().flatten())
             .flatten()
-            .flat_map(|i| i.ref_keys())
+            .flat_map(|i| i.targets())
             .collect(),
         _ => Vec::new(),
     }

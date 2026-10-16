@@ -143,6 +143,26 @@ impl Router {
         } else {
             error!("Failed to get mutable reference to server");
         }
+        self.refresh_inlay_hints_on_key_set_change();
+    }
+
+    fn refresh_inlay_hints_on_key_set_change(&mut self) {
+        let changed = Arc::get_mut(&mut self.server)
+            .map(|server| server.take_key_set_changed())
+            .unwrap_or(false);
+        if changed {
+            self.refresh_inlay_hints();
+        }
+    }
+
+    fn refresh_inlay_hints(&self) {
+        if self.inlay_hints_used.load(Ordering::Relaxed) {
+            self.delay_send(Message::Request(Request {
+                id: Uuid::new_v4().to_string().into(),
+                method: "workspace/inlayHint/refresh".to_string(),
+                params: serde_json::Value::Null,
+            }));
+        }
     }
 
     fn refresh_search_index(&mut self) {
@@ -234,6 +254,8 @@ impl Router {
                 debug!("unhandled request: {}", default)
             }
         };
+
+        self.refresh_inlay_hints_on_key_set_change();
 
         false
     }
@@ -343,14 +365,8 @@ impl Router {
                     id: request.id,
                     response_result: Ok(value),
                 });
-                if request.method.as_str() == "codeAction/resolve"
-                    && self.inlay_hints_used.load(Ordering::Relaxed)
-                {
-                    self.delay_send(Message::Request(Request {
-                        id: Uuid::new_v4().to_string().into(),
-                        method: "workspace/inlayHint/refresh".to_string(),
-                        params: serde_json::Value::Null,
-                    }));
+                if request.method.as_str() == "codeAction/resolve" {
+                    self.refresh_inlay_hints();
                 }
             }
             Err(_) => self.respond(Response::new_err(

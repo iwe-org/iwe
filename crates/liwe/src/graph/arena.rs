@@ -32,6 +32,12 @@ impl Arena {
         self.nodes.get(&id).cloned().unwrap_or(GraphNode::Empty)
     }
 
+    pub fn contains(&self, id: NodeId) -> bool {
+        self.nodes
+            .get(&id)
+            .is_some_and(|node| !matches!(node, GraphNode::Empty))
+    }
+
     pub fn get_line(&self, id: LineId) -> &Line {
         self.lines.get(&id).unwrap_or_else(|| empty_line())
     }

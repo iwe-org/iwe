@@ -32,8 +32,8 @@ fn bfs_inclusion(graph: &Graph, anchor: &Key, max_depth: u32, outbound: bool) ->
             graph
                 .get_inclusion_edges_in(&current)
                 .into_iter()
-                .filter_map(|node_id| graph.graph_node(node_id).ref_key())
-                .filter(|key| graph.has_key(key))
+                .filter_map(|node_id| graph.graph_node(node_id).ref_target())
+                .filter_map(|target| graph.resolve(&target))
                 .collect()
         } else {
             graph

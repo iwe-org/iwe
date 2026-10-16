@@ -8,6 +8,7 @@ use crate::model::node::NodePointer;
 use crate::model::node::Reference;
 use crate::model::node::ReferenceType;
 use crate::model::node::Table;
+use crate::model::node::Target;
 use crate::model::LineRange;
 use crate::model::NodeId;
 
@@ -51,6 +52,10 @@ impl<'a> NodePointer<'a> for GraphNodePointer<'a> {
             id,
             graph: self.graph,
         })
+    }
+
+    fn to_target(&self, target: &Target) -> Option<Self> {
+        self.graph.resolve(target).and_then(|key| self.to_key(key))
     }
 }
 
@@ -114,9 +119,10 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
             GraphNode::HorizontalRule(_) => Some(Node::HorizontalRule()),
             GraphNode::Reference(reference) => {
                 let inlines = match reference.reference_type() {
-                    ReferenceType::Regular if self.graph.normalize_ref_text() => self
-                        .graph
-                        .get_ref_text(reference.key())
+                    ReferenceType::Regular if self.graph.normalize_ref_text() => reference
+                        .target()
+                        .path_key()
+                        .and_then(|key| self.graph.get_ref_text(key))
                         .map(|title| text_to_inlines(&title))
                         .unwrap_or_else(|| reference.inlines().clone()),
                     ReferenceType::Regular | ReferenceType::WikiLinkPiped => {
@@ -125,19 +131,17 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
                     ReferenceType::WikiLink => Vec::new(),
                 };
 
-                let key = reference.key().clone();
                 let display_url = match reference.reference_type() {
                     ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
-                        Some(self.graph.wiki_display(&key, reference.url()))
+                        Some(self.graph.wiki_display(reference.target()))
                     }
                     ReferenceType::Regular => None,
                 };
 
                 Some(Node::Reference(Reference {
-                    key,
+                    target: reference.target().clone(),
                     inlines,
                     reference_type: reference.reference_type(),
-                    url: reference.url().to_string(),
                     display_url,
                 }))
             }

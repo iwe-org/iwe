@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use itertools::Itertools;
 
 use crate::graph::{Graph, GraphContext};
-use crate::model::node::NodeIter;
+use crate::model::node::{NodeIter, Target};
 use crate::model::Key;
 
 use super::changes::{Changes, OperationError};
@@ -25,11 +25,13 @@ pub fn delete(graph: &Graph, target_key: &Key) -> Result<Changes, OperationError
         .map(|node_id| graph.key_of(node_id))
         .collect();
 
+    let links_to = |target: &Target| graph.target_key(target) == *target_key;
+
     for affected_key in affected.iter().sorted() {
         let tree = graph.collect(affected_key);
         let updated = tree
-            .remove_inclusion_edges_to(target_key)
-            .remove_inline_links_to(target_key);
+            .remove_inclusion_edges_to(&links_to)
+            .remove_inline_links_to(&links_to);
         let markdown = updated.iter().to_text(&affected_key.parent(), &format);
         result.add_update(affected_key.clone(), markdown);
     }

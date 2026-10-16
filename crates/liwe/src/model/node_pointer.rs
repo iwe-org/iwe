@@ -2,6 +2,7 @@ use crate::model::{Key, NodeId};
 
 use super::node::Node;
 use super::node_iter::NodeIter;
+use super::reference::Target;
 use super::tree::Tree;
 
 pub trait NodePointer<'a>: NodeIter<'a> {
@@ -11,6 +12,7 @@ pub trait NodePointer<'a>: NodeIter<'a> {
     fn prev_id(&self) -> Option<NodeId>;
     fn to_node(&self, id: NodeId) -> Self;
     fn to_key(&self, key: Key) -> Option<Self>;
+    fn to_target(&self, target: &Target) -> Option<Self>;
 
     fn at(&self, id: NodeId) -> bool {
         self.id() == Some(id)
@@ -63,10 +65,10 @@ pub trait NodePointer<'a>: NodeIter<'a> {
         sections
     }
 
-    fn ref_key(&self) -> Option<Key> {
+    fn ref_target(&self) -> Option<Target> {
         self.node().and_then(|node| {
             if let Node::Reference(reference) = node {
-                Some(reference.key.clone())
+                Some(reference.target.clone())
             } else {
                 None
             }

@@ -27,6 +27,7 @@ use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
 use crate::model::node::Node;
 use crate::model::node::{NodeIter, NodePointer};
+use crate::model::reference::Target;
 use crate::model::InlinesContext;
 use crate::model::{Content, Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
@@ -105,12 +106,30 @@ impl Graph {
         &self.format_options
     }
 
-    pub fn wiki_display(&self, key: &Key, original_url: &str) -> String {
-        match self.format_options.markdown_options().wiki_link_path {
-            WikiLinkPath::Full => key.to_workspace_url(),
-            WikiLinkPath::Short => self.key_index.shorten_wiki(key),
-            WikiLinkPath::Preserve => original_url.to_string(),
+    pub fn wiki_display(&self, target: &Target) -> String {
+        let resolved = self.resolve(target);
+        match (
+            self.format_options.markdown_options().wiki_link_path,
+            resolved,
+        ) {
+            (WikiLinkPath::Preserve, _) | (_, None) => target.unresolved_url(),
+            (WikiLinkPath::Full, Some(key)) => key.to_workspace_url(),
+            (WikiLinkPath::Short, Some(key)) => self.key_index.shorten_wiki(&key),
         }
+    }
+
+    pub fn target_key(&self, target: &Target) -> Key {
+        self.key_index.target_key(target)
+    }
+
+    pub fn resolve(&self, target: &Target) -> Option<Key> {
+        self.key_index.resolve(target)
+    }
+
+    pub fn reference_target_key(&self, id: NodeId) -> Option<Key> {
+        self.graph_node(id)
+            .ref_target()
+            .map(|target| self.target_key(&target))
     }
 
     pub fn normalize_ref_text(&self) -> bool {
@@ -236,10 +255,9 @@ impl Graph {
 
     pub fn get_document_references_to(&self, key: &Key) -> Vec<DocumentReference> {
         let mut seen = HashSet::new();
-        self.index
-            .get_inclusion_edges_to(key)
+        self.get_inclusion_edges_to(key)
             .into_iter()
-            .chain(self.index.get_reference_edges_to(key))
+            .chain(self.get_reference_edges_to(key))
             .filter_map(|node_id| {
                 let source_key = self.node_key(node_id);
                 if source_key == *key || !seen.insert(source_key.clone()) {
@@ -262,10 +280,7 @@ impl Graph {
                 while let Some(id) = child_id {
                     let child = self.graph_node(id);
                     if matches!(child, GraphNode::Section(_))
-                        && self
-                            .index
-                            .get_inclusion_edges_to(&self.node_key(id))
-                            .is_empty()
+                        && self.get_inclusion_edges_to(&self.node_key(id)).is_empty()
                     {
                         return Some(key.clone());
                     }
@@ -277,11 +292,27 @@ impl Graph {
     }
 
     pub fn inclusion_edge_target_keys(&self) -> Vec<Key> {
-        self.index.inclusion_edge_target_keys().cloned().collect()
+        self.edge_target_keys(
+            self.index.inclusion_edge_target_keys(),
+            self.index.inclusion_edge_names(),
+        )
     }
 
     pub fn reference_edge_target_keys(&self) -> Vec<Key> {
-        self.index.reference_edge_target_keys().cloned().collect()
+        self.edge_target_keys(
+            self.index.reference_edge_target_keys(),
+            self.index.reference_edge_names(),
+        )
+    }
+
+    fn edge_target_keys<'a>(
+        &self,
+        keys: impl Iterator<Item = &'a Key>,
+        names: impl Iterator<Item = &'a String>,
+    ) -> Vec<Key> {
+        let mut out: HashSet<Key> = keys.cloned().collect();
+        out.extend(names.map(|written| self.key_index.resolve_wiki(written)));
+        out.into_iter().collect()
     }
 
     pub fn with<F>(f: F) -> Graph
@@ -422,14 +453,10 @@ impl Graph {
             self.frontmatter.remove(&key);
         }
 
-        let mut key_index = std::mem::take(&mut self.key_index);
-        key_index.insert(&key);
-
         let mut build_key = self.build_key(&key);
         let id = build_key.id();
 
-        let nodes_map =
-            SectionsBuilder::new(&mut build_key, &document.blocks, &key, &key_index).nodes_map();
+        let nodes_map = SectionsBuilder::new(&mut build_key, &document.blocks, &key).nodes_map();
 
         self.nodes_map.insert(key.clone(), nodes_map.clone());
         self.global_nodes_map.extend(nodes_map);
@@ -437,8 +464,6 @@ impl Graph {
         let mut index = RefIndex::new();
         index.index_node(self, id);
         self.index.merge(index);
-
-        self.key_index = key_index;
 
         self.extract_ref_text(&key)
             .map(|text| self.keys_to_ref_text.insert(key, text));
@@ -527,28 +552,14 @@ impl Graph {
         let outputs: Vec<DocBuildOutput> = if state.len() < PARALLEL_BUILD_THRESHOLD {
             state
                 .iter()
-                .map(|(k, v)| {
-                    build_doc(
-                        &ids,
-                        Key::from_stripped(k),
-                        v.clone(),
-                        &format_options,
-                        &key_index,
-                    )
-                })
+                .map(|(k, v)| build_doc(&ids, Key::from_stripped(k), v.clone(), &format_options))
                 .collect()
         } else {
             state
                 .par_iter()
                 .map(|(k, v)| {
                     debug!("building doc, key={}", k);
-                    build_doc(
-                        &ids,
-                        Key::from_stripped(k),
-                        v.clone(),
-                        &format_options,
-                        &key_index,
-                    )
+                    build_doc(&ids, Key::from_stripped(k), v.clone(), &format_options)
                 })
                 .collect()
         };
@@ -583,7 +594,7 @@ impl Graph {
             .map(|id| self.get_line(id).to_plain_text())
             .unwrap_or_default();
 
-        let ref_key = self.graph_node(id).ref_key().unwrap_or_default();
+        let ref_key = self.reference_target_key(id).unwrap_or_default();
 
         let _ = writeln!(
             f,
@@ -606,11 +617,28 @@ impl Graph {
     }
 
     pub fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
-        self.index
-            .get_inclusion_edges_to(key)
-            .iter()
-            .filter(|id| !self.graph_node(**id).is_empty())
-            .cloned()
+        let bucket = KeyIndex::key_bucket(key);
+        self.edges_to(
+            key,
+            self.index.get_inclusion_edges_to(key),
+            self.index.inclusion_names_in(&bucket),
+        )
+    }
+
+    fn edges_to<'a>(
+        &self,
+        key: &Key,
+        by_key: Vec<NodeId>,
+        by_name: impl Iterator<Item = (&'a String, &'a HashSet<NodeId>)>,
+    ) -> Vec<NodeId> {
+        let mut ids: HashSet<NodeId> = by_key.into_iter().collect();
+        for (written, set) in by_name {
+            if self.key_index.resolve_wiki(written) == *key {
+                ids.extend(set);
+            }
+        }
+        ids.into_iter()
+            .filter(|id| self.arena.contains(*id))
             .collect()
     }
 
@@ -626,42 +654,37 @@ impl Graph {
             .unwrap_or_default()
     }
 
-    pub fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
+    pub fn get_wiki_edges_named_like(&self, key: &Key) -> Vec<NodeId> {
+        let bucket = KeyIndex::key_bucket(key);
         self.index
-            .get_reference_edges_to(key)
-            .iter()
-            .filter(|id| !self.graph_node(**id).is_empty())
-            .cloned()
+            .inclusion_names_in(&bucket)
+            .chain(self.index.reference_names_in(&bucket))
+            .flat_map(|(_, ids)| ids.iter().cloned())
+            .filter(|id| !self.graph_node(*id).is_empty())
             .collect()
+    }
+
+    pub fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
+        let bucket = KeyIndex::key_bucket(key);
+        self.edges_to(
+            key,
+            self.index.get_reference_edges_to(key),
+            self.index.reference_names_in(&bucket),
+        )
     }
 
     pub fn get_reference_edges_in(&self, key: &Key) -> Vec<Key> {
         let Some(pointer) = self.maybe_key(key) else {
             return Vec::new();
         };
-        let mut keys = Vec::new();
-        for node_id in pointer.get_all_sub_nodes() {
-            match self.graph_node(node_id) {
-                GraphNode::Section(section) => {
-                    keys.extend(self.get_line(section.line_id()).ref_keys());
-                }
-                GraphNode::Leaf(leaf) => {
-                    keys.extend(self.get_line(leaf.line_id()).ref_keys());
-                }
-                GraphNode::Table(table) => {
-                    for line_id in table.header() {
-                        keys.extend(self.get_line(*line_id).ref_keys());
-                    }
-                    for row in table.rows() {
-                        for line_id in row {
-                            keys.extend(self.get_line(*line_id).ref_keys());
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        keys
+        pointer
+            .get_all_sub_nodes()
+            .into_iter()
+            .map(|node_id| self.graph_node(node_id))
+            .filter(|node| !node.is_ref())
+            .flat_map(|node| node.targets(self))
+            .map(|target| self.target_key(&target))
+            .collect()
     }
 }
 
@@ -716,8 +739,8 @@ impl InlinesContext for &Graph {
     fn get_ref_title(&self, key: &Key) -> Option<String> {
         self.get_key_title(key)
     }
-    fn wiki_display(&self, key: &Key, original_url: &str) -> String {
-        Graph::wiki_display(self, key, original_url)
+    fn wiki_display(&self, target: &Target) -> String {
+        Graph::wiki_display(self, target)
     }
     fn normalize_ref_text(&self) -> bool {
         Graph::normalize_ref_text(self)
@@ -739,7 +762,6 @@ fn build_doc(
     key: Key,
     content: String,
     format_options: &FormatOptions,
-    key_index: &KeyIndex,
 ) -> DocBuildOutput {
     let document = crate::format::read_document(&content, format_options);
 
@@ -751,7 +773,6 @@ fn build_doc(
         &mut GraphBuilder::new(&mut arena, root_id),
         &document.blocks,
         &key,
-        key_index,
     )
     .nodes_map();
 
@@ -1077,6 +1098,30 @@ mod retention_tests {
         assert_eq!(graph.index.key_counts(), key_counts);
         assert_eq!(graph.to_markdown(&"source".into()), markdown);
         assert_eq!(graph.get_reference_edges_to(&"target".into()).len(), 1);
+    }
+
+    #[test]
+    fn alternating_shallower_document_keeps_index_bounded() {
+        let mut graph = Graph::new();
+        graph.insert_document(
+            "source".into(),
+            "[[target]]\n\ntext [[target]]\n".to_string(),
+        );
+        graph.insert_document("deep/target".into(), "# Deep\n".to_string());
+
+        let edge_counts = graph.index.edge_counts();
+        let key_counts = graph.index.key_counts();
+
+        for _ in 0..100 {
+            graph.insert_document("target".into(), "# Target\n".to_string());
+            assert_eq!(graph.get_inclusion_edges_to(&"target".into()).len(), 1);
+            graph.remove_document("target".into());
+            assert_eq!(graph.get_inclusion_edges_to(&"deep/target".into()).len(), 1);
+        }
+
+        assert_eq!(graph.index.edge_counts(), edge_counts);
+        assert_eq!(graph.index.key_counts(), key_counts);
+        assert_eq!(graph.get_reference_edges_to(&"deep/target".into()).len(), 1);
     }
 
     fn table_document() -> String {

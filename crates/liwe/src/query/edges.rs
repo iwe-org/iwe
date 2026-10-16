@@ -43,7 +43,7 @@ pub fn includes(graph: &Graph, key: &Key) -> Vec<EdgeRef> {
     let refs = graph.get_inclusion_edges_in(key);
     let mut out = Vec::new();
     for ref_id in refs {
-        if let Some(ref_key) = graph.graph_node(ref_id).ref_key() {
+        if let Some(ref_key) = graph.reference_target_key(ref_id) {
             let title = graph
                 .get_key_title(&ref_key)
                 .unwrap_or_else(|| ref_key.to_string());

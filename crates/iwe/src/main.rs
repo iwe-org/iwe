@@ -2598,7 +2598,7 @@ fn build_tree_node(
         let ref_node_ids = graph.get_inclusion_edges_in(key);
         ref_node_ids
             .iter()
-            .filter_map(|id| graph.graph_node(*id).ref_key())
+            .filter_map(|id| graph.reference_target_key(*id))
             .sorted()
             .filter_map(|ref_key| build_tree_node(graph, &ref_key, max_depth - 1, project, visited))
             .collect()
@@ -2677,7 +2677,7 @@ fn build_tree_lines(
     let ref_node_ids = graph.get_inclusion_edges_in(key);
     let ref_keys: Vec<Key> = ref_node_ids
         .iter()
-        .filter_map(|id| graph.graph_node(*id).ref_key())
+        .filter_map(|id| graph.reference_target_key(*id))
         .sorted()
         .collect();
     for ref_key in &ref_keys {
@@ -2746,7 +2746,7 @@ fn squash_command(args: Squash) {
         eprintln!("Error: Document '{}' not found", args.key);
         std::process::exit(1);
     }
-    let mut patch = Graph::new();
+    let mut patch = graph.new_patch();
     let squashed = graph.squash(&key, args.depth);
 
     patch.build_key_from_iter(&args.key.clone().into(), TreeIter::new(&squashed));
@@ -3516,7 +3516,7 @@ fn inline_command(args: Inline) {
     let tree = (&graph).collect(&source_key);
 
     if args.list {
-        for reference in references(&tree) {
+        for reference in references(&tree, graph.key_index()) {
             println!(
                 "{}: [{}]({})",
                 reference.number, reference.title, reference.key
@@ -3525,7 +3525,12 @@ fn inline_command(args: Inline) {
         return;
     }
 
-    let selected = match select_reference(&tree, args.reference.as_deref(), args.block) {
+    let selected = match select_reference(
+        &tree,
+        graph.key_index(),
+        args.reference.as_deref(),
+        args.block,
+    ) {
         Ok(reference) => reference,
         Err(SelectError::NotFound(query)) => {
             eprintln!("Error: No reference matches '{}'", query);

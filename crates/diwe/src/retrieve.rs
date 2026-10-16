@@ -294,7 +294,7 @@ impl<'a> DocumentReader<'a> {
         let mut children = Vec::new();
 
         for ref_id in refs {
-            if let Some(ref_key) = self.graph.graph_node(ref_id).ref_key() {
+            if let Some(ref_key) = self.graph.reference_target_key(ref_id) {
                 let title = self
                     .graph
                     .get_key_title(&ref_key)

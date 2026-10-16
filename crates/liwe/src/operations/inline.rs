@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::graph::{Graph, GraphContext};
 use crate::model::config::InlineType;
 use crate::model::ids::alloc_node_id;
-use crate::model::node::{Node, NodeIter};
+use crate::model::node::{Node, NodeIter, Target};
 use crate::model::tree::Tree;
 use crate::model::{Key, NodeId};
 
@@ -30,9 +30,16 @@ pub fn inline(
         ));
     }
 
-    let inline_key = tree.find_reference_key(ref_id);
+    let inline_target = tree.find_reference_target(ref_id);
+    let inline_key = inline_target
+        .as_ref()
+        .map(|target| graph.target_key(target))
+        .unwrap_or_default();
 
-    if graph.get_node_id(&inline_key).is_none() {
+    if inline_target
+        .and_then(|target| graph.resolve(&target))
+        .is_none()
+    {
         return Err(OperationError::TargetNotFound(inline_key));
     }
 
@@ -78,11 +85,13 @@ pub fn inline(
             .filter(|k| k != source_key && k != &inline_key)
             .collect();
 
+        let links_to = |target: &Target| graph.target_key(target) == inline_key;
+
         for ref_key in additional_refs.iter().sorted() {
             let tree = graph.collect(ref_key);
             let updated = tree
-                .remove_inclusion_edges_to(&inline_key)
-                .remove_inline_links_to(&inline_key);
+                .remove_inclusion_edges_to(&links_to)
+                .remove_inline_links_to(&links_to);
             let markdown = updated.iter().to_text(&ref_key.parent(), &format);
             result.add_update(ref_key.clone(), markdown);
         }

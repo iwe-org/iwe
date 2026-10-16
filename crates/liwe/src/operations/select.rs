@@ -1,3 +1,4 @@
+use crate::model::key_index::KeyIndex;
 use crate::model::node::Node;
 use crate::model::tree::Tree;
 use crate::model::{Key, NodeId};
@@ -72,32 +73,33 @@ pub fn select_section(
     }
 }
 
-pub fn references(tree: &Tree) -> Vec<InclusionRef> {
+pub fn references(tree: &Tree, key_index: &KeyIndex) -> Vec<InclusionRef> {
     let mut out = Vec::new();
-    collect_references(tree, &mut out);
+    collect_references(tree, key_index, &mut out);
     out
 }
 
-fn collect_references(tree: &Tree, out: &mut Vec<InclusionRef>) {
+fn collect_references(tree: &Tree, key_index: &KeyIndex, out: &mut Vec<InclusionRef>) {
     if let Node::Reference(reference) = &tree.node {
         out.push(InclusionRef {
             number: out.len() + 1,
             title: reference.text(),
-            key: reference.key.clone(),
+            key: key_index.target_key(&reference.target),
             id: tree.id,
         });
     }
     for child in &tree.children {
-        collect_references(child, out);
+        collect_references(child, key_index, out);
     }
 }
 
 pub fn select_reference(
     tree: &Tree,
+    key_index: &KeyIndex,
     reference: Option<&str>,
     block: Option<usize>,
 ) -> Result<InclusionRef, SelectError<InclusionRef>> {
-    let references = references(tree);
+    let references = references(tree, key_index);
     if let Some(reference) = reference {
         let needle = reference.to_lowercase();
         let matches: Vec<InclusionRef> = references

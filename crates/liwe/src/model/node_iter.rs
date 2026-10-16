@@ -1,4 +1,4 @@
-use crate::model::{Key, LineRange, NodeId};
+use crate::model::{LineRange, NodeId};
 
 use super::config::FormatOptions;
 use super::ids::alloc_node_id;
@@ -101,16 +101,6 @@ pub trait NodeIter<'a>: Sized {
         self.node().and_then(|node| {
             if let Node::Reference(reference) = node {
                 Some(reference.text())
-            } else {
-                None
-            }
-        })
-    }
-
-    fn ref_key2(&self) -> Option<Key> {
-        self.node().and_then(|node| {
-            if let Node::Reference(reference) = node {
-                Some(reference.key.clone())
             } else {
                 None
             }

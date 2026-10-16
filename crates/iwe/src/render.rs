@@ -2,6 +2,7 @@ use diwe::config::MarkdownOptions;
 use diwe::retrieve::{DocumentOutput, EdgeRef, RetrieveOutput};
 use liwe::graph::{Graph, GraphContext};
 use liwe::model::node::NodePointer;
+use liwe::model::node::Target;
 use liwe::model::projector::Projector;
 use liwe::model::tree::TreeIter;
 use liwe::model::writer::{blocks_to_markdown_sparce_skip_frontmatter, Block};
@@ -446,8 +447,8 @@ fn render_body(graph: &Graph, options: &MarkdownOptions, key: &str) -> String {
 fn render_content(graph: &Graph, key: &Key) -> Vec<Block> {
     let tree = graph.collect(key);
 
-    let parent_lookup = |ref_key: &Key| -> Vec<(Key, String)> {
-        let refs = graph.get_inclusion_edges_to(ref_key);
+    let parent_lookup = |target: &Target| -> Vec<(Key, String)> {
+        let refs = graph.get_inclusion_edges_to(&graph.target_key(target));
         let mut parents = Vec::new();
 
         for ref_id in refs {
