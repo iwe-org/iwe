@@ -22,8 +22,12 @@ impl Fixture {
 
     pub async fn with_documents_and_config(
         documents: Vec<(&str, &str)>,
-        config: Configuration,
+        mut config: Configuration,
     ) -> Self {
+        config
+            .workspace
+            .locale
+            .get_or_insert_with(|| "en".to_string());
         let server = IweServer::from_documents_with_config(documents, config);
         Self::serve(server).await
     }

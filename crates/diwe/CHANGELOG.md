@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `DocumentFinder` sorts text fields with the graph's `TitleCollator` (codepoint order unless the graph was given a localized collator)
+
 ## [0.27.0](https://github.com/iwe-org/iwe/compare/diwe-v0.26.1...diwe-v0.27.0) - 2026-10-16
 
 ### Added

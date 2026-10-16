@@ -176,3 +176,134 @@ fn sort_ordered_list() {
         .to_code_action("Sort", "custom.sort"),
     );
 }
+
+#[test]
+fn sort_ignores_case_accents_and_compares_numbers_by_value() {
+    let mut configuration = Configuration::default();
+
+    configuration.actions.insert(
+        "sort".into(),
+        ActionDefinition::Sort(Sort {
+            title: "Sort".into(),
+            reverse: Some(false),
+        }),
+    );
+
+    Fixture::with_config(
+        indoc! {"
+            - Zebra
+            - Note 10
+            - apple
+            - Émile
+            - Note 2
+            - 🚀 banana
+            - Apple
+            "},
+        configuration,
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.sort"),
+        vec![uri(1).to_edit(indoc! {"
+                - apple
+                - Apple
+                - 🚀 banana
+                - Émile
+                - Note 2
+                - Note 10
+                - Zebra
+                "})]
+        .to_workspace_edit()
+        .to_code_action("Sort", "custom.sort"),
+    );
+}
+
+#[test]
+fn sort_not_offered_when_sorted_by_natural_order() {
+    let mut configuration = Configuration::default();
+
+    configuration.actions.insert(
+        "sort".into(),
+        ActionDefinition::Sort(Sort {
+            title: "Sort".into(),
+            reverse: Some(false),
+        }),
+    );
+
+    Fixture::with_config(
+        indoc! {"
+            - apple
+            - Banana
+            - Note 2
+            - Note 10
+            - Zebra
+            "},
+        configuration,
+    )
+    .no_code_action(uri(1).to_code_action_params(0, "custom.sort"));
+}
+
+#[test]
+fn sort_follows_workspace_locale() {
+    let mut configuration = Configuration::default();
+    configuration.workspace.locale = Some("sv-SE".into());
+
+    configuration.actions.insert(
+        "sort".into(),
+        ActionDefinition::Sort(Sort {
+            title: "Sort".into(),
+            reverse: Some(false),
+        }),
+    );
+
+    Fixture::with_config(
+        indoc! {"
+            - ähnlich
+            - zebra
+            - apple
+            "},
+        configuration,
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.sort"),
+        vec![uri(1).to_edit(indoc! {"
+                - apple
+                - zebra
+                - ähnlich
+                "})]
+        .to_workspace_edit()
+        .to_code_action("Sort", "custom.sort"),
+    );
+}
+
+#[test]
+fn sort_danish_locale_places_double_a_after_z() {
+    let mut configuration = Configuration::default();
+    configuration.workspace.locale = Some("da-DK".into());
+
+    configuration.actions.insert(
+        "sort".into(),
+        ActionDefinition::Sort(Sort {
+            title: "Sort".into(),
+            reverse: Some(false),
+        }),
+    );
+
+    Fixture::with_config(
+        indoc! {"
+            - Aalborg
+            - Zebra
+            - Arhus
+            "},
+        configuration,
+    )
+    .code_action(
+        uri(1).to_code_action_params(0, "custom.sort"),
+        vec![uri(1).to_edit(indoc! {"
+                - Arhus
+                - Zebra
+                - Aalborg
+                "})]
+        .to_workspace_edit()
+        .to_code_action("Sort", "custom.sort"),
+    );
+}

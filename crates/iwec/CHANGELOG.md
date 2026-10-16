@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `iwe_find` and `iwe_query` `sort` on text fields use locale-aware collation: case and accents no longer split results, `Note 2` sorts before `Note 10` and emoji are ignored except to break ties (previously byte order)
+- The collation language comes from `workspace.locale` in `.iwe/config.toml`, falling back to the system locale and then English
+
 ## [0.27.0](https://github.com/iwe-org/iwe/compare/iwec-v0.26.1...iwec-v0.27.0) - 2026-10-16
 
 ### Changed

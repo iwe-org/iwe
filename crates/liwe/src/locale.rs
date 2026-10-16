@@ -9,10 +9,14 @@ pub fn get_locale(config_locale: Option<&str>) -> Locale {
         .unwrap_or(Locale::POSIX)
 }
 
+pub fn strip_locale_encoding(value: &str) -> &str {
+    let trimmed = value.trim();
+    trimmed.split(['.', '@']).next().unwrap_or(trimmed)
+}
+
 fn parse_locale(locale_str: &str) -> Option<Locale> {
-    let code = locale_str.replace('-', "_");
-    let code = code.split('.').next().unwrap_or(&code);
-    Locale::from_str(code).ok()
+    let code = strip_locale_encoding(locale_str).replace('-', "_");
+    Locale::from_str(&code).ok()
 }
 
 #[cfg(test)]
@@ -35,6 +39,12 @@ mod tests {
     #[test]
     fn test_encoding_suffix_stripped() {
         let locale = get_locale(Some("de_DE.UTF-8"));
+        assert_eq!(locale, Locale::de_DE);
+    }
+
+    #[test]
+    fn test_modifier_suffix_stripped() {
+        let locale = get_locale(Some("de_DE@euro"));
         assert_eq!(locale, Locale::de_DE);
     }
 

@@ -224,7 +224,7 @@ sort:  { modified_at: -1 }   # 1 = ascending, -1 = descending
 limit: 100                   # 0 = no limit
 ```
 
-v1 accepts exactly one sort key. Ties (and the no-sort case) are broken by document key in ascending lexicographic order.
+v1 accepts exactly one sort key. Ties (and the no-sort case) are broken by document key in ascending lexicographic order. When run through the `iwe` CLI, the LSP server or the MCP server, text values sort with the collation rules of the workspace locale: case and accents only break ties, `Note 2` comes before `Note 10`, and emoji are ignored unless the remaining text is identical. The engine itself defaults to codepoint order.
 
 ## Update operators
 

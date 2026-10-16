@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `collation::TitleCollator` for locale-aware text ordering (case and accents break ties only, numbers compare by value, emoji are ignored); `TitleCollator::binary()` keeps codepoint order
+- `Graph::collator` and `Graph::with_collator`; the default is binary
+- `locale::strip_locale_encoding`
+
+### Changed
+
+- `sort_in_place` takes a `&TitleCollator`; `Tree::sort_children` and `Tree::is_sorted` take a comparator closure
+
+### Fixed
+
+- `get_locale` accepts locale strings with a `@` modifier such as `de_DE@euro`
+
 ## [0.27.0](https://github.com/iwe-org/iwe/compare/liwe-v0.26.1...liwe-v0.27.0) - 2026-10-16
 
 ### Added

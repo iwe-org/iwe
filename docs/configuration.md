@@ -82,7 +82,7 @@ list_token = "-"
 - `path`: Subdirectory for markdown files relative to project root (default: empty, uses root)
 - `date_format`: Date format for file key generation and the `{{today}}` variable (default: `"%Y-%m-%d"`, e.g., "2024-01-15")
 - `time_format`: Format for the `{{now}}` variable in file key generation (default: falls back to `date_format`). Use this to include time components in keys, e.g., `"%Y-%m-%d-%H%M"` for sortable keys with time.
-- `locale`: Locale for date formatting (default: auto-detected from system). Affects day and month names when using `%A`, `%B`, etc.
+- `locale`: Locale for date formatting and for sorting (default: auto-detected from system). Affects day and month names when using `%A`, `%B`, etc., and picks the language rules used to order titles and other text in query `sort`, the sort action and completion.
 - `frontmatter_document_title`: YAML frontmatter field to use as document title (default: none, uses first header)
 
 ### Completion Settings
@@ -143,6 +143,8 @@ With this configuration:
 
 - File keys use English day/month names: `journal/Friday-March-27`
 - Document content uses German: `# Freitag, 27. März 2026`
+
+`workspace.locale` also selects the collation rules for sorting. Text is ordered the way the language expects (case and accents only break ties, digit runs compare by value so `Note 2` comes before `Note 10`, and emoji are skipped unless the remaining text is identical). Set it in a shared workspace so every machine sorts the same way; without it the system locale is used, and English is the fallback.
 
 The locale accepts both POSIX format (`de_DE`) and BCP47 format (`de-DE`). Encoding suffixes like `.UTF-8` are automatically stripped.
 

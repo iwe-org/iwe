@@ -2,15 +2,41 @@ use std::cmp::Ordering;
 
 use serde_yaml::{Mapping, Value};
 
+use crate::collation::{apply_order, SortKey, TitleCollator};
 use crate::model::Key;
 use crate::query::document::{is_operator_segment, FieldPath, Sort, SortDir};
 use crate::query::filter::cmp_ordered;
 
-pub fn sort_in_place(rows: &mut [(Key, Mapping)], sort: &Sort) {
-    rows.sort_by(|a, b| {
-        let primary = compare_values(lookup(&a.1, &sort.key), lookup(&b.1, &sort.key), sort.dir);
-        primary.then_with(|| a.0.cmp(&b.0))
+pub fn sort_in_place(rows: &mut [(Key, Mapping)], sort: &Sort, collator: &TitleCollator) {
+    let values: Vec<Option<&Value>> = rows
+        .iter()
+        .map(|(_, mapping)| lookup(mapping, &sort.key))
+        .collect();
+    let keys: Vec<Option<SortKey<'_>>> = values
+        .iter()
+        .map(|value| match value {
+            Some(Value::String(text)) => Some(collator.sort_key(text)),
+            _ => None,
+        })
+        .collect();
+    let mut order: Vec<usize> = (0..rows.len()).collect();
+    order.sort_by(|&a, &b| {
+        let primary = match (&keys[a], &keys[b]) {
+            (Some(key_a), Some(key_b)) => directed(collator.compare_keys(key_a, key_b), sort.dir),
+            _ => compare_values(values[a], values[b], sort.dir),
+        };
+        primary.then_with(|| rows[a].0.cmp(&rows[b].0))
     });
+    drop(keys);
+    drop(values);
+    apply_order(rows, &order);
+}
+
+fn directed(ordering: Ordering, dir: SortDir) -> Ordering {
+    match dir {
+        SortDir::Asc => ordering,
+        SortDir::Desc => ordering.reverse(),
+    }
 }
 
 fn lookup<'a>(doc: &'a Mapping, path: &FieldPath) -> Option<&'a Value> {
@@ -40,10 +66,7 @@ fn compare_values(a: Option<&Value>, b: Option<&Value>, dir: SortDir) -> Orderin
         (false, true) => Ordering::Greater,
         (false, false) => total_cmp(a.unwrap(), b.unwrap()),
     };
-    match dir {
-        SortDir::Asc => raw,
-        SortDir::Desc => raw.reverse(),
-    }
+    directed(raw, dir)
 }
 
 fn total_cmp(a: &Value, b: &Value) -> Ordering {
@@ -104,6 +127,10 @@ mod tests {
         Sort { key: path, dir }
     }
 
+    fn english() -> TitleCollator {
+        TitleCollator::for_locale(Some("en"))
+    }
+
     fn key_order(rows: &[(Key, Mapping)]) -> Vec<String> {
         rows.iter().map(|(k, _)| k.to_string()).collect()
     }
@@ -114,7 +141,7 @@ mod tests {
         let b = doc(vec![("priority", 5i64.into())]);
         let c = doc(vec![("priority", 3i64.into())]);
         let mut rows = vec![(k("a"), a), (k("b"), b), (k("c"), c)];
-        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc));
+        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc), &english());
         assert_eq!(key_order(&rows), vec!["a", "c", "b"]);
     }
 
@@ -124,7 +151,7 @@ mod tests {
         let b = doc(vec![("priority", 5i64.into())]);
         let c = doc(vec![("priority", 3i64.into())]);
         let mut rows = vec![(k("a"), a), (k("b"), b), (k("c"), c)];
-        sort_in_place(&mut rows, &sort_with("priority", SortDir::Desc));
+        sort_in_place(&mut rows, &sort_with("priority", SortDir::Desc), &english());
         assert_eq!(key_order(&rows), vec!["b", "c", "a"]);
     }
 
@@ -134,7 +161,7 @@ mod tests {
         let b = doc(vec![("priority", Value::Null)]);
         let c = Mapping::new();
         let mut rows = vec![(k("a"), a), (k("b"), b), (k("c"), c)];
-        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc));
+        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc), &english());
         let order = key_order(&rows);
         assert_eq!(order[2], "a");
         assert!(order[0..2].contains(&"b".to_string()));
@@ -147,7 +174,7 @@ mod tests {
         let b = doc(vec![("priority", Value::Null)]);
         let c = Mapping::new();
         let mut rows = vec![(k("a"), a), (k("b"), b), (k("c"), c)];
-        sort_in_place(&mut rows, &sort_with("priority", SortDir::Desc));
+        sort_in_place(&mut rows, &sort_with("priority", SortDir::Desc), &english());
         let order = key_order(&rows);
         assert_eq!(order[0], "a");
         assert!(order[1..3].contains(&"b".to_string()));
@@ -168,8 +195,32 @@ mod tests {
             (k("d"), d),
             (k("e"), e),
         ];
-        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc));
+        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc), &english());
         assert_eq!(key_order(&rows), vec!["e", "a", "c", "b", "d"]);
+    }
+
+    #[test]
+    fn binary_collator_orders_strings_by_codepoint() {
+        let a = doc(vec![("name", "apple".into())]);
+        let b = doc(vec![("name", "Zebra".into())]);
+        let c = doc(vec![("name", "Émile".into())]);
+        let mut rows = vec![(k("a"), a), (k("b"), b), (k("c"), c)];
+        sort_in_place(
+            &mut rows,
+            &sort_with("name", SortDir::Asc),
+            &TitleCollator::binary(),
+        );
+        assert_eq!(key_order(&rows), vec!["b", "a", "c"]);
+    }
+
+    #[test]
+    fn locale_collator_orders_strings_naturally() {
+        let a = doc(vec![("name", "apple".into())]);
+        let b = doc(vec![("name", "Zebra".into())]);
+        let c = doc(vec![("name", "Émile".into())]);
+        let mut rows = vec![(k("a"), a), (k("b"), b), (k("c"), c)];
+        sort_in_place(&mut rows, &sort_with("name", SortDir::Asc), &english());
+        assert_eq!(key_order(&rows), vec!["a", "c", "b"]);
     }
 
     #[test]
@@ -178,7 +229,7 @@ mod tests {
         let b = doc(vec![("priority", 1i64.into())]);
         let c = doc(vec![("priority", 1i64.into())]);
         let mut rows = vec![(k("a"), a), (k("b"), b), (k("c"), c)];
-        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc));
+        sort_in_place(&mut rows, &sort_with("priority", SortDir::Asc), &english());
         assert_eq!(key_order(&rows), vec!["a", "b", "c"]);
     }
 }
