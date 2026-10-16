@@ -1,7 +1,8 @@
 use crate::model::InlinesContext;
 
 use crate::model::inline::{to_plain_text, Inlines};
-use crate::model::{Key, LineId};
+use crate::model::reference::Target;
+use crate::model::LineId;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Line {
@@ -26,8 +27,8 @@ impl Line {
         &self.inlines
     }
 
-    pub fn ref_keys(&self) -> Vec<Key> {
-        self.inlines.iter().flat_map(|i| i.ref_keys()).collect()
+    pub fn targets(&self) -> Vec<Target> {
+        self.inlines.iter().flat_map(|i| i.targets()).collect()
     }
 
     pub fn normalize(&self, context: impl InlinesContext) -> Inlines {

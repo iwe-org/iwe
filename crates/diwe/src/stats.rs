@@ -424,7 +424,7 @@ impl KeyStatistics {
 
             if let Some(id) = iter.id() {
                 if let Some(line_id) = graph.graph_node(id).line_id() {
-                    stats.references_count += graph.get_line(line_id).ref_keys().len();
+                    stats.references_count += graph.get_line(line_id).targets().len();
                 }
             }
         }

@@ -17,26 +17,99 @@ impl ReferenceType {
             ReferenceType::WikiLinkPiped => LinkType::WikiLinkPiped,
         }
     }
+
+    pub fn is_wiki(&self) -> bool {
+        matches!(self, ReferenceType::WikiLink | ReferenceType::WikiLinkPiped)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Target {
+    Path { key: Key, fragment: Option<String> },
+    Name(String),
+}
+
+impl Target {
+    pub fn path(key: Key) -> Target {
+        Target::Path {
+            key,
+            fragment: None,
+        }
+    }
+
+    pub fn name(written: &str) -> Target {
+        Target::Name(written.to_string())
+    }
+
+    pub fn for_key(key: &Key, reference_type: ReferenceType) -> Target {
+        if reference_type.is_wiki() {
+            Target::Name(key.to_workspace_url())
+        } else {
+            Target::path(key.clone())
+        }
+    }
+
+    pub fn from_link_url(url: &str, relative_to: &str, reference_type: ReferenceType) -> Target {
+        if reference_type.is_wiki() {
+            return Target::name(url);
+        }
+        Target::Path {
+            key: Key::from_rel_link_url(url, relative_to),
+            fragment: url
+                .split_once('#')
+                .map(|(_, fragment)| fragment.to_string()),
+        }
+    }
+
+    pub fn path_key(&self) -> Option<&Key> {
+        match self {
+            Target::Path { key, .. } => Some(key),
+            Target::Name(_) => None,
+        }
+    }
+
+    pub fn written_name(&self) -> Option<&str> {
+        match self {
+            Target::Name(written) => Some(written),
+            Target::Path { .. } => None,
+        }
+    }
+
+    pub fn fragment(&self) -> Option<&str> {
+        match self {
+            Target::Path { fragment, .. } => fragment.as_deref(),
+            Target::Name(_) => None,
+        }
+    }
+
+    pub fn unresolved_url(&self) -> String {
+        match self {
+            Target::Path { key, .. } => key.to_workspace_url(),
+            Target::Name(written) => written.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Reference {
-    pub key: Key,
+    pub target: Target,
     pub inlines: Inlines,
     pub reference_type: ReferenceType,
-    pub url: String,
     pub display_url: Option<String>,
 }
 
 impl Reference {
-    pub fn plain(key: Key, text: &str, reference_type: ReferenceType, url: String) -> Reference {
+    pub fn plain(target: Target, text: &str, reference_type: ReferenceType) -> Reference {
         Reference {
-            key,
+            target,
             inlines: text_to_inlines(text),
             reference_type,
-            url,
             display_url: None,
         }
+    }
+
+    pub fn to_key(key: Key, text: &str) -> Reference {
+        Reference::plain(Target::path(key), text, ReferenceType::Regular)
     }
 
     pub fn text(&self) -> String {

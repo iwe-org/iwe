@@ -869,6 +869,14 @@ impl Fixture {
         self
     }
 
+    pub fn wait_for_inlay_hint_refresh(&self) -> &Self {
+        self.wait_for_message_cond(1, |msg: &Message| {
+            matches!(msg, Message::Request(req) if req.method == "workspace/inlayHint/refresh")
+        })
+        .unwrap_or_else(|Timeout| panic!("timeout while waiting for inlay hint refresh"));
+        self
+    }
+
     pub fn did_save_text_document(&self, params: DidSaveTextDocumentParams) -> &Self {
         self.notification::<DidSaveTextDocument>(params);
         self
@@ -931,6 +939,9 @@ impl Fixture {
                         {
                             continue;
                         }
+                    }
+                    if req.method == "workspace/inlayHint/refresh" {
+                        continue;
                     }
                     if req.method == "window/showDocument" {
                         if let Some(uri) = req.params.get("uri").and_then(|v| v.as_str()) {

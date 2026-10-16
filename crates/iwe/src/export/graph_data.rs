@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use liwe::{
     graph::{Graph, GraphContext},
-    model::{node::NodePointer, tree::Tree, Key, NodeId},
+    model::{key_index::KeyIndex, node::NodePointer, tree::Tree, Key, NodeId},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -82,7 +82,15 @@ fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
         backlinks: HashSet::new(),
     };
 
-    build_sections(&key.to_string(), &mut cache, key_depth, 0, 100, &tree);
+    build_sections(
+        &key.to_string(),
+        graph.key_index(),
+        &mut cache,
+        key_depth,
+        0,
+        100,
+        &tree,
+    );
 
     GraphData {
         sections: cache.sections.clone(),
@@ -103,6 +111,7 @@ fn build_graph_data(graph: &Graph, key: &Key, key_depth: u8) -> GraphData {
 
 fn build_sections(
     key: &str,
+    key_index: &KeyIndex,
     cache: &mut GraphCache,
     key_depth: u8,
     depth: u8,
@@ -122,7 +131,15 @@ fn build_sections(
                     key: key.to_string(),
                 },
             );
-            build_sections(key, cache, key_depth, depth + 1, _max_depth, child);
+            build_sections(
+                key,
+                key_index,
+                cache,
+                key_depth,
+                depth + 1,
+                _max_depth,
+                child,
+            );
         } else if child.is_section() {
             cache.sections.insert(
                 child_id,
@@ -136,9 +153,21 @@ fn build_sections(
             if tree.is_section() {
                 cache.section_to_section.insert((tree.id, child_id));
             }
-            build_sections(key, cache, key_depth, depth + 1, _max_depth, child);
+            build_sections(
+                key,
+                key_index,
+                cache,
+                key_depth,
+                depth + 1,
+                _max_depth,
+                child,
+            );
         } else if child.is_reference() {
-            if let Some(ref_key) = child.node.reference_key() {
+            if let Some(ref_key) = child
+                .node
+                .reference_target()
+                .map(|target| key_index.target_key(&target))
+            {
                 cache.section_to_document.insert((tree.id, ref_key.clone()));
                 cache.document_to_document.insert((key.into(), ref_key));
             }
@@ -203,7 +232,12 @@ fn get_keys_for_depth(graph: &Graph, key: &Key, depth: u8, collected_keys: &mut 
     if depth == 0 {
         return;
     }
-    let keys = graph.collect(key).get_all_inclusion_edge_keys();
+    let keys = graph
+        .collect(key)
+        .get_all_inclusion_edge_targets()
+        .iter()
+        .map(|target| graph.target_key(target))
+        .collect_vec();
     for k in keys {
         if !collected_keys.contains_key(&k) && graph.maybe_key(&k).is_some() {
             get_keys_for_depth(graph, &k, depth - 1, collected_keys);
@@ -220,7 +254,7 @@ fn resolve_key(graph: &Graph, key: &Key) -> NodeId {
 
 #[cfg(test)]
 mod tests {
-    use liwe::model::node::{Node, Reference, ReferenceType};
+    use liwe::model::node::{Node, Reference, ReferenceType, Target};
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -240,10 +274,9 @@ mod tests {
                         vec![Tree::new(
                             4,
                             Node::Reference(Reference {
-                                key: Key::name("2"),
+                                target: Target::path(Key::name("2")),
                                 inlines: Vec::new(),
                                 reference_type: ReferenceType::Regular,
-                                url: String::new(),
                                 display_url: None,
                             }),
                             vec![],
@@ -255,10 +288,9 @@ mod tests {
                         vec![Tree::new(
                             6,
                             Node::Reference(Reference {
-                                key: Key::name("3"),
+                                target: Target::path(Key::name("3")),
                                 inlines: Vec::new(),
                                 reference_type: ReferenceType::Regular,
-                                url: String::new(),
                                 display_url: None,
                             }),
                             vec![],
@@ -270,7 +302,7 @@ mod tests {
 
         let mut cache = GraphCache::default();
 
-        build_sections("1", &mut cache, 2, 0, 100, &doc1);
+        build_sections("1", &KeyIndex::default(), &mut cache, 2, 0, 100, &doc1);
 
         assert_eq!(
             GraphCache {

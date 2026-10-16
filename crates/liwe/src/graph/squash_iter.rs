@@ -25,8 +25,7 @@ impl<'a> SquashIter<'a> {
         self.graph
             .node(self.id)
             .to_next()
-            .and_then(|n| n.ref_key())
-            .and_then(|key| self.graph.maybe_key(&key))
+            .and_then(|n| n.ref_target().and_then(|target| n.to_target(&target)))
             .and_then(|doc| doc.to_child())
             .and_then(|node| node.id())
     }
@@ -35,8 +34,7 @@ impl<'a> SquashIter<'a> {
         self.resume_id
             .map(|id| self.graph.node(id))
             .and_then(|n| n.to_next())
-            .and_then(|n| n.ref_key())
-            .and_then(|key| self.graph.maybe_key(&key))
+            .and_then(|n| n.ref_target().and_then(|target| n.to_target(&target)))
             .and_then(|doc| doc.to_child())
             .and_then(|node| node.id())
     }
@@ -51,8 +49,7 @@ impl<'a> SquashIter<'a> {
         self.graph
             .node(self.id)
             .to_child()
-            .and_then(|n| n.ref_key())
-            .and_then(|key| self.graph.maybe_key(&key))
+            .and_then(|n| n.ref_target().and_then(|target| n.to_target(&target)))
             .and_then(|doc| doc.to_child())
             .and_then(|node| node.id())
     }

@@ -170,7 +170,7 @@ impl CmarkTableWriter {
                     events.push(Event::Start(Tag::Link {
                         title: "".into(),
                         link_type: link_type(reference.reference_type.to_link_type()),
-                        dest_url: reference.key.to_workspace_url().into(),
+                        dest_url: reference.target.unresolved_url().into(),
                         id: "".into(),
                     }));
                     events.extend(self.inlines_to_events(reference.inlines));

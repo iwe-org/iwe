@@ -5,7 +5,14 @@ use itertools::Itertools;
 use liwe::model::node::Node;
 use liwe::{
     graph::{DatabaseContext, Graph, GraphContext},
-    model::{is_ref_url, node::NodePointer, reference::ReferenceType, tree::Tree, Key, NodeId},
+    model::{
+        is_ref_url,
+        node::NodePointer,
+        reference::{ReferenceType, Target},
+        tree::Tree,
+        Key, NodeId,
+    },
+    operations::rename,
 };
 use lsp_server::ResponseError;
 use lsp_types::*;
@@ -38,6 +45,7 @@ pub struct Server {
     search_index_dirty: bool,
     override_now: Option<SystemTime>,
     open_documents: HashSet<Key>,
+    key_set_changed: bool,
 }
 
 impl Server {
@@ -61,7 +69,22 @@ impl Server {
             search_index_dirty: true,
             override_now: config.override_now,
             open_documents: HashSet::new(),
+            key_set_changed: false,
         }
+    }
+
+    pub fn take_key_set_changed(&mut self) -> bool {
+        std::mem::take(&mut self.key_set_changed)
+    }
+
+    fn store_document(&mut self, key: Key, content: String) {
+        self.key_set_changed |= !self.graph.has_key(&key);
+        self.graph.update_document(key, content);
+    }
+
+    fn drop_document(&mut self, key: Key) {
+        self.key_set_changed |= self.graph.has_key(&key);
+        self.graph.remove_document(key);
     }
     pub fn graph(&self) -> impl DatabaseContext + '_ {
         &self.graph
@@ -91,7 +114,7 @@ impl Server {
         if self.graph.get_document(&key).as_deref() == Some(content.as_str()) {
             return;
         }
-        self.graph.update_document(key, content);
+        self.store_document(key, content);
         self.search_index_dirty = true;
     }
 
@@ -102,7 +125,7 @@ impl Server {
         if self.graph.get_document(&key).is_none() {
             return;
         }
-        self.graph.remove_document(key);
+        self.drop_document(key);
         self.search_index_dirty = true;
     }
 
@@ -114,7 +137,7 @@ impl Server {
         if self.graph.get_document(&key).as_deref() == Some(params.text_document.text.as_str()) {
             return;
         }
-        self.graph.update_document(key, params.text_document.text);
+        self.store_document(key, params.text_document.text);
         self.search_index_dirty = true;
     }
 
@@ -132,13 +155,13 @@ impl Server {
                 if self.graph.get_document(&key).as_deref() == Some(content.as_str()) {
                     return;
                 }
-                self.graph.update_document(key, content);
+                self.store_document(key, content);
             }
             None => {
                 if self.graph.get_document(&key).is_none() {
                     return;
                 }
-                self.graph.remove_document(key);
+                self.drop_document(key);
             }
         }
         self.search_index_dirty = true;
@@ -146,8 +169,7 @@ impl Server {
 
     fn resolve_link_key(&self, url: &str, relative_to: &str, reference_type: ReferenceType) -> Key {
         self.graph
-            .key_index()
-            .resolve_link_key(url, relative_to, reference_type)
+            .target_key(&Target::from_link_url(url, relative_to, reference_type))
     }
 
     fn ref_type_at(&self, key: &Key, position: liwe::model::Position) -> ReferenceType {
@@ -198,7 +220,7 @@ impl Server {
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
         if let Some(text) = params.text {
-            self.graph.update_document(
+            self.store_document(
                 self.base_path.url_to_key(&params.text_document.uri.clone()),
                 text,
             );
@@ -210,7 +232,7 @@ impl Server {
         let Some(content) = params.content_changes.first() else {
             return;
         };
-        self.graph.update_document(
+        self.store_document(
             self.base_path.url_to_key(&params.text_document.uri.clone()),
             content.text.clone(),
         );
@@ -371,7 +393,7 @@ impl Server {
             }
             ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => self
                 .base_path
-                .key_to_url(&self.graph.key_index().resolve_wiki(&url)),
+                .key_to_url(&self.graph.target_key(&Target::name(&url))),
         };
 
         DefinitionResult::Internal(GotoDefinitionResponse::Scalar(Location::new(
@@ -418,9 +440,8 @@ impl Server {
                     .map(|range| (id, range.start))
             })
             .flat_map(|(id, line)| {
-                (&self.graph)
-                    .node(id)
-                    .ref_key()
+                self.graph
+                    .reference_target_key(id)
                     .map(|key| self.graph.get_inclusion_edges_to(&key))
                     .map(|refs| {
                         refs.into_iter()
@@ -565,54 +586,30 @@ impl Server {
                 .and_then(|parser| parser.url_at(position))
                 .map(|url| self.resolve_link_key(&url, relative_to, reference_type))
                 .filter(|key| query::key_exists(&self.graph, key))
-                .map(|key| {
-                    let affected_keys = query::all_backlinks(&self.graph, &key)
-                        .into_iter()
-                        .filter(|k| k != &key)
-                        .sorted()
-                        .collect_vec();
-
-                    let mut patch = self.graph.new_patch();
-
-                    patch.build_key(&new_key).insert_from_iter(
-                        (&self.graph)
-                            .collect(&key)
-                            .change_key(&key, &new_key)
-                            .iter(),
-                    );
-
-                    affected_keys.iter().for_each(|affected_key| {
-                        patch.build_key(affected_key).insert_from_iter(
-                            (&self.graph)
-                                .collect(affected_key)
-                                .change_key(&key, &new_key)
-                                .iter(),
-                        );
-                    });
-
-                    let document_changes = affected_keys
-                        .into_iter()
-                        .map(|affected_key| {
+                .and_then(|key| rename(&self.graph, &key, &new_key).ok())
+                .map(|changes| {
+                    let document_changes = changes
+                        .updates
+                        .iter()
+                        .map(|(affected_key, markdown)| {
                             self.base_path
-                                .key_to_url(&affected_key)
-                                .to_override_file_op(
-                                    &self.base_path,
-                                    patch.export_key(&affected_key).expect("to have key"),
-                                )
+                                .key_to_url(affected_key)
+                                .to_override_file_op(&self.base_path, markdown.clone())
                         })
-                        .chain(vec![key
-                            .clone()
-                            .to_full_url(&self.base_path)
-                            .to_delete_file_op()])
-                        .chain(vec![
-                            new_key.to_full_url(&self.base_path).to_create_file_op(),
-                            new_key
-                                .to_full_url(&self.base_path)
-                                .to_override_new_file_op(
-                                    &self.base_path,
-                                    patch.export_key(&new_key).expect("to have key"),
-                                ),
-                        ])
+                        .chain(
+                            changes
+                                .removes
+                                .iter()
+                                .map(|key| key.to_full_url(&self.base_path).to_delete_file_op()),
+                        )
+                        .chain(changes.creates.iter().flat_map(|(new_key, markdown)| {
+                            vec![
+                                new_key.to_full_url(&self.base_path).to_create_file_op(),
+                                new_key
+                                    .to_full_url(&self.base_path)
+                                    .to_override_new_file_op(&self.base_path, markdown.clone()),
+                            ]
+                        }))
                         .collect();
 
                     WorkspaceEdit {

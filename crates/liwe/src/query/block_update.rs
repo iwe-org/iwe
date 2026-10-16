@@ -218,6 +218,7 @@ impl DocCtx {
         let tree = graph.collect(key);
         let index = BlockIndex::from_tree(
             &tree,
+            graph.key_index(),
             graph.format_options().markdown_options(),
             key.parent(),
         );

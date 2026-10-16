@@ -4,6 +4,7 @@ mod djot_roundtrip;
 mod formatting_test;
 mod frontmatter_title_test;
 mod links_test;
+mod live_resolution_test;
 mod normalization_escapes;
 mod normalization_headers;
 mod normalization_html;

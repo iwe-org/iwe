@@ -1,14 +1,72 @@
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use percent_encoding::percent_decode_str;
 
 use crate::model::config::WikiLinkPath;
-use crate::model::reference::ReferenceType;
+use crate::model::reference::Target;
 use crate::model::{strip_doc_extension, Key};
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct KeyIndex {
     by_basename: HashMap<String, Vec<Key>>,
+    resolutions: RwLock<Resolutions>,
+}
+
+#[derive(Default)]
+struct Resolutions {
+    by_written: HashMap<String, Resolution>,
+    written_in_bucket: HashMap<String, Vec<String>>,
+    shortened: HashMap<Key, String>,
+    shortened_in_bucket: HashMap<String, Vec<Key>>,
+}
+
+#[derive(Clone)]
+struct Resolution {
+    key: Key,
+    resolved: bool,
+}
+
+impl Resolutions {
+    fn insert(&mut self, written: &str, bucket: String, resolution: Resolution) {
+        if self
+            .by_written
+            .insert(written.to_string(), resolution)
+            .is_none()
+        {
+            self.written_in_bucket
+                .entry(bucket)
+                .or_default()
+                .push(written.to_string());
+        }
+    }
+
+    fn insert_shortened(&mut self, key: &Key, bucket: String, shortened: String) {
+        if self.shortened.insert(key.clone(), shortened).is_none() {
+            self.shortened_in_bucket
+                .entry(bucket)
+                .or_default()
+                .push(key.clone());
+        }
+    }
+
+    fn invalidate(&mut self, bucket: &str) {
+        for written in self.written_in_bucket.remove(bucket).unwrap_or_default() {
+            self.by_written.remove(&written);
+        }
+        for key in self.shortened_in_bucket.remove(bucket).unwrap_or_default() {
+            self.shortened.remove(&key);
+        }
+    }
+}
+
+impl Clone for KeyIndex {
+    fn clone(&self) -> Self {
+        KeyIndex {
+            by_basename: self.by_basename.clone(),
+            resolutions: RwLock::default(),
+        }
+    }
 }
 
 impl KeyIndex {
@@ -17,7 +75,7 @@ impl KeyIndex {
 
         for key in keys {
             by_basename
-                .entry(fold(&key.source()))
+                .entry(key_bucket(key))
                 .or_default()
                 .push(key.clone());
         }
@@ -26,7 +84,10 @@ impl KeyIndex {
             bucket.sort_by(resolution_order);
         }
 
-        KeyIndex { by_basename }
+        KeyIndex {
+            by_basename,
+            resolutions: RwLock::default(),
+        }
     }
 
     pub fn wiki_target(&self, target: &Key, mode: WikiLinkPath) -> String {
@@ -37,35 +98,123 @@ impl KeyIndex {
     }
 
     pub fn insert(&mut self, key: &Key) {
-        let bucket = self.by_basename.entry(fold(&key.source())).or_default();
+        let basename = key_bucket(key);
+        let bucket = self.by_basename.entry(basename.clone()).or_default();
         if !bucket.contains(key) {
             bucket.push(key.clone());
             bucket.sort_by(resolution_order);
+            self.cache_mut().invalidate(&basename);
         }
     }
 
     pub fn remove(&mut self, key: &Key) {
-        let basename = fold(&key.source());
+        let basename = key_bucket(key);
         if let Some(bucket) = self.by_basename.get_mut(&basename) {
             bucket.retain(|existing| existing != key);
             if bucket.is_empty() {
                 self.by_basename.remove(&basename);
             }
+            self.cache_mut().invalidate(&basename);
+        }
+    }
+
+    fn cache(&self) -> RwLockReadGuard<'_, Resolutions> {
+        self.resolutions
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn cache_write(&self) -> RwLockWriteGuard<'_, Resolutions> {
+        self.resolutions
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn cache_mut(&mut self) -> &mut Resolutions {
+        self.resolutions
+            .get_mut()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn resolution(&self, written: &str) -> Resolution {
+        if let Some(resolution) = self.cache().by_written.get(written) {
+            return resolution.clone();
+        }
+        let target = decoded_name(written);
+        let resolution = self.resolve_decoded(&target);
+        self.cache_write()
+            .insert(written, name_bucket(&target), resolution.clone());
+        resolution
+    }
+
+    pub fn contains(&self, key: &Key) -> bool {
+        self.by_basename
+            .get(&key_bucket(key))
+            .is_some_and(|bucket| bucket.contains(key))
+    }
+
+    pub fn bucket(target: &Target) -> Option<String> {
+        match target {
+            Target::Path { .. } => None,
+            Target::Name(written) => Some(Self::name_bucket(written)),
+        }
+    }
+
+    pub fn name_bucket(written: &str) -> String {
+        name_bucket(&decoded_name(written))
+    }
+
+    pub fn key_bucket(key: &Key) -> String {
+        key_bucket(key)
+    }
+
+    pub fn target_key(&self, target: &Target) -> Key {
+        match target {
+            Target::Path { key, .. } => key.clone(),
+            Target::Name(written) => self.resolve_wiki(written),
+        }
+    }
+
+    pub fn resolve(&self, target: &Target) -> Option<Key> {
+        match target {
+            Target::Path { key, .. } => Some(key.clone()).filter(|key| self.contains(key)),
+            Target::Name(written) => {
+                let resolution = self.resolution(written);
+                resolution.resolved.then_some(resolution.key)
+            }
         }
     }
 
     pub fn resolve_wiki(&self, url: &str) -> Key {
-        let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
-        let target = strip_doc_extension(&decoded).to_string();
-        let segs = segments(&target);
+        self.resolution(url).key
+    }
 
-        let Some(basename) = segs.last() else {
-            return Key::name(&target);
-        };
-        let Some(bucket) = self.by_basename.get(&fold(basename)) else {
-            return Key::name(&target);
-        };
+    fn resolve_decoded(&self, target: &str) -> Resolution {
+        let bucket = Some(target)
+            .filter(|target| !segments(target).is_empty())
+            .and_then(|target| self.by_basename.get(&name_bucket(target)));
+        match bucket.and_then(|bucket| Self::suffix_match(bucket, target).or(bucket.first())) {
+            Some(key) => Resolution {
+                key: key.clone(),
+                resolved: true,
+            },
+            None => Resolution {
+                key: Key::name(target),
+                resolved: false,
+            },
+        }
+    }
 
+    fn matches_suffix(&self, url: &str, key: &Key) -> bool {
+        let target = decoded_name(url);
+        self.by_basename
+            .get(&name_bucket(&target))
+            .and_then(|bucket| Self::suffix_match(bucket, &target))
+            == Some(key)
+    }
+
+    fn suffix_match<'b>(bucket: &'b [Key], target: &str) -> Option<&'b Key> {
+        let segs = segments(target);
         bucket
             .iter()
             .find(|key| ends_with_segments(key, &segs))
@@ -74,21 +223,26 @@ impl KeyIndex {
                     .iter()
                     .find(|key| ends_with_segments_folded(key, &segs))
             })
-            .or_else(|| bucket.first())
-            .cloned()
-            .unwrap_or_else(|| Key::name(&target))
     }
 
     pub fn shorten_wiki(&self, target: &Key) -> String {
+        if let Some(shortened) = self.cache().shortened.get(target) {
+            return shortened.clone();
+        }
         let path = target.as_str().to_string();
-
-        let segs = segments(&path);
-
-        let Some(basename) = segs.last() else {
+        let Some(basename) = segments(&path).last().map(|basename| fold(basename)) else {
             return path;
         };
-        let Some(bucket) = self.by_basename.get(&fold(basename)) else {
-            return path;
+        let shortened = self.shorten_in_bucket(target, &path, &basename);
+        self.cache_write()
+            .insert_shortened(target, basename, shortened.clone());
+        shortened
+    }
+
+    fn shorten_in_bucket(&self, target: &Key, path: &str, basename: &str) -> String {
+        let segs = segments(path);
+        let Some(bucket) = self.by_basename.get(basename) else {
+            return path.to_string();
         };
 
         for length in 1..=segs.len() {
@@ -103,20 +257,75 @@ impl KeyIndex {
             }
         }
 
-        path
+        path.to_string()
     }
+}
 
-    pub fn resolve_link_key(
-        &self,
-        url: &str,
-        relative_to: &str,
-        reference_type: ReferenceType,
-    ) -> Key {
-        match reference_type {
-            ReferenceType::Regular => Key::from_rel_link_url(url, relative_to),
-            ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => self.resolve_wiki(url),
+pub struct KeyRename<'a> {
+    before: &'a KeyIndex,
+    after: KeyIndex,
+    old: Key,
+    new: Key,
+}
+
+impl<'a> KeyRename<'a> {
+    pub fn new(before: &'a KeyIndex, old: &Key, new: &Key) -> KeyRename<'a> {
+        let mut after = before.clone();
+        after.remove(old);
+        after.insert(new);
+        KeyRename {
+            before,
+            after,
+            old: old.clone(),
+            new: new.clone(),
         }
     }
+
+    pub fn rewrite(&self, target: &Target) -> Option<Target> {
+        match target {
+            Target::Path { key, fragment } if *key == self.old => Some(Target::Path {
+                key: self.new.clone(),
+                fragment: fragment.clone(),
+            }),
+            Target::Name(written) => {
+                let before = self.before.target_key(target);
+                if before == self.old {
+                    self.rewrite_renamed(written)
+                } else if self.before.contains(&before) && self.after.target_key(target) == self.new
+                {
+                    Some(Target::Name(self.after.shorten_wiki(&before)))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+impl KeyRename<'_> {
+    fn rewrite_renamed(&self, written: &str) -> Option<Target> {
+        if self.after.matches_suffix(written, &self.new) {
+            None
+        } else if segments(&decoded_name(written)).len() >= segment_count(&self.old) {
+            Some(Target::Name(self.new.to_workspace_url()))
+        } else {
+            Some(Target::Name(self.after.shorten_wiki(&self.new)))
+        }
+    }
+}
+
+fn decoded_name(url: &str) -> String {
+    let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
+    strip_doc_extension(&decoded).to_string()
+}
+
+fn name_bucket(name: &str) -> String {
+    fold(segments(name).last().copied().unwrap_or_default())
+}
+
+fn key_bucket(key: &Key) -> String {
+    fold(&key.source())
 }
 
 fn segments(path: &str) -> Vec<&str> {
@@ -154,6 +363,7 @@ fn resolution_order(a: &Key, b: &Key) -> std::cmp::Ordering {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::model::reference::ReferenceType;
 
     fn index(paths: &[&str]) -> KeyIndex {
         let keys: Vec<Key> = paths.iter().map(|p| Key::name(p)).collect();
@@ -413,16 +623,188 @@ mod test {
         let index = index(&["notes/target"]);
         assert_eq!(
             Key::name("notes/Target"),
-            index.resolve_link_key("Target.md", "notes", ReferenceType::Regular)
+            index.target_key(&Target::from_link_url(
+                "Target.md",
+                "notes",
+                ReferenceType::Regular
+            ))
         );
     }
 
     #[test]
-    fn wiki_links_fold_case_through_resolve_link_key() {
+    fn wiki_links_fold_case_through_target_key() {
         let index = index(&["notes/Target"]);
         assert_eq!(
             Key::name("notes/Target"),
-            index.resolve_link_key("target", "notes", ReferenceType::WikiLink)
+            index.target_key(&Target::from_link_url(
+                "target",
+                "notes",
+                ReferenceType::WikiLink
+            ))
         );
+    }
+
+    #[test]
+    fn target_key_returns_path_key_unchanged() {
+        let index = index(&["notes/target"]);
+        assert_eq!(
+            Key::name("other/target"),
+            index.target_key(&Target::path(Key::name("other/target")))
+        );
+    }
+
+    #[test]
+    fn target_key_resolves_name_against_current_keys() {
+        let mut index = index(&["deep/sub/target"]);
+        let target = Target::name("target");
+        assert_eq!(Key::name("deep/sub/target"), index.target_key(&target));
+        index.insert(&Key::name("target"));
+        assert_eq!(Key::name("target"), index.target_key(&target));
+    }
+
+    #[test]
+    fn target_key_falls_back_to_written_name() {
+        let index = index(&["notes/note"]);
+        assert_eq!(
+            Key::name("sub/missing"),
+            index.target_key(&Target::name("sub/missing.md"))
+        );
+    }
+
+    #[test]
+    fn resolve_drops_dangling_targets() {
+        let index = index(&["notes/target"]);
+        assert_eq!(
+            Some(Key::name("notes/target")),
+            index.resolve(&Target::name("Target"))
+        );
+        assert_eq!(None, index.resolve(&Target::name("missing")));
+        assert_eq!(None, index.resolve(&Target::path(Key::name("missing"))));
+    }
+
+    #[test]
+    fn bucket_folds_decoded_file_name() {
+        assert_eq!(
+            Some("my note".to_string()),
+            KeyIndex::bucket(&Target::name("Folder/My%20Note.md"))
+        );
+        assert_eq!(None, KeyIndex::bucket(&Target::path(Key::name("note"))));
+        assert_eq!(
+            KeyIndex::key_bucket(&Key::name("folder/My Note")),
+            KeyIndex::bucket(&Target::name("My Note")).unwrap()
+        );
+    }
+
+    #[test]
+    fn rename_leaves_name_that_still_matches() {
+        let index = index(&["a/target"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("b/target"));
+        assert_eq!(None, rename.rewrite(&Target::name("target")));
+    }
+
+    #[test]
+    fn rename_rewrites_path_suffixed_name() {
+        let index = index(&["a/target"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("b/target"));
+        assert_eq!(
+            Some(Target::name("b/target")),
+            rename.rewrite(&Target::name("a/target"))
+        );
+    }
+
+    #[test]
+    fn rename_shortens_bare_name_against_new_keys() {
+        let index = index(&["a/target", "c/renamed"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("a/renamed"));
+        assert_eq!(
+            Some(Target::name("a/renamed")),
+            rename.rewrite(&Target::name("target"))
+        );
+    }
+
+    #[test]
+    fn rename_keeps_fragment_of_path_target() {
+        let index = index(&["a/target"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("b/target"));
+        assert_eq!(
+            Some(Target::Path {
+                key: Key::name("b/target"),
+                fragment: Some("part".to_string()),
+            }),
+            rename.rewrite(&Target::Path {
+                key: Key::name("a/target"),
+                fragment: Some("part".to_string()),
+            })
+        );
+    }
+
+    #[test]
+    fn rename_ignores_targets_resolving_elsewhere() {
+        let index = index(&["a/target", "other"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("b/target"));
+        assert_eq!(None, rename.rewrite(&Target::name("other")));
+        assert_eq!(None, rename.rewrite(&Target::path(Key::name("other"))));
+    }
+
+    #[test]
+    fn rename_keeps_link_to_other_note_pointing_there() {
+        let index = index(&["a/target", "c/renamed"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("a/renamed"));
+        assert_eq!(
+            Some(Target::name("c/renamed")),
+            rename.rewrite(&Target::name("renamed"))
+        );
+    }
+
+    #[test]
+    fn rename_lets_dangling_link_resolve_to_new_name() {
+        let index = index(&["a/target"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("a/renamed"));
+        assert_eq!(None, rename.rewrite(&Target::name("renamed")));
+    }
+
+    #[test]
+    fn cached_resolution_follows_insert_and_remove() {
+        let mut index = index(&["deep/target", "other"]);
+        let target = Target::name("target");
+        assert_eq!(Some(Key::name("deep/target")), index.resolve(&target));
+        assert_eq!(
+            Some(Key::name("other")),
+            index.resolve(&Target::name("other"))
+        );
+
+        index.insert(&Key::name("target"));
+        assert_eq!(Some(Key::name("target")), index.resolve(&target));
+
+        index.remove(&Key::name("target"));
+        index.remove(&Key::name("deep/target"));
+        assert_eq!(None, index.resolve(&target));
+        assert_eq!(Key::name("target"), index.target_key(&target));
+        assert_eq!(
+            Some(Key::name("other")),
+            index.resolve(&Target::name("other"))
+        );
+    }
+
+    #[test]
+    fn clone_starts_with_fresh_resolutions() {
+        let index = index(&["deep/target"]);
+        assert_eq!(Key::name("deep/target"), index.resolve_wiki("target"));
+        let mut cloned = index.clone();
+        cloned.insert(&Key::name("target"));
+        assert_eq!(Key::name("target"), cloned.resolve_wiki("target"));
+        assert_eq!(Key::name("deep/target"), index.resolve_wiki("target"));
+    }
+
+    #[test]
+    fn cached_shortening_follows_insert_and_remove() {
+        let mut index = index(&["x/a/note"]);
+        assert_eq!("note", index.shorten_wiki(&Key::name("x/a/note")));
+
+        index.insert(&Key::name("y/b/note"));
+        assert_eq!("a/note", index.shorten_wiki(&Key::name("x/a/note")));
+
+        index.remove(&Key::name("y/b/note"));
+        assert_eq!("note", index.shorten_wiki(&Key::name("x/a/note")));
     }
 }

@@ -1,13 +1,131 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::model::key_index::KeyIndex;
+use crate::model::reference::Target;
 use crate::model::{Key, NodeId};
 
-use super::{graph_node::GraphNode, Graph};
+use super::Graph;
+
+type Names = HashMap<String, HashSet<NodeId>>;
+
+#[derive(Default, Clone)]
+struct Edges {
+    by_key: HashMap<Key, HashSet<NodeId>>,
+    by_name: HashMap<String, Names>,
+}
+
+impl Edges {
+    fn merge(&mut self, other: Edges) {
+        for (key, set) in other.by_key {
+            self.by_key.entry(key).or_default().extend(set);
+        }
+        for (bucket, names) in other.by_name {
+            let entry = self.by_name.entry(bucket).or_default();
+            for (written, set) in names {
+                entry.entry(written).or_default().extend(set);
+            }
+        }
+    }
+
+    fn retain_sources(&mut self, keep: impl Fn(NodeId) -> bool) {
+        for set in self.by_key.values_mut() {
+            set.retain(|id| keep(*id));
+        }
+        self.by_key.retain(|_, set| !set.is_empty());
+        for names in self.by_name.values_mut() {
+            for set in names.values_mut() {
+                set.retain(|id| keep(*id));
+            }
+            names.retain(|_, set| !set.is_empty());
+        }
+        self.by_name.retain(|_, names| !names.is_empty());
+    }
+
+    fn insert(&mut self, target: &Target, node_id: NodeId) {
+        match target {
+            Target::Path { key, .. } => {
+                self.by_key.entry(key.clone()).or_default().insert(node_id);
+            }
+            Target::Name(written) => {
+                self.by_name
+                    .entry(KeyIndex::name_bucket(written))
+                    .or_default()
+                    .entry(written.clone())
+                    .or_default()
+                    .insert(node_id);
+            }
+        }
+    }
+
+    fn remove(&mut self, target: &Target, node_id: NodeId) {
+        match target {
+            Target::Path { key, .. } => remove_from(&mut self.by_key, key, node_id),
+            Target::Name(written) => {
+                let bucket = KeyIndex::name_bucket(written);
+                if let Some(names) = self.by_name.get_mut(&bucket) {
+                    remove_from(names, written, node_id);
+                    if names.is_empty() {
+                        self.by_name.remove(&bucket);
+                    }
+                }
+            }
+        }
+    }
+
+    fn to_key(&self, key: &Key) -> Vec<NodeId> {
+        self.by_key
+            .get(key)
+            .map(|set| set.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    fn names_in(&self, bucket: &str) -> impl Iterator<Item = (&String, &HashSet<NodeId>)> {
+        self.by_name.get(bucket).into_iter().flatten()
+    }
+
+    fn names(&self) -> impl Iterator<Item = &String> {
+        self.by_name.values().flat_map(|names| names.keys())
+    }
+
+    #[cfg(test)]
+    fn edge_count(&self) -> usize {
+        self.by_key.values().map(|set| set.len()).sum::<usize>()
+            + self
+                .by_name
+                .values()
+                .flat_map(|names| names.values())
+                .map(|set| set.len())
+                .sum::<usize>()
+    }
+
+    #[cfg(test)]
+    fn key_count(&self) -> usize {
+        self.by_key.len()
+            + self
+                .by_name
+                .values()
+                .map(|names| names.len())
+                .sum::<usize>()
+    }
+}
+
+fn remove_from<K: std::hash::Hash + Eq>(
+    map: &mut HashMap<K, HashSet<NodeId>>,
+    key: &K,
+    node_id: NodeId,
+) {
+    if let Some(set) = map.get_mut(key) {
+        set.remove(&node_id);
+        if set.is_empty() {
+            map.remove(key);
+        }
+    }
+}
 
 #[derive(Default, Clone)]
 pub struct RefIndex {
-    inclusion_edges: HashMap<Key, HashSet<NodeId>>,
-    reference_edges: HashMap<Key, HashSet<NodeId>>,
+    inclusion: Edges,
+    reference: Edges,
 }
 
 impl RefIndex {
@@ -16,179 +134,99 @@ impl RefIndex {
     }
 
     pub fn merge(&mut self, other: RefIndex) {
-        for (key, set) in other.inclusion_edges {
-            self.inclusion_edges.entry(key).or_default().extend(set);
-        }
-        for (key, set) in other.reference_edges {
-            self.reference_edges.entry(key).or_default().extend(set);
-        }
+        self.inclusion.merge(other.inclusion);
+        self.reference.merge(other.reference);
     }
 
     pub fn remove_edges_from_sources(&mut self, graph: &Graph, sources: &HashSet<Key>) {
-        for set in self.inclusion_edges.values_mut() {
-            set.retain(|id| !sources.contains(&graph.node_key(*id)));
-        }
-        for set in self.reference_edges.values_mut() {
-            set.retain(|id| !sources.contains(&graph.node_key(*id)));
-        }
-        self.inclusion_edges.retain(|_, set| !set.is_empty());
-        self.reference_edges.retain(|_, set| !set.is_empty());
+        let keep = |id: NodeId| !sources.contains(&graph.node_key(id));
+        self.inclusion.retain_sources(keep);
+        self.reference.retain_sources(keep);
     }
 
     pub fn get_inclusion_edges_to(&self, key: &Key) -> Vec<NodeId> {
-        self.inclusion_edges
-            .get(key)
-            .map(|set| set.iter().cloned().collect())
-            .unwrap_or_default()
+        self.inclusion.to_key(key)
     }
 
     pub fn get_reference_edges_to(&self, key: &Key) -> Vec<NodeId> {
-        self.reference_edges
-            .get(key)
-            .map(|set| set.iter().cloned().collect())
-            .unwrap_or_default()
+        self.reference.to_key(key)
+    }
+
+    pub fn inclusion_names_in(
+        &self,
+        bucket: &str,
+    ) -> impl Iterator<Item = (&String, &HashSet<NodeId>)> {
+        self.inclusion.names_in(bucket)
+    }
+
+    pub fn reference_names_in(
+        &self,
+        bucket: &str,
+    ) -> impl Iterator<Item = (&String, &HashSet<NodeId>)> {
+        self.reference.names_in(bucket)
     }
 
     pub fn inclusion_edge_target_keys(&self) -> impl Iterator<Item = &Key> {
-        self.inclusion_edges.keys()
+        self.inclusion.by_key.keys()
     }
 
     pub fn reference_edge_target_keys(&self) -> impl Iterator<Item = &Key> {
-        self.reference_edges.keys()
+        self.reference.by_key.keys()
+    }
+
+    pub fn inclusion_edge_names(&self) -> impl Iterator<Item = &String> {
+        self.inclusion.names()
+    }
+
+    pub fn reference_edge_names(&self) -> impl Iterator<Item = &String> {
+        self.reference.names()
     }
 
     pub fn index_node(&mut self, graph: &Graph, root_id: NodeId) {
-        Self::walk_edges(graph, root_id, |inclusion, key, node_id| {
+        Self::walk_edges(graph, root_id, |inclusion, target, node_id| {
             let edges = if inclusion {
-                &mut self.inclusion_edges
+                &mut self.inclusion
             } else {
-                &mut self.reference_edges
+                &mut self.reference
             };
-            edges.entry(key).or_default().insert(node_id);
+            edges.insert(target, node_id);
         });
     }
 
     pub fn unindex_node(&mut self, graph: &Graph, root_id: NodeId) {
-        Self::walk_edges(graph, root_id, |inclusion, key, node_id| {
+        Self::walk_edges(graph, root_id, |inclusion, target, node_id| {
             let edges = if inclusion {
-                &mut self.inclusion_edges
+                &mut self.inclusion
             } else {
-                &mut self.reference_edges
+                &mut self.reference
             };
-            if let Some(set) = edges.get_mut(&key) {
-                set.remove(&node_id);
-                if set.is_empty() {
-                    edges.remove(&key);
-                }
-            }
+            edges.remove(target, node_id);
         });
     }
 
     fn walk_edges<F>(graph: &Graph, root_id: NodeId, mut visit: F)
     where
-        F: FnMut(bool, Key, NodeId),
+        F: FnMut(bool, &Target, NodeId),
     {
         let mut stack: Vec<NodeId> = vec![root_id];
         while let Some(node_id) = stack.pop() {
-            match graph.graph_node(node_id) {
-                GraphNode::Reference(reference) => {
-                    visit(true, reference.key().clone(), reference.id());
-
-                    if let Some(child_id) = reference.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::Section(section) => {
-                    for key in graph.get_line(section.line_id()).ref_keys() {
-                        visit(false, key.clone(), section.id());
-                    }
-                    if let Some(child_id) = section.child_id() {
-                        stack.push(child_id);
-                    }
-                    if let Some(child_id) = section.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::Leaf(leaf) => {
-                    for key in graph.get_line(leaf.line_id()).ref_keys() {
-                        visit(false, key.clone(), leaf.id());
-                    }
-
-                    if let Some(child_id) = leaf.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::Document(document) => {
-                    if let Some(child_id) = document.child_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::Quote(quote) => {
-                    if let Some(child_id) = quote.child_id() {
-                        stack.push(child_id);
-                    }
-                    if let Some(child_id) = quote.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::BulletList(bullet_list) => {
-                    if let Some(child_id) = bullet_list.child_id() {
-                        stack.push(child_id);
-                    }
-                    if let Some(child_id) = bullet_list.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::OrderedList(ordered_list) => {
-                    if let Some(child_id) = ordered_list.child_id() {
-                        stack.push(child_id);
-                    }
-                    if let Some(child_id) = ordered_list.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::Empty => {}
-                GraphNode::Raw(raw_leaf) => {
-                    if let Some(child_id) = raw_leaf.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::HorizontalRule(horizontal_rule) => {
-                    if let Some(child_id) = horizontal_rule.next_id() {
-                        stack.push(child_id);
-                    }
-                }
-                GraphNode::Table(table) => {
-                    for line_id in table.header() {
-                        for key in graph.get_line(*line_id).ref_keys() {
-                            visit(false, key.clone(), table.id());
-                        }
-                    }
-                    for row in table.rows() {
-                        for line_id in row {
-                            for key in graph.get_line(*line_id).ref_keys() {
-                                visit(false, key.clone(), table.id());
-                            }
-                        }
-                    }
-                    if let Some(next_id) = table.next_id() {
-                        stack.push(next_id);
-                    }
-                }
+            let node = graph.graph_node(node_id);
+            let inclusion = node.is_ref();
+            for target in node.targets(graph) {
+                visit(inclusion, &target, node_id);
             }
+            stack.extend(node.child_id());
+            stack.extend(node.next_id());
         }
     }
 
     #[cfg(test)]
     pub fn edge_counts(&self) -> (usize, usize) {
-        (
-            self.inclusion_edges.values().map(|set| set.len()).sum(),
-            self.reference_edges.values().map(|set| set.len()).sum(),
-        )
+        (self.inclusion.edge_count(), self.reference.edge_count())
     }
 
     #[cfg(test)]
     pub fn key_counts(&self) -> (usize, usize) {
-        (self.inclusion_edges.len(), self.reference_edges.len())
+        (self.inclusion.key_count(), self.reference.key_count())
     }
 }

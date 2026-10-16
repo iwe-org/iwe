@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `liwe::init` module with the workspace scan, notes folder detection, environment probe and settings detection used by `iwe init`
 - `liwe::fs::walk_md_paths` to list the documents under a directory, honoring `.gitignore`
+- `Target` type for what a link points at: a document key for regular links, the name as written for wiki links
+- `KeyIndex::target_key`, `KeyIndex::resolve`, `KeyIndex::bucket`, `KeyIndex::name_bucket`, `KeyIndex::contains` and `KeyRename` for resolving and renaming link targets
+- `Graph::target_key`, `Graph::resolve`, `Graph::reference_target_key`, `Graph::get_wiki_edges_named_like` and `GraphNode::targets`
+
+### Changed
+
+- Wiki links are resolved against the current documents every time they are read, so creating, moving or removing a note updates backlinks and edges without re-reading the notes that link to it (previously resolved once, when the linking note was parsed)
+- `Reference` and `GraphNode::Reference` hold a `target: Target` (was `key` and `url`); `Reference::plain` and `GraphBuilder::reference_with_inlines` take a `Target`
+- `Inline::ref_keys`, `Line::ref_keys`, `GraphNode::ref_key`, `NodePointer::ref_key`, `Node::reference_key`, `Tree::get_all_inclusion_edge_keys` and `Tree::find_reference_key` return targets instead of keys and are renamed accordingly; `NodePointer` gains `to_target`
+- `Tree::change_key` and `Inline::change_key` are replaced by `rewrite_targets`, which also reaches links inside link text and images
+- `Tree::remove_inclusion_edges_to` and `Tree::remove_inline_links_to` take a predicate over targets, and `Tree::annotate_references` looks parents up by target
+- `InlinesContext::wiki_display` takes a `&Target` (was a key and the written url)
+- `to_graph_inlines`, `DocumentInline::to_graph_inline` and `SectionsBuilder::new` no longer take a `KeyIndex`
+- `operations::references`, `operations::select_reference` and `BlockIndex::from_tree` take a `&KeyIndex`
+- `rename` rewrites a wiki link only when it would stop pointing at the renamed note, writes the shortest name that still resolves (a full path stays a full path), and leaves unchanged documents out of the result (previously every linking document was rewritten with the full path)
+- `rename` rewrites a `[[Name]]` link that pointed at another note and would match the new name, so it keeps pointing at that note; a `[[Name]]` link that pointed nowhere is left as is and points to the renamed note from then on
+- An unresolved wiki link is written as typed in every `wiki_link_path` mode (previously `full` dropped a `.md` extension, so `[[missing.md]]` became `[[missing]]`)
+- `KeyIndex::resolve_link_key` is removed; use `KeyIndex::target_key` with `Target::from_link_url`
+- `delete` removes only the links that pointed at the deleted note; a `[[Name]]` link kept by hand points to another note with the same file name, if there is one
 
 ## [0.26.1](https://github.com/iwe-org/iwe/compare/liwe-v0.26.0...liwe-v0.26.1) - 2026-10-08
 

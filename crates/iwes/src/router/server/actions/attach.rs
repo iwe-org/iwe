@@ -79,7 +79,10 @@ impl ActionProvider for AttachAction {
         let tree = context.collect(&key);
 
         let (reference_key, _reference_text) = if tree.get(target_id).is_reference() {
-            let ref_key = tree.find_reference_key(target_id);
+            let ref_key = tree
+                .find_reference_target(target_id)
+                .map(|target| context.graph().target_key(&target))
+                .unwrap_or_default();
             let ref_text = tree
                 .find_id(target_id)
                 .and_then(|t| t.node.reference_text())
@@ -107,8 +110,9 @@ impl ActionProvider for AttachAction {
         if context.key_exists(&attach_to_key)
             && context
                 .collect(&attach_to_key)
-                .get_all_inclusion_edge_keys()
-                .contains(&reference_key)
+                .get_all_inclusion_edge_targets()
+                .iter()
+                .any(|target| context.graph().target_key(target) == reference_key)
         {
             return None;
         }
@@ -133,7 +137,10 @@ impl ActionProvider for AttachAction {
         let tree = context.collect(&key);
 
         let (reference_key, reference_text) = if tree.get(target_id).is_reference() {
-            let ref_key = tree.find_reference_key(target_id);
+            let ref_key = tree
+                .find_reference_target(target_id)
+                .map(|target| context.graph().target_key(&target))
+                .unwrap_or_default();
             let ref_text = tree
                 .find_id(target_id)
                 .and_then(|t| t.node.reference_text())

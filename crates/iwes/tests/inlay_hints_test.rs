@@ -146,6 +146,21 @@ fn assert_inlay_hint_at(source: &str, hint_text: &str, line: u32) {
     );
 }
 
+#[test]
+#[allow(deprecated)]
+fn refresh_requested_when_document_is_added() {
+    Fixture::with(indoc! {"
+        # test
+        "})
+    .inlay_hint(uri(1).to_inlay_hint_params(), vec![])
+    .did_change_text_document(uri(2).to_did_change_params(1, "# other\n\n[test](1)\n".to_string()))
+    .wait_for_inlay_hint_refresh()
+    .inlay_hint(
+        uri(1).to_inlay_hint_params(),
+        vec!["↖other".to_inlay_hint(0, 120)],
+    );
+}
+
 fn assert_inlay_hints(source: &str, hint_text: &str) {
     Fixture::with(source).inlay_hint(
         uri(1).to_inlay_hint_params(),

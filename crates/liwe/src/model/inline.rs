@@ -2,9 +2,8 @@ use super::document::LinkType;
 use crate::model;
 use crate::model::config::MarkdownOptions;
 use crate::model::document::{DocumentInline, DocumentInlines, MathType};
-use crate::model::key_index::KeyIndex;
-use crate::model::reference::{Reference, ReferenceType};
-use crate::model::{has_file_extension, InlinesContext, Key, Lang, Title, WorkspaceUrl};
+use crate::model::reference::{Reference, ReferenceType, Target};
+use crate::model::{has_file_extension, InlinesContext, Lang, Title, WorkspaceUrl};
 
 pub type Inlines = Vec<Inline>;
 
@@ -102,44 +101,37 @@ impl Inline {
         }
     }
 
-    pub fn ref_keys(&self) -> Vec<Key> {
+    pub fn targets(&self) -> Vec<Target> {
         match self {
-            Inline::Emph(emph) => emph.iter().flat_map(|inline| inline.ref_keys()).collect(),
-            Inline::Underline(underline) => underline
-                .iter()
-                .flat_map(|inline| inline.ref_keys())
-                .collect(),
-            Inline::Strong(strong) => strong.iter().flat_map(|inline| inline.ref_keys()).collect(),
-            Inline::Strikeout(strikeout) => strikeout
-                .iter()
-                .flat_map(|inline| inline.ref_keys())
-                .collect(),
-            Inline::Superscript(superscript) => superscript
-                .iter()
-                .flat_map(|inline| inline.ref_keys())
-                .collect(),
-            Inline::Subscript(subscript) => subscript
-                .iter()
-                .flat_map(|inline| inline.ref_keys())
-                .collect(),
-            Inline::SmallCaps(small_caps) => small_caps
-                .iter()
-                .flat_map(|inline| inline.ref_keys())
-                .collect(),
-            Inline::Mark(inner) | Inline::Insert(inner) | Inline::Delete(inner) => {
-                inner.iter().flat_map(|inline| inline.ref_keys()).collect()
-            }
-            Inline::Span(_, inner) => inner.iter().flat_map(|inline| inline.ref_keys()).collect(),
-            Inline::Link(_, _, _, inlines) => inlines
-                .iter()
-                .flat_map(|inline| inline.ref_keys())
-                .collect(),
-            Inline::Reference(reference) => vec![reference.key.clone()],
-            Inline::Image(_, _, inlines) => inlines
-                .iter()
-                .flat_map(|inline| inline.ref_keys())
-                .collect(),
-            _ => vec![],
+            Inline::Reference(reference) => vec![reference.target.clone()],
+            _ => self
+                .children()
+                .map(|children| {
+                    children
+                        .iter()
+                        .flat_map(|inline| inline.targets())
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
+    }
+
+    fn children(&self) -> Option<&Inlines> {
+        match self {
+            Inline::Emph(inner)
+            | Inline::Underline(inner)
+            | Inline::Strong(inner)
+            | Inline::Strikeout(inner)
+            | Inline::Superscript(inner)
+            | Inline::Subscript(inner)
+            | Inline::SmallCaps(inner)
+            | Inline::Mark(inner)
+            | Inline::Insert(inner)
+            | Inline::Delete(inner)
+            | Inline::Span(_, inner)
+            | Inline::Link(_, _, _, inner)
+            | Inline::Image(_, _, inner) => Some(inner),
+            _ => None,
         }
     }
 
@@ -197,8 +189,10 @@ impl Inline {
             ),
             Inline::Reference(reference) => {
                 let inlines = match reference.reference_type {
-                    ReferenceType::Regular if context.normalize_ref_text() => context
-                        .get_ref_title(&reference.key)
+                    ReferenceType::Regular if context.normalize_ref_text() => reference
+                        .target
+                        .path_key()
+                        .and_then(|key| context.get_ref_title(key))
                         .map(|title| text_to_inlines(&title))
                         .unwrap_or_else(|| reference.inlines.clone()),
                     ReferenceType::Regular | ReferenceType::WikiLinkPiped => {
@@ -209,16 +203,15 @@ impl Inline {
 
                 let display_url = match reference.reference_type {
                     ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
-                        Some(context.wiki_display(&reference.key, &reference.url))
+                        Some(context.wiki_display(&reference.target))
                     }
                     ReferenceType::Regular => None,
                 };
 
                 Inline::Reference(Reference {
-                    key: reference.key.clone(),
+                    target: reference.target.clone(),
                     inlines,
                     reference_type: reference.reference_type,
-                    url: reference.url.clone(),
                     display_url,
                 })
             }
@@ -226,82 +219,43 @@ impl Inline {
         }
     }
 
-    pub fn change_key(&self, target_key: &Key, updated_key: &Key) -> Inline {
+    pub fn rewrite_targets(&self, rewrite: &dyn Fn(&Target) -> Option<Target>) -> Inline {
+        let map = |inner: &Inlines| -> Inlines {
+            inner
+                .iter()
+                .map(|inline| inline.rewrite_targets(rewrite))
+                .collect()
+        };
         match self {
-            Inline::Emph(emph) => Inline::Emph(
-                emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-
-            Inline::Strong(emph) => Inline::Strong(
-                emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Underline(emph) => Inline::Underline(
-                emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-
-            Inline::Strikeout(emph) => Inline::Strikeout(
-                emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Superscript(emph) => Inline::Superscript(
-                emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Subscript(emph) => Inline::Subscript(
-                emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::SmallCaps(emph) => Inline::SmallCaps(
-                emph.iter()
-                    .map(|inline| inline.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Mark(inner) => Inline::Mark(
-                inner
-                    .iter()
-                    .map(|i| i.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Insert(inner) => Inline::Insert(
-                inner
-                    .iter()
-                    .map(|i| i.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Delete(inner) => Inline::Delete(
-                inner
-                    .iter()
-                    .map(|i| i.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Span(attr, inner) => Inline::Span(
-                attr.clone(),
-                inner
-                    .iter()
-                    .map(|i| i.change_key(target_key, updated_key))
-                    .collect(),
-            ),
-            Inline::Reference(reference) => {
-                if reference.key.eq(target_key) {
-                    return Inline::Reference(Reference {
-                        key: updated_key.clone(),
-                        inlines: reference.inlines.clone(),
-                        reference_type: reference.reference_type,
-                        url: updated_key.to_workspace_url(),
-                        display_url: None,
-                    });
-                }
-                self.clone()
+            Inline::Emph(inner) => Inline::Emph(map(inner)),
+            Inline::Strong(inner) => Inline::Strong(map(inner)),
+            Inline::Underline(inner) => Inline::Underline(map(inner)),
+            Inline::Strikeout(inner) => Inline::Strikeout(map(inner)),
+            Inline::Superscript(inner) => Inline::Superscript(map(inner)),
+            Inline::Subscript(inner) => Inline::Subscript(map(inner)),
+            Inline::SmallCaps(inner) => Inline::SmallCaps(map(inner)),
+            Inline::Mark(inner) => Inline::Mark(map(inner)),
+            Inline::Insert(inner) => Inline::Insert(map(inner)),
+            Inline::Delete(inner) => Inline::Delete(map(inner)),
+            Inline::Span(attr, inner) => Inline::Span(attr.clone(), map(inner)),
+            Inline::Link(url, title, link_type, inner) => {
+                Inline::Link(url.clone(), title.clone(), *link_type, map(inner))
             }
+            Inline::Image(url, title, inner) => {
+                Inline::Image(url.clone(), title.clone(), map(inner))
+            }
+            Inline::Reference(reference) => match rewrite(&reference.target) {
+                Some(target) => Inline::Reference(Reference {
+                    target,
+                    inlines: map(&reference.inlines),
+                    reference_type: reference.reference_type,
+                    display_url: None,
+                }),
+                None => Inline::Reference(Reference {
+                    inlines: map(&reference.inlines),
+                    ..reference.clone()
+                }),
+            },
             _ => self.clone(),
         }
     }
@@ -576,7 +530,7 @@ fn render_inline<S: TextSink>(
             LinePos::Mid
         }
         Inline::Reference(reference) => {
-            let url = reference.key.to_workspace_url();
+            let url = reference.target.unresolved_url();
             emit_link(
                 &url,
                 reference.reference_type.to_link_type(),
@@ -959,16 +913,12 @@ pub(crate) fn append_refs_extension(url: &str, extension: &str) -> String {
     }
 }
 
-pub fn to_graph_inlines(
-    content: &DocumentInlines,
-    relative_to: &str,
-    key_index: &KeyIndex,
-) -> Vec<Inline> {
+pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<Inline> {
     let mut out = Vec::new();
     for inline in content {
         match inline {
             DocumentInline::Str(text) => split_text_words(text, &mut out),
-            other => out.push(other.to_graph_inline(relative_to, key_index)),
+            other => out.push(other.to_graph_inline(relative_to)),
         }
     }
     out

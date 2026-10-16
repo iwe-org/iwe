@@ -4,8 +4,8 @@ use itertools::Itertools;
 
 use super::{
     ids::alloc_node_id,
-    inline::{prepend_checkbox, Inline},
-    node::{Node, NodePointer, Reference, ReferenceType, Table},
+    inline::{prepend_checkbox, Inline, Inlines},
+    node::{Node, NodePointer, Reference, Table, Target},
     Key, LineRange, NodeId,
 };
 
@@ -86,12 +86,7 @@ impl Tree {
             Tree {
                 id: alloc_node_id(),
                 line_range: None,
-                node: Node::Reference(Reference::plain(
-                    key,
-                    &text,
-                    ReferenceType::Regular,
-                    String::new(),
-                )),
+                node: Node::Reference(Reference::to_key(key, &text)),
                 children: vec![],
             }
         } else {
@@ -133,13 +128,13 @@ impl Tree {
         }
     }
 
-    pub fn get_all_inclusion_edge_keys(&self) -> Vec<Key> {
+    pub fn get_all_inclusion_edge_targets(&self) -> Vec<Target> {
         if self.is_reference() {
-            return self.node.reference_key().into_iter().collect();
+            return self.node.reference_target().into_iter().collect();
         }
         self.children
             .iter()
-            .flat_map(|child| child.get_all_inclusion_edge_keys())
+            .flat_map(|child| child.get_all_inclusion_edge_targets())
             .collect()
     }
 
@@ -375,54 +370,34 @@ impl Tree {
         }
     }
 
-    pub fn change_key(&self, target_key: &Key, updated_key: &Key) -> Tree {
+    pub fn rewrite_targets(&self, rewrite: &dyn Fn(&Target) -> Option<Target>) -> Tree {
+        let map = |inlines: &[Inline]| -> Inlines {
+            inlines
+                .iter()
+                .map(|inline| inline.rewrite_targets(rewrite))
+                .collect_vec()
+        };
         Tree {
             id: self.id,
             line_range: self.line_range.clone(),
             node: match &self.node {
-                Node::Section(inlines) => Node::Section(
-                    inlines
-                        .iter()
-                        .map(|inline| inline.change_key(target_key, updated_key))
-                        .collect_vec(),
-                ),
-                Node::Leaf(inlines) => Node::Leaf(
-                    inlines
-                        .iter()
-                        .map(|inline| inline.change_key(target_key, updated_key))
-                        .collect_vec(),
-                ),
-                Node::Item(checked, inlines) => Node::Item(
-                    *checked,
-                    inlines
-                        .iter()
-                        .map(|inline| inline.change_key(target_key, updated_key))
-                        .collect_vec(),
-                ),
-                Node::Reference(reference) => Node::Reference(Reference {
-                    key: if reference.key.eq(target_key) {
-                        updated_key.clone()
-                    } else {
-                        reference.key.clone()
-                    },
-                    inlines: reference.inlines.clone(),
-                    reference_type: reference.reference_type,
-                    url: if reference.key.eq(target_key) {
-                        updated_key.to_workspace_url()
-                    } else {
-                        reference.url.clone()
-                    },
-                    display_url: None,
-                }),
-                Node::Table(table) => Node::Table(map_table_cells(table, |cell| {
-                    cell.iter()
-                        .map(|inline| inline.change_key(target_key, updated_key))
-                        .collect_vec()
-                })),
+                Node::Section(inlines) => Node::Section(map(inlines)),
+                Node::Leaf(inlines) => Node::Leaf(map(inlines)),
+                Node::Item(checked, inlines) => Node::Item(*checked, map(inlines)),
+                Node::Reference(reference) => match rewrite(&reference.target) {
+                    Some(target) => Node::Reference(Reference {
+                        target,
+                        inlines: reference.inlines.clone(),
+                        reference_type: reference.reference_type,
+                        display_url: None,
+                    }),
+                    None => self.node.clone(),
+                },
+                Node::Table(table) => Node::Table(map_table_cells(table, map)),
                 _ => self.node.clone(),
             },
             children: self
-                .map_children(|child| child.change_key(target_key, updated_key))
+                .map_children(|child| child.rewrite_targets(rewrite))
                 .children,
         }
     }
@@ -519,9 +494,9 @@ impl Tree {
                 .flat_map(|child| {
                     if child.is_reference() {
                         child
-                            .ref_key()
+                            .ref_target()
                             .filter(|_| depth > 0)
-                            .and_then(|key| child.to_key(key))
+                            .and_then(|target| child.to_target(&target))
                             .map(|pointer| Tree::squash_from_pointer(pointer, depth - 1))
                             .map(|r| r.first().unwrap().children.clone())
                             .unwrap_or(Tree::squash_from_pointer(child, 0))
@@ -545,10 +520,9 @@ impl Tree {
         self.find_id(id).unwrap()
     }
 
-    pub fn find_reference_key(&self, id: NodeId) -> Key {
+    pub fn find_reference_target(&self, id: NodeId) -> Option<Target> {
         self.find_id(id)
-            .and_then(|tree| tree.node.reference_key())
-            .unwrap_or_default()
+            .and_then(|tree| tree.node.reference_target())
     }
 
     pub fn is_header(&self, id: NodeId) -> bool {
@@ -647,8 +621,12 @@ impl Tree {
         false
     }
 
-    pub fn remove_inclusion_edges_to(&self, target_key: &Key) -> Tree {
-        if self.reference_key_direct() == Some(target_key.clone()) {
+    pub fn remove_inclusion_edges_to(&self, links_to: &dyn Fn(&Target) -> bool) -> Tree {
+        if self
+            .node
+            .reference_target()
+            .is_some_and(|target| links_to(&target))
+        {
             return Tree {
                 id: alloc_node_id(),
                 line_range: None,
@@ -664,26 +642,24 @@ impl Tree {
             children: self
                 .children
                 .iter()
-                .map(|child| child.remove_inclusion_edges_to(target_key))
+                .map(|child| child.remove_inclusion_edges_to(links_to))
                 .filter(|child| !matches!(child.node, Node::Leaf(ref v) if v.is_empty()))
                 .collect(),
         }
     }
 
-    pub fn remove_inline_links_to(&self, target_key: &Key) -> Tree {
+    pub fn remove_inline_links_to(&self, links_to: &dyn Fn(&Target) -> bool) -> Tree {
         let updated_node = match &self.node {
-            Node::Leaf(inlines) => {
-                Node::Leaf(Self::remove_inline_links_to_rec(inlines, target_key))
-            }
+            Node::Leaf(inlines) => Node::Leaf(Self::remove_inline_links_to_rec(inlines, links_to)),
             Node::Section(inlines) => {
-                Node::Section(Self::remove_inline_links_to_rec(inlines, target_key))
+                Node::Section(Self::remove_inline_links_to_rec(inlines, links_to))
             }
             Node::Item(checked, inlines) => Node::Item(
                 *checked,
-                Self::remove_inline_links_to_rec(inlines, target_key),
+                Self::remove_inline_links_to_rec(inlines, links_to),
             ),
             Node::Table(table) => Node::Table(map_table_cells(table, |cell| {
-                Self::remove_inline_links_to_rec(cell, target_key)
+                Self::remove_inline_links_to_rec(cell, links_to)
             })),
             _ => self.node.clone(),
         };
@@ -695,95 +671,82 @@ impl Tree {
             children: self
                 .children
                 .iter()
-                .map(|child| child.remove_inline_links_to(target_key))
+                .map(|child| child.remove_inline_links_to(links_to))
                 .collect(),
         }
     }
 
-    fn remove_inline_links_to_rec(inlines: &[Inline], target_key: &Key) -> Vec<Inline> {
+    fn remove_inline_links_to_rec(
+        inlines: &[Inline],
+        links_to: &dyn Fn(&Target) -> bool,
+    ) -> Vec<Inline> {
         inlines
             .iter()
             .flat_map(|inline| match inline {
-                Inline::Reference(reference) if &reference.key == target_key => {
+                Inline::Reference(reference) if links_to(&reference.target) => {
                     reference.inlines.clone()
                 }
-                other => vec![Self::remove_inline_link_to(other, target_key)],
+                other => vec![Self::remove_inline_link_to(other, links_to)],
             })
             .collect()
     }
 
-    fn remove_inline_link_to(inline: &Inline, target_key: &Key) -> Inline {
+    fn remove_inline_link_to(inline: &Inline, links_to: &dyn Fn(&Target) -> bool) -> Inline {
         match inline {
             Inline::Link(url, title, link_type, nested) => Inline::Link(
                 url.clone(),
                 title.clone(),
                 *link_type,
-                Self::remove_inline_links_to_rec(nested, target_key),
+                Self::remove_inline_links_to_rec(nested, links_to),
             ),
             Inline::Emph(nested) => {
-                Inline::Emph(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Emph(Self::remove_inline_links_to_rec(nested, links_to))
             }
             Inline::Strong(nested) => {
-                Inline::Strong(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Strong(Self::remove_inline_links_to_rec(nested, links_to))
             }
             Inline::Strikeout(nested) => {
-                Inline::Strikeout(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Strikeout(Self::remove_inline_links_to_rec(nested, links_to))
             }
             Inline::Underline(nested) => {
-                Inline::Underline(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Underline(Self::remove_inline_links_to_rec(nested, links_to))
             }
             Inline::Superscript(nested) => {
-                Inline::Superscript(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Superscript(Self::remove_inline_links_to_rec(nested, links_to))
             }
             Inline::Subscript(nested) => {
-                Inline::Subscript(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::Subscript(Self::remove_inline_links_to_rec(nested, links_to))
             }
             Inline::SmallCaps(nested) => {
-                Inline::SmallCaps(Self::remove_inline_links_to_rec(nested, target_key))
+                Inline::SmallCaps(Self::remove_inline_links_to_rec(nested, links_to))
             }
             _ => inline.clone(),
         }
     }
 
-    fn reference_key_direct(&self) -> Option<Key> {
-        match &self.node {
-            Node::Reference(reference) => Some(reference.key.clone()),
-            _ => None,
-        }
-    }
     pub fn annotate_references<F>(&self, parent_lookup: &F, parent_key: &str) -> Tree
     where
-        F: Fn(&Key) -> Vec<(Key, String)>,
+        F: Fn(&Target) -> Vec<(Key, String)>,
     {
         let _ = parent_key;
         match &self.node {
             Node::Reference(reference) => {
-                let parents = parent_lookup(&reference.key);
+                let parents = parent_lookup(&reference.target);
                 if parents.is_empty() {
                     self.clone()
                 } else {
-                    let mut inlines = vec![];
-                    inlines.push(Inline::Reference(Reference {
-                        key: reference.key.clone(),
-                        inlines: reference.inlines.clone(),
-                        reference_type: reference.reference_type,
-                        url: reference.url.clone(),
-                        display_url: reference.display_url.clone(),
-                    }));
-                    inlines.push(Inline::Space);
-                    inlines.push(Inline::Str("<-".to_string()));
-                    inlines.push(Inline::Space);
+                    let mut inlines = vec![
+                        Inline::Reference(reference.clone()),
+                        Inline::Space,
+                        Inline::Str("<-".to_string()),
+                        Inline::Space,
+                    ];
                     for (i, (p_key, p_title)) in parents.iter().enumerate() {
                         if i > 0 {
                             inlines.push(Inline::Str(",".to_string()));
                             inlines.push(Inline::Space);
                         }
-                        inlines.push(Inline::Reference(Reference::plain(
-                            p_key.clone(),
-                            p_title,
-                            ReferenceType::Regular,
-                            String::new(),
-                        )));
+                        inlines.push(Inline::Reference(Reference::to_key(p_key.clone(), p_title)));
                     }
 
                     Tree {

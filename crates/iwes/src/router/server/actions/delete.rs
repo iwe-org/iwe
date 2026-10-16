@@ -19,7 +19,8 @@ impl ActionProvider for DeleteAction {
         let tree = context.collect(&key);
 
         let target_key = if tree.get(target_id).is_reference() {
-            Some(tree.find_reference_key(target_id))
+            tree.find_reference_target(target_id)
+                .map(|target| context.graph().target_key(&target))
         } else {
             context.get_link_key_at(
                 &key,
@@ -48,7 +49,8 @@ impl ActionProvider for DeleteAction {
         let tree = context.collect(&key);
 
         let target_key = if tree.get(target_id).is_reference() {
-            tree.find_reference_key(target_id)
+            tree.find_reference_target(target_id)
+                .map(|target| context.graph().target_key(&target))?
         } else {
             context.get_link_key_at(
                 &key,

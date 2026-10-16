@@ -283,3 +283,57 @@ fn rename_to_a_parent_key_that_stays_inside_the_workspace() {
         .to_workspace_edit(),
     );
 }
+
+#[test]
+fn rename_to_another_folder_skips_unchanged_wiki_links() {
+    let new_uri = uri_from("b/target");
+
+    Fixture::with_documents(vec![
+        ("first", "[[target]]\n"),
+        ("second", "text [[target]]\n"),
+        ("a/target", "# target\n"),
+    ])
+    .rename(
+        uri_from("first").to_rename_params(0, 2, "b/target".to_string()),
+        vec![
+            uri_from("a/target").to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                "# target\n",
+                lsp_types::Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            ),
+        ]
+        .to_workspace_edit(),
+    );
+}
+
+#[test]
+fn rename_wiki_link_to_new_file_name_rewrites_backlinks() {
+    let new_uri = uri_from("a/renamed");
+
+    Fixture::with_documents(vec![
+        ("first", "[[target]]\n"),
+        ("second", "text [[target]]\n"),
+        ("a/target", "# target\n"),
+    ])
+    .rename(
+        uri_from("first").to_rename_params(0, 2, "a/renamed".to_string()),
+        vec![
+            uri_from("first").to_edit("[[renamed]]\n"),
+            uri_from("second").to_edit("text [[renamed]]\n"),
+            uri_from("a/target").to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                "# target\n",
+                lsp_types::Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            ),
+        ]
+        .to_workspace_edit(),
+    );
+}

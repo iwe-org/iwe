@@ -922,7 +922,7 @@ impl IweServer {
         }
 
         let squashed: Tree = (&*graph).squash(&key, depth);
-        let mut patch = Graph::new();
+        let mut patch = graph.new_patch();
         patch.build_key_from_iter(&key, TreeIter::new(&squashed));
         let content = patch.export_key(&key).unwrap_or_default();
         to_text_result(content)
@@ -1348,7 +1348,7 @@ impl IweServer {
         let tree = (&*graph).collect(&source_key);
 
         if params.list.unwrap_or(false) {
-            let refs: Vec<ReferenceEntry> = references(&tree)
+            let refs: Vec<ReferenceEntry> = references(&tree, graph.key_index())
                 .into_iter()
                 .map(|reference| ReferenceEntry {
                     block_number: reference.number,
@@ -1359,7 +1359,12 @@ impl IweServer {
             return to_json_result(&refs);
         }
 
-        let reference = match select_reference(&tree, params.reference.as_deref(), params.block) {
+        let reference = match select_reference(
+            &tree,
+            graph.key_index(),
+            params.reference.as_deref(),
+            params.block,
+        ) {
             Ok(reference) => reference,
             Err(SelectError::NotFound(query)) => {
                 return Err(McpError::invalid_params(
@@ -1577,7 +1582,7 @@ fn build_tree_node(
         let ref_node_ids = graph.get_inclusion_edges_in(key);
         let mut refs: Vec<Key> = ref_node_ids
             .iter()
-            .filter_map(|id| graph.graph_node(*id).ref_key())
+            .filter_map(|id| graph.reference_target_key(*id))
             .collect();
         refs.sort();
         refs.into_iter()
@@ -1856,7 +1861,7 @@ impl IweServer {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<HashMap<String, String>>(),
         );
-        let graph = Graph::from_state(&state, true, MarkdownOptions::default(), None);
+        let graph = Graph::from_state(&state, true, config.format_options(), None);
         Self {
             graph: Arc::new(Mutex::new(graph)),
             base_path: None,

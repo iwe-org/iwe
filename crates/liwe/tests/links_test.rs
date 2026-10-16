@@ -945,10 +945,7 @@ fn rename_rewrites_wiki_link_with_different_case() {
     .expect("rename should succeed");
 
     assert_eq!(
-        vec![(
-            Key::name("notes/note"),
-            "[[clippings/Renamed]]\n".to_string()
-        )],
+        vec![(Key::name("notes/note"), "[[Renamed]]\n".to_string())],
         changes.updates
     );
 }

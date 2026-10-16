@@ -200,28 +200,25 @@ impl<'a> GraphBuilder<'a> {
         self.add_node(GraphNode::new_ref(
             self.id,
             new_id,
-            key.clone(),
+            Target::path(key.clone()),
             Vec::new(),
             ReferenceType::Regular,
-            key.to_workspace_url(),
         ));
     }
 
     pub fn reference_with_inlines(
         &mut self,
-        key: &Key,
+        target: Target,
         inlines: Inlines,
         reference_type: ReferenceType,
-        url: String,
     ) {
         let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_ref(
             self.id,
             new_id,
-            key.clone(),
+            target,
             inlines,
             reference_type,
-            url,
         ));
     }
 
@@ -312,18 +309,16 @@ impl<'a> GraphBuilder<'a> {
             )),
             Node::HorizontalRule() => self.attach_node(GraphNode::new_rule(self.id, id)),
             Node::Reference(Reference {
-                key,
+                target,
                 inlines,
                 reference_type,
-                url,
                 display_url: _,
             }) => self.attach_node(GraphNode::new_ref(
                 self.id,
                 id,
-                key.clone(),
+                target.clone(),
                 inlines.clone(),
                 reference_type,
-                url.clone(),
             )),
             Node::Table(table) => {
                 let header_line_ids = table

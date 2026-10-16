@@ -5,7 +5,7 @@ use crate::model::Key;
 
 pub use crate::model::node_iter::NodeIter;
 pub use crate::model::node_pointer::NodePointer;
-pub use crate::model::reference::{Reference, ReferenceType};
+pub use crate::model::reference::{Reference, ReferenceType, Target};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
@@ -35,9 +35,9 @@ impl Node {
         }
     }
 
-    pub fn reference_key(&self) -> Option<Key> {
+    pub fn reference_target(&self) -> Option<Target> {
         match self {
-            Node::Reference(reference) => Some(reference.key.clone()),
+            Node::Reference(reference) => Some(reference.target.clone()),
             _ => None,
         }
     }

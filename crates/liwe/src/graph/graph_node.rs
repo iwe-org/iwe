@@ -1,4 +1,6 @@
+use crate::graph::Graph;
 use crate::model::node::{ColumnAlignment, ReferenceType};
+use crate::model::reference::Target;
 use crate::model::{to_plain_text, Inlines, Key, LineId, MaybeLineId, MaybeNodeId, NodeId};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -237,10 +239,9 @@ pub struct Reference {
     prev: NodeId,
     next: MaybeNodeId,
 
-    key: Key,
+    target: Target,
     inlines: Inlines,
     reference_type: ReferenceType,
-    url: String,
 }
 
 impl Reference {
@@ -248,8 +249,8 @@ impl Reference {
         self.id
     }
 
-    pub fn key(&self) -> &Key {
-        &self.key
+    pub fn target(&self) -> &Target {
+        &self.target
     }
 
     pub fn text(&self) -> String {
@@ -258,10 +259,6 @@ impl Reference {
 
     pub fn inlines(&self) -> &Inlines {
         &self.inlines
-    }
-
-    pub fn url(&self) -> &str {
-        &self.url
     }
 
     pub fn next_id(&self) -> MaybeNodeId {
@@ -373,13 +370,6 @@ impl GraphNode {
 
     pub fn is_root(&self) -> bool {
         matches!(self, GraphNode::Document(_))
-    }
-
-    pub fn is_reference_to(&self, key: &Key) -> bool {
-        match self {
-            GraphNode::Reference(reference) => reference.key.eq(key),
-            _ => false,
-        }
     }
 
     pub fn line_id(&self) -> MaybeLineId {
@@ -547,19 +537,17 @@ impl GraphNode {
     pub fn new_ref(
         prev: NodeId,
         id: NodeId,
-        key: Key,
+        target: Target,
         inlines: Inlines,
         reference_type: ReferenceType,
-        url: String,
     ) -> GraphNode {
         GraphNode::Reference(Reference {
             id,
             prev,
             next: None,
-            key,
+            target,
             inlines,
             reference_type,
-            url,
         })
     }
 
@@ -665,10 +653,25 @@ impl GraphNode {
         }
     }
 
-    pub fn ref_key(&self) -> Option<Key> {
+    pub fn ref_target(&self) -> Option<Target> {
         match self {
-            GraphNode::Reference(reference) => Some(reference.key.clone()),
+            GraphNode::Reference(reference) => Some(reference.target.clone()),
             _ => None,
+        }
+    }
+
+    pub fn targets(&self, graph: &Graph) -> Vec<Target> {
+        match self {
+            GraphNode::Reference(reference) => vec![reference.target.clone()],
+            GraphNode::Section(section) => graph.get_line(section.line).targets(),
+            GraphNode::Leaf(leaf) => graph.get_line(leaf.line).targets(),
+            GraphNode::Table(table) => table
+                .header
+                .iter()
+                .chain(table.rows.iter().flatten())
+                .flat_map(|line_id| graph.get_line(*line_id).targets())
+                .collect(),
+            _ => Vec::new(),
         }
     }
 
