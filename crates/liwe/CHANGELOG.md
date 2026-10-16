@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0](https://github.com/iwe-org/iwe/compare/liwe-v0.26.1...liwe-v0.27.0) - 2026-10-16
+
 ### Added
 
 - `liwe::init` module with the workspace scan, notes folder detection, environment probe and settings detection used by `iwe init`

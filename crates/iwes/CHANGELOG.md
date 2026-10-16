@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0](https://github.com/iwe-org/iwe/compare/iwes-v0.26.1...iwes-v0.27.0) - 2026-10-16
+
 ### Added
 
 - `workspace/inlayHint/refresh` is sent when a document is created or removed

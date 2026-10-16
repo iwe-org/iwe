@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0](https://github.com/iwe-org/iwe/compare/iwe-v0.26.1...iwe-v0.27.0) - 2026-10-16
+
 ### Changed
 
 - `rename` keeps `[[Name]]` links as they are when a note moves to another folder under the same file name, and otherwise writes the shortest name that resolves (previously every link was rewritten to the full path)
