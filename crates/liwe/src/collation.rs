@@ -16,6 +16,7 @@ use crate::locale::strip_locale_encoding;
 const FALLBACK_LOCALE: &str = "en";
 const VARIATION_SELECTOR_EMOJI: char = '\u{FE0F}';
 const ZERO_WIDTH_JOINER: char = '\u{200D}';
+const FIRST_BARE_PICTOGRAPH: char = '\u{238C}';
 
 #[derive(Clone, Default)]
 pub struct TitleCollator {
@@ -193,7 +194,8 @@ fn is_emoji_start(c: char, next: Option<char>) -> bool {
     let regional = CodePointSetData::new::<RegionalIndicator>();
     presentation.contains(c)
         || regional.contains(c)
-        || (pictographic.contains(c) && next == Some(VARIATION_SELECTOR_EMOJI))
+        || (pictographic.contains(c)
+            && (next == Some(VARIATION_SELECTOR_EMOJI) || c >= FIRST_BARE_PICTOGRAPH))
 }
 
 fn is_emoji_continuation(c: char, previous: char, next: Option<char>) -> bool {
@@ -389,6 +391,10 @@ mod tests {
         assert_eq!(strip_emoji("🔥🔥 Hot"), "Hot");
         assert_eq!(strip_emoji("✅ Done"), "Done");
         assert_eq!(strip_emoji("☀️ Sunny"), "Sunny");
+        assert_eq!(strip_emoji("🏛 Pillars"), "Pillars");
+        assert_eq!(strip_emoji("✈ Flights"), "Flights");
+        assert_eq!(strip_emoji("🗣 Talk"), "Talk");
+        assert_eq!(strip_emoji("🏘🏛 Town"), "Town");
         assert_eq!(strip_emoji("🏳️‍🌈 Pride"), "Pride");
         assert_eq!(strip_emoji("🇺🇸 Travel"), "Travel");
         assert_eq!(strip_emoji("👍🏽 Good"), "Good");
