@@ -10,6 +10,9 @@ rust-version = "1.82"
 repository = "https://github.com/iwe-org/iwe"
 version = "0.26.1"
 
+[workspace.lints.clippy]
+dbg_macro = "deny"
+
 [workspace.dependencies]
 liwe = { path = "./crates/liwe", version = "0.26.1" }
 diwe = { path = "./crates/diwe", version = "0.26.1" }

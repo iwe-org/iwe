@@ -1011,11 +1011,7 @@ impl Fixture {
     }
 
     fn send_notification(&self, notification: Notification) {
-        let r = self.client.sender.send(Message::Notification(notification));
-
-        if r.is_err() {
-            eprintln!("failed to send notification: {:?}", r.err());
-        }
+        let _ = self.client.sender.send(Message::Notification(notification));
     }
 }
 

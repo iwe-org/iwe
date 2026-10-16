@@ -1,3 +1,5 @@
+#![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
+
 use diwe::config::{DjotOptions, Format, FormatOptions};
 use diwe::graph_from_path;
 

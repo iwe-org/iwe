@@ -110,11 +110,6 @@ fn test_squash_with_links() {
     let temp_path = temp_dir.path();
 
     let output = run_squash_command(temp_path, &["main"]);
-    eprintln!("ERR {}", String::from_utf8_lossy(&output.stderr));
-    eprintln!(
-        "MAIN {:?}",
-        std::fs::read_to_string(temp_path.join("main.md"))
-    );
     assert!(output.status.success(), "Squash command should succeed");
 
     let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
@@ -527,7 +522,6 @@ fn setup_iwe_config_with(temp_path: &std::path::Path, markdown: MarkdownOptions)
     };
 
     let config_content = toml::to_string(&config).expect("Failed to serialize config to TOML");
-    eprintln!("CFG\n{config_content}");
 
     write(temp_path.join(".iwe").join("config.toml"), config_content)
         .expect("Should write config file");

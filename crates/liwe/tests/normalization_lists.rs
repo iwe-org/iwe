@@ -513,11 +513,6 @@ fn compare(expected: &str, denormalized: &str) {
 
     let normalized = graph.to_markdown(&"key".into());
 
-    println!("{:#?}", graph);
-    println!("{}", expected);
-    println!("normalized:");
-    println!("{}", normalized);
-
     assert_str_eq!(expected, normalized);
 }
 

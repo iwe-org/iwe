@@ -338,22 +338,6 @@ fn normalize_to(expected: &str, denormalized: &str) {
     graph.from_markdown("key".into(), denormalized, MarkdownReader::new());
     let normalized = graph.to_markdown(&"key".into());
 
-    println!("{:#?}", graph);
-
-    println!("denormalized:");
-    println!("{}", denormalized);
-    println!();
-
-    if expected != denormalized {
-        println!("expected:");
-        println!("{}", expected);
-        println!();
-    }
-
-    println!("normalized:");
-    println!("{}", normalized);
-    println!();
-
     assert_str_eq!(expected, normalized);
 }
 

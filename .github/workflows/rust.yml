@@ -28,6 +28,9 @@ jobs:
     - name: Check formatting
       if: runner.os == 'Linux'
       run: cargo fmt --check
+    - name: Lint
+      if: runner.os == 'Linux'
+      run: cargo clippy --workspace --all-targets --all-features
     - name: Build
       run: cargo build --verbose
     - name: Run tests

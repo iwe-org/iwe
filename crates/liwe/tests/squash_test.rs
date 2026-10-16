@@ -328,9 +328,6 @@ fn squash(source: &str, expected: &str) {
     let document_tree = graph.squash(&"1".into(), 2);
     patch.build_key_from_iter(&"1".into(), document_tree.iter());
 
-    eprintln!("graph {:#?}", graph);
-    eprintln!("patch {:#?}", patch);
-
     assert_eq!(expected, patch.export_key(&"1".into()).unwrap());
 }
 

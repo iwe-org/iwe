@@ -42,3 +42,6 @@ env_logger.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
 crossbeam-channel.workspace = true
+
+[lints]
+workspace = true

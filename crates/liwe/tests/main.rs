@@ -1,3 +1,5 @@
+#![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
+
 #[allow(dead_code)]
 mod blocks;
 mod djot_roundtrip;

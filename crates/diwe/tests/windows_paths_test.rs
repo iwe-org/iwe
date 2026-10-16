@@ -1,3 +1,4 @@
+#![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
 #![cfg(windows)]
 
 use std::fs;

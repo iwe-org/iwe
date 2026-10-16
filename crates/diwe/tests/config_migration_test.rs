@@ -1,3 +1,5 @@
+#![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
+
 use diwe::config::{
     migrate_v2_to_v3, migrate_v3_to_v4, ActionDefinition, Configuration, DjotOptions, Format,
     FormatOptions,
