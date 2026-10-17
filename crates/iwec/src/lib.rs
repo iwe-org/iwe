@@ -510,7 +510,7 @@ pub struct QueryParams {
     )]
     pub operation: QueryKind,
     #[schemars(
-        description = "The operation document as YAML. Uses the IWE query + block-selection language: `filter` (with $content block membership), `project`/`addFields` ($content narrowing, $blocks, $matches), `sort`, `limit` for reads; `filter` + `update` (with block operators $replace, $replaceText, $insertBefore, $insertAfter, $append, $delete) for update; `filter` + `expect` for delete. This surface is always strict: every mutating application must carry an `expect` guard (document-level `expect`, and one per block operator)."
+        description = "The operation document as YAML. Uses the IWE query + block-selection language: `filter` (with $content block membership), `project`/`addFields` ($content narrowing, $blocks, $matches), `sort` (`field: 1 | -1`, or `field: { order, collation }` with `binary` or a locale tag), `limit` for reads; `filter` + `update` (with block operators $replace, $replaceText, $insertBefore, $insertAfter, $append, $delete) for update; `filter` + `expect` for delete. This surface is always strict: every mutating application must carry an `expect` guard (document-level `expect`, and one per block operator)."
     )]
     pub document: String,
     #[schemars(

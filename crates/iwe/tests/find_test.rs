@@ -2276,3 +2276,92 @@ fn test_find_dollar_segment_in_projection_rejected() {
         "error: invalid value 'x=query.filter.$includedBy' for '--project <PROJECT>': invalid path segment in 'query.filter.$includedBy': segment starts with '$'\n\nFor more information, try '--help'.\n"
     );
 }
+
+fn setup_named_documents() -> TempDir {
+    let dir = setup_workspace();
+    for (file, name) in [("a.md", "apple"), ("b.md", "Zebra"), ("c.md", "Émile")] {
+        write(
+            dir.path().join(file),
+            format!("---\nname: {}\n---\n# {}\n", name, name),
+        )
+        .unwrap();
+    }
+    dir
+}
+
+fn names_in_output(stdout: &str) -> Vec<String> {
+    let docs: Vec<serde_json::Value> = serde_json::from_str(stdout).expect("json output");
+    docs.iter()
+        .map(|doc| doc["name"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[test]
+fn test_find_sort_uses_workspace_locale_by_default() {
+    let dir = setup_named_documents();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--sort", "name:1", "--project", "name", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(names_in_output(&stdout), vec!["apple", "Émile", "Zebra"]);
+}
+
+#[test]
+fn test_find_sort_binary_collation() {
+    let dir = setup_named_documents();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--sort", "name:1:binary", "--project", "name", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(names_in_output(&stdout), vec!["Zebra", "apple", "Émile"]);
+}
+
+#[test]
+fn test_find_sort_locale_collation_descending() {
+    let dir = setup_named_documents();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &["--sort", "name:-1:sv-SE", "--project", "name", "-f", "json"],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(names_in_output(&stdout), vec!["Zebra", "Émile", "apple"]);
+}
+
+#[test]
+fn test_find_sort_rejects_unknown_collation() {
+    let dir = setup_named_documents();
+
+    let (_stdout, stderr, success) = run_iwe(dir.path(), &["--sort", "name:1:natural"]);
+
+    assert!(!success);
+    assert_eq!(
+        stderr,
+        "error: invalid sort collation 'natural': expected 'binary' or a BCP-47 locale tag such as 'sv-SE'\n"
+    );
+}
+
+#[test]
+fn test_find_sort_rejects_bad_direction() {
+    let dir = setup_named_documents();
+
+    for value in ["name:asc", "name:2", "name:asc:binary"] {
+        let (_stdout, stderr, success) = run_iwe(dir.path(), &["--sort", value]);
+        assert!(!success);
+        let dir_text = value.split(':').nth(1).unwrap();
+        assert_eq!(
+            stderr,
+            format!(
+                "error: invalid sort direction '{}': expected 1 or -1\n",
+                dir_text
+            )
+        );
+    }
+}

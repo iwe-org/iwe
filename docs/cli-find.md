@@ -31,7 +31,7 @@ iwe find --lexical <QUERY> [OPTIONS]
 | `--add-fields <EXPR>`           | Additive projection: same grammar as `--project`, extends the defaults instead of replacing. | none       |
 | `--blocks <PRED>`               | Locate blocks: adds a `blocks` field listing each block matching the inline block predicate. | none       |
 | `--matches <PATTERN>`           | Grep over blocks: restricts results to documents whose content matches the Rust regex `PATTERN` and adds a `matches` field with the matching lines. | none       |
-| `--sort <field:DIR>`            | Sort by frontmatter field. `DIR` is `1` (asc) or `-1` (desc).                                | none       |
+| `--sort <field:DIR[:COLLATION]>` | Sort by frontmatter field. `DIR` is `1` (asc) or `-1` (desc). `COLLATION` is `binary` for codepoint order or a BCP-47 locale tag such as `sv-SE`; default is the workspace locale, and a language without its own collation data uses the root rules. | none       |
 | `-l, --limit <N>`               | Maximum number of results (`0` = unlimited).                                                 | unlimited  |
 | `--max-tokens <N>`              | Cap total projected `$content` tokens across all results (`0` = unlimited).                  | unlimited  |
 | `--max-document-tokens <N>`          | Cap projected `$content` tokens per result, head-truncating with a marker (`0` = unlimited). | unlimited  |

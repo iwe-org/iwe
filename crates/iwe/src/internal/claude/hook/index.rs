@@ -88,6 +88,7 @@ fn list_slice(store: &MemoryStore, slice: &Slice, seen: &HashSet<String>) -> Opt
     let sort = slice.sort.as_ref().map(|(name, dir)| QuerySort {
         key: FieldPath::from_dotted(name),
         dir: *dir,
+        collation: None,
     });
     let projection = match &slice.sort {
         Some((name, _)) => format!("title=$title,key=$key,{0}={0}", name),

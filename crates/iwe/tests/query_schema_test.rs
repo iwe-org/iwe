@@ -204,6 +204,10 @@ const POSITIVES: &[(Reading, &str)] = &[
     (Reading::Find, "project: { title: null, author: true, key: $key }\n"),
     (Reading::Find, "addFields: { body: $content }\n"),
     (Reading::Find, "search: { fuzzy: alpha }\nsort: { created: 1 }\n"),
+    (Reading::Find, "sort: { title: { order: 1 } }\n"),
+    (Reading::Find, "sort: { title: { order: -1, collation: binary } }\n"),
+    (Reading::Find, "sort: { title: { order: 1, collation: sv-SE } }\n"),
+    (Reading::Find, "sort: { title: { order: 1, collation: zh-Hant-TW } }\n"),
     (
         Reading::Update,
         "filter: {}\nupdate: { $delete: {} }\nexpect: 0\n",
@@ -281,6 +285,46 @@ const NEGATIVES: &[(Reading, &str, bool)] = &[
         false,
     ),
     (Reading::Find, "sort: { created: 2 }\n", false),
+    (
+        Reading::Find,
+        "sort: { title: { collation: binary } }\n",
+        false,
+    ),
+    (
+        Reading::Find,
+        "sort: { title: { order: 1, collation: natural } }\n",
+        false,
+    ),
+    (
+        Reading::Find,
+        "sort: { title: { order: 1, direction: 1 } }\n",
+        false,
+    ),
+    (
+        Reading::Find,
+        "sort: { title: { order: 1, collation: sv_SE } }\n",
+        false,
+    ),
+    (
+        Reading::Find,
+        "sort: { title: { order: 1, collation: en_US.UTF-8 } }\n",
+        false,
+    ),
+    (
+        Reading::Find,
+        "sort: { title: { order: 1, collation: en@euro } }\n",
+        false,
+    ),
+    (
+        Reading::Find,
+        "sort: { title: { order: 1, collation: en-x } }\n",
+        false,
+    ),
+    (
+        Reading::Find,
+        "sort: { title: { order: 1, collation: 1 } }\n",
+        false,
+    ),
     (Reading::Find, "sort: { created: 1, title: -1 }\n", false),
     (Reading::Find, "sort: {}\n", false),
     (Reading::Find, "limit: -1\n", false),

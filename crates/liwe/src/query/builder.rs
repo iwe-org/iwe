@@ -1,5 +1,6 @@
 use serde_yaml::{Mapping, Value};
 
+use crate::collation::Collation;
 use crate::model::Key;
 use crate::query::block::{parse_block_predicate, parse_matches_source, BlockPredicate};
 use crate::query::document::{
@@ -81,6 +82,17 @@ pub enum ParseError {
     },
     EmptySort,
     MultiKeySortNotSupportedV1,
+    SortMissingOrder {
+        key: String,
+    },
+    UnknownSortOption {
+        key: String,
+        option: String,
+    },
+    InvalidCollation {
+        key: String,
+        value: String,
+    },
     NegativeLimit(i64),
     EmptyUpdate,
     UnknownUpdateOperator {
@@ -251,6 +263,15 @@ impl std::fmt::Display for ParseError {
             Self::EmptySort => write!(f, "sort expression is empty"),
             Self::MultiKeySortNotSupportedV1 => {
                 write!(f, "multi-key sort is not yet supported")
+            }
+            Self::SortMissingOrder { key } => {
+                write!(f, "sort for '{}' must set 'order' to 1 (asc) or -1 (desc)", key)
+            }
+            Self::UnknownSortOption { key, option } => {
+                write!(f, "sort for '{}' has unknown option '{}' (expected 'order' or 'collation')", key, option)
+            }
+            Self::InvalidCollation { key, value } => {
+                write!(f, "sort collation for '{}' must be 'binary' or a locale tag such as 'sv-SE', got '{}'", key, value)
             }
             Self::NegativeLimit(n) => write!(f, "limit must be non-negative, got {}", n),
             Self::EmptyUpdate => write!(f, "update expression is empty"),
@@ -994,27 +1015,9 @@ fn build_sort(raw: RawSort) -> Result<Sort, ParseError> {
     }
     let (k, v) = map.into_iter().next().unwrap();
     let key_str = k.as_str().ok_or(ParseError::NonStringKey)?.to_string();
-    let dir_int = match v {
-        Value::Number(n) => n.as_i64().ok_or(ParseError::InvalidSortValue {
-            key: key_str.clone(),
-            value: 0,
-        })?,
-        _ => {
-            return Err(ParseError::InvalidSortValue {
-                key: key_str,
-                value: 0,
-            });
-        }
-    };
-    let dir = match dir_int {
-        1 => SortDir::Asc,
-        -1 => SortDir::Desc,
-        other => {
-            return Err(ParseError::InvalidSortValue {
-                key: key_str,
-                value: other,
-            });
-        }
+    let (dir, collation) = match v {
+        Value::Mapping(options) => build_sort_options(&key_str, options)?,
+        other => (build_sort_dir(&key_str, &other)?, None),
     };
     let path = if key_str.contains('.') {
         FieldPath::from_dotted(&key_str)
@@ -1022,7 +1025,75 @@ fn build_sort(raw: RawSort) -> Result<Sort, ParseError> {
         FieldPath(vec![key_str])
     };
     check_path_segments(&path.0)?;
-    Ok(Sort { key: path, dir })
+    Ok(Sort {
+        key: path,
+        dir,
+        collation,
+    })
+}
+
+fn build_sort_options(
+    key: &str,
+    options: Mapping,
+) -> Result<(SortDir, Option<Collation>), ParseError> {
+    let mut dir = None;
+    let mut collation = None;
+    for (name, value) in options {
+        match name.as_str() {
+            Some("order") => dir = Some(build_sort_dir(key, &value)?),
+            Some("collation") => {
+                let parsed = value.as_str().and_then(Collation::parse);
+                collation = Some(parsed.ok_or_else(|| ParseError::InvalidCollation {
+                    key: key.to_string(),
+                    value: yaml_scalar_text(&value),
+                })?);
+            }
+            Some(other) => {
+                return Err(ParseError::UnknownSortOption {
+                    key: key.to_string(),
+                    option: other.to_string(),
+                })
+            }
+            None => return Err(ParseError::NonStringKey),
+        }
+    }
+    let dir = dir.ok_or_else(|| ParseError::SortMissingOrder {
+        key: key.to_string(),
+    })?;
+    Ok((dir, collation))
+}
+
+fn yaml_scalar_text(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        other => serde_yaml::to_string(other)
+            .unwrap_or_default()
+            .trim_end()
+            .to_string(),
+    }
+}
+
+fn build_sort_dir(key: &str, value: &Value) -> Result<SortDir, ParseError> {
+    let dir_int = match value {
+        Value::Number(n) => n.as_i64().ok_or(ParseError::InvalidSortValue {
+            key: key.to_string(),
+            value: 0,
+        })?,
+        _ => {
+            return Err(ParseError::InvalidSortValue {
+                key: key.to_string(),
+                value: 0,
+            });
+        }
+    };
+    match dir_int {
+        1 => Ok(SortDir::Asc),
+        -1 => Ok(SortDir::Desc),
+        other => Err(ParseError::InvalidSortValue {
+            key: key.to_string(),
+            value: other,
+        }),
+    }
 }
 
 fn build_limit(raw: i64) -> Result<Limit, ParseError> {
@@ -1980,6 +2051,115 @@ mod tests {
         } else {
             panic!()
         }
+    }
+
+    #[test]
+    fn sort_accepts_order_mapping_without_collation() {
+        let op = parse("sort:\n  a: { order: -1 }\n", OperationKind::Find).unwrap();
+        if let Operation::Find(find) = op {
+            let s = find.sort.unwrap();
+            assert_eq!(s.dir, SortDir::Desc);
+            assert_eq!(s.collation, None);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn sort_accepts_binary_collation() {
+        let op = parse(
+            "sort:\n  a: { order: 1, collation: binary }\n",
+            OperationKind::Find,
+        )
+        .unwrap();
+        if let Operation::Find(find) = op {
+            let s = find.sort.unwrap();
+            assert_eq!(s.dir, SortDir::Asc);
+            assert_eq!(s.collation, Some(Collation::Binary));
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn sort_accepts_locale_collation() {
+        let op = parse(
+            "sort:\n  a: { order: 1, collation: sv-SE }\n",
+            OperationKind::Find,
+        )
+        .unwrap();
+        if let Operation::Find(find) = op {
+            let s = find.sort.unwrap();
+            assert_eq!(s.collation, Some(Collation::Locale("sv-SE".to_string())));
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn sort_mapping_requires_order() {
+        let err = parse_err("sort:\n  a: { collation: binary }\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::SortMissingOrder { .. }));
+        assert_eq!(
+            err.to_string(),
+            "sort for 'a' must set 'order' to 1 (asc) or -1 (desc)"
+        );
+    }
+
+    #[test]
+    fn sort_mapping_rejects_unknown_option() {
+        let err = parse_err(
+            "sort:\n  a: { order: 1, direction: 1 }\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::UnknownSortOption { .. }));
+    }
+
+    #[test]
+    fn sort_mapping_rejects_unknown_collation() {
+        let err = parse_err(
+            "sort:\n  a: { order: 1, collation: natural }\n",
+            OperationKind::Find,
+        );
+        assert_eq!(
+            err.to_string(),
+            "sort collation for 'a' must be 'binary' or a locale tag such as 'sv-SE', got 'natural'"
+        );
+    }
+
+    #[test]
+    fn sort_mapping_reports_non_string_collation() {
+        let err = parse_err(
+            "sort:\n  a: { order: 1, collation: 1 }\n",
+            OperationKind::Find,
+        );
+        assert_eq!(
+            err.to_string(),
+            "sort collation for 'a' must be 'binary' or a locale tag such as 'sv-SE', got '1'"
+        );
+        let err = parse_err(
+            "sort:\n  a: { order: 1, collation: null }\n",
+            OperationKind::Find,
+        );
+        assert_eq!(
+            err.to_string(),
+            "sort collation for 'a' must be 'binary' or a locale tag such as 'sv-SE', got 'null'"
+        );
+    }
+
+    #[test]
+    fn sort_mapping_rejects_posix_style_locale() {
+        let err = parse_err(
+            "sort:\n  a: { order: 1, collation: sv_SE }\n",
+            OperationKind::Find,
+        );
+        assert!(matches!(err, ParseError::InvalidCollation { .. }));
+    }
+
+    #[test]
+    fn sort_mapping_rejects_bad_order() {
+        let err = parse_err("sort:\n  a: { order: 0 }\n", OperationKind::Find);
+        assert!(matches!(err, ParseError::InvalidSortValue { .. }));
     }
 
     #[test]

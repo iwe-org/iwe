@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use serde_yaml::{Mapping, Value};
@@ -8,6 +9,11 @@ use crate::query::document::{is_operator_segment, FieldPath, Sort, SortDir};
 use crate::query::filter::cmp_ordered;
 
 pub fn sort_in_place(rows: &mut [(Key, Mapping)], sort: &Sort, collator: &TitleCollator) {
+    let collator = match &sort.collation {
+        None => Cow::Borrowed(collator),
+        Some(collation) => Cow::Owned(TitleCollator::for_collation(collation)),
+    };
+    let collator = collator.as_ref();
     let values: Vec<Option<&Value>> = rows
         .iter()
         .map(|(_, mapping)| lookup(mapping, &sort.key))
@@ -124,7 +130,11 @@ mod tests {
         } else {
             FieldPath(vec![field.to_string()])
         };
-        Sort { key: path, dir }
+        Sort {
+            key: path,
+            dir,
+            collation: None,
+        }
     }
 
     fn english() -> TitleCollator {
