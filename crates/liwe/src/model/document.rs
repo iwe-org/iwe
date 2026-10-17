@@ -321,7 +321,10 @@ impl DocumentBlock {
                     .last_mut()
                     .expect("append_inline: ordered list must have items");
 
-                if item.is_empty() {
+                if !matches!(
+                    item.last(),
+                    Some(DocumentBlock::Para(_) | DocumentBlock::Plain(_))
+                ) {
                     item.push(DocumentBlock::Para(Para {
                         line_range: line_range.clone(),
                         inlines: Vec::new(),
@@ -338,7 +341,10 @@ impl DocumentBlock {
                     .last_mut()
                     .expect("append_inline: bullet list must have items");
 
-                if item.is_empty() {
+                if !matches!(
+                    item.last(),
+                    Some(DocumentBlock::Para(_) | DocumentBlock::Plain(_))
+                ) {
                     item.push(DocumentBlock::Para(Para {
                         line_range: line_range.clone(),
                         inlines: Vec::new(),
