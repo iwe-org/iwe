@@ -504,6 +504,96 @@ fn normalization_bullet_items_ending_with_table_are_separated() {
     );
 }
 
+#[test]
+fn normalization_ordered_item_text_after_code_block_is_kept() {
+    compare(
+        indoc! {"
+        1. item
+
+           ``` bash
+           code
+           ```
+
+           text after code
+        "},
+        indoc! {"
+        1. item
+           ```bash
+           code
+           ```
+           text after code
+        "},
+    );
+}
+
+#[test]
+fn normalization_bullet_item_text_after_code_blocks_is_kept() {
+    compare(
+        indoc! {"
+        - item
+
+          ```
+          code 1
+          ```
+
+          text 1
+
+          ```
+          code 2
+          ```
+
+          text 2
+        "},
+        indoc! {"
+        - item
+          ```
+          code 1
+          ```
+          text 1
+          ```
+          code 2
+          ```
+          text 2
+        "},
+    );
+}
+
+#[test]
+fn normalization_bullet_item_text_after_rule_is_kept() {
+    compare(
+        indoc! {"
+        - item
+
+          ------------------------------------------------------------------------
+
+          text after rule
+        "},
+        indoc! {"
+        - item
+          ***
+          text after rule
+        "},
+    );
+}
+
+#[test]
+fn normalization_bullet_item_text_after_header_is_separate() {
+    compare(
+        indoc! {"
+        - item
+
+          # header
+
+          text after header
+        "},
+        indoc! {"
+        - item
+          ## header
+          text after header
+        "},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 
