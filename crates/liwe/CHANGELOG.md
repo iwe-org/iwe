@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0](https://github.com/iwe-org/iwe/compare/liwe-v0.27.0...liwe-v0.28.0) - 2026-10-17
+
 ### Added
 
 - `collation::TitleCollator` for locale-aware text ordering (case and accents break ties only, numbers compare by value, emoji are ignored); `TitleCollator::binary()` keeps codepoint order

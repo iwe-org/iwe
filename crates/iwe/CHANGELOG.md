@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0](https://github.com/iwe-org/iwe/compare/iwe-v0.27.0...iwe-v0.28.0) - 2026-10-17
+
 ### Added
 
 - `--sort field:DIR:COLLATION` and `sort: { field: { order, collation } }` in query documents, with `binary` for codepoint order or a locale tag such as `sv-SE`

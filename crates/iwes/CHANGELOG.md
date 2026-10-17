@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0](https://github.com/iwe-org/iwe/compare/iwes-v0.27.0...iwes-v0.28.0) - 2026-10-17
+
 ### Changed
 
 - The sort code action and completion ordering use locale-aware collation: case and accents no longer split a list, `Note 2` sorts before `Note 10` and emoji are ignored except to break ties
