@@ -122,17 +122,21 @@ jobs:
           npm_config_prefer_online: "true"
         run: |
           VERSION="${{ needs.publish-npm.outputs.version }}"
+          PACKAGES="cli-darwin-arm64 cli-darwin-x64 cli-linux-x64 cli-linux-arm64 cli-win32-x64 iwe mcp"
           for attempt in $(seq 1 10); do
-            if npm view "@iwe-org/iwe@${VERSION}" version \
-              && npm view "@iwe-org/mcp@${VERSION}" version; then
+            missing=""
+            for pkg in $PACKAGES; do
+              npm view "@iwe-org/${pkg}@${VERSION}" version > /dev/null 2>&1 || missing="${missing} ${pkg}"
+            done
+            if [ -z "$missing" ]; then
               npx -y "@iwe-org/iwe@${VERSION}" --version
               npx -y "@iwe-org/mcp@${VERSION}" --version
               exit 0
             fi
-            echo "registry not ready yet, retrying in 30s (attempt ${attempt}/10)"
+            echo "registry not ready yet, missing:${missing}; retrying in 30s (attempt ${attempt}/10)"
             sleep 30
           done
-          echo "@iwe-org/iwe@${VERSION} or @iwe-org/mcp@${VERSION} never appeared on the registry"
+          echo "some @iwe-org packages at ${VERSION} never appeared on the registry:${missing}"
           exit 1
 
   publish-mcp-registry:
