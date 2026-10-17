@@ -492,12 +492,30 @@
       }
     },
     "sort": {
-      "description": "Exactly one sort key: `1` ascending, `-1` descending. Ties break by document key ascending.",
+      "description": "Exactly one sort key: `1` ascending, `-1` descending, or `{ order, collation }` to also choose how strings compare. Ties break by document key ascending.",
       "type": "object",
       "minProperties": 1,
       "maxProperties": 1,
       "propertyNames": { "$ref": "#/$defs/fieldPath" },
-      "additionalProperties": { "enum": [1, -1] }
+      "additionalProperties": { "$ref": "#/$defs/sortSpec" }
+    },
+    "sortSpec": {
+      "oneOf": [
+        { "enum": [1, -1] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["order"],
+          "properties": {
+            "order": { "enum": [1, -1] },
+            "collation": {
+              "description": "`binary` for codepoint order, or a BCP-47 locale tag such as `sv-SE` for that language's rules; a language without its own collation data uses the root rules. Absent: the workspace locale.",
+              "type": "string",
+              "pattern": "^(binary|[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*)$"
+            }
+          }
+        }
+      ]
     },
     "limit": {
       "description": "The maximum number of documents; `0` means no limit.",

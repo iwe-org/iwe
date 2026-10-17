@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--sort field:DIR:COLLATION` and `sort: { field: { order, collation } }` in query documents, with `binary` for codepoint order or a locale tag such as `sv-SE`
+
 ### Changed
 
 - `find --sort` and query `sort` on text fields use locale-aware collation: case and accents no longer split results, `Note 2` sorts before `Note 10` and emoji are ignored except to break ties (previously byte order)

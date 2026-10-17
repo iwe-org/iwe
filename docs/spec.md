@@ -1272,11 +1272,22 @@ The sort direction is type-strict: integer `1` (ascending) or integer `-1` (desc
 
 A `sort` mapping with two or more entries is a parse-time error.
 
+The value may also be a mapping with a required `order` (`1` or `-1`, same rules) and an optional `collation`:
+
+```yaml
+sort:
+  title: { order: 1, collation: binary }
+sort:
+  title: { order: -1, collation: sv-SE }
+```
+
+`collation` is `binary` for codepoint order or a BCP-47 locale tag (`sv-SE`, not `sv_SE`) for that language's collation rules; a language with no collation data of its own uses the root rules without an error. Any other value, an unknown option name, or a mapping without `order` is a parse-time error. Without `collation`, strings compare with the host's collator (see below).
+
 Documents missing the sort key sort as if the value were null. Null sorts before all other values ascending, last descending. Sort applies to all four operations (on `update` / `delete` it bounds the iteration order before mutation).
 
 Ties — including the no-`sort` case — are broken by document key in ascending lexicographic order. The engine sorts the matched set by key first, then applies the user-provided sort with a stable algorithm; the result is deterministic given the same corpus and operation.
 
-The engine compares string values by codepoint. A host may supply a locale-aware collator (the Unicode Collation Algorithm with the CLDR rules of a locale, numeric ordering on, emoji removed before comparing); the `iwe` CLI, the `iwes` LSP server and the `iwec` MCP server do so from `workspace.locale`, so there case and accents only break ties and `Note 2` precedes `Note 10`. Two strings whose emoji-free text collates equal fall back to the full string with emoji and then to codepoint order. Collation applies to `sort` only; the ordering operators in §4.7 always use codepoint comparison.
+The engine compares string values by codepoint unless the sort sets a `collation`. A host may supply a default locale-aware collator (the Unicode Collation Algorithm with the CLDR rules of a locale, numeric ordering on, emoji removed before comparing); the `iwe` CLI, the `iwes` LSP server and the `iwec` MCP server do so from `workspace.locale`, so there case and accents only break ties and `Note 2` precedes `Note 10`. Two strings whose emoji-free text collates equal fall back to the full string with emoji and then to codepoint order. Collation applies to `sort` only; the ordering operators in §4.7 always use codepoint comparison.
 
 ## 8. Limit
 

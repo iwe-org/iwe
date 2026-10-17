@@ -17,6 +17,7 @@ pub mod sort;
 pub mod update;
 pub mod wire;
 
+pub use crate::collation::Collation;
 pub use builder::{
     build_projection, build_update_doc, check_path_segments, parse_expect, parse_filter_expression,
     parse_filter_mapping, parse_operation, ParseError,

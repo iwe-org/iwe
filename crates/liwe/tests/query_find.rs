@@ -5,8 +5,8 @@ use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
 use liwe::query::execute;
 use liwe::query::{
-    Filter, FindOp, Outcome, Projection, ProjectionBase, ProjectionField, ProjectionSource,
-    PseudoField, Sort,
+    Collation, Filter, FindOp, Outcome, Projection, ProjectionBase, ProjectionField,
+    ProjectionSource, PseudoField, Sort,
 };
 use liwe::state::from_indoc;
 use serde_yaml::{Mapping, Value};
@@ -441,6 +441,42 @@ fn find_sort_text_lithuanian_sorts_y_together_with_i() {
     assert_eq!(
         names_sorted(&["jau", "yra", "ir"], Some("lt"), Sort::asc("name")),
         vec!["ir", "yra", "jau"]
+    );
+}
+
+#[test]
+fn find_sort_binary_collation_overrides_locale_collator() {
+    assert_eq!(
+        names_sorted(
+            &["apple", "Zebra", "Émile"],
+            Some("en"),
+            Sort::asc("name").with_collation(Collation::Binary)
+        ),
+        vec!["Zebra", "apple", "Émile"]
+    );
+}
+
+#[test]
+fn find_sort_locale_collation_overrides_binary_default() {
+    assert_eq!(
+        names_sorted(
+            &["ähnlich", "zebra", "apple"],
+            None,
+            Sort::asc("name").with_collation(Collation::Locale("sv-SE".to_string()))
+        ),
+        vec!["apple", "zebra", "ähnlich"]
+    );
+}
+
+#[test]
+fn find_sort_locale_collation_overrides_workspace_locale() {
+    assert_eq!(
+        names_sorted(
+            &["ähnlich", "zebra", "apple"],
+            Some("sv-SE"),
+            Sort::asc("name").with_collation(Collation::Locale("en".to_string()))
+        ),
+        vec!["ähnlich", "apple", "zebra"]
     );
 }
 

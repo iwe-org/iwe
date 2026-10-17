@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `collation::TitleCollator` for locale-aware text ordering (case and accents break ties only, numbers compare by value, emoji are ignored); `TitleCollator::binary()` keeps codepoint order
 - `Graph::collator` and `Graph::with_collator`; the default is binary
 - `locale::strip_locale_encoding`
+- `Collation` and `Sort::collation`: a sort key may set `binary` or a locale tag to choose how its strings compare; `TitleCollator::for_collation` builds the matching collator
 
 ### Changed
 

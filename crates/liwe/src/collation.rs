@@ -64,6 +64,13 @@ impl TitleCollator {
         }
     }
 
+    pub fn for_collation(collation: &Collation) -> TitleCollator {
+        match collation {
+            Collation::Binary => TitleCollator::binary(),
+            Collation::Locale(tag) => TitleCollator::for_locale(Some(tag)),
+        }
+    }
+
     pub fn locale(&self) -> Option<&str> {
         self.localized
             .as_ref()
@@ -139,6 +146,43 @@ fn new_collator(locale: &Locale) -> Option<CollatorBorrowed<'static>> {
 
 fn fallback_locale() -> Locale {
     Locale::try_from_str(FALLBACK_LOCALE).expect("fallback locale is valid")
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Collation {
+    Binary,
+    Locale(String),
+}
+
+impl Collation {
+    pub const BINARY: &'static str = "binary";
+
+    pub fn parse(value: &str) -> Option<Collation> {
+        if value == Self::BINARY {
+            return Some(Collation::Binary);
+        }
+        is_bcp47_tag(value).then(|| Collation::Locale(value.to_string()))
+    }
+}
+
+impl fmt::Display for Collation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Collation::Binary => f.write_str(Self::BINARY),
+            Collation::Locale(tag) => f.write_str(tag),
+        }
+    }
+}
+
+fn is_bcp47_tag(value: &str) -> bool {
+    let mut subtags = value.split('-');
+    let language = subtags.next().unwrap_or_default();
+    let language_ok =
+        (2..=3).contains(&language.len()) && language.bytes().all(|b| b.is_ascii_alphabetic());
+    let rest_ok = subtags.all(|subtag| {
+        (2..=8).contains(&subtag.len()) && subtag.bytes().all(|b| b.is_ascii_alphanumeric())
+    });
+    language_ok && rest_ok && Locale::try_from_str(value).is_ok()
 }
 
 fn parse_locale(value: &str) -> Option<Locale> {
@@ -355,6 +399,25 @@ mod tests {
         let mut items = vec!["a", "b", "c", "d", "e"];
         apply_order(&mut items, &[4, 2, 0, 1, 3]);
         assert_eq!(items, vec!["e", "c", "a", "b", "d"]);
+    }
+
+    #[test]
+    fn collation_parses_binary_and_bcp47_tags_only() {
+        assert_eq!(Collation::parse("binary"), Some(Collation::Binary));
+        assert_eq!(
+            Collation::parse("sv-SE"),
+            Some(Collation::Locale("sv-SE".to_string()))
+        );
+        assert_eq!(
+            Collation::parse("zh-Hant-TW"),
+            Some(Collation::Locale("zh-Hant-TW".to_string()))
+        );
+        assert_eq!(Collation::parse("sv_SE"), None);
+        assert_eq!(Collation::parse("en_US.UTF-8"), None);
+        assert_eq!(Collation::parse("en@euro"), None);
+        assert_eq!(Collation::parse("en-x"), None);
+        assert_eq!(Collation::parse("natural"), None);
+        assert_eq!(Collation::parse(""), None);
     }
 
     #[test]

@@ -57,8 +57,8 @@ use liwe::query::block::{
     parse_block_predicate, BlockOp, BlockPredicate, BlockRegex, MatchesSource,
 };
 use liwe::query::{
-    check_path_segments, current_query_schema, FieldPath, Filter, Projection as QueryProjection,
-    ProjectionField, ProjectionSource, Sort as QuerySort, SortDir,
+    check_path_segments, current_query_schema, Collation, FieldPath, Filter,
+    Projection as QueryProjection, ProjectionField, ProjectionSource, Sort as QuerySort, SortDir,
 };
 
 use log::{debug, error, info};
@@ -2813,17 +2813,25 @@ fn get_workspace_path(configuration: &Configuration) -> PathBuf {
 }
 
 fn parse_sort_arg(s: &str) -> Result<QuerySort, String> {
-    let (field, dir) = s
-        .rsplit_once(':')
-        .ok_or_else(|| format!("invalid --sort value '{}': expected FIELD:1 or FIELD:-1", s))?;
-    let dir = match dir {
-        "1" => SortDir::Asc,
-        "-1" => SortDir::Desc,
-        _ => {
-            return Err(format!(
-                "invalid sort direction '{}': expected 1 or -1",
-                dir
-            ))
+    let (head, last) = s.rsplit_once(':').ok_or_else(|| {
+        format!(
+            "invalid --sort value '{}': expected FIELD:1, FIELD:-1 or FIELD:DIR:COLLATION",
+            s
+        )
+    })?;
+    let direction_error = |dir: &str| format!("invalid sort direction '{}': expected 1 or -1", dir);
+    let (field, dir, collation) = match (parse_sort_dir(last), head.rsplit_once(':')) {
+        (Some(dir), _) => (head, dir, None),
+        (None, None) => return Err(direction_error(last)),
+        (None, Some((field, dir))) => {
+            let dir = parse_sort_dir(dir).ok_or_else(|| direction_error(dir))?;
+            let collation = Collation::parse(last).ok_or_else(|| {
+                format!(
+                    "invalid sort collation '{}': expected 'binary' or a BCP-47 locale tag such as 'sv-SE'",
+                    last
+                )
+            })?;
+            (field, dir, Some(collation))
         }
     };
     if field.is_empty() {
@@ -2831,7 +2839,19 @@ fn parse_sort_arg(s: &str) -> Result<QuerySort, String> {
     }
     let key = FieldPath::from_dotted(field);
     check_path_segments(key.segments()).map_err(|e| e.to_string())?;
-    Ok(QuerySort { key, dir })
+    Ok(QuerySort {
+        key,
+        dir,
+        collation,
+    })
+}
+
+fn parse_sort_dir(value: &str) -> Option<SortDir> {
+    match value {
+        "1" => Some(SortDir::Asc),
+        "-1" => Some(SortDir::Desc),
+        _ => None,
+    }
 }
 
 fn resolve_filter(args: &FilterArgs, graph: &Graph) -> Option<Filter> {

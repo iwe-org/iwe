@@ -33,6 +33,46 @@ async fn query_find_content_membership_and_blocks() {
 }
 
 #[tokio::test]
+async fn query_find_sort_with_binary_collation() {
+    let f = Fixture::with_documents(vec![
+        ("1", "---\nname: apple\n---\n# apple\n"),
+        ("2", "---\nname: Zebra\n---\n# Zebra\n"),
+        ("3", "---\nname: Émile\n---\n# Émile\n"),
+    ])
+    .await;
+
+    let natural = f
+        .call_tool(
+            "iwe_query",
+            json!({
+                "operation": "find",
+                "document": "sort: { name: 1 }\nproject: { name: name }\n",
+            }),
+        )
+        .await;
+    let binary = f
+        .call_tool(
+            "iwe_query",
+            json!({
+                "operation": "find",
+                "document": "sort: { name: { order: 1, collation: binary } }\nproject: { name: name }\n",
+            }),
+        )
+        .await;
+
+    let names = |result| -> Vec<String> {
+        Fixture::result_json(&result)
+            .as_array()
+            .expect("find returns an array")
+            .iter()
+            .map(|doc| doc["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(names(natural), vec!["apple", "Émile", "Zebra"]);
+    assert_eq!(names(binary), vec!["Zebra", "apple", "Émile"]);
+}
+
+#[tokio::test]
 async fn query_count_by_content() {
     let f = Fixture::with_documents(vec![
         ("1", "# One\n\nalpha TODO beta\n"),

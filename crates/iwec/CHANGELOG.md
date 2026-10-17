@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `iwe_query` accepts `sort: { field: { order, collation } }` with `binary` for codepoint order or a locale tag such as `sv-SE`
+
 ### Changed
 
 - `iwe_find` and `iwe_query` `sort` on text fields use locale-aware collation: case and accents no longer split results, `Note 2` sorts before `Note 10` and emoji are ignored except to break ties (previously byte order)
