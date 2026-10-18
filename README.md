@@ -1,5 +1,7 @@
 # IWE — A shared memory for you and your AI agents
 
+**English** · [简体中文](README.zh-CN.md) · [한국어](README.ko.md)
+
 > Your notes are your agent’s memory. iWe is where you work on them together.
 
 **[iwe.md](https://iwe.md/?ref=readme-header)** · **[Download for Mac](https://iwe.md/?ref=readme-header)** · [Docs](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
@@ -99,7 +101,7 @@ IWE isn't tied to one AI. The same notes work with Claude Code, Claude Desktop, 
 /iwe:init
 ```
 
-Then try the decision-saving example above in your project.
+Then ask it to save a decision from your current work, and open the note it creates in your project.
 
 **Connect another agent** — with Homebrew installed, install IWE:
 

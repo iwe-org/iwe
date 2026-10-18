@@ -1,0 +1,21 @@
+#!/bin/sh
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if ! printf '%s\n' "$staged" | grep -qx 'README.md'; then
+  exit 0
+fi
+
+missing=""
+for translation in README.*.md; do
+  [ -e "$translation" ] || continue
+  if ! printf '%s\n' "$staged" | grep -qxF "$translation"; then
+    missing="$missing $translation"
+  fi
+done
+
+if [ -n "$missing" ]; then
+  echo "README.md changed, but these translations are not staged:$missing" >&2
+  echo "Update every translation to match the English README, or commit with --no-verify if the change does not need translating." >&2
+  exit 1
+fi
