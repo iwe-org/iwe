@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0](https://github.com/iwe-org/iwe/compare/diwe-v0.28.0...diwe-v0.29.0) - 2026-10-20
+
+Workspace version bump — no user-visible changes in this crate.
+
 ## [0.28.0](https://github.com/iwe-org/iwe/compare/diwe-v0.27.0...diwe-v0.28.0) - 2026-10-17
 
 ### Changed

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0](https://github.com/iwe-org/iwe/compare/liwe-v0.28.0...liwe-v0.29.0) - 2026-10-20
+
 ### Added
 
 - `Serialize` and `Deserialize` for `Inline`, `Attributes`, `Reference`, `Target`, `ReferenceType`, `LinkType` and `MathType`
