@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Serialize` and `Deserialize` for `Inline`, `Attributes`, `Reference`, `Target`, `ReferenceType`, `LinkType` and `MathType`
+
 ### Fixed
 
 - `MarkdownReader` keeps list item text that follows a code block, horizontal rule or heading as its own paragraph (previously the text was dropped, or merged into the heading)

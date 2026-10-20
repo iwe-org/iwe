@@ -1,8 +1,10 @@
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use crate::model::document::LinkType;
 use crate::model::inline::{text_to_inlines, to_plain_text};
 use crate::model::{Inlines, Key};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ReferenceType {
     Regular,
     WikiLink,
@@ -23,10 +25,26 @@ impl ReferenceType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Target {
-    Path { key: Key, fragment: Option<String> },
+    Path {
+        #[serde(
+            serialize_with = "serialize_exact_key",
+            deserialize_with = "deserialize_exact_key"
+        )]
+        key: Key,
+        fragment: Option<String>,
+    },
     Name(String),
+}
+
+fn serialize_exact_key<S: Serializer>(key: &Key, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(key.as_str())
+}
+
+fn deserialize_exact_key<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Key, D::Error> {
+    let text = String::deserialize(deserializer)?;
+    Ok(Key::from_stripped(&text))
 }
 
 impl Target {
@@ -90,7 +108,7 @@ impl Target {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Reference {
     pub target: Target,
     pub inlines: Inlines,

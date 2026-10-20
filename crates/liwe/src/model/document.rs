@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use serde_yaml::Mapping;
 
 use super::{InlineRange, Position};
@@ -798,7 +799,7 @@ impl DocumentInline {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum LinkType {
     Markdown,
     WikiLink,
@@ -1009,7 +1010,7 @@ pub struct RawInline {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Format(pub String);
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum MathType {
     DisplayMath,
     InlineMath,
