@@ -123,7 +123,7 @@ jobs:
         run: |
           VERSION="${{ needs.publish-npm.outputs.version }}"
           PACKAGES="cli-darwin-arm64 cli-darwin-x64 cli-linux-x64 cli-linux-arm64 cli-win32-x64 iwe mcp"
-          for attempt in $(seq 1 10); do
+          for attempt in $(seq 1 40); do
             missing=""
             for pkg in $PACKAGES; do
               npm view "@iwe-org/${pkg}@${VERSION}" version > /dev/null 2>&1 || missing="${missing} ${pkg}"
@@ -133,7 +133,7 @@ jobs:
               npx -y "@iwe-org/mcp@${VERSION}" --version
               exit 0
             fi
-            echo "registry not ready yet, missing:${missing}; retrying in 30s (attempt ${attempt}/10)"
+            echo "registry not ready yet, missing:${missing}; retrying in 30s (attempt ${attempt}/40)"
             sleep 30
           done
           echo "some @iwe-org packages at ${VERSION} never appeared on the registry:${missing}"
@@ -155,3 +155,95 @@ jobs:
         run: |
           ./mcp-publisher login github-oidc
           ./mcp-publisher publish
+
+  update-homebrew:
+    needs: upload-assets
+    if: ${{ startsWith(github.event.inputs.tag || github.event.release.tag_name, 'iwe-v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Get release info
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.event.inputs.tag || github.event.release.tag_name }}"
+          echo "version=${TAG#iwe-v}" >> $GITHUB_OUTPUT
+
+          ASSETS=$(gh api "repos/${{ github.repository }}/releases/tags/${TAG}" --jq '.assets')
+
+          MACOS_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("universal-apple-darwin.tar.gz")) | .digest' | sed 's/sha256://')
+          LINUX_X64_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x86_64-unknown-linux-gnu.tar.gz")) | .digest' | sed 's/sha256://')
+          LINUX_ARM_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("aarch64-unknown-linux-gnu.tar.gz")) | .digest' | sed 's/sha256://')
+
+          for sha in "$MACOS_SHA" "$LINUX_X64_SHA" "$LINUX_ARM_SHA"; do
+            if [ -z "$sha" ] || [ "$sha" = "null" ]; then
+              echo "missing asset digest on ${TAG}"
+              exit 1
+            fi
+          done
+
+          echo "macos_sha=$MACOS_SHA" >> $GITHUB_OUTPUT
+          echo "linux_x64_sha=$LINUX_X64_SHA" >> $GITHUB_OUTPUT
+          echo "linux_arm_sha=$LINUX_ARM_SHA" >> $GITHUB_OUTPUT
+
+      - name: Checkout homebrew-iwe
+        uses: actions/checkout@v7
+        with:
+          repository: iwe-org/homebrew-iwe
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update formula
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          MACOS_SHA: ${{ steps.release.outputs.macos_sha }}
+          LINUX_X64_SHA: ${{ steps.release.outputs.linux_x64_sha }}
+          LINUX_ARM_SHA: ${{ steps.release.outputs.linux_arm_sha }}
+        run: |
+          cat > Formula/iwe.rb << FORMULA
+          class Iwe < Formula
+            desc "Markdown-based personal knowledge management tool for developers"
+            homepage "https://iwe.md"
+            version "${VERSION}"
+            license "Apache-2.0"
+
+            on_macos do
+              url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-universal-apple-darwin.tar.gz"
+              sha256 "${MACOS_SHA}"
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_X64_SHA}"
+              end
+
+              on_arm do
+                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_ARM_SHA}"
+              end
+            end
+
+            def install
+              bin.install "iwe"
+              bin.install "iwes"
+              bin.install "iwec"
+            end
+
+            test do
+              system "#{bin}/iwe", "--version"
+              system "#{bin}/iwes", "--version"
+              system "#{bin}/iwec", "--version"
+            end
+          end
+          FORMULA
+          sed -i 's/^          //' Formula/iwe.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/iwe.rb
+          git commit -m "Update iwe to ${{ steps.release.outputs.version }}" || echo "No changes to commit"
+          git push
