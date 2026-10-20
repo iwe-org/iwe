@@ -21,6 +21,7 @@ djot = ["dep:jotdown"]
 [dependencies]
 indoc.workspace = true
 serde.workspace = true
+postcard.workspace = true
 itertools.workspace = true
 log.workspace = true
 rayon.workspace = true

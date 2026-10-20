@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use super::document::LinkType;
 use crate::model;
 use crate::model::config::MarkdownOptions;
@@ -7,7 +9,7 @@ use crate::model::{has_file_extension, InlinesContext, Lang, Title, WorkspaceUrl
 
 pub type Inlines = Vec<Inline>;
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Attributes {
     pub id: String,
     pub classes: Vec<String>,
@@ -20,7 +22,7 @@ impl Attributes {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Inline {
     Code(Option<Lang>, String),
     Emph(Inlines),
@@ -974,5 +976,141 @@ fn split_text_words(text: &str, out: &mut Vec<Inline>) {
         } else {
             Inline::Space
         });
+    }
+}
+
+pub(crate) fn encode_inlines(inlines: &Inlines) -> Box<[u8]> {
+    postcard::to_allocvec(inlines)
+        .expect("inlines serialize")
+        .into_boxed_slice()
+}
+
+pub(crate) fn decode_inlines(bytes: &[u8]) -> Inlines {
+    postcard::from_bytes(bytes).expect("inlines deserialize")
+}
+
+#[cfg(test)]
+mod test {
+    use super::{decode_inlines, encode_inlines, Attributes, Inline, Inlines};
+    use crate::model::document::{LinkType, MathType};
+    use crate::model::reference::{Reference, ReferenceType, Target};
+    use crate::model::Key;
+
+    fn round_trip(inlines: &Inlines) -> Inlines {
+        decode_inlines(&encode_inlines(inlines))
+    }
+
+    fn words() -> Inlines {
+        vec![
+            Inline::Str("first".to_string()),
+            Inline::Space,
+            Inline::Str("second".to_string()),
+        ]
+    }
+
+    fn reference(target: Target, reference_type: ReferenceType) -> Inline {
+        Inline::Reference(Reference {
+            target,
+            inlines: words(),
+            reference_type,
+            display_url: Some("display".to_string()),
+        })
+    }
+
+    #[test]
+    fn round_trip_every_variant() {
+        let inlines = vec![
+            Inline::Code(None, "code".to_string()),
+            Inline::Code(Some("lang".to_string()), "code".to_string()),
+            Inline::Emph(words()),
+            Inline::Image("url".to_string(), "title".to_string(), words()),
+            Inline::LineBreak,
+            Inline::Link(
+                "url".to_string(),
+                "title".to_string(),
+                LinkType::Markdown,
+                words(),
+            ),
+            Inline::Link(
+                "url".to_string(),
+                String::new(),
+                LinkType::WikiLink,
+                words(),
+            ),
+            Inline::Link(
+                "url".to_string(),
+                String::new(),
+                LinkType::WikiLinkPiped,
+                words(),
+            ),
+            reference(
+                Target::Path {
+                    key: Key::name("key"),
+                    fragment: None,
+                },
+                ReferenceType::Regular,
+            ),
+            reference(
+                Target::Path {
+                    key: Key::name("dir/key"),
+                    fragment: Some("fragment".to_string()),
+                },
+                ReferenceType::Regular,
+            ),
+            reference(Target::Name("key".to_string()), ReferenceType::WikiLink),
+            reference(
+                Target::Name("key".to_string()),
+                ReferenceType::WikiLinkPiped,
+            ),
+            Inline::Math(MathType::InlineMath, "x".to_string()),
+            Inline::Math(MathType::DisplayMath, "y".to_string()),
+            Inline::RawInline("html".to_string(), "<br>".to_string()),
+            Inline::SmallCaps(words()),
+            Inline::SoftBreak,
+            Inline::Space,
+            Inline::Str("text".to_string()),
+            Inline::Strikeout(words()),
+            Inline::Strong(vec![Inline::Emph(words())]),
+            Inline::Subscript(words()),
+            Inline::Superscript(words()),
+            Inline::Underline(words()),
+            Inline::Mark(words()),
+            Inline::Insert(words()),
+            Inline::Delete(words()),
+            Inline::Symbol("symbol".to_string()),
+            Inline::Span(Attributes::default(), words()),
+            Inline::Span(
+                Attributes {
+                    id: "id".to_string(),
+                    classes: vec!["first".to_string(), "second".to_string()],
+                    pairs: vec![("name".to_string(), "value".to_string())],
+                },
+                words(),
+            ),
+        ];
+
+        assert_eq!(round_trip(&inlines), inlines);
+    }
+
+    #[test]
+    fn round_trip_exact_key() {
+        let inlines = vec![reference(
+            Target::Path {
+                key: Key::from_stripped("notes.md"),
+                fragment: None,
+            },
+            ReferenceType::Regular,
+        )];
+
+        let decoded = round_trip(&inlines);
+
+        assert_eq!(decoded, inlines);
+        let Inline::Reference(decoded_reference) = &decoded[0] else {
+            panic!("expected reference");
+        };
+        assert_eq!(
+            decoded_reference.target.path_key().map(|key| key.as_str()),
+            Some("notes.md")
+        );
     }
 }

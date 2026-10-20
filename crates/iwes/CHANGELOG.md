@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Lower memory use when loading large workspaces
+
 ### Fixed
 
 - `textDocument/formatting` keeps text that follows a code block, horizontal rule or heading inside a list item with no blank line between them (previously the text was dropped, or merged into the heading)
