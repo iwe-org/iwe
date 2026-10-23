@@ -1,10 +1,10 @@
-# IWE — 당신과 AI 에이전트를 위한 공유 메모리
+# IWE: 당신과 AI 에이전트가 함께 쓰는 Markdown 지식 베이스
 
 [English](README.md) · [简体中文](README.zh-CN.md) · **한국어**
 
-> 당신의 노트가 곧 에이전트의 메모리입니다. iWe는 그 노트를 함께 다듬는 곳입니다.
+> 당신의 노트가 곧 에이전트의 메모리입니다. IWE는 그 노트를 함께 다듬는 곳입니다.
 
-**[iwe.md](https://iwe.md/?ref=readme-header)** · **[Mac용 다운로드](https://iwe.md/?ref=readme-header)** · [문서](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
+**[iwe.md](https://iwe.md/?ref=readme-header)** · **[Mac용 다운로드](https://iwe.md/app/?ref=readme-header)** · [문서](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
@@ -27,7 +27,7 @@ IWE를 사용하는 방법은 네 가지입니다. 하루 일과에 맞게 자�
 | **[CLI](https://iwe.md/docs/cli/?ref=readme-table)** | 터미널이나 스크립트에서 노트를 검색하고 관리합니다. |
 | **[Claude/Codex](https://iwe.md/docs/agentic/?ref=readme-table)** | 대화를 통해 일하는 동안 에이전트가 메모리를 읽고, 쓰고, 정리하게 합니다. |
 
-네 가지 모두 같은 Markdown 문서를 다룹니다. 편집기에서 스펙 초안을 쓰고, Claude/Codex와 함께 발전시키고, iWe에서 둘러보거나 CLI로 검색하세요. 원하는 대로 조합할 수 있으며, 각 도구는 독립적으로도 작동합니다.
+네 가지 모두 같은 Markdown 문서를 다룹니다. 편집기에서 스펙 초안을 쓰고, Claude/Codex와 함께 발전시키고, iWe 앱에서 둘러보거나 CLI로 검색하세요. 원하는 대로 조합할 수 있으며, 각 도구는 독립적으로도 작동합니다.
 
 **AI는 직접 가져오세요.** IWE CLI와 iWe Mac 앱에는 AI 모델이 포함되어 있지 않습니다. 둘 다 그 자체로 노트를 위한 도구로 작동합니다. AI의 도움이 필요할 때는 기존 Claude/Codex 에이전트를 사용하세요. 터미널에서든 Mac 앱 안에서든 가능합니다.
 
@@ -39,7 +39,7 @@ IWE를 사용하는 방법은 네 가지입니다. 하루 일과에 맞게 자�
   <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-4.png" alt="릴리스 문서" width="32%"></a>
 </p>
 
-*계획 · 차트 · 기술 문서 · 릴리스 — 스크린샷을 클릭하면 iwe.md에서 iWe가 실제로 작동하는 모습을 볼 수 있습니다.*
+*계획 · 차트 · 기술 문서 · 릴리스 — 스크린샷을 클릭하면 iwe.md에서 iWe 앱이 실제로 작동하는 모습을 볼 수 있습니다.*
 
 ## 왜 IWE인가
 

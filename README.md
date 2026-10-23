@@ -1,10 +1,10 @@
-# IWE — A shared memory for you and your AI agents
+# IWE: a Markdown knowledge base you and your AI agent work on together
 
 **English** · [简体中文](README.zh-CN.md) · [한국어](README.ko.md)
 
-> Your notes are your agent’s memory. iWe is where you work on them together.
+> Your notes are your agent’s memory. IWE is where you work on them together.
 
-**[iwe.md](https://iwe.md/?ref=readme-header)** · **[Download for Mac](https://iwe.md/?ref=readme-header)** · [Docs](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
+**[iwe.md](https://iwe.md/?ref=readme-header)** · **[Download for Mac](https://iwe.md/app/?ref=readme-header)** · [Docs](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
@@ -27,7 +27,7 @@ There are four ways to work with IWE. Mix and match them to fit your day:
 | **[CLI](https://iwe.md/docs/cli/?ref=readme-table)** | Search and manage your notes from the terminal or scripts. |
 | **[Claude/Codex](https://iwe.md/docs/agentic/?ref=readme-table)** | Let your agent read, write, and organize memory while you work through conversation. |
 
-All four work with the same Markdown documents. Draft a spec in your editor, develop it with Claude/Codex, browse it in iWe, or search it from the CLI. Use any combination you like; each tool also works independently.
+All four work with the same Markdown documents. Draft a spec in your editor, develop it with Claude/Codex, browse it in the iWe app, or search it from the CLI. Use any combination you like; each tool also works independently.
 
 **Bring your own AI.** Neither the IWE CLI nor the iWe Mac app includes an AI model. Both work on their own as tools for your notes. When you want AI help, use your existing Claude/Codex agent — in terminal or directly in the Mac app.
 
@@ -39,7 +39,7 @@ All four work with the same Markdown documents. Draft a spec in your editor, dev
   <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-4.png" alt="Release documents" width="32%"></a>
 </p>
 
-*Plans · Charts · Technical documents · Releases — click a screenshot to see iWe in action on iwe.md.*
+*Plans · Charts · Technical documents · Releases — click a screenshot to see the iWe app in action on iwe.md.*
 
 ## Why IWE
 

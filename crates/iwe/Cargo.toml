@@ -1,6 +1,8 @@
 [package]
 name = "iwe"
-description = "IWE CLI utility"
+description = "IWE CLI: query, edit and validate a Markdown knowledge base you and your AI agent work on together"
+homepage = "https://iwe.md/docs/cli/"
+documentation = "https://iwe.md/docs/"
 include = ["Cargo.toml", "src/**/*.rs", "src/**/*.yaml", "tests/**/*.rs", "tests/**/*.md", "templates/**/*", "help/**/*", "docs/**/*"]
 autotests = false
 autobenches = false

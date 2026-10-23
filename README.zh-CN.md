@@ -1,10 +1,10 @@
-# IWE — 你与 AI 智能体的共享记忆
+# IWE：你与 AI 智能体共同使用的 Markdown 知识库
 
 [English](README.md) · **简体中文** · [한국어](README.ko.md)
 
-> 你的笔记就是智能体的记忆。iWe 是你们一起打磨它们的地方。
+> 你的笔记就是智能体的记忆。IWE 是你们一起打磨它们的地方。
 
-**[iwe.md](https://iwe.md/?ref=readme-header)** · **[下载 Mac 版](https://iwe.md/?ref=readme-header)** · [文档](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
+**[iwe.md](https://iwe.md/?ref=readme-header)** · **[下载 Mac 版](https://iwe.md/app/?ref=readme-header)** · [文档](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
 
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
 [![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
@@ -27,7 +27,7 @@ IWE 为你和你的 AI 智能体提供**一个共享的工作空间，就在你�
 | **[CLI](https://iwe.md/docs/cli/?ref=readme-table)** | 在终端或脚本中搜索和管理笔记。 |
 | **[Claude/Codex](https://iwe.md/docs/agentic/?ref=readme-table)** | 在对话中让智能体读取、写入和整理记忆。 |
 
-这四种方式都作用于同一批 Markdown 文档。在编辑器里起草规格说明，和 Claude/Codex 一起完善它，在 iWe 中浏览，或者用 CLI 搜索。随意组合即可，每个工具也都可以单独使用。
+这四种方式都作用于同一批 Markdown 文档。在编辑器里起草规格说明，和 Claude/Codex 一起完善它，在 iWe 应用中浏览，或者用 CLI 搜索。随意组合即可，每个工具也都可以单独使用。
 
 **自带你的 AI。** IWE CLI 和 iWe Mac 应用都不内置 AI 模型，它们本身就是独立的笔记工具。需要 AI 帮助时，使用你现有的 Claude/Codex 智能体——在终端中或直接在 Mac 应用里。
 
@@ -39,7 +39,7 @@ IWE 为你和你的 AI 智能体提供**一个共享的工作空间，就在你�
   <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-4.png" alt="发布文档" width="32%"></a>
 </p>
 
-*计划 · 图表 · 技术文档 · 发布——点击截图，在 iwe.md 上查看 iWe 的实际效果。*
+*计划 · 图表 · 技术文档 · 发布——点击截图，在 iwe.md 上查看 iWe 应用的实际效果。*
 
 ## 为什么选择 IWE
 

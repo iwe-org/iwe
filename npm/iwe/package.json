@@ -1,13 +1,13 @@
 {
   "name": "@iwe-org/iwe",
   "version": "0.0.0",
-  "description": "IWE — markdown-based knowledge management for developers: CLI, LSP server, and MCP server.",
+  "description": "IWE: a Markdown knowledge base you and your AI agent work on together. CLI, LSP server and MCP server.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iwe-org/iwe.git"
   },
-  "homepage": "https://iwe.md",
+  "homepage": "https://iwe.md/docs/getting-started/installation/",
   "keywords": ["markdown", "lsp", "knowledge-graph", "pkm", "notes", "zettelkasten", "mcp", "agent-memory"],
   "bin": {
     "iwe": "bin/iwe.js",

@@ -1,6 +1,8 @@
 [package]
 name = "iwes"
-description = "IWE LSP server"
+description = "IWE language server: Markdown knowledge base navigation, completion and refactoring in any LSP editor"
+homepage = "https://iwe.md/docs/editors/"
+documentation = "https://iwe.md/docs/"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 autotests = false
 

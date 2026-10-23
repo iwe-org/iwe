@@ -5,7 +5,7 @@ Creates a document in one of two explicit modes.
 | Mode         | Selected by            | Who composes the document           | Key                                    |
 | ------------ | ---------------------- | ----------------------------------- | -------------------------------------- |
 | **Content**  | default                | you — `--content` is the whole file | required                               |
-| **Template** | `--template` / `-t`    | iwe — a named template renders your variables | derived from `key_template`, or explicit |
+| **Template** | `--template` / `-t`    | IWE — a named template renders your variables | derived from `key_template`, or explicit |
 
 The mode is never inferred from the shape of the input. `--content` and `--template` are mutually exclusive.
 
@@ -113,11 +113,11 @@ Those two produce identical documents: `draft` is a boolean for `{% if draft %}`
 
 The bulk mapping is applied first and every `--var` overrides it, **wherever the flags sit on the command line** — `--var title=A --vars-yaml 'title: B'` still yields `A`. Among `--var` flags alone the last one for a name wins. Values are replaced wholesale; there is no deep merge.
 
-Because `--var` values are strings, `--var draft=false` is the **string** `"false"`, which `{% if draft %}` reads as true. Write `draft: false` in `--vars-yaml` when you mean the boolean. Shell quoting is stripped before iwe sees the argument, so a value-typing rule on `--var` could only ever guess; strings-only removes the guess.
+Because `--var` values are strings, `--var draft=false` is the **string** `"false"`, which `{% if draft %}` reads as true. Write `draft: false` in `--vars-yaml` when you mean the boolean. Shell quoting is stripped before IWE sees the argument, so a value-typing rule on `--var` could only ever guess; strings-only removes the guess.
 
 - `body` is the prose slot by convention. `{{content}}` is a legacy alias for `{{body}}` in templates — `content` names the same variable, and setting both is an error.
 - Template mode never reads stdin — piped input belongs to content mode. Every variable arrives through a flag; a variable no flag sets renders as empty.
-- `slug`, `today`, `now` and `id` are computed by iwe and cannot be set as variables, in any of the three forms.
+- `slug`, `today`, `now` and `id` are computed by IWE and cannot be set as variables, in any of the three forms.
 - The key derivation and `{{slug}}` read the `title` variable. `title` and `body` are ordinary variables by convention, not privileged parameters — a template that uses neither simply ignores them.
 - `--vars-yaml ''` and `--vars-json ''` are errors; `--vars-yaml '{}'` is a valid no-op. A `--var` argument without `=` that looks like a mapping points you at `--vars-yaml`.
 - A null variable value (`body: null`, `body: ~`, or a bare `body:`) is rejected — the template would render it as the text `none`. Pass `''` for an empty value.

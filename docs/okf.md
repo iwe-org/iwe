@@ -1,4 +1,4 @@
-# Open Knowledge Format
+# Open Knowledge Format (OKF 0.2)
 
 [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) is an open format for agent-maintained knowledge, published by Google Cloud: a directory of markdown files with YAML frontmatter, where provenance (`sources`, `generated`), trust (`verified`), and lifecycle (`status`, `stale_after`) are first-class frontmatter families. No SDK, no registry — if you can `cat` a file, you can read OKF; if you can `git clone` a repo, you can ship it.
 

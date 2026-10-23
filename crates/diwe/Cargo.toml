@@ -1,6 +1,8 @@
 [package]
 name = "diwe"
-description = "IWE engine library"
+description = "IWE engine library: loading, search, querying, schema validation and file watching for a Markdown knowledge base"
+homepage = "https://iwe.md/docs/architecture/"
+documentation = "https://docs.rs/diwe"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs", "tests/**/*.md"]
 
 version.workspace = true

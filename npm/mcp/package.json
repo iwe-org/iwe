@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/iwe-org/iwe.git"
   },
-  "homepage": "https://iwe.md",
+  "homepage": "https://iwe.md/docs/agentic/mcp/",
   "keywords": ["mcp", "model-context-protocol", "agent-memory", "markdown", "knowledge-graph"],
   "bin": {
     "iwe-mcp": "bin/iwe-mcp.js"

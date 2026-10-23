@@ -1,6 +1,8 @@
 # IWE
 
-Markdown-based knowledge management for developers. This package installs the prebuilt IWE binaries via npm:
+IWE is a Markdown knowledge base you and your AI agent work on together.
+
+This package installs the prebuilt IWE binaries via npm:
 
 - `iwe` — the CLI: search, query, refactor, and validate a markdown knowledge base
 - `iwes` — the LSP server for VSCode, Neovim, Zed, Helix, and other editors
@@ -21,4 +23,4 @@ iwe init
 
 Prebuilt binaries cover macOS (arm64, x64), Linux (x64, arm64, gnu libc), and Windows (x64). The matching platform package is selected automatically at install time; no install scripts run.
 
-Documentation: https://iwe.md
+Documentation: https://iwe.md/docs/getting-started/installation/

@@ -14,6 +14,21 @@ That sentence is also the short answer to most questions on this page. The tools
 
 If you are weighing IWE against one specific tool, skip to that section. If you want the argument against IWE, read *Where IWE Is Weaker* below; it is not a short list.
 
+## marksman vs markdown-oxide
+
+If you only want a markdown language server and are choosing between the two established ones, the sections below give the details. In short:
+
+|                       | marksman                                                                | markdown-oxide                                              |
+| --------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Aimed at**          | Correct links, headings, and references in any editor                   | Obsidian's editing model inside a text editor               |
+| **Link targets**      | Documents and headings                                                  | Documents, headings, and blocks (`[[doc#^block]]`)          |
+| **Daily notes**       | None                                                                    | `:Today`, `:Daily next monday`, relative `prev` / `next`    |
+| **Diagnostics**       | Live wiki-link diagnostics                                              | Unresolved-reference diagnostics                            |
+| **Editors**           | VS Code, Neovim, Vim, Emacs, Helix, Kakoune, Sublime Text, BBEdit, Zed  | Neovim, VS Code, Zed, Helix, Kakoune                        |
+| **Implementation**    | F#/.NET                                                                 | Rust                                                        |
+
+**Pick marksman** for the widest editor support and the least setup, especially in Vim, Emacs, Sublime Text, or BBEdit. **Pick markdown-oxide** if you are coming from Obsidian and want daily notes, block references, and tags in your editor. **Pick IWE** if you also want to query the notes, restructure them, and let an AI agent work on them from the CLI or MCP. The two sections below say where each of them is ahead of IWE.
+
 ## IWE vs marksman
 
 *Verified 2026-09-03 against [marksman's feature documentation](https://github.com/artempyanykh/marksman/blob/main/docs/features.md) and its 2026-02-08 release.*

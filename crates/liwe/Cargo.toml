@@ -1,6 +1,8 @@
 [package]
 name = "liwe"
-description = "IWE core library"
+description = "IWE core library: Markdown knowledge graph parsing, querying and graph operations"
+homepage = "https://iwe.md/docs/architecture/"
+documentation = "https://docs.rs/liwe"
 include = ["Cargo.toml", "src/**/*.rs", "src/**/*.json", "tests/**/*.rs", "tests/**/*.md"]
 autotests = false
 

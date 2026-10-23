@@ -1,6 +1,8 @@
 [package]
 name = "iwec"
-description = "IWE MCP server"
+description = "IWE MCP server: a Markdown knowledge base as structured memory for AI agents"
+homepage = "https://iwe.md/docs/agentic/mcp/"
+documentation = "https://iwe.md/docs/"
 include = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs"]
 autotests = false
 

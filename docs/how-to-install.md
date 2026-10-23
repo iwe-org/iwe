@@ -1,6 +1,6 @@
 # How to Install
 
-Installation instructions are below. Editor integration is covered in the [quick start](https://iwe.md/quick-start) section.
+Installation instructions are below. Editor integration is covered in the [editor setup](https://iwe.md/docs/editors/) section.
 
 ## Using Homebrew (macOS/Linux)
 
