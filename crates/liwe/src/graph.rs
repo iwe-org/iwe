@@ -28,7 +28,7 @@ use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
 use crate::model::node::Node;
 use crate::model::node::{NodeIter, NodePointer};
-use crate::model::reference::Target;
+use crate::model::reference::{with_fragment, Target};
 use crate::model::InlinesContext;
 use crate::model::{Content, Key, LineId, LineNumber, LineRange, NodeId, NodesMap, State};
 
@@ -124,8 +124,12 @@ impl Graph {
             resolved,
         ) {
             (WikiLinkPath::Preserve, _) | (_, None) => target.unresolved_url(),
-            (WikiLinkPath::Full, Some(key)) => key.to_workspace_url(),
-            (WikiLinkPath::Short, Some(key)) => self.key_index.shorten_wiki(&key),
+            (WikiLinkPath::Full, Some(key)) => {
+                with_fragment(&key.to_workspace_url(), target.fragment())
+            }
+            (WikiLinkPath::Short, Some(key)) => {
+                with_fragment(&self.key_index.shorten_wiki(&key), target.fragment())
+            }
         }
     }
 

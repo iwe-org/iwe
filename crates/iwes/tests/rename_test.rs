@@ -337,3 +337,31 @@ fn rename_wiki_link_to_new_file_name_rewrites_backlinks() {
         .to_workspace_edit(),
     );
 }
+
+#[test]
+fn rename_wiki_link_keeps_fragment() {
+    let new_uri = uri_from("a/renamed");
+
+    Fixture::with_documents(vec![
+        ("first", "[[target#section]]\n"),
+        ("second", "text [[target#section|alias]]\n"),
+        ("a/target", "# target\n"),
+    ])
+    .rename(
+        uri_from("first").to_rename_params(0, 2, "a/renamed".to_string()),
+        vec![
+            uri_from("first").to_edit("[[renamed#section]]\n"),
+            uri_from("second").to_edit("text [[renamed#section|alias]]\n"),
+            uri_from("a/target").to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                "# target\n",
+                lsp_types::Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            ),
+        ]
+        .to_workspace_edit(),
+    );
+}

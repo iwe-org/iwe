@@ -156,7 +156,7 @@ impl KeyIndex {
     pub fn bucket(target: &Target) -> Option<String> {
         match target {
             Target::Path { .. } => None,
-            Target::Name(written) => Some(Self::name_bucket(written)),
+            Target::Name { name, .. } => Some(Self::name_bucket(name)),
         }
     }
 
@@ -171,15 +171,15 @@ impl KeyIndex {
     pub fn target_key(&self, target: &Target) -> Key {
         match target {
             Target::Path { key, .. } => key.clone(),
-            Target::Name(written) => self.resolve_wiki(written),
+            Target::Name { name, .. } => self.resolve_wiki(name),
         }
     }
 
     pub fn resolve(&self, target: &Target) -> Option<Key> {
         match target {
             Target::Path { key, .. } => Some(key.clone()).filter(|key| self.contains(key)),
-            Target::Name(written) => {
-                let resolution = self.resolution(written);
+            Target::Name { name, .. } => {
+                let resolution = self.resolution(name);
                 resolution.resolved.then_some(resolution.key)
             }
         }
@@ -287,13 +287,14 @@ impl<'a> KeyRename<'a> {
                 key: self.new.clone(),
                 fragment: fragment.clone(),
             }),
-            Target::Name(written) => {
+            Target::Name { name, .. } => {
                 let before = self.before.target_key(target);
                 if before == self.old {
-                    self.rewrite_renamed(written)
+                    self.rewrite_renamed(name)
+                        .map(|name| target.with_name(name))
                 } else if self.before.contains(&before) && self.after.target_key(target) == self.new
                 {
-                    Some(Target::Name(self.after.shorten_wiki(&before)))
+                    Some(target.with_name(self.after.shorten_wiki(&before)))
                 } else {
                     None
                 }
@@ -304,13 +305,13 @@ impl<'a> KeyRename<'a> {
 }
 
 impl KeyRename<'_> {
-    fn rewrite_renamed(&self, written: &str) -> Option<Target> {
+    fn rewrite_renamed(&self, written: &str) -> Option<String> {
         if self.after.matches_suffix(written, &self.new) {
             None
         } else if segments(&decoded_name(written)).len() >= segment_count(&self.old) {
-            Some(Target::Name(self.new.to_workspace_url()))
+            Some(self.new.to_workspace_url())
         } else {
-            Some(Target::Name(self.after.shorten_wiki(&self.new)))
+            Some(self.after.shorten_wiki(&self.new))
         }
     }
 }
@@ -735,6 +736,25 @@ mod test {
                 key: Key::name("a/target"),
                 fragment: Some("part".to_string()),
             })
+        );
+    }
+
+    #[test]
+    fn rename_keeps_fragment_of_name_target() {
+        let index = index(&["a/target"]);
+        let rename = KeyRename::new(&index, &Key::name("a/target"), &Key::name("a/renamed"));
+        assert_eq!(
+            Some(Target::name("renamed#part")),
+            rename.rewrite(&Target::name("target#part"))
+        );
+    }
+
+    #[test]
+    fn name_target_with_fragment_resolves_to_note() {
+        let index = index(&["notes/target"]);
+        assert_eq!(
+            Some(Key::name("notes/target")),
+            index.resolve(&Target::name("target#part"))
         );
     }
 

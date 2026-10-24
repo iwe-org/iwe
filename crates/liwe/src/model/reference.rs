@@ -35,7 +35,10 @@ pub enum Target {
         key: Key,
         fragment: Option<String>,
     },
-    Name(String),
+    Name {
+        name: String,
+        fragment: Option<String>,
+    },
 }
 
 fn serialize_exact_key<S: Serializer>(key: &Key, serializer: S) -> Result<S::Ok, S::Error> {
@@ -56,12 +59,24 @@ impl Target {
     }
 
     pub fn name(written: &str) -> Target {
-        Target::Name(written.to_string())
+        match written.split_once('#') {
+            Some((name, fragment)) => Target::Name {
+                name: name.to_string(),
+                fragment: Some(fragment.to_string()),
+            },
+            None => Target::Name {
+                name: written.to_string(),
+                fragment: None,
+            },
+        }
     }
 
     pub fn for_key(key: &Key, reference_type: ReferenceType) -> Target {
         if reference_type.is_wiki() {
-            Target::Name(key.to_workspace_url())
+            Target::Name {
+                name: key.to_workspace_url(),
+                fragment: None,
+            }
         } else {
             Target::path(key.clone())
         }
@@ -82,29 +97,42 @@ impl Target {
     pub fn path_key(&self) -> Option<&Key> {
         match self {
             Target::Path { key, .. } => Some(key),
-            Target::Name(_) => None,
+            Target::Name { .. } => None,
         }
     }
 
     pub fn written_name(&self) -> Option<&str> {
         match self {
-            Target::Name(written) => Some(written),
+            Target::Name { name, .. } => Some(name),
             Target::Path { .. } => None,
         }
     }
 
     pub fn fragment(&self) -> Option<&str> {
         match self {
-            Target::Path { fragment, .. } => fragment.as_deref(),
-            Target::Name(_) => None,
+            Target::Path { fragment, .. } | Target::Name { fragment, .. } => fragment.as_deref(),
         }
     }
 
     pub fn unresolved_url(&self) -> String {
         match self {
             Target::Path { key, .. } => key.to_workspace_url(),
-            Target::Name(written) => written.clone(),
+            Target::Name { name, fragment } => with_fragment(name, fragment.as_deref()),
         }
+    }
+
+    pub fn with_name(&self, name: String) -> Target {
+        Target::Name {
+            name,
+            fragment: self.fragment().map(str::to_string),
+        }
+    }
+}
+
+pub fn with_fragment(url: &str, fragment: Option<&str>) -> String {
+    match fragment {
+        Some(fragment) => format!("{url}#{fragment}"),
+        None => url.to_string(),
     }
 }
 

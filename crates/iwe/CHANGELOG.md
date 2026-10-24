@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `rename` keeps `#section` anchors in wiki links such as `[[note#section]]` (previously these links were left pointing at the old name)
+- Wiki links with a `#section` anchor now count as links to the note in `find`, `tree` and other commands
+
 ## [0.29.0](https://github.com/iwe-org/iwe/compare/iwe-v0.28.0...iwe-v0.29.0) - 2026-10-20
 
 ### Changed
