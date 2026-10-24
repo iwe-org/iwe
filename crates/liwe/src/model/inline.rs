@@ -1057,11 +1057,8 @@ mod test {
                 },
                 ReferenceType::Regular,
             ),
-            reference(Target::Name("key".to_string()), ReferenceType::WikiLink),
-            reference(
-                Target::Name("key".to_string()),
-                ReferenceType::WikiLinkPiped,
-            ),
+            reference(Target::name("key"), ReferenceType::WikiLink),
+            reference(Target::name("key"), ReferenceType::WikiLinkPiped),
             Inline::Math(MathType::InlineMath, "x".to_string()),
             Inline::Math(MathType::DisplayMath, "y".to_string()),
             Inline::RawInline("html".to_string(), "<br>".to_string()),

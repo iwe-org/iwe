@@ -46,11 +46,11 @@ impl Edges {
             Target::Path { key, .. } => {
                 self.by_key.entry(key.clone()).or_default().insert(node_id);
             }
-            Target::Name(written) => {
+            Target::Name { name, .. } => {
                 self.by_name
-                    .entry(KeyIndex::name_bucket(written))
+                    .entry(KeyIndex::name_bucket(name))
                     .or_default()
-                    .entry(written.clone())
+                    .entry(name.clone())
                     .or_default()
                     .insert(node_id);
             }
@@ -60,10 +60,10 @@ impl Edges {
     fn remove(&mut self, target: &Target, node_id: NodeId) {
         match target {
             Target::Path { key, .. } => remove_from(&mut self.by_key, key, node_id),
-            Target::Name(written) => {
-                let bucket = KeyIndex::name_bucket(written);
+            Target::Name { name, .. } => {
+                let bucket = KeyIndex::name_bucket(name);
                 if let Some(names) = self.by_name.get_mut(&bucket) {
-                    remove_from(names, written, node_id);
+                    remove_from(names, name, node_id);
                     if names.is_empty() {
                         self.by_name.remove(&bucket);
                     }
