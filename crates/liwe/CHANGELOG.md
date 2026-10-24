@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.1](https://github.com/iwe-org/iwe/compare/liwe-v0.29.0...liwe-v0.29.1) - 2026-10-24
+
 ### Changed
 - `Target::Name` is now a struct variant `Target::Name { name, fragment }` (was `Target::Name(String)`); `Target::name` splits the `#fragment` off wiki link text
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.1](https://github.com/iwe-org/iwe/compare/iwec-v0.29.0...iwec-v0.29.1) - 2026-10-24
+
 ### Fixed
 - `iwe_rename` keeps `#section` anchors in wiki links such as `[[note#section]]` (previously these links were left pointing at the old name)
 
