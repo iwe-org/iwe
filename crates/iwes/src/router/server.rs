@@ -111,25 +111,36 @@ impl Server {
         self.search_index_dirty = false;
     }
 
-    pub fn apply_external_update(&mut self, key: Key, content: String) {
+    pub fn apply_external_update(&mut self, key: Key) {
         if self.open_documents.contains(&key) {
             return;
         }
-        if self.graph.get_document(&key).as_deref() == Some(content.as_str()) {
-            return;
-        }
-        self.store_document(key, content);
-        self.search_index_dirty = true;
+        self.reload_document_from_disk(key);
     }
 
     pub fn apply_external_removal(&mut self, key: Key) {
         if self.open_documents.contains(&key) {
             return;
         }
-        if self.graph.get_document(&key).is_none() {
+        self.reload_document_from_disk(key);
+    }
+
+    fn reload_document_from_disk(&mut self, key: Key) {
+        let Some(path) = self.base_path.key_to_path(&key) else {
             return;
+        };
+        match read_md_file(&path) {
+            Some(content) => {
+                if self.graph.get_document(&key).as_deref() == Some(content.as_str()) {
+                    return;
+                }
+                self.store_document(key, content);
+            }
+            None if !path.exists() && self.graph.get_document(&key).is_some() => {
+                self.drop_document(key);
+            }
+            None => return,
         }
-        self.drop_document(key);
         self.search_index_dirty = true;
     }
 
@@ -150,25 +161,7 @@ impl Server {
             return;
         };
         self.open_documents.remove(&key);
-        let disk_content = self
-            .base_path
-            .key_to_path(&key)
-            .and_then(|path| read_md_file(&path));
-        match disk_content {
-            Some(content) => {
-                if self.graph.get_document(&key).as_deref() == Some(content.as_str()) {
-                    return;
-                }
-                self.store_document(key, content);
-            }
-            None => {
-                if self.graph.get_document(&key).is_none() {
-                    return;
-                }
-                self.drop_document(key);
-            }
-        }
-        self.search_index_dirty = true;
+        self.reload_document_from_disk(key);
     }
 
     fn resolve_link_key(&self, url: &str, relative_to: &str, reference_type: ReferenceType) -> Key {
@@ -1028,6 +1021,15 @@ mod fs_sync_tests {
         Uri::from_str(url).unwrap()
     }
 
+    fn workspace_with(docs: &[(&str, &str)]) -> (tempfile::TempDir, Server) {
+        let dir = tempfile::tempdir().unwrap();
+        for (key, content) in docs {
+            std::fs::write(dir.path().join(format!("{key}.md")), content).unwrap();
+        }
+        let server = server_at(&dir.path().to_string_lossy(), docs);
+        (dir, server)
+    }
+
     fn dir_doc_uri(dir: &Path, key: &str) -> Uri {
         let url = Url::from_file_path(dir.join(format!("{key}.md"))).unwrap();
         Uri::from_str(url.as_str()).unwrap()
@@ -1063,9 +1065,10 @@ mod fs_sync_tests {
 
     #[test]
     fn apply_external_update_replaces_in_memory_document() {
-        let mut server = server_with(&[("a", "# Doc A\n")]);
+        let (dir, mut server) = workspace_with(&[("a", "# Doc A\n")]);
+        std::fs::write(dir.path().join("a.md"), "# Renamed A\n").unwrap();
 
-        server.apply_external_update("a".into(), "# Renamed A\n".to_string());
+        server.apply_external_update("a".into());
 
         assert_eq!(
             server.graph.get_document(&"a".into()),
@@ -1075,9 +1078,10 @@ mod fs_sync_tests {
 
     #[test]
     fn apply_external_update_adds_new_document() {
-        let mut server = server_with(&[("a", "# Doc A\n")]);
+        let (dir, mut server) = workspace_with(&[("a", "# Doc A\n")]);
+        std::fs::write(dir.path().join("b.md"), "# Doc B\n").unwrap();
 
-        server.apply_external_update("b".into(), "# Doc B\n".to_string());
+        server.apply_external_update("b".into());
 
         assert_eq!(
             server.graph.get_document(&"b".into()),
@@ -1087,7 +1091,8 @@ mod fs_sync_tests {
 
     #[test]
     fn apply_external_removal_drops_in_memory_document() {
-        let mut server = server_with(&[("a", "# Doc A\n"), ("b", "# Doc B\n")]);
+        let (dir, mut server) = workspace_with(&[("a", "# Doc A\n"), ("b", "# Doc B\n")]);
+        std::fs::remove_file(dir.path().join("b.md")).unwrap();
 
         server.apply_external_removal("b".into());
 
@@ -1144,18 +1149,28 @@ mod fs_sync_tests {
 
     #[test]
     fn many_external_changes_cost_one_rebuild() {
-        let mut server = server_with_documents(200);
+        let documents: Vec<(String, String)> = (0..200)
+            .map(|index| (format!("doc{index}"), format!("# Title {index}\n")))
+            .collect();
+        let docs: Vec<(&str, &str)> = documents
+            .iter()
+            .map(|(key, content)| (key.as_str(), content.as_str()))
+            .collect();
+        let (dir, mut server) = workspace_with(&docs);
         server.refresh_search_index();
         let baseline = server.search_index_rebuilds();
 
         for index in 0..100 {
+            std::fs::remove_file(dir.path().join(format!("doc{index}.md"))).unwrap();
             server.apply_external_removal(format!("doc{index}").into());
         }
         for index in 100..150 {
-            server.apply_external_update(
-                format!("doc{index}").into(),
+            std::fs::write(
+                dir.path().join(format!("doc{index}.md")),
                 format!("# Changed {index}\n"),
-            );
+            )
+            .unwrap();
+            server.apply_external_update(format!("doc{index}").into());
         }
 
         assert_eq!(server.search_index_rebuilds(), baseline);
@@ -1163,6 +1178,11 @@ mod fs_sync_tests {
         server.refresh_search_index();
 
         assert_eq!(server.search_index_rebuilds(), baseline + 1);
+        assert_eq!(server.graph.keys().len(), 100);
+        assert_eq!(
+            server.graph.get_document(&"doc100".into()),
+            Some("# Changed 100\n".to_string())
+        );
     }
 
     #[test]
@@ -1208,11 +1228,11 @@ mod fs_sync_tests {
 
     #[test]
     fn changes_that_do_nothing_cost_no_rebuild() {
-        let mut server = server_with(&[("a", "# Doc A\n")]);
+        let (_dir, mut server) = workspace_with(&[("a", "# Doc A\n")]);
         server.refresh_search_index();
         let baseline = server.search_index_rebuilds();
 
-        server.apply_external_update("a".into(), "# Doc A\n".to_string());
+        server.apply_external_update("a".into());
         server.apply_external_removal("b".into());
         server.refresh_search_index();
 
@@ -1226,7 +1246,7 @@ mod fs_sync_tests {
         server.refresh_search_index();
         let baseline = server.search_index_rebuilds();
 
-        server.apply_external_update("a".into(), "# External A\n".to_string());
+        server.apply_external_update("a".into());
         server.apply_external_removal("a".into());
         server.refresh_search_index();
 
@@ -1247,9 +1267,9 @@ mod fs_sync_tests {
 
     #[test]
     fn apply_external_update_with_identical_content_keeps_document() {
-        let mut server = server_with(&[("a", "# Doc A\n")]);
+        let (_dir, mut server) = workspace_with(&[("a", "# Doc A\n")]);
 
-        server.apply_external_update("a".into(), "# Doc A\n".to_string());
+        server.apply_external_update("a".into());
 
         assert_eq!(
             server.graph.get_document(&"a".into()),
@@ -1262,7 +1282,7 @@ mod fs_sync_tests {
         let mut server = server_with(&[("a", "# Doc A\n")]);
         server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
 
-        server.apply_external_update("a".into(), "# External A\n".to_string());
+        server.apply_external_update("a".into());
 
         assert_eq!(
             server.graph.get_document(&"a".into()),
@@ -1289,7 +1309,7 @@ mod fs_sync_tests {
         server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
         server.handle_did_change_text_document(change_params(doc_uri("a"), "# Doc A Newer\n"));
 
-        server.apply_external_update("a".into(), "# Doc A\n".to_string());
+        server.apply_external_update("a".into());
 
         assert_eq!(
             server.graph.get_document(&"a".into()),
@@ -1315,7 +1335,7 @@ mod fs_sync_tests {
 
         server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
         server.handle_did_open_text_document(open_params(doc_uri("a"), "# Doc A\n"));
-        server.apply_external_update("a".into(), "# External A\n".to_string());
+        server.apply_external_update("a".into());
 
         assert_eq!(
             server.graph.get_document(&"a".into()),
@@ -1368,8 +1388,9 @@ mod fs_sync_tests {
         let uri = dir_doc_uri(dir.path(), "a");
         server.handle_did_open_text_document(open_params(uri.clone(), "# Doc A\n"));
         server.handle_did_close_text_document(close_params(uri));
+        std::fs::write(dir.path().join("a.md"), "# External A\n").unwrap();
 
-        server.apply_external_update("a".into(), "# External A\n".to_string());
+        server.apply_external_update("a".into());
 
         assert_eq!(
             server.graph.get_document(&"a".into()),
@@ -1385,5 +1406,49 @@ mod fs_sync_tests {
         server.handle_did_close_text_document(close_params(dir_doc_uri(dir.path(), "a")));
 
         assert_eq!(server.graph.get_document(&"a".into()), None);
+    }
+
+    #[test]
+    fn client_deletion_of_an_existing_file_keeps_the_document() {
+        let (dir, mut server) = workspace_with(&[("a", "# Doc A\n")]);
+        std::fs::write(dir.path().join("a.md"), "# Recreated A\n").unwrap();
+
+        server.handle_did_change_watched_files(DidChangeWatchedFilesParams {
+            changes: vec![FileEvent {
+                uri: dir_doc_uri(dir.path(), "a"),
+                typ: FileChangeType::DELETED,
+            }],
+        });
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Recreated A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn a_stale_external_update_takes_the_newer_contents_from_disk() {
+        let (dir, mut server) = workspace_with(&[("a", "# Doc A\n")]);
+        std::fs::write(dir.path().join("a.md"), "# Newer A\n").unwrap();
+
+        server.apply_external_update("a".into());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Newer A\n".to_string())
+        );
+    }
+
+    #[test]
+    fn an_external_removal_of_a_recreated_file_keeps_the_document() {
+        let (dir, mut server) = workspace_with(&[("a", "# Doc A\n")]);
+        std::fs::write(dir.path().join("a.md"), "# Recreated A\n").unwrap();
+
+        server.apply_external_removal("a".into());
+
+        assert_eq!(
+            server.graph.get_document(&"a".into()),
+            Some("# Recreated A\n".to_string())
+        );
     }
 }

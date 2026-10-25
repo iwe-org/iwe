@@ -137,7 +137,7 @@ impl Router {
     fn on_fs_event(&mut self, event: FsChange) {
         if let Some(server) = Arc::get_mut(&mut self.server) {
             match event {
-                FsChange::Update(key, content) => server.apply_external_update(key, content),
+                FsChange::Update(key, _) => server.apply_external_update(key),
                 FsChange::Remove(key) => server.apply_external_removal(key),
             }
         } else {

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Read tools no longer wait for each other; only writes run exclusively
+
+### Fixed
+- Changes picked up by the file watcher could briefly replace a newer write to the same document, or drop a document that was deleted and recreated
+- A failed file write no longer leaves the server's graph showing changes that never reached disk
+
 ## [0.29.1](https://github.com/iwe-org/iwe/compare/iwec-v0.29.0...iwec-v0.29.1) - 2026-10-24
 
 ### Fixed

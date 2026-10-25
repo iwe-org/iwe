@@ -11,10 +11,7 @@ use diwe::config::{
     MarkdownOptions, NoteTemplate, DEFAULT_KEY_DATE_FORMAT,
 };
 use diwe::find::{DocumentFinder, FindOptions, FindOutput};
-use diwe::fs::{
-    key_escapes_workspace, new_for_path, new_from_hashmap, workspace_document_path,
-    write_file_if_changed,
-};
+use diwe::fs::{key_escapes_workspace, new_for_path, new_from_hashmap, workspace_document_path};
 use diwe::require_documents;
 use diwe::retrieve::{DocumentReader, RetrieveOptions, RetrieveOutput};
 use diwe::schema::{
@@ -51,7 +48,8 @@ use rmcp::service::RequestContext;
 use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_router, RoleServer};
 use rmcp::{tool_handler, ErrorData as McpError, ServerHandler};
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
+use watcher::reload_document_from_disk;
 
 fn to_json_result<T: Serialize>(output: &T) -> Result<CallToolResult, McpError> {
     let json =
@@ -749,7 +747,7 @@ pub struct RefactorPromptArgs {
 
 #[derive(Clone)]
 pub struct IweServer {
-    graph: Arc<Mutex<Graph>>,
+    graph: Arc<RwLock<Graph>>,
     base_path: Option<PathBuf>,
     project_path: Option<PathBuf>,
     config: Configuration,
@@ -767,7 +765,7 @@ impl IweServer {
         Parameters(params): Parameters<FindParams>,
     ) -> Result<CallToolResult, McpError> {
         let options: FindOptions = params.try_into()?;
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         let index = (options.lexical.is_some() || options.fuzzy.is_some())
             .then(|| diwe::search_query::build_index(&graph, self.config.search_language()));
         let finder = match &index {
@@ -788,7 +786,7 @@ impl IweServer {
         params
             .validate_expand()
             .map_err(|e| McpError::invalid_params(e, None))?;
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         let reader = DocumentReader::new(&graph);
         let mut options = params.base_options();
 
@@ -828,7 +826,7 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<TreeParams>,
     ) -> Result<CallToolResult, McpError> {
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
 
         let filter = params.selector.to_filter();
         let explicit_keys: Vec<Key> = params
@@ -883,7 +881,7 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<StatsParams>,
     ) -> Result<CallToolResult, McpError> {
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         if let Some(key) = params.key {
             let all_stats = KeyStatistics::from_graph(&graph);
             let stat = all_stats
@@ -911,7 +909,7 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<SquashParams>,
     ) -> Result<CallToolResult, McpError> {
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         let key = Key::name(&params.key);
         let depth = params.depth.unwrap_or(2);
 
@@ -989,7 +987,7 @@ impl IweServer {
         };
 
         let key = Key::name(&key_name);
-        let mut graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
 
         if (&*graph).get_node_id(&key).is_some() || self.document_file_exists(&key) {
             return match params.if_exists {
@@ -1009,9 +1007,7 @@ impl IweServer {
 
         self.ensure_schema_clean(&[(key.clone(), markdown.clone())])?;
 
-        graph.insert_document(key.clone(), markdown.clone());
-        self.write_file(&key, &markdown)
-            .map_err(write_error_to_mcp)?;
+        self.persist_changes(&mut graph, &Changes::new().create(key.clone(), markdown))?;
 
         let warnings = self
             .stats_warnings(
@@ -1039,7 +1035,7 @@ impl IweServer {
         Parameters(params): Parameters<UpdateParams>,
     ) -> Result<CallToolResult, McpError> {
         let key = Key::name(&params.key);
-        let mut graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
 
         if (&*graph).get_node_id(&key).is_none() {
             return Err(McpError::invalid_params(
@@ -1054,9 +1050,10 @@ impl IweServer {
 
         self.ensure_schema_clean(&[(key.clone(), params.content.clone())])?;
 
-        graph.update_document(key.clone(), params.content.clone());
-        self.write_file(&key, &params.content)
-            .map_err(write_error_to_mcp)?;
+        self.persist_changes(
+            &mut graph,
+            &Changes::new().update(key.clone(), params.content.clone()),
+        )?;
 
         let new_title = (&*graph)
             .get_key_title(&key)
@@ -1095,14 +1092,13 @@ impl IweServer {
         Parameters(params): Parameters<DeleteParams>,
     ) -> Result<CallToolResult, McpError> {
         let key = Key::name(&params.key);
-        let mut graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
         let changes = op_delete(&graph, &key).map_err(op_error_to_mcp)?;
 
         let mut warnings = Vec::new();
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
-            Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes).map_err(write_error_to_mcp)?;
+            self.persist_changes(&mut graph, &changes)?;
             warnings = self.stats_after_delete(&graph, &changes).await;
         }
 
@@ -1133,17 +1129,13 @@ impl IweServer {
         }
 
         let dry_run = params.dry_run.unwrap_or(false);
-        let mut graph = self.graph.lock().await;
-
-        let index = match &op {
-            Operation::Find(find) if find.search.is_some() => Some(
-                diwe::search_query::build_index(&graph, self.config.search_language()),
-            ),
-            _ => None,
-        };
 
         match &op {
             Operation::Find(find) => {
+                let graph = self.graph.read().await;
+                let index = find.search.as_ref().map(|_| {
+                    diwe::search_query::build_index(&graph, self.config.search_language())
+                });
                 let outcome = diwe::search_query::execute(&op, &graph, index.as_ref())
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let Outcome::Find { matches } = outcome else {
@@ -1163,6 +1155,7 @@ impl IweServer {
                 to_json_result_with_warnings(&documents, &warnings)
             }
             Operation::Count(_) => {
+                let graph = self.graph.read().await;
                 let outcome = execute(&op, &graph)
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let Outcome::Count(count) = outcome else {
@@ -1171,6 +1164,7 @@ impl IweServer {
                 to_json_result(&QueryCountOutput { count })
             }
             Operation::Update(_) => {
+                let mut graph = self.graph.write().await;
                 let outcome = execute(&op, &graph)
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let Outcome::Update { changes } = outcome else {
@@ -1186,16 +1180,18 @@ impl IweServer {
                 let mut warnings = Vec::new();
                 if !dry_run {
                     self.ensure_schema_clean(&changes)?;
+                    let mut updates = Changes::new();
                     for (key, content) in &changes {
-                        graph.update_document(key.clone(), content.clone());
-                        self.write_file(key, content).map_err(write_error_to_mcp)?;
+                        updates.add_update(key.clone(), content.clone());
                     }
+                    self.persist_changes(&mut graph, &updates)?;
                     let touched: Vec<Key> = changes.iter().map(|(key, _)| key.clone()).collect();
                     warnings = self.stats_warnings(&graph, &touched, &[], &touched).await;
                 }
                 to_json_result_with_warnings(&QueryUpdateOutput { dry_run, changed }, &warnings)
             }
             Operation::Delete(_) => {
+                let mut graph = self.graph.write().await;
                 let outcome = execute(&op, &graph)
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let Outcome::Delete { removed } = outcome else {
@@ -1209,8 +1205,7 @@ impl IweServer {
                 let mut warnings = Vec::new();
                 if !dry_run {
                     self.ensure_schema_clean(&pending_from_changes(&combined))?;
-                    Self::apply_changes(&mut graph, &combined);
-                    self.write_changes(&combined).map_err(write_error_to_mcp)?;
+                    self.persist_changes(&mut graph, &combined)?;
                     warnings = self.stats_after_delete(&graph, &combined).await;
                 }
                 to_json_result_with_warnings(&ChangesOutput::from(&combined), &warnings)
@@ -1230,13 +1225,12 @@ impl IweServer {
         if key_escapes_workspace(new_key.as_str()) {
             return Err(escaping_key_error(&params.new_key));
         }
-        let mut graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
         let changes = op_rename(&graph, &old_key, &new_key).map_err(op_error_to_mcp)?;
 
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
-            Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes).map_err(write_error_to_mcp)?;
+            self.persist_changes(&mut graph, &changes)?;
         }
 
         to_json_result(&ChangesOutput::from(&changes))
@@ -1250,7 +1244,7 @@ impl IweServer {
         Parameters(params): Parameters<ExtractParams>,
     ) -> Result<CallToolResult, McpError> {
         let source_key = Key::name(&params.key);
-        let mut graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
 
         if (&*graph).get_node_id(&source_key).is_none() {
             return Err(McpError::invalid_params(
@@ -1322,8 +1316,7 @@ impl IweServer {
 
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
-            Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes).map_err(write_error_to_mcp)?;
+            self.persist_changes(&mut graph, &changes)?;
         }
 
         to_json_result(&ChangesOutput::from(&changes))
@@ -1337,7 +1330,7 @@ impl IweServer {
         Parameters(params): Parameters<InlineParams>,
     ) -> Result<CallToolResult, McpError> {
         let source_key = Key::name(&params.key);
-        let mut graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
 
         if (&*graph).get_node_id(&source_key).is_none() {
             return Err(McpError::invalid_params(
@@ -1418,8 +1411,7 @@ impl IweServer {
 
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&changes))?;
-            Self::apply_changes(&mut graph, &changes);
-            self.write_changes(&changes).map_err(write_error_to_mcp)?;
+            self.persist_changes(&mut graph, &changes)?;
         }
 
         to_json_result(&ChangesOutput::from(&changes))
@@ -1429,21 +1421,21 @@ impl IweServer {
         description = "Normalize all document formatting across the knowledge graph. Re-parses and re-writes all documents to ensure consistent formatting"
     )]
     async fn iwe_normalize(&self) -> Result<CallToolResult, McpError> {
-        let graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
         let state = graph.export();
         let original_count = state.len();
 
-        let mut changed = 0usize;
+        let mut updates = Changes::new();
         if self.base_path.is_some() {
-            for (key_str, normalized_content) in &state {
-                let key = Key::name(key_str);
+            for (key_str, normalized_content) in state {
+                let key = Key::name(&key_str);
                 if self.read_file(&key).as_deref() != Some(normalized_content.as_str()) {
-                    self.write_file(&key, normalized_content)
-                        .map_err(write_error_to_mcp)?;
-                    changed += 1;
+                    updates.add_update(key, normalized_content);
                 }
             }
         }
+        let changed = updates.updates.len();
+        self.persist_changes(&mut graph, &updates)?;
 
         #[derive(Serialize)]
         struct NormalizeResult {
@@ -1493,7 +1485,7 @@ impl IweServer {
             McpError::invalid_params("'key' is required when not in list mode".to_string(), None)
         })?;
 
-        let mut graph = self.graph.lock().await;
+        let mut graph = self.graph.write().await;
 
         let source_key = Key::name(source_key_str);
         if (&*graph).get_node_id(&source_key).is_none() {
@@ -1551,8 +1543,7 @@ impl IweServer {
 
         if !params.dry_run.unwrap_or(false) {
             self.ensure_schema_clean(&pending_from_changes(&combined))?;
-            Self::apply_changes(&mut graph, &combined);
-            self.write_changes(&combined).map_err(write_error_to_mcp)?;
+            self.persist_changes(&mut graph, &combined)?;
         }
 
         to_json_result(&ChangesOutput::from(&combined))
@@ -1607,7 +1598,7 @@ impl IweServer {
         description = "Start exploring the knowledge graph. Provides an overview of size, structure, root entry points, broken links, and orphaned documents"
     )]
     async fn explore(&self) -> Result<GetPromptResult, McpError> {
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         let stats = GraphStatistics::from_graph(&graph);
         let stats_json = serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "{}".to_string());
 
@@ -1630,7 +1621,7 @@ impl IweServer {
         &self,
         Parameters(args): Parameters<ReviewPromptArgs>,
     ) -> Result<GetPromptResult, McpError> {
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         let key = Key::name(&args.key);
         require_documents(&graph, std::slice::from_ref(&key))
             .map_err(|e| McpError::invalid_params(e, None))?;
@@ -1667,7 +1658,7 @@ impl IweServer {
         &self,
         Parameters(args): Parameters<RefactorPromptArgs>,
     ) -> Result<GetPromptResult, McpError> {
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         let key = Key::name(&args.key);
         require_documents(&graph, std::slice::from_ref(&key))
             .map_err(|e| McpError::invalid_params(e, None))?;
@@ -1720,7 +1711,7 @@ impl ServerHandler for IweServer {
         _request: Option<PaginatedRequestParams>,
         _: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
         let mut resources = vec![
             Resource::new("iwe://tree", "tree")
                 .with_description("Full document tree structure")
@@ -1752,7 +1743,7 @@ impl ServerHandler for IweServer {
         _: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, McpError> {
         let uri = &request.uri;
-        let graph = self.graph.lock().await;
+        let graph = self.graph.read().await;
 
         if uri == "iwe://tree" {
             let paths = graph.paths();
@@ -1845,7 +1836,7 @@ impl IweServer {
             configuration.workspace.locale.as_deref(),
         ));
         Self {
-            graph: Arc::new(Mutex::new(graph)),
+            graph: Arc::new(RwLock::new(graph)),
             base_path: Some(workspace),
             project_path: Some(root),
             config: configuration.clone(),
@@ -1869,7 +1860,7 @@ impl IweServer {
             TitleCollator::for_locale(config.workspace.locale.as_deref()),
         );
         Self {
-            graph: Arc::new(Mutex::new(graph)),
+            graph: Arc::new(RwLock::new(graph)),
             base_path: None,
             project_path: None,
             config,
@@ -1953,18 +1944,6 @@ impl IweServer {
             .is_some_and(|file_path| file_path.exists())
     }
 
-    fn write_file(&self, key: &Key, content: &str) -> std::io::Result<()> {
-        let Some(base_path) = &self.base_path else {
-            return Ok(());
-        };
-        let extension = self.config.format.extension();
-        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
-        if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        write_file_if_changed(&file_path, content).map(|_| ())
-    }
-
     fn read_file(&self, key: &Key) -> Option<String> {
         std::fs::read_to_string(self.document_path(key)?).ok()
     }
@@ -1974,6 +1953,24 @@ impl IweServer {
             Some(base_path) => diwe::fs::apply_changes(changes, base_path, self.config.format),
             None => Ok(()),
         }
+    }
+
+    fn persist_changes(&self, graph: &mut Graph, changes: &Changes) -> Result<(), McpError> {
+        if let Err(error) = self.write_changes(changes) {
+            if let Some(base_path) = &self.base_path {
+                let keys = changes
+                    .removes
+                    .iter()
+                    .chain(changes.creates.iter().map(|(key, _)| key))
+                    .chain(changes.updates.iter().map(|(key, _)| key));
+                for key in keys {
+                    reload_document_from_disk(graph, base_path, self.config.format, key);
+                }
+            }
+            return Err(write_error_to_mcp(error));
+        }
+        Self::apply_changes(graph, changes);
+        Ok(())
     }
 
     pub fn start_watching(&self) {
@@ -2019,5 +2016,48 @@ impl IweServer {
                 content => content,
             })
             .map_err(|e| format!("document template rendering failed: {}", e))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::task::JoinHandle;
+
+    fn spawn_retrieve(server: &IweServer) -> JoinHandle<Result<CallToolResult, McpError>> {
+        let server = server.clone();
+        tokio::spawn(async move {
+            let params = serde_json::from_value(serde_json::json!({"keys": ["note"]}))
+                .expect("retrieve params");
+            server.iwe_retrieve(Parameters(params)).await
+        })
+    }
+
+    #[tokio::test]
+    async fn a_read_runs_while_another_read_holds_the_graph() {
+        let server = IweServer::from_documents(vec![("note", "# Note\n")]);
+        let _guard = server.graph.read().await;
+
+        let result = tokio::time::timeout(Duration::from_secs(5), spawn_retrieve(&server))
+            .await
+            .expect("read completes")
+            .expect("task joins");
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn a_read_waits_while_a_write_holds_the_graph() {
+        let server = IweServer::from_documents(vec![("note", "# Note\n")]);
+        let guard = server.graph.write().await;
+        let mut handle = spawn_retrieve(&server);
+
+        let waited = tokio::time::timeout(Duration::from_millis(200), &mut handle).await;
+        assert!(waited.is_err());
+
+        drop(guard);
+        let result = handle.await.expect("task joins");
+        assert!(result.is_ok());
     }
 }
