@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A note deleted and recreated outside the editor could disappear from the server until it was changed again
+- A note closed in the editor could briefly show outdated content
+
 ## [0.29.1](https://github.com/iwe-org/iwe/compare/iwes-v0.29.0...iwes-v0.29.1) - 2026-10-24
 
 ### Fixed

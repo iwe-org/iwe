@@ -5,9 +5,9 @@ use std::time::Duration;
 use diwe::config::{Format, MarkdownOptions};
 use liwe::graph::Graph;
 use liwe::model::Key;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
-async fn start_watcher(graph: Arc<Mutex<Graph>>, base_path: &std::path::Path) {
+async fn start_watcher(graph: Arc<RwLock<Graph>>, base_path: &std::path::Path) {
     iwec::watcher::start_polling(
         graph,
         base_path.to_path_buf(),
@@ -39,7 +39,7 @@ async fn watcher_picks_up_new_file() {
     let dir = tempfile::tempdir().unwrap();
     let base_path = dir.path().canonicalize().unwrap();
 
-    let graph = Arc::new(Mutex::new(Graph::new()));
+    let graph = Arc::new(RwLock::new(Graph::new()));
     start_watcher(graph.clone(), &base_path).await;
 
     fs::write(base_path.join("hello.md"), "# Hello\n\nWorld\n").unwrap();
@@ -48,7 +48,7 @@ async fn watcher_picks_up_new_file() {
     let found = wait_for(Duration::from_secs(5), Duration::from_millis(100), || {
         let g = g.clone();
         async move {
-            let g = g.lock().await;
+            let g = g.read().await;
             g.keys().iter().any(|k| k.to_string() == "hello")
         }
     })
@@ -65,7 +65,7 @@ async fn watcher_picks_up_modification() {
     fs::write(base_path.join("doc.md"), "# Original\n").unwrap();
 
     let state = diwe::fs::new_for_path(&base_path, Format::Markdown);
-    let graph = Arc::new(Mutex::new(Graph::from_state(
+    let graph = Arc::new(RwLock::new(Graph::from_state(
         &state,
         false,
         MarkdownOptions::default(),
@@ -79,7 +79,7 @@ async fn watcher_picks_up_modification() {
     let found = wait_for(Duration::from_secs(5), Duration::from_millis(100), || {
         let g = g.clone();
         async move {
-            let g = g.lock().await;
+            let g = g.read().await;
             g.get_document(&Key::name("doc"))
                 .map(|c| c.contains("Updated"))
                 .unwrap_or(false)
@@ -98,7 +98,7 @@ async fn watcher_picks_up_deletion() {
     fs::write(base_path.join("to-delete.md"), "# Delete me\n").unwrap();
 
     let state = diwe::fs::new_for_path(&base_path, Format::Markdown);
-    let graph = Arc::new(Mutex::new(Graph::from_state(
+    let graph = Arc::new(RwLock::new(Graph::from_state(
         &state,
         false,
         MarkdownOptions::default(),
@@ -106,7 +106,7 @@ async fn watcher_picks_up_deletion() {
     )));
 
     {
-        let g = graph.lock().await;
+        let g = graph.read().await;
         assert!(g.keys().iter().any(|k| k.to_string() == "to-delete"));
     }
 
@@ -118,7 +118,7 @@ async fn watcher_picks_up_deletion() {
     let found = wait_for(Duration::from_secs(5), Duration::from_millis(100), || {
         let g = g.clone();
         async move {
-            let g = g.lock().await;
+            let g = g.read().await;
             !g.keys().iter().any(|k| k.to_string() == "to-delete")
         }
     })
@@ -132,12 +132,12 @@ async fn watcher_ignores_non_md_files() {
     let dir = tempfile::tempdir().unwrap();
     let base_path = dir.path().canonicalize().unwrap();
 
-    let graph = Arc::new(Mutex::new(Graph::new()));
+    let graph = Arc::new(RwLock::new(Graph::new()));
     start_watcher(graph.clone(), &base_path).await;
 
     fs::write(base_path.join("notes.txt"), "not markdown").unwrap();
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    let g = graph.lock().await;
+    let g = graph.read().await;
     assert!(g.keys().is_empty());
 }

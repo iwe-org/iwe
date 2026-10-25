@@ -618,3 +618,28 @@ async fn rename_reports_a_write_that_fails_on_disk() {
         "Mcp error: -32603: Failed to write to the workspace: Is a directory (os error 21)"
     );
 }
+
+#[tokio::test]
+async fn a_failed_create_leaves_the_graph_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    std::fs::write(base.join("dir"), "").unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+
+    let result = f
+        .try_call_tool(
+            "iwe_create",
+            json!({"key": "dir/note", "content": "# Note\n"}),
+        )
+        .await;
+    assert!(result.is_err());
+
+    let error = f
+        .try_call_tool("iwe_retrieve", json!({"keys": ["dir/note"], "depth": 0}))
+        .await
+        .unwrap_err();
+    assert_eq!(
+        Fixture::error_message(error),
+        "Document 'dir/note' not found"
+    );
+}
