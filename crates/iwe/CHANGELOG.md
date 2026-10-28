@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.2](https://github.com/iwe-org/iwe/compare/iwe-v0.29.1...iwe-v0.29.2) - 2026-10-28
+
 ### Added
 - Static Linux builds (`x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`) attached to each GitHub release alongside the glibc builds
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.2](https://github.com/iwe-org/iwe/compare/iwec-v0.29.1...iwec-v0.29.2) - 2026-10-28
+
 ### Changed
 - Read tools no longer wait for each other; only writes run exclusively
 
