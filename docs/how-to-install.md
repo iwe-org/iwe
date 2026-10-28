@@ -28,6 +28,13 @@ npx -y @iwe-org/iwe --help
 
 For AI agents, [@iwe-org/mcp](https://www.npmjs.com/package/@iwe-org/mcp) starts the MCP server directly via `npx -y @iwe-org/mcp` — see the [agentic docs](https://iwe.md/docs/agentic/).
 
+## Prebuilt Binaries
+
+Archives for every platform are attached to each [GitHub release](https://github.com/iwe-org/iwe/releases). Linux has two builds:
+
+- `*-unknown-linux-musl` — static, runs on any Linux distribution, including Alpine. Homebrew and npm install this build.
+- `*-unknown-linux-gnu` — linked against the system glibc, requires glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 or later).
+
 ## From Crates.IO
 
 - Rust and Cargo must be installed on your system. You can get them from [rustup.rs](https://rustup.rs).

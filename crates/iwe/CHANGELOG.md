@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Static Linux builds (`x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`) attached to each GitHub release alongside the glibc builds
+
+### Fixed
+- Linux binaries installed with npm or Homebrew now run on any distribution, including older ones and Alpine (previously they required glibc 2.39 or newer)
+
 ## [0.29.1](https://github.com/iwe-org/iwe/compare/iwe-v0.29.0...iwe-v0.29.1) - 2026-10-24
 
 ### Fixed

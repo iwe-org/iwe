@@ -19,10 +19,14 @@ jobs:
       matrix:
         include:
           - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
           - target: aarch64-apple-darwin
             os: macos-latest
           - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
           - target: x86_64-apple-darwin
             os: macos-latest
@@ -84,13 +88,13 @@ jobs:
           gh release download "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" --dir archives \
             --pattern '*-aarch64-apple-darwin.tar.gz' \
             --pattern '*-x86_64-apple-darwin.tar.gz' \
-            --pattern '*-x86_64-unknown-linux-gnu.tar.gz' \
-            --pattern '*-aarch64-unknown-linux-gnu.tar.gz' \
+            --pattern '*-x86_64-unknown-linux-musl.tar.gz' \
+            --pattern '*-aarch64-unknown-linux-musl.tar.gz' \
             --pattern '*-x86_64-pc-windows-msvc.zip'
           tar -xzf archives/*-aarch64-apple-darwin.tar.gz -C npm/cli-darwin-arm64
           tar -xzf archives/*-x86_64-apple-darwin.tar.gz -C npm/cli-darwin-x64
-          tar -xzf archives/*-x86_64-unknown-linux-gnu.tar.gz -C npm/cli-linux-x64
-          tar -xzf archives/*-aarch64-unknown-linux-gnu.tar.gz -C npm/cli-linux-arm64
+          tar -xzf archives/*-x86_64-unknown-linux-musl.tar.gz -C npm/cli-linux-x64
+          tar -xzf archives/*-aarch64-unknown-linux-musl.tar.gz -C npm/cli-linux-arm64
           unzip -o archives/*-x86_64-pc-windows-msvc.zip -d npm/cli-win32-x64
       - name: Stamp versions
         run: node npm/stamp.js "${{ steps.version.outputs.version }}"
@@ -131,6 +135,11 @@ jobs:
             if [ -z "$missing" ]; then
               npx -y "@iwe-org/iwe@${VERSION}" --version
               npx -y "@iwe-org/mcp@${VERSION}" --version
+              if [ "$RUNNER_OS" = "Linux" ]; then
+                for image in node:20-bullseye node:20-alpine; do
+                  docker run --rm -e npm_config_prefer_online=true "$image" npx -y "@iwe-org/iwe@${VERSION}" --version
+                done
+              fi
               exit 0
             fi
             echo "registry not ready yet, missing:${missing}; retrying in 30s (attempt ${attempt}/40)"
@@ -174,8 +183,8 @@ jobs:
           ASSETS=$(gh api "repos/${{ github.repository }}/releases/tags/${TAG}" --jq '.assets')
 
           MACOS_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("universal-apple-darwin.tar.gz")) | .digest' | sed 's/sha256://')
-          LINUX_X64_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x86_64-unknown-linux-gnu.tar.gz")) | .digest' | sed 's/sha256://')
-          LINUX_ARM_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("aarch64-unknown-linux-gnu.tar.gz")) | .digest' | sed 's/sha256://')
+          LINUX_X64_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("x86_64-unknown-linux-musl.tar.gz")) | .digest' | sed 's/sha256://')
+          LINUX_ARM_SHA=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith("aarch64-unknown-linux-musl.tar.gz")) | .digest' | sed 's/sha256://')
 
           for sha in "$MACOS_SHA" "$LINUX_X64_SHA" "$LINUX_ARM_SHA"; do
             if [ -z "$sha" ] || [ "$sha" = "null" ]; then
@@ -215,12 +224,12 @@ jobs:
 
             on_linux do
               on_intel do
-                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-x86_64-unknown-linux-gnu.tar.gz"
+                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-x86_64-unknown-linux-musl.tar.gz"
                 sha256 "${LINUX_X64_SHA}"
               end
 
               on_arm do
-                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-aarch64-unknown-linux-gnu.tar.gz"
+                url "https://github.com/iwe-org/iwe/releases/download/iwe-v#{version}/iwe-v#{version}-aarch64-unknown-linux-musl.tar.gz"
                 sha256 "${LINUX_ARM_SHA}"
               end
             end

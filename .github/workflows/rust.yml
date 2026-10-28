@@ -35,3 +35,25 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose --no-fail-fast
+
+  musl:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Install musl toolchain
+      uses: taiki-e/setup-cross-toolchain-action@v1
+      with:
+        target: x86_64-unknown-linux-musl
+    - name: Build
+      run: cargo build --release --target x86_64-unknown-linux-musl --bin iwe --bin iwes --bin iwec
+    - name: Check binaries are static
+      run: |
+        for bin in iwe iwes iwec; do
+          file "target/x86_64-unknown-linux-musl/release/$bin" | grep -q 'static' || { file "target/x86_64-unknown-linux-musl/release/$bin"; exit 1; }
+        done
+    - name: Run on Alpine
+      run: |
+        docker run --rm -v "$PWD/target/x86_64-unknown-linux-musl/release:/opt/iwe:ro" alpine:3 \
+          sh -c '/opt/iwe/iwe --version && /opt/iwe/iwec --version'

@@ -1,7 +1,7 @@
 {
   "name": "@iwe-org/cli-linux-arm64",
   "version": "0.0.0",
-  "description": "IWE binaries for Linux arm64 (gnu).",
+  "description": "IWE binaries for Linux arm64 (static, any distro).",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
