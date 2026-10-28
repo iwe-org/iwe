@@ -1554,6 +1554,7 @@ dependencies = [
  "jsonschema",
  "liwe",
  "log",
+ "mimalloc",
  "minijinja",
  "pretty_assertions",
  "rand 0.9.5",
@@ -1581,6 +1582,7 @@ dependencies = [
  "diwe",
  "indoc",
  "liwe",
+ "mimalloc",
  "minijinja",
  "rmcp",
  "schemars",
@@ -1613,6 +1615,7 @@ dependencies = [
  "log",
  "lsp-server",
  "lsp-types",
+ "mimalloc",
  "minijinja",
  "once_cell",
  "percent-encoding",
@@ -1752,6 +1755,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
+name = "libmimalloc-sys"
+version = "0.1.49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1870,6 +1882,15 @@ name = "micromap"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a86d3146ed3995b5913c414f6664344b9617457320782e64f0bb44afd49d74"
+
+[[package]]
+name = "mimalloc"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862"
+dependencies = [
+ "libmimalloc-sys",
+]
 
 [[package]]
 name = "mime"

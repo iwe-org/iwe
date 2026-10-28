@@ -35,6 +35,9 @@ schemars = "1.2"
 minijinja.workspace = true
 chrono.workspace = true
 
+[target.'cfg(target_env = "musl")'.dependencies]
+mimalloc.workspace = true
+
 [[test]]
 name = "integration"
 path = "tests/main.rs"
