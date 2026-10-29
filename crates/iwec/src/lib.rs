@@ -27,7 +27,6 @@ use diwe::stats::{
 use diwe::tokens::Truncation;
 use liwe::collation::TitleCollator;
 use liwe::graph::{Graph, GraphContext};
-use liwe::model::node::NodePointer;
 use liwe::model::tree::{Tree, TreeIter};
 use liwe::model::{strip_doc_extension, Key};
 use liwe::operations::{
@@ -851,16 +850,7 @@ impl IweServer {
         } else if !explicit_keys.is_empty() {
             explicit_keys
         } else {
-            let paths = graph.paths();
-            let mut keys: Vec<Key> = paths
-                .iter()
-                .filter(|n| n.ids().len() == 1)
-                .filter_map(|n| n.first_id())
-                .map(|id| (&*graph).node(id).node_key())
-                .collect();
-            keys.sort();
-            keys.dedup();
-            keys
+            graph.root_keys()
         };
 
         let max_depth = params.depth.unwrap_or(4);
@@ -1746,15 +1736,7 @@ impl ServerHandler for IweServer {
         let graph = self.graph.read().await;
 
         if uri == "iwe://tree" {
-            let paths = graph.paths();
-            let mut root_keys: Vec<Key> = paths
-                .iter()
-                .filter(|n| n.ids().len() == 1)
-                .filter_map(|n| n.first_id())
-                .map(|id| (&*graph).node(id).node_key())
-                .collect();
-            root_keys.sort();
-            root_keys.dedup();
+            let root_keys = graph.root_keys();
 
             let mut trees: Vec<TreeNode> = Vec::new();
             for root_key in &root_keys {

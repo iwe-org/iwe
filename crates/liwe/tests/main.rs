@@ -28,6 +28,7 @@ mod query_frontmatter_prefixes;
 mod query_graph;
 mod query_scores;
 mod query_update;
+mod root_keys_test;
 mod roundtrip_test;
 mod squash_test;
 mod task_items_test;

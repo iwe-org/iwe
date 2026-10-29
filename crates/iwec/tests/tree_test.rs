@@ -57,6 +57,21 @@ async fn tree_respects_depth_limit() {
     assert_eq!(children[0]["key"], "2");
 }
 
+#[tokio::test]
+async fn tree_includes_documents_without_heading() {
+    let f = Fixture::with_documents(vec![
+        ("1", "# Root\n\n[Child](2)\n"),
+        ("2", "# Child\n"),
+        ("3", "Text\n"),
+    ])
+    .await;
+
+    let result = f.call_tool("iwe_tree", json!({})).await;
+    let output = Fixture::result_json(&result);
+
+    assert_eq!(root_keys(&output), vec!["1", "3"]);
+}
+
 fn root_keys(output: &serde_json::Value) -> Vec<String> {
     let mut v: Vec<String> = output
         .as_array()

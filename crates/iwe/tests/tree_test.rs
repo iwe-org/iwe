@@ -521,6 +521,68 @@ fn test_tree_project_and_add_fields_conflict() {
     );
 }
 
+#[test]
+fn test_tree_includes_documents_without_heading() {
+    let temp_dir = setup_workspace_with_document_without_heading();
+    let temp_path = temp_dir.path();
+
+    let output = run_tree_command(temp_path, &["-f", "keys"]);
+    assert!(output.status.success(), "Tree command should succeed");
+
+    let stdout = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+    let expected = "parent\n\tchild\nplain\n";
+
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn test_tree_default_roots_match_roots_flag() {
+    let temp_dir = setup_workspace_with_document_without_heading();
+    let temp_path = temp_dir.path();
+
+    let default_output = run_tree_command(temp_path, &["-f", "keys"]);
+    let roots_output = run_tree_command(temp_path, &["--roots", "-f", "keys"]);
+    assert!(
+        default_output.status.success(),
+        "Tree command should succeed"
+    );
+    assert!(roots_output.status.success(), "Tree command should succeed");
+
+    assert_eq!(
+        String::from_utf8(default_output.stdout).expect("Valid UTF-8 output"),
+        String::from_utf8(roots_output.stdout).expect("Valid UTF-8 output")
+    );
+}
+
+fn setup_workspace_with_document_without_heading() -> TempDir {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+
+    setup_iwe_config(temp_path);
+
+    let parent = indoc! {"
+        # Parent
+
+        [Child](child)
+    "};
+
+    let child = indoc! {"
+        # Child
+
+        Text
+    "};
+
+    let plain = indoc! {"
+        Text
+    "};
+
+    write(temp_path.join("parent.md"), parent).expect("Should write parent");
+    write(temp_path.join("child.md"), child).expect("Should write child");
+    write(temp_path.join("plain.md"), plain).expect("Should write plain");
+
+    temp_dir
+}
+
 fn setup_workspace_with_self_reference() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
