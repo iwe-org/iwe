@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `tree` without filters now lists documents that have no heading, matching `tree --roots`, and is much faster on workspaces with many nested documents
+
 ## [0.29.2](https://github.com/iwe-org/iwe/compare/iwe-v0.29.1...iwe-v0.29.2) - 2026-10-28
 
 ### Added

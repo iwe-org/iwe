@@ -44,6 +44,30 @@ async fn read_tree_resource() {
 }
 
 #[tokio::test]
+async fn read_tree_resource_includes_documents_without_heading() {
+    let f = Fixture::with_documents(vec![
+        ("1", "# Root\n\n[Child](2)\n"),
+        ("2", "# Child\n"),
+        ("3", "Text\n"),
+    ])
+    .await;
+
+    let result = f.read_resource("iwe://tree").await;
+    let text = match &result.contents[0] {
+        ResourceContents::TextResourceContents { text, .. } => text.clone(),
+        _ => panic!("expected text resource"),
+    };
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let keys: Vec<&str> = json
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["key"].as_str().unwrap())
+        .collect();
+    assert_eq!(keys, vec!["1", "3"]);
+}
+
+#[tokio::test]
 async fn read_stats_resource() {
     let f = Fixture::with_documents(vec![("1", "# Doc\n")]).await;
 

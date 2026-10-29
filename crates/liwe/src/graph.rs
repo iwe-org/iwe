@@ -231,6 +231,17 @@ impl Graph {
         self.keys.keys().cloned().collect()
     }
 
+    pub fn root_keys(&self) -> Vec<Key> {
+        let mut keys: Vec<Key> = self
+            .keys
+            .keys()
+            .filter(|k| self.get_inclusion_edges_to(k).is_empty())
+            .cloned()
+            .collect();
+        keys.sort();
+        keys
+    }
+
     pub fn has_key(&self, key: &Key) -> bool {
         self.keys.contains_key(key)
     }

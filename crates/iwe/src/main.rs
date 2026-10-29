@@ -52,7 +52,6 @@ use iwe::stats::{render_stats, GraphStatistics};
 use liwe::collation::TitleCollator;
 use liwe::graph::{Graph, GraphContext};
 use liwe::locale::get_locale;
-use liwe::model::node::NodePointer;
 use liwe::model::tree::TreeIter;
 use liwe::model::{split_raw_frontmatter, Frontmatter, Key};
 use liwe::operations::{
@@ -2511,15 +2510,7 @@ fn tree_command(args: TreeArgs) {
                 .collect()
         }
     } else if explicit_keys.is_empty() {
-        let paths = graph.paths();
-        paths
-            .iter()
-            .filter(|n| n.ids().len() == 1)
-            .filter_map(|n| n.first_id())
-            .map(|id| (&graph).node(id).node_key())
-            .sorted()
-            .unique()
-            .collect()
+        graph.root_keys()
     } else {
         explicit_keys
     };
@@ -2873,12 +2864,7 @@ fn apply_roots(base: Option<Filter>, roots: bool, graph: &Graph) -> Option<Filte
     if !roots {
         return base;
     }
-    let rk: Vec<Key> = graph
-        .keys()
-        .into_iter()
-        .filter(|k| graph.get_inclusion_edges_to(k).is_empty())
-        .collect();
-    let roots_filter = Filter::Key(liwe::query::KeyOp::In(rk));
+    let roots_filter = Filter::Key(liwe::query::KeyOp::In(graph.root_keys()));
     Some(match base {
         Some(f) => Filter::And(vec![f, roots_filter]),
         None => roots_filter,
