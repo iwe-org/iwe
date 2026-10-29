@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.3](https://github.com/iwe-org/iwe/compare/liwe-v0.29.2...liwe-v0.29.3) - 2026-10-28
+
 ### Added
 - `Graph::root_keys` returns the sorted keys of documents that no other document includes
 

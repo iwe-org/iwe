@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.3](https://github.com/iwe-org/iwe/compare/iwec-v0.29.2...iwec-v0.29.3) - 2026-10-28
+
 ### Fixed
 - `iwe_tree` and the `iwe://tree` resource now list documents that have no heading, and are much faster on workspaces with many nested documents
 
