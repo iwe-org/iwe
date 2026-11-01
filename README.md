@@ -16,6 +16,14 @@ Or worse, the agent “remembers” something in its own internal memory, but yo
 
 IWE gives you and your AI agents **one shared place to work, right inside your project**: a folder of connected Markdown documents — specs, plans, decisions, and more. Keep your own ideas there, ask your agent to save what you learn together, and return to that context as your work grows. You can read, edit, and organize those documents yourself — and they stay yours.
 
+<br/>
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=D58bPkOvbxE">
+    <img src="https://iwe.md/images/video-thumbnail.jpg" alt="Watch the IWE intro video on YouTube" width="600">
+  </a>
+</p>
+<br/>
+
 ## Choose how you work
 
 There are four ways to work with IWE. Mix and match them to fit your day:

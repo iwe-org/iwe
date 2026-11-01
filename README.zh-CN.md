@@ -16,6 +16,14 @@
 
 IWE 为你和你的 AI 智能体提供**一个共享的工作空间，就在你的项目里**：一个由相互链接的 Markdown 文档组成的文件夹——规格说明、计划、决策等等。把你自己的想法放在这里，让智能体保存你们一起学到的东西，并随着工作推进随时回到这些上下文。你可以自己阅读、编辑和整理这些文档——它们始终属于你。
 
+<br/>
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=D58bPkOvbxE">
+    <img src="https://iwe.md/images/video-thumbnail.jpg" alt="在 YouTube 上观看 IWE 介绍视频" width="600">
+  </a>
+</p>
+<br/>
+
 ## 选择你的工作方式
 
 使用 IWE 有四种方式，可以按自己的习惯自由组合：
