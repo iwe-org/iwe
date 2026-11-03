@@ -49,6 +49,8 @@ npm install -g @iwe-org/iwe
 
 The server reads `.iwe/config.toml` from the workspace root. Set `IWE_DEBUG=1` for debug logging to stderr.
 
+Use `--workspace <PATH>` to serve a directory other than the current one. When several servers are connected to one client, `--instructions <TEXT>` or `--instructions-file <PATH>` tells the agent what each workspace is for.
+
 ### Claude Desktop
 
 Add to your Claude Desktop configuration:

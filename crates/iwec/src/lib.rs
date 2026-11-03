@@ -744,6 +744,15 @@ pub struct RefactorPromptArgs {
     pub key: String,
 }
 
+const DEFAULT_INSTRUCTIONS: &str = "IWE knowledge graph server. Tools: iwe_find, iwe_retrieve, iwe_tree, iwe_stats, iwe_squash, iwe_create, iwe_update, iwe_delete, iwe_query, iwe_rename, iwe_extract, iwe_inline, iwe_normalize, iwe_attach. Prompts: explore, review, refactor. Resources: iwe://documents/{key}, iwe://tree, iwe://stats, iwe://config.";
+
+fn server_instructions(custom: Option<&str>) -> String {
+    match custom.map(str::trim).filter(|text| !text.is_empty()) {
+        Some(text) => format!("{}\n\n{}", text, DEFAULT_INSTRUCTIONS),
+        None => DEFAULT_INSTRUCTIONS.to_string(),
+    }
+}
+
 #[derive(Clone)]
 pub struct IweServer {
     graph: Arc<RwLock<Graph>>,
@@ -752,6 +761,7 @@ pub struct IweServer {
     config: Configuration,
     index: Arc<Mutex<Option<Bm25Index>>>,
     seen: Arc<Mutex<HashSet<Finding>>>,
+    instructions: Option<String>,
 }
 
 #[tool_router]
@@ -1690,10 +1700,7 @@ impl ServerHandler for IweServer {
                 .build(),
         )
         .with_server_info(Implementation::new("iwe", env!("CARGO_PKG_VERSION")))
-        .with_instructions(
-            "IWE knowledge graph server. Tools: iwe_find, iwe_retrieve, iwe_tree, iwe_stats, iwe_squash, iwe_create, iwe_update, iwe_delete, iwe_query, iwe_rename, iwe_extract, iwe_inline, iwe_normalize, iwe_attach. Prompts: explore, review, refactor. Resources: iwe://documents/{key}, iwe://tree, iwe://stats, iwe://config."
-                .to_string(),
-        )
+        .with_instructions(server_instructions(self.instructions.as_deref()))
     }
 
     async fn list_resources(
@@ -1824,7 +1831,13 @@ impl IweServer {
             config: configuration.clone(),
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
+            instructions: None,
         }
+    }
+
+    pub fn with_instructions(mut self, instructions: String) -> Self {
+        self.instructions = Some(instructions);
+        self
     }
 
     pub fn from_documents(documents: Vec<(&str, &str)>) -> Self {
@@ -1848,6 +1861,7 @@ impl IweServer {
             config,
             index: Arc::new(Mutex::new(None)),
             seen: Arc::new(Mutex::new(HashSet::new())),
+            instructions: None,
         }
     }
 
