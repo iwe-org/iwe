@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--instructions <TEXT>` and `--instructions-file <PATH>` flags to add workspace-specific instructions, so an agent connected to several servers knows what each workspace is for
+- `--workspace` flag to serve a workspace other than the current directory
+
 ## [0.29.3](https://github.com/iwe-org/iwe/compare/iwec-v0.29.2...iwec-v0.29.3) - 2026-10-28
 
 ### Fixed

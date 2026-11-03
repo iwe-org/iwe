@@ -6,6 +6,8 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 use std::env;
+use std::fs::read_to_string;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
@@ -35,6 +37,20 @@ struct Cli {
 
     #[arg(long, default_value_t = 8000)]
     port: u16,
+
+    #[arg(long, value_name = "TEXT", conflicts_with = "instructions_file")]
+    instructions: Option<String>,
+
+    #[arg(long, value_name = "PATH")]
+    instructions_file: Option<PathBuf>,
+
+    #[arg(long, value_name = "PATH")]
+    workspace: Option<PathBuf>,
+}
+
+fn exit_with_error(message: String) -> ! {
+    eprintln!("Error: {}", message);
+    std::process::exit(1);
 }
 
 #[tokio::main]
@@ -61,14 +77,36 @@ async fn main() -> Result<()> {
 
     tracing::info!("starting IWE MCP server");
 
-    let configuration = load_config().unwrap_or_else(|e| {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
+    let instructions = cli.instructions.or_else(|| {
+        cli.instructions_file.as_ref().map(|path| {
+            read_to_string(path).unwrap_or_else(|e| {
+                exit_with_error(format!(
+                    "Failed to read instructions file '{}': {}",
+                    path.display(),
+                    e
+                ))
+            })
+        })
     });
+
+    if let Some(workspace) = &cli.workspace {
+        env::set_current_dir(workspace).unwrap_or_else(|e| {
+            exit_with_error(format!(
+                "Failed to open workspace '{}': {}",
+                workspace.display(),
+                e
+            ))
+        });
+    }
+
+    let configuration = load_config().unwrap_or_else(|e| exit_with_error(e));
 
     let current_dir = env::current_dir().expect("current dir");
 
-    let server = IweServer::new(&current_dir.to_string_lossy(), &configuration);
+    let mut server = IweServer::new(&current_dir.to_string_lossy(), &configuration);
+    if let Some(instructions) = instructions {
+        server = server.with_instructions(instructions);
+    }
     server.start_watching();
 
     match cli.transport {

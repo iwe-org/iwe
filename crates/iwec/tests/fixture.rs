@@ -37,6 +37,10 @@ impl Fixture {
         Self::serve(server).await
     }
 
+    pub async fn with_server(server: IweServer) -> Self {
+        Self::serve(server).await
+    }
+
     async fn serve(server: IweServer) -> Self {
         let (server_transport, client_transport) = tokio::io::duplex(65536);
 
@@ -55,6 +59,14 @@ impl Fixture {
             client,
             _server_handle: server_handle,
         }
+    }
+
+    pub fn server_info(&self) -> ServerPeerInfo {
+        self.client
+            .peer_info()
+            .expect("server info after handshake")
+            .as_ref()
+            .clone()
     }
 
     pub async fn call_tool(&self, name: &str, arguments: serde_json::Value) -> CallToolResult {

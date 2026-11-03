@@ -13,6 +13,7 @@ mod query_test;
 mod resource_test;
 mod retrieve_test;
 mod schema_test;
+mod server_info_test;
 mod squash_test;
 mod stats_test;
 mod stats_warnings_test;

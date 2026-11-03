@@ -30,6 +30,32 @@ iwec --transport http --host 0.0.0.0 --port 8000
 
 The server speaks plain HTTP, so put a reverse proxy in front of it for TLS or authentication when exposing it beyond localhost.
 
+### Workspace and instructions
+
+| Flag                         | Default           | Description                                                     |
+| ---------------------------- | ----------------- | --------------------------------------------------------------- |
+| `--workspace <PATH>`         | current directory | Workspace to serve                                              |
+| `--instructions <TEXT>`      | none              | Text placed before the built-in instructions sent to the client |
+| `--instructions-file <PATH>` | none              | Same as `--instructions`, but reads the text from a file        |
+
+When several IWE servers are connected to one client, give each instructions that say what the workspace is for, so the agent picks the right one:
+
+```json
+{
+  "mcpServers": {
+    "notes": {
+      "command": "iwec",
+      "args": [
+        "--workspace", "/path/to/notes",
+        "--instructions", "Personal notes. For engineering questions use the `docs` server."
+      ]
+    }
+  }
+}
+```
+
+For longer text, keep it in a file and pass `--instructions-file /path/to/notes/.iwe/instructions.md` instead. The two flags can't be used together.
+
 ## Tools
 
 The MCP server exposes 14 tools for reading, writing, querying, and refactoring documents.
