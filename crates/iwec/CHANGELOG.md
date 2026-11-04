@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Usage and error messages on Windows now show the command as `iwec` (was `iwec.exe`)
+
 ## [0.30.0](https://github.com/iwe-org/iwe/compare/iwec-v0.29.3...iwec-v0.30.0) - 2026-11-02
 
 ### Added
