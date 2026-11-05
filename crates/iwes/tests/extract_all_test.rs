@@ -169,7 +169,7 @@ fn extract_sub_sections_with_title_template() {
         vec![
             uri_from("Target%20Section").to_create_file(),
             uri_from("Target%20Section").to_edit("# Target Section\n"),
-            uri(1).to_edit("# ParentSection\n\n[Target Section](Target Section)\n"),
+            uri(1).to_edit("# ParentSection\n\n[Target Section](<Target Section>)\n"),
         ]
         .to_workspace_edit()
         .to_code_action("Extract all subsections", "custom.extract_all"),
@@ -208,11 +208,11 @@ fn extract_multiple_sub_sections_with_title_template() {
             uri(1).to_edit(indoc! {"
                 # ParentSection
 
-                [Target Section](Target Section)
+                [Target Section](<Target Section>)
 
-                [Target Section](Target Section-1)
+                [Target Section](<Target Section-1>)
 
-                [Target Section](Target Section-2)
+                [Target Section](<Target Section-2>)
                 "}),
         ]
         .to_workspace_edit()

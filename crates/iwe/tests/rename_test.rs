@@ -50,6 +50,48 @@ fn test_rename_basic() {
 }
 
 #[test]
+fn test_rename_preserves_wiki_embeds() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        (
+            "a",
+            indoc! {"
+            # Doc A
+
+            ![[picture name.png]]
+
+            ![[picture name.png|200]]
+
+            See [[b]].
+        "},
+        ),
+        (
+            "b",
+            indoc! {"
+            # Doc B
+        "},
+        ),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_rename_command(temp_path, &["b", "renamed-b"]);
+    assert!(output.status.success(), "Rename command should succeed");
+
+    let a_content = read_to_string(temp_path.join("a.md")).unwrap();
+    assert_eq!(
+        a_content,
+        indoc! {"
+            # Doc A
+
+            ![[picture name.png]]
+
+            ![[picture name.png|200]]
+
+            See [[renamed-b]].
+        "}
+    );
+}
+
+#[test]
 fn test_rename_multiple_references() {
     let temp_dir = setup_workspace_with_docs(vec![
         (

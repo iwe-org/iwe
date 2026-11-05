@@ -132,10 +132,10 @@ impl CmarkTableWriter {
                     events.extend(self.inlines_to_events(vec));
                     events.push(Event::End(TagEnd::Emphasis));
                 }
-                Inline::Image(url, title, _) => {
+                Inline::Image(url, title, t, _) => {
                     events.push(Event::Start(Tag::Image {
                         title: title.into(),
-                        link_type: pulldown_cmark::LinkType::Autolink,
+                        link_type: link_type(t),
                         dest_url: url.into(),
                         id: "".into(),
                     }));

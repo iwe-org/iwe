@@ -460,7 +460,7 @@ fn extract_section_with_title_template() {
         vec![
             uri_from("Target%20Section").to_create_file(),
             uri_from("Target%20Section").to_edit("# Target Section\n"),
-            uri(1).to_edit("# ParentSection\n\n[Target Section](Target Section)\n"),
+            uri(1).to_edit("# ParentSection\n\n[Target Section](<Target Section>)\n"),
         ]
         .to_workspace_edit()
         .to_code_action("Extract section", "custom.extract"),
@@ -531,7 +531,7 @@ fn extract_section_with_source_title_template() {
                 uri_from("Source%20Document%20Title-Target%20Section").to_create_file(),
                 uri_from("Source%20Document%20Title-Target%20Section").to_edit("# Target Section\n"),
                 uri_from("source-document").to_edit(
-                    "# Source Document Title\n\n[Target Section](Source Document Title-Target Section)\n",
+                    "# Source Document Title\n\n[Target Section](<Source Document Title-Target Section>)\n",
                 ),
             ]
             .to_workspace_edit()
@@ -595,7 +595,7 @@ fn extract_section_with_path_template() {
             uri_from("docs/tutorial/extracted-Getting%20Started").to_create_file(),
             uri_from("docs/tutorial/extracted-Getting%20Started").to_edit("# Getting Started\n"),
             uri_from("docs/tutorial/basics")
-                .to_edit("# Basic Tutorial\n\n[Getting Started](extracted-Getting Started)\n"),
+                .to_edit("# Basic Tutorial\n\n[Getting Started](<extracted-Getting Started>)\n"),
         ]
         .to_workspace_edit()
         .to_code_action("Extract section", "custom.extract"),

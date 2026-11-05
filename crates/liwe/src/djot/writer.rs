@@ -355,7 +355,7 @@ fn render_inline_djot<S: TextSink>(
             out.push(&url);
             out.push(")");
         }
-        Inline::Image(url, _, alt) => {
+        Inline::Image(url, _, _, alt) => {
             out.push("![");
             render_inlines_djot(alt, options, out, false);
             out.push("](");

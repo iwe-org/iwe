@@ -623,6 +623,7 @@ impl DocumentInline {
             DocumentInline::Image(image) => Inline::Image(
                 image.target.url.clone(),
                 image.target.title.clone(),
+                image.link_type,
                 to_graph_inlines(&image.inlines, relative_to),
             ),
             DocumentInline::Math(math) => {
@@ -839,6 +840,7 @@ pub struct Image {
     pub target: Target,
     pub inlines: DocumentInlines,
     pub inline_range: InlineRange,
+    pub link_type: LinkType,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

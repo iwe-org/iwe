@@ -448,6 +448,7 @@ impl DjotEventsReader {
                     },
                     attr: Default::default(),
                     inline_range: self.to_inline_range(range.clone()),
+                    link_type: document::LinkType::Markdown,
                 }),
                 self.to_line_range(range),
             ),
