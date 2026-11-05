@@ -4,9 +4,9 @@ use crate::model::inline::{
     append_refs_extension, detect_and_strip_checkbox, Attributes, Inline, Inlines, TextSink,
     TokenStream,
 };
-use crate::model::is_ref_url;
 use crate::model::node::ColumnAlignment;
 use crate::model::writer::{frontmatter_to_yaml, Block, Blocks};
+use crate::model::{autolink_body, is_ref_url};
 
 pub struct DjotWriter {}
 
@@ -326,12 +326,11 @@ fn render_inline_djot<S: TextSink>(
         Inline::RawInline(_, content) => out.push(content),
         Inline::Link(url, _, link_type, inlines) => {
             let inner = inlines_to_djot(inlines, options);
-            if *link_type == LinkType::Markdown
-                && !is_ref_url(url)
-                && inner.eq_ignore_ascii_case(url)
+            if let Some(body) =
+                autolink_body(url, &inner).filter(|_| *link_type == LinkType::Markdown)
             {
                 out.push("<");
-                out.push(url);
+                out.push(body);
                 out.push(">");
                 return;
             }

@@ -395,3 +395,11 @@ fn wrapped_continuation_line_does_not_escape_markers() {
         )
     );
 }
+
+#[test]
+fn email_autolink() {
+    let input = indoc! {"
+        Mail <name@example.com> now.
+        "};
+    assert_eq!(input, roundtrip(input));
+}

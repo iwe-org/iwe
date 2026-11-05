@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Markdown writer wraps link and image destinations containing spaces or unbalanced parentheses in `<...>`
 - Block update operators treat a `$section` as one whole-tree target when it follows unselected sibling blocks (previously each block in the section was a separate target)
+- Email autolinks are read as `mailto:` links and written back as `<name@example.com>` (previously read as a relative link to a document)
 
 ## [0.30.0](https://github.com/iwe-org/iwe/compare/liwe-v0.29.3...liwe-v0.30.0) - 2026-11-02
 

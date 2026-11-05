@@ -6,7 +6,7 @@ use crate::model::document::MathType;
 use crate::model::inline::{inlines_to_markdown, Inline, Inlines};
 use crate::model::node::ColumnAlignment;
 use crate::model::writer::{frontmatter_to_yaml, Block};
-use crate::model::{document, is_ref_url};
+use crate::model::{autolink_body, document};
 
 pub struct CmarkTableWriter {
     options: MarkdownOptions,
@@ -146,11 +146,12 @@ impl CmarkTableWriter {
                 }
                 Inline::Link(url, title, t, inlines) => {
                     let text = inlines_to_markdown(&inlines, &self.options);
-                    if !is_ref_url(&url) && text.eq_ignore_ascii_case(&url) {
+                    if let Some(body) = autolink_body(&url, &text) {
+                        let body = body.to_string();
                         events.push(Event::Start(Tag::Link {
                             title: title.into(),
                             link_type: pulldown_cmark::LinkType::Autolink,
-                            dest_url: url.into(),
+                            dest_url: body.into(),
                             id: "".into(),
                         }));
                         events.extend(self.inlines_to_events(inlines));

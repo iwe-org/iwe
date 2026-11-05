@@ -354,10 +354,14 @@ impl MarkdownEventsReader {
                     DocumentInline::Link(Link {
                         inlines: vec![],
                         target: Target {
-                            url: normalize_url(
-                                dest_url.as_ref(),
-                                &self.markdown_options.refs_extension,
-                            ),
+                            url: if link_type == LinkType::Email {
+                                email_autolink_url(dest_url.as_ref())
+                            } else {
+                                normalize_url(
+                                    dest_url.as_ref(),
+                                    &self.markdown_options.refs_extension,
+                                )
+                            },
                             title: title.to_string(),
                         },
                         title: title.to_string(),
