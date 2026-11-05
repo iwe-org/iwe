@@ -924,3 +924,81 @@ fn document_expect_in_count_is_parse_error() {
         "'count' does not support the 'expect' field"
     );
 }
+
+#[test]
+fn delete_section_after_unselected_sibling_is_one_target() {
+    assert_update(
+        indoc! {"
+            # Doc
+
+            first paragraph
+
+            ## Section
+
+            section body
+
+            ## Other
+
+            other body
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $delete:
+                $section: Section
+                expect: 1
+        "},
+        indoc! {"
+            # Doc
+
+            first paragraph
+
+            ## Other
+
+            other body
+        "},
+    );
+}
+
+#[test]
+fn insert_after_section_after_unselected_sibling_lands_once() {
+    assert_update(
+        indoc! {"
+            # Doc
+
+            first paragraph
+
+            ## Section
+
+            section body
+
+            ## Other
+
+            other body
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $section: Section
+                content: \"## Inserted\\n\\nadded\"
+        "},
+        indoc! {"
+            # Doc
+
+            first paragraph
+
+            ## Section
+
+            section body
+
+            ## Inserted
+
+            added
+
+            ## Other
+
+            other body
+        "},
+    );
+}

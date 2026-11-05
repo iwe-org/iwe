@@ -158,10 +158,10 @@ impl BlockIndex {
     }
 
     fn compute_sub_full(&self, i: usize, mask: &[bool], out: &mut [bool]) -> bool {
-        let children_full = self.blocks[i]
-            .children
-            .iter()
-            .all(|&c| self.compute_sub_full(c, mask, out));
+        let mut children_full = true;
+        for &c in &self.blocks[i].children {
+            children_full &= self.compute_sub_full(c, mask, out);
+        }
         let full = mask[i] && children_full;
         out[i] = full;
         full
