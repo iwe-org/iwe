@@ -1639,7 +1639,7 @@ When a budget clips output, the command prints a truncation warning to stderr na
 | `--unset FIELD` | `$unset: { FIELD: "" }` (repeatable) |
 | `--replace "ARG"`, `--replace-text "ARG"`, `--insert-before "ARG"`, `--insert-after "ARG"`, `--append "ARG"`, `--delete "ARG"` | one block-operator entry (`$replace`, `$replaceText`, `$insertBefore`, `$insertAfter`, `$append`, `$delete`) in the update document; `ARG` is the operator's `{ <selector>, <payload> }` mapping (§A.7), the operator-name wrapper dropped. Each flag appears at most once. |
 | `--expect VAL` | the document-level `expect` clause (§3.2) |
-| `--strict` | surface policy, not grammar: refuses to run unless every mutating application carries its `expect` guard (document-level `--expect` plus each block operator's `expect`); exempt under `--dry-run` |
+| `--strict` | surface policy, not grammar: refuses to run unless every mutating application carries its `expect` guard (document-level `--expect` plus each block operator's `expect`) and validates written documents against their bound schema; `--dry-run` is exempt from the guard requirement but still validates |
 | `--filter "EXPR"` | required if `-k` is omitted |
 | `--dry-run` | preview only; print the would-be changes per doc and exit |
 | `--quiet` | suppress progress output |
@@ -1657,7 +1657,7 @@ Body-overwrite mode (`-k KEY -c CONTENT`) is the existing single-doc body rewrit
 | Positional `KEY` | `$key: K` (sugar) |
 | `--filter "EXPR"` | inline filter |
 | `--expect VAL` | the document-level `expect` clause (§3.2) |
-| `--strict` | requires `--expect`; refuses to run without it; exempt under `--dry-run` |
+| `--strict` | requires `--expect`; refuses to run without it and validates rewritten documents against their bound schema; `--dry-run` is exempt from the guard requirement but still validates |
 | `--dry-run` | preview |
 | `-f, --format markdown\|keys` | output format (default `markdown`); `keys` prints affected document keys, suppresses progress |
 | `--quiet` | suppress progress |

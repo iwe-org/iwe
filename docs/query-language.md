@@ -533,7 +533,7 @@ The `expect` guards are optional in the language: a human at a terminal, with gi
 - **CLI**: [`iwe update`](cli-update.md) and [`iwe delete`](cli-delete.md) take `--strict`. Under the flag, every mutating application must carry its guard — the operation's document-level `--expect` and each block operator's `expect`. A missing guard is an error before anything runs.
 - **MCP**: the [`iwe_query`](mcp.md) tool is always strict, no opt-out; an unguarded mutation is refused with the missing guards named.
 
-`--dry-run` writes nothing and is exempt from strict mode — it is how the counts are learned: dry-run the mutation, read the matched documents, pin `expect` to what it shows, re-run. An agent that just located its targets with `$blocks` already knows the counts.
+`--dry-run` writes nothing and is exempt from the guard requirement — it is how the counts are learned. Schema validation under `--strict` still runs, so the preview fails exactly when the real run would. The flow: dry-run the mutation, read the matched documents, pin `expect` to what it shows, re-run. An agent that just located its targets with `$blocks` already knows the counts.
 
 ### Locate, then mutate
 

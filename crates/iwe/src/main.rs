@@ -3291,6 +3291,10 @@ fn delete_command(args: Delete) {
         }
     }
 
+    if args.strict {
+        gate_pending(&config, &pending_from_changes(&combined));
+    }
+
     let keys_mode = args.format == MutationFormat::Keys || args.keys_legacy;
 
     if keys_mode {
@@ -3320,9 +3324,6 @@ fn delete_command(args: Delete) {
     }
 
     if !args.dry_run {
-        if args.strict {
-            gate_pending(&config, &pending_from_changes(&combined));
-        }
         apply_changes(&combined, &config);
         if args.strict {
             apply_changes_to_graph(&mut graph, &combined);
@@ -3798,18 +3799,9 @@ fn update_body(args: Update) {
         raw
     };
 
-    if args.dry_run {
-        if !args.quiet {
-            println!("Would update '{}' ({} bytes)", key_str, content.len());
-        }
-        return;
-    }
-
+    let content_len = content.len();
     let workspace_path = get_workspace_path(&config);
     let file_path = workspace_path.join(format!("{}.{}", key, config.format.extension()));
-    if let Some(parent) = file_path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
 
     let existing = std::fs::read_to_string(&file_path).unwrap_or_default();
     let output = if split_raw_frontmatter(&content).0.is_some() {
@@ -3821,15 +3813,28 @@ fn update_body(args: Update) {
         }
     };
     let output = normalize_content(&config, &key, &output);
-    if output == existing {
+    let changed = output != existing;
+
+    if args.strict && changed {
+        gate_pending(&config, &[(key.clone(), output.clone())]);
+    }
+
+    if args.dry_run {
+        if !args.quiet {
+            println!("Would update '{}' ({} bytes)", key_str, content_len);
+        }
+        return;
+    }
+
+    if !changed {
         if !args.quiet {
             println!("'{}' unchanged", key_str);
         }
         return;
     }
 
-    if args.strict {
-        gate_pending(&config, &[(key.clone(), output.clone())]);
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).ok();
     }
 
     std::fs::write(&file_path, &output).expect("Failed to write document file");
@@ -3974,7 +3979,7 @@ fn update_mutation(args: Update) {
         }
     };
 
-    if args.strict && !args.dry_run {
+    if args.strict {
         gate_pending(&config, &docs);
     }
 
