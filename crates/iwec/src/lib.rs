@@ -1095,9 +1095,10 @@ impl IweServer {
         let mut graph = self.graph.write().await;
         let changes = op_delete(&graph, &key).map_err(op_error_to_mcp)?;
 
+        self.ensure_schema_clean(&pending_from_changes(&changes))?;
+
         let mut warnings = Vec::new();
         if !params.dry_run.unwrap_or(false) {
-            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             self.persist_changes(&mut graph, &changes)?;
             warnings = self.stats_after_delete(&graph, &changes).await;
         }
@@ -1177,9 +1178,9 @@ impl IweServer {
                         content: content.clone(),
                     })
                     .collect();
+                self.ensure_schema_clean(&changes)?;
                 let mut warnings = Vec::new();
                 if !dry_run {
-                    self.ensure_schema_clean(&changes)?;
                     let mut updates = Changes::new();
                     for (key, content) in &changes {
                         updates.add_update(key.clone(), content.clone());
@@ -1202,9 +1203,9 @@ impl IweServer {
                     let changes = op_delete(&graph, key).map_err(op_error_to_mcp)?;
                     combined.merge(changes);
                 }
+                self.ensure_schema_clean(&pending_from_changes(&combined))?;
                 let mut warnings = Vec::new();
                 if !dry_run {
-                    self.ensure_schema_clean(&pending_from_changes(&combined))?;
                     self.persist_changes(&mut graph, &combined)?;
                     warnings = self.stats_after_delete(&graph, &combined).await;
                 }
@@ -1228,8 +1229,9 @@ impl IweServer {
         let mut graph = self.graph.write().await;
         let changes = op_rename(&graph, &old_key, &new_key).map_err(op_error_to_mcp)?;
 
+        self.ensure_schema_clean(&pending_from_changes(&changes))?;
+
         if !params.dry_run.unwrap_or(false) {
-            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             self.persist_changes(&mut graph, &changes)?;
         }
 
@@ -1314,8 +1316,9 @@ impl IweServer {
         )
         .map_err(op_error_to_mcp)?;
 
+        self.ensure_schema_clean(&pending_from_changes(&changes))?;
+
         if !params.dry_run.unwrap_or(false) {
-            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             self.persist_changes(&mut graph, &changes)?;
         }
 
@@ -1409,8 +1412,9 @@ impl IweServer {
 
         let changes = op_inline(&graph, &source_key, ref_id, &config).map_err(op_error_to_mcp)?;
 
+        self.ensure_schema_clean(&pending_from_changes(&changes))?;
+
         if !params.dry_run.unwrap_or(false) {
-            self.ensure_schema_clean(&pending_from_changes(&changes))?;
             self.persist_changes(&mut graph, &changes)?;
         }
 
@@ -1541,8 +1545,9 @@ impl IweServer {
             }
         }
 
+        self.ensure_schema_clean(&pending_from_changes(&combined))?;
+
         if !params.dry_run.unwrap_or(false) {
-            self.ensure_schema_clean(&pending_from_changes(&combined))?;
             self.persist_changes(&mut graph, &combined)?;
         }
 

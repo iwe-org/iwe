@@ -24,7 +24,7 @@ Either a positional `KEY` or `--filter` is required. When both are given, the un
 | -------------------- | -------------------------------------------------------------------------------------------- | ---------- |
 | `--filter <EXPR>`    | Inline YAML filter expression. See [Query Language](query-language.md).                      | none       |
 | `--expect <ARG>`     | Document-level guard: assert the number of matched documents. `ARG` is `N` or `{ min: M, max: N }`. | none  |
-| `--strict`           | Require the `--expect` guard. Aborts before deleting if it is missing. Exempt under `--dry-run`. | false  |
+| `--strict`           | Require the `--expect` guard. Aborts before deleting if it is missing, or if a document rewritten by link cleanup would fail its bound schema. `--dry-run` is exempt from the guard requirement only. | false  |
 | `--dry-run`          | Preview changes without writing to disk.                                                     | false      |
 | `--quiet`            | Suppress progress output.                                                                    | false      |
 | `-f, --format <FMT>` | Output format: `markdown` or `keys`. `keys` prints affected keys (one per line).             | `markdown` |
@@ -33,7 +33,7 @@ Either a positional `KEY` or `--filter` is required. When both are given, the un
 
 ## Guards and strict mode
 
-`--expect` asserts the number of documents the operation will delete. On violation nothing is deleted and the error lists each matched document. Under `--strict`, a missing `--expect` is an error before anything runs; `--dry-run` is exempt — it is how the count is learned. See [`expect` guards](query-language.md#expect-guards).
+`--expect` asserts the number of documents the operation will delete. On violation nothing is deleted and the error lists each matched document. Under `--strict`, a missing `--expect` is an error before anything runs; `--dry-run` is exempt — it is how the count is learned. Schema validation still runs under `--dry-run`. See [`expect` guards](query-language.md#expect-guards).
 
 ``` bash
 # Learn the count, then pin it

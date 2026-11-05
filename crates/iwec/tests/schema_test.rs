@@ -12,6 +12,11 @@ const CLEAN: &str = "# Summary\n\n# Tasks\n";
 const PERSON_SCHEMA: &str =
     "sections:\n  - header: { const: Summary }\n  - header: { const: Tasks }\n";
 
+const HUB_SCHEMA: &str =
+    "sections:\n  - header: { const: Index }\n    blocks:\n      - type: paragraph\n";
+
+const HUB: &str = "# Index\n\n[One](one)\n";
+
 #[tokio::test]
 async fn update_violating_change_is_rejected_and_not_written() {
     let dir = setup(PERSON_SCHEMA);
@@ -198,6 +203,108 @@ async fn clean_change_is_written_under_the_workspace_path() {
         read_to_string(base.join("workspace/docs/one.md")).unwrap(),
         new_content
     );
+}
+
+#[tokio::test]
+async fn query_update_dry_run_rejects_violating_change() {
+    let dir = setup(PERSON_SCHEMA);
+    let base = dir.path();
+    let f = Fixture::with_path(base.to_str().unwrap(), config("person", "docs/**")).await;
+
+    let err = f
+        .try_call_tool(
+            "iwe_query",
+            json!({
+                "operation": "update",
+                "dry_run": true,
+                "document": "filter: { $key: docs/one }\nexpect: 1\nupdate:\n  $delete: { $section: Tasks, expect: 1 }\n",
+            }),
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        mcp_error(err).message,
+        "schema validation failed; change rejected:\ndocs/one: required section \"Tasks\" is missing\n"
+    );
+    assert_eq!(read_to_string(base.join("docs/one.md")).unwrap(), CLEAN);
+}
+
+#[tokio::test]
+async fn query_update_dry_run_accepts_clean_change() {
+    let dir = setup(PERSON_SCHEMA);
+    let base = dir.path();
+    let f = Fixture::with_path(base.to_str().unwrap(), config("person", "docs/**")).await;
+
+    let result = f
+        .call_tool(
+            "iwe_query",
+            json!({
+                "operation": "update",
+                "dry_run": true,
+                "document": "filter: { $key: docs/one }\nexpect: 1\nupdate:\n  $set: { stage: a }\n",
+            }),
+        )
+        .await;
+
+    assert_eq!(Fixture::result_json(&result)["dry_run"], true);
+    assert_eq!(read_to_string(base.join("docs/one.md")).unwrap(), CLEAN);
+}
+
+#[tokio::test]
+async fn query_delete_dry_run_rejects_violating_link_cleanup() {
+    let dir = setup_hub();
+    let base = dir.path();
+    let f = Fixture::with_path(base.to_str().unwrap(), config("hub", "docs/hub")).await;
+
+    let err = f
+        .try_call_tool(
+            "iwe_query",
+            json!({
+                "operation": "delete",
+                "dry_run": true,
+                "document": "filter: { $key: docs/one }\nexpect: 1\n",
+            }),
+        )
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        mcp_error(err).message,
+        "schema validation failed; change rejected:\ndocs/hub › Index: required block paragraph is missing\n"
+    );
+    assert!(base.join("docs/one.md").exists());
+    assert_eq!(read_to_string(base.join("docs/hub.md")).unwrap(), HUB);
+}
+
+#[tokio::test]
+async fn delete_dry_run_rejects_violating_link_cleanup() {
+    let dir = setup_hub();
+    let base = dir.path();
+    let f = Fixture::with_path(base.to_str().unwrap(), config("hub", "docs/hub")).await;
+
+    let err = f
+        .try_call_tool("iwe_delete", json!({ "key": "docs/one", "dry_run": true }))
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        mcp_error(err).message,
+        "schema validation failed; change rejected:\ndocs/hub › Index: required block paragraph is missing\n"
+    );
+    assert!(base.join("docs/one.md").exists());
+    assert_eq!(read_to_string(base.join("docs/hub.md")).unwrap(), HUB);
+}
+
+fn setup_hub() -> TempDir {
+    let dir = TempDir::new().unwrap();
+    let base = dir.path();
+    create_dir_all(base.join(".iwe/schemas")).unwrap();
+    write(base.join(".iwe/schemas/hub.yaml"), HUB_SCHEMA).unwrap();
+    create_dir_all(base.join("docs")).unwrap();
+    write(base.join("docs/hub.md"), HUB).unwrap();
+    write(base.join("docs/one.md"), CLEAN).unwrap();
+    dir
 }
 
 fn setup(schema: &str) -> TempDir {

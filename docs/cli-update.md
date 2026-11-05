@@ -36,7 +36,7 @@ iwe update --filter "EXPR" --replace-text "{ <selector>, to: ... }"
 | `--append <ARG>`           | `$append`: append child content to each selected container. `ARG` is `{ <selector>, content: <markdown> }`.  | mutation           |
 | `--delete <ARG>`           | `$delete`: remove each selected block. `ARG` is the `{ <selector> }` mapping (`{}` selects every block).     | mutation           |
 | `--expect <ARG>`           | Document-level guard: assert the number of matched documents. `ARG` is `N` or `{ min: M, max: N }`.          | mutation           |
-| `--strict`                 | Require an `expect` guard on every mutating application (document-level `--expect` and each block operator's `expect`). Aborts before writing if any is missing. Exempt under `--dry-run`. | mutation |
+| `--strict`                 | Require an `expect` guard on every mutating application (document-level `--expect` and each block operator's `expect`). Aborts before writing if any is missing, or if a written document would fail its bound schema. `--dry-run` is exempt from the guard requirement only. | mutation |
 | `--dry-run`                | Preview changes without writing.                                                                             | both               |
 | `--quiet`                  | Suppress progress output.                                                                                    | both               |
 
@@ -166,7 +166,7 @@ Use [`iwe find --blocks`](cli-find.md#block-projection) with the same predicate 
 
 `--expect` asserts the number of matched documents the operation will write; each block operator's `expect` key asserts the number of targets it will act on (selected blocks for `--replace-text`). The two are independent quantities. Any violated guard aborts the whole operation before anything is written, listing the actual targets. See [`expect` guards](query-language.md#expect-guards).
 
-Under `--strict`, every mutating application must carry its guard — a missing one is an error before anything runs. `--dry-run` is exempt: it is how the counts are learned.
+Under `--strict`, every mutating application must carry its guard — a missing one is an error before anything runs. `--dry-run` is exempt from the guard requirement: it is how the counts are learned. Schema validation still runs under `--dry-run`, so the preview fails exactly when the real run would.
 
 ``` bash
 # Learn the counts, then pin them
