@@ -1089,3 +1089,36 @@ fn setup() {
         let _ = env_logger::builder().try_init();
     });
 }
+
+#[test]
+fn email_autolink_is_kept() {
+    compare(
+        indoc! {"
+        Mail <name@example.com> now.
+        "},
+        "Mail <name@example.com> now.",
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn mailto_link_with_matching_text_becomes_autolink() {
+    compare(
+        indoc! {"
+        Mail <name@example.com> now.
+        "},
+        "Mail [name@example.com](mailto:name@example.com) now.",
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn mailto_link_with_other_text_is_kept() {
+    compare(
+        indoc! {"
+        Mail [someone](mailto:name@example.com) now.
+        "},
+        "Mail [someone](mailto:name@example.com) now.",
+        FormattingOptions::default(),
+    );
+}

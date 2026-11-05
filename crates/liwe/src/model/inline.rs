@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::document::LinkType;
 use crate::model;
+use crate::model::autolink_body;
 use crate::model::config::MarkdownOptions;
 use crate::model::document::{DocumentInline, DocumentInlines, MathType};
 use crate::model::reference::{Reference, ReferenceType, Target};
@@ -519,11 +520,11 @@ fn render_inline<S: TextSink>(
             LinePos::Mid
         }
         Inline::Link(url, _, link_type, inlines) => {
-            if *link_type == LinkType::Markdown && !model::is_ref_url(url) {
+            if *link_type == LinkType::Markdown {
                 let inner = inlines_to_markdown(inlines, options);
-                if inner.eq_ignore_ascii_case(url) {
+                if let Some(body) = autolink_body(url, &inner) {
                     out.push("<");
-                    out.push(url);
+                    out.push(body);
                     out.push(">");
                     return LinePos::Mid;
                 }

@@ -313,6 +313,23 @@ fn has_uri_scheme(url: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
 }
 
+const MAILTO_SCHEME: &str = "mailto:";
+
+pub(crate) fn email_autolink_url(address: &str) -> String {
+    format!("{}{}", MAILTO_SCHEME, address)
+}
+
+pub(crate) fn autolink_body<'a>(url: &'a str, text: &str) -> Option<&'a str> {
+    if is_ref_url(url) {
+        return None;
+    }
+    if text.eq_ignore_ascii_case(url) {
+        return Some(url);
+    }
+    url.strip_prefix(MAILTO_SCHEME)
+        .filter(|address| text.eq_ignore_ascii_case(address))
+}
+
 pub fn normalize_url(url: &str, extension: &str) -> String {
     if !is_ref_url(url) {
         return url.to_string();

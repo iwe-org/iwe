@@ -425,11 +425,15 @@ impl DjotEventsReader {
                 }),
                 self.to_line_range(range),
             ),
-            Container::Link(url, _) => self.push_inline(
+            Container::Link(url, link_type) => self.push_inline(
                 DocumentInline::Link(Link {
                     inlines: vec![],
                     target: Target {
-                        url: normalize_url(url.as_ref(), &self.options.refs_extension),
+                        url: if link_type == jotdown::LinkType::Email {
+                            email_autolink_url(url.as_ref())
+                        } else {
+                            normalize_url(url.as_ref(), &self.options.refs_extension)
+                        },
                         title: String::new(),
                     },
                     title: String::new(),
