@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Usage and error messages on Windows now show the command as `iwec` (was `iwec.exe`)
 - `iwe_query` update block operators treat a `$section` as one target, so `expect: 1` passes and inserted content lands once below the section (previously applied to every block in the section when it was not the first block under its parent)
 - `iwe_inline` no longer pastes the inlined document's frontmatter into the body as a `---` block, so the host keeps its own frontmatter
+- `dry_run` previews of `iwe_query`, `iwe_delete`, `iwe_rename`, `iwe_extract`, `iwe_inline` and `iwe_attach` reject schema violations like the real call (previously the preview skipped schema validation and reported success)
 
 ## [0.30.0](https://github.com/iwe-org/iwe/compare/iwec-v0.29.3...iwec-v0.30.0) - 2026-11-02
 

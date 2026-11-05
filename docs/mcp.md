@@ -148,7 +148,7 @@ Output is seeds first (relevance order), then expansion. The edge-list toggles (
 | `iwe_normalize`  | Re-format all documents for consistent formatting          |
 | `iwe_attach`     | Attach a document to a target using configured actions     |
 
-All write and refactoring tools support a `dry_run` parameter to preview changes before applying them.
+All write and refactoring tools support a `dry_run` parameter to preview changes before applying them. Schema validation still runs under `dry_run`, so a preview is rejected exactly when the real call would be.
 
 ### Selector parameters
 

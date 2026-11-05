@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Email autolinks (`<name@example.com>`) are kept as written by `normalize` and other commands (previously rewritten as a broken relative link `[name@example.com](name@example.com)`)
 - `inline` keeps the host document's frontmatter and drops the inlined document's frontmatter (previously the inlined frontmatter was pasted into the body as a `---` block and a later `inline` took it over as the host's frontmatter)
 - `update --strict --dry-run` and `delete --strict --dry-run` report schema violations and exit 2 like the real run (previously the preview skipped schema validation and reported success)
+- `update -c --dry-run` reports `'<key>' unchanged` when the new content matches the document (previously reported `Would update`)
 
 ## [0.30.0](https://github.com/iwe-org/iwe/compare/iwe-v0.29.3...iwe-v0.30.0) - 2026-11-02
 

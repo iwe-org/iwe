@@ -1206,7 +1206,7 @@ struct Delete {
 
     #[clap(
         long,
-        help = "Require the document-level --expect guard. Aborts before deleting if it is missing. Exempt under --dry-run."
+        help = "Require the document-level --expect guard. Aborts before deleting if it is missing, or if a document rewritten by link cleanup would fail its bound schema. --dry-run is exempt from the guard requirement only."
     )]
     strict: bool,
 
@@ -1366,7 +1366,7 @@ struct Update {
 
     #[clap(
         long,
-        help = "Require an expect guard on every mutating application (document-level --expect and each block operator's expect). Aborts before writing if any is missing. Exempt under --dry-run."
+        help = "Require an expect guard on every mutating application (document-level --expect and each block operator's expect). Aborts before writing if any is missing, or if a written document would fail its bound schema. --dry-run is exempt from the guard requirement only."
     )]
     strict: bool,
 
@@ -3819,16 +3819,16 @@ fn update_body(args: Update) {
         gate_pending(&config, &[(key.clone(), output.clone())]);
     }
 
-    if args.dry_run {
+    if !changed {
         if !args.quiet {
-            println!("Would update '{}' ({} bytes)", key_str, content_len);
+            println!("'{}' unchanged", key_str);
         }
         return;
     }
 
-    if !changed {
+    if args.dry_run {
         if !args.quiet {
-            println!("'{}' unchanged", key_str);
+            println!("Would update '{}' ({} bytes)", key_str, content_len);
         }
         return;
     }

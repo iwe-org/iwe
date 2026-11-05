@@ -270,6 +270,32 @@ fn dry_run_does_not_write() {
 }
 
 #[test]
+fn body_dry_run_reports_unchanged_content() {
+    let original = "# Doc\n\npara\n";
+    let temp = setup(vec![("d", original)]);
+    let output = run_update(temp.path(), &["-k", "d", "-c", original, "--dry-run"]);
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "'d' unchanged\n");
+    assert_eq!(read_to_string(temp.path().join("d.md")).unwrap(), original);
+}
+
+#[test]
+fn body_dry_run_reports_changed_content() {
+    let original = "# Doc\n\npara\n";
+    let temp = setup(vec![("d", original)]);
+    let output = run_update(
+        temp.path(),
+        &["-k", "d", "-c", "# Doc\n\nother\n", "--dry-run"],
+    );
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "Would update 'd' (13 bytes)\n"
+    );
+    assert_eq!(read_to_string(temp.path().join("d.md")).unwrap(), original);
+}
+
+#[test]
 fn document_expect_violation_aborts_without_writing() {
     let a = "# Alpha\n\nkeep\n";
     let b = "# Beta\n\nkeep\n";
