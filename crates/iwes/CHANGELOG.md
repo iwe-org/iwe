@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wiki embeds (`![[image.png]]`) are kept as written when a document is formatted or updated by a code action (previously rewritten as Markdown images)
 - Link destinations containing spaces, such as links created by extract with a title-based key, are written as `<path with spaces>` so they stay valid Markdown
 - Email autolinks (`<name@example.com>`) are kept as written when a document is formatted (previously rewritten as a broken relative link)
+- Inline section code action no longer pastes the inlined document's frontmatter into the body as a `---` block
 
 ## [0.30.0](https://github.com/iwe-org/iwe/compare/iwes-v0.29.3...iwes-v0.30.0) - 2026-11-02
 
