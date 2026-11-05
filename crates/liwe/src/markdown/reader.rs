@@ -369,7 +369,10 @@ impl MarkdownEventsReader {
                 );
             }
             Tag::Image {
-                dest_url, title, ..
+                link_type,
+                dest_url,
+                title,
+                ..
             } => {
                 self.push_inline(
                     DocumentInline::Image(Image {
@@ -380,6 +383,7 @@ impl MarkdownEventsReader {
                         },
                         attr: Default::default(),
                         inline_range: self.to_inline_range(range.clone()),
+                        link_type: to_link_type(link_type),
                     }),
                     self.to_line_range(range),
                 );

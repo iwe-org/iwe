@@ -81,7 +81,9 @@ impl Projector {
             Inline::Superscript(v) => Inline::Superscript(self.resolve_inlines(v)),
             Inline::Subscript(v) => Inline::Subscript(self.resolve_inlines(v)),
             Inline::SmallCaps(v) => Inline::SmallCaps(self.resolve_inlines(v)),
-            Inline::Image(url, title, v) => Inline::Image(url, title, self.resolve_inlines(v)),
+            Inline::Image(url, title, link_type, v) => {
+                Inline::Image(url, title, link_type, self.resolve_inlines(v))
+            }
             Inline::Link(url, title, lt, v) => {
                 Inline::Link(url, title, lt, self.resolve_inlines(v))
             }

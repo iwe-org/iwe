@@ -332,6 +332,102 @@ fn table_with_pipe_in_code() {
     );
 }
 
+#[test]
+fn wiki_embed_is_preserved() {
+    compare(
+        indoc! {"
+        ![[picture name.png]]
+        "},
+        indoc! {"
+        ![[picture name.png]]
+        "},
+    );
+}
+
+#[test]
+fn wiki_embed_piped_is_preserved() {
+    compare(
+        indoc! {"
+        ![[picture name.png|200]]
+        "},
+        indoc! {"
+        ![[picture name.png|200]]
+        "},
+    );
+}
+
+#[test]
+fn wiki_embed_of_note_is_preserved() {
+    compare(
+        indoc! {"
+        ![[document]]
+        "},
+        indoc! {"
+        ![[document]]
+        "},
+    );
+}
+
+#[test]
+fn image_destination_with_space_is_angle_bracketed() {
+    compare(
+        indoc! {"
+        ![alt](<picture name.png>)
+        "},
+        indoc! {"
+        ![alt](<picture name.png>)
+        "},
+    );
+}
+
+#[test]
+fn image_destination_with_encoded_space_is_preserved() {
+    compare(
+        indoc! {"
+        ![alt](picture%20name.png)
+        "},
+        indoc! {"
+        ![alt](picture%20name.png)
+        "},
+    );
+}
+
+#[test]
+fn image_destination_with_space_and_angle_brackets_is_escaped() {
+    compare(
+        indoc! {"
+        ![alt](<picture\\<name\\> file.png>)
+        "},
+        indoc! {"
+        ![alt](<picture\\<name\\> file.png>)
+        "},
+    );
+}
+
+#[test]
+fn image_destination_starting_with_angle_bracket_is_wrapped() {
+    compare(
+        indoc! {"
+        ![alt](<\\<picture.png>)
+        "},
+        indoc! {"
+        ![alt](\\<picture.png)
+        "},
+    );
+}
+
+#[test]
+fn link_destination_with_space_is_angle_bracketed() {
+    compare(
+        indoc! {"
+        [text](<file name.pdf>)
+        "},
+        indoc! {"
+        [text](<file name.pdf>)
+        "},
+    );
+}
+
 fn compare(expected: &str, denormalized: &str) {
     setup();
 

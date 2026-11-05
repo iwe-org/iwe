@@ -26,7 +26,7 @@ impl Attributes {
 pub enum Inline {
     Code(Option<Lang>, String),
     Emph(Inlines),
-    Image(WorkspaceUrl, Title, Inlines),
+    Image(WorkspaceUrl, Title, LinkType, Inlines),
     LineBreak,
     Link(WorkspaceUrl, Title, LinkType, Inlines),
     Reference(Reference),
@@ -97,7 +97,7 @@ impl Inline {
             Inline::LineBreak => "\n".into(),
             Inline::Link(_, _, _, inlines) => to_plain_text(inlines),
             Inline::Reference(reference) => reference.text(),
-            Inline::Image(_, _, inlines) => to_plain_text(inlines),
+            Inline::Image(_, _, _, inlines) => to_plain_text(inlines),
             Inline::RawInline(_, content) => content.clone(),
             _ => "".into(),
         }
@@ -132,7 +132,7 @@ impl Inline {
             | Inline::Delete(inner)
             | Inline::Span(_, inner)
             | Inline::Link(_, _, _, inner)
-            | Inline::Image(_, _, inner) => Some(inner),
+            | Inline::Image(_, _, _, inner) => Some(inner),
             _ => None,
         }
     }
@@ -243,8 +243,8 @@ impl Inline {
             Inline::Link(url, title, link_type, inner) => {
                 Inline::Link(url.clone(), title.clone(), *link_type, map(inner))
             }
-            Inline::Image(url, title, inner) => {
-                Inline::Image(url.clone(), title.clone(), map(inner))
+            Inline::Image(url, title, link_type, inner) => {
+                Inline::Image(url.clone(), title.clone(), *link_type, map(inner))
             }
             Inline::Reference(reference) => match rewrite(&reference.target) {
                 Some(target) => Inline::Reference(Reference {
@@ -542,12 +542,8 @@ fn render_inline<S: TextSink>(
             );
             LinePos::Mid
         }
-        Inline::Image(url, _, alt) => {
-            out.push("![");
-            render_inlines(alt, options, out, RenderCtx::Inline);
-            out.push("](");
-            out.push(url);
-            out.push(")");
+        Inline::Image(url, _, link_type, alt) => {
+            emit_image(url, *link_type, alt, options, out);
             LinePos::Mid
         }
     }
@@ -696,10 +692,69 @@ fn emit_link<S: TextSink>(
             out.push("[");
             render_inlines(inlines, options, out, RenderCtx::Inline);
             out.push("](");
-            out.push(&final_url);
+            out.push(&link_destination(&final_url));
             out.push(")");
         }
     }
+}
+
+fn emit_image<S: TextSink>(
+    url: &str,
+    link_type: LinkType,
+    alt: &Inlines,
+    options: &MarkdownOptions,
+    out: &mut S,
+) {
+    match link_type {
+        LinkType::WikiLinkPiped => {
+            out.push("![[");
+            out.push(url);
+            out.push("|");
+            out.push(&inlines_to_markdown(alt, options));
+            out.push("]]");
+        }
+        LinkType::WikiLink => {
+            out.push("![[");
+            out.push(url);
+            out.push("]]");
+        }
+        LinkType::Markdown => {
+            out.push("![");
+            render_inlines(alt, options, out, RenderCtx::Inline);
+            out.push("](");
+            out.push(&link_destination(url));
+            out.push(")");
+        }
+    }
+}
+
+fn link_destination(url: &str) -> String {
+    if needs_angle_brackets(url) {
+        format!("<{}>", url.replace('<', "\\<").replace('>', "\\>"))
+    } else {
+        url.to_string()
+    }
+}
+
+fn needs_angle_brackets(url: &str) -> bool {
+    if url.starts_with('<') {
+        return true;
+    }
+    let mut depth: i32 = 0;
+    for ch in url.chars() {
+        match ch {
+            ' ' | '\t' => return true,
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth < 0 {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    depth != 0
 }
 
 pub(crate) fn text_to_inlines(text: &str) -> Vec<Inline> {
@@ -1023,7 +1078,12 @@ mod test {
             Inline::Code(None, "code".to_string()),
             Inline::Code(Some("lang".to_string()), "code".to_string()),
             Inline::Emph(words()),
-            Inline::Image("url".to_string(), "title".to_string(), words()),
+            Inline::Image(
+                "url".to_string(),
+                "title".to_string(),
+                LinkType::Markdown,
+                words(),
+            ),
             Inline::LineBreak,
             Inline::Link(
                 "url".to_string(),

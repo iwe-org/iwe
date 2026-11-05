@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `Inline::Image` now carries a `LinkType` and `document::Image` has a new `link_type` field, so wiki embeds round-trip as `![[...]]`
+
+### Fixed
+- Markdown writer wraps link and image destinations containing spaces or unbalanced parentheses in `<...>`
+
 ## [0.30.0](https://github.com/iwe-org/iwe/compare/liwe-v0.29.3...liwe-v0.30.0) - 2026-11-02
 
 Workspace version bump — no user-visible changes in this crate.
