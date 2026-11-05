@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0](https://github.com/iwe-org/iwe/compare/iwe-v0.30.0...iwe-v0.31.0) - 2026-11-05
+
 ### Fixed
 - Wiki embeds (`![[image.png]]`, `![[image.png|300]]`) are kept as written when a document is re-rendered by `normalize`, `rename` and other commands (previously rewritten as Markdown images)
 - Link and image destinations containing spaces are written as `<path with spaces>` so they stay valid Markdown

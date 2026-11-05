@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0](https://github.com/iwe-org/iwe/compare/liwe-v0.30.0...liwe-v0.31.0) - 2026-11-05
+
 ### Changed
 - `Inline::Image` now carries a `LinkType` and `document::Image` has a new `link_type` field, so wiki embeds round-trip as `![[...]]`
 
