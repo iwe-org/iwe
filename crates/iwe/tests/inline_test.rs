@@ -208,6 +208,99 @@ fn test_inline_as_quote() {
 }
 
 #[test]
+fn test_inline_keeps_host_frontmatter() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        (
+            "index",
+            indoc! {"
+            ---
+            status: active
+            priority: 1
+            ---
+
+            # Index
+
+            [First](first)
+
+            [Second](second)
+        "},
+        ),
+        (
+            "first",
+            indoc! {"
+            ---
+            status: draft
+            priority: 2
+            ---
+
+            # First
+
+            First content.
+        "},
+        ),
+        (
+            "second",
+            indoc! {"
+            ---
+            status: archived
+            ---
+
+            # Second
+
+            Second content.
+        "},
+        ),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_inline_command(temp_path, &["index", "--reference", "first"]);
+    assert!(output.status.success());
+
+    let index_content = read_to_string(temp_path.join("index.md")).unwrap();
+    assert_eq!(
+        index_content,
+        indoc! {"
+            ---
+            status: active
+            priority: 1
+            ---
+
+            # Index
+
+            [Second](second)
+
+            ## First
+
+            First content.
+        "}
+    );
+
+    let output = run_inline_command(temp_path, &["index", "--reference", "second"]);
+    assert!(output.status.success());
+
+    let index_content = read_to_string(temp_path.join("index.md")).unwrap();
+    assert_eq!(
+        index_content,
+        indoc! {"
+            ---
+            status: active
+            priority: 1
+            ---
+
+            # Index
+
+            ## Second
+
+            Second content.
+
+            ## First
+
+            First content.
+        "}
+    );
+}
+
+#[test]
 fn test_inline_cleans_other_references() {
     let temp_dir = setup_workspace_with_docs(vec![
         (

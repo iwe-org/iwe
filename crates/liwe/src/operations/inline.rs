@@ -56,7 +56,7 @@ pub fn inline(
                         "Reference must be within a section to inline as section".to_string(),
                     ))?;
             tree.remove_node(ref_id)
-                .append_pre_header(section_id, inline_tree.clone())
+                .append_pre_header(section_id, without_frontmatter(&inline_tree))
         }
         InlineType::Quote => {
             let quote_tree = Tree {
@@ -98,4 +98,14 @@ pub fn inline(
     }
 
     Ok(result)
+}
+
+fn without_frontmatter(tree: &Tree) -> Tree {
+    match &tree.node {
+        Node::Document(key, Some(_)) => Tree {
+            node: Node::Document(key.clone(), None),
+            ..tree.clone()
+        },
+        _ => tree.clone(),
+    }
 }
