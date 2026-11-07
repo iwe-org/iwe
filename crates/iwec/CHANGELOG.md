@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
+
 ### Added
 - `$comment` block predicate in `iwe_query` filters matches blocks by their HTML comments (a comment line right after the block, or an inline comment in its text)
 - `$html` block predicate in `iwe_query` selects HTML blocks; their text is the HTML source

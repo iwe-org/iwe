@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
+
 ### Fixed
 - HTML comment lines (`<!-- note -->`) after a paragraph, heading, list item or quote are kept when a document is formatted or changed by a code action (previously dropped)
 - HTML blocks such as `<div>`, `<details>` and `<script>` are kept as written when a document is formatted or changed by a code action (previously dropped)

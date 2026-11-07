@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
+
 ### Added
 - `$comment` block predicate matches blocks by their HTML comments (a comment line after the block, or an inline comment in its text); a string matches the whole comment text and `{}` matches any commented block
 - `$html` block predicate selects HTML blocks; their text is the HTML source, and `$replaceText`, `$replace` and `$delete` work on them
