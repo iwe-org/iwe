@@ -117,6 +117,8 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
             )),
             GraphNode::Raw(raw) => Some(Node::Raw(raw.lang(), raw.content().to_string())),
             GraphNode::HorizontalRule(_) => Some(Node::HorizontalRule()),
+            GraphNode::Comment(comment) => Some(Node::Comment(comment.text().to_string())),
+            GraphNode::Html(html) => Some(Node::Html(html.text().to_string())),
             GraphNode::Reference(reference) => {
                 let inlines = match reference.reference_type() {
                     ReferenceType::Regular if self.graph.normalize_ref_text() => reference
@@ -143,6 +145,7 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
                     inlines,
                     reference_type: reference.reference_type(),
                     display_url,
+                    comments: reference.comments().clone(),
                 }))
             }
             GraphNode::Table(table) => Some(Node::Table(Table {

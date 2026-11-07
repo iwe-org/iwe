@@ -2,9 +2,11 @@
 
 #[allow(dead_code)]
 mod blocks;
+mod comments_test;
 mod djot_roundtrip;
 mod formatting_test;
 mod frontmatter_title_test;
+mod html_test;
 mod links_test;
 mod live_resolution_test;
 mod normalization_escapes;

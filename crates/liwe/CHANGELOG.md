@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Comment` variants on `DocumentBlock`, `DocumentInline`, `Inline`, `Node` and `GraphNode` for HTML comments (comment lines were previously dropped and inline comments read as plain text)
+- `Reference.comments` field holds the comments written after a block reference
+- `BlockOp::Comment` query operator and `BlockPredicate::comment` builder for the `$comment` block predicate
+- `Html` variants on `DocumentBlock` (holding `HtmlBlock`), `Node`, `GraphNode` and `Block` for HTML blocks, kept as their exact source (previously dropped); `GraphNode::Comment` and `GraphNode::Html` share the `TextLeaf` struct
+- `BlockType::Html` and `BlockPredicate::html` builder for the `$html` block predicate
+
+### Changed
+- Inline HTML is read as `Inline::RawInline("html", ...)` (previously `Inline::Str`), and the Markdown writer writes `html` raw inlines as they are (previously as code spans)
+- Djot raw blocks with the `html` format are read as `Node::Html` (previously code blocks), and the djot writer writes raw inlines as `` `...`{=format} `` (previously the bare content)
+
 ## [0.31.0](https://github.com/iwe-org/iwe/compare/liwe-v0.30.0...liwe-v0.31.0) - 2026-11-05
 
 ### Changed

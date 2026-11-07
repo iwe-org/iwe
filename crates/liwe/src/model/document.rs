@@ -26,6 +26,8 @@ pub enum DocumentBlock {
     HorizontalRule(HorizontalRule),
     Div(Div),
     Table(Table),
+    Comment(Comment),
+    Html(HtmlBlock),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -51,6 +53,7 @@ pub enum DocumentInline {
     Delete(Delete),
     Symbol(Symbol),
     Span(Span),
+    Comment(String),
 }
 
 impl Document {
@@ -71,7 +74,14 @@ impl Document {
 impl DocumentBlock {
     pub fn is_ref(&self) -> bool {
         match self {
-            DocumentBlock::Para(para) => para.inlines.len() == 1 && para.inlines[0].is_ref(),
+            DocumentBlock::Para(para) => {
+                para.inlines.first().is_some_and(|inline| inline.is_ref())
+                    && para.inlines[1..].iter().all(|inline| match inline {
+                        DocumentInline::Comment(_) | DocumentInline::Space(_) => true,
+                        DocumentInline::Str(text) => text.trim().is_empty(),
+                        _ => false,
+                    })
+            }
             _ => false,
         }
     }
@@ -139,6 +149,8 @@ impl DocumentBlock {
                 format!("{} {}", "#".repeat(header.level as usize), header_text)
             }
             DocumentBlock::HorizontalRule(_) => "---".to_string(),
+            DocumentBlock::Comment(comment) => format!("<!--{}-->", comment.text),
+            DocumentBlock::Html(html) => html.text.clone(),
             DocumentBlock::Div(div) => div
                 .blocks
                 .iter()
@@ -239,6 +251,8 @@ impl DocumentBlock {
             DocumentBlock::HorizontalRule(_) => false,
             DocumentBlock::Div(_) => true,
             DocumentBlock::Table(_) => false,
+            DocumentBlock::Comment(_) => false,
+            DocumentBlock::Html(_) => false,
         }
     }
 
@@ -358,6 +372,8 @@ impl DocumentBlock {
             }
             DocumentBlock::Header(header) => header.inlines.push(inline),
             DocumentBlock::HorizontalRule(_) => {}
+            DocumentBlock::Comment(_) => {}
+            DocumentBlock::Html(_) => {}
             DocumentBlock::Div(_) => {}
             DocumentBlock::Table(table) => {
                 if table.rows.is_empty() {
@@ -396,6 +412,8 @@ impl DocumentBlock {
             DocumentBlock::HorizontalRule(hr) => hr.line_range.clone(),
             DocumentBlock::Div(div) => div.line_range.clone(),
             DocumentBlock::Table(table) => table.line_range.clone(),
+            DocumentBlock::Comment(comment) => comment.line_range.clone(),
+            DocumentBlock::Html(html) => html.line_range.clone(),
         }
     }
 
@@ -412,6 +430,8 @@ impl DocumentBlock {
             DocumentBlock::HorizontalRule(_) => vec![],
             DocumentBlock::Div(div) => div.blocks.iter().collect(),
             DocumentBlock::Table(_) => vec![],
+            DocumentBlock::Comment(_) => vec![],
+            DocumentBlock::Html(_) => vec![],
         }
     }
 
@@ -521,6 +541,18 @@ pub struct HorizontalRule {
     pub line_range: LineRange,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Comment {
+    pub line_range: LineRange,
+    pub text: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct HtmlBlock {
+    pub line_range: LineRange,
+    pub text: String,
+}
+
 impl DocumentInline {
     pub fn apppen(&mut self, inline: DocumentInline) {
         match self {
@@ -545,6 +577,7 @@ impl DocumentInline {
             DocumentInline::RawInline(_) => panic!("cannot append inline to raw inline"),
             DocumentInline::Space(_) => panic!("cannot append inline to space"),
             DocumentInline::Str(_) => panic!("cannot append inline to str"),
+            DocumentInline::Comment(_) => panic!("cannot append inline to comment"),
         }
     }
 
@@ -552,6 +585,7 @@ impl DocumentInline {
         use crate::model::inline::to_graph_inlines;
         match self {
             DocumentInline::Str(text) => Inline::Str(text.clone()),
+            DocumentInline::Comment(text) => Inline::Comment(text.clone()),
             DocumentInline::Emph(emph) => {
                 Inline::Emph(to_graph_inlines(&emph.inlines, relative_to))
             }
@@ -607,6 +641,7 @@ impl DocumentInline {
                         inlines,
                         reference_type: link.link_type.to_ref_type(),
                         display_url: None,
+                        comments: Vec::new(),
                     })
                 } else {
                     Inline::Link(
@@ -649,6 +684,7 @@ impl DocumentInline {
             DocumentInline::SoftBreak(_) => vec![],
             DocumentInline::Space(_) => vec![],
             DocumentInline::Str(_) => vec![],
+            DocumentInline::Comment(_) => vec![],
             DocumentInline::Strikeout(strikeout) => strikeout.inlines.iter().collect(),
             DocumentInline::Strong(strong) => strong.inlines.iter().collect(),
             DocumentInline::Subscript(subscript) => subscript.inlines.iter().collect(),
@@ -772,6 +808,7 @@ impl DocumentInline {
             DocumentInline::SoftBreak(soft_break) => soft_break.inline_range.clone(),
             DocumentInline::Space(space) => space.inline_range.clone(),
             DocumentInline::Str(_) => InlineRange::default(),
+            DocumentInline::Comment(_) => InlineRange::default(),
             DocumentInline::Strikeout(strikeout) => strikeout.inline_range.clone(),
             DocumentInline::Strong(strong) => strong.inline_range.clone(),
             DocumentInline::Subscript(subscript) => subscript.inline_range.clone(),

@@ -142,6 +142,8 @@ pub struct Reference {
     pub inlines: Inlines,
     pub reference_type: ReferenceType,
     pub display_url: Option<String>,
+    #[serde(default)]
+    pub comments: Vec<String>,
 }
 
 impl Reference {
@@ -151,6 +153,7 @@ impl Reference {
             inlines: text_to_inlines(text),
             reference_type,
             display_url: None,
+            comments: Vec::new(),
         }
     }
 

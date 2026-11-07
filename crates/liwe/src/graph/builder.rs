@@ -118,6 +118,16 @@ impl<'a> GraphBuilder<'a> {
         self.add_node(GraphNode::new_rule(self.id, new_id));
     }
 
+    pub fn comment(&mut self, text: &str) {
+        let new_id = self.store.new_node_id();
+        self.add_node(GraphNode::new_comment(self.id, new_id, text.to_string()));
+    }
+
+    pub fn html(&mut self, text: &str) {
+        let new_id = self.store.new_node_id();
+        self.add_node(GraphNode::new_html(self.id, new_id, text.to_string()));
+    }
+
     pub fn bullet_list(&mut self) {
         self.bullet_list_and(|_| {});
     }
@@ -203,6 +213,7 @@ impl<'a> GraphBuilder<'a> {
             Target::path(key.clone()),
             Vec::new(),
             ReferenceType::Regular,
+            Vec::new(),
         ));
     }
 
@@ -211,6 +222,7 @@ impl<'a> GraphBuilder<'a> {
         target: Target,
         inlines: Inlines,
         reference_type: ReferenceType,
+        comments: Vec<String>,
     ) {
         let new_id = self.store.new_node_id();
         self.add_node(GraphNode::new_ref(
@@ -219,6 +231,7 @@ impl<'a> GraphBuilder<'a> {
             target,
             inlines,
             reference_type,
+            comments,
         ));
     }
 
@@ -308,17 +321,21 @@ impl<'a> GraphBuilder<'a> {
                 lang,
             )),
             Node::HorizontalRule() => self.attach_node(GraphNode::new_rule(self.id, id)),
+            Node::Comment(text) => self.attach_node(GraphNode::new_comment(self.id, id, text)),
+            Node::Html(text) => self.attach_node(GraphNode::new_html(self.id, id, text)),
             Node::Reference(Reference {
                 target,
                 inlines,
                 reference_type,
                 display_url: _,
+                comments,
             }) => self.attach_node(GraphNode::new_ref(
                 self.id,
                 id,
                 target.clone(),
                 inlines.clone(),
                 reference_type,
+                comments,
             )),
             Node::Table(table) => {
                 let header_line_ids = table

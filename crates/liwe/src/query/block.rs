@@ -62,6 +62,7 @@ pub enum BlockType {
     Table,
     Ref,
     Hr,
+    Html,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -75,6 +76,7 @@ pub enum BlockOp {
     List(Box<BlockPredicate>),
     Type(BlockType, Box<BlockPredicate>),
     References(Key),
+    Comment(Box<BlockPredicate>),
     And(Vec<BlockPredicate>),
     Or(Vec<BlockPredicate>),
     Nor(Vec<BlockPredicate>),
@@ -202,6 +204,10 @@ impl BlockPredicate {
         self.typed(BlockType::Table, arg)
     }
 
+    pub fn html(self, arg: impl IntoBlockPredicate) -> Self {
+        self.typed(BlockType::Html, arg)
+    }
+
     pub fn reference(self, inner: BlockPredicate) -> Self {
         self.typed(BlockType::Ref, inner)
     }
@@ -212,6 +218,15 @@ impl BlockPredicate {
 
     pub fn references(self, key: &str) -> Self {
         self.with(BlockOp::References(Key::name(key)))
+    }
+
+    pub fn comment(self, arg: impl IntoBlockPredicate) -> Self {
+        let arg = arg.into_block_predicate();
+        assert!(
+            is_text_only(&arg),
+            "$comment argument accepts only text predicates ($text, $matches, $and, $or, $nor)"
+        );
+        self.with(BlockOp::Comment(Box::new(arg)))
     }
 
     pub fn and(self, preds: Vec<BlockPredicate>) -> Self {
@@ -273,6 +288,7 @@ fn parse_entry(key: &str, value: &Value) -> Result<BlockOp, ParseError> {
         "$item" => parse_type_arg(value, "$item", BlockType::Item),
         "$code" => parse_type_arg(value, "$code", BlockType::Code),
         "$table" => parse_type_arg(value, "$table", BlockType::Table),
+        "$html" => parse_type_arg(value, "$html", BlockType::Html),
         "$ref" => match value {
             Value::Mapping(_) => parse_block_predicate(value, "$ref")
                 .map(|p| BlockOp::Type(BlockType::Ref, Box::new(p))),
@@ -283,6 +299,7 @@ fn parse_entry(key: &str, value: &Value) -> Result<BlockOp, ParseError> {
             Value::String(s) => Ok(BlockOp::References(Key::name(s))),
             _ => Err(ParseError::OperatorExpectedString { op: "$references" }),
         },
+        "$comment" => parse_comment_arg(value),
         "$and" => parse_list(value, "$and").map(BlockOp::And),
         "$or" => parse_list(value, "$or").map(BlockOp::Or),
         "$nor" => parse_list(value, "$nor").map(BlockOp::Nor),
@@ -345,6 +362,24 @@ fn parse_type_arg(value: &Value, op: &'static str, t: BlockType) -> Result<Block
         _ => return Err(ParseError::GraphOpExpectedScalarOrMapping { op }),
     };
     Ok(BlockOp::Type(t, Box::new(arg)))
+}
+
+fn parse_comment_arg(value: &Value) -> Result<BlockOp, ParseError> {
+    let pred = parse_root_arg(value, "$comment")?;
+    if !is_text_only(&pred) {
+        return Err(ParseError::BlockStructuralPredicateNotAllowed { op: "$comment" });
+    }
+    Ok(BlockOp::Comment(Box::new(pred)))
+}
+
+fn is_text_only(pred: &BlockPredicate) -> bool {
+    pred.0.iter().all(|op| match op {
+        BlockOp::Text(_) | BlockOp::Matches(_) => true,
+        BlockOp::And(preds) | BlockOp::Or(preds) | BlockOp::Nor(preds) => {
+            preds.iter().all(is_text_only)
+        }
+        _ => false,
+    })
 }
 
 fn parse_empty_head(value: &Value, op: &'static str) -> Result<BlockPredicate, ParseError> {

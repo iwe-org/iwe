@@ -47,6 +47,7 @@ pub enum Inline {
     Delete(Inlines),
     Symbol(String),
     Span(Attributes, Inlines),
+    Comment(String),
 }
 
 impl From<&str> for Inline {
@@ -216,6 +217,7 @@ impl Inline {
                     inlines,
                     reference_type: reference.reference_type,
                     display_url,
+                    comments: reference.comments.clone(),
                 })
             }
             _ => self.clone(),
@@ -253,6 +255,7 @@ impl Inline {
                     inlines: map(&reference.inlines),
                     reference_type: reference.reference_type,
                     display_url: None,
+                    comments: reference.comments.clone(),
                 }),
                 None => Inline::Reference(Reference {
                     inlines: map(&reference.inlines),
@@ -270,6 +273,9 @@ impl Inline {
 
 pub(crate) trait TextSink {
     fn push(&mut self, s: &str);
+    fn push_raw_html(&mut self, s: &str) {
+        self.push(s);
+    }
     fn space(&mut self);
     fn soft_break(&mut self);
     fn line_break(&mut self, marker: &str);
@@ -290,8 +296,13 @@ impl TextSink for String {
     }
 }
 
+struct Word {
+    text: String,
+    starts_with_raw_html: bool,
+}
+
 enum WrapToken {
-    Word(String),
+    Word(Word),
     Break(String),
 }
 
@@ -299,13 +310,16 @@ enum WrapToken {
 pub(crate) struct TokenStream {
     tokens: Vec<WrapToken>,
     current: String,
+    current_starts_with_raw_html: bool,
 }
 
 impl TokenStream {
     fn flush(&mut self) {
         if !self.current.is_empty() {
-            self.tokens
-                .push(WrapToken::Word(std::mem::take(&mut self.current)));
+            self.tokens.push(WrapToken::Word(Word {
+                text: std::mem::take(&mut self.current),
+                starts_with_raw_html: std::mem::take(&mut self.current_starts_with_raw_html),
+            }));
         }
     }
 
@@ -325,10 +339,10 @@ impl TokenStream {
 
     fn wrap_lines(self, width: usize, escape_markers: bool) -> String {
         let mut wrapped = String::new();
-        let mut buf: Vec<String> = Vec::new();
+        let mut buf: Vec<Word> = Vec::new();
         for token in self.finish() {
             match token {
-                WrapToken::Word(s) => buf.push(s),
+                WrapToken::Word(word) => buf.push(word),
                 WrapToken::Break(separator) => {
                     wrapped.push_str(&greedy_wrap(&buf, width, escape_markers));
                     wrapped.push_str(&separator);
@@ -343,6 +357,12 @@ impl TokenStream {
 
 impl TextSink for TokenStream {
     fn push(&mut self, s: &str) {
+        self.current.push_str(s);
+    }
+    fn push_raw_html(&mut self, s: &str) {
+        if self.current.is_empty() {
+            self.current_starts_with_raw_html = true;
+        }
         self.current.push_str(s);
     }
     fn space(&mut self) {
@@ -456,6 +476,10 @@ fn render_inline<S: TextSink>(
             out.line_break(options.formatting.line_break_marker());
             LinePos::Start
         }
+        Inline::RawInline(format, body) if format == "html" => {
+            out.push_raw_html(body);
+            LinePos::Mid
+        }
         Inline::Code(_, body) | Inline::RawInline(_, body) => {
             render_code_span(body, out);
             LinePos::Mid
@@ -541,6 +565,14 @@ fn render_inline<S: TextSink>(
                 options,
                 out,
             );
+            for comment in &reference.comments {
+                out.push(" ");
+                emit_comment(comment, out);
+            }
+            LinePos::Mid
+        }
+        Inline::Comment(text) => {
+            emit_comment(text, out);
             LinePos::Mid
         }
         Inline::Image(url, _, link_type, alt) => {
@@ -548,6 +580,130 @@ fn render_inline<S: TextSink>(
             LinePos::Mid
         }
     }
+}
+
+fn emit_comment<S: TextSink>(text: &str, out: &mut S) {
+    out.push_raw_html("<!--");
+    out.push(text);
+    out.push("-->");
+}
+
+pub fn is_comment(inline: &Inline) -> bool {
+    matches!(inline, Inline::Comment(_))
+}
+
+pub fn without_comments(inlines: &Inlines) -> Inlines {
+    let mut out: Inlines = Vec::new();
+    let mut after_comment = false;
+    for inline in inlines {
+        if is_comment(inline) {
+            after_comment = true;
+            continue;
+        }
+        let mut inline = strip_nested_comments(inline);
+        if after_comment && out.last().is_none_or(ends_with_space) {
+            inline = trim_leading_space(inline);
+            if is_empty_text(&inline) {
+                continue;
+            }
+        }
+        after_comment = false;
+        out.push(inline);
+    }
+    if after_comment {
+        trim_trailing_space(&mut out);
+    }
+    out
+}
+
+fn ends_with_space(inline: &Inline) -> bool {
+    match inline {
+        Inline::Space => true,
+        Inline::Str(text) => text.ends_with(char::is_whitespace),
+        _ => false,
+    }
+}
+
+fn trim_leading_space(inline: Inline) -> Inline {
+    match inline {
+        Inline::Space => Inline::Str(String::new()),
+        Inline::Str(text) => Inline::Str(text.trim_start().to_string()),
+        other => other,
+    }
+}
+
+fn is_empty_text(inline: &Inline) -> bool {
+    matches!(inline, Inline::Str(text) if text.is_empty())
+}
+
+fn trim_trailing_space(inlines: &mut Inlines) {
+    while let Some(last) = inlines.last_mut() {
+        match last {
+            Inline::Space => {
+                inlines.pop();
+            }
+            Inline::Str(text) => {
+                let trimmed = text.trim_end().to_string();
+                if trimmed.is_empty() {
+                    inlines.pop();
+                } else {
+                    *text = trimmed;
+                    return;
+                }
+            }
+            _ => return,
+        }
+    }
+}
+
+fn strip_nested_comments(inline: &Inline) -> Inline {
+    match inline {
+        Inline::Emph(inner) => Inline::Emph(without_comments(inner)),
+        Inline::Strong(inner) => Inline::Strong(without_comments(inner)),
+        Inline::Underline(inner) => Inline::Underline(without_comments(inner)),
+        Inline::Strikeout(inner) => Inline::Strikeout(without_comments(inner)),
+        Inline::Superscript(inner) => Inline::Superscript(without_comments(inner)),
+        Inline::Subscript(inner) => Inline::Subscript(without_comments(inner)),
+        Inline::SmallCaps(inner) => Inline::SmallCaps(without_comments(inner)),
+        Inline::Mark(inner) => Inline::Mark(without_comments(inner)),
+        Inline::Insert(inner) => Inline::Insert(without_comments(inner)),
+        Inline::Delete(inner) => Inline::Delete(without_comments(inner)),
+        Inline::Span(attr, inner) => Inline::Span(attr.clone(), without_comments(inner)),
+        Inline::Link(url, title, link_type, inner) => Inline::Link(
+            url.clone(),
+            title.clone(),
+            *link_type,
+            without_comments(inner),
+        ),
+        Inline::Image(url, title, link_type, inner) => Inline::Image(
+            url.clone(),
+            title.clone(),
+            *link_type,
+            without_comments(inner),
+        ),
+        Inline::Reference(reference) => Inline::Reference(Reference {
+            inlines: without_comments(&reference.inlines),
+            comments: Vec::new(),
+            ..reference.clone()
+        }),
+        _ => inline.clone(),
+    }
+}
+
+pub fn collect_comments(inlines: &Inlines) -> Vec<String> {
+    let mut comments = Vec::new();
+    for inline in inlines {
+        match inline {
+            Inline::Comment(text) => comments.push(text.clone()),
+            Inline::Reference(reference) => comments.extend(reference.comments.iter().cloned()),
+            other => {
+                if let Some(children) = other.children() {
+                    comments.extend(collect_comments(children));
+                }
+            }
+        }
+    }
+    comments
 }
 
 fn render_code_span<S: TextSink>(body: &str, out: &mut S) {
@@ -588,7 +744,7 @@ fn escape_str<S: TextSink>(text: &str, pos: LinePos, ctx: EscapeCtx, out: &mut S
         && lead.is_some_and(|b| matches!(b, b'.' | b')'));
     let has_inline_marker = text
         .bytes()
-        .any(|b| matches!(b, b'\\' | b'*' | b'_' | b'[' | b']' | b'`'));
+        .any(|b| matches!(b, b'\\' | b'*' | b'_' | b'[' | b']' | b'`' | b'<'));
     if !lead_block_marker && !lead_ordered_marker && !has_inline_marker {
         out.push(text);
         return;
@@ -608,6 +764,7 @@ fn escape_str<S: TextSink>(text: &str, pos: LinePos, ctx: EscapeCtx, out: &mut S
                     && next.is_some_and(|c| c.is_alphanumeric());
                 !between_alnum
             }
+            '<' => opens_raw_html(&chars[i + 1..].iter().collect::<String>()),
             ']' => next == Some('('),
             '[' => next == Some('['),
             '`' if ctx.top_level => ctx.backtick_pair,
@@ -782,16 +939,17 @@ pub(crate) fn wrap_inlines(inlines: &Inlines, options: &MarkdownOptions, indent:
     stream.wrap_escaping_markers(effective)
 }
 
-fn greedy_wrap(tokens: &[String], width: usize, escape_markers: bool) -> String {
+fn greedy_wrap(words: &[Word], width: usize, escape_markers: bool) -> String {
     let mut lines: Vec<Vec<&str>> = Vec::new();
     let mut current: Vec<&str> = Vec::new();
     let mut current_width = 0;
-    for token in tokens {
+    for word in words {
+        let token = word.text.as_str();
         let token_width = token.chars().count();
         if current.is_empty() {
             current.push(token);
             current_width = token_width;
-        } else if current_width + 1 + token_width <= width {
+        } else if word.starts_with_raw_html || current_width + 1 + token_width <= width {
             current.push(token);
             current_width += 1 + token_width;
         } else {
@@ -871,6 +1029,32 @@ fn starts_html_block(token: &str) -> bool {
     }
     let tail = name.trim_start_matches(|c: char| c.is_ascii_alphanumeric() || c == '-');
     tail.is_empty() || tail.starts_with(['>', '/']) || tail.starts_with(char::is_whitespace)
+}
+
+fn opens_raw_html(rest: &str) -> bool {
+    if rest.starts_with("!--") || rest.starts_with('?') || rest.starts_with("![CDATA[") {
+        return true;
+    }
+    if rest
+        .strip_prefix('!')
+        .is_some_and(|declaration| declaration.starts_with(|c: char| c.is_ascii_alphabetic()))
+    {
+        return true;
+    }
+    let (closing, name) = match rest.strip_prefix('/') {
+        Some(name) => (true, name),
+        None => (false, rest),
+    };
+    if !name.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        return false;
+    }
+    let tail = name.trim_start_matches(|c: char| c.is_ascii_alphanumeric() || c == '-');
+    if closing {
+        return tail.trim_start().starts_with('>');
+    }
+    tail.starts_with('>')
+        || tail.starts_with("/>")
+        || (tail.starts_with(char::is_whitespace) && tail.contains('>'))
 }
 
 fn code_fence_run(line: &[&str]) -> Option<usize> {
@@ -1070,6 +1254,7 @@ mod test {
             inlines: words(),
             reference_type,
             display_url: Some("display".to_string()),
+            comments: Vec::new(),
         })
     }
 

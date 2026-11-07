@@ -280,12 +280,13 @@ Each block type has its own predicate operator. **Node** operators select the ma
 | `$table` | node | table | the rows as rendered, one line per row |
 | `$ref` | node | block reference (inclusion link) | the authored (piped wikilink) text, when present; a title derived from the target is not own text |
 | `$hr` | node | horizontal rule | none |
+| `$html` | node | HTML block (`<div>`, `<details>`, `<script>`, a comment followed by text on its line, …), kept exactly as written | the HTML source |
 
-The tree rooted at a header — the header together with every block below it — is a **section**: `$header` matches the heading line alone, `$section` selects the whole tree. Quotes and lists are containers with **empty heads**: the root carries no own text, only the wrapper, so their operators select the container with its contents, and `$within` peels the wrapper off. A **container** is a block that can carry children — a header, an item, a list, a quote; containers are the legal `$append` targets. Raw HTML blocks are outside the model — the parser drops them.
+The tree rooted at a header — the header together with every block below it — is a **section**: `$header` matches the heading line alone, `$section` selects the whole tree. Quotes and lists are containers with **empty heads**: the root carries no own text, only the wrapper, so their operators select the container with its contents, and `$within` peels the wrapper off. A **container** is a block that can carry children — a header, an item, a list, a quote; containers are the legal `$append` targets. HTML blocks never start or end sections; a wrapper such as `<div>`, blank line, markdown, blank line, `</div>` is three sibling blocks, and editing one of them does not keep the wrapper balanced. HTML comment lines are not blocks — each belongs to a block, see `$comment`.
 
 **Own text.** Text predicates evaluate against a block's own text only, never descendant text. A header whose section contains `TODO` does not match `$text: TODO` — the paragraph carrying it does. To select a block *because of* its contents, use `$contains`. Own texts are pairwise disjoint, which the update semantics rely on.
 
-**Normalized form.** Matching operates on the normalized rendering of the document — the same form `iwe retrieve` and every other read emits — at the byte level: inline markup keeps its markdown syntax (`**bold**` stays `**bold**`, never `bold`), and inline link URLs are part of own text, rendered relative to the containing document. Text copied from a read matches byte-for-byte in a later predicate or `$replaceText` anchor. In normalized form every block's own text is a single line, except code blocks and tables — one line per code line or table row, with table cells padded to their column width.
+**Normalized form.** Matching operates on the normalized rendering of the document — the same form `iwe retrieve` and every other read emits — at the byte level: inline markup keeps its markdown syntax (`**bold**` stays `**bold**`, never `bold`), and inline link URLs are part of own text, rendered relative to the containing document. Text copied from a read matches byte-for-byte in a later predicate or `$replaceText` anchor. In normalized form every block's own text is a single line, except code blocks, tables, and HTML blocks — one line per code line, table row, or HTML source line, with table cells padded to their column width.
 
 **Section path.** Every block has a section path: the titles of its enclosing sections, ordered from the document root down, with top-level headers omitted — the value block reads emit as `path`. Path elements are plain text (inline markup stripped); a heading's own text keeps its markdown syntax, so for a heading carrying inline markup the two differ — echo own text, not path elements, into text predicates.
 
@@ -299,9 +300,9 @@ A block predicate is a YAML mapping of `$`-prefixed operators. The empty predica
 
 | Operator | Matches |
 | --- | --- |
-| `$text: S` | own text contains `S`, case-insensitively; `$text: { $eq: S }` matches the whole own text, also case-insensitively |
-| `$matches: REGEX` | own text matches the pattern (Rust regex, case-sensitive — use an inline `(?i)` flag; no backreferences or lookaround) |
-| `$header`, `$paragraph`, `$item`, `$code`, `$table` | blocks of one type — the matching block alone, no implicit subtree; the argument is a nested predicate, and a scalar is exact-text shorthand (`$header: Status`) |
+| `$text: S` | own text contains `S`, case-insensitively; `$text: { $eq: S }` matches the whole own text, also case-insensitively; HTML comments are not part of own text |
+| `$matches: REGEX` | own text matches the pattern (Rust regex, case-sensitive — use an inline `(?i)` flag; no backreferences or lookaround); HTML comments are not part of own text |
+| `$header`, `$paragraph`, `$item`, `$code`, `$table`, `$html` | blocks of one type — the matching block alone, no implicit subtree; the argument is a nested predicate, and a scalar is exact-text shorthand (`$header: Status`) |
 | `$ref` | block references, selected by target (`$ref: { $references: KEY }`); the scalar shorthand is a parse-time error (a ref's rendered title is usually derived from its target), and text predicates match the authored (piped) link text alone |
 | `$hr` | horizontal rules; no own text — the scalar shorthand and direct text predicates in the argument are parse-time errors |
 | `$section: T` | a header matching `T` together with everything below it; scalar `T` is exact-text shorthand for the root header |
@@ -309,6 +310,7 @@ A block predicate is a YAML mapping of `$`-prefixed operators. The empty predica
 | `$within: T` | blocks inside the selection — a section's body, a quote's content, at any depth; scalar `T` names a section; a mapping argument must select content: `{}`, or a predicate containing `$section` / `$quote` / `$list` |
 | `$contains: P` | blocks with a descendant matching `P`, at any depth |
 | `$references: KEY` | blocks whose own content links to `KEY` — a ref targeting `KEY`, or inline text linking to it |
+| `$comment: P` | blocks with an HTML comment matching `P` — an inline comment in the block's text, or a `<!-- -->` line owned by the block: a comment line belongs to the block before it in the same container (a list, not its last item; a quote, not its last paragraph), or to the container itself when it comes first (a header for the first line of its section, an item for its first nested line); comment lines before a document's first block belong to that block, and a document with nothing but comment lines has no block to own them. `{}` matches every commented block, a scalar is exact-text shorthand (`$comment: TODO`), and the argument accepts only `$text`, `$matches`, `$and`, `$or`, `$nor` — anything else is a parse-time error |
 | `$and`, `$or`, `$nor` | logical composition, as in filters |
 
 ```yaml

@@ -308,7 +308,7 @@ pub fn plan_and_apply(
                         };
                         let action = match doc.index.kind_name(i) {
                             "ref" => Action::SetRefText(replaced),
-                            "code" => Action::SetRawContent(replaced),
+                            "code" | "html" => Action::SetRawContent(replaced),
                             _ => Action::SetInlines(parse_inlines(
                                 doc.index.options(),
                                 doc.index.parent_dir(),
@@ -662,6 +662,7 @@ fn with_ref_text(node: &Node, text: String) -> Node {
 fn with_raw_content(node: &Node, content: String) -> Node {
     match node {
         Node::Raw(lang, _) => Node::Raw(lang.clone(), content),
+        Node::Html(_) => Node::Html(content),
         other => other.clone(),
     }
 }

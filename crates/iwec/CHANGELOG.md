@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `$comment` block predicate in `iwe_query` filters matches blocks by their HTML comments (a comment line right after the block, or an inline comment in its text)
+- `$html` block predicate in `iwe_query` selects HTML blocks; their text is the HTML source
+
+### Changed
+- `iwe_query` `$text` and `$matches` block predicates ignore HTML comments in the block text
+
+### Fixed
+- HTML comment lines (`<!-- note -->`) are kept when write tools rewrite a document (previously dropped)
+- HTML blocks such as `<div>`, `<details>` and `<script>` are kept as written when write tools rewrite a document (previously dropped)
+
 ## [0.31.0](https://github.com/iwe-org/iwe/compare/iwec-v0.30.0...iwec-v0.31.0) - 2026-11-05
 
 ### Fixed

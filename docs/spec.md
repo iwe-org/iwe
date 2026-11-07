@@ -2602,6 +2602,9 @@ block_pred_entry ::=
   | tree_selector                                  # in block position: all blocks of the trees
   | type_op                                        # per-type operators
   | $references: key                               # own content links to the key
+  | $comment:    string | block_predicate          # an HTML comment owned by the block matches;
+                                                   # scalar T = { $text: { $eq: T } }; {} = any comment;
+                                                   # only $text, $matches, $and, $or, $nor — else parse-time error
   | $and:        [block_predicate, ...]            # non-empty
   | $or:         [block_predicate, ...]            # non-empty
   | $nor:        [block_predicate, ...]            # non-empty
@@ -2609,6 +2612,7 @@ block_pred_entry ::=
 type_op ::=
     $header: type_arg | $paragraph: type_arg | $item: type_arg
   | $code:   type_arg | $table:     type_arg
+  | $html:   type_arg                              # own text = the HTML source
   | $ref:    block_predicate                       # scalar = parse-time error; own text = authored (piped) link text
   | $hr:     block_predicate                       # no own text: scalar or direct $text / $matches = parse-time error
 

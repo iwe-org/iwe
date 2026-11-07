@@ -90,6 +90,12 @@ impl CmarkTableWriter {
             Block::HorizontalRule => {
                 events.push(Event::Rule);
             }
+            Block::Comment(text) => {
+                events.push(Event::Html(format!("<!--{}-->\n", text).into()));
+            }
+            Block::Html(text) => {
+                events.push(Event::Html(format!("{}\n", text).into()));
+            }
             Block::Plain(inlines) => {
                 events.push(Event::Start(Tag::Paragraph));
                 events.append(&mut self.inlines_to_events(inlines));
@@ -187,6 +193,9 @@ impl CmarkTableWriter {
                 }
                 Inline::RawInline(_, content) => {
                     events.push(Event::Html(content.into()));
+                }
+                Inline::Comment(text) => {
+                    events.push(Event::InlineHtml(format!("<!--{}-->", text).into()));
                 }
                 Inline::SmallCaps(vec) => {
                     events.extend(self.inlines_to_events(vec));

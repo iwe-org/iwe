@@ -152,6 +152,12 @@ impl Projector {
                 Node::HorizontalRule() => {
                     blocks.push(Block::HorizontalRule);
                 }
+                Node::Comment(text) => {
+                    blocks.push(Block::Comment(text));
+                }
+                Node::Html(text) => {
+                    blocks.push(Block::Html(text));
+                }
                 Node::Reference(reference) => {
                     let reference_type = reference.reference_type;
                     let inlines = match reference_type {
@@ -170,7 +176,12 @@ impl Projector {
                         inlines,
                     );
 
-                    blocks.push(Block::Para(vec![link]));
+                    let mut para = vec![link];
+                    for comment in reference.comments {
+                        para.push(Inline::Space);
+                        para.push(Inline::Comment(comment));
+                    }
+                    blocks.push(Block::Para(para));
                 }
                 Node::Table(_) => {
                     blocks.push(Block::Table(

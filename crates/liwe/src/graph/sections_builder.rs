@@ -138,6 +138,10 @@ impl<'a> SectionsBuilder<'a> {
                 self.builder.raw(&code_block.text, code_block.lang);
                 self.set_lines_range(code_block.line_range);
             }
+            RawBlock(raw_block) if raw_block.format == "html" => {
+                self.builder.html(raw_block.text.trim_end_matches('\n'));
+                self.set_lines_range(raw_block.line_range);
+            }
             RawBlock(raw_block) => {
                 self.builder.raw(&raw_block.text, Some(raw_block.format));
                 self.set_lines_range(raw_block.line_range);
@@ -156,8 +160,16 @@ impl<'a> SectionsBuilder<'a> {
                         .ref_inlines()
                         .map(|inlines| to_graph_inlines(inlines, &self.key.parent()))
                         .unwrap_or_default();
+                    let comments = para
+                        .inlines
+                        .iter()
+                        .filter_map(|inline| match inline {
+                            DocumentInline::Comment(text) => Some(text.clone()),
+                            _ => None,
+                        })
+                        .collect();
                     self.builder
-                        .reference_with_inlines(target, inlines, ref_type)
+                        .reference_with_inlines(target, inlines, ref_type, comments)
                 } else {
                     self.builder
                         .leaf(to_graph_inlines(&para.inlines, &self.key.parent()))
@@ -201,6 +213,14 @@ impl<'a> SectionsBuilder<'a> {
             HorizontalRule(rule) => {
                 self.builder.horizontal_rule();
                 self.set_lines_range(rule.line_range);
+            }
+            DocumentBlock::Comment(comment) => {
+                self.builder.comment(&comment.text);
+                self.set_lines_range(comment.line_range);
+            }
+            DocumentBlock::Html(html) => {
+                self.builder.html(&html.text);
+                self.set_lines_range(html.line_range);
             }
             Div(div) => {
                 self.section_block(div.blocks.first().unwrap());

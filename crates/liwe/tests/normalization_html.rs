@@ -19,10 +19,12 @@ fn normalization_preserve_inline_html() {
 }
 
 #[test]
-fn normalization_drop_html_block() {
+fn normalization_keep_html_block() {
     compare(
         indoc! {r##"
             text
+
+            <p>para</p>
 
             text 2
             "##},
@@ -37,10 +39,12 @@ fn normalization_drop_html_block() {
 }
 
 #[test]
-fn normalization_drop_indented_html_block() {
+fn normalization_keep_indented_html_block() {
     compare(
         indoc! {r##"
             text
+
+            <div>block</div>
 
             text 2
             "##},
@@ -55,10 +59,14 @@ fn normalization_drop_indented_html_block() {
 }
 
 #[test]
-fn normalization_drop_indented_multiline_html_block() {
+fn normalization_keep_indented_multiline_html_block() {
     compare(
         indoc! {r##"
             # title
+
+            <a>
+              text
+              </a>
             "##},
         indoc! {r##"
             # title

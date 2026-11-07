@@ -23,6 +23,8 @@ pub enum Block {
     Header(Level, Inlines),
     HorizontalRule,
     Table(Vec<Inlines>, Vec<ColumnAlignment>, Vec<Vec<Inlines>>),
+    Comment(String),
+    Html(String),
 }
 
 #[allow(dead_code)]
@@ -50,11 +52,16 @@ impl Block {
                 | Block::Table(_, _, _)
                 | Block::BlockQuote(_)
                 | Block::HorizontalRule
+                | Block::Html(_)
         )
     }
 
     fn is_frontmatter(&self) -> bool {
         matches!(self, Block::Frontmatter(_))
+    }
+
+    fn glues_to(&self, previous: &Block) -> bool {
+        matches!(self, Block::Comment(_)) && !matches!(previous, Block::Html(_))
     }
 
     pub fn to_markdown(&self, options: &MarkdownOptions) -> String {
@@ -179,6 +186,8 @@ impl Block {
                 let writer = CmarkTableWriter::new(options.clone());
                 writer.write(vec![self.clone()])
             }
+            Block::Comment(text) => format!("<!--{}-->\n", text),
+            Block::Html(text) => format!("{}\n", text),
         }
     }
 }
@@ -283,6 +292,7 @@ pub fn blocks_to_markdown_and_indented(
     let mut result = String::new();
     for (i, text) in rendered.iter().enumerate() {
         if i > 0
+            && !blocks[i].glues_to(&blocks[i - 1])
             && (sparce
                 || blocks[i - 1].requires_blank_line_separation()
                 || blocks[i].requires_blank_line_separation())
@@ -314,25 +324,31 @@ pub fn blocks_to_markdown_sparce_indented(
     options: &MarkdownOptions,
     indent: usize,
 ) -> String {
-    ensure_trailing_newline(
-        blocks
-            .iter()
-            .map(|block| block.to_markdown_indented(options, indent))
-            .collect::<Vec<String>>()
-            .join("\n"),
-    )
+    join_sparce(blocks.iter().collect(), options, indent)
+}
+
+fn join_sparce(blocks: Vec<&Block>, options: &MarkdownOptions, indent: usize) -> String {
+    let mut result = String::new();
+    for (i, block) in blocks.iter().enumerate() {
+        if i > 0 && !block.glues_to(blocks[i - 1]) {
+            result.push('\n');
+        }
+        result.push_str(&block.to_markdown_indented(options, indent));
+    }
+    ensure_trailing_newline(result)
 }
 
 pub fn blocks_to_markdown_sparce_skip_frontmatter(
     blocks: &Blocks,
     options: &MarkdownOptions,
 ) -> String {
-    ensure_trailing_newline(
+    join_sparce(
         blocks
             .iter()
-            .filter_map(|block| (!block.is_frontmatter()).then_some(block.to_markdown(options)))
-            .collect::<Vec<String>>()
-            .join("\n"),
+            .filter(|block| !block.is_frontmatter())
+            .collect(),
+        options,
+        0,
     )
 }
 

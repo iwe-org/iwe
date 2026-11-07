@@ -20,6 +20,8 @@ pub enum Node {
     HorizontalRule(),
     Reference(Reference),
     Table(Table),
+    Comment(String),
+    Html(String),
 }
 
 impl Node {
