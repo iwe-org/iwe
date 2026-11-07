@@ -25,6 +25,8 @@ pub struct MarkdownEventsReader {
     line_offset: usize,
     metadata_block: bool,
     html_block: bool,
+    html_text: String,
+    html_start: usize,
     frontmatter: Option<Mapping>,
     content: Option<String>,
 }
@@ -47,6 +49,8 @@ impl MarkdownEventsReader {
             line_offset: 0,
             metadata_block: false,
             html_block: false,
+            html_text: String::new(),
+            html_start: 0,
             frontmatter: None,
             content: None,
         }
@@ -63,6 +67,8 @@ impl MarkdownEventsReader {
             line_offset: 0,
             metadata_block: false,
             html_block: false,
+            html_text: String::new(),
+            html_start: 0,
             frontmatter: None,
             content: None,
         }
@@ -149,12 +155,21 @@ impl MarkdownEventsReader {
                     self.pop_inline();
                 }
                 DisplayMath(_) => {}
-                Html(_) => {}
+                Html(text) => {
+                    if self.html_block {
+                        self.html_text.push_str(&text);
+                    }
+                }
                 InlineHtml(text) => {
-                    self.push_inline(
-                        DocumentInline::Str(text.to_string()),
-                        self.to_line_range(range),
-                    );
+                    let inline = match single_comment(&text) {
+                        Some(body) => DocumentInline::Comment(body.to_string()),
+                        None => DocumentInline::RawInline(RawInline {
+                            format: Format("html".to_string()),
+                            content: text.to_string(),
+                            inline_range: self.to_inline_range(range.clone()),
+                        }),
+                    };
+                    self.push_inline(inline, self.to_line_range(range));
                     self.pop_inline();
                 }
                 FootnoteReference(_) => {}
@@ -272,7 +287,11 @@ impl MarkdownEventsReader {
                     text: String::default(),
                 }))
             }
-            Tag::HtmlBlock => self.html_block = true,
+            Tag::HtmlBlock => {
+                self.html_block = true;
+                self.html_text.clear();
+                self.html_start = range.start;
+            }
             Tag::List(num) => {
                 let line_range = self.to_line_range(range);
                 if num.is_some() {
@@ -408,7 +427,10 @@ impl MarkdownEventsReader {
             TagEnd::CodeBlock => {
                 self.pop_block();
             }
-            TagEnd::HtmlBlock => self.html_block = false,
+            TagEnd::HtmlBlock => {
+                self.html_block = false;
+                self.push_html_blocks();
+            }
             TagEnd::List(_) => {
                 self.pop_block();
             }
@@ -431,6 +453,33 @@ impl MarkdownEventsReader {
             TagEnd::TableRow => {}
             TagEnd::Superscript => {}
             TagEnd::Subscript => {}
+        }
+    }
+
+    fn push_html_blocks(&mut self) {
+        let html = std::mem::take(&mut self.html_text);
+        let start_line = self.line_index(self.html_start) + self.line_offset;
+        let Some(comments) = comment_block_bodies(&html) else {
+            let text = html.trim_end_matches('\n');
+            if text.trim().is_empty() {
+                return;
+            }
+            let span = text.matches('\n').count() + 1;
+            self.push_block(DocumentBlock::Html(HtmlBlock {
+                line_range: start_line..start_line + span,
+                text: text.to_string(),
+            }));
+            self.pop_block();
+            return;
+        };
+        for (offset, body) in comments {
+            let line = start_line + html[..offset].matches('\n').count();
+            let span = body.matches('\n').count() + 1;
+            self.push_block(DocumentBlock::Comment(Comment {
+                line_range: line..line + span,
+                text: body.to_string(),
+            }));
+            self.pop_block();
         }
     }
 
@@ -489,6 +538,34 @@ fn parse_frontmatter(text: &str) -> Mapping {
             Mapping::new()
         }
     }
+}
+
+fn single_comment(text: &str) -> Option<&str> {
+    let body = text.strip_prefix("<!--")?.strip_suffix("-->")?;
+    (!body.contains("-->")).then_some(body)
+}
+
+fn comment_block_bodies(html: &str) -> Option<Vec<(usize, &str)>> {
+    let mut comments = Vec::new();
+    let mut cursor = 0;
+    loop {
+        let rest = &html[cursor..];
+        let trimmed = rest.trim_start();
+        if trimmed.is_empty() {
+            break;
+        }
+        let start = cursor + (rest.len() - trimmed.len());
+        let after_open = trimmed.strip_prefix("<!--")?;
+        let close = after_open.find("-->")?;
+        let body = &after_open[..close];
+        comments.push((start, body));
+        cursor = start + 4 + close + 3;
+        let line_rest = html[cursor..].split('\n').next().unwrap_or("");
+        if !line_rest.trim().is_empty() && !line_rest.trim_start().starts_with("<!--") {
+            return None;
+        }
+    }
+    (!comments.is_empty()).then_some(comments)
 }
 
 fn normalize_line_endings(content: &str) -> String {

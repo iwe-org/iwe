@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `$comment` block predicate matches blocks by their HTML comments (a comment line after the block, or an inline comment in its text); a string matches the whole comment text and `{}` matches any commented block
+- `$html` block predicate selects HTML blocks; their text is the HTML source, and `$replaceText`, `$replace` and `$delete` work on them
+
+### Changed
+- `$text` and `$matches` block predicates ignore HTML comments in the block text
+
+### Fixed
+- HTML comment lines (`<!-- note -->`) after a paragraph, heading, list item or quote are kept by `normalize` and other commands (previously dropped)
+- HTML blocks such as `<div>`, `<details>` and `<script>` are kept as written by `normalize` and other commands (previously dropped)
+- Text written as `\<tag>` stays escaped instead of turning into a real HTML tag
+- Raw HTML in djot documents is kept as raw HTML (previously turned into a code block or plain text)
+
 ## [0.31.0](https://github.com/iwe-org/iwe/compare/iwe-v0.30.0...iwe-v0.31.0) - 2026-11-05
 
 ### Fixed

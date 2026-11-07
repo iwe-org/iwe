@@ -152,6 +152,9 @@ pub enum ParseError {
     BlockTextPredicateNotAllowed {
         op: &'static str,
     },
+    BlockStructuralPredicateNotAllowed {
+        op: &'static str,
+    },
     WithinArgumentWithoutContents,
     InvalidRegex {
         pattern: String,
@@ -334,6 +337,13 @@ impl std::fmt::Display for ParseError {
             }
             Self::BlockTextPredicateNotAllowed { op } => {
                 write!(f, "'{}' argument does not accept text predicates ($text, $matches)", op)
+            }
+            Self::BlockStructuralPredicateNotAllowed { op } => {
+                write!(
+                    f,
+                    "'{}' argument accepts only text predicates ($text, $matches, $and, $or, $nor)",
+                    op
+                )
             }
             Self::WithinArgumentWithoutContents => {
                 write!(

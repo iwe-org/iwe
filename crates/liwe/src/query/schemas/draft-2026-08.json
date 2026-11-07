@@ -346,6 +346,10 @@
           "description": "Tables, one line of own text per row; a scalar is exact-text shorthand.",
           "anyOf": [{ "type": "string" }, { "$ref": "#/$defs/blockPredicate" }]
         },
+        "$html": {
+          "description": "HTML blocks, kept exactly as written; own text is the HTML source and a scalar is exact-text shorthand.",
+          "anyOf": [{ "type": "string" }, { "$ref": "#/$defs/blockPredicate" }]
+        },
         "$ref": {
           "description": "Block references, selected by target; text predicates match the authored link text alone, and the scalar shorthand is an error.",
           "$ref": "#/$defs/blockPredicate"
@@ -365,6 +369,10 @@
         "$references": {
           "description": "Blocks whose own content links to the key.",
           "type": "string"
+        },
+        "$comment": {
+          "description": "Blocks with an HTML comment matching the nested text predicate. A comment line belongs to the block before it in the same container, or to the container itself when it comes first; comment lines before the first block of a document belong to that block, and a document with nothing but comment lines has no block to own them. Inline comments belong to the block whose text holds them. An empty mapping matches every commented block, a string is exact-text shorthand, and the argument accepts only $text, $matches, $and, $or and $nor.",
+          "anyOf": [{ "type": "string" }, { "$ref": "#/$defs/blockPredicate" }]
         },
         "$and": {
           "description": "Every predicate in the list matches.",

@@ -16,6 +16,8 @@ pub enum GraphNode {
     HorizontalRule(HorizontalRule),
     Reference(Reference),
     Table(Table),
+    Comment(TextLeaf),
+    Html(TextLeaf),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -233,6 +235,30 @@ impl HorizontalRule {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct TextLeaf {
+    id: NodeId,
+
+    prev: NodeId,
+    next: MaybeNodeId,
+
+    text: String,
+}
+
+impl TextLeaf {
+    pub fn id(&self) -> NodeId {
+        self.id
+    }
+
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    pub fn next_id(&self) -> MaybeNodeId {
+        self.next
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Reference {
     id: NodeId,
 
@@ -242,6 +268,7 @@ pub struct Reference {
     target: Target,
     inlines: Inlines,
     reference_type: ReferenceType,
+    comments: Vec<String>,
 }
 
 impl Reference {
@@ -268,6 +295,10 @@ impl Reference {
     pub fn reference_type(&self) -> ReferenceType {
         self.reference_type
     }
+
+    pub fn comments(&self) -> &Vec<String> {
+        &self.comments
+    }
 }
 
 impl GraphNode {
@@ -281,6 +312,7 @@ impl GraphNode {
             GraphNode::Reference(reference) => Some(reference.prev),
             GraphNode::HorizontalRule(rule) => Some(rule.prev),
             GraphNode::Raw(raw) => Some(raw.prev),
+            GraphNode::Comment(comment) | GraphNode::Html(comment) => Some(comment.prev),
             GraphNode::Table(table) => Some(table.prev),
             GraphNode::Document(_) => None,
             GraphNode::Empty => None,
@@ -297,6 +329,7 @@ impl GraphNode {
             GraphNode::OrderedList(list) => list.id,
             GraphNode::Leaf(leaf) => leaf.id,
             GraphNode::Raw(leaf) => leaf.id,
+            GraphNode::Comment(comment) | GraphNode::Html(comment) => comment.id,
             GraphNode::Table(table) => table.id,
             GraphNode::Reference(reference) => reference.id,
             GraphNode::Empty => panic!(),
@@ -317,6 +350,8 @@ impl GraphNode {
                 | GraphNode::Raw(_)
                 | GraphNode::Reference(_)
                 | GraphNode::HorizontalRule(_)
+                | GraphNode::Comment(_)
+                | GraphNode::Html(_)
         )
     }
 
@@ -402,6 +437,7 @@ impl GraphNode {
             GraphNode::OrderedList(list) => list.next,
             GraphNode::Leaf(leaf) => leaf.next,
             GraphNode::Raw(leaf) => leaf.next,
+            GraphNode::Comment(comment) | GraphNode::Html(comment) => comment.next,
             GraphNode::Table(table) => table.next,
             GraphNode::Reference(reference) => reference.next,
             GraphNode::Document(_) => None,
@@ -418,6 +454,8 @@ impl GraphNode {
             GraphNode::OrderedList(_) => "L",
             GraphNode::Leaf(_) => "F",
             GraphNode::Raw(_) => "C",
+            GraphNode::Comment(_) => "M",
+            GraphNode::Html(_) => "H",
             GraphNode::Reference(_) => "R",
             GraphNode::Document(_) => "D",
             GraphNode::Table(_) => "T",
@@ -454,6 +492,7 @@ impl GraphNode {
             GraphNode::Leaf(leaf) => leaf.next = Some(next),
             GraphNode::HorizontalRule(rule) => rule.next = Some(next),
             GraphNode::Raw(leaf) => leaf.next = Some(next),
+            GraphNode::Comment(comment) | GraphNode::Html(comment) => comment.next = Some(next),
             GraphNode::Table(table) => table.next = Some(next),
             GraphNode::Reference(reference) => reference.next = Some(next),
             GraphNode::Document(_) => panic!("cant set next for document"),
@@ -470,6 +509,8 @@ impl GraphNode {
             GraphNode::OrderedList(list) => list.child = Some(child),
             GraphNode::Leaf(_) => panic!("cant set child for leaf"),
             GraphNode::Raw(_) => panic!("cant set child for raw"),
+            GraphNode::Comment(_) => panic!("cant set child for comment"),
+            GraphNode::Html(_) => panic!("cant set child for html"),
             GraphNode::Table(_) => panic!("cant set child for table"),
             GraphNode::HorizontalRule(_) => panic!("cant set child for rule"),
             GraphNode::Reference(_) => panic!("cant set child for reference"),
@@ -486,6 +527,8 @@ impl GraphNode {
             GraphNode::OrderedList(_) => true,
             GraphNode::Leaf(_) => false,
             GraphNode::Raw(_) => false,
+            GraphNode::Comment(_) => false,
+            GraphNode::Html(_) => false,
             GraphNode::HorizontalRule(_) => false,
             GraphNode::Reference(_) => false,
             GraphNode::Table(_) => false,
@@ -540,6 +583,7 @@ impl GraphNode {
         target: Target,
         inlines: Inlines,
         reference_type: ReferenceType,
+        comments: Vec<String>,
     ) -> GraphNode {
         GraphNode::Reference(Reference {
             id,
@@ -548,6 +592,25 @@ impl GraphNode {
             target,
             inlines,
             reference_type,
+            comments,
+        })
+    }
+
+    pub fn new_comment(prev: NodeId, id: NodeId, text: String) -> GraphNode {
+        GraphNode::Comment(TextLeaf {
+            id,
+            prev,
+            next: None,
+            text,
+        })
+    }
+
+    pub fn new_html(prev: NodeId, id: NodeId, text: String) -> GraphNode {
+        GraphNode::Html(TextLeaf {
+            id,
+            prev,
+            next: None,
+            text,
         })
     }
 

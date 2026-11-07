@@ -87,6 +87,10 @@ fn build_blocks(
         if pointer.is_section() {
             break;
         }
+        if pointer.is_comment() || pointer.is_html() {
+            cursor = pointer.next_id();
+            continue;
+        }
         blocks.push(build_block(graph, key, id, count));
         cursor = pointer.next_id();
     }
@@ -171,6 +175,7 @@ fn block_kind(node: &Node) -> BlockKind {
         Node::Table(_) => BlockKind::Table,
         Node::Reference(_) => BlockKind::Paragraph,
         Node::HorizontalRule() => BlockKind::Rule,
+        Node::Comment(_) | Node::Html(_) => BlockKind::Paragraph,
         Node::Document(_, _) | Node::Section(_) | Node::Item(_, _) => BlockKind::Paragraph,
     }
 }

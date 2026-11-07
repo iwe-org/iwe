@@ -165,6 +165,14 @@ pub trait NodeIter<'a>: Sized {
         matches!(self.node(), Some(Node::Raw(_, _)))
     }
 
+    fn is_comment(&self) -> bool {
+        matches!(self.node(), Some(Node::Comment(_)))
+    }
+
+    fn is_html(&self) -> bool {
+        matches!(self.node(), Some(Node::Html(_)))
+    }
+
     fn is_leaf(&self) -> bool {
         matches!(self.node(), Some(Node::Leaf(_)))
     }

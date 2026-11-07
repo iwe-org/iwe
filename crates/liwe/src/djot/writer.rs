@@ -70,6 +70,11 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
             format!("{}\n", body)
         }
         Block::HorizontalRule => "----\n".to_string(),
+        Block::Comment(text) => format!("{{%{}%}}\n", text),
+        Block::Html(text) => {
+            let fence = "`".repeat(longest_backtick_run(text).max(2) + 1);
+            format!("{}=html\n{}\n{}\n", fence, text, fence)
+        }
         Block::CodeBlock(lang, text) => {
             let body = text.trim_matches('\n');
             match lang.clone().filter(|lang| !lang.trim().is_empty()) {
@@ -254,6 +259,11 @@ fn render_inline_djot<S: TextSink>(
 ) {
     match inline {
         Inline::Str(text) => out.push(&escape_djot_at(text, pos, followed_by_space)),
+        Inline::Comment(text) => {
+            out.push("{%");
+            out.push(text);
+            out.push("%}");
+        }
         Inline::Space => out.space(),
         Inline::SoftBreak => out.soft_break(),
         Inline::LineBreak => out.line_break("\\\n"),
@@ -323,7 +333,10 @@ fn render_inline_djot<S: TextSink>(
             });
             render_verbatim(body, out);
         }
-        Inline::RawInline(_, content) => out.push(content),
+        Inline::RawInline(format, content) => {
+            render_verbatim(content, out);
+            out.push(&format!("{{={}}}", format));
+        }
         Inline::Link(url, _, link_type, inlines) => {
             let inner = inlines_to_djot(inlines, options);
             if let Some(body) =
@@ -364,7 +377,7 @@ fn render_inline_djot<S: TextSink>(
     }
 }
 
-fn render_verbatim<S: TextSink>(body: &str, out: &mut S) {
+fn longest_backtick_run(body: &str) -> usize {
     let mut max_run = 0;
     let mut run = 0;
     for ch in body.chars() {
@@ -375,7 +388,11 @@ fn render_verbatim<S: TextSink>(body: &str, out: &mut S) {
             run = 0;
         }
     }
-    let fence = "`".repeat(max_run + 1);
+    max_run
+}
+
+fn render_verbatim<S: TextSink>(body: &str, out: &mut S) {
+    let fence = "`".repeat(longest_backtick_run(body) + 1);
     let padded = body.starts_with('`') || body.ends_with('`');
     out.push(&fence);
     if padded {

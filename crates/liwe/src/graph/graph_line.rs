@@ -61,6 +61,7 @@ mod test {
             inlines: vec![str("title")],
             reference_type: ReferenceType::Regular,
             display_url: None,
+            comments: Vec::new(),
         })
     }
 

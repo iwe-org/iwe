@@ -3,7 +3,9 @@ use serde_yaml::{Mapping, Value};
 use crate::graph::{Graph, GraphContext};
 use crate::model::config::MarkdownOptions;
 use crate::model::ids::alloc_node_id;
-use crate::model::inline::{inlines_to_markdown, to_plain_text};
+use crate::model::inline::{
+    collect_comments, inlines_to_markdown, to_plain_text, without_comments,
+};
 use crate::model::key_index::KeyIndex;
 use crate::model::node::Node;
 use crate::model::projector::Projector;
@@ -24,6 +26,7 @@ enum Kind {
     Table,
     Ref,
     Hr,
+    Html,
 }
 
 impl Kind {
@@ -38,6 +41,7 @@ impl Kind {
             Kind::Table => "table",
             Kind::Ref => "ref",
             Kind::Hr => "hr",
+            Kind::Html => "html",
         }
     }
 
@@ -50,6 +54,7 @@ impl Kind {
             BlockType::Table => Kind::Table,
             BlockType::Ref => Kind::Ref,
             BlockType::Hr => Kind::Hr,
+            BlockType::Html => Kind::Html,
         }
     }
 
@@ -65,6 +70,7 @@ struct BlockInfo {
     children: Vec<usize>,
     kind: Kind,
     own_text: Option<String>,
+    comments: Vec<String>,
     header_level: u8,
     path: Vec<String>,
     ref_targets: Vec<Key>,
@@ -111,9 +117,22 @@ impl BlockIndex {
             options,
             parent_dir,
         };
+        let mut owner = None;
+        let mut leading = Vec::new();
         for child in &tree.children {
+            if let Node::Comment(text) = &child.node {
+                match owner {
+                    Some(owner) => index.attach_comment(owner, text),
+                    None => leading.push(text),
+                }
+                continue;
+            }
             let i = index.add(child, key_index, None, 1, &[]);
             index.roots.push(i);
+            for text in leading.drain(..) {
+                index.attach_comment(i, text);
+            }
+            owner = Some(i);
         }
         index
     }
@@ -259,6 +278,10 @@ impl BlockIndex {
             children: Vec::new(),
             kind: kind_of(&tree.node),
             own_text: self.compute_own_text(&tree.node),
+            comments: own_comments(&tree.node)
+                .iter()
+                .map(|text| text.trim().to_string())
+                .collect(),
             header_level: level,
             path: path.to_vec(),
             ref_targets: ref_targets(&tree.node)
@@ -277,22 +300,37 @@ impl BlockIndex {
             Node::Quote() | Node::BulletList() | Node::OrderedList() => (1, path.to_vec()),
             _ => (level, path.to_vec()),
         };
+        let mut owner = i;
         for child in &tree.children {
+            if let Node::Comment(text) = &child.node {
+                self.attach_comment(owner, text);
+                continue;
+            }
             let c = self.add(child, key_index, Some(i), child_level, &child_path);
             self.blocks[i].children.push(c);
+            owner = c;
         }
         i
+    }
+
+    fn attach_comment(&mut self, owner: usize, raw: &str) {
+        self.blocks[owner].comments.push(raw.trim().to_string());
     }
 
     fn compute_own_text(&self, node: &Node) -> Option<String> {
         match node {
             Node::Section(inlines) | Node::Leaf(inlines) | Node::Item(_, inlines) => {
                 Some(inlines_to_markdown(
-                    &Projector::resolve(&self.parent_dir, self.options.refs_path, inlines.clone()),
+                    &Projector::resolve(
+                        &self.parent_dir,
+                        self.options.refs_path,
+                        without_comments(inlines),
+                    ),
                     &self.options,
                 ))
             }
             Node::Raw(_, content) => Some(content.trim_matches('\n').to_string()),
+            Node::Html(source) => Some(source.clone()),
             Node::Table(table) => {
                 let block = Block::Table(
                     table
@@ -302,7 +340,7 @@ impl BlockIndex {
                             Projector::resolve(
                                 &self.parent_dir,
                                 self.options.refs_path,
-                                cell.clone(),
+                                without_comments(cell),
                             )
                         })
                         .collect(),
@@ -316,7 +354,7 @@ impl BlockIndex {
                                     Projector::resolve(
                                         &self.parent_dir,
                                         self.options.refs_path,
-                                        cell.clone(),
+                                        without_comments(cell),
                                     )
                                 })
                                 .collect()
@@ -393,6 +431,11 @@ impl BlockIndex {
                 .blocks
                 .iter()
                 .map(|b| b.ref_targets.contains(key))
+                .collect(),
+            BlockOp::Comment(p) => self
+                .blocks
+                .iter()
+                .map(|b| b.comments.iter().any(|text| comment_matches(p, text)))
                 .collect(),
             BlockOp::And(preds) => {
                 let mut out = vec![true; self.blocks.len()];
@@ -613,6 +656,33 @@ impl BlockIndex {
     }
 }
 
+fn own_comments(node: &Node) -> Vec<String> {
+    match node {
+        Node::Section(inlines) | Node::Leaf(inlines) | Node::Item(_, inlines) => {
+            collect_comments(inlines)
+        }
+        Node::Reference(reference) => reference.comments.clone(),
+        Node::Table(table) => table
+            .header
+            .iter()
+            .chain(table.rows.iter().flatten())
+            .flat_map(collect_comments)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn comment_matches(pred: &BlockPredicate, text: &str) -> bool {
+    pred.0.iter().all(|op| match op {
+        BlockOp::Text(m) => m.matches(text),
+        BlockOp::Matches(r) => r.is_match(text),
+        BlockOp::And(preds) => preds.iter().all(|p| comment_matches(p, text)),
+        BlockOp::Or(preds) => preds.iter().any(|p| comment_matches(p, text)),
+        BlockOp::Nor(preds) => !preds.iter().any(|p| comment_matches(p, text)),
+        _ => false,
+    })
+}
+
 fn kind_of(node: &Node) -> Kind {
     match node {
         Node::Section(_) => Kind::Header,
@@ -624,7 +694,9 @@ fn kind_of(node: &Node) -> Kind {
         Node::Table(_) => Kind::Table,
         Node::Reference(_) => Kind::Ref,
         Node::HorizontalRule() => Kind::Hr,
+        Node::Html(_) => Kind::Html,
         Node::Document(_, _) => Kind::Paragraph,
+        Node::Comment(_) => unreachable!("comment nodes are attached to their owner block"),
     }
 }
 

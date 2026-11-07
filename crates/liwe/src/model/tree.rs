@@ -391,6 +391,7 @@ impl Tree {
                         inlines: reference.inlines.clone(),
                         reference_type: reference.reference_type,
                         display_url: None,
+                        comments: reference.comments.clone(),
                     }),
                     None => self.node.clone(),
                 },

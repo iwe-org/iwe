@@ -770,9 +770,42 @@ fn wrap_column_escapes_a_backtick_fence_moved_to_a_line_start_inside_a_list_item
 }
 
 #[test]
-fn wrap_column_escapes_an_html_tag_moved_to_a_line_start() {
+fn wrap_column_keeps_an_html_tag_on_the_previous_line() {
     wrap_marker(
         "aaaa bbbb cccc dddd <div> eee fff",
+        indoc! {"
+        aaaa bbbb cccc dddd <div>
+        eee fff
+        "},
+    );
+}
+
+#[test]
+fn wrap_column_keeps_a_closing_html_tag_on_the_previous_line() {
+    wrap_marker(
+        "aaaa bbbb cccc dddd </div> eee fff",
+        indoc! {"
+        aaaa bbbb cccc dddd </div>
+        eee fff
+        "},
+    );
+}
+
+#[test]
+fn wrap_column_keeps_an_html_comment_on_the_previous_line() {
+    wrap_marker(
+        "aaaa bbbb cccc dddd <!-- eee --> fff",
+        indoc! {"
+        aaaa bbbb cccc dddd <!-- eee -->
+        fff
+        "},
+    );
+}
+
+#[test]
+fn wrap_column_keeps_an_escaped_html_tag_escaped_at_a_line_start() {
+    wrap_marker(
+        "aaaa bbbb cccc dddd \\<div> eee fff",
         indoc! {"
         aaaa bbbb cccc dddd
         \\<div> eee fff
@@ -781,20 +814,9 @@ fn wrap_column_escapes_an_html_tag_moved_to_a_line_start() {
 }
 
 #[test]
-fn wrap_column_escapes_a_closing_html_tag_moved_to_a_line_start() {
+fn wrap_column_keeps_an_escaped_html_comment_escaped_at_a_line_start() {
     wrap_marker(
-        "aaaa bbbb cccc dddd </div> eee fff",
-        indoc! {"
-        aaaa bbbb cccc dddd
-        \\</div> eee fff
-        "},
-    );
-}
-
-#[test]
-fn wrap_column_escapes_an_html_comment_moved_to_a_line_start() {
-    wrap_marker(
-        "aaaa bbbb cccc dddd <!-- eee --> fff",
+        "aaaa bbbb cccc dddd \\<!-- eee --> fff",
         indoc! {"
         aaaa bbbb cccc dddd
         \\<!-- eee --> fff

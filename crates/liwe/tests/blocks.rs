@@ -92,6 +92,14 @@ pub fn tables() -> BlockPredicate {
     table(any())
 }
 
+pub fn html(arg: impl IntoBlockPredicate) -> BlockPredicate {
+    any().html(arg)
+}
+
+pub fn html_blocks() -> BlockPredicate {
+    html(any())
+}
+
 pub fn reference(inner: BlockPredicate) -> BlockPredicate {
     any().reference(inner)
 }
@@ -110,6 +118,14 @@ pub fn rules() -> BlockPredicate {
 
 pub fn references(key: &str) -> BlockPredicate {
     any().references(key)
+}
+
+pub fn comment(arg: impl IntoBlockPredicate) -> BlockPredicate {
+    any().comment(arg)
+}
+
+pub fn comments() -> BlockPredicate {
+    comment(any())
 }
 
 pub fn and(preds: Vec<BlockPredicate>) -> BlockPredicate {
