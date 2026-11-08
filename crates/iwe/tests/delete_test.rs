@@ -140,6 +140,72 @@ fn test_delete_updates_multiple_files() {
 }
 
 #[test]
+fn test_delete_filter_removes_every_link_to_sibling_documents() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        (
+            "parent",
+            indoc! {"
+            # Parent
+
+            [First](first)
+
+            [Second](second)
+
+            [Third](third)
+
+            Text with [First](first) and [Second](second).
+        "},
+        ),
+        ("first", "# First"),
+        ("second", "# Second"),
+        ("third", "# Third"),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["--filter", "$key: { $in: [first, second] }"]);
+    assert!(output.status.success());
+
+    assert_eq!(
+        read_to_string(temp_path.join("parent.md")).unwrap(),
+        indoc! {"
+            # Parent
+
+            [Third](third)
+
+            Text with First and Second.
+        "}
+    );
+    assert!(!temp_path.join("first.md").exists());
+    assert!(!temp_path.join("second.md").exists());
+}
+
+#[test]
+fn test_delete_filter_skips_cleanup_inside_deleted_documents() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        (
+            "first",
+            indoc! {"
+            # First
+
+            [Second](second)
+        "},
+        ),
+        ("second", "# Second"),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(
+        temp_path,
+        &["--filter", "$key: { $in: [first, second] }", "--keys"],
+    );
+    assert!(output.status.success());
+
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "first\nsecond\n");
+    assert!(!temp_path.join("first.md").exists());
+    assert!(!temp_path.join("second.md").exists());
+}
+
+#[test]
 fn test_delete_nonexistent_key() {
     let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A")]);
     let temp_path = temp_dir.path();

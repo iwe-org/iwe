@@ -12,7 +12,7 @@ frontmatter:
     status:
       enum: [draft, stable, deprecated]
       description: OKF lifecycle (SPEC §5.4); omit when stable
-    stale_after: { type: string, format: date }
+    stale_after: { type: string, format: date-time }
     generated:
       type: object
       required: [by]
@@ -34,12 +34,12 @@ frontmatter:
           title: { type: string }
           author: { type: string }
           usage_count: { type: integer }
-          last_modified: { type: string, format: date }
+          last_modified: { type: string, format: date-time }
     usage_window:
       type: object
       properties:
-        from: { type: string, format: date }
-        to: { type: string, format: date }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
   $defs:
     verification:
       type: object

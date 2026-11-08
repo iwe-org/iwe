@@ -1722,8 +1722,8 @@ iwe find --included-by projects/alpha:5             # descendants within 5 level
 iwe find --included-by projects/alpha:0             # all descendants of alpha (unbounded)
 iwe find --references people/alice                  # docs that reference alice
 iwe find --filter 'priority: { $gt: 3 }' --sort modified_at:-1
-iwe find --project title,modified_at -f json        # only project two fields
-iwe find --project title,modified_at -f yaml        # same, as YAML
+iwe find --project 'title=$title,modified_at' -f json  # only project two fields
+iwe find --project 'title=$title,modified_at' -f yaml  # same, as YAML
 iwe find --filter 'status: draft' --add-fields body=$content
 iwe find --add-fields 'body=$content,parents=$includedBy' -f json
 iwe find --filter 'status: draft' --project '$content,$includedBy'
@@ -1832,7 +1832,7 @@ Used for every inclusion or reference edge surfaced in structured output: `inclu
 
 `find` and `tree` flatten user frontmatter into each result/node alongside system fields (`key`, `title`, etc.) — there is no nested `frontmatter` object. Reserved-prefix entries (`_`, `$`, `.`, `#`, `@` per §2.3) are stripped before merging and MUST NOT appear in any output. On collision between a user frontmatter field named `key` or `title` and the corresponding system field, the user frontmatter value wins (§6.2.2). For the four edge fields (`references`, `includes`, `referencedBy`, `includedBy`), the structural value is authoritative even on name collision.
 
-`--project f1,f2,...` restricts the result to the listed fields, in the listed order; system fields and user frontmatter fields are projectable interchangeably. Without `--project`, every system field plus every user frontmatter field is flat-merged into the result. With `--project`, no flat-merge happens — only the listed fields appear, each resolved from the source on its right-hand side. `--add-fields` flat-merges like the default; the `key`/`title` precedence rule above applies to it as well.
+`--project f1,f2,...` restricts the result to the listed fields, in the listed order; a bare name projects the frontmatter field of that name and a system field needs its `$`-selector (`title=$title`, `$key`). Without `--project`, every system field plus every user frontmatter field is flat-merged into the result. With `--project`, no flat-merge happens — only the listed fields appear, each resolved from the source on its right-hand side. `--add-fields` flat-merges like the default; the `key`/`title` precedence rule above applies to it as well.
 
 ### 13.3 Markdown and keys
 

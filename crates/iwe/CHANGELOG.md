@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `init --okf` schema accepts datetimes such as `2026-09-23T00:00:00Z` in `stale_after`, `sources[].last_modified` and `usage_window`, as the OKF spec requires (previously only plain dates passed)
+- `delete` with several matched documents now removes every link to them; previously only the links to the last one were cleaned up when they shared a parent
+
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
 ### Added

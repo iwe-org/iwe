@@ -30,9 +30,9 @@ use liwe::graph::{Graph, GraphContext};
 use liwe::model::tree::{Tree, TreeIter};
 use liwe::model::{strip_doc_extension, Key};
 use liwe::operations::{
-    attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
-    rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
-    ExtractConfig, InlineConfig, OperationError, SelectError,
+    attach_reference, delete as op_delete, delete_all, extract as op_extract, inline as op_inline,
+    references, rename as op_rename, sections, select_reference, select_section, AttachTarget,
+    Changes, ExtractConfig, InlineConfig, OperationError, SelectError,
 };
 use liwe::query::cli::parse_projection;
 use liwe::query::{
@@ -1198,11 +1198,7 @@ impl IweServer {
                 let Outcome::Delete { removed } = outcome else {
                     unreachable!("delete operation yields a delete outcome")
                 };
-                let mut combined = Changes::default();
-                for key in &removed {
-                    let changes = op_delete(&graph, key).map_err(op_error_to_mcp)?;
-                    combined.merge(changes);
-                }
+                let combined = delete_all(&graph, &removed).map_err(op_error_to_mcp)?;
                 self.ensure_schema_clean(&pending_from_changes(&combined))?;
                 let mut warnings = Vec::new();
                 if !dry_run {

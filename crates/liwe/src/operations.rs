@@ -11,7 +11,7 @@ mod util;
 pub use attach::{attach_reference, AttachTarget};
 pub use changes::{Changes, OperationError};
 pub use config::{ExtractConfig, InlineConfig};
-pub use delete::delete;
+pub use delete::{delete, delete_all};
 pub use extract::{extract, extract_all};
 pub use inline::inline;
 pub use rename::rename;
