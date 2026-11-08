@@ -55,7 +55,7 @@ use liwe::locale::get_locale;
 use liwe::model::tree::TreeIter;
 use liwe::model::{split_raw_frontmatter, Frontmatter, Key};
 use liwe::operations::{
-    attach_reference, delete as op_delete, extract as op_extract, inline as op_inline, references,
+    attach_reference, delete_all, extract as op_extract, inline as op_inline, references,
     rename as op_rename, sections, select_reference, select_section, AttachTarget, Changes,
     ExtractConfig, InlineConfig, SelectError,
 };
@@ -3280,16 +3280,10 @@ fn delete_command(args: Delete) {
         return;
     }
 
-    let mut combined = Changes::default();
-    for target in &targets {
-        match op_delete(&graph, target) {
-            Ok(changes) => combined.merge(changes),
-            Err(e) => {
-                eprintln!("Error: {}", e);
-                std::process::exit(1);
-            }
-        }
-    }
+    let combined = delete_all(&graph, &targets).unwrap_or_else(|e| {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    });
 
     if args.strict {
         gate_pending(&config, &pending_from_changes(&combined));

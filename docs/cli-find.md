@@ -171,7 +171,7 @@ A compact index — one line per document, meant to be scanned:
 
 Each line is `- [title](key)`, followed by any projected edge and scalar fields:
 
-- **Link text** is the `title`. When `title` is not projected (e.g. `--project key`), the key string is used instead.
+- **Link text** is the `title`. When `title` is not projected (e.g. `--project 'key=$key'`), the key string is used instead.
 - **Edge fields** render as arrows after the link, by direction: incoming (`includedBy`, `referencedBy`) as `<- [Title](key)`, outgoing (`includes`, `references`) as `-> [Title](key)`. Multiple targets in one field are comma-joined after a single arrow. Empty edges are omitted.
 - **Scalar fields** render as ` · name: value`. Arrays of scalars join with `, `; richer values fall back to compact inline YAML (use `-f json`/`yaml` for those).
 
@@ -216,7 +216,7 @@ One key per line; suitable for piping.
 
 The top-level value is a bare array of result objects. Each object carries the system fields `key`, `title`, `includedBy`, and every user-frontmatter field merged at the top level. `includedBy` entries are `EdgeRef { key, title, sectionPath }`.
 
-`--project title,status` projects only those fields into each result, in the listed order. System fields and user frontmatter fields are projectable interchangeably.
+`--project 'title=$title,status'` projects only those fields into each result, in the listed order. A bare name projects the frontmatter field of that name; system fields need a `$`-selector, so bare `title` reads the frontmatter `title` and is `null` for documents whose title comes from their first header — use `title=$title` (or `$title`) for the document title.
 
 ### YAML (`-f yaml`)
 
@@ -244,7 +244,7 @@ iwe find --filter '$nor: [{ $includedBy: { match: {} } }]'
 iwe find --limit 10
 
 # JSON for programmatic use, project two fields
-iwe find --project title,modified_at -f json
+iwe find --project 'title=$title,modified_at' -f json
 
 # Corpus-wide grep with locations
 iwe find --matches '(?i)todo|fixme'

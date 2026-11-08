@@ -604,6 +604,26 @@ fn init_okf_scaffolds_schemas_bindings_and_a_bundle_root_index() {
 }
 
 #[test]
+fn init_okf_schema_accepts_datetime_timestamps() {
+    let temp = TempDir::new().expect("Failed to create temp directory");
+    run_init(temp.path(), &["--okf", "--defaults"]);
+    note(
+        temp.path(),
+        "concept.md",
+        "---\ntype: concept\nstale_after: 2026-09-23T00:00:00Z\nsources:\n  - resource: source\n    last_modified: 2026-05-30T00:00:00Z\nusage_window:\n  from: 2026-06-01T00:00:00Z\n  to: 2026-06-30T00:00:00+02:00\n---\n\n# Concept\n",
+    );
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .args(["schema", "validate"])
+        .current_dir(temp.path())
+        .output()
+        .expect("Failed to execute iwe schema validate");
+
+    assert_eq!("", stdout_of(&output));
+    assert_eq!(Some(0), output.status.code());
+}
+
+#[test]
 fn init_okf_keeps_an_existing_index() {
     let temp = TempDir::new().expect("Failed to create temp directory");
     note(
