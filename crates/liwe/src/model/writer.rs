@@ -5,7 +5,7 @@ use crate::model::config::{FormattingOptions, MarkdownOptions};
 use crate::model::node::ColumnAlignment;
 use crate::model::{Lang, Level};
 
-use super::inline::{inlines_to_markdown, wrap_inlines, BlockKind, Inlines};
+use super::inline::{inlines_to_markdown, wrap_inlines, Inlines};
 
 pub type Blocks = Vec<Block>;
 
@@ -73,10 +73,9 @@ impl Block {
             Block::Frontmatter(mapping) => {
                 format!("---\n{}---\n", frontmatter_to_yaml(mapping))
             }
-            Block::Plain(inlines) | Block::Para(inlines) => format!(
-                "{}\n",
-                wrap_inlines(inlines, options, indent, BlockKind::Paragraph)
-            ),
+            Block::Plain(inlines) | Block::Para(inlines) => {
+                format!("{}\n", wrap_inlines(inlines, options, indent))
+            }
             Block::LineBlock(lines) => lines
                 .iter()
                 .map(|line| inlines_to_markdown(line, options))
@@ -303,14 +302,7 @@ pub fn blocks_to_markdown_and_indented(
 ) -> String {
     let rendered = blocks
         .iter()
-        .enumerate()
-        .map(|(index, block)| match block {
-            Block::Plain(inlines) | Block::Para(inlines) if index == 0 => format!(
-                "{}\n",
-                wrap_inlines(inlines, options, indent, BlockKind::ItemLead)
-            ),
-            _ => block.to_markdown_indented(options, indent),
-        })
+        .map(|block| block.to_markdown_indented(options, indent))
         .collect::<Vec<String>>();
 
     let mut result = String::new();

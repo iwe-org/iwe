@@ -379,40 +379,30 @@ enum LinePos {
     Mid,
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub(crate) enum BlockKind {
-    Paragraph,
-    ItemLead,
-}
+pub(crate) const FLATTENED_BLOCK: &str = "flattened-block";
 
 #[derive(Clone, Copy, PartialEq)]
 enum LineKind {
-    ParagraphFirst,
-    ParagraphNext,
-    ItemFirst,
-    ItemNext,
+    First,
+    Following,
     Inline,
 }
 
 impl LineKind {
     fn after_break(self) -> LineKind {
         match self {
-            LineKind::ParagraphFirst | LineKind::ParagraphNext => LineKind::ParagraphNext,
-            LineKind::ItemFirst | LineKind::ItemNext => LineKind::ItemNext,
+            LineKind::First | LineKind::Following => LineKind::Following,
             LineKind::Inline => LineKind::Inline,
         }
     }
+}
 
-    fn escapes_line_start(self) -> bool {
-        self != LineKind::Inline
-    }
-
-    fn is_paragraph(self) -> bool {
-        matches!(self, LineKind::ParagraphFirst | LineKind::ParagraphNext)
-    }
-
-    fn is_following_line(self) -> bool {
-        matches!(self, LineKind::ParagraphNext | LineKind::ItemNext)
+pub(crate) fn push_verbatim_lines<S: TextSink>(body: &str, out: &mut S) {
+    for (index, line) in body.split('\n').enumerate() {
+        if index > 0 {
+            out.soft_break();
+        }
+        out.push(line);
     }
 }
 
@@ -509,28 +499,9 @@ impl EscapeCtx {
     }
 }
 
-fn render_block_inlines<S: TextSink>(
-    inlines: &Inlines,
-    options: &MarkdownOptions,
-    out: &mut S,
-    kind: BlockKind,
-) {
-    let flattened = kind == BlockKind::ItemLead && is_flattened_raw_block(inlines);
-    let line = match kind {
-        BlockKind::Paragraph => LineKind::ParagraphFirst,
-        BlockKind::ItemLead if flattened => LineKind::Inline,
-        BlockKind::ItemLead => LineKind::ItemFirst,
-    };
-    let mut ctx = EscapeCtx::for_inlines(inlines, options, line);
-    if flattened {
-        ctx.backtick_pair = false;
-    }
+fn render_block_inlines<S: TextSink>(inlines: &Inlines, options: &MarkdownOptions, out: &mut S) {
+    let ctx = EscapeCtx::for_inlines(inlines, options, LineKind::First);
     render_inlines(inlines, options, out, ctx, LinePos::Start);
-}
-
-fn is_flattened_raw_block(inlines: &[Inline]) -> bool {
-    let lead = following_text(inlines);
-    lead.starts_with("```") || lead.starts_with('<') || lead.starts_with('|')
 }
 
 fn following_text(inlines: &[Inline]) -> String {
@@ -562,8 +533,7 @@ fn render_inlines<S: TextSink>(
 ) {
     if pos == LinePos::Start
         && (starts_with_literal_checkbox(inlines)
-            || (ctx.line == LineKind::ParagraphFirst
-                && is_thematic_break(line_until_break(inlines))))
+            || (ctx.line == LineKind::First && is_thematic_break(line_until_break(inlines))))
     {
         out.push("\\");
     }
@@ -609,6 +579,10 @@ fn render_inline<S: TextSink>(
         Inline::LineBreak => {
             out.line_break(options.formatting.line_break_marker());
             LinePos::Start
+        }
+        Inline::RawInline(format, body) if format == FLATTENED_BLOCK => {
+            push_verbatim_lines(body, out);
+            LinePos::Mid
         }
         Inline::RawInline(format, body) if format == "html" => {
             out.push_raw_html(body);
@@ -877,8 +851,8 @@ fn escape_str<S: TextSink>(
     out: &mut S,
 ) {
     let line_start = pos == LinePos::Start;
-    let block_start = line_start && ctx.line.escapes_line_start();
-    let ordered_rules = ctx.line.escapes_line_start();
+    let ordered_rules = ctx.line != LineKind::Inline;
+    let block_start = line_start && ordered_rules;
     let needs_scan = block_start
         || (ordered_rules && pos == LinePos::AfterDigits)
         || text.bytes().any(|b| {
@@ -896,7 +870,7 @@ fn escape_str<S: TextSink>(
         _ => None,
     };
     let line_is_underline =
-        ctx.line.is_following_line() && chars.iter().all(|c| matches!(c, '-' | '=' | ':' | '|'));
+        ctx.line == LineKind::Following && chars.iter().all(|c| matches!(c, '-' | '=' | ':' | '|'));
     let mut result = String::with_capacity(text.len());
     for (i, &ch) in chars.iter().enumerate() {
         let next = chars.get(i + 1).copied().or(following_char);
@@ -927,7 +901,7 @@ fn escape_str<S: TextSink>(
                 let hashes = chars.iter().take_while(|&&c| c == '#').count();
                 hashes <= 6 && chars.get(hashes).is_none_or(|&c| c == ' ' || c == '\t')
             }
-            '>' if lead => ctx.line.is_paragraph(),
+            '>' if lead => true,
             '~' if lead => chars.iter().take_while(|&&c| c == '~').count() >= 3,
             '-' | '+' if lead => trailing_marker_space,
             '.' | ')' if ordered_rules => {
@@ -1079,20 +1053,15 @@ pub(crate) fn text_to_inlines(text: &str) -> Vec<Inline> {
     out
 }
 
-pub(crate) fn wrap_inlines(
-    inlines: &Inlines,
-    options: &MarkdownOptions,
-    indent: usize,
-    kind: BlockKind,
-) -> String {
+pub(crate) fn wrap_inlines(inlines: &Inlines, options: &MarkdownOptions, indent: usize) -> String {
     let Some(width) = options.formatting.wrap_column() else {
         let mut out = String::new();
-        render_block_inlines(inlines, options, &mut out, kind);
+        render_block_inlines(inlines, options, &mut out);
         return out;
     };
     let effective = width.saturating_sub(indent).max(20);
     let mut stream = TokenStream::default();
-    render_block_inlines(inlines, options, &mut stream, kind);
+    render_block_inlines(inlines, options, &mut stream);
     stream.wrap_escaping_markers(effective)
 }
 

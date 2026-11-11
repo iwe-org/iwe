@@ -10,9 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Inline code action on a reference to the same document no longer crashes the server
 - Completion, hover and link text no longer show a document title after the edit that removed it
-- Formatting no longer turns escaped characters into markup, such as `\#` in a list item becoming a heading or `\[[x]]` becoming a wiki link
+- Formatting no longer turns escaped characters into markup, such as `\#` or `\>` in a list item becoming a heading or quote, or `\[[x]]` becoming a wiki link; a lone `*` in a paragraph that also has emphasis is now written as `\*`, so existing documents may change once on the next format
+- Formatting keeps indentation inside a code block that starts a list item
+- Link action and link completion write `#` in a document name as `%23`, so the link points to that document instead of a fragment
 - Formatting keeps two-space line breaks inside block quotes
-- Extract actions with sequential ids no longer reuse an id that is already taken
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 

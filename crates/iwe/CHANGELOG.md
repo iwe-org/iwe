@@ -14,11 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `find`, `update` and `delete` filters with an empty mapping such as `status: {}` match only documents whose field is an empty mapping (previously they matched every document)
 - `delete` no longer treats a fragment-only link such as `[Intro](#intro)` in a child document as a link to the parent document
 - Links with a percent-encoded `#` in the path (`%23`) resolve to the right document
-- `normalize` no longer turns escaped characters into markup, such as `\#` in a list item becoming a heading or `\[[x]]` becoming a wiki link
+- `normalize` no longer turns escaped characters into markup, such as `\#` or `\>` in a list item becoming a heading or quote, or `\[[x]]` becoming a wiki link; a lone `*` in a paragraph that also has emphasis is now written as `\*`, so existing documents may change once on the next `normalize`
+- `normalize` keeps indentation inside a code block that starts a list item
 - `normalize` keeps two-space line breaks inside block quotes
 - `update` with `$insertAfter` on an empty `$section` inserts after the section instead of nesting the new block inside it
 - `normalize` of djot documents keeps an escaped `<` literal
-- `extract` with sequential ids no longer reuses an id that is already taken
 - `update` with `$delete` of every item in a list no longer leaves an extra blank line
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07

@@ -10,15 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `delete_all` operation deletes a set of documents and cleans up the links to all of them in one pass
 
+### Changed
+- List item whose first block is a quote, code block, table or HTML holds that block as one `Inline::RawInline` with format `flattened-block` (previously its text was split into `Str` words)
+
 ### Fixed
 - `inline` returns `InvalidTarget` when a document references itself instead of overflowing the stack
 - Filter with an empty mapping such as `status: {}` matches only documents whose field is an empty mapping (previously it matched every document)
 - `is_document_url` is false for a fragment-only link such as `#intro`, so a standalone paragraph with such a link is no longer read as a block reference to the parent directory
-- Percent-encoded `#` in a link path (`%23`) is part of the document key instead of starting a fragment, and is written back encoded
+- Percent-encoded `#` in a link path (`%23`) is part of the document key instead of starting a fragment, and `Key::link_url` writes it back encoded
 - Document title is cleared when an update removes the title, instead of keeping the old one
 - Markdown writer keeps escaped characters literal in more places: block markers inside quotes and list items, `*` and `_` inside emphasis, `[` and `]` in link text and image alt text, `[[` and HTML tags split by escapes, `~~~` fences, a trailing `#` in headings, and markers at the start of a line after a preserved line break
+- List item whose first block is a quote, code block, table or HTML keeps that block's text exactly, including indentation inside code (previously whitespace was collapsed)
 - Markdown writer keeps two-space line breaks inside block quotes
-- Block update `$insertAfter` on a `$section` with no content inserts after the section instead of nesting the new block inside it
+- Block update `$insertAfter` on a `$section` with no content inserts after the section instead of nesting the new block inside it, also when the `$section` is inside `$and` or `$or`
 - Djot writer escapes `<` so text such as `\<http://example.com>` is not turned into a link
 - Markdown writer closes math with `$` and `$$` delimiters (previously only the opening one was written)
 - Sequential document ids skip ids that are already taken instead of reusing them

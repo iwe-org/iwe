@@ -791,6 +791,40 @@ fn insert_after_empty_section_lands_as_sibling() {
 }
 
 #[test]
+fn insert_after_empty_section_inside_or_lands_as_sibling() {
+    assert_update(
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Later
+
+            Later content
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $or:
+                  - $section: Goals
+                content: \"## Inserted\"
+        "},
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Inserted
+
+            ## Later
+
+            Later content
+        "},
+    );
+}
+
+#[test]
 fn delete_header_node_beside_replace_text_inside_is_legal() {
     assert_update(
         indoc! {"

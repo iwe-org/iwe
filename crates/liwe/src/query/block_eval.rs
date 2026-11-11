@@ -492,11 +492,22 @@ impl BlockIndex {
 
     fn subtree_roots(&self, pred: &BlockPredicate) -> Vec<bool> {
         let mut out = vec![false; self.blocks.len()];
+        self.mark_subtree_roots(pred, &mut out);
+        out
+    }
+
+    fn mark_subtree_roots(&self, pred: &BlockPredicate, out: &mut [bool]) {
         for op in &pred.0 {
             let (root_pred, kind) = match op {
                 BlockOp::Section(p) => (p, Kind::Header),
                 BlockOp::Quote(p) => (p, Kind::Quote),
                 BlockOp::List(p) => (p, Kind::List),
+                BlockOp::And(preds) | BlockOp::Or(preds) => {
+                    for p in preds {
+                        self.mark_subtree_roots(p, out);
+                    }
+                    continue;
+                }
                 _ => continue,
             };
             for (i, selected) in self.eval(root_pred).iter().enumerate() {
@@ -505,7 +516,6 @@ impl BlockIndex {
                 }
             }
         }
-        out
     }
 
     fn subtrees(&self, root_pred: &BlockPredicate, kind: Kind) -> Vec<bool> {

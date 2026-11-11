@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tools that report document titles no longer show a title after the document stopped having one
 - `iwe_query` update with `$insertAfter` on an empty `$section` inserts after the section instead of nesting the new block inside it
 - `iwe_query` update with `$delete` of every item in a list no longer leaves an extra blank line
-- Extract tool with sequential ids no longer reuses an id that is already taken
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

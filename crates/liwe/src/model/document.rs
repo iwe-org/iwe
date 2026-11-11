@@ -102,7 +102,7 @@ impl DocumentBlock {
                 format!(
                     "```{}\n{}\n```",
                     code_block.lang.as_deref().unwrap_or(""),
-                    code_block.text
+                    code_block.text.trim_end_matches('\n')
                 )
             }
             DocumentBlock::RawBlock(raw_block) => raw_block.text.clone(),

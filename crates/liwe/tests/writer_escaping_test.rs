@@ -199,3 +199,28 @@ fn quote_hard_break_with_spaces_survives() {
         },
     );
 }
+
+#[test]
+fn item_quote_marker_stays_literal() {
+    round_trips("- \\> not quote\n");
+}
+
+#[test]
+fn item_backtick_fence_stays_literal() {
+    round_trips("- \\`\\`\\`\n");
+}
+
+#[test]
+fn ordered_item_quote_marker_stays_literal() {
+    round_trips("1. \\> not quote\n");
+}
+
+#[test]
+fn item_quote_stays_quote() {
+    round_trips("- > quote\n");
+}
+
+#[test]
+fn item_code_block_keeps_indentation() {
+    round_trips("- ```\n  first\n      indented\n  ```\n");
+}

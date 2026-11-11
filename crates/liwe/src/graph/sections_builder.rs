@@ -9,7 +9,7 @@ use crate::model::document::DocumentBlock::{
     RawBlock,
 };
 use crate::model::document::DocumentBlocks;
-use crate::model::inline::to_graph_inlines;
+use crate::model::inline::{to_graph_inlines, Inline, FLATTENED_BLOCK};
 
 type Range = std::ops::Range<usize>;
 
@@ -123,10 +123,10 @@ impl<'a> SectionsBuilder<'a> {
                 }
             }
             _ => {
-                self.builder.section(to_graph_inlines(
-                    &vec![DocumentInline::Str(block.to_section_plain_text())],
-                    &self.key.parent(),
-                ));
+                self.builder.section(vec![Inline::RawInline(
+                    FLATTENED_BLOCK.to_string(),
+                    block.to_section_plain_text(),
+                )]);
                 self.set_lines_range(block.line_range());
             }
         };

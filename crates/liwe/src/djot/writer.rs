@@ -1,8 +1,8 @@
 use crate::model::config::DjotOptions;
 use crate::model::document::{LinkType, MathType};
 use crate::model::inline::{
-    append_refs_extension, detect_and_strip_checkbox, Attributes, Inline, Inlines, TextSink,
-    TokenStream,
+    append_refs_extension, detect_and_strip_checkbox, push_verbatim_lines, Attributes, Inline,
+    Inlines, TextSink, TokenStream, FLATTENED_BLOCK,
 };
 use crate::model::node::ColumnAlignment;
 use crate::model::writer::{frontmatter_to_yaml, Block, Blocks};
@@ -332,6 +332,9 @@ fn render_inline_djot<S: TextSink>(
                 "$"
             });
             render_verbatim(body, out);
+        }
+        Inline::RawInline(format, content) if format == FLATTENED_BLOCK => {
+            push_verbatim_lines(content, out);
         }
         Inline::RawInline(format, content) => {
             render_verbatim(content, out);
