@@ -126,7 +126,9 @@ fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool, indent: 
             .join("\n");
         for (n, line) in item_text.lines().enumerate() {
             if n == 0 {
-                out.push_str(&format!("{} {}{}\n", marker, checkbox, line));
+                let first = format!("{} {}{}", marker, checkbox, line);
+                out.push_str(first.trim_end());
+                out.push('\n');
             } else if line.is_empty() {
                 out.push('\n');
             } else {

@@ -448,3 +448,47 @@ fn code_block_with_language_containing_a_backtick_fence() {
         "};
     assert_eq!(input, roundtrip(input));
 }
+
+#[test]
+fn empty_task_item_is_kept() {
+    let input = indoc! {"
+        - [ ]
+        - [x] done
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn description_term_text_is_kept() {
+    assert_eq!(
+        indoc! {"
+            Term
+
+            Definition.
+            "},
+        roundtrip(indoc! {"
+            : Term
+
+              Definition.
+            "})
+    );
+}
+
+#[test]
+fn table_caption_text_is_kept() {
+    assert_eq!(
+        indoc! {"
+            | a |
+            | --- |
+            | 1 |
+
+            Caption
+            "},
+        roundtrip(indoc! {"
+            | a |
+            |---|
+            | 1 |
+            ^ Caption
+            "})
+    );
+}

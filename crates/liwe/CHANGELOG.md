@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rename` returns `AlreadyExists` when the new key differs only in letter case from another document, which would be the same file on case-insensitive file systems
 - `rename` and `extract` return `InvalidTarget` for a key with an empty segment or a segment starting with `.`, which would be written to a hidden file the loader never reads
 - Djot writer makes a code block fence longer than any backtick run inside the code, so code that contains a fence is kept
+- Djot reader keeps empty task items, and keeps the text of description list terms and table captions as paragraphs instead of dropping it
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

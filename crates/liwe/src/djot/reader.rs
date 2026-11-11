@@ -22,6 +22,7 @@ pub struct DjotEventsReader {
     offset: usize,
     frontmatter: Option<Mapping>,
     pending_checkbox: Option<bool>,
+    pending_caption: Option<DocumentBlock>,
 }
 
 impl Default for DjotEventsReader {
@@ -43,6 +44,7 @@ impl DjotEventsReader {
             offset: 0,
             frontmatter: None,
             pending_checkbox: None,
+            pending_caption: None,
         }
     }
 
@@ -91,7 +93,7 @@ impl DjotEventsReader {
             let range = (range.start + self.offset)..(range.end + self.offset);
             match event {
                 Event::Start(container, attrs) => self.start_container(container, attrs, range),
-                Event::End(container) => self.end_container(container),
+                Event::End(container) => self.end_container(container, range),
                 Event::Str(text) => self.text(&text, range),
                 Event::Symbol(text) => {
                     self.push_inline(
@@ -198,6 +200,17 @@ impl DjotEventsReader {
     }
 
     fn inject_checkbox(&mut self, checked: bool, range: Range<usize>) {
+        self.inject_checkbox_marker(checked, range.clone());
+        self.push_inline(
+            DocumentInline::Space(Space {
+                inline_range: InlineRange::default(),
+            }),
+            self.to_line_range(range),
+        );
+        self.pop_inline();
+    }
+
+    fn inject_checkbox_marker(&mut self, checked: bool, range: Range<usize>) {
         let space = || {
             DocumentInline::Space(Space {
                 inline_range: InlineRange::default(),
@@ -212,7 +225,6 @@ impl DjotEventsReader {
             DocumentInline::Str("[".to_string()),
             mark,
             DocumentInline::Str("]".to_string()),
-            space(),
         ] {
             self.push_inline(inline, self.to_line_range(range.clone()));
             self.pop_inline();
@@ -467,16 +479,26 @@ impl DjotEventsReader {
                 }),
                 self.to_line_range(range),
             ),
+            Container::DescriptionTerm => {
+                self.push_block(DocumentBlock::Para(Para {
+                    line_range: self.to_line_range(range),
+                    inlines: vec![],
+                }));
+            }
+            Container::Caption => {
+                self.push_block(DocumentBlock::Para(Para {
+                    line_range: self.to_line_range(range),
+                    inlines: vec![],
+                }));
+            }
             Container::Footnote { .. }
             | Container::LinkDefinition { .. }
             | Container::DescriptionList
-            | Container::DescriptionTerm
-            | Container::DescriptionDetails
-            | Container::Caption => {}
+            | Container::DescriptionDetails => {}
         }
     }
 
-    fn end_container(&mut self, container: Container) {
+    fn end_container(&mut self, container: Container, range: Range<usize>) {
         match container {
             Container::Document | Container::Section { .. } | Container::Div { .. } => {}
             Container::Paragraph
@@ -485,11 +507,31 @@ impl DjotEventsReader {
             | Container::CodeBlock { .. }
             | Container::RawBlock { .. }
             | Container::List { .. }
-            | Container::Table => self.pop_block(),
-            Container::ListItem | Container::TaskListItem { .. } => {
+            | Container::DescriptionTerm => self.pop_block(),
+            Container::Table => {
+                self.pop_block();
+                if let Some(caption) = self.pending_caption.take() {
+                    self.push_block(caption);
+                    self.pop_block();
+                }
+            }
+            Container::Caption => {
+                self.pending_caption = self.blocks_stack.pop();
+            }
+            Container::ListItem => {
                 self.pending_checkbox = None;
             }
-            Container::TableRow { .. } | Container::TableCell { .. } | Container::Caption => {}
+            Container::TaskListItem { .. } => {
+                if let Some(checked) = self.pending_checkbox.take() {
+                    self.push_block(DocumentBlock::Para(Para {
+                        line_range: self.to_line_range(range.clone()),
+                        inlines: vec![],
+                    }));
+                    self.inject_checkbox(checked, range);
+                    self.pop_block();
+                }
+            }
+            Container::TableRow { .. } | Container::TableCell { .. } => {}
             Container::Emphasis
             | Container::Strong
             | Container::Delete
@@ -506,7 +548,6 @@ impl DjotEventsReader {
             Container::Footnote { .. }
             | Container::LinkDefinition { .. }
             | Container::DescriptionList
-            | Container::DescriptionTerm
             | Container::DescriptionDetails => {}
         }
     }
