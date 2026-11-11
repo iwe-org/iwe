@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `normalize` keeps two adjacent lists separate instead of merging them into one on the second run
 - `normalize` of djot tables no longer adds a backslash before `|` inside code spans on every run
 - `normalize` of djot documents keeps escaped list markers such as `\(1)` and escaped `\:::` literal, and keeps raw blocks such as `=latex` as raw blocks instead of turning them into code blocks
+- `squash` keeps content in its original order and writes headings deeper than six levels as level six instead of plain text
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

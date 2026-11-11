@@ -71,7 +71,7 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
         Block::Header(level, inlines) => {
             format!(
                 "{} {}\n",
-                "#".repeat(*level as usize),
+                "#".repeat((*level).min(6) as usize),
                 inlines_to_djot(inlines, options)
             )
         }

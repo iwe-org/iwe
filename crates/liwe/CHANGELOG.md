@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Markdown and djot writers give a list that directly follows another list of the same kind the other marker (`*` or `)`), so the two lists no longer merge on the next read
 - Djot writer no longer escapes `|` inside code spans in table cells, which added a backslash on every write
 - Djot writer keeps escapes for list markers such as `(1)`, `a.` and `(iv)` and for `:::` at the start of a paragraph, so the text does not turn into a list or a div
+- `squash` keeps an expanded reference before the later subsections of its section instead of moving it to the end, and inlines a reference without headers where it stood
+- Markdown and djot writers write headings deeper than six levels as level six instead of a line of seven or more `#` that reads back as a paragraph
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

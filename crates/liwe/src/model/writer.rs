@@ -188,7 +188,7 @@ impl Block {
             Block::Header(level, inlines) => {
                 format!(
                     "{} {}\n",
-                    "#".repeat(*level as usize),
+                    "#".repeat((*level).min(6) as usize),
                     escape_closing_hashes(inlines_to_markdown(inlines, options))
                 )
             }
