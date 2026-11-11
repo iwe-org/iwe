@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iwe_query` update with `$replace` or `$insertAfter` on `$header` acts on each header instead of the whole section when every block under it also matches
 - Inline tool that deletes the inlined document also removes the other links to it from the source document
 - Squash tool keeps content in its original order and writes headings deeper than six levels as level six instead of plain text
+- Fuzzy search in `iwe_find` and `iwe_retrieve` ignores letter case, so a query with capitals still matches
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

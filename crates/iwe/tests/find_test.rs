@@ -249,6 +249,23 @@ fn test_find_fuzzy_matches_partial_lexical_does_not() {
 }
 
 #[test]
+fn test_find_fuzzy_ignores_case_like_lexical() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("plan.md"), "# project plan\n\nText.").unwrap();
+    write(dir.path().join("storage.md"), "# storage\n\nDisk notes.").unwrap();
+
+    let (fuzzy_out, stderr, success) = run_iwe(dir.path(), &["--fuzzy", "Project", "-f", "keys"]);
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(fuzzy_out, "plan\n");
+
+    let (lexical_out, stderr, success) =
+        run_iwe(dir.path(), &["--lexical", "Project", "-f", "keys"]);
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(lexical_out, "plan\n");
+}
+
+#[test]
 fn test_find_lexical_all_stopwords_warns() {
     let dir = setup_workspace();
 

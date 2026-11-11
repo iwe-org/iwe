@@ -39,7 +39,7 @@ fn fuzzy_text(graph: &Graph, key: &Key) -> String {
 }
 
 fn fuzzy_ranked(graph: &Graph, candidates: &[Key], query: &str) -> Vec<Key> {
-    let matcher = SkimMatcherV2::default();
+    let matcher = SkimMatcherV2::default().ignore_case();
     let mut scored: Vec<(Key, i64)> = candidates
         .iter()
         .filter_map(|key| {
