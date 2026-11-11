@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0](https://github.com/iwe-org/iwe/compare/iwes-v0.32.0...iwes-v0.33.0) - 2026-11-11
+
 ### Fixed
 - Inline code action on a reference to the same document no longer crashes the server
 - Completion, hover and link text no longer show a document title after the edit that removed it

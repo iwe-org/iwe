@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0](https://github.com/iwe-org/iwe/compare/iwe-v0.32.0...iwe-v0.33.0) - 2026-11-11
+
 ### Changed
 - `normalize` without `-k` fails outside an IWE project instead of rewriting every markdown file under the current directory with the default settings (`normalize -k` still works anywhere)
 

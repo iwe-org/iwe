@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0](https://github.com/iwe-org/iwe/compare/liwe-v0.32.0...liwe-v0.33.0) - 2026-11-11
+
 ### Added
 - `delete_all` operation deletes a set of documents and cleans up the links to all of them in one pass
 - `Graph::has_unparsed_frontmatter`, `check_frontmatter_parsed` and `EvalError::UnparsedFrontmatter` report documents whose frontmatter is not a valid YAML mapping
