@@ -78,9 +78,10 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
         }
         Block::CodeBlock(lang, text) => {
             let body = text.trim_matches('\n');
+            let fence = "`".repeat(longest_backtick_run(body).max(2) + 1);
             match lang.clone().filter(|lang| !lang.trim().is_empty()) {
-                Some(lang) => format!("``` {}\n{}\n```\n", lang, body),
-                None => format!("```\n{}\n```\n", body),
+                Some(lang) => format!("{} {}\n{}\n{}\n", fence, lang, body, fence),
+                None => format!("{}\n{}\n{}\n", fence, body, fence),
             }
         }
         Block::RawBlock(format, text) if format == UNPARSED_FRONTMATTER => {

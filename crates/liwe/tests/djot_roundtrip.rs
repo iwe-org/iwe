@@ -421,3 +421,30 @@ fn unparseable_frontmatter_is_kept() {
         "};
     assert_eq!(input, roundtrip(input));
 }
+
+#[test]
+fn code_block_containing_a_backtick_fence() {
+    let input = indoc! {"
+        # Title
+
+        ````
+        ```
+        inner
+        ```
+        ````
+        "};
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn code_block_with_language_containing_a_backtick_fence() {
+    let input = indoc! {"
+        ````` md
+        ````
+        inner
+        ````
+        `````
+        "};
+    assert_eq!(input, roundtrip(input));
+}

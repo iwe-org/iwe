@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rename` to a name that differs only in letter case from another document fails instead of overwriting that document on case-insensitive file systems
 - `new --key`, `rename` and `extract` reject keys with an empty segment or a segment starting with `.`, such as `dir/` or `.`, which created hidden files that disappeared from the workspace
 - `rename` and `extract` fail instead of overwriting a file that exists on disk but is not part of the loaded workspace
+- `normalize` of djot documents keeps a code block that contains a backtick fence (previously it broke on the second run)
+
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
 ### Added

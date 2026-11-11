@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formatting no longer treats a `---` block in the middle of a document as frontmatter, which replaced the real frontmatter and dropped the text between the dashes
 - Rename to a name that differs only in letter case from another document is refused instead of overwriting that document on case-insensitive file systems
 - Rename and extract actions refuse keys with an empty segment or a segment starting with `.`, which created hidden files that disappeared from the workspace
+- Formatting of djot documents keeps a code block that contains a backtick fence
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 
