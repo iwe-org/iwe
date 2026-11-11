@@ -794,3 +794,33 @@ fn test_new_rejects_key_with_empty_segment() {
     );
     assert!(!temp_path.join("dir").exists());
 }
+
+#[test]
+fn test_new_with_invalid_date_format_fails_without_crashing() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+    let config_path = temp_path.join(".iwe").join("config.toml");
+    let mut config: Configuration = toml::from_str(&read_to_string(&config_path).unwrap()).unwrap();
+    config.workspace.date_format = Some("%Q%".to_string());
+    std::fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .args(["new", "Title"])
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        format!(
+            "Error: Invalid config file '{}': '%Q%' in workspace.date_format is not a valid date format\n",
+            temp_path
+                .canonicalize()
+                .unwrap()
+                .join(".iwe")
+                .join("config.toml")
+                .display()
+        )
+    );
+}

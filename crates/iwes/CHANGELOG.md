@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rename and extract actions refuse keys with an empty segment or a segment starting with `.`, which created hidden files that disappeared from the workspace
 - Formatting of djot documents keeps a code block that contains a backtick fence
 - Formatting of djot documents keeps empty task items and the text of description list terms and table captions (previously dropped)
+- An invalid date or time format in the config is reported when the server starts instead of crashing a code action later
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 

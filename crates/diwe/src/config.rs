@@ -1,4 +1,5 @@
 use indoc::indoc;
+use liwe::locale::is_valid_date_format;
 use log::debug;
 use std::{
     collections::HashMap,
@@ -495,11 +496,35 @@ pub fn load_config() -> Result<Configuration, String> {
         })?;
         config.markdown.formatting = config.markdown.formatting.validated();
         config.djot.formatting = config.djot.formatting.validated();
+        validate_date_formats(&config)
+            .map_err(|e| format!("Invalid config file '{}': {}", config_path.display(), e))?;
         Ok(config)
     } else {
         debug!("using default configuration");
         Ok(Configuration::template())
     }
+}
+
+fn validate_date_formats(config: &Configuration) -> Result<(), String> {
+    let formats = [
+        ("workspace.date_format", &config.workspace.date_format),
+        ("workspace.time_format", &config.workspace.time_format),
+        ("markdown.date_format", &config.markdown.date_format),
+        ("markdown.time_format", &config.markdown.time_format),
+        ("djot.date_format", &config.djot.date_format),
+        ("djot.time_format", &config.djot.time_format),
+    ];
+    for (name, format) in formats {
+        if let Some(format) = format {
+            if !is_valid_date_format(format) {
+                return Err(format!(
+                    "'{}' in {} is not a valid date format",
+                    format, name
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn migrate(config: &str) -> Result<String, String> {

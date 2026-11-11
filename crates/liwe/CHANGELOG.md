@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `delete_all` operation deletes a set of documents and cleans up the links to all of them in one pass
 - `Graph::has_unparsed_frontmatter`, `check_frontmatter_parsed` and `EvalError::UnparsedFrontmatter` report documents whose frontmatter is not a valid YAML mapping
 - `Key::has_hidden_or_empty_segment` tells whether a key would be written to a hidden file or a path with an empty segment
+- `locale::is_valid_date_format` checks a strftime format string
 
 ### Changed
 - List item whose first block is a quote, code block, table or HTML holds that block as one `Inline::RawInline` with format `flattened-block` (previously its text was split into `Str` words)
@@ -35,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rename` and `extract` return `InvalidTarget` for a key with an empty segment or a segment starting with `.`, which would be written to a hidden file the loader never reads
 - Djot writer makes a code block fence longer than any backtick run inside the code, so code that contains a fence is kept
 - Djot reader keeps empty task items, and keeps the text of description list terms and table captions as paragraphs instead of dropping it
-
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 
 ### Added

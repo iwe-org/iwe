@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `normalize` of djot documents keeps a code block that contains a backtick fence (previously it broke on the second run)
 - `normalize` of djot documents keeps empty task items and the text of description list terms and table captions (previously dropped)
 - `internal claude session` commands fail instead of replacing a session record they cannot read, so rejected proposals are not offered again
+- An invalid date or time format in the config is reported as a config error instead of crashing `new` and `create --template`, and `init --date-format` rejects an invalid format
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
