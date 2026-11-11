@@ -615,7 +615,39 @@ async fn rename_reports_a_write_that_fails_on_disk() {
         .await;
     assert_eq!(
         result.unwrap_err().to_string(),
-        "Mcp error: -32603: Failed to write to the workspace: Is a directory (os error 21)"
+        format!(
+            "Mcp error: -32603: Failed to write to the workspace: '{}' already exists",
+            base.join("other.md").display()
+        )
+    );
+}
+
+#[tokio::test]
+async fn rename_does_not_overwrite_a_file_missing_from_the_graph() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().canonicalize().unwrap();
+    std::fs::write(base.join("note.md"), "# Note\n").unwrap();
+    let f = Fixture::with_path(base.to_str().unwrap(), Configuration::default()).await;
+    std::fs::write(base.join("other.md"), "# Other\n").unwrap();
+
+    let result = f
+        .try_call_tool("iwe_rename", json!({"old_key": "note", "new_key": "other"}))
+        .await;
+
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        format!(
+            "Mcp error: -32603: Failed to write to the workspace: '{}' already exists",
+            base.join("other.md").display()
+        )
+    );
+    assert_eq!(
+        std::fs::read_to_string(base.join("other.md")).unwrap(),
+        "# Other\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(base.join("note.md")).unwrap(),
+        "# Note\n"
     );
 }
 

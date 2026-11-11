@@ -6,6 +6,7 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use ignore::Match;
 use log::error;
 use rayon::prelude::*;
+use same_file::is_same_file;
 
 pub use liwe::fs::walk_md_paths;
 use liwe::model::config::Format;
@@ -181,9 +182,22 @@ pub fn write_store_at_path(store: &State, to: &Path, format: Format) -> std::io:
 pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std::io::Result<()> {
     let extension = format.extension();
 
+    let removed: Vec<PathBuf> = changes
+        .removes
+        .iter()
+        .map(|key| workspace_document_path(base_path, key.as_str(), extension))
+        .collect::<std::io::Result<_>>()?;
+
     let mut staged: Vec<(PathBuf, PathBuf)> = Vec::new();
     for (index, (key, markdown)) in changes.creates.iter().enumerate() {
-        match stage_create(base_path, key.as_str(), extension, index, markdown) {
+        match stage_create(
+            base_path,
+            key.as_str(),
+            extension,
+            index,
+            markdown,
+            &removed,
+        ) {
             Ok(paths) => staged.push(paths),
             Err(error) => {
                 discard_staged(&staged);
@@ -221,8 +235,19 @@ fn stage_create(
     extension: &str,
     index: usize,
     markdown: &str,
+    removed: &[PathBuf],
 ) -> std::io::Result<(PathBuf, PathBuf)> {
     let file_path = workspace_document_path(base_path, key, extension)?;
+    if file_path.exists()
+        && !removed
+            .iter()
+            .any(|removed_path| is_same_file(removed_path, &file_path).unwrap_or(false))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!("'{}' already exists", file_path.display()),
+        ));
+    }
     let parent = file_path.parent().unwrap_or(base_path);
     fs::create_dir_all(parent)?;
     let temp_path = parent.join(format!(".iwe-{}-{}.tmp", std::process::id(), index));
