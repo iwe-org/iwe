@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `normalize` of djot documents keeps escaped list markers such as `\(1)` and escaped `\:::` literal, and keeps raw blocks such as `=latex` as raw blocks instead of turning them into code blocks
 - `squash` keeps content in its original order and writes headings deeper than six levels as level six instead of plain text
 - `update` and `delete` with `--dry-run` check the document-level `--expect` count and fail on a mismatch, like the real run and like block-level `expect`
+- `export` with the default `--depth 0` follows links to every level, as documented, instead of exporting only the top documents without edges
+- `export` DOT output escapes backslashes in titles, so a title ending in `\` no longer produces an invalid file
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
