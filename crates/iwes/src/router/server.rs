@@ -306,6 +306,11 @@ impl Server {
                     .split(char::is_whitespace)
                     .next_back()
                     .unwrap_or("");
+                let word = match word.rfind('[') {
+                    Some(open) if word[..open].ends_with('[') => &word[open - 1..],
+                    Some(open) => &word[open..],
+                    None => word,
+                };
                 let (bracket, query) = if let Some(rest) = word.strip_prefix("[[") {
                     ("[[", rest)
                 } else if let Some(rest) = word.strip_prefix('[') {

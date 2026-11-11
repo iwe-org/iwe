@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formatting of djot tables no longer adds a backslash before `|` inside code spans on every format
 - Formatting of djot documents keeps escaped list markers and `\:::` literal, and keeps raw blocks such as `=latex` as raw blocks
 - A document change with several full-text changes keeps the last one instead of the first
+- Link completion after a `[` or `[[` glued to the preceding text replaces only from the bracket, so the text before it, such as CJK text without spaces, is kept
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 
