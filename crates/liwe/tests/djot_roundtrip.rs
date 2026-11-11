@@ -403,3 +403,9 @@ fn email_autolink() {
         "};
     assert_eq!(input, roundtrip(input));
 }
+
+#[test]
+fn escaped_autolink_stays_literal() {
+    let input = "\\<http://x.com>\n";
+    assert_eq!(input, roundtrip(input));
+}

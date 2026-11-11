@@ -1006,9 +1006,16 @@ impl GraphContext for &Graph {
         let mut keys = vec![];
 
         if self.sequential_keys {
-            for i in 0..number {
-                let key_num = self.keys.len() + 1 + i;
-                keys.push(key_num.to_string());
+            let mut candidate = self.keys.len();
+            while keys.len() < number {
+                candidate += 1;
+                let key = candidate.to_string();
+                if !self
+                    .keys
+                    .contains_key(&Key::from_rel_link_url(&key, relative_to))
+                {
+                    keys.push(key);
+                }
             }
             return keys;
         } else {
@@ -1236,6 +1243,18 @@ mod new_api_tests {
             Some("title: Hello".to_string())
         );
         assert_eq!(graph.raw_metadata(&"no-front".into()), None);
+    }
+
+    #[test]
+    fn sequential_ids_skip_existing_keys() {
+        let mut graph = Graph::new();
+        graph.set_sequential_keys(true);
+        graph.insert_document("1".into(), "# One\n".to_string());
+        graph.insert_document("3".into(), "# Three\n".to_string());
+        assert_eq!(
+            vec!["4".to_string(), "5".to_string()],
+            (&graph).unique_ids("", 2)
+        );
     }
 
     #[test]

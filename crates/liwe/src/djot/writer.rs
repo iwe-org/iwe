@@ -417,7 +417,7 @@ fn escape_djot(text: &str) -> String {
     for ch in text.chars() {
         if matches!(
             ch,
-            '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '~' | '^' | '$'
+            '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '~' | '^' | '$' | '<'
         ) {
             out.push('\\');
         }

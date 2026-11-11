@@ -1035,3 +1035,28 @@ fn insert_after_section_after_unselected_sibling_lands_once() {
         "},
     );
 }
+
+#[test]
+fn delete_every_item_removes_the_list() {
+    assert_update(
+        indoc! {"
+            # Doc
+
+            - one
+            - two
+
+            after
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $delete:
+                $item: {}
+        "},
+        indoc! {"
+            # Doc
+
+            after
+        "},
+    );
+}

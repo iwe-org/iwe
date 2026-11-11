@@ -619,12 +619,14 @@ fn render_inline<S: TextSink>(
             LinePos::Mid
         }
         Inline::Math(math_type, body) => {
-            out.push(if *math_type == MathType::DisplayMath {
+            let delimiter = if *math_type == MathType::DisplayMath {
                 "$$"
             } else {
                 "$"
-            });
+            };
+            out.push(delimiter);
             out.push(body);
+            out.push(delimiter);
             LinePos::Mid
         }
         Inline::Emph(inner) => {
@@ -1387,7 +1389,8 @@ pub(crate) fn decode_inlines(bytes: &[u8]) -> Inlines {
 
 #[cfg(test)]
 mod test {
-    use super::{decode_inlines, encode_inlines, Attributes, Inline, Inlines};
+    use super::{decode_inlines, encode_inlines, inlines_to_markdown, Attributes, Inline, Inlines};
+    use crate::model::config::MarkdownOptions;
     use crate::model::document::{LinkType, MathType};
     use crate::model::reference::{Reference, ReferenceType, Target};
     use crate::model::Key;
@@ -1510,6 +1513,19 @@ mod test {
         assert_eq!(
             decoded_reference.target.path_key().map(|key| key.as_str()),
             Some("notes.md")
+        );
+    }
+
+    #[test]
+    fn math_is_written_with_closing_delimiters() {
+        let inlines = vec![
+            Inline::Math(MathType::InlineMath, "x".to_string()),
+            Inline::Space,
+            Inline::Math(MathType::DisplayMath, "y".to_string()),
+        ];
+        assert_eq!(
+            "$x$ $$y$$",
+            inlines_to_markdown(&inlines, &MarkdownOptions::default())
         );
     }
 }

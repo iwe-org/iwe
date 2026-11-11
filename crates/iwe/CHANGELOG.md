@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `normalize` no longer turns escaped characters into markup, such as `\#` in a list item becoming a heading or `\[[x]]` becoming a wiki link
 - `normalize` keeps two-space line breaks inside block quotes
 - `update` with `$insertAfter` on an empty `$section` inserts after the section instead of nesting the new block inside it
+- `normalize` of djot documents keeps an escaped `<` literal
+- `extract` with sequential ids no longer reuses an id that is already taken
+- `update` with `$delete` of every item in a list no longer leaves an extra blank line
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

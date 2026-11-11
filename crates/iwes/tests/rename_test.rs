@@ -365,3 +365,25 @@ fn rename_wiki_link_keeps_fragment() {
         .to_workspace_edit(),
     );
 }
+
+#[test]
+fn case_only_rename_deletes_before_creating() {
+    let new_uri = uri_from("Note");
+
+    Fixture::with_documents(vec![("index", "[Note](note)\n"), ("note", "# Note\n")]).rename(
+        uri_from("index").to_rename_params(0, 0, "Note".to_string()),
+        vec![
+            uri_from("index").to_edit("[Note](Note)\n"),
+            uri_from("note").to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                "# Note\n",
+                lsp_types::Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            ),
+        ]
+        .to_workspace_edit(),
+    );
+}

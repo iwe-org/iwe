@@ -628,7 +628,12 @@ fn apply_edits(tree: &Tree, edits: &HashMap<NodeId, Action>) -> Tree {
                 updated.node = with_raw_content(&updated.node, content.clone());
                 children.push(updated);
             }
-            None => children.push(apply_edits(child, edits)),
+            None => {
+                let updated = apply_edits(child, edits);
+                if !(updated.is_list() && updated.children.is_empty()) {
+                    children.push(updated);
+                }
+            }
         }
     }
     Tree {
