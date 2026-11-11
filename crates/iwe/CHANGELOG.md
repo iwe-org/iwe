@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `export` DOT output escapes backslashes in titles, so a title ending in `\` no longer produces an invalid file
 - `stats` markdown output shows the block and inline reference counts instead of empty lines
 - `find --fuzzy` ignores letter case like `--lexical`, so a query with capitals such as `Project` matches `project plan` (previously it matched nothing)
+- `normalize` keeps the title of external links and images instead of dropping it
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

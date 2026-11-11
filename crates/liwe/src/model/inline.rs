@@ -653,8 +653,8 @@ fn render_inline<S: TextSink>(
             render_inlines(inner, options, out, ctx.nested(), LinePos::Mid);
             LinePos::Mid
         }
-        Inline::Link(url, _, link_type, inlines) => {
-            if *link_type == LinkType::Markdown {
+        Inline::Link(url, title, link_type, inlines) => {
+            if *link_type == LinkType::Markdown && title.is_empty() {
                 let inner = inlines_to_markdown(inlines, options);
                 if let Some(body) = autolink_body(url, &inner) {
                     out.push("<");
@@ -663,13 +663,14 @@ fn render_inline<S: TextSink>(
                     return LinePos::Mid;
                 }
             }
-            emit_link(url, *link_type, inlines, options, out, ctx);
+            emit_link(url, title, *link_type, inlines, options, out, ctx);
             LinePos::Mid
         }
         Inline::Reference(reference) => {
             let url = reference.target.unresolved_url();
             emit_link(
                 &url,
+                "",
                 reference.reference_type.to_link_type(),
                 &reference.inlines,
                 options,
@@ -686,8 +687,8 @@ fn render_inline<S: TextSink>(
             emit_comment(text, out);
             LinePos::Mid
         }
-        Inline::Image(url, _, link_type, alt) => {
-            emit_image(url, *link_type, alt, options, out, ctx);
+        Inline::Image(url, title, link_type, alt) => {
+            emit_image(url, title, *link_type, alt, options, out, ctx);
             LinePos::Mid
         }
     }
@@ -964,6 +965,7 @@ fn is_thematic_break(inlines: &[Inline]) -> bool {
 
 fn emit_link<S: TextSink>(
     url: &str,
+    title: &str,
     link_type: LinkType,
     inlines: &Inlines,
     options: &MarkdownOptions,
@@ -994,6 +996,7 @@ fn emit_link<S: TextSink>(
             render_inlines(inlines, options, out, ctx.within_link_text(), LinePos::Mid);
             out.push("](");
             out.push(&link_destination(&final_url));
+            push_link_title(title, out);
             out.push(")");
         }
     }
@@ -1001,6 +1004,7 @@ fn emit_link<S: TextSink>(
 
 fn emit_image<S: TextSink>(
     url: &str,
+    title: &str,
     link_type: LinkType,
     alt: &Inlines,
     options: &MarkdownOptions,
@@ -1025,9 +1029,19 @@ fn emit_image<S: TextSink>(
             render_inlines(alt, options, out, ctx.within_link_text(), LinePos::Mid);
             out.push("](");
             out.push(&link_destination(url));
+            push_link_title(title, out);
             out.push(")");
         }
     }
+}
+
+fn push_link_title<S: TextSink>(title: &str, out: &mut S) {
+    if title.is_empty() {
+        return;
+    }
+    out.push(" \"");
+    out.push(&title.replace('\\', "\\\\").replace('"', "\\\""));
+    out.push("\"");
 }
 
 fn link_destination(url: &str) -> String {

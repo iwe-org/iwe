@@ -271,3 +271,10 @@ fn escaped_bracket_before_link_close_stays_literal() {
 fn non_breaking_space_is_kept() {
     round_trips("one\u{a0}two\n");
 }
+
+#[test]
+fn link_and_image_titles_are_kept() {
+    round_trips(
+        "A [link](https://example.com \"The \\\"title\\\"\") and ![img](pic.png \"Pic\").\n",
+    );
+}
