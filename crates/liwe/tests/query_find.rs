@@ -3,7 +3,7 @@ use indoc::indoc;
 use liwe::collation::TitleCollator;
 use liwe::graph::Graph;
 use liwe::model::config::MarkdownOptions;
-use liwe::query::execute;
+use liwe::query::{execute, parse_operation, OperationKind};
 use liwe::query::{
     Collation, Filter, FindOp, Outcome, Projection, ProjectionBase, ProjectionField,
     ProjectionSource, PseudoField, Sort,
@@ -791,4 +791,62 @@ fn find_user_frontmatter_key_overrides_pseudo_key() {
             .and_then(|v| v.as_str()),
         Some("user-supplied"),
     );
+}
+
+#[test]
+fn find_filter_empty_mapping_matches_literal_empty_mapping() {
+    assert_parsed_keys(
+        indoc! {"
+            ---
+            status: {}
+            ---
+            # A
+            _
+            ---
+            status: draft
+            ---
+            # B
+            _
+            # C
+        "},
+        "filter:\n  status: {}\n",
+        &["1"],
+    );
+}
+
+#[test]
+fn find_filter_nested_empty_mapping_matches_literal_empty_mapping() {
+    assert_parsed_keys(
+        indoc! {"
+            ---
+            author:
+              name: {}
+            ---
+            # A
+            _
+            ---
+            author:
+              name: Someone
+            ---
+            # B
+            _
+            ---
+            author: {}
+            ---
+            # C
+        "},
+        "filter:\n  author:\n    name: {}\n",
+        &["1"],
+    );
+}
+
+fn assert_parsed_keys(docs: &str, yaml: &str, expected: &[&str]) {
+    let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
+    let operation = parse_operation(yaml, OperationKind::Find).expect("parse");
+    let actual: Vec<String> = match execute(&operation, &graph).expect("query succeeds") {
+        Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.key.to_string()).collect(),
+        other => panic!("expected Find, got {:?}", other),
+    };
+    let expected: Vec<String> = expected.iter().map(|s| s.to_string()).collect();
+    assert_eq!(actual, expected);
 }

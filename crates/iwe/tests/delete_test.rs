@@ -249,6 +249,47 @@ fn test_delete_dry_run() {
 }
 
 #[test]
+fn test_delete_filter_empty_mapping_dry_run_lists_only_literal_match() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        ("first", "---\nstatus: {}\n---\n\n# First\n"),
+        ("second", "---\nstatus: draft\n---\n\n# Second\n"),
+        ("third", "# Third\n"),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(
+        temp_path,
+        &["--filter", "status: {}", "--keys", "--dry-run"],
+    );
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(stdout, "first\n");
+}
+
+#[test]
+fn test_delete_keeps_fragment_only_link_in_child_document() {
+    let temp_dir = setup_workspace_with_docs(vec![("notes", "# Notes\n")]);
+    let temp_path = temp_dir.path();
+    let content = indoc! {"
+        # Sub
+
+        [Intro](#intro)
+    "};
+    create_dir_all(temp_path.join("notes")).unwrap();
+    write(temp_path.join("notes").join("sub.md"), content).unwrap();
+
+    let output = run_delete_command(temp_path, &["notes", "--keys"]);
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(stdout, "notes\n");
+
+    let sub_content = read_to_string(temp_path.join("notes").join("sub.md")).unwrap();
+    assert_eq!(sub_content, content);
+}
+
+#[test]
 fn test_delete_keys_output() {
     let temp_dir = setup_workspace_with_docs(vec![("a", "[link](b)"), ("b", "# Doc B")]);
     let temp_path = temp_dir.path();

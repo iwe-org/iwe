@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `init --okf` schema accepts datetimes such as `2026-09-23T00:00:00Z` in `stale_after`, `sources[].last_modified` and `usage_window`, as the OKF spec requires (previously only plain dates passed)
 - `delete` with several matched documents now removes every link to them; previously only the links to the last one were cleaned up when they shared a parent
+- `inline` of a document into itself fails with an error instead of crashing
+- `find`, `update` and `delete` filters with an empty mapping such as `status: {}` match only documents whose field is an empty mapping (previously they matched every document)
+- `delete` no longer treats a fragment-only link such as `[Intro](#intro)` in a child document as a link to the parent document
+- Links with a percent-encoded `#` in the path (`%23`) resolve to the right document
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

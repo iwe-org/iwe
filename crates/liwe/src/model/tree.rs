@@ -223,11 +223,18 @@ impl Tree {
     }
 
     pub fn append_pre_header(&self, target_id: NodeId, new: Tree) -> Tree {
-        let mut children = self.children.clone();
-
         if self.id_eq(target_id) {
-            children.insert(self.pre_sub_header_position(), new.clone());
+            let mut children = self.children.clone();
+            children.insert(self.pre_sub_header_position(), new);
+            return Tree {
+                id: self.id,
+                line_range: self.line_range.clone(),
+                node: self.node.clone(),
+                children,
+            };
         }
+
+        let children = self.children.clone();
 
         Tree {
             id: self.id,

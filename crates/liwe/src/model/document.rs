@@ -631,7 +631,7 @@ impl DocumentInline {
             DocumentInline::LineBreak(_) => Inline::LineBreak,
             DocumentInline::Link(link) => {
                 let inlines = to_graph_inlines(&link.inlines, relative_to);
-                if model::is_document_url(&link.target.url) && !link.target.url.starts_with('#') {
+                if model::is_document_url(&link.target.url) {
                     Inline::Reference(Reference {
                         target: RefTarget::from_link_url(
                             &link.target.url,

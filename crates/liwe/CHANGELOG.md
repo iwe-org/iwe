@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `delete_all` operation deletes a set of documents and cleans up the links to all of them in one pass
 
+### Fixed
+- `inline` returns `InvalidTarget` when a document references itself instead of overflowing the stack
+- Filter with an empty mapping such as `status: {}` matches only documents whose field is an empty mapping (previously it matched every document)
+- `is_document_url` is false for a fragment-only link such as `#intro`, so a standalone paragraph with such a link is no longer read as a block reference to the parent directory
+- Percent-encoded `#` in a link path (`%23`) is part of the document key instead of starting a fragment, and is written back encoded
+
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 
 ### Added

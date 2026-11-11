@@ -39,7 +39,9 @@ impl Projector {
     fn reference_url(&self, reference: &Reference) -> String {
         match (&reference.target, reference.reference_type) {
             (Target::Path { key, fragment }, ReferenceType::Regular) => {
-                let base = key.link_url(&self.parent, self.refs_path);
+                let base = key
+                    .link_url(&self.parent, self.refs_path)
+                    .replace('#', "%23");
                 match fragment {
                     Some(fragment) => format!("{base}#{fragment}"),
                     None => base,

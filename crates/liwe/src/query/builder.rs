@@ -709,6 +709,10 @@ fn build_field_clause(
     path: &[String],
 ) -> Result<Filter, ParseError> {
     match value {
+        Value::Mapping(map) if map.is_empty() => Ok(Filter::Field {
+            path: FieldPath(segments.to_vec()),
+            op: FieldOp::Eq(Value::Mapping(map)),
+        }),
         Value::Mapping(map) => {
             let (dollar_keys, bare_keys) = classify_keys(&map)?;
             if !dollar_keys.is_empty() && !bare_keys.is_empty() {

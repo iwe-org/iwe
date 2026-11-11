@@ -16,6 +16,7 @@ mod normalization_lists;
 mod normalization_metadata;
 mod normalization_misc;
 mod normalization_raw;
+mod operations_inline_test;
 #[allow(dead_code)]
 mod queries;
 mod query_block_update;

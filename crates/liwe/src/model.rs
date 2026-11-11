@@ -137,12 +137,14 @@ impl Key {
     }
 
     pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
-        let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
-        let without_fragment = match decoded.split_once('#') {
+        let without_fragment = match url.split_once('#') {
             Some((path, _)) => path,
-            None => decoded.as_str(),
+            None => url,
         };
-        let key = strip_doc_extension(without_fragment);
+        let decoded = percent_decode_str(without_fragment)
+            .decode_utf8_lossy()
+            .into_owned();
+        let key = strip_doc_extension(&decoded);
         let base = if key.starts_with('/') {
             ""
         } else {
@@ -288,6 +290,7 @@ pub fn is_document_url(url: &str) -> bool {
     let path = url.split_once('#').map(|(path, _)| path).unwrap_or(url);
     let last = path.rsplit('/').next().unwrap_or(path);
     is_ref_url(url)
+        && !path.is_empty()
         && !path.ends_with('/')
         && last != "."
         && last != ".."
@@ -395,6 +398,7 @@ mod test {
         assert!(!is_document_url("file.yaml"));
         assert!(!is_document_url("../dir/file.pdf"));
         assert!(!is_document_url("image.png#fragment"));
+        assert!(!is_document_url("#fragment"));
     }
 
     #[test]

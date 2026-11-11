@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `iwe_query` delete with several matched documents now removes every link to them; previously only the links to the last one were cleaned up when they shared a parent
+- Inline tool on a reference to the same document returns an error instead of crashing
+- `iwe_query` filters with an empty mapping such as `status: {}` match only documents whose field is an empty mapping (previously they matched every document)
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

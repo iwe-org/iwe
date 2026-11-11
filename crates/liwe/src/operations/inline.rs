@@ -43,6 +43,12 @@ pub fn inline(
         return Err(OperationError::TargetNotFound(inline_key));
     }
 
+    if &inline_key == source_key {
+        return Err(OperationError::InvalidTarget(
+            "Document cannot be inlined into itself".to_string(),
+        ));
+    }
+
     let format = graph.format_options().clone();
     let inline_tree = graph.collect(&inline_key);
 

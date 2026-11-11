@@ -2365,3 +2365,25 @@ fn test_find_sort_rejects_bad_direction() {
         );
     }
 }
+
+#[test]
+fn test_find_filter_empty_mapping_matches_only_literal_empty_mapping() {
+    let temp_dir = setup_workspace();
+    let temp_path = temp_dir.path();
+    write(
+        temp_path.join("first.md"),
+        "---\nstatus: {}\n---\n\n# First\n",
+    )
+    .unwrap();
+    write(
+        temp_path.join("second.md"),
+        "---\nstatus: draft\n---\n\n# Second\n",
+    )
+    .unwrap();
+    write(temp_path.join("third.md"), "# Third\n").unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(temp_path, &["--filter", "status: {}", "--format", "keys"]);
+    assert!(success, "{}", stderr);
+    assert_eq!(stdout, "first\n");
+}
