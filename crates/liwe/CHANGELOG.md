@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Djot writer makes a code block fence longer than any backtick run inside the code, so code that contains a fence is kept
 - Djot reader keeps empty task items, and keeps the text of description list terms and table captions as paragraphs instead of dropping it
 - `squash` does not expand a reference to a document that is already being expanded, so a cycle no longer repeats content or takes exponential time
+- Block update on `$header` targets only the header itself even when every block under it also matches (previously the whole section was replaced or used as the anchor)
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

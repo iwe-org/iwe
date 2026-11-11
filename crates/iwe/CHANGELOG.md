@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `internal claude session` commands fail instead of replacing a session record they cannot read, so rejected proposals are not offered again
 - An invalid date or time format in the config is reported as a config error instead of crashing `new` and `create --template`, and `init --date-format` rejects an invalid format
 - `squash` stops at a link back to a document it is already expanding, so cyclic references finish quickly instead of repeating content
+- `update` with `$replace` or `$insertAfter` on `$header` acts on each header instead of the whole section when every block under it also matches, so `$replace` no longer deletes the subsections
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

@@ -1094,3 +1094,63 @@ fn delete_every_item_removes_the_list() {
         "},
     );
 }
+
+#[test]
+fn replace_every_header_keeps_each_section() {
+    assert_update(
+        indoc! {"
+            # A
+
+            ## B
+
+            ## C
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $replace:
+                $header: {}
+                content: \"## X\"
+        "},
+        indoc! {"
+            # X
+
+            ## X
+
+            ## X
+        "},
+    );
+}
+
+#[test]
+fn insert_after_header_whose_subsections_all_match_goes_below_the_header() {
+    assert_update(
+        indoc! {"
+            # A
+
+            ## B
+
+            ## C
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $header: {}
+                content: new
+        "},
+        indoc! {"
+            # A
+
+            new
+
+            ## B
+
+            new
+
+            ## C
+
+            new
+        "},
+    );
+}
