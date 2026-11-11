@@ -224,3 +224,14 @@ fn item_quote_stays_quote() {
 fn item_code_block_keeps_indentation() {
     round_trips("- ```\n  first\n      indented\n  ```\n");
 }
+
+#[test]
+fn item_code_block_is_not_wrapped() {
+    round_trips_with(
+        "- ```\n  first line of code that is longer than the wrap column\n      indented line of code that is also longer than it\n  ```\n",
+        &FormattingOptions {
+            wrap_column: Some(30),
+            ..Default::default()
+        },
+    );
+}
