@@ -17,7 +17,9 @@ use clap_complete_nushell::Nushell;
 mod help;
 use itertools::Itertools;
 
-use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
+use diwe::config::{
+    load_config, ActionDefinition, Configuration, InlineType, LinkType, IWE_MARKER,
+};
 use diwe::fs::{key_escapes_workspace, write_file_if_changed};
 use diwe::schema::{
     explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
@@ -2698,6 +2700,15 @@ fn normalize_command(args: Normalize) {
     let configuration = get_configuration();
 
     if args.key.is_empty() {
+        if !std::path::Path::new(IWE_MARKER)
+            .join("config.toml")
+            .exists()
+        {
+            eprintln!(
+                "Error: No IWE project found in the current directory. Run 'iwe init' first, or name the documents to normalize with -k"
+            );
+            std::process::exit(1);
+        }
         let graph = load_graph(&configuration);
         write_graph(graph, &configuration);
         return;

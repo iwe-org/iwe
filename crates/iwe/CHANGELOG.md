@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `normalize` without `-k` fails outside an IWE project instead of rewriting every markdown file under the current directory with the default settings (`normalize -k` still works anywhere)
+
 ### Fixed
 - `init --okf` schema accepts datetimes such as `2026-09-23T00:00:00Z` in `stale_after`, `sources[].last_modified` and `usage_window`, as the OKF spec requires (previously only plain dates passed)
 - `delete` with several matched documents now removes every link to them; previously only the links to the last one were cleaned up when they shared a parent
@@ -27,7 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rename` to a name that differs only in letter case from another document fails instead of overwriting that document on case-insensitive file systems
 - `new --key`, `rename` and `extract` reject keys with an empty segment or a segment starting with `.`, such as `dir/` or `.`, which created hidden files that disappeared from the workspace
 - `rename` and `extract` fail instead of overwriting a file that exists on disk but is not part of the loaded workspace
-
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
 ### Added
