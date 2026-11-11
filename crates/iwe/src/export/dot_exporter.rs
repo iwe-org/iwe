@@ -10,7 +10,7 @@ pub fn export_dot(graph_data: &GraphData) -> String {
 
     // Add nodes
     for document in graph_data.documents.values() {
-        let font_size = max(12, 16 + document.depth * 8);
+        let font_size = max(12, 16 + u32::from(document.depth) * 8);
         let colors = key_colors(&document.key);
 
         let node = node!(
@@ -63,5 +63,5 @@ pub fn export_dot(graph_data: &GraphData) -> String {
 }
 
 fn quoted(s: &str) -> String {
-    format!("\"{}\"", s.replace('"', "\\\""))
+    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
 }

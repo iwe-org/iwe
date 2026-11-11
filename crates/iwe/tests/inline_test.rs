@@ -364,6 +364,31 @@ fn test_inline_ambiguous_reference_fails() {
 }
 
 #[test]
+fn test_inline_self_reference_fails() {
+    let content = indoc! {"
+        # Index
+
+        ## Section
+
+        [Index](index)
+    "};
+    let temp_dir = setup_workspace_with_docs(vec![("index", content)]);
+    let temp_path = temp_dir.path();
+
+    let output = run_inline_command(temp_path, &["index", "--reference", "Index"]);
+    assert_eq!(output.status.code(), Some(1));
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(
+        stderr,
+        "Error: Invalid target: Document cannot be inlined into itself\n"
+    );
+
+    let index_content = read_to_string(temp_path.join("index.md")).unwrap();
+    assert_eq!(index_content, content);
+}
+
+#[test]
 fn test_inline_nonexistent_key() {
     let temp_dir = setup_workspace_with_docs(vec![("a", "# Doc A")]);
     let temp_path = temp_dir.path();

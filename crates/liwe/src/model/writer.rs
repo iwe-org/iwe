@@ -1,3 +1,4 @@
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use serde_yaml::Mapping;
 
 use crate::markdown::writer::CmarkTableWriter;
@@ -56,8 +57,12 @@ impl Block {
         )
     }
 
-    fn is_frontmatter(&self) -> bool {
-        matches!(self, Block::Frontmatter(_))
+    pub(crate) fn is_frontmatter(&self) -> bool {
+        match self {
+            Block::Frontmatter(_) => true,
+            Block::RawBlock(format, _) => format == UNPARSED_FRONTMATTER,
+            _ => false,
+        }
     }
 
     fn glues_to(&self, previous: &Block) -> bool {
@@ -73,8 +78,9 @@ impl Block {
             Block::Frontmatter(mapping) => {
                 format!("---\n{}---\n", frontmatter_to_yaml(mapping))
             }
-            Block::Plain(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
-            Block::Para(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
+            Block::Plain(inlines) | Block::Para(inlines) => {
+                format!("{}\n", wrap_inlines(inlines, options, indent))
+            }
             Block::LineBlock(lines) => lines
                 .iter()
                 .map(|line| inlines_to_markdown(line, options))
@@ -109,12 +115,20 @@ impl Block {
                         format!("{}\n{}\n{}\n", fence, text.trim_matches('\n'), fence)
                     })
             }
+            Block::RawBlock(format, text) if format == UNPARSED_FRONTMATTER => {
+                format!("{}\n", text.trim_end_matches('\n'))
+            }
             Block::RawBlock(_, text) => text.clone(),
             Block::BlockQuote(blocks) => {
                 blocks_to_markdown_sparce_indented(blocks, options, indent + 2)
                     .lines()
-                    .map(|line| format!("> {}", line))
-                    .map(|line| line.trim().to_string())
+                    .map(|line| {
+                        if line.trim().is_empty() {
+                            ">".to_string()
+                        } else {
+                            format!("> {}", line)
+                        }
+                    })
                     .collect::<Vec<String>>()
                     .join("\n")
                     + "\n"
@@ -174,8 +188,8 @@ impl Block {
             Block::Header(level, inlines) => {
                 format!(
                     "{} {}\n",
-                    "#".repeat(*level as usize),
-                    inlines_to_markdown(inlines, options)
+                    "#".repeat((*level).min(6) as usize),
+                    escape_closing_hashes(inlines_to_markdown(inlines, options))
                 )
             }
             Block::HorizontalRule => {
@@ -189,6 +203,16 @@ impl Block {
             Block::Comment(text) => format!("<!--{}-->\n", text),
             Block::Html(text) => format!("{}\n", text),
         }
+    }
+}
+
+fn escape_closing_hashes(text: String) -> String {
+    let start = text.rfind([' ', '\t']).map(|i| i + 1).unwrap_or(0);
+    let last = &text[start..];
+    if !last.is_empty() && last.bytes().all(|b| b == b'#') {
+        format!("{}\\{}", &text[..start], last)
+    } else {
+        text
     }
 }
 
@@ -329,13 +353,44 @@ pub fn blocks_to_markdown_sparce_indented(
 
 fn join_sparce(blocks: Vec<&Block>, options: &MarkdownOptions, indent: usize) -> String {
     let mut result = String::new();
+    let mut alternate = false;
     for (i, block) in blocks.iter().enumerate() {
         if i > 0 && !block.glues_to(blocks[i - 1]) {
             result.push('\n');
         }
-        result.push_str(&block.to_markdown_indented(options, indent));
+        alternate = i > 0 && same_list_kind(blocks[i - 1], block) && !alternate;
+        if alternate {
+            result.push_str(&block.to_markdown_indented(&alternate_list_tokens(options), indent));
+        } else {
+            result.push_str(&block.to_markdown_indented(options, indent));
+        }
     }
     ensure_trailing_newline(result)
+}
+
+pub(crate) fn same_list_kind(previous: &Block, block: &Block) -> bool {
+    matches!(
+        (previous, block),
+        (Block::BulletList(_), Block::BulletList(_))
+            | (Block::OrderedList(_), Block::OrderedList(_))
+    )
+}
+
+fn alternate_list_tokens(options: &MarkdownOptions) -> MarkdownOptions {
+    let mut alternate = options.clone();
+    let bullet = if options.formatting.list_token_char() == '-' {
+        "*"
+    } else {
+        "-"
+    };
+    let ordered = if options.formatting.ordered_list_token_char() == '.' {
+        ")"
+    } else {
+        "."
+    };
+    alternate.formatting.list_token = Some(bullet.to_string());
+    alternate.formatting.ordered_list_token = Some(ordered.to_string());
+    alternate
 }
 
 pub fn blocks_to_markdown_sparce_skip_frontmatter(

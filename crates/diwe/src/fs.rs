@@ -6,10 +6,11 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use ignore::Match;
 use log::error;
 use rayon::prelude::*;
+use same_file::is_same_file;
 
 pub use liwe::fs::walk_md_paths;
 use liwe::model::config::Format;
-use liwe::model::{Content, State};
+use liwe::model::{Content, Key, State};
 use liwe::operations::Changes;
 
 pub fn key_escapes_workspace(key: &str) -> bool {
@@ -30,6 +31,12 @@ pub fn workspace_document_path(
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             format!("key '{key}' escapes the workspace"),
+        ));
+    }
+    if Key::name(key).has_hidden_or_empty_segment() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("key '{key}' has a segment that is empty or starts with '.'"),
         ));
     }
     Ok(base_path.join(format!("{key}.{extension}")))
@@ -175,6 +182,30 @@ pub fn write_store_at_path(store: &State, to: &Path, format: Format) -> std::io:
 pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std::io::Result<()> {
     let extension = format.extension();
 
+    let removed: Vec<PathBuf> = changes
+        .removes
+        .iter()
+        .map(|key| workspace_document_path(base_path, key.as_str(), extension))
+        .collect::<std::io::Result<_>>()?;
+
+    let mut staged: Vec<(PathBuf, PathBuf)> = Vec::new();
+    for (index, (key, markdown)) in changes.creates.iter().enumerate() {
+        match stage_create(
+            base_path,
+            key.as_str(),
+            extension,
+            index,
+            markdown,
+            &removed,
+        ) {
+            Ok(paths) => staged.push(paths),
+            Err(error) => {
+                discard_staged(&staged);
+                return Err(error);
+            }
+        }
+    }
+
     for key in &changes.removes {
         let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
         if file_path.exists() {
@@ -183,12 +214,11 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
         prune_empty_dirs(file_path.parent(), base_path);
     }
 
-    for (key, markdown) in &changes.creates {
-        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
+    for (temp_path, file_path) in &staged {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        write_file_if_changed(&file_path, markdown)?;
+        fs::rename(temp_path, file_path)?;
     }
 
     for (key, markdown) in &changes.updates {
@@ -197,6 +227,47 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     }
 
     Ok(())
+}
+
+fn stage_create(
+    base_path: &Path,
+    key: &str,
+    extension: &str,
+    index: usize,
+    markdown: &str,
+    removed: &[PathBuf],
+) -> std::io::Result<(PathBuf, PathBuf)> {
+    let file_path = workspace_document_path(base_path, key, extension)?;
+    if file_path.exists()
+        && !removed
+            .iter()
+            .any(|removed_path| is_same_file(removed_path, &file_path).unwrap_or(false))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!("'{}' already exists", file_path.display()),
+        ));
+    }
+    let parent = file_path.parent().unwrap_or(base_path);
+    fs::create_dir_all(parent)?;
+    let temp_path = parent.join(format!(".iwe-{}-{}.tmp", std::process::id(), index));
+    fs::write(&temp_path, markdown)?;
+    fs::File::create_new(&file_path)
+        .and_then(|_| fs::remove_file(&file_path))
+        .or_else(|error| match error.kind() {
+            std::io::ErrorKind::AlreadyExists => Ok(()),
+            _ => Err(error),
+        })
+        .inspect_err(|_| {
+            let _ = fs::remove_file(&temp_path);
+        })?;
+    Ok((temp_path, file_path))
+}
+
+fn discard_staged(staged: &[(PathBuf, PathBuf)]) {
+    for (temp_path, _) in staged {
+        let _ = fs::remove_file(temp_path);
+    }
 }
 
 fn prune_empty_dirs(start: Option<&Path>, base_path: &Path) {
@@ -226,6 +297,54 @@ fn sanitize_content(content: String) -> String {
 mod tests {
     use super::*;
     use liwe::model::Key;
+
+    #[test]
+    fn failed_create_leaves_removed_documents_in_place() {
+        let base = tempfile::tempdir().unwrap();
+        std::fs::write(base.path().join("source.md"), "# source\n").unwrap();
+        std::fs::write(base.path().join("blocker"), "x").unwrap();
+        let changes = Changes {
+            creates: vec![(Key::name("blocker/target"), "# source\n".to_string())],
+            updates: vec![],
+            removes: vec![Key::name("source")],
+        };
+
+        let result = apply_changes(&changes, base.path(), Format::Markdown);
+
+        assert!(result.is_err());
+        assert_eq!(
+            std::fs::read_to_string(base.path().join("source.md")).unwrap(),
+            "# source\n"
+        );
+        let mut entries: Vec<String> = std::fs::read_dir(base.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        entries.sort();
+        assert_eq!(entries, vec!["blocker", "source.md"]);
+    }
+
+    #[test]
+    fn document_path_rejects_hidden_or_empty_segments() {
+        let base = Path::new("/workspace");
+        let errors: Vec<String> = [".", "dir/", ".hidden", "dir/.note"]
+            .iter()
+            .map(|key| {
+                workspace_document_path(base, key, "md")
+                    .unwrap_err()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            vec![
+                "key '.' has a segment that is empty or starts with '.'",
+                "key 'dir/' has a segment that is empty or starts with '.'",
+                "key '.hidden' has a segment that is empty or starts with '.'",
+                "key 'dir/.note' has a segment that is empty or starts with '.'",
+            ],
+            errors
+        );
+    }
 
     #[test]
     fn sanitize_content_strips_crlf() {

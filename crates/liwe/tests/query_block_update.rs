@@ -758,6 +758,73 @@ fn insert_after_section_lands_below_the_whole_tree() {
 }
 
 #[test]
+fn insert_after_empty_section_lands_as_sibling() {
+    assert_update(
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Later
+
+            Later content
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $section: Goals
+                content: \"## Inserted\"
+        "},
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Inserted
+
+            ## Later
+
+            Later content
+        "},
+    );
+}
+
+#[test]
+fn insert_after_empty_section_inside_or_lands_as_sibling() {
+    assert_update(
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Later
+
+            Later content
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $or:
+                  - $section: Goals
+                content: \"## Inserted\"
+        "},
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Inserted
+
+            ## Later
+
+            Later content
+        "},
+    );
+}
+
+#[test]
 fn delete_header_node_beside_replace_text_inside_is_legal() {
     assert_update(
         indoc! {"
@@ -999,6 +1066,91 @@ fn insert_after_section_after_unselected_sibling_lands_once() {
             ## Other
 
             other body
+        "},
+    );
+}
+
+#[test]
+fn delete_every_item_removes_the_list() {
+    assert_update(
+        indoc! {"
+            # Doc
+
+            - one
+            - two
+
+            after
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $delete:
+                $item: {}
+        "},
+        indoc! {"
+            # Doc
+
+            after
+        "},
+    );
+}
+
+#[test]
+fn replace_every_header_keeps_each_section() {
+    assert_update(
+        indoc! {"
+            # A
+
+            ## B
+
+            ## C
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $replace:
+                $header: {}
+                content: \"## X\"
+        "},
+        indoc! {"
+            # X
+
+            ## X
+
+            ## X
+        "},
+    );
+}
+
+#[test]
+fn insert_after_header_whose_subsections_all_match_goes_below_the_header() {
+    assert_update(
+        indoc! {"
+            # A
+
+            ## B
+
+            ## C
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $header: {}
+                content: new
+        "},
+        indoc! {"
+            # A
+
+            new
+
+            ## B
+
+            new
+
+            ## C
+
+            new
         "},
     );
 }

@@ -1,3 +1,4 @@
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::{
     graph::builder::GraphBuilder,
     model::{document::DocumentInline, reference::Target, Key, LineRange, NodesMap},
@@ -9,7 +10,7 @@ use crate::model::document::DocumentBlock::{
     RawBlock,
 };
 use crate::model::document::DocumentBlocks;
-use crate::model::inline::to_graph_inlines;
+use crate::model::inline::{to_graph_inlines, Inline, FLATTENED_BLOCK};
 
 type Range = std::ops::Range<usize>;
 
@@ -123,10 +124,10 @@ impl<'a> SectionsBuilder<'a> {
                 }
             }
             _ => {
-                self.builder.section(to_graph_inlines(
-                    &vec![DocumentInline::Str(block.to_section_plain_text())],
-                    &self.key.parent(),
-                ));
+                self.builder.section(vec![Inline::RawInline(
+                    FLATTENED_BLOCK.to_string(),
+                    block.to_section_plain_text(),
+                )]);
                 self.set_lines_range(block.line_range());
             }
         };
@@ -142,8 +143,13 @@ impl<'a> SectionsBuilder<'a> {
                 self.builder.html(raw_block.text.trim_end_matches('\n'));
                 self.set_lines_range(raw_block.line_range);
             }
-            RawBlock(raw_block) => {
+            RawBlock(raw_block) if raw_block.format == UNPARSED_FRONTMATTER => {
                 self.builder.raw(&raw_block.text, Some(raw_block.format));
+                self.set_lines_range(raw_block.line_range);
+            }
+            RawBlock(raw_block) => {
+                self.builder
+                    .raw(&raw_block.text, Some(format!("={}", raw_block.format)));
                 self.set_lines_range(raw_block.line_range);
             }
             Plain(plain) => {

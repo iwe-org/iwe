@@ -28,6 +28,7 @@ relative-path.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
 ignore.workspace = true
+same-file = "1"
 globset = { workspace = true, optional = true }
 csv = { workspace = true, optional = true }
 tiktoken-rs = { workspace = true, optional = true }

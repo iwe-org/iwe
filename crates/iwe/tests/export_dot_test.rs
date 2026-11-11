@@ -107,3 +107,83 @@ fn test_export_dot_rejects_unknown_key() {
         "Error: Document 'missing' not found\n"
     );
 }
+
+fn workspace_with(docs: &[(&str, &str)]) -> TempDir {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    create_dir_all(temp_dir.path().join(".iwe")).unwrap();
+    let config = Configuration {
+        workspace: WorkspaceOptions {
+            path: "".to_string(),
+            ..Default::default()
+        },
+        markdown: MarkdownOptions {
+            refs_extension: "".to_string(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    write(
+        temp_dir.path().join(".iwe/config.toml"),
+        toml::to_string(&config).unwrap(),
+    )
+    .unwrap();
+    for (key, content) in docs {
+        write(temp_dir.path().join(format!("{}.md", key)), content).unwrap();
+    }
+    temp_dir
+}
+
+fn body_lines(output: std::process::Output) -> Vec<String> {
+    assert!(output.status.success());
+    let mut lines: Vec<String> = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .filter(|line| line.contains("label=") || line.contains("->"))
+        .map(|line| {
+            line.trim()
+                .split(' ')
+                .map(|part| part.trim_start_matches(|c: char| c.is_ascii_digit()))
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect();
+    lines.sort();
+    lines
+}
+
+#[test]
+fn default_depth_follows_every_level() {
+    let temp_dir = workspace_with(&[
+        ("root", "# Root\n\n[Child](child)\n"),
+        ("child", "# Child\n\n[Leaf](leaf)\n"),
+        ("leaf", "# Leaf\n\ntext\n"),
+    ]);
+
+    assert_eq!(
+        body_lines(run_export_dot_command(&temp_dir, &[])),
+        body_lines(run_export_dot_command(&temp_dir, &["--depth", "3"]))
+    );
+    assert_eq!(
+        body_lines(run_export_dot_command(&temp_dir, &[])),
+        vec![
+            " ->  [color=\"#38546c66\" arrowhead=normal penwidth=1.2]".to_string(),
+            " ->  [color=\"#38546c66\" arrowhead=normal penwidth=1.2]".to_string(),
+            "[label=\"Child\" fillcolor=\"#e9f9ef\" fontsize=32 fontname=Verdana color=\"#b3b3b3\" penwidth=1.5 shape=note style=filled]".to_string(),
+            "[label=\"Leaf\" fillcolor=\"#e2f6f6\" fontsize=24 fontname=Verdana color=\"#b3b3b3\" penwidth=1.5 shape=note style=filled]".to_string(),
+            "[label=\"Root\" fillcolor=\"#dcf7f7\" fontsize=40 fontname=Verdana color=\"#b3b3b3\" penwidth=1.5 shape=note style=filled]".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn title_ending_in_a_backslash_is_escaped() {
+    let temp_dir = workspace_with(&[("root", "# Root\\\n")]);
+
+    assert_eq!(
+        body_lines(run_export_dot_command(&temp_dir, &[])),
+        vec![
+            "[label=\"Root\\\\\" fillcolor=\"#dcf7f7\" fontsize=24 fontname=Verdana color=\"#b3b3b3\" penwidth=1.5 shape=note style=filled]"
+                .to_string()
+        ]
+    );
+}

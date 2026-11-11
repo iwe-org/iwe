@@ -1,9 +1,18 @@
 use std::fs::read_to_string;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use tempfile::TempDir;
 
 use diwe::config::{Configuration, NoteTemplate};
+
+fn working_directory(path: &Path) -> PathBuf {
+    if cfg!(windows) {
+        path.to_path_buf()
+    } else {
+        path.canonicalize().unwrap()
+    }
+}
 
 fn setup_iwe_project() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -773,5 +782,52 @@ fn test_new_key_with_template_renders_body() {
     assert!(
         !temp_path.join("notes/hello-there.md").exists(),
         "Should bypass the template's key derivation"
+    );
+}
+
+#[test]
+fn test_new_rejects_key_with_empty_segment() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .args(["new", "Title", "--key", "dir/"])
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error: Key 'dir/' has a segment that is empty or starts with '.'\n"
+    );
+    assert!(!temp_path.join("dir").exists());
+}
+
+#[test]
+fn test_new_with_invalid_date_format_fails_without_crashing() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+    let config_path = temp_path.join(".iwe").join("config.toml");
+    let mut config: Configuration = toml::from_str(&read_to_string(&config_path).unwrap()).unwrap();
+    config.workspace.date_format = Some("%Q%".to_string());
+    std::fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .args(["new", "Title"])
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        format!(
+            "Error: Invalid config file '{}': '%Q%' in workspace.date_format is not a valid date format\n",
+            working_directory(temp_path)
+                .join(".iwe")
+                .join("config.toml")
+                .display()
+        )
     );
 }

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `iwe_query` delete with several matched documents now removes every link to them; previously only the links to the last one were cleaned up when they shared a parent
+- Inline tool on a reference to the same document returns an error instead of crashing
+- `iwe_query` filters with an empty mapping such as `status: {}` match only documents whose field is an empty mapping (previously they matched every document)
+- Tools that report document titles no longer show a title after the document stopped having one
+- `iwe_query` update with `$insertAfter` on an empty `$section` inserts after the section instead of nesting the new block inside it
+- `iwe_query` update with `$delete` of every item in a list no longer leaves an extra blank line
+- `iwe_query` update that changes fields fails on a document whose frontmatter is not valid YAML instead of dropping the old fields
+- Rename and extract tools keep the original document when the new file cannot be created (previously the original was already deleted)
+- Rename tool to a name that differs only in letter case from another document fails instead of overwriting that document on case-insensitive file systems
+- Create, rename and extract tools reject keys with an empty segment or a segment starting with `.`, such as `dir/` or `.`, which created hidden files that disappeared from the workspace
+- Rename and extract tools fail instead of overwriting a file that exists on disk but is not in the loaded graph
+- An invalid date or time format in the config is reported when the server starts instead of crashing a tool call later
+- Squash tool stops at a link back to a document it is already expanding, so cyclic references finish quickly instead of repeating content
+- `iwe_query` update with `$replace` or `$insertAfter` on `$header` acts on each header instead of the whole section when every block under it also matches
+- Inline tool that deletes the inlined document also removes the other links to it from the source document
+- Squash tool keeps content in its original order and writes headings deeper than six levels as level six instead of plain text
+- Fuzzy search in `iwe_find` and `iwe_retrieve` ignores letter case, so a query with capitals still matches
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

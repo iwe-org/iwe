@@ -74,6 +74,9 @@ pub enum EvalError {
         documents: Vec<DocRef>,
     },
     SearchIndexMissing,
+    UnparsedFrontmatter {
+        documents: Vec<DocRef>,
+    },
 }
 
 fn blocks_str(blocks: &[BlockRef]) -> String {
@@ -177,6 +180,11 @@ impl std::fmt::Display for EvalError {
                 op,
                 fmt_expect(expected, "document"),
                 actual,
+                docs_str(documents)
+            ),
+            EvalError::UnparsedFrontmatter { documents } => write!(
+                f,
+                "frontmatter could not be parsed, fix it before changing its fields\n{}",
                 docs_str(documents)
             ),
             EvalError::SearchIndexMissing => write!(
@@ -628,7 +636,12 @@ fn apply_edits(tree: &Tree, edits: &HashMap<NodeId, Action>) -> Tree {
                 updated.node = with_raw_content(&updated.node, content.clone());
                 children.push(updated);
             }
-            None => children.push(apply_edits(child, edits)),
+            None => {
+                let updated = apply_edits(child, edits);
+                if !(updated.is_list() && updated.children.is_empty()) {
+                    children.push(updated);
+                }
+            }
         }
     }
     Tree {

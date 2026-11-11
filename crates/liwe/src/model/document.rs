@@ -102,7 +102,7 @@ impl DocumentBlock {
                 format!(
                     "```{}\n{}\n```",
                     code_block.lang.as_deref().unwrap_or(""),
-                    code_block.text
+                    code_block.text.trim_end_matches('\n')
                 )
             }
             DocumentBlock::RawBlock(raw_block) => raw_block.text.clone(),
@@ -631,7 +631,7 @@ impl DocumentInline {
             DocumentInline::LineBreak(_) => Inline::LineBreak,
             DocumentInline::Link(link) => {
                 let inlines = to_graph_inlines(&link.inlines, relative_to);
-                if model::is_document_url(&link.target.url) && !link.target.url.starts_with('#') {
+                if model::is_document_url(&link.target.url) {
                     Inline::Reference(Reference {
                         target: RefTarget::from_link_url(
                             &link.target.url,

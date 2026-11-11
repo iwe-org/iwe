@@ -205,16 +205,32 @@ fn top_level_keys(graph: &Graph, depth_limit: u8) -> HashMap<Key, u8> {
         });
 
     let mut keys = HashMap::new();
-    top_level.for_each(|k| get_keys_for_depth(graph, &k.0, depth_limit, &mut keys));
+    for (key, _) in top_level {
+        for (k, d) in collect_depths(graph, &key, depth_limit) {
+            keys.entry(k).or_insert(d);
+        }
+    }
     keys
+}
+
+fn collect_depths(graph: &Graph, key: &Key, depth_limit: u8) -> HashMap<Key, u8> {
+    let mut keys = HashMap::new();
+    if depth_limit > 0 {
+        get_keys_for_depth(graph, key, depth_limit, &mut keys);
+        return keys;
+    }
+    get_keys_for_depth(graph, key, u8::MAX, &mut keys);
+    let deepest = keys.values().copied().min().unwrap_or(u8::MAX);
+    keys.into_iter()
+        .map(|(k, d)| (k, d - deepest + 1))
+        .collect()
 }
 
 fn filter_key(graph: &Graph, key: Key, depth_limit: u8) -> HashMap<Key, u8> {
     if graph.maybe_key(&key).is_none() {
         return HashMap::new();
     }
-    let mut keys = HashMap::new();
-    get_keys_for_depth(graph, &key, depth_limit, &mut keys);
+    let mut keys = collect_depths(graph, &key, depth_limit);
 
     for key in keys.keys().cloned().collect::<Vec<_>>() {
         let references = graph.get_inclusion_edges_to(&key);

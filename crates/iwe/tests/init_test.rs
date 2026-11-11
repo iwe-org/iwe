@@ -733,3 +733,17 @@ fn init_lists_the_candidates_when_two_folders_look_like_notes() {
         &report["notes"][0]
     );
 }
+
+#[test]
+fn init_rejects_an_invalid_date_format() {
+    let temp = TempDir::new().unwrap();
+
+    let output = run_init(temp.path(), &["--auto", "--date-format", "%Q%"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stderr_of(&output),
+        "Error: '%Q%' is not a valid date format\n"
+    );
+    assert!(!temp.path().join(".iwe").exists());
+}

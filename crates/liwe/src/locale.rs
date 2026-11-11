@@ -1,3 +1,4 @@
+use chrono::format::{Item, StrftimeItems};
 use chrono::Locale;
 use std::str::FromStr;
 
@@ -7,6 +8,10 @@ pub fn get_locale(config_locale: Option<&str>) -> Locale {
         .or_else(sys_locale::get_locale)
         .and_then(|s| parse_locale(&s))
         .unwrap_or(Locale::POSIX)
+}
+
+pub fn is_valid_date_format(format: &str) -> bool {
+    !StrftimeItems::new(format).any(|item| matches!(item, Item::Error))
 }
 
 pub fn strip_locale_encoding(value: &str) -> &str {

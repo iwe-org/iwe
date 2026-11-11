@@ -43,6 +43,12 @@ pub fn inline(
         return Err(OperationError::TargetNotFound(inline_key));
     }
 
+    if &inline_key == source_key {
+        return Err(OperationError::InvalidTarget(
+            "Document cannot be inlined into itself".to_string(),
+        ));
+    }
+
     let format = graph.format_options().clone();
     let inline_tree = graph.collect(&inline_key);
 
@@ -69,6 +75,16 @@ pub fn inline(
         }
     };
 
+    let links_to = |target: &Target| graph.target_key(target) == inline_key;
+
+    let updated_tree = if config.keep_target {
+        updated_tree
+    } else {
+        updated_tree
+            .remove_inclusion_edges_to(&links_to)
+            .remove_inline_links_to(&links_to)
+    };
+
     let source_markdown = updated_tree.iter().to_text(&source_key.parent(), &format);
     result.add_update(source_key.clone(), source_markdown);
 
@@ -84,8 +100,6 @@ pub fn inline(
             .map(|node_id| graph.key_of(node_id))
             .filter(|k| k != source_key && k != &inline_key)
             .collect();
-
-        let links_to = |target: &Target| graph.target_key(target) == inline_key;
 
         for ref_key in additional_refs.iter().sorted() {
             let tree = graph.collect(ref_key);

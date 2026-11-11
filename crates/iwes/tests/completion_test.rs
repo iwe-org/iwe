@@ -1063,3 +1063,52 @@ fn completion_bracket_prefix_min_length_applies_to_query_only() {
         completion_list(vec![]),
     );
 }
+
+#[test]
+fn completion_drops_title_removed_by_edit() {
+    Fixture::with_config(
+        indoc! {"
+            # test
+            _
+            # other
+            "},
+        no_min_prefix(),
+    )
+    .did_change_text_document(uri(2).to_did_change_params(1, "plain paragraph\n".to_string()))
+    .completion(
+        uri(1).to_completion_params(2, 0),
+        completion_list(vec![
+            completion_item("🔗 ", "[](2)", "", "", empty_range(2, 0)),
+            completion_item("🔗 test", "[test](1)", "test", "test", empty_range(2, 0)),
+        ]),
+    );
+}
+
+#[test]
+fn completion_with_bracket_glued_to_text_replaces_only_from_the_bracket() {
+    Fixture::with_options_and_client(
+        vec![(
+            "doc".to_string(),
+            indoc! {"
+                # Header
+                参见[[fo
+            "}
+            .to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        no_min_prefix(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("doc").to_completion_params(1, 6),
+        completion_list(vec![completion_item(
+            "🔗 Header",
+            "[[doc]]",
+            "header",
+            "Header",
+            replace_range(1, 2, 6),
+        )]),
+    );
+}

@@ -1,6 +1,7 @@
 use std::sync::Once;
 
 use indoc::indoc;
+use itertools::Itertools;
 use pretty_assertions::assert_str_eq;
 
 use liwe::model::config::{MarkdownOptions, RefsPath, RefsText, WikiLinkPath};
@@ -1089,4 +1090,41 @@ fn setup() {
     INIT.call_once(|| {
         let _ = env_logger::builder().try_init();
     });
+}
+
+#[test]
+fn fragment_only_paragraph_link_is_not_a_block_reference() {
+    let content = indoc! {"
+        # Title
+
+        [Intro](#intro)
+    "};
+    let mut graph = Graph::new();
+    graph.from_markdown(Key::name("notes/sub"), content, MarkdownReader::new());
+
+    assert_eq!(Vec::<Key>::new(), graph.inclusion_edge_target_keys());
+    assert_str_eq!(content, graph.to_markdown(&Key::name("notes/sub")));
+}
+
+#[test]
+fn encoded_hash_in_link_path_is_part_of_the_key() {
+    let content = indoc! {"
+        # Title
+
+        [notes](<C%23 notes>)
+
+        [section](other#part%20one)
+    "};
+    let mut graph = Graph::new();
+    graph.from_markdown(Key::name("index"), content, MarkdownReader::new());
+
+    assert_eq!(
+        vec![Key::name("C# notes"), Key::name("other")],
+        graph
+            .inclusion_edge_target_keys()
+            .into_iter()
+            .sorted()
+            .collect::<Vec<_>>()
+    );
+    assert_str_eq!(content, graph.to_markdown(&Key::name("index")));
 }

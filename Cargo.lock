@@ -739,6 +739,7 @@ dependencies = [
  "pretty_assertions",
  "rayon",
  "relative-path",
+ "same-file",
  "serde",
  "serde_yaml",
  "tempfile",

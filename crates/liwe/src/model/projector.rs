@@ -1,4 +1,5 @@
 use crate::model::config::RefsPath;
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::model::inline::{prepend_checkbox, Inline, Inlines};
 use crate::model::node::{Node, NodeIter, Reference, ReferenceType, Target};
 use crate::model::writer::Block;
@@ -142,6 +143,9 @@ impl Projector {
                     if let Some(child) = iter.child() {
                         blocks.extend(self.with(self.header_level).project_node(child));
                     }
+                }
+                Node::Raw(lang, content) if lang.as_deref() == Some(UNPARSED_FRONTMATTER) => {
+                    blocks.push(Block::RawBlock(UNPARSED_FRONTMATTER.to_string(), content));
                 }
                 Node::Raw(_, _) => {
                     blocks.push(Block::CodeBlock(

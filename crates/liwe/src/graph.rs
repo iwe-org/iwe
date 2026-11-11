@@ -23,6 +23,7 @@ use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
 use crate::model::config::{Format, FormatOptions, MarkdownOptions, WikiLinkPath};
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::model::frontmatter_to_string;
 use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
@@ -280,6 +281,14 @@ impl Graph {
         build_index_and_titles(self);
     }
 
+    pub fn has_unparsed_frontmatter(&self, key: &Key) -> bool {
+        self.keys
+            .get(key)
+            .and_then(|id| self.graph_node(*id).child_id())
+            .map(|child| self.graph_node(child).lang())
+            .is_some_and(|lang| lang.as_deref() == Some(UNPARSED_FRONTMATTER))
+    }
+
     pub fn raw_metadata(&self, key: &Key) -> Option<String> {
         self.frontmatter.get(key).map(frontmatter_to_string)
     }
@@ -423,8 +432,7 @@ impl Graph {
             .set_node(id, GraphNode::new_root(key.clone(), id));
         f(&mut GraphBuilder::new(self, id));
 
-        self.extract_ref_text(key)
-            .map(|text| self.keys_to_ref_text.insert(key.clone(), text));
+        self.refresh_ref_text(key);
 
         let mut index = RefIndex::new();
         index.index_node(self, id);
@@ -441,6 +449,13 @@ impl Graph {
         self.graph_node(self.get_document_id(key))
             .child_id()
             .map(|id| self.graph_node(id))
+            .and_then(|node| {
+                if node.lang().as_deref() == Some(UNPARSED_FRONTMATTER) {
+                    node.next_id().map(|id| self.graph_node(id))
+                } else {
+                    Some(node)
+                }
+            })
             .filter(|node| node.is_section())
             .and_then(|node| node.line_id())
             .map(|line_id| self.arena.get_line(line_id).to_plain_text())
@@ -496,8 +511,7 @@ impl Graph {
         index.index_node(self, id);
         self.index.merge(index);
 
-        self.extract_ref_text(&key)
-            .map(|text| self.keys_to_ref_text.insert(key, text));
+        self.refresh_ref_text(&key);
     }
 
     pub fn key_index(&self) -> &KeyIndex {
@@ -930,8 +944,7 @@ impl<'a> GraphPatch<'a> for Graph {
         self.nodes_map.insert(key.clone(), map.clone());
         self.global_nodes_map.extend(map);
 
-        self.extract_ref_text(key)
-            .map(|text| self.keys_to_ref_text.insert(key.clone(), text));
+        self.refresh_ref_text(key);
 
         let id = self.get_document_id(key);
         let mut index = RefIndex::new();
@@ -1009,9 +1022,16 @@ impl GraphContext for &Graph {
         let mut keys = vec![];
 
         if self.sequential_keys {
-            for i in 0..number {
-                let key_num = self.keys.len() + 1 + i;
-                keys.push(key_num.to_string());
+            let mut candidate = self.keys.len();
+            while keys.len() < number {
+                candidate += 1;
+                let key = candidate.to_string();
+                if !self
+                    .keys
+                    .contains_key(&Key::from_rel_link_url(&key, relative_to))
+                {
+                    keys.push(key);
+                }
             }
             return keys;
         } else {
@@ -1239,6 +1259,18 @@ mod new_api_tests {
             Some("title: Hello".to_string())
         );
         assert_eq!(graph.raw_metadata(&"no-front".into()), None);
+    }
+
+    #[test]
+    fn sequential_ids_skip_existing_keys() {
+        let mut graph = Graph::new();
+        graph.set_sequential_keys(true);
+        graph.insert_document("1".into(), "# One\n".to_string());
+        graph.insert_document("3".into(), "# Three\n".to_string());
+        assert_eq!(
+            vec!["4".to_string(), "5".to_string()],
+            (&graph).unique_ids("", 2)
+        );
     }
 
     #[test]

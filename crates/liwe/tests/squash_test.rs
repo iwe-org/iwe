@@ -179,16 +179,95 @@ fn squash_depth_counter() {
         indoc! {"
             # title 1
 
-            ## title 2
-
-            ### title 3
-
             text
 
             ## title 2
 
             ### title 3
+
+            ## title 2
+
+            ### title 3
             "},
+    );
+}
+
+#[test]
+fn squash_keeps_reference_before_later_subsections() {
+    squash(
+        indoc! {"
+            # A
+
+            para 1
+
+            [B](2)
+
+            para 2
+
+            ## Sub
+
+            sub text
+            _
+            # B
+
+            b text
+            "},
+        indoc! {"
+            # A
+
+            para 1
+
+            para 2
+
+            ## B
+
+            b text
+
+            ## Sub
+
+            sub text
+            "},
+    );
+}
+
+#[test]
+fn squash_caps_heading_levels_at_six() {
+    setup();
+    let state: liwe::model::State = (1..=8)
+        .map(|n| {
+            let content = if n < 8 {
+                format!("# D{}\n\n[D{}]({})\n", n, n + 1, n + 1)
+            } else {
+                format!("# D{}\n\nend\n", n)
+            };
+            (n.to_string(), content)
+        })
+        .collect();
+    let graph = &Graph::import(&state, MarkdownOptions::default(), None);
+    let mut patch = Graph::new();
+    let document_tree = graph.squash(&"1".into(), 10);
+    patch.build_key_from_iter(&"1".into(), document_tree.iter());
+    assert_eq!(
+        patch.export_key(&"1".into()).unwrap(),
+        indoc! {"
+            # D1
+
+            ## D2
+
+            ### D3
+
+            #### D4
+
+            ##### D5
+
+            ###### D6
+
+            ###### D7
+
+            ###### D8
+
+            end
+        "}
     );
 }
 
@@ -273,12 +352,47 @@ fn squash_infinite_recursion() {
 
             text 2
 
-            ### file 1 title
-
-            text 1
-
-            [file 2 title](2)
+            [file 1 title](1)
             "},
+    );
+}
+
+#[test]
+fn squash_cycle_with_many_references_stops_at_visited_documents() {
+    setup();
+    let state: liwe::model::State = [
+        (
+            "1".to_string(),
+            "# One\n\n[Two](2)\n\n[Two](2)\n".to_string(),
+        ),
+        (
+            "2".to_string(),
+            "# Two\n\n[One](1)\n\n[One](1)\n".to_string(),
+        ),
+    ]
+    .into_iter()
+    .collect();
+    let graph = &Graph::import(&state, MarkdownOptions::default(), None);
+    let mut patch = Graph::new();
+    let document_tree = graph.squash(&"1".into(), 60);
+    patch.build_key_from_iter(&"1".into(), document_tree.iter());
+    assert_eq!(
+        patch.export_key(&"1".into()).unwrap(),
+        indoc! {"
+            # One
+
+            ## Two
+
+            [One](1)
+
+            [One](1)
+
+            ## Two
+
+            [One](1)
+
+            [One](1)
+        "}
     );
 }
 

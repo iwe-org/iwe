@@ -130,6 +130,12 @@ impl Key {
         }
     }
 
+    pub fn has_hidden_or_empty_segment(&self) -> bool {
+        self.text
+            .split('/')
+            .any(|segment| segment.is_empty() || segment.starts_with('.'))
+    }
+
     pub fn from_stripped(key: &str) -> Self {
         Key {
             text: Arc::from(key),
@@ -137,12 +143,14 @@ impl Key {
     }
 
     pub fn from_rel_link_url(url: &str, relative_to: &str) -> Self {
-        let decoded = percent_decode_str(url).decode_utf8_lossy().into_owned();
-        let without_fragment = match decoded.split_once('#') {
+        let without_fragment = match url.split_once('#') {
             Some((path, _)) => path,
-            None => decoded.as_str(),
+            None => url,
         };
-        let key = strip_doc_extension(without_fragment);
+        let decoded = percent_decode_str(without_fragment)
+            .decode_utf8_lossy()
+            .into_owned();
+        let key = strip_doc_extension(&decoded);
         let base = if key.starts_with('/') {
             ""
         } else {
@@ -182,10 +190,11 @@ impl Key {
     }
 
     pub fn link_url(&self, relative_to: &str, refs_path: RefsPath) -> String {
-        match refs_path {
+        let url = match refs_path {
             RefsPath::Relative => self.to_rel_link_url(relative_to),
             RefsPath::Absolute => format!("/{}", self.to_workspace_url()),
-        }
+        };
+        url.replace('#', "%23")
     }
 
     pub fn last_url_segment(&self) -> String {
@@ -288,6 +297,7 @@ pub fn is_document_url(url: &str) -> bool {
     let path = url.split_once('#').map(|(path, _)| path).unwrap_or(url);
     let last = path.rsplit('/').next().unwrap_or(path);
     is_ref_url(url)
+        && !path.is_empty()
         && !path.ends_with('/')
         && last != "."
         && last != ".."
@@ -346,7 +356,7 @@ pub fn normalize_url(url: &str, extension: &str) -> String {
 
 #[cfg(test)]
 mod test {
-    use super::{is_document_url, is_ref_url, normalize_url};
+    use super::{is_document_url, is_ref_url, normalize_url, Key, RefsPath};
 
     #[test]
     fn tel_url_is_external() {
@@ -395,6 +405,19 @@ mod test {
         assert!(!is_document_url("file.yaml"));
         assert!(!is_document_url("../dir/file.pdf"));
         assert!(!is_document_url("image.png#fragment"));
+        assert!(!is_document_url("#fragment"));
+    }
+
+    #[test]
+    fn link_url_encodes_hash_in_key() {
+        assert_eq!(
+            "C%23 notes",
+            Key::name("C# notes").link_url("", RefsPath::Relative)
+        );
+        assert_eq!(
+            "/dir/C%23",
+            Key::name("dir/C#").link_url("", RefsPath::Absolute)
+        );
     }
 
     #[test]

@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `delete_all` operation deletes a set of documents and cleans up the links to all of them in one pass
+- `Graph::has_unparsed_frontmatter`, `check_frontmatter_parsed` and `EvalError::UnparsedFrontmatter` report documents whose frontmatter is not a valid YAML mapping
+- `Key::has_hidden_or_empty_segment` tells whether a key would be written to a hidden file or a path with an empty segment
+- `locale::is_valid_date_format` checks a strftime format string
+
+### Changed
+- List item whose first block is a quote, code block, table or HTML holds that block as one `Inline::RawInline` with format `flattened-block` (previously its text was split into `Str` words)
+- Djot raw blocks other than HTML are held as `Node::Raw` with the language `=format` (previously the bare format, which wrote them back as code blocks)
+
+### Fixed
+- `inline` returns `InvalidTarget` when a document references itself instead of overflowing the stack
+- Filter with an empty mapping such as `status: {}` matches only documents whose field is an empty mapping (previously it matched every document)
+- `is_document_url` is false for a fragment-only link such as `#intro`, so a standalone paragraph with such a link is no longer read as a block reference to the parent directory
+- Percent-encoded `#` in a link path (`%23`) is part of the document key instead of starting a fragment, and `Key::link_url` writes it back encoded
+- Document title is cleared when an update removes the title, instead of keeping the old one
+- Markdown writer keeps escaped characters literal in more places: block markers inside quotes and list items, `*` and `_` inside emphasis, `[` and `]` in link text and image alt text, `[[` and HTML tags split by escapes, `~~~` fences, a trailing `#` in headings, and markers at the start of a line after a preserved line break
+- List item whose first block is a quote, code block, table or HTML keeps that block's text exactly, including indentation inside code (previously whitespace was collapsed)
+- Markdown writer keeps two-space line breaks inside block quotes
+- Block update `$insertAfter` on a `$section` with no content inserts after the section instead of nesting the new block inside it, also when the `$section` is inside `$and` or `$or`
+- Djot writer escapes `<` so text such as `\<http://example.com>` is not turned into a link
+- Markdown writer closes math with `$` and `$$` delimiters (previously only the opening one was written)
+- Sequential document ids skip ids that are already taken instead of reusing them
+- Block update `$delete` of every item in a list removes the list without leaving an extra blank line
+- Frontmatter that is not a valid YAML mapping is kept as written instead of being replaced with an empty mapping
+- Markdown reader treats only a `---` block at the very start of a document as frontmatter, so a later `---` block stays in the body instead of replacing the frontmatter
+- `rename` returns `AlreadyExists` when the new key differs only in letter case from another document, which would be the same file on case-insensitive file systems
+- `rename` and `extract` return `InvalidTarget` for a key with an empty segment or a segment starting with `.`, which would be written to a hidden file the loader never reads
+- Djot writer makes a code block fence longer than any backtick run inside the code, so code that contains a fence is kept
+- Djot reader keeps empty task items, and keeps the text of description list terms and table captions as paragraphs instead of dropping it
+- `squash` does not expand a reference to a document that is already being expanded, so a cycle no longer repeats content or takes exponential time
+- Block update on `$header` targets only the header itself even when every block under it also matches (previously the whole section was replaced or used as the anchor)
+- `inline` that deletes the target also removes the other links to it from the source document
+- Markdown writer escapes `&` before an entity name, `<` before an autolink, `!` before a link, and `[` whose `](` would form a link, and keeps non-breaking spaces
+- Markdown and djot writers give a list that directly follows another list of the same kind the other marker (`*` or `)`), so the two lists no longer merge on the next read
+- Djot writer no longer escapes `|` inside code spans in table cells, which added a backslash on every write
+- Djot writer keeps escapes for list markers such as `(1)`, `a.` and `(iv)` and for `:::` at the start of a paragraph, so the text does not turn into a list or a div
+- `squash` keeps an expanded reference before the later subsections of its section instead of moving it to the end, and inlines a reference without headers where it stood
+- Markdown and djot writers write headings deeper than six levels as level six instead of a line of seven or more `#` that reads back as a paragraph
+- Markdown writer keeps the title of external links and images, such as `[text](https://example.com "Title")`, instead of dropping it
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

@@ -223,11 +223,18 @@ impl Tree {
     }
 
     pub fn append_pre_header(&self, target_id: NodeId, new: Tree) -> Tree {
-        let mut children = self.children.clone();
-
         if self.id_eq(target_id) {
-            children.insert(self.pre_sub_header_position(), new.clone());
+            let mut children = self.children.clone();
+            children.insert(self.pre_sub_header_position(), new);
+            return Tree {
+                id: self.id,
+                line_range: self.line_range.clone(),
+                node: self.node.clone(),
+                children,
+            };
         }
+
+        let children = self.children.clone();
 
         Tree {
             id: self.id,
@@ -457,57 +464,78 @@ impl Tree {
     }
 
     pub fn squash_from_pointer<'a>(pointer: impl NodePointer<'a>, depth: u8) -> Vec<Tree> {
+        let mut path: Vec<Key> = pointer
+            .to_document()
+            .and_then(|d| d.document_key())
+            .into_iter()
+            .collect();
+        Tree::squash_along_path(pointer, depth, &mut path)
+    }
+
+    fn squash_along_path<'a>(
+        pointer: impl NodePointer<'a>,
+        depth: u8,
+        path: &mut Vec<Key>,
+    ) -> Vec<Tree> {
         let id = pointer.iter_id();
         let line_range = pointer.line_range();
         let node = pointer.node().unwrap();
-        let mut children = Vec::new();
 
-        if let Some(child) = pointer.child() {
-            children.push(child)
-        }
-
-        if let Some(child) = pointer.child() {
-            let mut i = child;
-            while let Some(next) = i.next() {
-                if !next.is_reference() {
-                    children.push(next);
+        let mut content = Vec::new();
+        let mut expanded_sections = Vec::new();
+        let mut sections = Vec::new();
+        let mut cursor = pointer.child();
+        while let Some(child) = cursor {
+            cursor = child.next();
+            if child.is_reference() {
+                let expanded = Tree::squash_reference(child, depth, path);
+                if expanded.iter().any(|tree| tree.is_section()) {
+                    expanded_sections.extend(expanded);
+                } else {
+                    content.extend(expanded);
                 }
-                i = i.next().unwrap();
+            } else if child.is_section() {
+                sections.extend(Tree::squash_along_path(child, depth, path));
+            } else {
+                content.extend(Tree::squash_along_path(child, depth, path));
             }
         }
-
-        if let Some(child) = pointer.child() {
-            let mut i = child;
-            while let Some(next) = i.next() {
-                if next.is_reference() {
-                    children.push(next);
-                }
-
-                i = i.next().unwrap();
-            }
-        }
+        content.extend(expanded_sections);
+        content.extend(sections);
 
         vec![Tree {
             id,
             line_range,
             node,
-            children: children
-                .into_iter()
-                .flat_map(|child| {
-                    if child.is_reference() {
-                        child
-                            .ref_target()
-                            .filter(|_| depth > 0)
-                            .and_then(|target| child.to_target(&target))
-                            .map(|pointer| Tree::squash_from_pointer(pointer, depth - 1))
-                            .map(|r| r.first().unwrap().children.clone())
-                            .unwrap_or(Tree::squash_from_pointer(child, 0))
-                    } else {
-                        Tree::squash_from_pointer(child, depth)
-                    }
-                })
-                .collect_vec(),
+            children: content,
         }]
+    }
+
+    fn squash_reference<'a>(
+        child: impl NodePointer<'a>,
+        depth: u8,
+        path: &mut Vec<Key>,
+    ) -> Vec<Tree> {
+        let target = child
+            .ref_target()
+            .filter(|_| depth > 0)
+            .and_then(|target| child.to_target(&target))
+            .and_then(|pointer| {
+                pointer
+                    .to_document()
+                    .and_then(|document| document.document_key())
+                    .map(|key| (pointer, key))
+            })
+            .filter(|(_, key)| !path.contains(key));
+        match target {
+            Some((pointer, key)) => {
+                path.push(key);
+                let squashed = Tree::squash_along_path(pointer, depth - 1, path);
+                path.pop();
+                squashed.first().unwrap().children.clone()
+            }
+            None => Tree::squash_along_path(child, 0, path),
+        }
     }
 
     pub fn find_id(&self, id: NodeId) -> Option<Tree> {

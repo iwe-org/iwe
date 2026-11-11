@@ -1,11 +1,12 @@
 use crate::model::config::DjotOptions;
 use crate::model::document::{LinkType, MathType};
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::model::inline::{
-    append_refs_extension, detect_and_strip_checkbox, Attributes, Inline, Inlines, TextSink,
-    TokenStream,
+    append_refs_extension, detect_and_strip_checkbox, push_verbatim_lines, Attributes, Inline,
+    Inlines, TextSink, TokenStream, FLATTENED_BLOCK,
 };
 use crate::model::node::ColumnAlignment;
-use crate::model::writer::{frontmatter_to_yaml, Block, Blocks};
+use crate::model::writer::{frontmatter_to_yaml, same_list_kind, Block, Blocks};
 use crate::model::{autolink_body, is_ref_url};
 
 pub struct DjotWriter {}
@@ -38,10 +39,26 @@ fn blocks_to_djot(
     skip_frontmatter: bool,
     indent: usize,
 ) -> String {
-    let parts: Vec<String> = blocks
+    let kept: Vec<&Block> = blocks
         .iter()
-        .filter(|block| !(skip_frontmatter && matches!(block, Block::Frontmatter(_))))
-        .map(|block| block_to_djot(block, options, indent))
+        .filter(|block| !(skip_frontmatter && block.is_frontmatter()))
+        .collect();
+    let mut alternate = false;
+    let parts: Vec<String> = kept
+        .iter()
+        .enumerate()
+        .map(|(i, block)| {
+            alternate = i > 0 && same_list_kind(kept[i - 1], block) && !alternate;
+            match block {
+                Block::BulletList(items) if alternate => {
+                    list_to_djot(items, options, false, true, indent)
+                }
+                Block::OrderedList(items) if alternate => {
+                    list_to_djot(items, options, true, true, indent)
+                }
+                _ => block_to_djot(block, options, indent),
+            }
+        })
         .collect();
     ensure_trailing_newline(parts.join("\n"))
 }
@@ -54,7 +71,7 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
         Block::Header(level, inlines) => {
             format!(
                 "{} {}\n",
-                "#".repeat(*level as usize),
+                "#".repeat((*level).min(6) as usize),
                 inlines_to_djot(inlines, options)
             )
         }
@@ -77,10 +94,14 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
         }
         Block::CodeBlock(lang, text) => {
             let body = text.trim_matches('\n');
+            let fence = "`".repeat(longest_backtick_run(body).max(2) + 1);
             match lang.clone().filter(|lang| !lang.trim().is_empty()) {
-                Some(lang) => format!("``` {}\n{}\n```\n", lang, body),
-                None => format!("```\n{}\n```\n", body),
+                Some(lang) => format!("{} {}\n{}\n{}\n", fence, lang, body, fence),
+                None => format!("{}\n{}\n{}\n", fence, body, fence),
             }
+        }
+        Block::RawBlock(format, text) if format == UNPARSED_FRONTMATTER => {
+            format!("{}\n", text.trim_end_matches('\n'))
         }
         Block::RawBlock(_, text) => ensure_trailing_newline(text.clone()),
         Block::BlockQuote(blocks) => {
@@ -98,19 +119,26 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
                 .join("\n");
             format!("{}\n", quoted)
         }
-        Block::BulletList(items) => list_to_djot(items, options, false, indent),
-        Block::OrderedList(items) => list_to_djot(items, options, true, indent),
+        Block::BulletList(items) => list_to_djot(items, options, false, false, indent),
+        Block::OrderedList(items) => list_to_djot(items, options, true, false, indent),
         Block::Table(header, alignment, rows) => table_to_djot(header, alignment, rows, options),
     }
 }
 
-fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool, indent: usize) -> String {
+fn list_to_djot(
+    items: &[Blocks],
+    options: &DjotOptions,
+    ordered: bool,
+    alternate: bool,
+    indent: usize,
+) -> String {
     let mut out = String::new();
     for (index, item) in items.iter().enumerate() {
-        let marker = if ordered {
-            format!("{}.", index + 1)
-        } else {
-            "-".to_string()
+        let marker = match (ordered, alternate) {
+            (true, false) => format!("{}.", index + 1),
+            (true, true) => format!("{})", index + 1),
+            (false, false) => "-".to_string(),
+            (false, true) => "*".to_string(),
         };
         let (checkbox, item) = strip_item_checkbox(item);
         let pad = marker.chars().count() + 1;
@@ -121,7 +149,9 @@ fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool, indent: 
             .join("\n");
         for (n, line) in item_text.lines().enumerate() {
             if n == 0 {
-                out.push_str(&format!("{} {}{}\n", marker, checkbox, line));
+                let first = format!("{} {}{}", marker, checkbox, line);
+                out.push_str(first.trim_end());
+                out.push('\n');
             } else if line.is_empty() {
                 out.push('\n');
             } else {
@@ -152,6 +182,41 @@ fn strip_item_checkbox(item: &Blocks) -> (&'static str, Blocks) {
     (prefix, item)
 }
 
+fn escape_cell_pipes(cell: &str) -> String {
+    let chars: Vec<char> = cell.chars().collect();
+    let mut out = String::with_capacity(cell.len());
+    let mut verbatim: Option<usize> = None;
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        if ch == '\\' && verbatim.is_none() {
+            out.push(ch);
+            if let Some(&next) = chars.get(i + 1) {
+                out.push(next);
+            }
+            i += 2;
+            continue;
+        }
+        if ch == '`' {
+            let run = chars[i..].iter().take_while(|&&c| c == '`').count();
+            verbatim = match verbatim {
+                None => Some(run),
+                Some(open) if open == run => None,
+                other => other,
+            };
+            out.extend(std::iter::repeat_n('`', run));
+            i += run;
+            continue;
+        }
+        if ch == '|' && verbatim.is_none() {
+            out.push('\\');
+        }
+        out.push(ch);
+        i += 1;
+    }
+    out
+}
+
 fn table_to_djot(
     header: &[Inlines],
     alignment: &[ColumnAlignment],
@@ -162,7 +227,7 @@ fn table_to_djot(
     let render_row = |cells: &[Inlines]| -> String {
         let rendered = cells
             .iter()
-            .map(|cell| inlines_to_djot(cell, options).replace('|', "\\|"))
+            .map(|cell| escape_cell_pipes(&inlines_to_djot(cell, options)))
             .collect::<Vec<String>>()
             .join(" | ");
         format!("| {} |\n", rendered)
@@ -217,7 +282,32 @@ fn render_inlines_djot<S: TextSink>(
     } else {
         BlockPos::Mid
     };
-    for (index, inline) in inlines.iter().enumerate() {
+    let mut skip = 0;
+    if block_start {
+        let lead_len = inlines
+            .iter()
+            .take_while(|inline| matches!(inline, Inline::Str(_) | Inline::Symbol(_)))
+            .count();
+        if lead_len > 1 {
+            let lead: String = inlines[..lead_len]
+                .iter()
+                .filter_map(|inline| match inline {
+                    Inline::Str(text) => Some(text.clone()),
+                    Inline::Symbol(text) => Some(format!(":{}:", text)),
+                    _ => None,
+                })
+                .collect();
+            let followed_by_space = inlines
+                .get(lead_len)
+                .is_none_or(|inline| matches!(inline, Inline::Space));
+            if let Some(escaped) = block_marker_escape(&lead, BlockPos::Start, followed_by_space) {
+                out.push(&escaped);
+                skip = lead_len;
+                pos = BlockPos::Mid;
+            }
+        }
+    }
+    for (index, inline) in inlines.iter().enumerate().skip(skip) {
         let next = inlines.get(index + 1);
         let followed_by_space = next.is_none_or(|inline| matches!(inline, Inline::Space));
         render_inline_djot(inline, options, out, pos, followed_by_space);
@@ -333,6 +423,9 @@ fn render_inline_djot<S: TextSink>(
             });
             render_verbatim(body, out);
         }
+        Inline::RawInline(format, content) if format == FLATTENED_BLOCK => {
+            push_verbatim_lines(content, out);
+        }
         Inline::RawInline(format, content) => {
             render_verbatim(content, out);
             out.push(&format!("{{={}}}", format));
@@ -417,7 +510,7 @@ fn escape_djot(text: &str) -> String {
     for ch in text.chars() {
         if matches!(
             ch,
-            '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '~' | '^' | '$'
+            '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '~' | '^' | '$' | '<'
         ) {
             out.push('\\');
         }
@@ -445,12 +538,44 @@ fn block_marker_escape(word: &str, pos: BlockPos, followed_by_space: bool) -> Op
                 followed_by_space
             } else if all('#') {
                 word.len() <= 6 && followed_by_space
+            } else if all(':') {
+                word.len() >= 3
+            } else if followed_by_space && is_list_marker(word) {
+                return Some(escape_list_marker(word));
             } else {
                 false
             };
             marker.then(|| format!("\\{}", escape_djot(word)))
         }
         _ => None,
+    }
+}
+
+fn is_list_marker(word: &str) -> bool {
+    let body = match word.strip_prefix('(') {
+        Some(rest) => match rest.strip_suffix(')') {
+            Some(body) => body,
+            None => return false,
+        },
+        None => match word.strip_suffix(['.', ')']) {
+            Some(body) => body,
+            None => return false,
+        },
+    };
+    !body.is_empty()
+        && (body.chars().all(|c| c.is_ascii_digit())
+            || (body.chars().count() == 1 && body.chars().all(|c| c.is_ascii_alphabetic()))
+            || body.chars().all(|c| "ivxlcdm".contains(c))
+            || body.chars().all(|c| "IVXLCDM".contains(c)))
+}
+
+fn escape_list_marker(word: &str) -> String {
+    match word.strip_prefix('(') {
+        Some(rest) => format!("\\({}", rest),
+        None => {
+            let (body, last) = word.split_at(word.len() - 1);
+            format!("{}\\{}", body, last)
+        }
     }
 }
 

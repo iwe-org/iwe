@@ -500,3 +500,21 @@ fn import_with(documents: Vec<(&str, &str)>, wiki_link_path: WikiLinkPath) -> Gr
         None,
     )
 }
+
+#[test]
+fn title_is_cleared_when_update_removes_it() {
+    let mut graph = Graph::new();
+    graph.insert_document("note".into(), "# Title\n".to_string());
+    graph.update_document("note".into(), "A plain paragraph.\n".to_string());
+
+    assert_eq!(None, graph.get_key_title(&Key::name("note")));
+}
+
+#[test]
+fn title_is_cleared_when_markdown_reload_removes_it() {
+    let mut graph = Graph::new();
+    graph.from_markdown("note".into(), "# Title\n", MarkdownReader::new());
+    graph.from_markdown("note".into(), "A plain paragraph.\n", MarkdownReader::new());
+
+    assert_eq!(None, graph.get_key_title(&Key::name("note")));
+}

@@ -17,7 +17,9 @@ use clap_complete_nushell::Nushell;
 mod help;
 use itertools::Itertools;
 
-use diwe::config::{load_config, ActionDefinition, Configuration, InlineType, LinkType};
+use diwe::config::{
+    load_config, ActionDefinition, Configuration, InlineType, LinkType, IWE_MARKER,
+};
 use diwe::fs::{key_escapes_workspace, write_file_if_changed};
 use diwe::schema::{
     explain_documents, explain_documents_against_file, pending_from_changes, render_reports_text,
@@ -2698,6 +2700,15 @@ fn normalize_command(args: Normalize) {
     let configuration = get_configuration();
 
     if args.key.is_empty() {
+        if !std::path::Path::new(IWE_MARKER)
+            .join("config.toml")
+            .exists()
+        {
+            eprintln!(
+                "Error: No IWE project found in the current directory. Run 'iwe init' first, or name the documents to normalize with -k"
+            );
+            std::process::exit(1);
+        }
         let graph = load_graph(&configuration);
         write_graph(graph, &configuration);
         return;
@@ -3265,13 +3276,11 @@ fn delete_command(args: Delete) {
 
     let targets = resolve_delete_targets(&args, &graph);
 
-    if !args.dry_run {
-        let doc_refs = build_doc_refs(&graph, &targets);
-        check_document_expect("delete", doc_expect, &doc_refs).unwrap_or_else(|e| {
-            eprintln!("error: {}", e);
-            std::process::exit(2);
-        });
-    }
+    let doc_refs = build_doc_refs(&graph, &targets);
+    check_document_expect("delete", doc_expect, &doc_refs).unwrap_or_else(|e| {
+        eprintln!("error: {}", e);
+        std::process::exit(2);
+    });
 
     if targets.is_empty() {
         if !args.quiet {
@@ -3846,7 +3855,10 @@ fn update_body(args: Update) {
 fn update_mutation(args: Update) {
     use liwe::query::block_update::check_document_expect;
     use liwe::query::wire::RawUpdate;
-    use liwe::query::{build_update_doc, execute as run_op, FindOp, Operation, Outcome, UpdateOp};
+    use liwe::query::{
+        build_update_doc, check_frontmatter_parsed, execute as run_op, FindOp, Operation, Outcome,
+        UpdateOp,
+    };
     use serde_yaml::{Mapping, Value};
 
     let config = get_configuration();
@@ -3933,13 +3945,15 @@ fn update_mutation(args: Update) {
             Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.key).collect(),
             _ => unreachable!(),
         };
-        if !args.dry_run {
-            let doc_refs = build_doc_refs(&graph, &keys);
-            check_document_expect("update", doc_expect, &doc_refs).unwrap_or_else(|e| {
-                eprintln!("error: {}", e);
-                std::process::exit(2);
-            });
-        }
+        let doc_refs = build_doc_refs(&graph, &keys);
+        check_document_expect("update", doc_expect, &doc_refs).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
+        check_frontmatter_parsed(&graph, &keys).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
         keys.into_iter()
             .filter_map(|key| {
                 let file_path = workspace_path.join(format!("{}.{}", key, ext));
@@ -3958,10 +3972,8 @@ fn update_mutation(args: Update) {
             .collect()
     } else {
         let mut op = UpdateOp::new(filter, update_doc);
-        if !args.dry_run {
-            if let Some(expect) = doc_expect {
-                op = op.expect(expect);
-            }
+        if let Some(expect) = doc_expect {
+            op = op.expect(expect);
         }
         let outcome = run_op(&Operation::Update(op), &graph).unwrap_or_else(|e| {
             eprintln!("error: {}", e);

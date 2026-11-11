@@ -464,3 +464,79 @@ fn test_rename_to_a_key_outside_the_workspace() {
         "# Note\n"
     );
 }
+
+#[test]
+fn failed_create_keeps_the_original_document() {
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Alpha\n\ntext\n")]);
+    let temp_path = temp_dir.path();
+    write(temp_path.join("blocker"), "x").unwrap();
+
+    let output = run_rename_command(temp_path, &["a", "blocker/inner"]);
+
+    assert!(!output.status.success());
+    assert_eq!(
+        read_to_string(temp_path.join("a.md")).unwrap(),
+        "# Alpha\n\ntext\n"
+    );
+    let mut entries: Vec<String> = std::fs::read_dir(temp_path)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+        .collect();
+    entries.sort();
+    assert_eq!(entries, vec![".iwe", "a.md", "blocker"]);
+}
+
+#[test]
+fn case_only_rename_with_unchanged_content_keeps_the_document() {
+    let temp_dir = setup_workspace_with_docs(vec![("note", "# Note\n\ntext\n")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_rename_command(temp_path, &["note", "Note"]);
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp_path.join("Note.md")).unwrap(),
+        "# Note\n\ntext\n"
+    );
+}
+
+#[test]
+fn rename_to_key_differing_only_in_case_from_another_document_fails() {
+    let temp_dir =
+        setup_workspace_with_docs(vec![("source", "# Source\n"), ("other", "# Other\n")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_rename_command(temp_path, &["source", "Other"]);
+
+    assert!(!output.status.success());
+    assert_eq!(
+        read_to_string(temp_path.join("other.md")).unwrap(),
+        "# Other\n"
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("source.md")).unwrap(),
+        "# Source\n"
+    );
+}
+
+#[test]
+fn rename_rejects_key_with_hidden_or_empty_segment() {
+    let temp_dir = setup_workspace_with_docs(vec![("source", "# Source\n")]);
+    let temp_path = temp_dir.path();
+
+    for new_key in [".", "dir/", ".hidden", "dir/.note"] {
+        let output = run_rename_command(temp_path, &["source", new_key]);
+
+        assert!(!output.status.success());
+        assert_eq!(
+            String::from_utf8_lossy(&output.stderr),
+            "Error: Invalid target: Key segments cannot be empty or start with '.'\n"
+        );
+    }
+    let mut entries: Vec<String> = std::fs::read_dir(temp_path)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+        .collect();
+    entries.sort();
+    assert_eq!(entries, vec![".iwe", "source.md"]);
+}

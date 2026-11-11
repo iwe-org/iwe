@@ -403,3 +403,147 @@ fn email_autolink() {
         "};
     assert_eq!(input, roundtrip(input));
 }
+
+#[test]
+fn escaped_autolink_stays_literal() {
+    let input = "\\<http://x.com>\n";
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn unparseable_frontmatter_is_kept() {
+    let input = indoc! {"
+        ---
+        tags: [a
+        ---
+
+        # Title
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn code_block_containing_a_backtick_fence() {
+    let input = indoc! {"
+        # Title
+
+        ````
+        ```
+        inner
+        ```
+        ````
+        "};
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn code_block_with_language_containing_a_backtick_fence() {
+    let input = indoc! {"
+        ````` md
+        ````
+        inner
+        ````
+        `````
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn empty_task_item_is_kept() {
+    let input = indoc! {"
+        - [ ]
+        - [x] done
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn description_term_text_is_kept() {
+    assert_eq!(
+        indoc! {"
+            Term
+
+            Definition.
+            "},
+        roundtrip(indoc! {"
+            : Term
+
+              Definition.
+            "})
+    );
+}
+
+#[test]
+fn table_caption_text_is_kept() {
+    assert_eq!(
+        indoc! {"
+            | a |
+            | --- |
+            | 1 |
+
+            Caption
+            "},
+        roundtrip(indoc! {"
+            | a |
+            |---|
+            | 1 |
+            ^ Caption
+            "})
+    );
+}
+
+#[test]
+fn adjacent_lists_stay_separate() {
+    let input = indoc! {"
+        - a
+
+        * b
+
+        1. c
+
+        1) d
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn pipe_inside_verbatim_in_table_cell_is_not_escaped() {
+    let input = indoc! {"
+        | `a|b` | c\\|d |
+        | --- | --- |
+        | 1 | 2 |
+        "};
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn escaped_list_markers_at_block_start_stay_literal() {
+    let input = indoc! {"
+        \\(1) text
+
+        a\\. text
+
+        \\(iv) text
+        "};
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn escaped_div_fence_stays_literal() {
+    let input = "\\::: warning\n";
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn raw_block_stays_raw() {
+    let input = indoc! {"
+        ``` =latex
+        \\foo
+        ```
+        "};
+    assert_eq!(input, roundtrip(input));
+}

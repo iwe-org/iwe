@@ -966,6 +966,12 @@ impl IweServer {
                 if key_escapes_workspace(key.as_str()) {
                     return Err(escaping_key_error(k));
                 }
+                if key.has_hidden_or_empty_segment() {
+                    return Err(McpError::invalid_params(
+                        format!("Key '{k}' has a segment that is empty or starts with '.'"),
+                        None,
+                    ));
+                }
                 key.to_string()
             }
             None => {

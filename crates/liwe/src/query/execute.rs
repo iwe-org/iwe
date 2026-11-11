@@ -203,6 +203,10 @@ fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
     };
     let documents: Vec<DocRef> = rows.iter().map(|(key, _)| doc_ref(graph, key)).collect();
     block_update::check_document_expect("update", op.expect, &documents)?;
+    if !op.update.operators.is_empty() {
+        let keys: Vec<Key> = rows.iter().map(|(key, _)| key.clone()).collect();
+        check_frontmatter_parsed(graph, &keys)?;
+    }
     let mut changes = Vec::new();
     for (key, mut mapping) in rows {
         update::apply(&op.update, &mut mapping);
@@ -226,6 +230,21 @@ fn execute_delete(op: &DeleteOp, graph: &Graph) -> Result<Outcome, EvalError> {
     block_update::check_document_expect("delete", op.expect, &documents)?;
     let removed = rows.into_iter().map(|(k, _)| k).collect();
     Ok(Outcome::Delete { removed })
+}
+
+pub fn check_frontmatter_parsed(graph: &Graph, keys: &[Key]) -> Result<(), EvalError> {
+    let unparsed: Vec<DocRef> = keys
+        .iter()
+        .filter(|key| graph.has_unparsed_frontmatter(key))
+        .map(|key| doc_ref(graph, key))
+        .collect();
+    if unparsed.is_empty() {
+        Ok(())
+    } else {
+        Err(EvalError::UnparsedFrontmatter {
+            documents: unparsed,
+        })
+    }
 }
 
 fn doc_ref(graph: &Graph, key: &Key) -> DocRef {

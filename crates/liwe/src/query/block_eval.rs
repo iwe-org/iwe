@@ -156,15 +156,13 @@ impl BlockIndex {
 
     pub fn coalesced_targets(&self, pred: &BlockPredicate) -> Vec<Target> {
         let mask = self.eval(pred);
-        let mut sub_full = vec![false; self.blocks.len()];
-        for &root in &self.roots {
-            self.compute_sub_full(root, &mask, &mut sub_full);
-        }
+        let subtree_roots = self.subtree_roots(pred);
         let whole: Vec<bool> = (0..self.blocks.len())
             .map(|i| {
                 mask[i]
-                    && !self.blocks[i].children.is_empty()
-                    && (self.blocks[i].kind != Kind::Header || sub_full[i])
+                    && (subtree_roots[i]
+                        || (!self.blocks[i].children.is_empty()
+                            && self.blocks[i].kind != Kind::Header))
             })
             .collect();
         (0..self.blocks.len())
@@ -174,16 +172,6 @@ impl BlockIndex {
                 tree: whole[i],
             })
             .collect()
-    }
-
-    fn compute_sub_full(&self, i: usize, mask: &[bool], out: &mut [bool]) -> bool {
-        let mut children_full = true;
-        for &c in &self.blocks[i].children {
-            children_full &= self.compute_sub_full(c, mask, out);
-        }
-        let full = mask[i] && children_full;
-        out[i] = full;
-        full
     }
 
     pub fn node_id(&self, i: usize) -> Option<NodeId> {
@@ -486,6 +474,34 @@ impl BlockIndex {
             current = self.blocks[a].parent;
         }
         false
+    }
+
+    fn subtree_roots(&self, pred: &BlockPredicate) -> Vec<bool> {
+        let mut out = vec![false; self.blocks.len()];
+        self.mark_subtree_roots(pred, &mut out);
+        out
+    }
+
+    fn mark_subtree_roots(&self, pred: &BlockPredicate, out: &mut [bool]) {
+        for op in &pred.0 {
+            let (root_pred, kind) = match op {
+                BlockOp::Section(p) => (p, Kind::Header),
+                BlockOp::Quote(p) => (p, Kind::Quote),
+                BlockOp::List(p) => (p, Kind::List),
+                BlockOp::And(preds) | BlockOp::Or(preds) => {
+                    for p in preds {
+                        self.mark_subtree_roots(p, out);
+                    }
+                    continue;
+                }
+                _ => continue,
+            };
+            for (i, selected) in self.eval(root_pred).iter().enumerate() {
+                if *selected && self.blocks[i].kind == kind {
+                    out[i] = true;
+                }
+            }
+        }
     }
 
     fn subtrees(&self, root_pred: &BlockPredicate, kind: Kind) -> Vec<bool> {

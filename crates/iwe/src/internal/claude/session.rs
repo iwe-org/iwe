@@ -19,8 +19,8 @@ use crate::internal::claude::hook::store::{
 };
 use crate::internal::claude::prompt::unknown_invocations;
 use crate::internal::claude::record::{
-    all_session_records, load_session_record, mark_reminded, reminded_at, save_session_record,
-    Proposal, ProposalStatus, SessionRecord,
+    all_session_records, load_session_record, load_session_record_or_new, mark_reminded,
+    reminded_at, save_session_record, Proposal, ProposalStatus, SessionRecord,
 };
 use crate::new::normalize_content;
 use crate::schema::render_schema;
@@ -362,7 +362,7 @@ pub fn session_stage(
         None => format!("the new document {}", proposal.key),
     };
 
-    let mut record = load_session_record(&session).unwrap_or_else(|| SessionRecord::new(&session));
+    let mut record = load_session_record_or_new(&session)?;
     if let Some(path) = &transcript {
         record.set_transcript(path);
     }
@@ -623,7 +623,7 @@ pub fn session_complete(
     let linked = link_into_hubs(store, &keys);
 
     let now = Local::now().format("%Y-%m-%d %H:%M").to_string();
-    let mut record = load_session_record(&session).unwrap_or_else(|| SessionRecord::new(&session));
+    let mut record = load_session_record_or_new(&session)?;
 
     let distilled = record.distilled_lines;
     let advanced = advance.filter(|lines| *lines > distilled);
@@ -919,18 +919,23 @@ pub fn session_adopt(options: &SessionOptions, sessions: &[String]) -> Result<St
                 ));
             }
             if !row.remembered && row.lines > 0 {
-                let mut record = load_session_record(&row.session)
-                    .unwrap_or_else(|| SessionRecord::new(&row.session));
-                record.set_size(row.size, row.lines);
-                save_session_record(&record);
+                if let Ok(mut record) = load_session_record_or_new(&row.session) {
+                    record.set_size(row.size, row.lines);
+                    save_session_record(&record);
+                }
             }
             continue;
         }
         if !named && row.state != State::Pending {
             continue;
         }
-        let mut record =
-            load_session_record(&row.session).unwrap_or_else(|| SessionRecord::new(&row.session));
+        let mut record = match load_session_record_or_new(&row.session) {
+            Ok(record) => record,
+            Err(error) => {
+                report.push_str(&format!("skipped {}: {}\n", row.session, error));
+                continue;
+            }
+        };
         record.distilled_lines = row.lines;
         record.set_transcript(&row.path);
         record.set_size(row.size, row.lines);

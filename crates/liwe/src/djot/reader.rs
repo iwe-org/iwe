@@ -2,7 +2,9 @@ use std::iter::once;
 use std::ops::Range;
 
 use jotdown::{Alignment, Container, Event, ListKind, Parser};
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Mapping;
+
+use crate::model::frontmatter::{parse_frontmatter, UNPARSED_FRONTMATTER};
 
 use crate::model::config::DjotOptions;
 use crate::model::document::*;
@@ -20,6 +22,7 @@ pub struct DjotEventsReader {
     offset: usize,
     frontmatter: Option<Mapping>,
     pending_checkbox: Option<bool>,
+    pending_caption: Option<DocumentBlock>,
 }
 
 impl Default for DjotEventsReader {
@@ -41,6 +44,7 @@ impl DjotEventsReader {
             offset: 0,
             frontmatter: None,
             pending_checkbox: None,
+            pending_caption: None,
         }
     }
 
@@ -70,9 +74,18 @@ impl DjotEventsReader {
         self.content = normalized.clone();
         self.line_starts = line_starts(&normalized);
 
-        let (body, frontmatter, offset) = strip_frontmatter(&normalized);
-        self.frontmatter = frontmatter;
+        let (body, yaml, offset) = strip_frontmatter(&normalized);
         self.offset = offset;
+        if let Some(yaml) = yaml {
+            match parse_frontmatter(yaml) {
+                Some(mapping) => self.frontmatter = Some(mapping),
+                None => self.blocks.push(DocumentBlock::RawBlock(RawBlock {
+                    line_range: self.to_line_range(0..offset),
+                    format: UNPARSED_FRONTMATTER.to_string(),
+                    text: normalized[..offset].to_string(),
+                })),
+            }
+        }
 
         let events: Vec<(Event, Range<usize>)> = Parser::new(&body).into_offset_iter().collect();
 
@@ -80,7 +93,7 @@ impl DjotEventsReader {
             let range = (range.start + self.offset)..(range.end + self.offset);
             match event {
                 Event::Start(container, attrs) => self.start_container(container, attrs, range),
-                Event::End(container) => self.end_container(container),
+                Event::End(container) => self.end_container(container, range),
                 Event::Str(text) => self.text(&text, range),
                 Event::Symbol(text) => {
                     self.push_inline(
@@ -187,6 +200,17 @@ impl DjotEventsReader {
     }
 
     fn inject_checkbox(&mut self, checked: bool, range: Range<usize>) {
+        self.inject_checkbox_marker(checked, range.clone());
+        self.push_inline(
+            DocumentInline::Space(Space {
+                inline_range: InlineRange::default(),
+            }),
+            self.to_line_range(range),
+        );
+        self.pop_inline();
+    }
+
+    fn inject_checkbox_marker(&mut self, checked: bool, range: Range<usize>) {
         let space = || {
             DocumentInline::Space(Space {
                 inline_range: InlineRange::default(),
@@ -201,7 +225,6 @@ impl DjotEventsReader {
             DocumentInline::Str("[".to_string()),
             mark,
             DocumentInline::Str("]".to_string()),
-            space(),
         ] {
             self.push_inline(inline, self.to_line_range(range.clone()));
             self.pop_inline();
@@ -456,16 +479,26 @@ impl DjotEventsReader {
                 }),
                 self.to_line_range(range),
             ),
+            Container::DescriptionTerm => {
+                self.push_block(DocumentBlock::Para(Para {
+                    line_range: self.to_line_range(range),
+                    inlines: vec![],
+                }));
+            }
+            Container::Caption => {
+                self.push_block(DocumentBlock::Para(Para {
+                    line_range: self.to_line_range(range),
+                    inlines: vec![],
+                }));
+            }
             Container::Footnote { .. }
             | Container::LinkDefinition { .. }
             | Container::DescriptionList
-            | Container::DescriptionTerm
-            | Container::DescriptionDetails
-            | Container::Caption => {}
+            | Container::DescriptionDetails => {}
         }
     }
 
-    fn end_container(&mut self, container: Container) {
+    fn end_container(&mut self, container: Container, range: Range<usize>) {
         match container {
             Container::Document | Container::Section { .. } | Container::Div { .. } => {}
             Container::Paragraph
@@ -474,11 +507,31 @@ impl DjotEventsReader {
             | Container::CodeBlock { .. }
             | Container::RawBlock { .. }
             | Container::List { .. }
-            | Container::Table => self.pop_block(),
-            Container::ListItem | Container::TaskListItem { .. } => {
+            | Container::DescriptionTerm => self.pop_block(),
+            Container::Table => {
+                self.pop_block();
+                if let Some(caption) = self.pending_caption.take() {
+                    self.push_block(caption);
+                    self.pop_block();
+                }
+            }
+            Container::Caption => {
+                self.pending_caption = self.blocks_stack.pop();
+            }
+            Container::ListItem => {
                 self.pending_checkbox = None;
             }
-            Container::TableRow { .. } | Container::TableCell { .. } | Container::Caption => {}
+            Container::TaskListItem { .. } => {
+                if let Some(checked) = self.pending_checkbox.take() {
+                    self.push_block(DocumentBlock::Para(Para {
+                        line_range: self.to_line_range(range.clone()),
+                        inlines: vec![],
+                    }));
+                    self.inject_checkbox(checked, range);
+                    self.pop_block();
+                }
+            }
+            Container::TableRow { .. } | Container::TableCell { .. } => {}
             Container::Emphasis
             | Container::Strong
             | Container::Delete
@@ -495,7 +548,6 @@ impl DjotEventsReader {
             Container::Footnote { .. }
             | Container::LinkDefinition { .. }
             | Container::DescriptionList
-            | Container::DescriptionTerm
             | Container::DescriptionDetails => {}
         }
     }
@@ -562,28 +614,11 @@ fn to_column_alignment(alignment: Alignment) -> ColumnAlignment {
     }
 }
 
-fn parse_frontmatter(text: &str) -> Mapping {
-    if text.trim().is_empty() {
-        return Mapping::new();
-    }
-    match serde_yaml::from_str::<Value>(text) {
-        Ok(Value::Mapping(m)) => m,
-        Ok(_) => {
-            log::warn!("Frontmatter is not a YAML mapping, treating as empty");
-            Mapping::new()
-        }
-        Err(e) => {
-            log::warn!("Failed to parse frontmatter YAML: {}", e);
-            Mapping::new()
-        }
-    }
-}
-
 fn normalize_line_endings(content: &str) -> String {
     content.replace("\r\n", "\n").replace('\r', "\n")
 }
 
-fn strip_frontmatter(content: &str) -> (String, Option<Mapping>, usize) {
+fn strip_frontmatter(content: &str) -> (String, Option<&str>, usize) {
     let Some(rest) = content.strip_prefix("---\n") else {
         return (content.to_string(), None, 0);
     };
@@ -598,7 +633,7 @@ fn strip_frontmatter(content: &str) -> (String, Option<Mapping>, usize) {
     let consumed = "---\n".len() + end + "\n---\n".len();
     let consumed = consumed.min(content.len());
     let body = content[consumed..].to_string();
-    (body, Some(parse_frontmatter(yaml)), consumed)
+    (body, Some(yaml), consumed)
 }
 
 fn line_starts(content: &str) -> Vec<usize> {

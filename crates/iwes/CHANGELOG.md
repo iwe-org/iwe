@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Inline code action on a reference to the same document no longer crashes the server
+- Completion, hover and link text no longer show a document title after the edit that removed it
+- Formatting no longer turns escaped characters into markup, such as `\#` or `\>` in a list item becoming a heading or quote, or `\[[x]]` becoming a wiki link
+- Formatting writes a lone `*` in a paragraph that also has emphasis as `\*`, so existing documents may change once on the next format
+- Formatting keeps indentation inside a code block that starts a list item
+- Link action and link completion write `#` in a document name as `%23`, so the link points to that document instead of a fragment
+- Formatting keeps two-space line breaks inside block quotes
+- Formatting keeps frontmatter that is not valid YAML as written instead of replacing it with `{}`
+- Formatting no longer treats a `---` block in the middle of a document as frontmatter, which replaced the real frontmatter and dropped the text between the dashes
+- Rename to a name that differs only in letter case from another document is refused instead of overwriting that document on case-insensitive file systems
+- Rename and extract actions refuse keys with an empty segment or a segment starting with `.`, which created hidden files that disappeared from the workspace
+- Formatting of djot documents keeps a code block that contains a backtick fence
+- Formatting of djot documents keeps empty task items and the text of description list terms and table captions (previously dropped)
+- An invalid date or time format in the config is reported when the server starts instead of crashing a code action later
+- A request that fails inside the server, such as one for an `untitled:` document, gets an error response instead of leaving the editor waiting forever
+- Inline code actions that delete the inlined document also remove the other links to it from the current document
+- Formatting keeps escaped `&amp;`-style entities, `\<https://...>`, `\![alt](...)` and `\[` before a link literal, and keeps non-breaking spaces
+- Formatting keeps two adjacent lists separate instead of merging them into one
+- Formatting of djot tables no longer adds a backslash before `|` inside code spans on every format
+- Formatting of djot documents keeps escaped list markers and `\:::` literal, and keeps raw blocks such as `=latex` as raw blocks
+- A document change with several full-text changes keeps the last one instead of the first
+- Link completion after a `[` or `[[` glued to the preceding text replaces only from the bracket, so the text before it, such as CJK text without spaces, is kept
+- Rename on a wiki link reads the new name from the workspace root, like wiki links themselves, instead of from the current document's folder, and an empty name is refused instead of renaming the target to the folder name
+- Open, change, save and delete notifications for files outside the workspace or with another extension are ignored instead of adding documents under made-up keys that point to files that do not exist
+- Formatting keeps the title of external links and images instead of dropping it
+
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 
 ### Fixed

@@ -114,23 +114,22 @@ fn test_normalize_with_lists() {
 }
 
 #[test]
-fn test_normalize_without_config() {
+fn test_normalize_named_key_without_config() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
+    write(temp_path.join("test.md"), "Header\n======\nSome content\n")
+        .expect("Should write test file");
 
-    let markdown_content = indoc! {"
-        #Header1
-        Some content
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .args(["normalize", "-k", "test"])
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe normalize");
 
-        ##Header2
-        More content
-    "};
-    write(temp_path.join("test.md"), markdown_content).expect("Should write test file");
-
-    let output = run_normalize_command(temp_path);
-    assert!(
-        output.status.success(),
-        "Normalize should work without explicit config"
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp_path.join("test.md")).unwrap(),
+        "# Header\n\nSome content\n"
     );
 }
 
@@ -975,5 +974,56 @@ fn scoped_normalize_rejects_a_key_outside_the_workspace() {
     assert_eq!(
         read_to_string(temp_path.join("outside.md")).unwrap(),
         "#  Outside\n"
+    );
+}
+
+#[test]
+fn dashes_after_body_do_not_replace_frontmatter() {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+    write(
+        temp_path.join("doc.md"),
+        "---\nfield: value\n---\n\n# Heading\n\n---\nother: value\n---\n\nText\n",
+    )
+    .unwrap();
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success());
+
+    assert_eq!(
+        read_to_string(temp_path.join("doc.md")).unwrap(),
+        indoc! {"
+            ---
+            field: value
+            ---
+
+            # Heading
+
+            ------------------------------------------------------------------------
+
+            ## other: value
+
+            Text
+        "}
+    );
+}
+
+#[test]
+fn normalize_outside_a_project_fails_without_writing() {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let temp_path = temp_dir.path();
+    write(temp_path.join("doc.md"), "Title\n=====\n").unwrap();
+
+    let output = run_normalize_command(temp_path);
+
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error: No IWE project found in the current directory. Run 'iwe init' first, or name the documents to normalize with -k\n"
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("doc.md")).unwrap(),
+        "Title\n=====\n"
     );
 }

@@ -16,6 +16,8 @@ mod normalization_lists;
 mod normalization_metadata;
 mod normalization_misc;
 mod normalization_raw;
+mod operations_inline_test;
+mod operations_rename_test;
 #[allow(dead_code)]
 mod queries;
 mod query_block_update;
@@ -36,3 +38,4 @@ mod squash_test;
 mod task_items_test;
 mod toc_test;
 mod wide_document_test;
+mod writer_escaping_test;

@@ -102,8 +102,8 @@ fn stats_reports_orphans_section() {
 
         ## Reference Statistics
 
-        - **Block references:**
-        - **Inline references:**
+        - **Block references:** 0
+        - **Inline references:** 0
         - **Total references:** 0
         - **Orphaned documents:** 3 (100.0%)
         - **Leaf documents:** 3 (100.0%)

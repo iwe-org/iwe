@@ -7,9 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `normalize` without `-k` fails outside an IWE project instead of rewriting every markdown file under the current directory with the default settings (`normalize -k` still works anywhere)
+
 ### Fixed
 - `init --okf` schema accepts datetimes such as `2026-09-23T00:00:00Z` in `stale_after`, `sources[].last_modified` and `usage_window`, as the OKF spec requires (previously only plain dates passed)
 - `delete` with several matched documents now removes every link to them; previously only the links to the last one were cleaned up when they shared a parent
+- `inline` of a document into itself fails with an error instead of crashing
+- `find`, `update` and `delete` filters with an empty mapping such as `status: {}` match only documents whose field is an empty mapping (previously they matched every document)
+- `delete` no longer treats a fragment-only link such as `[Intro](#intro)` in a child document as a link to the parent document
+- Links with a percent-encoded `#` in the path (`%23`) resolve to the right document
+- `normalize` no longer turns escaped characters into markup, such as `\#` or `\>` in a list item becoming a heading or quote, or `\[[x]]` becoming a wiki link
+- `normalize` writes a lone `*` in a paragraph that also has emphasis as `\*`, so existing documents may change once on the next run
+- `normalize` keeps indentation inside a code block that starts a list item
+- `normalize` keeps two-space line breaks inside block quotes
+- `update` with `$insertAfter` on an empty `$section` inserts after the section instead of nesting the new block inside it
+- `normalize` of djot documents keeps an escaped `<` literal
+- `update` with `$delete` of every item in a list no longer leaves an extra blank line
+- `normalize` keeps frontmatter that is not valid YAML as written instead of replacing it with `{}`, and `update --set` or `--unset` on such a document fails instead of dropping the old fields
+- `normalize` no longer treats a `---` block in the middle of a document as frontmatter, which replaced the real frontmatter and dropped the text between the dashes
+- `rename` and `extract` keep the original document when the new file cannot be created (previously the original was already deleted)
+- `rename` to a name that differs only in letter case from another document fails instead of overwriting that document on case-insensitive file systems
+- `new --key`, `rename` and `extract` reject keys with an empty segment or a segment starting with `.`, such as `dir/` or `.`, which created hidden files that disappeared from the workspace
+- `rename` and `extract` fail instead of overwriting a file that exists on disk but is not part of the loaded workspace
+- `normalize` of djot documents keeps a code block that contains a backtick fence (previously it broke on the second run)
+- `normalize` of djot documents keeps empty task items and the text of description list terms and table captions (previously dropped)
+- `internal claude session` commands fail instead of replacing a session record they cannot read, so rejected proposals are not offered again
+- An invalid date or time format in the config is reported as a config error instead of crashing `new` and `create --template`, and `init --date-format` rejects an invalid format
+- `squash` stops at a link back to a document it is already expanding, so cyclic references finish quickly instead of repeating content
+- `update` with `$replace` or `$insertAfter` on `$header` acts on each header instead of the whole section when every block under it also matches, so `$replace` no longer deletes the subsections
+- `inline` that deletes the inlined document also removes the other links to it from the source document instead of leaving them dangling
+- `normalize` keeps escaped `&amp;`-style entities, `\<https://...>`, `\![alt](...)` and `\[` before a link literal, and keeps non-breaking spaces instead of turning them into plain spaces
+- `normalize` keeps two adjacent lists separate instead of merging them into one on the second run
+- `normalize` of djot tables no longer adds a backslash before `|` inside code spans on every run
+- `normalize` of djot documents keeps escaped list markers such as `\(1)` and escaped `\:::` literal, and keeps raw blocks such as `=latex` as raw blocks instead of turning them into code blocks
+- `squash` keeps content in its original order and writes headings deeper than six levels as level six instead of plain text
+- `update` and `delete` with `--dry-run` check the document-level `--expect` count and fail on a mismatch, like the real run and like block-level `expect`
+- `export` with the default `--depth 0` follows links to every level, as documented, instead of exporting only the top documents without edges
+- `export` DOT output escapes backslashes in titles, so a title ending in `\` no longer produces an invalid file
+- `stats` markdown output shows the block and inline reference counts instead of empty lines
+- `find --fuzzy` ignores letter case like `--lexical`, so a query with capitals such as `Project` matches `project plan` (previously it matched nothing)
+- `normalize` keeps the title of external links and images instead of dropping it
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

@@ -7,6 +7,7 @@ pub mod writer;
 
 pub use liwe::init::{detect, evidence, notes, probe, settings};
 
+use liwe::locale::is_valid_date_format;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
@@ -78,6 +79,12 @@ pub struct InitOptions {
 }
 
 pub fn init_workspace(root: &Path, options: &InitOptions) -> i32 {
+    if let Some(format) = &options.overrides.date_format {
+        if !is_valid_date_format(format) {
+            eprintln!("Error: '{}' is not a valid date format", format);
+            return EXIT_ERROR;
+        }
+    }
     let marker = root.join(IWE_MARKER);
     if marker.exists() {
         return already_initialized(&marker, options);

@@ -70,6 +70,13 @@ pub fn extract(
         now,
     );
 
+    if new_key.has_hidden_or_empty_segment() {
+        return Err(OperationError::InvalidTarget(format!(
+            "Generated key '{}' has a segment that is empty or starts with '.'",
+            new_key
+        )));
+    }
+
     let format = graph.format_options().clone();
 
     let extracted = tree.get(target_id);
