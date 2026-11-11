@@ -499,3 +499,22 @@ fn case_only_rename_with_unchanged_content_keeps_the_document() {
         "# Note\n\ntext\n"
     );
 }
+
+#[test]
+fn rename_to_key_differing_only_in_case_from_another_document_fails() {
+    let temp_dir =
+        setup_workspace_with_docs(vec![("source", "# Source\n"), ("other", "# Other\n")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_rename_command(temp_path, &["source", "Other"]);
+
+    assert!(!output.status.success());
+    assert_eq!(
+        read_to_string(temp_path.join("other.md")).unwrap(),
+        "# Other\n"
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("source.md")).unwrap(),
+        "# Source\n"
+    );
+}

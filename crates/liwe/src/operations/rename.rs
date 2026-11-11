@@ -22,6 +22,14 @@ pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, Op
     if graph.get_node_id(new_key).is_some() {
         return Err(OperationError::AlreadyExists(new_key.clone()));
     }
+    let lowercase = new_key.as_str().to_lowercase();
+    if let Some(existing) = graph
+        .keys()
+        .into_iter()
+        .find(|key| key != old_key && key.as_str().to_lowercase() == lowercase)
+    {
+        return Err(OperationError::AlreadyExists(existing));
+    }
 
     let mut result = Changes::default();
     let format = graph.format_options().clone();
