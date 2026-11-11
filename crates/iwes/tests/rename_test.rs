@@ -387,3 +387,43 @@ fn case_only_rename_deletes_before_creating() {
         .to_workspace_edit(),
     );
 }
+
+#[test]
+fn rename_wiki_link_from_a_subfolder_resolves_the_name_from_the_workspace_root() {
+    let new_uri = uri_from("a/renamed");
+
+    Fixture::with_documents(vec![
+        ("notes/first", "[[target]]\n"),
+        ("a/target", "# target\n"),
+    ])
+    .rename(
+        uri_from("notes/first").to_rename_params(0, 2, "a/renamed".to_string()),
+        vec![
+            uri_from("notes/first").to_edit("[[renamed]]\n"),
+            uri_from("a/target").to_delete_file(),
+            new_uri.clone().to_create_file(),
+            new_uri.to_edit_with_range(
+                "# target\n",
+                lsp_types::Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            ),
+        ]
+        .to_workspace_edit(),
+    );
+}
+
+#[test]
+fn rename_to_an_empty_name() {
+    assert_rename_error(
+        indoc! {"
+            [](2)
+            _
+            # file 2
+            "},
+        "The file name cannot be empty",
+        lsp_types::Position::new(0, 0),
+        "",
+    );
+}

@@ -564,7 +564,24 @@ impl Server {
         let position = params.text_document_position.position.to_model();
         let reference_type = self.ref_type_at(&doc_key, position);
 
-        let new_key = Key::from_rel_link_url(&params.new_name, relative_to);
+        if params.new_name.trim().is_empty() {
+            return Result::Err(ResponseError {
+                code: 1,
+                message: "The file name cannot be empty".to_string(),
+                data: None,
+            });
+        }
+
+        let link_url = self
+            .graph()
+            .parser(&doc_key)
+            .and_then(|parser| parser.url_at(position));
+        let new_key = match reference_type {
+            ReferenceType::WikiLink | ReferenceType::WikiLinkPiped => {
+                Key::from_rel_link_url(&params.new_name, "")
+            }
+            ReferenceType::Regular => Key::from_rel_link_url(&params.new_name, relative_to),
+        };
 
         if key_escapes_workspace(new_key.as_str()) {
             return Result::Err(ResponseError {
@@ -586,9 +603,7 @@ impl Server {
         }
 
         Result::Ok(
-            self.graph()
-                .parser(&doc_key)
-                .and_then(|parser| parser.url_at(position))
+            link_url
                 .map(|url| self.resolve_link_key(&url, relative_to, reference_type))
                 .filter(|key| query::key_exists(&self.graph, key))
                 .and_then(|key| rename(&self.graph, &key, &new_key).ok())
