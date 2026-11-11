@@ -497,3 +497,44 @@ fn block_edit_keeps_unparseable_frontmatter() {
         "---\ntags: [a\n---\n\n# Alpha\n\nnew\n"
     );
 }
+
+#[test]
+fn document_expect_violation_fails_a_dry_run() {
+    let temp = setup(vec![("a", "# Alpha\n"), ("b", "# Beta\n")]);
+    let expected = indoc! {"
+        error: update expects 1 document, matched 2
+          a › Alpha
+          b › Beta
+        hint: adjust the filter or raise expect
+    "};
+
+    let set_only = run_update(
+        temp.path(),
+        &[
+            "--filter",
+            "{}",
+            "--set",
+            "reviewed=true",
+            "--expect",
+            "1",
+            "--dry-run",
+        ],
+    );
+    assert!(!set_only.status.success());
+    assert_eq!(String::from_utf8_lossy(&set_only.stderr), expected);
+
+    let with_block_edit = run_update(
+        temp.path(),
+        &[
+            "--filter",
+            "{}",
+            "--append",
+            "{ $header: {}, content: text }",
+            "--expect",
+            "1",
+            "--dry-run",
+        ],
+    );
+    assert!(!with_block_edit.status.success());
+    assert_eq!(String::from_utf8_lossy(&with_block_edit.stderr), expected);
+}

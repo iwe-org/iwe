@@ -492,3 +492,21 @@ fn run_delete_command(work_dir: &std::path::Path, args: &[&str]) -> std::process
 
     command.output().expect("Failed to execute iwe delete")
 }
+
+#[test]
+fn document_expect_violation_fails_a_dry_run() {
+    let temp_dir = setup_workspace_with_docs(vec![("a", "# Alpha"), ("b", "# Beta")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["--filter", "{}", "--expect", "1", "--dry-run"]);
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        indoc! {"
+            error: delete expects 1 document, matched 2
+              a › Alpha
+              b › Beta
+            hint: adjust the filter or raise expect
+        "}
+    );
+}

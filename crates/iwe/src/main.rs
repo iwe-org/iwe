@@ -3276,13 +3276,11 @@ fn delete_command(args: Delete) {
 
     let targets = resolve_delete_targets(&args, &graph);
 
-    if !args.dry_run {
-        let doc_refs = build_doc_refs(&graph, &targets);
-        check_document_expect("delete", doc_expect, &doc_refs).unwrap_or_else(|e| {
-            eprintln!("error: {}", e);
-            std::process::exit(2);
-        });
-    }
+    let doc_refs = build_doc_refs(&graph, &targets);
+    check_document_expect("delete", doc_expect, &doc_refs).unwrap_or_else(|e| {
+        eprintln!("error: {}", e);
+        std::process::exit(2);
+    });
 
     if targets.is_empty() {
         if !args.quiet {
@@ -3947,13 +3945,11 @@ fn update_mutation(args: Update) {
             Outcome::Find { matches, .. } => matches.into_iter().map(|m| m.key).collect(),
             _ => unreachable!(),
         };
-        if !args.dry_run {
-            let doc_refs = build_doc_refs(&graph, &keys);
-            check_document_expect("update", doc_expect, &doc_refs).unwrap_or_else(|e| {
-                eprintln!("error: {}", e);
-                std::process::exit(2);
-            });
-        }
+        let doc_refs = build_doc_refs(&graph, &keys);
+        check_document_expect("update", doc_expect, &doc_refs).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
         check_frontmatter_parsed(&graph, &keys).unwrap_or_else(|e| {
             eprintln!("error: {}", e);
             std::process::exit(2);
@@ -3976,10 +3972,8 @@ fn update_mutation(args: Update) {
             .collect()
     } else {
         let mut op = UpdateOp::new(filter, update_doc);
-        if !args.dry_run {
-            if let Some(expect) = doc_expect {
-                op = op.expect(expect);
-            }
+        if let Some(expect) = doc_expect {
+            op = op.expect(expect);
         }
         let outcome = run_op(&Operation::Update(op), &graph).unwrap_or_else(|e| {
             eprintln!("error: {}", e);
