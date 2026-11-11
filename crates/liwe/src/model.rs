@@ -130,6 +130,12 @@ impl Key {
         }
     }
 
+    pub fn has_hidden_or_empty_segment(&self) -> bool {
+        self.text
+            .split('/')
+            .any(|segment| segment.is_empty() || segment.starts_with('.'))
+    }
+
     pub fn from_stripped(key: &str) -> Self {
         Key {
             text: Arc::from(key),

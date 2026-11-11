@@ -9,7 +9,7 @@ use rayon::prelude::*;
 
 pub use liwe::fs::walk_md_paths;
 use liwe::model::config::Format;
-use liwe::model::{Content, State};
+use liwe::model::{Content, Key, State};
 use liwe::operations::Changes;
 
 pub fn key_escapes_workspace(key: &str) -> bool {
@@ -30,6 +30,12 @@ pub fn workspace_document_path(
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             format!("key '{key}' escapes the workspace"),
+        ));
+    }
+    if Key::name(key).has_hidden_or_empty_segment() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("key '{key}' has a segment that is empty or starts with '.'"),
         ));
     }
     Ok(base_path.join(format!("{key}.{extension}")))
@@ -291,6 +297,28 @@ mod tests {
             .collect();
         entries.sort();
         assert_eq!(entries, vec!["blocker", "source.md"]);
+    }
+
+    #[test]
+    fn document_path_rejects_hidden_or_empty_segments() {
+        let base = Path::new("/workspace");
+        let errors: Vec<String> = [".", "dir/", ".hidden", "dir/.note"]
+            .iter()
+            .map(|key| {
+                workspace_document_path(base, key, "md")
+                    .unwrap_err()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            vec![
+                "key '.' has a segment that is empty or starts with '.'",
+                "key 'dir/' has a segment that is empty or starts with '.'",
+                "key '.hidden' has a segment that is empty or starts with '.'",
+                "key 'dir/.note' has a segment that is empty or starts with '.'",
+            ],
+            errors
+        );
     }
 
     #[test]

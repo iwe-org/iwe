@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iwe_query` update that changes fields fails on a document whose frontmatter is not valid YAML instead of dropping the old fields
 - Rename and extract tools keep the original document when the new file cannot be created (previously the original was already deleted)
 - Rename tool to a name that differs only in letter case from another document fails instead of overwriting that document on case-insensitive file systems
+- Create, rename and extract tools reject keys with an empty segment or a segment starting with `.`, such as `dir/` or `.`, which created hidden files that disappeared from the workspace
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

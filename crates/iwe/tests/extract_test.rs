@@ -438,3 +438,25 @@ fn find_extracted_file(temp_path: &std::path::Path) -> Option<std::path::PathBuf
         })
         .next()
 }
+
+#[test]
+fn test_extract_section_with_empty_slug_fails() {
+    let main = "# Main Title\n\n## !!!\n\nContent\n";
+    let temp_dir = setup_workspace_with_docs(vec![("main", main)]);
+    let temp_path = temp_dir.path();
+
+    let output = run_extract_command(temp_path, &["main", "--section", "!!!"]);
+
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error: Invalid target: Generated key '' has a segment that is empty or starts with '.'\n"
+    );
+    assert_eq!(read_to_string(temp_path.join("main.md")).unwrap(), main);
+    let mut entries: Vec<String> = std::fs::read_dir(temp_path)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+        .collect();
+    entries.sort();
+    assert_eq!(entries, vec![".iwe", "main.md"]);
+}

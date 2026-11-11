@@ -33,3 +33,22 @@ fn rename_changing_only_the_case_of_the_same_document_is_allowed() {
     );
     assert_eq!(vec![Key::name("source")], changes.removes);
 }
+
+#[test]
+fn rename_to_key_with_hidden_or_empty_segment_is_rejected() {
+    let graph = graph_with(&[("source", "# Source\n")]);
+
+    let errors: Vec<String> = [".", "dir/", ".hidden", "dir/.note", "a//b"]
+        .iter()
+        .map(|key| {
+            rename(&graph, &Key::name("source"), &Key::name(key))
+                .unwrap_err()
+                .to_string()
+        })
+        .collect();
+
+    assert_eq!(
+        vec!["Invalid target: Key segments cannot be empty or start with '.'"; 5],
+        errors
+    );
+}

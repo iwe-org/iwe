@@ -111,6 +111,12 @@ impl<'a> DocumentCreator<'a> {
                 base_key
             ));
         }
+        if base_key.has_hidden_or_empty_segment() {
+            return Err(format!(
+                "Key '{}' has a segment that is empty or starts with '.'",
+                base_key
+            ));
+        }
 
         let path_str = base_key.to_path(self.config.format);
         let filename_len = std::path::Path::new(&path_str)

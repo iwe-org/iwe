@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `delete_all` operation deletes a set of documents and cleans up the links to all of them in one pass
 - `Graph::has_unparsed_frontmatter`, `check_frontmatter_parsed` and `EvalError::UnparsedFrontmatter` report documents whose frontmatter is not a valid YAML mapping
+- `Key::has_hidden_or_empty_segment` tells whether a key would be written to a hidden file or a path with an empty segment
 
 ### Changed
 - List item whose first block is a quote, code block, table or HTML holds that block as one `Inline::RawInline` with format `flattened-block` (previously its text was split into `Str` words)
@@ -31,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontmatter that is not a valid YAML mapping is kept as written instead of being replaced with an empty mapping
 - Markdown reader treats only a `---` block at the very start of a document as frontmatter, so a later `---` block stays in the body instead of replacing the frontmatter
 - `rename` returns `AlreadyExists` when the new key differs only in letter case from another document, which would be the same file on case-insensitive file systems
+- `rename` and `extract` return `InvalidTarget` for a key with an empty segment or a segment starting with `.`, which would be written to a hidden file the loader never reads
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

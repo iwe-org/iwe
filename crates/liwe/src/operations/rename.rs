@@ -16,6 +16,11 @@ pub fn rename(graph: &Graph, old_key: &Key, new_key: &Key) -> Result<Changes, Op
             "Key cannot be empty".to_string(),
         ));
     }
+    if new_key.has_hidden_or_empty_segment() {
+        return Err(OperationError::InvalidTarget(
+            "Key segments cannot be empty or start with '.'".to_string(),
+        ));
+    }
     if graph.get_node_id(old_key).is_none() {
         return Err(OperationError::NotFound(old_key.clone()));
     }

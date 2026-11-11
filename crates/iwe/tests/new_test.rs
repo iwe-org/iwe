@@ -775,3 +775,22 @@ fn test_new_key_with_template_renders_body() {
         "Should bypass the template's key derivation"
     );
 }
+
+#[test]
+fn test_new_rejects_key_with_empty_segment() {
+    let temp_dir = setup_iwe_project();
+    let temp_path = temp_dir.path();
+
+    let output = Command::new(crate::common::get_iwe_binary_path())
+        .args(["new", "Title", "--key", "dir/"])
+        .current_dir(temp_path)
+        .output()
+        .expect("Failed to execute iwe new");
+
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error: Key 'dir/' has a segment that is empty or starts with '.'\n"
+    );
+    assert!(!temp_path.join("dir").exists());
+}
