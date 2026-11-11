@@ -423,8 +423,7 @@ impl Graph {
             .set_node(id, GraphNode::new_root(key.clone(), id));
         f(&mut GraphBuilder::new(self, id));
 
-        self.extract_ref_text(key)
-            .map(|text| self.keys_to_ref_text.insert(key.clone(), text));
+        self.refresh_ref_text(key);
 
         let mut index = RefIndex::new();
         index.index_node(self, id);
@@ -496,8 +495,7 @@ impl Graph {
         index.index_node(self, id);
         self.index.merge(index);
 
-        self.extract_ref_text(&key)
-            .map(|text| self.keys_to_ref_text.insert(key, text));
+        self.refresh_ref_text(&key);
     }
 
     pub fn key_index(&self) -> &KeyIndex {
@@ -930,8 +928,7 @@ impl<'a> GraphPatch<'a> for Graph {
         self.nodes_map.insert(key.clone(), map.clone());
         self.global_nodes_map.extend(map);
 
-        self.extract_ref_text(key)
-            .map(|text| self.keys_to_ref_text.insert(key.clone(), text));
+        self.refresh_ref_text(key);
 
         let id = self.get_document_id(key);
         let mut index = RefIndex::new();

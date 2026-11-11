@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Filter with an empty mapping such as `status: {}` matches only documents whose field is an empty mapping (previously it matched every document)
 - `is_document_url` is false for a fragment-only link such as `#intro`, so a standalone paragraph with such a link is no longer read as a block reference to the parent directory
 - Percent-encoded `#` in a link path (`%23`) is part of the document key instead of starting a fragment, and is written back encoded
+- Document title is cleared when an update removes the title, instead of keeping the old one
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 
