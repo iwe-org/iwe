@@ -235,3 +235,39 @@ fn item_code_block_is_not_wrapped() {
         },
     );
 }
+
+fn normalizes_to(input: &str, expected: &str) {
+    let first = normalize(input, &FormattingOptions::default());
+    assert_str_eq!(expected, first);
+    assert_str_eq!(expected, normalize(&first, &FormattingOptions::default()));
+}
+
+#[test]
+fn escaped_entity_stays_literal() {
+    normalizes_to("&amp;copy; and &copy\n", "\\&copy; and &copy\n");
+}
+
+#[test]
+fn escaped_autolink_stays_literal() {
+    round_trips("\\<https://example.com>\n");
+}
+
+#[test]
+fn escaped_image_marker_stays_literal() {
+    round_trips("\\![alt](image.png)\n");
+}
+
+#[test]
+fn escaped_double_bracket_before_link_stays_literal() {
+    round_trips("\\[\\[x](y)\n");
+}
+
+#[test]
+fn escaped_bracket_before_link_close_stays_literal() {
+    round_trips("\\[x](y)\n");
+}
+
+#[test]
+fn non_breaking_space_is_kept() {
+    round_trips("one\u{a0}two\n");
+}

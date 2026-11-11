@@ -856,8 +856,10 @@ fn escape_str<S: TextSink>(
     let needs_scan = block_start
         || (ordered_rules && pos == LinePos::AfterDigits)
         || text.bytes().any(|b| {
-            matches!(b, b'\\' | b'*' | b'_' | b'[' | b']' | b'`' | b'<')
-                || (line_start && ordered_rules && matches!(b, b'.' | b')'))
+            matches!(
+                b,
+                b'\\' | b'*' | b'_' | b'[' | b']' | b'`' | b'<' | b'&' | b'!'
+            ) || (line_start && ordered_rules && matches!(b, b'.' | b')'))
         });
     if !needs_scan {
         out.push(text);
@@ -867,6 +869,7 @@ fn escape_str<S: TextSink>(
     let following_char = match following.first() {
         Some(Inline::Str(s)) => s.chars().next(),
         Some(Inline::Space) => Some(' '),
+        Some(Inline::Link(..)) => Some('['),
         _ => None,
     };
     let line_is_underline =
@@ -892,10 +895,19 @@ fn escape_str<S: TextSink>(
             '<' => {
                 let mut ahead: String = chars[i + 1..].iter().collect();
                 ahead.push_str(&following_text(following));
-                opens_raw_html(&ahead)
+                opens_raw_html(&ahead) || opens_autolink(&ahead)
             }
+            '&' => {
+                let mut ahead: String = chars[i + 1..].iter().collect();
+                ahead.push_str(&following_text(following));
+                starts_with_entity(&ahead)
+            }
+            '!' => next == Some('['),
             ']' => chars.get(i + 1) == Some(&'('),
-            '[' => next == Some('['),
+            '[' => {
+                next == Some('[')
+                    || (!chars[i + 1..].contains(&']') && closes_across_runs(following))
+            }
             '`' => ctx.backtick_pair,
             '#' if lead => {
                 let hashes = chars.iter().take_while(|&&c| c == '#').count();
@@ -1157,6 +1169,60 @@ fn starts_html_block(token: &str) -> bool {
     tail.is_empty() || tail.starts_with(['>', '/']) || tail.starts_with(char::is_whitespace)
 }
 
+fn closes_across_runs(following: &[Inline]) -> bool {
+    for (index, inline) in following.iter().enumerate() {
+        match inline {
+            Inline::Str(text) => {
+                if let Some(close) = text.find(']') {
+                    return close + 1 == text.len()
+                        && matches!(following.get(index + 1), Some(Inline::Str(next)) if next.starts_with('('));
+                }
+            }
+            Inline::Space => {}
+            _ => return false,
+        }
+    }
+    false
+}
+
+fn opens_autolink(rest: &str) -> bool {
+    let Some(end) = rest.find('>') else {
+        return false;
+    };
+    let body = &rest[..end];
+    if body.is_empty() || body.contains(|c: char| c.is_ascii_whitespace() || c == '<') {
+        return false;
+    }
+    if let Some((scheme, _)) = body.split_once(':') {
+        let mut scheme_chars = scheme.chars();
+        if (2..=32).contains(&scheme.len())
+            && scheme_chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+            && scheme_chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '.' | '-'))
+        {
+            return true;
+        }
+    }
+    body.split_once('@').is_some_and(|(local, domain)| {
+        !local.is_empty() && !domain.is_empty() && !domain.contains('@')
+    })
+}
+
+fn starts_with_entity(rest: &str) -> bool {
+    let Some(end) = rest.find(';') else {
+        return false;
+    };
+    let name = &rest[..end];
+    if let Some(number) = name.strip_prefix('#') {
+        return match number.strip_prefix(['x', 'X']) {
+            Some(hex) => (1..=6).contains(&hex.len()) && hex.chars().all(|c| c.is_ascii_hexdigit()),
+            None => (1..=7).contains(&number.len()) && number.chars().all(|c| c.is_ascii_digit()),
+        };
+    }
+    (2..=32).contains(&name.len())
+        && name.starts_with(|c: char| c.is_ascii_alphabetic())
+        && name.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
 fn opens_raw_html(rest: &str) -> bool {
     if rest.starts_with("!--") || rest.starts_with('?') || rest.starts_with("![CDATA[") {
         return true;
@@ -1310,7 +1376,7 @@ fn split_text_words(text: &str, out: &mut Vec<Inline>) {
     let mut in_ws = false;
     let mut ws_has_newline = false;
     for (i, ch) in text.char_indices() {
-        if ch.is_whitespace() {
+        if matches!(ch, ' ' | '\t' | '\n' | '\r') {
             if let Some(start) = word_start.take() {
                 out.push(Inline::Str(text[start..i].to_string()));
             }
