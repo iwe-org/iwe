@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `iwe_query` update with `$insertAfter` on an empty `$section` inserts after the section instead of nesting the new block inside it
 - `iwe_query` update with `$delete` of every item in a list no longer leaves an extra blank line
 - `iwe_query` update that changes fields fails on a document whose frontmatter is not valid YAML instead of dropping the old fields
+- Rename and extract tools keep the original document when the new file cannot be created (previously the original was already deleted)
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

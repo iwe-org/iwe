@@ -175,6 +175,17 @@ pub fn write_store_at_path(store: &State, to: &Path, format: Format) -> std::io:
 pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std::io::Result<()> {
     let extension = format.extension();
 
+    let mut staged: Vec<(PathBuf, PathBuf)> = Vec::new();
+    for (index, (key, markdown)) in changes.creates.iter().enumerate() {
+        match stage_create(base_path, key.as_str(), extension, index, markdown) {
+            Ok(paths) => staged.push(paths),
+            Err(error) => {
+                discard_staged(&staged);
+                return Err(error);
+            }
+        }
+    }
+
     for key in &changes.removes {
         let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
         if file_path.exists() {
@@ -183,12 +194,11 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
         prune_empty_dirs(file_path.parent(), base_path);
     }
 
-    for (key, markdown) in &changes.creates {
-        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
+    for (temp_path, file_path) in &staged {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        write_file_if_changed(&file_path, markdown)?;
+        fs::rename(temp_path, file_path)?;
     }
 
     for (key, markdown) in &changes.updates {
@@ -197,6 +207,36 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
     }
 
     Ok(())
+}
+
+fn stage_create(
+    base_path: &Path,
+    key: &str,
+    extension: &str,
+    index: usize,
+    markdown: &str,
+) -> std::io::Result<(PathBuf, PathBuf)> {
+    let file_path = workspace_document_path(base_path, key, extension)?;
+    let parent = file_path.parent().unwrap_or(base_path);
+    fs::create_dir_all(parent)?;
+    let temp_path = parent.join(format!(".iwe-{}-{}.tmp", std::process::id(), index));
+    fs::write(&temp_path, markdown)?;
+    fs::File::create_new(&file_path)
+        .and_then(|_| fs::remove_file(&file_path))
+        .or_else(|error| match error.kind() {
+            std::io::ErrorKind::AlreadyExists => Ok(()),
+            _ => Err(error),
+        })
+        .inspect_err(|_| {
+            let _ = fs::remove_file(&temp_path);
+        })?;
+    Ok((temp_path, file_path))
+}
+
+fn discard_staged(staged: &[(PathBuf, PathBuf)]) {
+    for (temp_path, _) in staged {
+        let _ = fs::remove_file(temp_path);
+    }
 }
 
 fn prune_empty_dirs(start: Option<&Path>, base_path: &Path) {
@@ -226,6 +266,32 @@ fn sanitize_content(content: String) -> String {
 mod tests {
     use super::*;
     use liwe::model::Key;
+
+    #[test]
+    fn failed_create_leaves_removed_documents_in_place() {
+        let base = tempfile::tempdir().unwrap();
+        std::fs::write(base.path().join("source.md"), "# source\n").unwrap();
+        std::fs::write(base.path().join("blocker"), "x").unwrap();
+        let changes = Changes {
+            creates: vec![(Key::name("blocker/target"), "# source\n".to_string())],
+            updates: vec![],
+            removes: vec![Key::name("source")],
+        };
+
+        let result = apply_changes(&changes, base.path(), Format::Markdown);
+
+        assert!(result.is_err());
+        assert_eq!(
+            std::fs::read_to_string(base.path().join("source.md")).unwrap(),
+            "# source\n"
+        );
+        let mut entries: Vec<String> = std::fs::read_dir(base.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        entries.sort();
+        assert_eq!(entries, vec!["blocker", "source.md"]);
+    }
 
     #[test]
     fn sanitize_content_strips_crlf() {
