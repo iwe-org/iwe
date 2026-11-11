@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `update` with `$replace` or `$insertAfter` on `$header` acts on each header instead of the whole section when every block under it also matches, so `$replace` no longer deletes the subsections
 - `inline` that deletes the inlined document also removes the other links to it from the source document instead of leaving them dangling
 - `normalize` keeps escaped `&amp;`-style entities, `\<https://...>`, `\![alt](...)` and `\[` before a link literal, and keeps non-breaking spaces instead of turning them into plain spaces
+- `normalize` keeps two adjacent lists separate instead of merging them into one on the second run
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

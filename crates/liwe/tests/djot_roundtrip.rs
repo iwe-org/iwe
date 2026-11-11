@@ -492,3 +492,17 @@ fn table_caption_text_is_kept() {
             "})
     );
 }
+
+#[test]
+fn adjacent_lists_stay_separate() {
+    let input = indoc! {"
+        - a
+
+        * b
+
+        1. c
+
+        1) d
+        "};
+    assert_eq!(input, roundtrip(input));
+}

@@ -7,6 +7,36 @@ use pretty_assertions::assert_str_eq;
 use liwe::graph::Graph;
 
 #[test]
+fn normalization_adjacent_lists_stay_separate() {
+    let expected = indoc! {"
+        - a
+
+        * b
+
+        - c
+
+        1. d
+
+        1) e
+        "};
+    compare(
+        expected,
+        indoc! {"
+        - a
+
+        + b
+
+        * c
+
+        1. d
+
+        1) e
+        "},
+    );
+    compare(expected, expected);
+}
+
+#[test]
 fn normalization_list_item() {
     compare(
         indoc! {"

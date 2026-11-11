@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block update on `$header` targets only the header itself even when every block under it also matches (previously the whole section was replaced or used as the anchor)
 - `inline` that deletes the target also removes the other links to it from the source document
 - Markdown writer escapes `&` before an entity name, `<` before an autolink, `!` before a link, and `[` whose `](` would form a link, and keeps non-breaking spaces
+- Markdown and djot writers give a list that directly follows another list of the same kind the other marker (`*` or `)`), so the two lists no longer merge on the next read
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

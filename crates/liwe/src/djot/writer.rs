@@ -6,7 +6,7 @@ use crate::model::inline::{
     Inlines, TextSink, TokenStream, FLATTENED_BLOCK,
 };
 use crate::model::node::ColumnAlignment;
-use crate::model::writer::{frontmatter_to_yaml, Block, Blocks};
+use crate::model::writer::{frontmatter_to_yaml, same_list_kind, Block, Blocks};
 use crate::model::{autolink_body, is_ref_url};
 
 pub struct DjotWriter {}
@@ -39,10 +39,26 @@ fn blocks_to_djot(
     skip_frontmatter: bool,
     indent: usize,
 ) -> String {
-    let parts: Vec<String> = blocks
+    let kept: Vec<&Block> = blocks
         .iter()
         .filter(|block| !(skip_frontmatter && block.is_frontmatter()))
-        .map(|block| block_to_djot(block, options, indent))
+        .collect();
+    let mut alternate = false;
+    let parts: Vec<String> = kept
+        .iter()
+        .enumerate()
+        .map(|(i, block)| {
+            alternate = i > 0 && same_list_kind(kept[i - 1], block) && !alternate;
+            match block {
+                Block::BulletList(items) if alternate => {
+                    list_to_djot(items, options, false, true, indent)
+                }
+                Block::OrderedList(items) if alternate => {
+                    list_to_djot(items, options, true, true, indent)
+                }
+                _ => block_to_djot(block, options, indent),
+            }
+        })
         .collect();
     ensure_trailing_newline(parts.join("\n"))
 }
@@ -103,19 +119,26 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
                 .join("\n");
             format!("{}\n", quoted)
         }
-        Block::BulletList(items) => list_to_djot(items, options, false, indent),
-        Block::OrderedList(items) => list_to_djot(items, options, true, indent),
+        Block::BulletList(items) => list_to_djot(items, options, false, false, indent),
+        Block::OrderedList(items) => list_to_djot(items, options, true, false, indent),
         Block::Table(header, alignment, rows) => table_to_djot(header, alignment, rows, options),
     }
 }
 
-fn list_to_djot(items: &[Blocks], options: &DjotOptions, ordered: bool, indent: usize) -> String {
+fn list_to_djot(
+    items: &[Blocks],
+    options: &DjotOptions,
+    ordered: bool,
+    alternate: bool,
+    indent: usize,
+) -> String {
     let mut out = String::new();
     for (index, item) in items.iter().enumerate() {
-        let marker = if ordered {
-            format!("{}.", index + 1)
-        } else {
-            "-".to_string()
+        let marker = match (ordered, alternate) {
+            (true, false) => format!("{}.", index + 1),
+            (true, true) => format!("{})", index + 1),
+            (false, false) => "-".to_string(),
+            (false, true) => "*".to_string(),
         };
         let (checkbox, item) = strip_item_checkbox(item);
         let pad = marker.chars().count() + 1;

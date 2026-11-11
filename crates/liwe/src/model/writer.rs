@@ -353,13 +353,44 @@ pub fn blocks_to_markdown_sparce_indented(
 
 fn join_sparce(blocks: Vec<&Block>, options: &MarkdownOptions, indent: usize) -> String {
     let mut result = String::new();
+    let mut alternate = false;
     for (i, block) in blocks.iter().enumerate() {
         if i > 0 && !block.glues_to(blocks[i - 1]) {
             result.push('\n');
         }
-        result.push_str(&block.to_markdown_indented(options, indent));
+        alternate = i > 0 && same_list_kind(blocks[i - 1], block) && !alternate;
+        if alternate {
+            result.push_str(&block.to_markdown_indented(&alternate_list_tokens(options), indent));
+        } else {
+            result.push_str(&block.to_markdown_indented(options, indent));
+        }
     }
     ensure_trailing_newline(result)
+}
+
+pub(crate) fn same_list_kind(previous: &Block, block: &Block) -> bool {
+    matches!(
+        (previous, block),
+        (Block::BulletList(_), Block::BulletList(_))
+            | (Block::OrderedList(_), Block::OrderedList(_))
+    )
+}
+
+fn alternate_list_tokens(options: &MarkdownOptions) -> MarkdownOptions {
+    let mut alternate = options.clone();
+    let bullet = if options.formatting.list_token_char() == '-' {
+        "*"
+    } else {
+        "-"
+    };
+    let ordered = if options.formatting.ordered_list_token_char() == '.' {
+        ")"
+    } else {
+        "."
+    };
+    alternate.formatting.list_token = Some(bullet.to_string());
+    alternate.formatting.ordered_list_token = Some(ordered.to_string());
+    alternate
 }
 
 pub fn blocks_to_markdown_sparce_skip_frontmatter(
