@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Link action and link completion write `#` in a document name as `%23`, so the link points to that document instead of a fragment
 - Formatting keeps two-space line breaks inside block quotes
 - Formatting keeps frontmatter that is not valid YAML as written instead of replacing it with `{}`
+- Formatting no longer treats a `---` block in the middle of a document as frontmatter, which replaced the real frontmatter and dropped the text between the dashes
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 

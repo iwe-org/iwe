@@ -977,3 +977,35 @@ fn scoped_normalize_rejects_a_key_outside_the_workspace() {
         "#  Outside\n"
     );
 }
+
+#[test]
+fn dashes_after_body_do_not_replace_frontmatter() {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+    write(
+        temp_path.join("doc.md"),
+        "---\nfield: value\n---\n\n# Heading\n\n---\nother: value\n---\n\nText\n",
+    )
+    .unwrap();
+
+    let output = run_normalize_command(temp_path);
+    assert!(output.status.success());
+
+    assert_eq!(
+        read_to_string(temp_path.join("doc.md")).unwrap(),
+        indoc! {"
+            ---
+            field: value
+            ---
+
+            # Heading
+
+            ------------------------------------------------------------------------
+
+            ## other: value
+
+            Text
+        "}
+    );
+}

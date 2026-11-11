@@ -126,6 +126,58 @@ fn normalization_meta_unparseable_yaml_keeps_header_title() {
     );
 }
 
+#[test]
+fn normalization_meta_dashes_after_body_are_not_frontmatter() {
+    compare(
+        indoc! {"
+        # Heading
+
+        ------------------------------------------------------------------------
+
+        ## text
+        "},
+        indoc! {"
+        # Heading
+
+        ---
+        text
+        ---
+        "},
+    );
+}
+
+#[test]
+fn normalization_meta_dashes_after_body_keep_real_frontmatter() {
+    compare(
+        indoc! {"
+        ---
+        field: value
+        ---
+
+        # Heading
+
+        ------------------------------------------------------------------------
+
+        ## other: value
+
+        Text
+        "},
+        indoc! {"
+        ---
+        field: value
+        ---
+
+        # Heading
+
+        ---
+        other: value
+        ---
+
+        Text
+        "},
+    );
+}
+
 static INIT: Once = Once::new();
 
 fn setup() {

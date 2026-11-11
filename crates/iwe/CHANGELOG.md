@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `normalize` of djot documents keeps an escaped `<` literal
 - `update` with `$delete` of every item in a list no longer leaves an extra blank line
 - `normalize` keeps frontmatter that is not valid YAML as written instead of replacing it with `{}`, and `update --set` or `--unset` on such a document fails instead of dropping the old fields
+- `normalize` no longer treats a `---` block in the middle of a document as frontmatter, which replaced the real frontmatter and dropped the text between the dashes
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

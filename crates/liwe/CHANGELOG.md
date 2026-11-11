@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sequential document ids skip ids that are already taken instead of reusing them
 - Block update `$delete` of every item in a list removes the list without leaving an extra blank line
 - Frontmatter that is not a valid YAML mapping is kept as written instead of being replaced with an empty mapping
+- Markdown reader treats only a `---` block at the very start of a document as frontmatter, so a later `---` block stays in the body instead of replacing the frontmatter
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

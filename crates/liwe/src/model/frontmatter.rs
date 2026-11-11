@@ -24,6 +24,17 @@ pub(crate) fn parse_frontmatter(text: &str) -> Option<Mapping> {
     }
 }
 
+pub(crate) fn frontmatter_yaml(raw: &str) -> String {
+    let lines: Vec<&str> = raw.lines().collect();
+    if lines.len() < 2 {
+        return String::new();
+    }
+    lines[1..lines.len() - 1]
+        .iter()
+        .map(|line| format!("{}\n", line))
+        .collect()
+}
+
 pub fn split_raw_frontmatter(content: &str) -> (Option<&str>, &str) {
     match leading_metadata_block_end(content) {
         Some(end) => (Some(&content[..end]), &content[end..]),
