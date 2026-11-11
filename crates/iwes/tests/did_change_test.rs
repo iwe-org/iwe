@@ -99,3 +99,38 @@ fn did_change_test_two_times() {
         )]),
     );
 }
+
+#[test]
+#[allow(deprecated)]
+fn did_change_with_several_changes_applies_the_last() {
+    Fixture::with(indoc! {"
+            # test
+            "})
+    .did_change_text_document(lsp_types::DidChangeTextDocumentParams {
+        text_document: lsp_types::VersionedTextDocumentIdentifier {
+            uri: uri(1),
+            version: 1,
+        },
+        content_changes: vec![
+            lsp_types::TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "# first".to_string(),
+            },
+            lsp_types::TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: "# last".to_string(),
+            },
+        ],
+    })
+    .workspace_symbols(
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
+            "last",
+            lsp_types::SymbolKind::NAMESPACE,
+            0,
+            1,
+        )]),
+    );
+}

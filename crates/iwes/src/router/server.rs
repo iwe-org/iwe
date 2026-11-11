@@ -226,7 +226,7 @@ impl Server {
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
-        let Some(content) = params.content_changes.first() else {
+        let Some(content) = params.content_changes.last() else {
             return;
         };
         self.store_document(
