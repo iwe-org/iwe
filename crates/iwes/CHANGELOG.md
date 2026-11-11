@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formatting of djot documents keeps empty task items and the text of description list terms and table captions (previously dropped)
 - An invalid date or time format in the config is reported when the server starts instead of crashing a code action later
 - A request that fails inside the server, such as one for an `untitled:` document, gets an error response instead of leaving the editor waiting forever
+- Inline code actions that delete the inlined document also remove the other links to it from the current document
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 

@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An invalid date or time format in the config is reported as a config error instead of crashing `new` and `create --template`, and `init --date-format` rejects an invalid format
 - `squash` stops at a link back to a document it is already expanding, so cyclic references finish quickly instead of repeating content
 - `update` with `$replace` or `$insertAfter` on `$header` acts on each header instead of the whole section when every block under it also matches, so `$replace` no longer deletes the subsections
+- `inline` that deletes the inlined document also removes the other links to it from the source document instead of leaving them dangling
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 

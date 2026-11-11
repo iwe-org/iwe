@@ -50,3 +50,54 @@ fn inline_self_reference(inline_type: InlineType) -> String {
         Err(error) => error.to_string(),
     }
 }
+
+#[test]
+fn inline_removes_other_links_to_the_deleted_target_in_the_source() {
+    let mut graph = Graph::new();
+    graph.insert_document(
+        Key::name("index"),
+        indoc! {"
+            # Index
+
+            ## Section
+
+            [Note](note)
+
+            See [the note](note) for details.
+
+            [Note](note)
+        "}
+        .to_string(),
+    );
+    graph.insert_document(Key::name("note"), "# Note\n\nnote text\n".to_string());
+
+    let key = Key::name("index");
+    let tree = (&graph).collect(&key);
+    let ref_id = references(&tree, graph.key_index())[0].id;
+    let config = InlineConfig {
+        inline_type: InlineType::Section,
+        keep_target: false,
+    };
+
+    let changes = inline(&graph, &key, ref_id, &config).unwrap();
+
+    assert_eq!(
+        vec![(
+            Key::name("index"),
+            indoc! {"
+                # Index
+
+                ## Section
+
+                See the note for details.
+
+                ### Note
+
+                note text
+            "}
+            .to_string()
+        )],
+        changes.updates
+    );
+    assert_eq!(vec![Key::name("note")], changes.removes);
+}

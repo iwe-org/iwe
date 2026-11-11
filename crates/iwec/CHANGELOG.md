@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An invalid date or time format in the config is reported when the server starts instead of crashing a tool call later
 - Squash tool stops at a link back to a document it is already expanding, so cyclic references finish quickly instead of repeating content
 - `iwe_query` update with `$replace` or `$insertAfter` on `$header` acts on each header instead of the whole section when every block under it also matches
+- Inline tool that deletes the inlined document also removes the other links to it from the source document
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 
