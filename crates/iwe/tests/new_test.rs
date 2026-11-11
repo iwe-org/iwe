@@ -1,9 +1,18 @@
 use std::fs::read_to_string;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use tempfile::TempDir;
 
 use diwe::config::{Configuration, NoteTemplate};
+
+fn working_directory(path: &Path) -> PathBuf {
+    if cfg!(windows) {
+        path.to_path_buf()
+    } else {
+        path.canonicalize().unwrap()
+    }
+}
 
 fn setup_iwe_project() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -815,9 +824,7 @@ fn test_new_with_invalid_date_format_fails_without_crashing() {
         String::from_utf8_lossy(&output.stderr),
         format!(
             "Error: Invalid config file '{}': '%Q%' in workspace.date_format is not a valid date format\n",
-            temp_path
-                .canonicalize()
-                .unwrap()
+            working_directory(temp_path)
                 .join(".iwe")
                 .join("config.toml")
                 .display()

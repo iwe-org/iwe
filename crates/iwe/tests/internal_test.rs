@@ -2624,9 +2624,14 @@ fn stage_refuses_to_replace_a_session_record_it_cannot_read() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "error: the session record .iwe/claude/sessions/session-one.yaml could not be read, \
-         fix or remove it: proposals[0]: invalid type: string \"unclosed\", expected struct Proposal \
-         at line 2 column 13\n"
+        format!(
+            "error: the session record {} could not be read, \
+             fix or remove it: proposals[0]: invalid type: string \"unclosed\", expected struct Proposal \
+             at line 2 column 13\n",
+            Path::new(".iwe/claude/sessions")
+                .join("session-one.yaml")
+                .display()
+        )
     );
     assert_eq!(
         fixture.read(".iwe/claude/sessions/session-one.yaml"),
