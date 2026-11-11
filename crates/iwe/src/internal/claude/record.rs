@@ -250,6 +250,27 @@ pub fn load_session_record(session: &str) -> Option<SessionRecord> {
     read_session_record(&record_path(session))
 }
 
+pub fn load_session_record_or_new(session: &str) -> Result<SessionRecord, String> {
+    let path = record_path(session);
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => serde_yaml::from_str(&raw).map_err(|error| {
+            format!(
+                "the session record {} could not be read, fix or remove it: {}",
+                path.display(),
+                error
+            )
+        }),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(SessionRecord::new(session))
+        }
+        Err(error) => Err(format!(
+            "the session record {} could not be read: {}",
+            path.display(),
+            error
+        )),
+    }
+}
+
 pub fn save_session_record(record: &SessionRecord) -> bool {
     let path = record_path(&record.session);
     if let Some(parent) = path.parent() {

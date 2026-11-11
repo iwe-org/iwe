@@ -2614,6 +2614,27 @@ fn stage_appends_a_pending_proposal_to_the_session_record() {
 }
 
 #[test]
+fn stage_refuses_to_replace_a_session_record_it_cannot_read() {
+    let fixture = backlog_fixture();
+    let broken = "session: session-one\nproposals: [unclosed\n";
+    fixture.write(".iwe/claude/sessions/session-one.yaml", broken);
+
+    let output = fixture.stage("session-one", A_PROPOSAL);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "error: the session record .iwe/claude/sessions/session-one.yaml could not be read, \
+         fix or remove it: proposals[0]: invalid type: string \"unclosed\", expected struct Proposal \
+         at line 2 column 13\n"
+    );
+    assert_eq!(
+        fixture.read(".iwe/claude/sessions/session-one.yaml"),
+        broken
+    );
+}
+
+#[test]
 fn stage_writes_nothing_into_the_store() {
     let fixture = backlog_fixture();
 

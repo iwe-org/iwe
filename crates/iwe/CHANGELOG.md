@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rename` and `extract` fail instead of overwriting a file that exists on disk but is not part of the loaded workspace
 - `normalize` of djot documents keeps a code block that contains a backtick fence (previously it broke on the second run)
 - `normalize` of djot documents keeps empty task items and the text of description list terms and table captions (previously dropped)
+- `internal claude session` commands fail instead of replacing a session record they cannot read, so rejected proposals are not offered again
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
