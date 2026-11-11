@@ -506,3 +506,14 @@ fn adjacent_lists_stay_separate() {
         "};
     assert_eq!(input, roundtrip(input));
 }
+
+#[test]
+fn pipe_inside_verbatim_in_table_cell_is_not_escaped() {
+    let input = indoc! {"
+        | `a|b` | c\\|d |
+        | --- | --- |
+        | 1 | 2 |
+        "};
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}

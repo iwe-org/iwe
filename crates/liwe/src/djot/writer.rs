@@ -182,6 +182,41 @@ fn strip_item_checkbox(item: &Blocks) -> (&'static str, Blocks) {
     (prefix, item)
 }
 
+fn escape_cell_pipes(cell: &str) -> String {
+    let chars: Vec<char> = cell.chars().collect();
+    let mut out = String::with_capacity(cell.len());
+    let mut verbatim: Option<usize> = None;
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        if ch == '\\' && verbatim.is_none() {
+            out.push(ch);
+            if let Some(&next) = chars.get(i + 1) {
+                out.push(next);
+            }
+            i += 2;
+            continue;
+        }
+        if ch == '`' {
+            let run = chars[i..].iter().take_while(|&&c| c == '`').count();
+            verbatim = match verbatim {
+                None => Some(run),
+                Some(open) if open == run => None,
+                other => other,
+            };
+            out.extend(std::iter::repeat_n('`', run));
+            i += run;
+            continue;
+        }
+        if ch == '|' && verbatim.is_none() {
+            out.push('\\');
+        }
+        out.push(ch);
+        i += 1;
+    }
+    out
+}
+
 fn table_to_djot(
     header: &[Inlines],
     alignment: &[ColumnAlignment],
@@ -192,7 +227,7 @@ fn table_to_djot(
     let render_row = |cells: &[Inlines]| -> String {
         let rendered = cells
             .iter()
-            .map(|cell| inlines_to_djot(cell, options).replace('|', "\\|"))
+            .map(|cell| escape_cell_pipes(&inlines_to_djot(cell, options)))
             .collect::<Vec<String>>()
             .join(" | ");
         format!("| {} |\n", rendered)

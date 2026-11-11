@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline code actions that delete the inlined document also remove the other links to it from the current document
 - Formatting keeps escaped `&amp;`-style entities, `\<https://...>`, `\![alt](...)` and `\[` before a link literal, and keeps non-breaking spaces
 - Formatting keeps two adjacent lists separate instead of merging them into one
+- Formatting of djot tables no longer adds a backslash before `|` inside code spans on every format
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 
