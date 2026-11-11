@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Create, rename and extract tools reject keys with an empty segment or a segment starting with `.`, such as `dir/` or `.`, which created hidden files that disappeared from the workspace
 - Rename and extract tools fail instead of overwriting a file that exists on disk but is not in the loaded graph
 - An invalid date or time format in the config is reported when the server starts instead of crashing a tool call later
+- Squash tool stops at a link back to a document it is already expanding, so cyclic references finish quickly instead of repeating content
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

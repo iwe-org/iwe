@@ -273,12 +273,47 @@ fn squash_infinite_recursion() {
 
             text 2
 
-            ### file 1 title
-
-            text 1
-
-            [file 2 title](2)
+            [file 1 title](1)
             "},
+    );
+}
+
+#[test]
+fn squash_cycle_with_many_references_stops_at_visited_documents() {
+    setup();
+    let state: liwe::model::State = [
+        (
+            "1".to_string(),
+            "# One\n\n[Two](2)\n\n[Two](2)\n".to_string(),
+        ),
+        (
+            "2".to_string(),
+            "# Two\n\n[One](1)\n\n[One](1)\n".to_string(),
+        ),
+    ]
+    .into_iter()
+    .collect();
+    let graph = &Graph::import(&state, MarkdownOptions::default(), None);
+    let mut patch = Graph::new();
+    let document_tree = graph.squash(&"1".into(), 60);
+    patch.build_key_from_iter(&"1".into(), document_tree.iter());
+    assert_eq!(
+        patch.export_key(&"1".into()).unwrap(),
+        indoc! {"
+            # One
+
+            ## Two
+
+            [One](1)
+
+            [One](1)
+
+            ## Two
+
+            [One](1)
+
+            [One](1)
+        "}
     );
 }
 

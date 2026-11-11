@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rename` and `extract` return `InvalidTarget` for a key with an empty segment or a segment starting with `.`, which would be written to a hidden file the loader never reads
 - Djot writer makes a code block fence longer than any backtick run inside the code, so code that contains a fence is kept
 - Djot reader keeps empty task items, and keeps the text of description list terms and table captions as paragraphs instead of dropping it
+- `squash` does not expand a reference to a document that is already being expanded, so a cycle no longer repeats content or takes exponential time
+
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 
 ### Added
