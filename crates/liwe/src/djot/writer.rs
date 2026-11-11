@@ -282,7 +282,32 @@ fn render_inlines_djot<S: TextSink>(
     } else {
         BlockPos::Mid
     };
-    for (index, inline) in inlines.iter().enumerate() {
+    let mut skip = 0;
+    if block_start {
+        let lead_len = inlines
+            .iter()
+            .take_while(|inline| matches!(inline, Inline::Str(_) | Inline::Symbol(_)))
+            .count();
+        if lead_len > 1 {
+            let lead: String = inlines[..lead_len]
+                .iter()
+                .filter_map(|inline| match inline {
+                    Inline::Str(text) => Some(text.clone()),
+                    Inline::Symbol(text) => Some(format!(":{}:", text)),
+                    _ => None,
+                })
+                .collect();
+            let followed_by_space = inlines
+                .get(lead_len)
+                .is_none_or(|inline| matches!(inline, Inline::Space));
+            if let Some(escaped) = block_marker_escape(&lead, BlockPos::Start, followed_by_space) {
+                out.push(&escaped);
+                skip = lead_len;
+                pos = BlockPos::Mid;
+            }
+        }
+    }
+    for (index, inline) in inlines.iter().enumerate().skip(skip) {
         let next = inlines.get(index + 1);
         let followed_by_space = next.is_none_or(|inline| matches!(inline, Inline::Space));
         render_inline_djot(inline, options, out, pos, followed_by_space);
@@ -513,12 +538,44 @@ fn block_marker_escape(word: &str, pos: BlockPos, followed_by_space: bool) -> Op
                 followed_by_space
             } else if all('#') {
                 word.len() <= 6 && followed_by_space
+            } else if all(':') {
+                word.len() >= 3
+            } else if followed_by_space && is_list_marker(word) {
+                return Some(escape_list_marker(word));
             } else {
                 false
             };
             marker.then(|| format!("\\{}", escape_djot(word)))
         }
         _ => None,
+    }
+}
+
+fn is_list_marker(word: &str) -> bool {
+    let body = match word.strip_prefix('(') {
+        Some(rest) => match rest.strip_suffix(')') {
+            Some(body) => body,
+            None => return false,
+        },
+        None => match word.strip_suffix(['.', ')']) {
+            Some(body) => body,
+            None => return false,
+        },
+    };
+    !body.is_empty()
+        && (body.chars().all(|c| c.is_ascii_digit())
+            || (body.chars().count() == 1 && body.chars().all(|c| c.is_ascii_alphabetic()))
+            || body.chars().all(|c| "ivxlcdm".contains(c))
+            || body.chars().all(|c| "IVXLCDM".contains(c)))
+}
+
+fn escape_list_marker(word: &str) -> String {
+    match word.strip_prefix('(') {
+        Some(rest) => format!("\\({}", rest),
+        None => {
+            let (body, last) = word.split_at(word.len() - 1);
+            format!("{}\\{}", body, last)
+        }
     }
 }
 

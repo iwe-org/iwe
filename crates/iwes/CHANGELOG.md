@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formatting keeps escaped `&amp;`-style entities, `\<https://...>`, `\![alt](...)` and `\[` before a link literal, and keeps non-breaking spaces
 - Formatting keeps two adjacent lists separate instead of merging them into one
 - Formatting of djot tables no longer adds a backslash before `|` inside code spans on every format
+- Formatting of djot documents keeps escaped list markers and `\:::` literal, and keeps raw blocks such as `=latex` as raw blocks
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 

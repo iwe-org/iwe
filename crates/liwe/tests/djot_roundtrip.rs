@@ -517,3 +517,33 @@ fn pipe_inside_verbatim_in_table_cell_is_not_escaped() {
     assert_eq!(input, roundtrip(input));
     assert_eq!(input, roundtrip(&roundtrip(input)));
 }
+
+#[test]
+fn escaped_list_markers_at_block_start_stay_literal() {
+    let input = indoc! {"
+        \\(1) text
+
+        a\\. text
+
+        \\(iv) text
+        "};
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn escaped_div_fence_stays_literal() {
+    let input = "\\::: warning\n";
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn raw_block_stays_raw() {
+    let input = indoc! {"
+        ``` =latex
+        \\foo
+        ```
+        "};
+    assert_eq!(input, roundtrip(input));
+}

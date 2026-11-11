@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - List item whose first block is a quote, code block, table or HTML holds that block as one `Inline::RawInline` with format `flattened-block` (previously its text was split into `Str` words)
+- Djot raw blocks other than HTML are held as `Node::Raw` with the language `=format` (previously the bare format, which wrote them back as code blocks)
 
 ### Fixed
 - `inline` returns `InvalidTarget` when a document references itself instead of overflowing the stack
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Markdown writer escapes `&` before an entity name, `<` before an autolink, `!` before a link, and `[` whose `](` would form a link, and keeps non-breaking spaces
 - Markdown and djot writers give a list that directly follows another list of the same kind the other marker (`*` or `)`), so the two lists no longer merge on the next read
 - Djot writer no longer escapes `|` inside code spans in table cells, which added a backslash on every write
+- Djot writer keeps escapes for list markers such as `(1)`, `a.` and `(iv)` and for `:::` at the start of a paragraph, so the text does not turn into a list or a div
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 
