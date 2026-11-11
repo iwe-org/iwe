@@ -134,3 +134,49 @@ fn did_change_with_several_changes_applies_the_last() {
         )]),
     );
 }
+
+#[test]
+#[allow(deprecated)]
+fn did_change_ignores_files_with_another_extension() {
+    Fixture::with(indoc! {"
+            # test
+            "})
+    .did_change_text_document(file_uri("notes.txt").to_did_change_params(1, "# other".to_string()))
+    .workspace_symbols(
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
+            "test",
+            lsp_types::SymbolKind::NAMESPACE,
+            0,
+            1,
+        )]),
+    );
+}
+
+#[test]
+#[allow(deprecated)]
+fn did_change_ignores_files_outside_the_workspace() {
+    let outside = if cfg!(windows) {
+        "file:///C:/elsewhere/note.md"
+    } else {
+        "file:///elsewhere/note.md"
+    };
+    Fixture::with(indoc! {"
+            # test
+            "})
+    .did_change_text_document(
+        outside
+            .parse::<lsp_types::Uri>()
+            .unwrap()
+            .to_did_change_params(1, "# other".to_string()),
+    )
+    .workspace_symbols(
+        workspace_symbol_params(""),
+        workspace_symbol_response(vec![uri(1).to_symbol_info(
+            "test",
+            lsp_types::SymbolKind::NAMESPACE,
+            0,
+            1,
+        )]),
+    );
+}

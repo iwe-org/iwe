@@ -55,6 +55,18 @@ impl BasePath {
         relative_path_key(relative)
     }
 
+    pub fn document_key(&self, uri: &Uri) -> Option<Key> {
+        let url = canonical(Url::parse(&uri.to_string()).ok()?);
+        let path = url.to_file_path().ok()?;
+        if path
+            .extension()
+            .is_none_or(|ext| ext != self.format.extension())
+        {
+            return None;
+        }
+        self.maybe_url_to_key(uri)
+    }
+
     pub fn maybe_url_to_key(&self, uri: &Uri) -> Option<Key> {
         let url = canonical(Url::parse(&uri.to_string()).ok()?);
         let base = self.url.to_file_path().ok()?;

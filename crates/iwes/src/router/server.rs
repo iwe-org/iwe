@@ -145,7 +145,7 @@ impl Server {
     }
 
     pub fn handle_did_open_text_document(&mut self, params: DidOpenTextDocumentParams) {
-        let Some(key) = self.base_path.maybe_url_to_key(&params.text_document.uri) else {
+        let Some(key) = self.base_path.document_key(&params.text_document.uri) else {
             return;
         };
         self.open_documents.insert(key.clone());
@@ -157,7 +157,7 @@ impl Server {
     }
 
     pub fn handle_did_close_text_document(&mut self, params: DidCloseTextDocumentParams) {
-        let Some(key) = self.base_path.maybe_url_to_key(&params.text_document.uri) else {
+        let Some(key) = self.base_path.document_key(&params.text_document.uri) else {
             return;
         };
         self.open_documents.remove(&key);
@@ -216,23 +216,23 @@ impl Server {
     }
 
     pub fn handle_did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
+        let Some(key) = self.base_path.document_key(&params.text_document.uri) else {
+            return;
+        };
         if let Some(text) = params.text {
-            self.store_document(
-                self.base_path.url_to_key(&params.text_document.uri.clone()),
-                text,
-            );
+            self.store_document(key, text);
             self.search_index_dirty = true;
         }
     }
 
     pub fn handle_did_change_text_document(&mut self, params: DidChangeTextDocumentParams) {
+        let Some(key) = self.base_path.document_key(&params.text_document.uri) else {
+            return;
+        };
         let Some(content) = params.content_changes.last() else {
             return;
         };
-        self.store_document(
-            self.base_path.url_to_key(&params.text_document.uri.clone()),
-            content.text.clone(),
-        );
+        self.store_document(key, content.text.clone());
         self.search_index_dirty = true;
     }
 
@@ -240,8 +240,9 @@ impl Server {
         for change in params.changes {
             match change.typ {
                 FileChangeType::DELETED => {
-                    let key = self.base_path.url_to_key(&change.uri);
-                    self.apply_external_removal(key);
+                    if let Some(key) = self.base_path.document_key(&change.uri) {
+                        self.apply_external_removal(key);
+                    }
                 }
                 FileChangeType::CREATED => {}
                 FileChangeType::CHANGED => {}

@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A document change with several full-text changes keeps the last one instead of the first
 - Link completion after a `[` or `[[` glued to the preceding text replaces only from the bracket, so the text before it, such as CJK text without spaces, is kept
 - Rename on a wiki link reads the new name from the workspace root, like wiki links themselves, instead of from the current document's folder, and an empty name is refused instead of renaming the target to the folder name
+- Open, change, save and delete notifications for files outside the workspace or with another extension are ignored instead of adding documents under made-up keys that point to files that do not exist
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 
