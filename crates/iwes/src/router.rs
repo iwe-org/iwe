@@ -106,6 +106,10 @@ impl Router {
                     let Ok(message) = message else {
                         bail!("client exited without proper shutdown sequence")
                     };
+                    let request_id = match &message {
+                        Message::Request(request) => Some(request.id.clone()),
+                        _ => None,
+                    };
                     let shutdown =
                         panic::catch_unwind(AssertUnwindSafe(|| self.handle_message(message)))
                             .unwrap_or_else(|err| {
@@ -117,6 +121,13 @@ impl Router {
                                     "Panic occurred with unknown cause".to_string()
                                 };
                                 error!("Panic message: {}", error_message);
+                                if let Some(id) = request_id {
+                                    self.respond(Response::new_err(
+                                        id,
+                                        ErrorCode::InternalError as i32,
+                                        error_message,
+                                    ));
+                                }
                                 false
                             });
 

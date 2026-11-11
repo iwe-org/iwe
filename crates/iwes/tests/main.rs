@@ -14,6 +14,7 @@ mod extract_test;
 mod folding_range_test;
 mod format_document_test;
 mod go_to_definition_test;
+mod handler_panic_test;
 mod hover_test;
 mod inlay_hints_test;
 mod inline_quote_test;
