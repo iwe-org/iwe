@@ -74,6 +74,9 @@ pub enum EvalError {
         documents: Vec<DocRef>,
     },
     SearchIndexMissing,
+    UnparsedFrontmatter {
+        documents: Vec<DocRef>,
+    },
 }
 
 fn blocks_str(blocks: &[BlockRef]) -> String {
@@ -177,6 +180,11 @@ impl std::fmt::Display for EvalError {
                 op,
                 fmt_expect(expected, "document"),
                 actual,
+                docs_str(documents)
+            ),
+            EvalError::UnparsedFrontmatter { documents } => write!(
+                f,
+                "frontmatter could not be parsed, fix it before changing its fields\n{}",
                 docs_str(documents)
             ),
             EvalError::SearchIndexMissing => write!(

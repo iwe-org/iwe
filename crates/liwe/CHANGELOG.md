@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `delete_all` operation deletes a set of documents and cleans up the links to all of them in one pass
+- `Graph::has_unparsed_frontmatter`, `check_frontmatter_parsed` and `EvalError::UnparsedFrontmatter` report documents whose frontmatter is not a valid YAML mapping
 
 ### Changed
 - List item whose first block is a quote, code block, table or HTML holds that block as one `Inline::RawInline` with format `flattened-block` (previously its text was split into `Str` words)
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Markdown writer closes math with `$` and `$$` delimiters (previously only the opening one was written)
 - Sequential document ids skip ids that are already taken instead of reusing them
 - Block update `$delete` of every item in a list removes the list without leaving an extra blank line
+- Frontmatter that is not a valid YAML mapping is kept as written instead of being replaced with an empty mapping
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 

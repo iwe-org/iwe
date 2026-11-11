@@ -5,7 +5,9 @@ use crate::model::config::MarkdownOptions;
 use crate::model::node::ColumnAlignment;
 use pulldown_cmark::{Alignment, CodeBlockKind, LinkType, Options, Tag, TagEnd};
 use pulldown_cmark::{Event::*, Parser};
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Mapping;
+
+use crate::model::frontmatter::{parse_frontmatter, UNPARSED_FRONTMATTER};
 
 use crate::model::document::SoftBreak as DocumentSoftBreak;
 use crate::model::document::*;
@@ -24,6 +26,7 @@ pub struct MarkdownEventsReader {
     line_starts: Vec<usize>,
     line_offset: usize,
     metadata_block: bool,
+    metadata_text: String,
     html_block: bool,
     html_text: String,
     html_start: usize,
@@ -48,6 +51,7 @@ impl MarkdownEventsReader {
             line_starts: Vec::new(),
             line_offset: 0,
             metadata_block: false,
+            metadata_text: String::new(),
             html_block: false,
             html_text: String::new(),
             html_start: 0,
@@ -66,6 +70,7 @@ impl MarkdownEventsReader {
             line_starts: Vec::new(),
             line_offset: 0,
             metadata_block: false,
+            metadata_text: String::new(),
             html_block: false,
             html_text: String::new(),
             html_start: 0,
@@ -115,7 +120,7 @@ impl MarkdownEventsReader {
                 }
                 Text(text) => {
                     if self.metadata_block {
-                        self.frontmatter = Some(parse_frontmatter(&text));
+                        self.metadata_text.push_str(&text);
                     } else if !self.html_block {
                         match self.top_block() {
                             DocumentBlock::CodeBlock(code_block) => {
@@ -417,7 +422,22 @@ impl MarkdownEventsReader {
         }
     }
 
-    fn end_tag(&mut self, tag: TagEnd, _: Range<usize>) {
+    fn end_metadata_block(&mut self, range: Range<usize>) {
+        let text = std::mem::take(&mut self.metadata_text);
+        match parse_frontmatter(&text) {
+            Some(mapping) => self.frontmatter = Some(mapping),
+            None => {
+                let raw = self.content.as_deref().unwrap_or_default()[range.clone()].to_string();
+                self.blocks.push(DocumentBlock::RawBlock(RawBlock {
+                    line_range: self.to_line_range(range),
+                    format: UNPARSED_FRONTMATTER.to_string(),
+                    text: raw,
+                }));
+            }
+        }
+    }
+
+    fn end_tag(&mut self, tag: TagEnd, range: Range<usize>) {
         match tag {
             TagEnd::Paragraph => {
                 self.pop_block();
@@ -444,7 +464,10 @@ impl MarkdownEventsReader {
             TagEnd::DefinitionListTitle => {}
             TagEnd::FootnoteDefinition => {}
             TagEnd::Image => self.pop_inline(),
-            TagEnd::MetadataBlock(_) => self.metadata_block = false,
+            TagEnd::MetadataBlock(_) => {
+                self.metadata_block = false;
+                self.end_metadata_block(range);
+            }
             TagEnd::Table => {
                 self.pop_block();
             }
@@ -520,23 +543,6 @@ impl MarkdownEventsReader {
         }
 
         (start + self.line_offset)..(end + self.line_offset)
-    }
-}
-
-fn parse_frontmatter(text: &str) -> Mapping {
-    if text.trim().is_empty() {
-        return Mapping::new();
-    }
-    match serde_yaml::from_str::<Value>(text) {
-        Ok(Value::Mapping(m)) => m,
-        Ok(_) => {
-            log::warn!("Frontmatter is not a YAML mapping, treating as empty");
-            Mapping::new()
-        }
-        Err(e) => {
-            log::warn!("Failed to parse frontmatter YAML: {}", e);
-            Mapping::new()
-        }
     }
 }
 

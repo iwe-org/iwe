@@ -1,5 +1,6 @@
 use crate::model::config::DjotOptions;
 use crate::model::document::{LinkType, MathType};
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::model::inline::{
     append_refs_extension, detect_and_strip_checkbox, push_verbatim_lines, Attributes, Inline,
     Inlines, TextSink, TokenStream, FLATTENED_BLOCK,
@@ -40,7 +41,7 @@ fn blocks_to_djot(
 ) -> String {
     let parts: Vec<String> = blocks
         .iter()
-        .filter(|block| !(skip_frontmatter && matches!(block, Block::Frontmatter(_))))
+        .filter(|block| !(skip_frontmatter && block.is_frontmatter()))
         .map(|block| block_to_djot(block, options, indent))
         .collect();
     ensure_trailing_newline(parts.join("\n"))
@@ -81,6 +82,9 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
                 Some(lang) => format!("``` {}\n{}\n```\n", lang, body),
                 None => format!("```\n{}\n```\n", body),
             }
+        }
+        Block::RawBlock(format, text) if format == UNPARSED_FRONTMATTER => {
+            format!("{}\n", text.trim_end_matches('\n'))
         }
         Block::RawBlock(_, text) => ensure_trailing_newline(text.clone()),
         Block::BlockQuote(blocks) => {

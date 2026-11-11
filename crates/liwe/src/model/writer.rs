@@ -1,3 +1,4 @@
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use serde_yaml::Mapping;
 
 use crate::markdown::writer::CmarkTableWriter;
@@ -56,8 +57,12 @@ impl Block {
         )
     }
 
-    fn is_frontmatter(&self) -> bool {
-        matches!(self, Block::Frontmatter(_))
+    pub(crate) fn is_frontmatter(&self) -> bool {
+        match self {
+            Block::Frontmatter(_) => true,
+            Block::RawBlock(format, _) => format == UNPARSED_FRONTMATTER,
+            _ => false,
+        }
     }
 
     fn glues_to(&self, previous: &Block) -> bool {
@@ -109,6 +114,9 @@ impl Block {
                     .unwrap_or_else(|| {
                         format!("{}\n{}\n{}\n", fence, text.trim_matches('\n'), fence)
                     })
+            }
+            Block::RawBlock(format, text) if format == UNPARSED_FRONTMATTER => {
+                format!("{}\n", text.trim_end_matches('\n'))
             }
             Block::RawBlock(_, text) => text.clone(),
             Block::BlockQuote(blocks) => {

@@ -409,3 +409,15 @@ fn escaped_autolink_stays_literal() {
     let input = "\\<http://x.com>\n";
     assert_eq!(input, roundtrip(input));
 }
+
+#[test]
+fn unparseable_frontmatter_is_kept() {
+    let input = indoc! {"
+        ---
+        tags: [a
+        ---
+
+        # Title
+        "};
+    assert_eq!(input, roundtrip(input));
+}

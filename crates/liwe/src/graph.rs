@@ -23,6 +23,7 @@ use crate::parser::Parser;
 
 use crate::graph::graph_node::GraphNode;
 use crate::model::config::{Format, FormatOptions, MarkdownOptions, WikiLinkPath};
+use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::model::frontmatter_to_string;
 use crate::model::inline::Inlines;
 use crate::model::key_index::KeyIndex;
@@ -280,6 +281,14 @@ impl Graph {
         build_index_and_titles(self);
     }
 
+    pub fn has_unparsed_frontmatter(&self, key: &Key) -> bool {
+        self.keys
+            .get(key)
+            .and_then(|id| self.graph_node(*id).child_id())
+            .map(|child| self.graph_node(child).lang())
+            .is_some_and(|lang| lang.as_deref() == Some(UNPARSED_FRONTMATTER))
+    }
+
     pub fn raw_metadata(&self, key: &Key) -> Option<String> {
         self.frontmatter.get(key).map(frontmatter_to_string)
     }
@@ -440,6 +449,13 @@ impl Graph {
         self.graph_node(self.get_document_id(key))
             .child_id()
             .map(|id| self.graph_node(id))
+            .and_then(|node| {
+                if node.lang().as_deref() == Some(UNPARSED_FRONTMATTER) {
+                    node.next_id().map(|id| self.graph_node(id))
+                } else {
+                    Some(node)
+                }
+            })
             .filter(|node| node.is_section())
             .and_then(|node| node.line_id())
             .map(|line_id| self.arena.get_line(line_id).to_plain_text())

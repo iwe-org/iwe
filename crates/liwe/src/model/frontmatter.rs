@@ -1,7 +1,28 @@
 use pulldown_cmark::{Event, Parser, Tag};
 
 use crate::markdown::reader::PARSER_OPTIONS;
+use serde_yaml::{Mapping, Value};
+
 use crate::model::{frontmatter_to_string, Frontmatter};
+
+pub(crate) const UNPARSED_FRONTMATTER: &str = "\nfrontmatter";
+
+pub(crate) fn parse_frontmatter(text: &str) -> Option<Mapping> {
+    if text.trim().is_empty() {
+        return Some(Mapping::new());
+    }
+    match serde_yaml::from_str::<Value>(text) {
+        Ok(Value::Mapping(mapping)) => Some(mapping),
+        Ok(_) => {
+            log::warn!("Frontmatter is not a YAML mapping, keeping it as is");
+            None
+        }
+        Err(e) => {
+            log::warn!("Failed to parse frontmatter YAML, keeping it as is: {}", e);
+            None
+        }
+    }
+}
 
 pub fn split_raw_frontmatter(content: &str) -> (Option<&str>, &str) {
     match leading_metadata_block_end(content) {

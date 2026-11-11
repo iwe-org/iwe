@@ -455,3 +455,45 @@ fn mutation_rejects_unknown_key() {
         "# One\n"
     );
 }
+
+#[test]
+fn set_refuses_documents_with_unparseable_frontmatter() {
+    let a = "---\ntags: [a\n---\n\n# Alpha\n";
+    let b = "# Beta\n";
+    let temp = setup(vec![("a", a), ("b", b)]);
+    let output = run_update(temp.path(), &["--filter", "{}", "--set", "status=done"]);
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        indoc! {"
+            error: frontmatter could not be parsed, fix it before changing its fields
+              a › Alpha
+        "}
+    );
+    assert_eq!(read_to_string(temp.path().join("a.md")).unwrap(), a);
+    assert_eq!(read_to_string(temp.path().join("b.md")).unwrap(), b);
+}
+
+#[test]
+fn block_edit_keeps_unparseable_frontmatter() {
+    let a = "---\ntags: [a\n---\n\n# Alpha\n\nold\n";
+    let temp = setup(vec![("a", a)]);
+    let output = run_update(
+        temp.path(),
+        &[
+            "-k",
+            "a",
+            "--replace-text",
+            "{ $paragraph: old, from: old, to: new }",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        read_to_string(temp.path().join("a.md")).unwrap(),
+        "---\ntags: [a\n---\n\n# Alpha\n\nnew\n"
+    );
+}

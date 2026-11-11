@@ -2,7 +2,9 @@ use std::iter::once;
 use std::ops::Range;
 
 use jotdown::{Alignment, Container, Event, ListKind, Parser};
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Mapping;
+
+use crate::model::frontmatter::{parse_frontmatter, UNPARSED_FRONTMATTER};
 
 use crate::model::config::DjotOptions;
 use crate::model::document::*;
@@ -70,9 +72,18 @@ impl DjotEventsReader {
         self.content = normalized.clone();
         self.line_starts = line_starts(&normalized);
 
-        let (body, frontmatter, offset) = strip_frontmatter(&normalized);
-        self.frontmatter = frontmatter;
+        let (body, yaml, offset) = strip_frontmatter(&normalized);
         self.offset = offset;
+        if let Some(yaml) = yaml {
+            match parse_frontmatter(yaml) {
+                Some(mapping) => self.frontmatter = Some(mapping),
+                None => self.blocks.push(DocumentBlock::RawBlock(RawBlock {
+                    line_range: self.to_line_range(0..offset),
+                    format: UNPARSED_FRONTMATTER.to_string(),
+                    text: normalized[..offset].to_string(),
+                })),
+            }
+        }
 
         let events: Vec<(Event, Range<usize>)> = Parser::new(&body).into_offset_iter().collect();
 
@@ -562,28 +573,11 @@ fn to_column_alignment(alignment: Alignment) -> ColumnAlignment {
     }
 }
 
-fn parse_frontmatter(text: &str) -> Mapping {
-    if text.trim().is_empty() {
-        return Mapping::new();
-    }
-    match serde_yaml::from_str::<Value>(text) {
-        Ok(Value::Mapping(m)) => m,
-        Ok(_) => {
-            log::warn!("Frontmatter is not a YAML mapping, treating as empty");
-            Mapping::new()
-        }
-        Err(e) => {
-            log::warn!("Failed to parse frontmatter YAML: {}", e);
-            Mapping::new()
-        }
-    }
-}
-
 fn normalize_line_endings(content: &str) -> String {
     content.replace("\r\n", "\n").replace('\r', "\n")
 }
 
-fn strip_frontmatter(content: &str) -> (String, Option<Mapping>, usize) {
+fn strip_frontmatter(content: &str) -> (String, Option<&str>, usize) {
     let Some(rest) = content.strip_prefix("---\n") else {
         return (content.to_string(), None, 0);
     };
@@ -598,7 +592,7 @@ fn strip_frontmatter(content: &str) -> (String, Option<Mapping>, usize) {
     let consumed = "---\n".len() + end + "\n---\n".len();
     let consumed = consumed.min(content.len());
     let body = content[consumed..].to_string();
-    (body, Some(parse_frontmatter(yaml)), consumed)
+    (body, Some(yaml), consumed)
 }
 
 fn line_starts(content: &str) -> Vec<usize> {

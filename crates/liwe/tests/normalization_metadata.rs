@@ -70,6 +70,62 @@ fn normalization_meta_block_crlf() {
     );
 }
 
+#[test]
+fn normalization_meta_unparseable_yaml_is_kept() {
+    let input = indoc! {"
+        ---
+        count: 99999999999999999999999
+        tags: [a
+        ---
+
+        # Heading
+        "};
+    compare(input, input);
+}
+
+#[test]
+fn normalization_meta_duplicate_key_is_kept() {
+    let input = indoc! {"
+        ---
+        field: 1
+        field: 2
+        ---
+
+        # Heading
+
+        Text
+        "};
+    compare(input, input);
+}
+
+#[test]
+fn normalization_meta_sequence_root_is_kept() {
+    let input = indoc! {"
+        ---
+        - first
+        - second
+        ---
+
+        # Heading
+        "};
+    compare(input, input);
+}
+
+#[test]
+fn normalization_meta_unparseable_yaml_keeps_header_title() {
+    setup();
+    let mut graph = Graph::new();
+    graph.from_markdown(
+        "key".into(),
+        "---\ntags: [a\n---\n\n# Heading\n",
+        MarkdownReader::new(),
+    );
+    assert_eq!(
+        graph.get_key_title(&"key".into()),
+        Some("Heading".to_string())
+    );
+}
+
 static INIT: Once = Once::new();
 
 fn setup() {

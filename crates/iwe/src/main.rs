@@ -3846,7 +3846,10 @@ fn update_body(args: Update) {
 fn update_mutation(args: Update) {
     use liwe::query::block_update::check_document_expect;
     use liwe::query::wire::RawUpdate;
-    use liwe::query::{build_update_doc, execute as run_op, FindOp, Operation, Outcome, UpdateOp};
+    use liwe::query::{
+        build_update_doc, check_frontmatter_parsed, execute as run_op, FindOp, Operation, Outcome,
+        UpdateOp,
+    };
     use serde_yaml::{Mapping, Value};
 
     let config = get_configuration();
@@ -3940,6 +3943,10 @@ fn update_mutation(args: Update) {
                 std::process::exit(2);
             });
         }
+        check_frontmatter_parsed(&graph, &keys).unwrap_or_else(|e| {
+            eprintln!("error: {}", e);
+            std::process::exit(2);
+        });
         keys.into_iter()
             .filter_map(|key| {
                 let file_path = workspace_path.join(format!("{}.{}", key, ext));

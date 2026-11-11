@@ -29,7 +29,10 @@ pub use document::{
     ReferenceAnchor, Sort, SortDir, Update, UpdateOp, UpdateOperator, YamlType,
 };
 pub use eval::evaluate;
-pub use execute::{execute, execute_with_scores, strict_guard_violations, FindMatch, Outcome};
+pub use execute::{
+    check_frontmatter_parsed, execute, execute_with_scores, strict_guard_violations, FindMatch,
+    Outcome,
+};
 pub use schemas::{
     current_query_schema, query_schema, query_schema_uri, CURRENT_QUERY_SCHEMA_DRAFT,
     QUERY_SCHEMA_DRAFTS,
