@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Inline code action on a reference to the same document no longer crashes the server
 - Completion, hover and link text no longer show a document title after the edit that removed it
+- Formatting no longer turns escaped characters into markup, such as `\#` in a list item becoming a heading or `\[[x]]` becoming a wiki link
+- Formatting keeps two-space line breaks inside block quotes
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwes-v0.31.0...iwes-v0.32.0) - 2026-11-07
 

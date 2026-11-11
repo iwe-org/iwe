@@ -5,7 +5,7 @@ use crate::model::config::{FormattingOptions, MarkdownOptions};
 use crate::model::node::ColumnAlignment;
 use crate::model::{Lang, Level};
 
-use super::inline::{inlines_to_markdown, wrap_inlines, Inlines};
+use super::inline::{inlines_to_markdown, wrap_inlines, BlockKind, Inlines};
 
 pub type Blocks = Vec<Block>;
 
@@ -73,8 +73,10 @@ impl Block {
             Block::Frontmatter(mapping) => {
                 format!("---\n{}---\n", frontmatter_to_yaml(mapping))
             }
-            Block::Plain(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
-            Block::Para(inlines) => format!("{}\n", wrap_inlines(inlines, options, indent)),
+            Block::Plain(inlines) | Block::Para(inlines) => format!(
+                "{}\n",
+                wrap_inlines(inlines, options, indent, BlockKind::Paragraph)
+            ),
             Block::LineBlock(lines) => lines
                 .iter()
                 .map(|line| inlines_to_markdown(line, options))
@@ -113,8 +115,13 @@ impl Block {
             Block::BlockQuote(blocks) => {
                 blocks_to_markdown_sparce_indented(blocks, options, indent + 2)
                     .lines()
-                    .map(|line| format!("> {}", line))
-                    .map(|line| line.trim().to_string())
+                    .map(|line| {
+                        if line.trim().is_empty() {
+                            ">".to_string()
+                        } else {
+                            format!("> {}", line)
+                        }
+                    })
                     .collect::<Vec<String>>()
                     .join("\n")
                     + "\n"
@@ -175,7 +182,7 @@ impl Block {
                 format!(
                     "{} {}\n",
                     "#".repeat(*level as usize),
-                    inlines_to_markdown(inlines, options)
+                    escape_closing_hashes(inlines_to_markdown(inlines, options))
                 )
             }
             Block::HorizontalRule => {
@@ -189,6 +196,16 @@ impl Block {
             Block::Comment(text) => format!("<!--{}-->\n", text),
             Block::Html(text) => format!("{}\n", text),
         }
+    }
+}
+
+fn escape_closing_hashes(text: String) -> String {
+    let start = text.rfind([' ', '\t']).map(|i| i + 1).unwrap_or(0);
+    let last = &text[start..];
+    if !last.is_empty() && last.bytes().all(|b| b == b'#') {
+        format!("{}\\{}", &text[..start], last)
+    } else {
+        text
     }
 }
 
@@ -286,7 +303,14 @@ pub fn blocks_to_markdown_and_indented(
 ) -> String {
     let rendered = blocks
         .iter()
-        .map(|block| block.to_markdown_indented(options, indent))
+        .enumerate()
+        .map(|(index, block)| match block {
+            Block::Plain(inlines) | Block::Para(inlines) if index == 0 => format!(
+                "{}\n",
+                wrap_inlines(inlines, options, indent, BlockKind::ItemLead)
+            ),
+            _ => block.to_markdown_indented(options, indent),
+        })
         .collect::<Vec<String>>();
 
     let mut result = String::new();

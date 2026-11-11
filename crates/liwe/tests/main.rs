@@ -37,3 +37,4 @@ mod squash_test;
 mod task_items_test;
 mod toc_test;
 mod wide_document_test;
+mod writer_escaping_test;

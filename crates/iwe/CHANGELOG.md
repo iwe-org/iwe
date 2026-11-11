@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `find`, `update` and `delete` filters with an empty mapping such as `status: {}` match only documents whose field is an empty mapping (previously they matched every document)
 - `delete` no longer treats a fragment-only link such as `[Intro](#intro)` in a child document as a link to the parent document
 - Links with a percent-encoded `#` in the path (`%23`) resolve to the right document
+- `normalize` no longer turns escaped characters into markup, such as `\#` in a list item becoming a heading or `\[[x]]` becoming a wiki link
+- `normalize` keeps two-space line breaks inside block quotes
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
