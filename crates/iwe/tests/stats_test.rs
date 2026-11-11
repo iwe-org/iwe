@@ -470,3 +470,50 @@ fn run_stats_command(temp_dir: &TempDir, args: &[&str]) -> std::process::Output 
 
     cmd.output().expect("Failed to execute stats command")
 }
+
+#[test]
+fn test_stats_markdown_reports_block_and_inline_reference_counts() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+    let temp_path = temp_dir.path();
+    create_dir_all(temp_path.join(".iwe")).unwrap();
+    let config = Configuration {
+        workspace: WorkspaceOptions {
+            path: "".to_string(),
+            ..Default::default()
+        },
+        markdown: MarkdownOptions {
+            refs_extension: "".to_string(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    write(
+        temp_path.join(".iwe/config.toml"),
+        toml::to_string(&config).unwrap(),
+    )
+    .unwrap();
+    write(temp_path.join("one.md"), "# One\n\n[Two](two)\n").unwrap();
+    write(
+        temp_path.join("two.md"),
+        "# Two\n\nSee [One](one) and [Three](three).\n",
+    )
+    .unwrap();
+    write(temp_path.join("three.md"), "# Three\n").unwrap();
+
+    let output = run_stats_command(&temp_dir, &[]);
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let reference_lines: Vec<&str> = stdout
+        .lines()
+        .filter(|line| line.contains("references:**"))
+        .collect();
+
+    assert_eq!(
+        reference_lines,
+        vec![
+            "- **Block references:** 1",
+            "- **Inline references:** 2",
+            "- **Total references:** 3",
+        ]
+    );
+}

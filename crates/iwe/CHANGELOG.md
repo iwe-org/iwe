@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `update` and `delete` with `--dry-run` check the document-level `--expect` count and fail on a mismatch, like the real run and like block-level `expect`
 - `export` with the default `--depth 0` follows links to every level, as documented, instead of exporting only the top documents without edges
 - `export` DOT output escapes backslashes in titles, so a title ending in `\` no longer produces an invalid file
+- `stats` markdown output shows the block and inline reference counts instead of empty lines
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwe-v0.31.0...iwe-v0.32.0) - 2026-11-07
 
