@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline tool on a reference to the same document returns an error instead of crashing
 - `iwe_query` filters with an empty mapping such as `status: {}` match only documents whose field is an empty mapping (previously they matched every document)
 - Tools that report document titles no longer show a title after the document stopped having one
+- `iwe_query` update with `$insertAfter` on an empty `$section` inserts after the section instead of nesting the new block inside it
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/iwec-v0.31.0...iwec-v0.32.0) - 2026-11-07
 

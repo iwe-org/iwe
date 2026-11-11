@@ -758,6 +758,39 @@ fn insert_after_section_lands_below_the_whole_tree() {
 }
 
 #[test]
+fn insert_after_empty_section_lands_as_sibling() {
+    assert_update(
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Later
+
+            Later content
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $section: Goals
+                content: \"## Inserted\"
+        "},
+        indoc! {"
+            # Roadmap
+
+            ## Goals
+
+            ## Inserted
+
+            ## Later
+
+            Later content
+        "},
+    );
+}
+
+#[test]
 fn delete_header_node_beside_replace_text_inside_is_legal() {
     assert_update(
         indoc! {"

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document title is cleared when an update removes the title, instead of keeping the old one
 - Markdown writer keeps escaped characters literal in more places: block markers inside quotes and list items, `*` and `_` inside emphasis, `[` and `]` in link text and image alt text, `[[` and HTML tags split by escapes, `~~~` fences, a trailing `#` in headings, and markers at the start of a line after a preserved line break
 - Markdown writer keeps two-space line breaks inside block quotes
+- Block update `$insertAfter` on a `$section` with no content inserts after the section instead of nesting the new block inside it
 
 ## [0.32.0](https://github.com/iwe-org/iwe/compare/liwe-v0.31.0...liwe-v0.32.0) - 2026-11-07
 
