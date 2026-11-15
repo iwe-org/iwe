@@ -1,0 +1,2722 @@
+digraph G {
+  rankdir=LR
+  fontname=Verdana
+  fontsize=13
+  nodesep=0.7
+  splines=polyline
+  pad="0.5,0.2"
+  ranksep=1.2
+  overlap=false
+  2263[label="How to Use with Your Text Editor" fillcolor="#e9f9ef" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  8559[label="Query Language" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7325[label="Architecture" fillcolor="#eef2f5" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  9291[label="Hover Preview" fillcolor="#d9fae7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5878[label="Inlay Hints" fillcolor="#fae1ee" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  371[label="Linking and Note Templates" fillcolor="#ffeee0" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  10158[label="Helix" fillcolor="#d9fae7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  10019[label="Debug Mode" fillcolor="#eef2f5" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  8317[label="Search Ranking" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5024[label="Why It Exists" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1110[label="Auto-Complete" fillcolor="#f6e5ee" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  2707[label="IWE Query Language Specification" fillcolor="#ffeee0" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5764[label="Zed" fillcolor="#e9f9ef" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  6619[label="Extract Actions" fillcolor="#fae1ee" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  3[label="IWE Schema" fillcolor="#e1f5fe" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7005[label="Neovim" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  241[label="Custom Text Commands" fillcolor="#f6e5ee" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  4793[label="IWE Squash" fillcolor="#ffeaea" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  140[label="CLI Troubleshooting" fillcolor="#fff9de" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  9220[label="Notes Search" fillcolor="#ffeee0" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1953[label="Data Model" fillcolor="#e1f5fe" fontsize=24 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7333[label="Files Renaming" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  2514[label="Design Principles" fillcolor="#f2fadf" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  6142[label="IWE" fillcolor="#f6e5ee" fontsize=40 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1617[label="IWE Stats" fillcolor="#fff9de" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5950[label="IWE Find" fillcolor="#fff9de" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7606[label="Inclusion Links" fillcolor="#eeebfa" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  796[label="IWE Normalize" fillcolor="#f6e5ee" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  9242[label="Inline Notes" fillcolor="#f2fadf" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1018[label="IWE Init" fillcolor="#e9f9ef" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7996[label="Configuration" fillcolor="#fbfbda" fontsize=24 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5442[label="IWE Retrieve" fillcolor="#ffeaea" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  284[label="Navigation" fillcolor="#eef2f5" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  4698[label="Text Structure Normalization / Formatting" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7424[label="Delete Action" fillcolor="#eef2f5" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  880[label="IWE Tree" fillcolor="#f6e5ee" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1971[label="VS Code" fillcolor="#ffeee0" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  9897[label="IWE Export" fillcolor="#eef2f5" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1181[label="Sub-Directories" fillcolor="#eeebfa" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  2532[label="How to Use in Command Line" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  10040[label="Keys and Cross-References" fillcolor="#f2fadf" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5394[label="How to Install" fillcolor="#e2f6f6" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1443[label="IWE Create" fillcolor="#e9f9ef" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7475[label="Feature Overview" fillcolor="#e9f9ef" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5047[label="Benchmark" fillcolor="#e1f5fe" fontsize=24 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7407[label="CLI Workflow Examples" fillcolor="#fff9de" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1800[label="Graph Visualization" fillcolor="#e1f5fe" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  6208[label="How IWE Compares" fillcolor="#f2fadf" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1220[label="MCP Server" fillcolor="#dcf7f7" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  490[label="Creating Links from Text" fillcolor="#fae1ee" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  1934[label="Header Levels Normalization" fillcolor="#e1f5fe" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  5289[label="Text Manipulation" fillcolor="#eef2f5" fontsize=32 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=note style=filled]
+  7610[label="Why Hierarchy Matters" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  159[label="Common issues" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1170[label="Document Titles" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4543[label="13.5.3 iwe stats — csv" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4261[label="13.1.3 Stable-schema rule" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  584[label="Cursor Mode (Word Detection)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8920[label="Targets and coalescing" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4074[label="12.3.3 iwe retrieve flags" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6385[label="On parsing" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5105[label="Running" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1022[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9963[label="Generating Images" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5275[label="Out of scope" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5927[label="Neovim" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3056[label="$and: [filter1, filter2, ...]" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4300[label="13.3 Markdown and keys" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4637[label="A.1 Operation documents" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1149[label="Link Format" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4819[label="What It Does" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1670[label="Reference Statistics" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7663[label="The Solution: Inclusion Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4850[label="Header Level Adjustment" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3881[label="10. Atomicity" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6734[label="Source Document Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7352[label="In Your Editor" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6214[label="Which Tool Should You Use" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8277[label="Schemas" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  471[label="3. Consider File Organization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6038[label="Structural anchors" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8396[label="Fusion (RRF)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8377[label="Tokenization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1462[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  528[label="Simple ID-Based Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5335[label="Change List Type" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1752[label="Sample Markdown Output" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1816[label="Visualization Modes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8860[label="Block projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4748[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5893[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8692[label="Projection (find only)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4556[label="13.6 Flag effects on output shape" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1518[label="Template mode" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2604[label="Querying" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5844[label="Troubleshooting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8625[label="Relational operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9904[label="Available Formats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10169[label="Setup IWE Only For Your Notes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10146[label="Caveats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5900[label="Inclusion Hints" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6664[label="Example: Basic Section Extraction" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6144[label="Installation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4344[label="13.3.3 iwe find (markdown / keys)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4014[label="12.3.2 Projection and sort flags" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1198[label="File Path Resolution" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5715[label="Exploring Knowledge Base Structure" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4880[label="AI Agent Tips" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1975[label="Install the IWE Extension" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10001[label="Deprecated aliases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3936[label="12.2 Filter flags" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6849[label="Key Collision Handling" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1368[label="Refactoring" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1717[label="Network Analysis" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4418[label="13.3.6 iwe stats (markdown)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1555[label="Frontmatter" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6903[label="Command Line Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4302[label="13.3.1 Format set" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4228[label="12.8.1 Find" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7467[label="Command Line Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5904[label="What's Shown" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2306[label="LSP Feature Reference" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5748[label="Technical Notes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5833[label="Code Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4642[label="A.2 Filter" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  633[label="Key Collision Handling" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1916[label="Troubleshooting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6831[label="9. Path-based Organization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2709[label="1. Overview" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8243[label="Template Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10066[label="Reference Types" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2089[label="Usage Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5122[label="Numbers" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9988[label="AI Agent Tips" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5672[label="Output Format" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2949[label="Resolution rules" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4537[label="13.5.2 iwe export — dot" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3806[label="9. Update operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3915[label="12.1 Subcommands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5810[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  450[label="Editor Integration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  580[label="Text Selection vs Cursor" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1724[label="Per-document Similar pages" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6459[label="IWE vs zk and telekasten.nvim" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7709[label="Flexible Level of Detail" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2984[label="Null vs missing" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2381[label="Following the Link" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4687[label="A.8 Primitives" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3501[label="5.4 Worked examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5356[label="Sort List Items" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  934[label="Output Formats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4226[label="12.8 CLI examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1601[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6876[label="Date Formatting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6710[label="Template Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7505[label="MCP Server for AI Agents" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  972[label="Depth Impact" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1755[label="CSV Format Details" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7025[label="Prerequisites" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2423[label="Text Transformations" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3331[label="5.1.2 Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10083[label="Markdown links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3509[label="5.4.2 Walk-based queries" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4522[label="13.4.5 iwe stats (JSON / YAML)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  954[label="Starting from Specific Documents" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2734[label="2.1 Documents" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4744[label="5. Whitespace Cleanup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1393[label="Prompts" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5600[label="Depth Expansion (--expand-includes)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7555[label="Markdown Normalization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7202[label="Telescope Commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2807[label="3.2 Operation-document structure" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2164[label="Auto-Complete" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8191[label="Example Commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8666[label="$content — content membership" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9003[label="Strict mode" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5796[label="Setup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10166[label="Setup Snippet" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5705[label="Use Cases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  235[label="Getting help" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8359[label="The BM25 index" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5695[label="JSON Format (-f json)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7242[label="Troubleshooting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5674[label="Markdown Format (default)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3522[label="5.5 Edge cases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5563[label="Output limits" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  45[label="What it shows" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2146[label="Workspace Settings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2467[label="Inlining Extracted Sections" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4724[label="3. Ordered List Numbering" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6102[label="YAML (-f yaml)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10160[label="Installation & Setup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5783[label="Manual Installation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3187[label="$exists: true | false" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6841[label="11. Complex Template Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2865[label="4. Filter language" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7297[label="gitsigns.nvim" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1870[label="Daily Documentation Review" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7065[label="IWE Feature Keybindings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6576[label="Where IWE Is Weaker" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9953[label="DOT Output Format" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9233[label="Custom Document Titles" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  174[label="Debugging" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7732[label="Inline Links (References)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4549[label="13.5.4 Mutation commands — prose status" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3238[label="4.9 Array operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1523[label="Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10113[label="Wiki link paths" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7244[label="Common Issues" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1224[label="Setup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6648[label="Basic Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1576[label="Keys" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3269[label="4.10 Filter requirements (use-case checklist)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1818[label="Basic Mode (Default)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8884[label="Top-level form" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2676[label="Analysis & Export" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3596[label="6.1 Structural pseudo-field sources" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4240[label="13. Output formats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3157[label="$in: [v1, v2, ...]" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8381[label="Where the index lives" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6060[label="How it works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9253[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8323[label="Two rankers" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1000[label="Deprecated aliases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3071[label="$or: [filter1, filter2, ...]" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4110[label="12.3.4 Token budgets (iwe find, iwe retrieve)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4658[label="A.3 Graph operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3985[label="12.3.1 Format flags matrix" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4333[label="13.3.2 Common markdown frontmatter shapes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7648[label="Tags: Flexible but Shallow" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4560[label="13.6.1 iwe find" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  317[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7686[label="Structure with Meaning" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5405[label="Using npm (macOS/Linux/Windows)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2144[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3866[label="9.4 Update requirements (use-case checklist)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  946[label="JSON" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7149[label="Usage Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6151[label="CLI Commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5768[label="Installation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6202[label="About the project" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9257[label="Example Configuration:" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  247[label="How It Works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1659[label="Document Statistics" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1694[label="Words Statistics" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4734[label="4. List Indentation and Spacing" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7059[label="Neovim Shortcuts for IWE Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4669[label="A.4 Projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  60[label="Enumerable values" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6714[label="Basic Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5658[label="Document Relationships" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2193[label="Common Issues" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9313[label="Editor usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9979[label="With vs Without Headers" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8616[label="Graph operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1253[label="Workspace and instructions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4575[label="13.6.2 iwe retrieve" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3941[label="12.2.1 --filter lowering" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3911[label="12. CLI surface" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4663[label="A.3.1 Identity" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2617[label="Command Categories" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3847[label="9.3 Combining operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8800[label="Block predicates" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1728[label="Detecting similar pages" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7151[label="Extracting a Section" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5956[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3983[label="12.3 Shape flags" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5935[label="Helix" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8659[label="Cardinality — $size" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7162[label="Following Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8433[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3242[label="$all: [v1, v2, ...]" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8592[label="Bare equality" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6680[label="Configuration Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7439[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  272[label="Example Commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  875[label="Idempotency" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5712[label="Understanding Document Relationships" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3774[label="7. Sort" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3883[label="10.1 Per-document" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5914[label="Enabling Inlay Hints" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2732[label="2. Corpus model" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2191[label="Troubleshooting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2350[label="Usage Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  388[label="Common Use Cases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  377[label="How It Works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3201[label="$type: TYPE or $type: [TYPE, TYPE, ...]" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7448[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2018[label="Verify Installation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7191[label="Text Transform Actions (if configured)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7719[label="Inclusion Links vs Inline Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1955[label="Graph-Based Document Representation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3678[label="6.2.2 Default projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3562[label="5A. Search stage (find only)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5886[label="What's Shown" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1273[label="Tools" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  969[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5660[label="Parent Documents vs Back Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7411[label="Daily Maintenance" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4123[label="12.4 Update flags (iwe update mutation mode)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  803[label="Operations Performed" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  179[label="Edge Cases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  292[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2924[label="4.3 Multiple keys are ANDed" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1072[label="Completion Section" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6747[label="Relative Path Behavior" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2223[label="Debug Mode" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6109[label="Deprecated aliases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2076[label="Command Palette Access" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2058[label="Additional VS Code Features" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2029[label="VS Code Shortcuts for IWE Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10215[label="Helix-Specific Notes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7633[label="Directories: One Place Only" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1124[label="Suppressing word-character completions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  355[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8295[label="Migration from Version 2" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  196[label="Missing Referenced Documents" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1811[label="Advanced Visualization with Headers" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2580[label="Global Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7674[label="Multiple Contexts (Polyhierarchy)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5718[label="Chaining Retrievals" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8211[label="Transform Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5555[label="Search seeds" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  361[label="Navigation Tips" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  961[label="Handling Circular References" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7672[label="What This Enables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2031[label="Core Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1323[label="Stats warnings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  870[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3401[label="5.2.2 The match field" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6106[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4436[label="13.3.8 Stable-schema exemption for markdown" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3334[label="5.1.3 Constraints" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  568[label="WikiLink Format" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  602[label="Selection Mode" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4280[label="13.2 Common shapes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4645[label="A.2.1 Logical operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10024[label="When to Use Debug Mode" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2436[label="Auto-Formatting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4684[label="A.7 Update document" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5110[label="Reading criterion output" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4666[label="A.3.2 Relational operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  181[label="Empty Knowledge Base" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  390[label="Daily Note Collection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3657[label="6.2.1 Source forms" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3799[label="8. Limit" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3489[label="5.3 Graph operator composition with filter" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  422[label="Topic Collections" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5613[label="Context Expansion (--expand-included-by)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3887[label="10.2 Across-document" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8020[label="Formatting Settings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4776[label="Custom Formatting Tokens" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4772[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5624[label="Sub-document Parent Context" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4750[label="Format on Save" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1228[label="Transport options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5574[label="Filter and structural anchors" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1550[label="Passing multiline prose" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2102[label="Following Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6393[label="IWE vs Obsidian" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  209[label="Circular References" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1894[label="Output Formats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3113[label="4.7 Comparison operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4287[label="13.2.2 EdgeRef" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2740[label="2.2 The corpus" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6168[label="Concepts" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4624[label="Notation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4509[label="13.4.4 iwe tree (JSON / YAML)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3547[label="5.5.2 Other edge cases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5051[label="What we benchmark" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6528[label="IWE vs mdbase" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9014[label="Locate, then mutate" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6789[label="3. Title-based Extraction" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7592[label="Developer-Focused Architecture" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1054[label="Markdown Section" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8970[label="expect guards" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1503[label="Content mode" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6322[label="IWE vs markdown-oxide" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2900[label="4.2 Operator expressions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3821[label="$set" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3763[label="6.5 Markdown rendering under projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2122[label="Text Transform Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4422[label="13.3.7 Mutation commands (markdown / keys)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3590[label="6. Projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5293[label="List to Sections" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1873[label="Project Structure Analysis" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  466[label="2. Use Descriptive Titles" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6077[label="Markdown (default)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  461[label="1. Start Simple" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5866[label="Platform Support" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1860[label="Filtering and Focusing" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  884[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7100[label="LSP Keybindings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7144[label="Which-Key Integration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2402[label="Advanced Features" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9966[label="Depth Behavior" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1926[label="Complex Layouts" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1039[label="Workspace Section" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4704[label="1. Link Title Updates" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3322[label="5.1 Identity operator ($key)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2151[label="User Settings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1025[label="What It Creates" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8961[label="Combining operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  620[label="Template Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2619[label="Document Management" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1794[label="Using CSV Output" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8984[label="Validation and atomicity" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  339[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6130[label="Technical notes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2583[label="Global Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6045[label="Block projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2279[label="Core LSP Features" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4410[label="13.3.5 iwe tree (markdown / keys)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3185[label="4.8 Element operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2871[label="4.1 Implicit equality (bare values)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7417[label="Document Consolidation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8440[label="Performance" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7141[label="Advanced Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2977[label="Array membership exception" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4208[label="12.7 Composition rules" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6799[label="5. Hierarchical Extraction" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5882[label="Note Header Hints" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1338[label="Query" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7289[label="Integration with Other Plugins" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8405[label="CLI and MCP ranking" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10204[label="Code Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3810[label="9.1 Frontmatter operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6603[label="What IWE Adds Beyond a Markdown LSP" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4231[label="12.8.2 Count" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3351[label="5.2 Relational operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2960[label="4.5 Equality, types, and missing fields" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  824[label="Link Title Sync" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1868[label="Workflow Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5916[label="VS Code" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8446[label="Caveats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7224[label="Health Check" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8597[label="Operator expressions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4761[label="Manual Formatting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7629[label="The Problem" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7350[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2483[label="Working with New Files" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4614[label="13.7 Error output" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2756[label="2.4 Edge model" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3382[label="5.2.1 Argument shape" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4282[label="13.2.1 KeyTitleRef" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7291[label="nvim-cmp (Autocompletion)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8083[label="Date Format Patterns" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  507[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4237[label="12.8.4 Delete" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1857[label="Different Layout Engines" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10055[label="Named Keys vs Filters" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3029[label="Common YAML pitfalls" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6389[label="On link granularity" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7204[label="Available Commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1685[label="Lines Statistics" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7700[label="Context Flows Downward" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6257[label="IWE vs marksman" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  865[label="Safety Warning" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8609[label="Nested fields" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  985[label="AI Agent Tips" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5230[label="Iteration counts" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2367[label="Extracting a Section" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8418[label="LSP fusion" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1090[label="Customization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2133[label="Global Search" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3750[label="6.4 Output shape under projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9020[label="CLI lowering" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10079[label="Link Resolution" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8839[label="Selection semantics" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  800[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  834[label="Link Path Rewriting" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2536[label="Quick Start" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8739[label="Block model" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1621[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1907[label="Performance Considerations" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6794[label="4. Slug-based Extraction (URL-friendly)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8714[label="Field names the language cannot address" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5347[label="When to Use" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1136[label="Bracket prefixes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5702[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4453[label="13.4.1 Per-command format matrix" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  494[label="How It Works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4498[label="13.4.3 iwe retrieve (JSON / YAML)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5770[label="From Zed Extensions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2245[label="Best Practices for VS Code" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3692[label="6.2.3 Identity fields" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7180[label="Global Search with Telescope" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  111[label="Output" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6815[label="7. Source-aware Extraction" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3757[label="6.4.1 Cross-command convergence" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6784[label="2. Date-based Extraction" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6607[label="Method and Dates" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  846[label="List Renumbering" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5398[label="Using Homebrew (macOS/Linux)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8620[label="$key — identity" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1421[label="File watching" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7171[label="Finding Backlinks" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7568[label="Hierarchical Notes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4690[label="A.9 Block predicates" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4702[label="What Gets Normalized" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10138[label="Markdown links and the reference extension" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1114[label="Trigger Characters" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7544[label="External Command Integration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5424[label="From Crates.IO" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  144[label="Best practices" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8365[label="Corpus" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1804[label="Export Command" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1854[label="Generate SVG for Web" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3716[label="6.3 addFields — additive projection" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1944[label="Removing unnecessary levels" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3469[label="5.2.5 Empty argument and unknown fields" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  427[label="File Creation Behavior" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5959[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8126[label="Locale Settings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7301[label="Best Practices for Neovim" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  822[label="Before/After Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6147[label="Usage Guide" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8056[label="Workspace Settings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1879[label="Customization Tips" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  476[label="Integration with PKM Workflows" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4294[label="13.2.3 User frontmatter merging" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4714[label="2. Header Level Adjustment" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1187[label="Recursive Directory Scanning" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  86[label="Validate" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2658[label="Refactoring Operations" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5855[label="Binary Not Found" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3052[label="4.6 Logical operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1037[label="Configuration Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4530[label="13.5 Other formats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7278[label="Getting Help" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6758[label="Example: Relative Path Extraction" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5723[label="Deprecated aliases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2496[label="Best Practices" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1609[label="See also" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9283[label="Command Line Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4594[label="13.6.3 iwe tree" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6653[label="Configuration Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9295[label="Supported links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2744[label="2.3 Field names the language cannot address" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5297[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3173[label="$nin: [v1, v2, ...]" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  132[label="See also" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4532[label="13.5.1 iwe count — bare integer" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5075[label="Corpus" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1087[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5170[label="Stage 2 — query" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1918[label="Large Graphs" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  941[label="Keys" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5453[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7520[label="Search and Ranking" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9901[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7746[label="Why This Distinction Matters" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6836[label="10. Wiki-style Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  79[label="JSON Format" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7583[label="Cross-Editor LSP Integration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  459[label="Best Practices" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10177[label="Hover Preview" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3292[label="5. Graph operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3326[label="5.1.1 Argument shape" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7721[label="Inclusion Links (Structure)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2236[label="Getting Help" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1876[label="Knowledge Base Overview" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6677[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7481[label="Graph Transformations" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5415[label="Prebuilt Binaries" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5651[label="References (references)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1808[label="Basic Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3411[label="5.2.3 Walk parameters" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2162[label="Features in VS Code" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6075[label="Output formats" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2792[label="3. Operations and operation documents" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1851[label="Generate PNG Images" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9304[label="Preview content" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3503[label="5.4.1 Identity-based queries" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1703[label="Structure Statistics" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3518[label="5.4.3 Combined queries" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1606[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2265[label="Purpose" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2275[label="Primary Features" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1292[label="Writing" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1865[label="By Content Depth" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4681[label="A.6 Limit" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1389[label="Unknown keys" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8568[label="Operations" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  936[label="Markdown (default)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1582[label="Template variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1277[label="Reading" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8069[label="Completion Settings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5434[label="From Source" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3141[label="$gt: VALUE / $gte: VALUE / $lt: VALUE / $lte: VALUE" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3877[label="9.5 Block operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5368[label="When to Use" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3832[label="$unset" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7061[label="Default Keybindings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  862[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5326[label="When to Use" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2964[label="Deep equality" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1862[label="By Document Key" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1973[label="Installation & Setup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8263[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3115[label="$eq: VALUE" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1465[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2173[label="Visual Enhancements" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5265[label="Profiling" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1742[label="Tuning the match level" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4800[label="Arguments" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5814[label="Common Keybindings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3129[label="$ne: VALUE" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10042[label="Document Identification" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2794[label="3.1 Operations" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2451[label="Global Search" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5940[label="Benefits" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  71[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8674[label="Search (find only)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5126[label="Stage 1 — load" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5318[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5803[label="Initialize IWE" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1849[label="Integration with Graphviz" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5690[label="Keys Format (-f keys)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8718[label="Blocks" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5360[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5062[label="Harness" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3477[label="5.2.6 Cardinality — $size" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6892[label="Filename Sanitization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1650[label="Overview" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4478[label="13.4.2 iwe find (JSON / YAML)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1385[label="Selector parameters" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2404[label="Text Transform Commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  313[label="Table of Contents (Document Symbols)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4650[label="A.2.2 Field operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8588[label="Filter syntax" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6229[label="marksman vs markdown-oxide" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7693[label="Navigable Hierarchies" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6862[label="Example: Handling Collisions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8932[label="Headers: retitle, dissolve, remove, clear" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6196[label="Editor specifics" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  121[label="Exit codes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  74[label="Sample Markdown Output" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8604[label="Logical composition" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6807[label="6. Hierarchical Extraction (URL-friendly)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  556[label="Title-Based Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7397[label="Benefits" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1349[label="iwe_retrieve search and expansion" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  406[label="Inbox System" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7337[label="How It Works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2091[label="Extracting a Section" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1406[label="Resources" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7121[label="Telescope Integration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7414[label="Content Analysis" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2269[label="Background" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2694[label="Exit Codes" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  222[label="Large Knowledge Bases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8334[label="Surfaces" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4248[label="13.1.2 Field-name convention" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8227[label="Attach Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1185[label="How It Works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4678[label="A.5 Sort" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1749[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10173[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  335[label="Backlinks (Find References)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4244[label="13.1.1 Cross-format invariant" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4603[label="13.6.4 Mutation commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2111[label="Finding Backlinks" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5528[label="Expansion (--expand-*)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4653[label="A.2.3 Field paths" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4832[label="Output Format" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1638[label="Subcommands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5909[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1425[label="Consistency" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7048[label="Verify Installation" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2391[label="Finding Backlinks" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4175[label="12.6 Deprecated aliases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  646[label="Use Multiple Link Actions" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7390[label="Command Line Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5305[label="When to Use" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4869[label="Use Cases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4847[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  288[label="Links Navigation (Go To Definition)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7533[label="Schema Inference" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1032[label="Default Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  544[label="Slug-Based Links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10109[label="Write-Time Normalization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1995[label="Prerequisites" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1646[label="What it shows" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3837[label="9.2 Operator names are not update targets" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6675[label="Extract All Subsections" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6031[label="Filter language" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1712[label="Orphans" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  854[label="Whitespace Normalization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5707[label="AI Agent Context Building" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7458[label="When Delete Action Is Available" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5581[label="How It Works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3948[label="12.2.2 Anchor depth syntax" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7492[label="Query Language" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3893[label="11. Composition order" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  512[label="Configuration Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1163[label="Minimum prefix length" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7271[label="Debug Mode" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  308[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1827[label="Detailed Mode (--include-headers)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3085[label="$nor: [filter1, filter2, ...]" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4675[label="A.4A Search (find only)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7760[label="Summary" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4449[label="13.4 JSON and YAML" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10089[label="Wiki links" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4807[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6646[label="Extract Single Section" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3460[label="5.2.4 Composition" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7428[label="How It Works" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1203[label="Cross-Directory Linking" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9960[label="Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4150[label="12.5 Delete flags (iwe delete)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7420[label="Large Workspace Management" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2640[label="Document Retrieval" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3699[label="6.2.4 Conditional structural sources" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1836[label="Key Features" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1921[label="Missing Graphviz" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6725[label="Parent Section Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  436[label="Template Variables" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5798[label="Enable for Specific Projects" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8707[label="Update operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4620[label="Appendix A. Formal grammar (BNF)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7009[label="Install the IWE Plugin" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2597[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4234[label="12.8.3 Update" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3524[label="5.5.1 Cycle handling" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7294[label="nvim-treesitter" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1570[label="Mode boundaries" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  10183[label="Common Keybindings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5314[label="Sections to List" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9262[label="Configuration Keys:" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8000[label="Basic Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6777[label="Advanced Configuration Examples" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3101[label="$not: { $op: ... } — field-level only" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1624[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5846[label="Extension Not Working" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5377[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7007[label="Installation & Setup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5448[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3256[label="$size: count_pred" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  5339[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2931[label="4.4 Nested fields" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6175[label="Features" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8166[label="Commands" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2573[label="Installation & Setup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4242[label="13.1 Format invariants" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  887[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9911[label="Options" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  526[label="Common Use Cases" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6823[label="8. Source-aware Extraction (URL-friendly)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7136[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7370[label="Example" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8147[label="Frontmatter Document Title" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6691[label="Example: Extract All Subsections" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1105[label="Re-initialization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4356[label="13.3.4 iwe retrieve (markdown / keys)" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4783[label="Tips" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  4797[label="Usage" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1881[label="Layout Optimization" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  7138[label="Basic Setup" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  1303[label="iwe_create" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8003[label="Markdown Settings" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3645[label="6.2 Projection document" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  3008[label="Type bracketing for ordering" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  260[label="Configuration" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  2182[label="File Management" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8891[label="Block update operators" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  6779[label="1. Simple Numeric Keys" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  8701[label="Sort and limit" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  9237[label="Structured search via the CLI" fontsize=14 fontname=Verdana color="#b3b3b3" penwidth=1.5 shape=plain fontcolor="#7d8590"]
+  subgraph cluster_0 {
+    labeljust="l"
+    style=filled
+    color="#f6fcf5"
+    fillcolor="#f6fcf5"
+    fontcolor="#185c37"
+    penwidth=40
+    2306
+    2381
+    2423
+    2467
+    2350
+    2436
+    2402
+    2279
+    2483
+    2367
+    2496
+    2265
+    2275
+    2451
+    2404
+    2269
+    2391
+  }
+  subgraph cluster_1 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    8920
+    8860
+    8692
+    8625
+    8666
+    9003
+    8884
+    8616
+    8800
+    8659
+    8592
+    9014
+    8970
+    8961
+    8984
+    8597
+    8609
+    9020
+    8839
+    8739
+    8714
+    8620
+    8568
+    8674
+    8718
+    8588
+    8932
+    8604
+    8707
+    8891
+    8701
+  }
+  subgraph cluster_3 {
+    labeljust="l"
+    style=filled
+    color="#f3fcf7"
+    fillcolor="#f3fcf7"
+    fontcolor="#257257"
+    penwidth=40
+    9313
+    9295
+    9304
+  }
+  subgraph cluster_4 {
+    labeljust="l"
+    style=filled
+    color="#fff4fa"
+    fillcolor="#fff4fa"
+    fontcolor="#a7475a"
+    penwidth=40
+    5927
+    5893
+    5900
+    5904
+    5935
+    5914
+    5886
+    5882
+    5916
+    5940
+    5909
+  }
+  subgraph cluster_5 {
+    labeljust="l"
+    style=filled
+    color="#fff6eb"
+    fillcolor="#fff6eb"
+    fontcolor="#b36a36"
+    penwidth=40
+    471
+    450
+    388
+    377
+    390
+    422
+    466
+    461
+    427
+    476
+    459
+    406
+    436
+  }
+  subgraph cluster_6 {
+    labeljust="l"
+    style=filled
+    color="#f3fcf7"
+    fillcolor="#f3fcf7"
+    fontcolor="#257257"
+    penwidth=40
+    10169
+    10166
+    10160
+    10215
+    10204
+    10177
+    10173
+    10183
+  }
+  subgraph cluster_7 {
+    labeljust="l"
+    style=filled
+    color="#f7f9fa"
+    fillcolor="#f7f9fa"
+    fontcolor="#4a525a"
+    penwidth=40
+    10024
+  }
+  subgraph cluster_8 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    8396
+    8377
+    8359
+    8381
+    8323
+    8433
+    8440
+    8405
+    8446
+    8418
+    8365
+    8334
+  }
+  subgraph cluster_10 {
+    labeljust="l"
+    style=filled
+    color="#fdf7fa"
+    fillcolor="#fdf7fa"
+    fontcolor="#764470"
+    penwidth=40
+    1170
+    1149
+    1124
+    1136
+    1114
+    1163
+  }
+  subgraph cluster_11 {
+    labeljust="l"
+    style=filled
+    color="#fff6eb"
+    fillcolor="#fff6eb"
+    fontcolor="#b36a36"
+    penwidth=40
+    4543
+    4261
+    4074
+    3056
+    4300
+    4637
+    3881
+    4556
+    4344
+    4014
+    3936
+    4418
+    4302
+    4228
+    4642
+    2709
+    2949
+    4537
+    3806
+    3915
+    2984
+    4687
+    3501
+    4226
+    3331
+    3509
+    4522
+    2734
+    2807
+    3522
+    3187
+    2865
+    4549
+    3238
+    3269
+    3596
+    4240
+    3157
+    3071
+    4110
+    4658
+    3985
+    4333
+    4560
+    3866
+    4669
+    4575
+    3941
+    3911
+    4663
+    3847
+    3983
+    3242
+    3774
+    3883
+    2732
+    3201
+    3678
+    3562
+    4123
+    2924
+    3401
+    4436
+    3334
+    4280
+    4645
+    4684
+    4666
+    3657
+    3799
+    3489
+    3887
+    3113
+    4287
+    2740
+    4624
+    4509
+    3547
+    2900
+    3821
+    3763
+    4422
+    3590
+    3322
+    4410
+    3185
+    2871
+    2977
+    4208
+    3810
+    4231
+    3351
+    2960
+    4614
+    2756
+    3382
+    4282
+    4237
+    3029
+    3750
+    4453
+    4498
+    3692
+    3757
+    4690
+    3716
+    3469
+    4294
+    3052
+    4530
+    4594
+    2744
+    3173
+    4532
+    3292
+    3326
+    3411
+    2792
+    3503
+    3518
+    4681
+    3141
+    3877
+    3832
+    2964
+    3115
+    3129
+    2794
+    3477
+    4478
+    4650
+    4248
+    4678
+    4244
+    4603
+    4653
+    4175
+    3837
+    3948
+    3893
+    3085
+    4675
+    4449
+    3460
+    4150
+    3699
+    4620
+    4234
+    3524
+    3101
+    3256
+    2931
+    4242
+    4356
+    3645
+    3008
+  }
+  subgraph cluster_12 {
+    labeljust="l"
+    style=filled
+    color="#f6fcf5"
+    fillcolor="#f6fcf5"
+    fontcolor="#185c37"
+    penwidth=40
+    5844
+    5833
+    5810
+    5796
+    5783
+    5768
+    5866
+    5770
+    5855
+    5814
+    5803
+    5798
+    5846
+  }
+  subgraph cluster_13 {
+    labeljust="l"
+    style=filled
+    color="#fff4fa"
+    fillcolor="#fff4fa"
+    fontcolor="#a7475a"
+    penwidth=40
+    6734
+    6664
+    6849
+    6903
+    6831
+    6876
+    6710
+    6841
+    6648
+    6714
+    6680
+    6747
+    6789
+    6799
+    6794
+    6815
+    6784
+    6758
+    6653
+    6836
+    6677
+    6892
+    6862
+    6807
+    6675
+    6646
+    6725
+    6777
+    6823
+    6691
+    6779
+  }
+  subgraph cluster_14 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    45
+    60
+    10
+    111
+    86
+    132
+    79
+    71
+    121
+    74
+    7
+  }
+  subgraph cluster_15 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    7025
+    7202
+    7242
+    7297
+    7065
+    7244
+    7149
+    7059
+    7151
+    7162
+    7191
+    7100
+    7144
+    7141
+    7289
+    7224
+    7291
+    7204
+    7180
+    7171
+    7301
+    7278
+    7061
+    7121
+    7048
+    7271
+    7009
+    7294
+    7007
+    7136
+    7138
+  }
+  subgraph cluster_16 {
+    labeljust="l"
+    style=filled
+    color="#fdf7fa"
+    fillcolor="#fdf7fa"
+    fontcolor="#764470"
+    penwidth=40
+    247
+    272
+    260
+  }
+  subgraph cluster_17 {
+    labeljust="l"
+    style=filled
+    color="#fef7f7"
+    fillcolor="#fef7f7"
+    fontcolor="#c35151"
+    penwidth=40
+    4819
+    4850
+    4880
+    4800
+    4832
+    4869
+    4847
+    4807
+    4797
+  }
+  subgraph cluster_18 {
+    labeljust="l"
+    style=filled
+    color="#fffbea"
+    fillcolor="#fffbea"
+    fontcolor="#a67c00"
+    penwidth=40
+    159
+    235
+    174
+    179
+    196
+    181
+    209
+    144
+    222
+  }
+  subgraph cluster_19 {
+    labeljust="l"
+    style=filled
+    color="#fff6eb"
+    fillcolor="#fff6eb"
+    fontcolor="#b36a36"
+    penwidth=40
+    9233
+    9237
+  }
+  subgraph cluster_20 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    1955
+  }
+  subgraph cluster_21 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    7352
+    7350
+    7397
+    7337
+    7390
+    7370
+  }
+  subgraph cluster_23 {
+    labeljust="l"
+    style=filled
+    color="#fdf7fa"
+    fillcolor="#fdf7fa"
+    fontcolor="#764470"
+    penwidth=40
+    6144
+    6151
+    6202
+    6168
+    6147
+    6196
+    6175
+  }
+  subgraph cluster_24 {
+    labeljust="l"
+    style=filled
+    color="#fffbea"
+    fillcolor="#fffbea"
+    fontcolor="#a67c00"
+    penwidth=40
+    1670
+    1752
+    1717
+    1724
+    1755
+    1659
+    1694
+    1728
+    1794
+    1685
+    1621
+    1703
+    1742
+    1650
+    1749
+    1638
+    1646
+    1712
+    1624
+  }
+  subgraph cluster_25 {
+    labeljust="l"
+    style=filled
+    color="#fffbea"
+    fillcolor="#fffbea"
+    fontcolor="#a67c00"
+    penwidth=40
+    6038
+    6102
+    6060
+    5956
+    6109
+    6106
+    6077
+    6130
+    6045
+    5959
+    6075
+    6031
+  }
+  subgraph cluster_26 {
+    labeljust="l"
+    style=filled
+    color="#f8f8ff"
+    fillcolor="#f8f8ff"
+    fontcolor="#442b7e"
+    penwidth=40
+    7610
+    7663
+    7709
+    7732
+    7648
+    7686
+    7719
+    7633
+    7674
+    7672
+    7629
+    7700
+    7746
+    7721
+    7693
+    7760
+  }
+  subgraph cluster_27 {
+    labeljust="l"
+    style=filled
+    color="#fdf7fa"
+    fillcolor="#fdf7fa"
+    fontcolor="#764470"
+    penwidth=40
+    875
+    803
+    870
+    824
+    865
+    800
+    834
+    846
+    822
+    862
+    854
+  }
+  subgraph cluster_28 {
+    labeljust="l"
+    style=filled
+    color="#faffef"
+    fillcolor="#faffef"
+    fontcolor="#847c36"
+    penwidth=40
+    9253
+    9257
+    9283
+    9262
+  }
+  subgraph cluster_29 {
+    labeljust="l"
+    style=filled
+    color="#f6fcf5"
+    fillcolor="#f6fcf5"
+    fontcolor="#185c37"
+    penwidth=40
+    1022
+    1072
+    1054
+    1039
+    1025
+    1090
+    1037
+    1087
+    1032
+    1105
+  }
+  subgraph cluster_30 {
+    labeljust="l"
+    style=filled
+    color="#fefeec"
+    fillcolor="#fefeec"
+    fontcolor="#96902d"
+    penwidth=40
+    8277
+    8243
+    8191
+    8295
+    8211
+    8020
+    8083
+    8126
+    8056
+    8069
+    8263
+    8227
+    8000
+    8166
+    8147
+    8003
+  }
+  subgraph cluster_31 {
+    labeljust="l"
+    style=filled
+    color="#fef7f7"
+    fillcolor="#fef7f7"
+    fontcolor="#c35151"
+    penwidth=40
+    5715
+    5748
+    5672
+    5600
+    5705
+    5695
+    5674
+    5563
+    5658
+    5712
+    5660
+    5718
+    5555
+    5613
+    5624
+    5574
+    5702
+    5723
+    5453
+    5651
+    5690
+    5528
+    5707
+    5581
+    5448
+  }
+  subgraph cluster_32 {
+    labeljust="l"
+    style=filled
+    color="#f7f9fa"
+    fillcolor="#f7f9fa"
+    fontcolor="#4a525a"
+    penwidth=40
+    317
+    292
+    355
+    361
+    339
+    313
+    335
+    288
+    308
+  }
+  subgraph cluster_33 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    4748
+    4744
+    4724
+    4734
+    4776
+    4772
+    4750
+    4704
+    4761
+    4702
+    4714
+    4783
+  }
+  subgraph cluster_34 {
+    labeljust="l"
+    style=filled
+    color="#f7f9fa"
+    fillcolor="#f7f9fa"
+    fontcolor="#4a525a"
+    penwidth=40
+    7467
+    7439
+    7448
+    7458
+    7428
+  }
+  subgraph cluster_35 {
+    labeljust="l"
+    style=filled
+    color="#fdf7fa"
+    fillcolor="#fdf7fa"
+    fontcolor="#764470"
+    penwidth=40
+    934
+    972
+    954
+    1000
+    946
+    969
+    961
+    884
+    985
+    941
+    936
+    887
+  }
+  subgraph cluster_36 {
+    labeljust="l"
+    style=filled
+    color="#fff6eb"
+    fillcolor="#fff6eb"
+    fontcolor="#b36a36"
+    penwidth=40
+    1975
+    2089
+    2164
+    2146
+    2144
+    2193
+    2191
+    2018
+    2223
+    2076
+    2058
+    2029
+    2031
+    2102
+    2122
+    2151
+    2133
+    2245
+    2236
+    2162
+    1973
+    2173
+    2091
+    2111
+    1995
+    2182
+  }
+  subgraph cluster_37 {
+    labeljust="l"
+    style=filled
+    color="#f7f9fa"
+    fillcolor="#f7f9fa"
+    fontcolor="#4a525a"
+    penwidth=40
+    9963
+    9904
+    10001
+    9988
+    9953
+    9979
+    9966
+    9901
+    9960
+    9911
+  }
+  subgraph cluster_38 {
+    labeljust="l"
+    style=filled
+    color="#f8f8ff"
+    fillcolor="#f8f8ff"
+    fontcolor="#442b7e"
+    penwidth=40
+    1198
+    1187
+    1185
+    1203
+  }
+  subgraph cluster_39 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    2604
+    2676
+    2617
+    2580
+    2619
+    2583
+    2536
+    2658
+    2694
+    2640
+    2597
+    2573
+  }
+  subgraph cluster_40 {
+    labeljust="l"
+    style=filled
+    color="#faffef"
+    fillcolor="#faffef"
+    fontcolor="#847c36"
+    penwidth=40
+    10146
+    10066
+    10083
+    10113
+    10055
+    10079
+    10138
+    10042
+    10109
+    10089
+  }
+  subgraph cluster_41 {
+    labeljust="l"
+    style=filled
+    color="#f0fafb"
+    fillcolor="#f0fafb"
+    fontcolor="#225c5a"
+    penwidth=40
+    5405
+    5398
+    5424
+    5415
+    5434
+  }
+  subgraph cluster_42 {
+    labeljust="l"
+    style=filled
+    color="#f6fcf5"
+    fillcolor="#f6fcf5"
+    fontcolor="#185c37"
+    penwidth=40
+    1462
+    1518
+    1555
+    1601
+    1523
+    1576
+    1550
+    1503
+    1609
+    1606
+    1582
+    1465
+    1570
+  }
+  subgraph cluster_43 {
+    labeljust="l"
+    style=filled
+    color="#f6fcf5"
+    fillcolor="#f6fcf5"
+    fontcolor="#185c37"
+    penwidth=40
+    7505
+    7555
+    7592
+    7568
+    7544
+    7520
+    7583
+    7481
+    7533
+    7492
+  }
+  subgraph cluster_44 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    5105
+    5275
+    5122
+    5110
+    5051
+    5230
+    5075
+    5170
+    5265
+    5126
+    5062
+  }
+  subgraph cluster_45 {
+    labeljust="l"
+    style=filled
+    color="#fffbea"
+    fillcolor="#fffbea"
+    fontcolor="#a67c00"
+    penwidth=40
+    7411
+    7417
+    7414
+    7420
+  }
+  subgraph cluster_46 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    1816
+    1916
+    1870
+    1818
+    1811
+    1894
+    1873
+    1860
+    1926
+    1868
+    1857
+    1907
+    1804
+    1854
+    1879
+    1918
+    1876
+    1808
+    1851
+    1865
+    1862
+    1849
+    1827
+    1836
+    1921
+    1881
+  }
+  subgraph cluster_47 {
+    labeljust="l"
+    style=filled
+    color="#faffef"
+    fillcolor="#faffef"
+    fontcolor="#847c36"
+    penwidth=40
+    6385
+    6214
+    6459
+    6576
+    6393
+    6528
+    6322
+    6603
+    6389
+    6257
+    6607
+    6229
+  }
+  subgraph cluster_48 {
+    labeljust="l"
+    style=filled
+    color="#f0fbfc"
+    fillcolor="#f0fbfc"
+    fontcolor="#1d4c56"
+    penwidth=40
+    1368
+    1393
+    1224
+    1253
+    1273
+    1323
+    1228
+    1338
+    1421
+    1292
+    1389
+    1277
+    1385
+    1349
+    1406
+    1425
+    1303
+  }
+  subgraph cluster_49 {
+    labeljust="l"
+    style=filled
+    color="#fff4fa"
+    fillcolor="#fff4fa"
+    fontcolor="#a7475a"
+    penwidth=40
+    584
+    528
+    633
+    580
+    568
+    602
+    620
+    507
+    494
+    556
+    646
+    544
+    512
+    526
+  }
+  subgraph cluster_50 {
+    labeljust="l"
+    style=filled
+    color="#eff8fd"
+    fillcolor="#eff8fd"
+    fontcolor="#283747"
+    penwidth=40
+    1944
+  }
+  subgraph cluster_51 {
+    labeljust="l"
+    style=filled
+    color="#f7f9fa"
+    fillcolor="#f7f9fa"
+    fontcolor="#4a525a"
+    penwidth=40
+    5335
+    5356
+    5293
+    5347
+    5297
+    5368
+    5326
+    5318
+    5360
+    5305
+    5314
+    5377
+    5339
+  }
+  6175 -> 9220 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 9897 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6168 -> 8559 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 1617 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 1110 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 8317 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 5442 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6202 -> 5024 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 10019 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6168 -> 7606 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 7475 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 284 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6196 -> 1971 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 796 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 7996 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6144 -> 5394 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6147 -> 2532 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6147 -> 2263 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 1220 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6168 -> 6208 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 880 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 490 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 371 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6196 -> 7005 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 9291 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 4698 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 5878 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 1181 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6202 -> 7325 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 1018 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 140 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 7424 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6202 -> 2514 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 4793 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 5950 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6168 -> 2707 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 5289 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 1800 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 1443 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 6619 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 3 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6168 -> 10040 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 1934 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 241 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6196 -> 10158 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6151 -> 7407 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 7333 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6175 -> 9242 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  6196 -> 5764 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  7325 -> 5047 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  7325 -> 1953 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  7325 -> 10040 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  2404 -> 7996 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  5024 -> 7475 [arrowsize=1.5 arrowhead="empty" style="dashed" color="#8b949e99" penwidth=1.2]
+  1114 -> 1124 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1110 -> 1163 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1110 -> 1114 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1110 -> 1149 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1110 -> 1170 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1114 -> 1136 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  45 -> 60 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 45 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 86 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  86 -> 121 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 132 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 71 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 74 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  86 -> 111 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 79 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 7 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3 -> 10 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6229 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6322 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6393 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6257 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6459 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6528 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6322 -> 6389 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6214 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6576 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6607 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6208 -> 6603 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6322 -> 6385 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7149 -> 7180 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7289 -> 7297 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7136 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7224 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7289 -> 7294 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7202 -> 7204 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7121 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7136 -> 7138 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7202 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7149 -> 7171 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7242 -> 7271 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7242 -> 7278 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7149 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7149 -> 7162 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7100 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7149 -> 7151 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7007 -> 7025 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7242 -> 7244 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7059 -> 7061 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7007 -> 7009 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7065 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7007 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7301 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7289 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7289 -> 7291 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7007 -> 7048 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7149 -> 7191 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7136 -> 7144 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7059 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7136 -> 7141 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7005 -> 7242 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  796 -> 865 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  796 -> 803 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  796 -> 822 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  796 -> 800 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  796 -> 862 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  796 -> 870 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  822 -> 824 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  822 -> 834 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  822 -> 846 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  822 -> 854 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  796 -> 875 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7544 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7533 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7568 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7481 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7520 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7555 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7583 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7492 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7505 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7475 -> 7592 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8588 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8616 -> 8620 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 8970 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8625 -> 8659 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 9014 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 8739 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8692 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8800 -> 8839 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8588 -> 8597 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 8891 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 8800 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 9003 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8616 -> 8625 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8707 -> 8714 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8616 -> 8666 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 8860 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8674 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 9020 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8588 -> 8609 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8568 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8588 -> 8604 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8891 -> 8920 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8860 -> 8884 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8891 -> 8961 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8718 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8707 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8616 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8588 -> 8592 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8559 -> 8701 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8891 -> 8932 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8718 -> 8984 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  459 -> 461 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  459 -> 466 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  388 -> 390 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  371 -> 427 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  371 -> 459 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  388 -> 422 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  459 -> 471 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  371 -> 388 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  371 -> 377 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  371 -> 450 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  388 -> 406 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  371 -> 436 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  371 -> 476 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6202 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6147 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6168 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6175 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6196 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6144 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6147 -> 6151 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4850 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4807 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4797 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4832 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4847 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4880 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4869 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4819 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4793 -> 4800 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7350 -> 7370 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7333 -> 7337 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7333 -> 7350 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7350 -> 7352 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7333 -> 7390 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7333 -> 7397 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 954 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 1000 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  934 -> 936 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  934 -> 941 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 887 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  934 -> 946 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 961 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 972 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 884 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 985 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 934 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  880 -> 969 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7424 -> 7439 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7424 -> 7458 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7424 -> 7428 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7424 -> 7467 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7424 -> 7448 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1973 -> 1975 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2089 -> 2111 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2089 -> 2122 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2191 -> 2223 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2191 -> 2236 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2162 -> 2182 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1971 -> 2162 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2089 -> 2102 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1973 -> 1995 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1971 -> 2191 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1971 -> 2245 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1971 -> 2089 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2162 -> 2173 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2029 -> 2031 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1971 -> 2029 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1973 -> 2018 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1971 -> 1973 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2089 -> 2133 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2029 -> 2058 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2144 -> 2146 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2089 -> 2091 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2144 -> 2151 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2162 -> 2164 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2029 -> 2076 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1971 -> 2144 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2191 -> 2193 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  241 -> 247 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  241 -> 260 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  241 -> 272 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5062 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5122 -> 5170 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5110 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5122 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5265 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5275 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5230 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5075 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5051 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5122 -> 5126 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5047 -> 5105 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7407 -> 7414 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7407 -> 7417 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7407 -> 7411 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7407 -> 7420 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1724 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1650 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1624 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1794 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1703 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1728 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1646 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1694 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1638 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1717 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1749 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1752 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1685 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1755 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1712 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1617 -> 1621 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1670 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1728 -> 1742 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1646 -> 1659 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10160 -> 10169 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10158 -> 10173 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10173 -> 10204 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10158 -> 10160 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10173 -> 10177 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10173 -> 10215 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10173 -> 10183 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10160 -> 10166 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2402 -> 2404 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2467 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2350 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2350 -> 2367 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2306 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2269 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2350 -> 2381 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2402 -> 2451 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2265 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2275 -> 2279 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2402 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2483 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2275 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 2496 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2402 -> 2423 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2350 -> 2391 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2402 -> 2436 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9904 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9988 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 10001 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9911 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9960 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9901 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9963 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9953 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9966 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9897 -> 9979 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9220 -> 9233 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9220 -> 9237 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5394 -> 5434 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5394 -> 5424 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5394 -> 5405 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5394 -> 5398 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5394 -> 5415 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10040 -> 10079 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10109 -> 10138 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10040 -> 10146 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10109 -> 10113 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10040 -> 10042 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10040 -> 10066 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10040 -> 10109 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10040 -> 10055 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10079 -> 10083 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10079 -> 10089 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1185 -> 1187 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1185 -> 1198 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1181 -> 1185 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1185 -> 1203 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2532 -> 2597 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2532 -> 2617 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2617 -> 2619 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2532 -> 2694 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2532 -> 2580 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2532 -> 2536 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2617 -> 2640 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2532 -> 2573 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2580 -> 2583 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2532 -> 2604 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2617 -> 2658 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2617 -> 2676 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7606 -> 7663 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7606 -> 7672 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7672 -> 7700 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7606 -> 7629 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7606 -> 7610 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7629 -> 7633 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7719 -> 7732 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7629 -> 7648 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7672 -> 7686 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7672 -> 7693 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7719 -> 7721 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7606 -> 7760 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7672 -> 7674 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7672 -> 7709 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7606 -> 7719 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7719 -> 7746 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  284 -> 313 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  288 -> 308 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  284 -> 361 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  288 -> 292 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  335 -> 355 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  313 -> 317 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  335 -> 339 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  284 -> 335 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  284 -> 288 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5882 -> 5893 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5914 -> 5916 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5914 -> 5927 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5878 -> 5900 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5878 -> 5940 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5914 -> 5935 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5900 -> 5909 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5900 -> 5904 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5878 -> 5914 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5878 -> 5882 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5882 -> 5886 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1273 -> 1277 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1273 -> 1385 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1292 -> 1323 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1220 -> 1406 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1292 -> 1303 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1220 -> 1224 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1273 -> 1292 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1273 -> 1368 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1220 -> 1425 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1220 -> 1393 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1224 -> 1253 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1273 -> 1338 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1220 -> 1421 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1273 -> 1349 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1273 -> 1389 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1224 -> 1228 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1220 -> 1273 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5810 -> 5814 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5768 -> 5783 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5764 -> 5810 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5764 -> 5768 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5768 -> 5770 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5844 -> 5846 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5796 -> 5798 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5764 -> 5844 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5764 -> 5796 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5810 -> 5833 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5844 -> 5855 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5796 -> 5803 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5764 -> 5866 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6045 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6075 -> 6077 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6130 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 5959 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6038 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6075 -> 6102 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6075 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6109 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 5956 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6106 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6060 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5950 -> 6031 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8000 -> 8020 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8000 -> 8126 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8000 -> 8069 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8000 -> 8003 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8000 -> 8147 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8211 -> 8227 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7996 -> 8295 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7996 -> 8277 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8166 -> 8191 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7996 -> 8000 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7996 -> 8211 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8211 -> 8263 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8211 -> 8243 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8000 -> 8083 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8000 -> 8056 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7996 -> 8166 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  10019 -> 10024 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  179 -> 209 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  140 -> 235 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  179 -> 196 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  179 -> 222 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  140 -> 144 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  140 -> 179 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  140 -> 159 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  140 -> 174 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  179 -> 181 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8334 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8359 -> 8365 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8359 -> 8377 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8381 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8418 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8440 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8359 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8396 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8405 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8433 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8446 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  8317 -> 8323 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1934 -> 1944 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1879 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1868 -> 1876 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1879 -> 1881 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1816 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1804 -> 1808 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1849 -> 1854 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1860 -> 1862 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1836 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1868 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1849 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1879 -> 1894 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1816 -> 1827 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1868 -> 1870 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1916 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1860 -> 1865 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1849 -> 1851 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1804 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1804 -> 1811 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1800 -> 1860 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1868 -> 1873 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1916 -> 1918 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1816 -> 1818 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1849 -> 1857 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1916 -> 1921 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1879 -> 1907 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1916 -> 1926 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5293 -> 5305 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5289 -> 5314 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5356 -> 5360 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5289 -> 5335 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5335 -> 5339 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5335 -> 5347 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5314 -> 5318 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5289 -> 5377 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5314 -> 5326 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5289 -> 5356 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5356 -> 5368 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5289 -> 5293 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5293 -> 5297 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6777 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6646 -> 6648 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6789 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6831 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6903 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6646 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6799 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6747 -> 6758 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6779 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6841 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6876 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6646 -> 6664 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6849 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6675 -> 6691 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6836 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6849 -> 6862 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6710 -> 6725 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6710 -> 6714 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6823 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6710 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6710 -> 6734 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6815 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6675 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6784 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6675 -> 6677 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6794 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6777 -> 6807 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6675 -> 6680 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6892 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6646 -> 6653 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6619 -> 6747 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5672 -> 5674 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5581 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5705 -> 5707 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5448 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5581 -> 5613 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5658 -> 5660 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5705 -> 5718 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5705 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5705 -> 5715 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5453 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5528 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5672 -> 5695 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5705 -> 5712 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5555 -> 5563 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5581 -> 5600 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5581 -> 5624 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5555 -> 5574 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5672 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5672 -> 5690 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5702 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5723 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5748 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5581 -> 5651 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5658 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5442 -> 5555 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9291 -> 9295 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9291 -> 9313 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9291 -> 9304 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1953 -> 1955 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1018 -> 1022 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1037 -> 1072 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1018 -> 1032 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1018 -> 1037 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1018 -> 1087 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1037 -> 1054 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1018 -> 1090 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1018 -> 1025 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1037 -> 1039 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1018 -> 1105 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3806 -> 3810 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3292 -> 3501 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3806 -> 3837 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2960 -> 2977 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3292 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3501 -> 3503 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3645 -> 3678 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3983 -> 4014 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2732 -> 2740 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 2732 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4449 -> 4478 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4449 -> 4498 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4658 -> 4663 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3351 -> 3460 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3238 -> 3256 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 2792 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4530 -> 4543 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 4123 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3590 -> 3750 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3590 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4356 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4240 -> 4449 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4240 -> 4300 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 4620 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3185 -> 3201 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 4175 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3113 -> 3141 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3810 -> 3832 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4678 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 3052 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4242 -> 4248 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 2865 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3185 -> 3187 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4280 -> 4282 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3351 -> 3469 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3774 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3810 -> 3821 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3806 -> 3847 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 2871 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3113 -> 3115 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3881 -> 3883 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 4226 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3238 -> 3242 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3501 -> 3518 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4302 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3052 -> 3085 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4624 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 2900 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 3185 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3292 -> 3489 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4240 -> 4614 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3322 -> 3331 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2931 -> 2949 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2960 -> 2984 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3113 -> 3157 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 3238 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3750 -> 3757 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4240 -> 4530 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4530 -> 4537 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3113 -> 3129 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3052 -> 3056 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3322 -> 3326 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2732 -> 2744 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3881 -> 3887 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3351 -> 3382 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4530 -> 4532 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2792 -> 2794 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 3936 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3292 -> 3322 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4418 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4556 -> 4575 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4556 -> 4603 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4675 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4226 -> 4237 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3911 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4242 -> 4261 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 3983 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3983 -> 3985 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3799 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3645 -> 3699 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 2709 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4642 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4240 -> 4242 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4240 -> 4280 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4226 -> 4234 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4410 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4530 -> 4549 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4422 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4344 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 2960 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3322 -> 3334 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3113 -> 3173 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3351 -> 3401 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 3915 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4556 -> 4560 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3645 -> 3657 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4333 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3806 -> 3866 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4556 -> 4594 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3936 -> 3948 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4684 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3645 -> 3692 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4449 -> 4509 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 2924 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4242 -> 4244 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3983 -> 4074 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 4150 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4642 -> 4645 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4690 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3983 -> 4110 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 2931 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 3113 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3562 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2732 -> 2734 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3590 -> 3763 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 4240 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4240 -> 4556 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3522 -> 3547 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4681 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3590 -> 3716 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4226 -> 4228 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3936 -> 3941 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4226 -> 4231 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4637 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2960 -> 2964 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3351 -> 3411 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3292 -> 3522 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3806 -> 3877 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3881 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3292 -> 3351 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4300 -> 4436 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4449 -> 4453 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2792 -> 2807 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3351 -> 3477 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4449 -> 4522 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2865 -> 3269 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4687 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3893 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3522 -> 3524 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4280 -> 4294 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4642 -> 4650 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4658 -> 4666 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3911 -> 4208 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2732 -> 2756 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2707 -> 3806 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2960 -> 3008 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4642 -> 4653 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2960 -> 3029 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3501 -> 3509 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4280 -> 4287 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3052 -> 3071 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3052 -> 3101 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3590 -> 3645 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4669 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  3590 -> 3596 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4620 -> 4658 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  490 -> 580 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  580 -> 584 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  490 -> 507 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  526 -> 556 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  580 -> 602 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  490 -> 620 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  526 -> 568 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  633 -> 646 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  490 -> 633 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  490 -> 526 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  507 -> 512 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  526 -> 528 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  490 -> 494 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  526 -> 544 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4702 -> 4724 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4698 -> 4748 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4702 -> 4714 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4702 -> 4734 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4748 -> 4761 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4748 -> 4750 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4698 -> 4772 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4698 -> 4702 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4698 -> 4783 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4702 -> 4744 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4702 -> 4704 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  4772 -> 4776 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1609 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1462 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1518 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1518 -> 1523 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1518 -> 1570 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1518 -> 1576 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1518 -> 1555 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1582 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1503 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1465 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1606 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1523 -> 1550 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  1443 -> 1601 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9242 -> 9283 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9242 -> 9253 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9253 -> 9257 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  9253 -> 9262 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 9291 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1800 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 2707 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1617 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7005 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1181 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7325 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 880 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 490 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7475 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1018 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 10040 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 796 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6208 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1443 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7606 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 5950 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 9897 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 241 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 10019 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 5394 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 5764 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 284 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 9220 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 5878 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7333 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 5024 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1971 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 2263 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 4793 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 6619 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7996 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 2532 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 9242 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7424 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 8317 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 3 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 8559 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 2514 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 140 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 371 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 7407 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 5442 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 5289 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 4698 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1934 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1220 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 1110 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  6142 -> 10158 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7325 -> 1953 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7325 -> 10040 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  7325 -> 5047 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  2263 -> 7996 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+  5024 -> 7475 [color="#8b949e99" arrowhead=normal penwidth=1.2]
+}

@@ -11,6 +11,8 @@ BASIC_DOT = docs-basic.dot
 BASIC_SVG = docs-basic.svg
 DETAILED_DOT = docs-detailed.dot
 DETAILED_SVG = docs-detailed.svg
+INDEX_DOT = docs-index.dot
+INDEX_SVG = docs-index.svg
 
 BOOK_MD = book.md
 
@@ -19,14 +21,18 @@ all:
 	@echo "Generating basic DOT export with maximum depth..."
 	$(IWE_BIN) export -f dot --depth 10 > $(BASIC_DOT)
 	@echo "Converting basic DOT to SVG..."
-	neato -Tsvg $(BASIC_DOT) -o $(BASIC_SVG)
+	neato -Gbgcolor=transparent -Tsvg $(BASIC_DOT) -o $(BASIC_SVG)
 	@echo "Generating detailed DOT export focused on index document..."
 	$(IWE_BIN) export -f dot --key index --include-headers --depth 3 > $(DETAILED_DOT)
 	@echo "Converting detailed DOT to SVG..."
-	neato -Tsvg $(DETAILED_DOT) -o $(DETAILED_SVG)
+	neato -Gbgcolor=transparent -Tsvg $(DETAILED_DOT) -o $(DETAILED_SVG)
+	@echo "Generating the graph used in the README (readable on light and dark backgrounds)..."
+	sed -E 's/color="#38546c66"/color="#8b949e99"/; /fontsize=14/ s/\]$$/ fontcolor="#7d8590"]/' $(DETAILED_DOT) > $(INDEX_DOT)
+	sfdp -Gratio=0.6 -Gbgcolor=transparent -Tsvg $(INDEX_DOT) -o $(INDEX_SVG)
 	@echo "✓ All visualizations generated successfully"
 	@echo "  - $(BASIC_SVG) (basic document relationships)"
 	@echo "  - $(DETAILED_SVG) (index document with sections)"
+	@echo "  - $(INDEX_SVG) (documents and sections under the index, for the README)"
 
 book: 
 	@echo "Building book"
