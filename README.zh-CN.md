@@ -1,107 +1,123 @@
-# IWE：你与 AI 智能体共同使用的 Markdown 知识库
+# IWE：为你和 AI 智能体准备的 Markdown 知识图谱
 
-[English](README.md) · **简体中文** · [한국어](README.ko.md)
+IWE 把一个 Markdown 文件夹变成知识图谱。你在编辑器里通过 LSP 服务器浏览和重构它，你的 AI 智能体通过 CLI 和 MCP 服务器查询它。同一批文件，同一批链接。它用 Rust 编写，不需要数据库、云服务或账号。
 
-> 你的笔记就是智能体的记忆。IWE 是你们一起打磨它们的地方。
+它适合想对自己的笔记做数据库式查询的人——“这棵子树下的所有草稿”“第一季度所有已采纳的决策”——而不必把笔记搬进真正的数据库。
 
-**[iwe.md](https://iwe.md/?ref=readme-header)** · **[下载 Mac 版](https://iwe.md/app/?ref=readme-header)** · [文档](https://iwe.md/docs/?ref=readme-header) · [Reddit](https://www.reddit.com/r/iwe/)
-
+[![GitHub stars](https://img.shields.io/github/stars/iwe-org/iwe?style=flat)](https://github.com/iwe-org/iwe/stargazers)
 [![Crates.io](https://img.shields.io/crates/v/iwe.svg)](https://crates.io/crates/iwe)
+[![Downloads](https://img.shields.io/crates/d/iwe.svg)](https://crates.io/crates/iwe)
 [![License](https://img.shields.io/crates/l/iwe.svg)](https://github.com/iwe-org/iwe/blob/master/LICENSE-APACHE)
-[![Documentation](https://img.shields.io/badge/docs-iwe.md-blue)](https://iwe.md)
 
-太多与 AI 的对话都是从零开始。你解释你的项目、你的决策、你的思路——到了下一次会话，又得从头再解释一遍。而你自己的笔记放在别处，智能体根本够不着。
+[快速开始](#快速开始) · [工作原理](#工作原理) · [编辑器](#在你的编辑器中) · [CLI](#cli) · [AI 智能体](#ai-智能体) · [Mac 应用](#iwe-for-mac) · [模板](#工作空间模板) · [对比](docs/comparison.md) · [iwe.md](https://iwe.md/?ref=readme-header)
 
-更糟的是，智能体在它自己的内部记忆里“记住”了某些东西，但你很难看到它存了什么，也没法纠正它记错的地方。而且这份记忆不会跟着你去到你使用的其他智能体那里。
+[English](README.md) · **简体中文** · [한국어](README.ko.md) · [日本語](README.ja.md) · [Deutsch](README.de.md)
 
-IWE 为你和你的 AI 智能体提供**一个共享的工作空间，就在你的项目里**：一个由相互链接的 Markdown 文档组成的文件夹——规格说明、计划、决策等等。把你自己的想法放在这里，让智能体保存你们一起学到的东西，并随着工作推进随时回到这些上下文。你可以自己阅读、编辑和整理这些文档——它们始终属于你。
+`````console
+$ iwe find --lexical "rename" --limit 2
+- [IWE Rename](cli-rename) -> [Inclusion Links](inclusion-links) <- [How to Use in Command Line](cli), [Files Renaming](feature-renaming)
+- [Files Renaming](feature-renaming) -> [IWE Rename](cli-rename) <- [IWE](index)
 
-<br/>
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=D58bPkOvbxE">
-    <img src="https://iwe.md/images/video-thumbnail.jpg" alt="在 YouTube 上观看 IWE 介绍视频" width="600">
-  </a>
-</p>
-<br/>
+$ iwe tree -k index
+- [IWE](index)
+  - [Architecture](architecture)
+    - [Benchmark](benchmark)
+    - [Data Model](data-model)
+    - [Keys and Cross-References](keys)
+  - [How to Use in Command Line](cli)
+  ...
 
-## 选择你的工作方式
+$ iwe retrieve -k feature-renaming
+````markdown #feature-renaming
+---
+title: Files Renaming
+includedBy:
+- key: index
+  title: IWE
+  sectionPath:
+  - Features
+---
 
-使用 IWE 有四种方式，可以按自己的习惯自由组合：
+# Files Renaming
+...
+`````
 
-| 工具 | 使用方式 |
-| --- | --- |
-| **[iWe for Mac](https://iwe.md/?mode=app&ref=readme-table)** | 在原生应用中写作和浏览，并连接你现有的 Claude/Codex 智能体。 |
-| **[你自己的编辑器](https://iwe.md/?mode=editor&ref=readme-table)** | 继续使用 Neovim、Helix、VS Code 或 Zed，并获得笔记跳转、反向链接和自动补全。 |
-| **[CLI](https://iwe.md/docs/cli/?ref=readme-table)** | 在终端或脚本中搜索和管理笔记。 |
-| **[Claude/Codex](https://iwe.md/docs/agentic/?ref=readme-table)** | 在对话中让智能体读取、写入和整理记忆。 |
+以上输出来自本仓库自己的 [`docs/`](docs/) 文件夹，标有 `...` 的地方有删减。搜索结果会带上它链接到的笔记（`->`）和链接到它的笔记（`<-`）；取回的笔记会带上它在图谱中的位置。
 
-这四种方式都作用于同一批 Markdown 文档。在编辑器里起草规格说明，和 Claude/Codex 一起完善它，在 iWe 应用中浏览，或者用 CLI 搜索。随意组合即可，每个工具也都可以单独使用。
-
-**自带你的 AI。** IWE CLI 和 iWe Mac 应用都不内置 AI 模型，它们本身就是独立的笔记工具。需要 AI 帮助时，使用你现有的 Claude/Codex 智能体——在终端中或直接在 Mac 应用里。
-
-<a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-1.1.png" alt="iWe for Mac 展示项目计划和相互链接的文档" width="820"></a>
-
-<p>
-  <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-2.png" alt="带图表的缺陷跟踪" width="32%"></a>
-  <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-3.png" alt="包含代码的技术文档" width="32%"></a>
-  <a href="https://iwe.md/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-4.png" alt="发布文档" width="32%"></a>
-</p>
-
-*计划 · 图表 · 技术文档 · 发布——点击截图，在 iwe.md 上查看 iWe 应用的实际效果。*
-
-## 为什么选择 IWE
-
-- **共享上下文。** 智能体可以使用你为自己写的同一批笔记。笔记之间相互链接，一篇笔记可以同时属于多个主题，因此你可以顺着一个想法追踪到它关联的任何地方。
-- **看得见的记忆。** 智能体保存的决策和经验都是普通笔记，你可以浏览、修改或删除。
-- **笔记始终属于你。** 一切都是你机器上某个文件夹里的 Markdown。你可以备份、同步，或放进 git。保存笔记不需要 IWE 云账号；连接 AI 智能体时，需遵循该智能体自身的设置和账号要求。
-
-**[在 iwe.md 上看看实际效果 →](https://iwe.md/?ref=readme-why)**
-
-## iWe for Mac
-
-如果你想要一个专门存放笔记的空间，可以使用原生 Mac 应用。打开一个笔记文件夹，就能获得一个快速、键盘友好的写作和浏览空间。你还可以连接现有的 Claude/Codex 智能体，与你并肩工作。
-
-- **与你的 Claude/Codex 智能体协作。** 连接你已经在用的智能体，就你的笔记提问，让它起草或重新整理笔记。它工作时，你能看到它的修改实时出现在文档中。
-- **放心尝试。** 每次智能体运行都是一个撤销步骤——尝试一个想法，不满意就回滚。
-- **追随你的想法。** 在相关笔记之间跳转，几次按键即可搜索，并直接在文档中查看 Mermaid 图表。你的编辑器和其他工具也可以继续处理同样的文件。
-
-**[在 iwe.md 上了解 iWe for Mac →](https://iwe.md/?ref=readme-download)**
-
-打开一个笔记文件夹，从一篇关于你手头工作的笔记开始。连接 Claude/Codex 之后，试着让它总结这篇笔记，或帮你展开一个想法。
-
-## 你自己的编辑器
-
-继续在 [Neovim](https://iwe.md/docs/editors/neovim/)、[Helix](https://iwe.md/docs/editors/helix/)、[VS Code](https://iwe.md/docs/editors/vscode/) 或 [Zed](https://iwe.md/docs/editors/zed/) 中写作。IWE 为你的笔记提供链接自动补全、反向链接、搜索和安全重命名。
-
-按照对应编辑器的指南操作，打开你的笔记文件夹，试着用自动补全把两篇笔记链接起来。即使不连接 AI 智能体，你也可以用 IWE 进行自己的写作。
-
-## CLI
-
-更喜欢终端？用 IWE 搜索、创建和重新组织笔记，或把它集成到你的脚本中。CLI 不内置 AI：这些命令可以独立运行。你现有的 Claude/Codex 智能体也可以使用 IWE 的工具。
-
-通过 Homebrew 安装，或在[安装指南](https://iwe.md/docs/getting-started/installation/)中选择其他方式：
+## 快速开始
 
 ```bash
 brew install iwe-org/iwe/iwe
 ```
 
-然后在你的笔记文件夹中运行以下命令：
+也可以通过 npm（`npm install -g @iwe-org/iwe`）和 Cargo（`cargo install iwe iwes iwec`）安装；参见[安装指南](https://iwe.md/docs/getting-started/installation/)。
+
+然后，在一个已经有 Markdown 文件的文件夹中：
 
 ```bash
 iwe init
 iwe find
-iwe find --lexical "project decisions"
+iwe tree
 ```
 
-`iwe find` 列出你的笔记；`--lexical` 搜索笔记内容。更多内容请参阅 [CLI 参考](https://iwe.md/docs/cli/)和[工作流示例](docs/cli-workflows.md)。
+接下来，配置[你的编辑器](#在你的编辑器中)，连接[你的智能体](#ai-智能体)，或两者都做。
 
-## Claude/Codex
+如果 IWE 对你有用，点一个 star 能帮助更多人发现它。
 
-你可以完全通过智能体来使用 IWE。让 Claude/Codex 保存决策、查找过去的工作，并整理你学到的东西。智能体通过 IWE 处理你的笔记，而你随时可以自己打开这些文件。
+## 工作原理
 
-IWE 不绑定于某一个 AI。同一批笔记可用于 Claude Code、Claude Desktop、Codex、Gemini、Cursor，以及任何支持 [Model Context Protocol](https://modelcontextprotocol.io) 的工具。
+IWE 把你的笔记看作由两种链接构成的互联结构：
 
-**给 Claude/Codex 一份记忆** —— 对于 Claude Code，安装插件后，在任何你希望它记住的项目中运行 `/iwe:init`。对于 Codex，请按照下面的智能体连接步骤操作。
+- **嵌套。** 独占一行的链接表示“这个主题包含那个子主题”。你的笔记由此形成一棵可以浏览和重构的树。IWE 称之为[包含链接](https://iwe.md/docs/concepts/inclusion-links/)。
+- **交叉引用。** 普通的行内链接把不同主题下的笔记连接起来。
+- **多个父节点。** 同一篇笔记可以同时位于多个位置。一篇“冥想”笔记可以同时属于“健康”和“效率”，而无需复制文件。
+- **来自父节点的上下文。** 取回一篇笔记时，IWE 可以带上层级中位于它上方的笔记的上下文。
+
+[![以图谱呈现的 IWE 自身文档](docs/docs-index.svg)](docs/feature-visualization.md)
+
+*IWE 自身的文档：索引之下的 52 篇文档及其 720 个章节，由 `iwe export` 导出、Graphviz 布局。[绘制你自己的图谱](docs/feature-visualization.md)。*
+
+你会得到：
+
+- **纯 Markdown，完全属于你。** 你的笔记是本地目录中的 `.md` 文件。可以阅读、编辑，也可以 `git push`。
+- **按结构检索，而不是靠相似度猜测。** 模糊搜索和全文搜索找到入口；图谱把一条命中变成可用的上下文：父节点、子节点、交叉引用。
+- **不破坏链接的重构。** 重命名、提取、内联和删除都会更新每一处引用。
+- **经过校验的写入。** frontmatter 和文档结构会按类型对照[文档模式](https://iwe.md/docs/concepts/document-schema/)进行校验；一次编辑可以声明它最多触及多少篇文档和多少个块，不符时在写入任何内容之前中止。
+- **快。** 在笔记本电脑上，为 20,000 篇笔记构建图谱不到一秒（[基准测试](docs/benchmark.md)）。
+- **不内置 AI。** IWE 本身就是独立的笔记工具。需要 AI 帮助时，它与你已经在用的智能体配合工作。
+
+它与 marksman、markdown-oxide、Obsidian 和 zk 有何不同，以及 IWE 在哪些方面较弱：[IWE 对比](docs/comparison.md)。
+
+## 在你的编辑器中
+
+IWE 为你的编辑器带来面向 Markdown 笔记的 IDE 式功能。支持 [Neovim](https://iwe.md/docs/editors/neovim/)、[Helix](https://iwe.md/docs/editors/helix/)、[VS Code](https://iwe.md/docs/editors/vscode/)、[Zed](https://iwe.md/docs/editors/zed/)，以及任何支持 Language Server Protocol 的编辑器。
+
+- **导航。** 跳转到定义、查找引用（反向链接）、按标题或内容搜索笔记。
+- **重命名。** 重命名一个文件，指向它的每个链接都会更新。
+- **提取与内联。** 把一个章节提取为新笔记，或把一篇笔记嵌回它的父笔记。
+- **自动补全与悬停预览。** 输入时给出链接建议，悬停时显示预览。
+- **内嵌提示。** 就地显示父级引用和链接数量。
+- **格式化。** 规范化文档、更新链接标题、在标题和列表之间转换。
+
+编辑器插件： [iwe.nvim](https://github.com/iwe-org/iwe.nvim) · [vscode-iwe](https://github.com/iwe-org/vscode-iwe) · [zed-iwe](https://github.com/iwe-org/zed-iwe)
+
+## CLI
+
+| 命令 | 作用 |
+|---|---|
+| `find` | 带模糊和全文排序的搜索，并可按 frontmatter 和图谱边过滤 |
+| `retrieve` | 一次调用取回一篇文档及其关联上下文 |
+| `tree` | 从任意起点显示层级结构 |
+| `update` | 受保护的编辑：frontmatter 修改和针对块的操作 |
+| `schema` | 推断知识库的模式，或据此校验文档 |
+
+完整的命令集——`new`、`extract`、`inline`、`rename`、`delete`、`squash`、`stats`、`normalize`、`export` 等——见 [CLI 参考](https://iwe.md/docs/cli/)，本仓库中还有[工作流示例](docs/cli-workflows.md)。
+
+## AI 智能体
+
+同一批笔记可用于 Claude Code、Claude Desktop、Codex、Gemini、Cursor，以及任何支持 [Model Context Protocol](https://modelcontextprotocol.io) 的工具。
+
+**Claude Code** —— 安装插件，然后在任何你希望它记住的项目中运行 `/iwe:init`：
 
 ```text
 /plugin marketplace add iwe-org/skills
@@ -109,17 +125,20 @@ IWE 不绑定于某一个 AI。同一批笔记可用于 Claude Code、Claude Des
 /iwe:init
 ```
 
-然后让它保存一条你当前工作中的决策，并在项目里打开它创建的那篇笔记。
+**任何 MCP 智能体** —— 把它指向 MCP 服务器。`iwec` 服务于它运行所在的目录，因此请把工作目录设为你的笔记文件夹：
 
-**连接其他智能体** —— 在已安装 Homebrew 的情况下，安装 IWE：
-
-```bash
-brew install iwe-org/iwe/iwe
+```json
+{
+  "mcpServers": {
+    "iwe": {
+      "command": "iwec",
+      "cwd": "~/notes"
+    }
+  }
+}
 ```
 
-在你的笔记文件夹中运行 `iwe init`，然后按照**[智能体连接指南](https://iwe.md/docs/agentic/)**添加 `iwec` MCP 服务器，并将该文件夹设为其工作目录。其他安装方式请参阅[安装指南](https://iwe.md/docs/getting-started/installation/)。
-
-连接完成后，问问你的智能体：“浏览我的 IWE 笔记，并总结里面有什么。”
+无需安装任何东西，`npx` 会按需获取服务器：使用 `"command": "npx"` 和 `"args": ["-y", "@iwe-org/mcp"]`。更多内容见[智能体连接指南](https://iwe.md/docs/agentic/)。
 
 或者让智能体自己完成设置——把下面这段粘贴给任何能运行命令的智能体：
 
@@ -130,25 +149,45 @@ npm install -g @iwe-org/iwe 或 cargo install iwe iwes iwec），在我的笔记
 文档：https://iwe.md/docs/agentic/
 ```
 
-## 了解更多
+## iWe for Mac
 
-- [入门](https://iwe.md/docs/getting-started/installation/) —— 安装与设置
-- [与 AI 协作](https://iwe.md/docs/agentic/) —— 连接你的智能体
-- [使用指南](https://iwe.md/docs/getting-started/usage/) —— 日常工作流
-- [示例](https://iwe.md/docs/examples/) —— 大家如何使用 IWE
-- [CLI 参考](https://iwe.md/docs/cli/)和[MCP 服务器](https://iwe.md/docs/agentic/mcp/) —— 写给对技术细节感兴趣的你
+iWe 是一款免费的原生 Mac 应用，面向同一个 Markdown 文件夹：原生 SwiftUI 编辑器，不用 Electron，基于与 CLI 相同的 Rust 引擎构建。打开一个笔记文件夹，你就得到一个以键盘驱动的写作和浏览空间，你现有的 Claude Code 或 Codex 智能体就在你眼前编辑文档。你的编辑器和其他工具可以继续处理同样的文件。
 
-**现成的工作空间：** [dev-workspace](https://github.com/iwe-org/dev-workspace) —— 为编程智能体准备的项目记忆 · [marketing-workspace](https://github.com/iwe-org/marketing-workspace) —— 为营销智能体准备的活动记忆。
+**[从 iwe.md 下载 DMG →](https://iwe.md/app/?ref=readme-download)** · 免费 · macOS 15 或更高版本 · 无需账号
+
+<a href="https://iwe.md/app/?ref=readme-shot"><img src="https://iwe.md/images/app/GH-screen-1.1.png" alt="iWe for Mac 展示项目计划和相互链接的文档" width="820"></a>
+
+- **与你已有的智能体协作。** 就你的笔记提问，或让智能体起草和重新整理笔记。它工作时，修改会实时出现在文档中。
+- **每次智能体运行是一个撤销步骤。** 尝试一个想法，不满意就回滚。
+- **键盘优先。** 可选的 Vim 按键、几次按键即可搜索、在相关笔记之间跳转、在文档中渲染 Mermaid 图表。
+
+**智能体直接在页面中写作**（2 分钟）—— Claude Code 精简一个段落，写出一个新章节，然后添加一张未解决缺陷的图表，每个缺陷的阶段一变，图表就随之重绘。
+
+https://github.com/user-attachments/assets/e57763df-46c9-4aea-92a2-ddd0d1010091
+
+**用 Vim 按键操作笔记**（2 分钟）—— 逐块移动、跟随链接、搜索、剪切和粘贴列表项、撤销和重做，全程不离开键盘。
+
+https://github.com/user-attachments/assets/c3edd2cb-4b7c-4f68-9eda-58aa740c1b23
+
+**[更多截图，以及带字幕的两段视频，见 iwe.md →](https://iwe.md/app/?ref=readme-video#videos)**
+
+## 工作空间模板
+
+模板是整个工作空间的起始内容：文档、模式、工作空间配置，以及智能体运行时使用的指令和技能。每个模板都是一个普通的 Markdown 仓库，使用前可以先阅读。
+
+- [Dev Workspace](https://github.com/iwe-org/dev-workspace) — 由你的编程智能体维护的软件项目知识库：产品、规格说明、计划、缺陷、发布和经验，组织成一张图谱。
+- [Marketing Workspace](https://github.com/iwe-org/marketing-workspace) — 为营销智能体准备的活动记忆：67 个发布渠道、一个 CRM、帖子、回复和线索。
+- [Seventeen Centuries](https://github.com/iwe-org/seventeen-centuries-workspace) — 马可·奥勒留、马基雅维利和尼采组成的一张图谱：843 个段落和 331 个概念，其中 42 个贯穿全部三本书。
+
+使用方法：克隆模板的仓库，用 CLI 或编辑器在该文件夹中工作；或者在 iWe for Mac 中选择 File ▸ New Workspace from Template…。更多模板以及如何提交你自己的模板，见[模板注册表](https://github.com/iwe-org/templates)。
 
 ## 参与进来
 
-正在用自己的笔记试用 IWE？告诉我们哪些地方有用、哪些地方卡住了。欢迎在 [Discussions](https://github.com/iwe-org/iwe/discussions) 中提问、反馈不完善之处，或分享你的使用案例。
+已经有项目构建在 IWE 之上，把它用作智能体记忆后端或其他工具的图谱层：参见这份[持续更新的列表](https://github.com/iwe-org/iwe/discussions/362)，也欢迎加上你的项目，这样我们就知道哪些不能改坏。CLI 和 MCP 服务器是目前受支持的集成方式。
 
-IWE 是开源项目。你也可以报告 [bug](https://github.com/iwe-org/iwe/issues)，或帮助改进[文档](docs/)。
+欢迎在 [Discussions](https://github.com/iwe-org/iwe/discussions) 中提问、反馈不完善之处，或分享你的使用案例。你也可以报告 [bug](https://github.com/iwe-org/iwe/issues)，或帮助改进[文档](docs/)。
 
 **社区：** [Twitter/X](https://x.com/iwe_md) · [Reddit](https://www.reddit.com/r/iwe/) · [Discussions](https://github.com/iwe-org/iwe/discussions)
-
-**在 IWE 之上构建？** CLI 和 MCP 服务器是目前受支持的集成方式。[告诉我们](https://github.com/iwe-org/iwe/discussions/362)你依赖哪些功能，这样我们就知道哪些不能改坏。
 
 ## 许可证
 
