@@ -170,9 +170,9 @@ cold load, scaling linearly at ~12 µs per document:
 | 10,000 | 329 ms | 435 ms  | +106 ms | +32%     |
 | 20,000 | 705 ms | 958 ms  | +253 ms | +36%     |
 
-The cost is dominated by **tokenization and Snowball stemming**: the default
-tokenizer normalizes, lowercases, splits on unicode word boundaries, drops stop
-words, and stems every remaining token — and stemming is CPU-bound. Corpus
+The cost is dominated by **tokenization and Snowball stemming**: the tokenizer
+lowercases, splits on unicode word boundaries, drops stop words, stems every
+remaining token, and folds the stem to ASCII — and stemming is CPU-bound. Corpus
 extraction (walking each document to plain text) and embedding both run in
 parallel across documents above a 128-document threshold; only the final scorer
 population is serial, because it writes a shared inverted index. The CLI pays

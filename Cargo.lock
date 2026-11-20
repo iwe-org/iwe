@@ -727,6 +727,7 @@ dependencies = [
  "bm25",
  "crossbeam-channel",
  "csv",
+ "deunicode",
  "env_logger",
  "fuzzy-matcher",
  "globset",
@@ -739,13 +740,16 @@ dependencies = [
  "pretty_assertions",
  "rayon",
  "relative-path",
+ "rust-stemmers",
  "same-file",
  "serde",
  "serde_yaml",
+ "stop-words",
  "tempfile",
  "tiktoken-rs",
  "toml",
  "toml_edit",
+ "unicode-segmentation",
 ]
 
 [[package]]

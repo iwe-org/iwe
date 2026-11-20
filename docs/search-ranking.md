@@ -79,10 +79,19 @@ ranking is by content, not filename.
 
 ### Tokenization
 
-The default tokenizer normalizes unicode, lowercases, splits on unicode word
-boundaries, removes stop words, and applies [Snowball](https://snowballstem.org/)
-stemming for the configured language. Stemming is why `deploying`, `deployed`,
-and `deployment` all match a search for `deploy` — they share the stem `deploy`.
+The tokenizer lowercases, splits on unicode word boundaries, removes stop words,
+applies [Snowball](https://snowballstem.org/) stemming for the configured
+language, and only then folds each stem to ASCII. Stemming is why `deploying`,
+`deployed`, and `deployment` all match a search for `deploy` — they share the
+stem `deploy`. Stemming runs on the original script, so inflected forms match in
+non-Latin languages too (`книгой` and `книги` share the stem `книг`), and
+the ASCII folding afterwards lets an unaccented query such as `nino` find `niño`.
+
+Chinese, Japanese and Korean text has no reliable word boundaries, so runs of
+Han, kana and Hangul characters are indexed as overlapping character pairs:
+`检索功能` becomes `检索`, `索功`, `功能`. A query is split the same way, so `检索`
+finds `检索功能` and `기능` finds `기능을`. This works whatever language is
+configured, including notes that mix scripts.
 
 ## Where the index lives
 
@@ -199,6 +208,6 @@ at startup and then only the per-edit cost of re-indexing a single document. See
   fixed when the index is built. Over a very long editing session the
   incrementally-maintained index (LSP, MCP) drifts slightly from the true
   average, mildly degrading scores. The CLI rebuilds per run and never drifts.
-- **CJK** — languages without whitespace word boundaries are not tokenized by the
-  default tokenizer; a custom (script-aware) tokenizer would be required. Tracked
-  separately.
+- **CJK** — character pairs are less precise than dictionary-based word
+  segmentation: pairs that cross a word boundary add some noise, and a
+  single-character query only matches a character that stands alone in the text.

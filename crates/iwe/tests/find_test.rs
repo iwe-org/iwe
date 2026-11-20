@@ -1,10 +1,14 @@
-use diwe::config::{Configuration, MarkdownOptions, WorkspaceOptions};
+use diwe::config::{Configuration, MarkdownOptions, SearchOptions, WorkspaceOptions};
 use indoc::indoc;
 use std::fs::{create_dir_all, write};
 use std::process::Command;
 use tempfile::TempDir;
 
 fn setup_workspace() -> TempDir {
+    setup_workspace_with_search_language("english")
+}
+
+fn setup_workspace_with_search_language(language: &str) -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();
 
@@ -19,6 +23,9 @@ fn setup_workspace() -> TempDir {
         markdown: MarkdownOptions {
             refs_extension: "".to_string(),
             ..Default::default()
+        },
+        search: SearchOptions {
+            language: language.to_string(),
         },
         ..Default::default()
     };
@@ -198,6 +205,48 @@ fn test_find_lexical_ranks_by_body_term() {
     .unwrap();
 
     let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "postgres", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "first\n");
+}
+
+#[test]
+fn test_find_lexical_matches_inflected_form_in_non_latin_script() {
+    let dir = setup_workspace_with_search_language("russian");
+
+    write(
+        dir.path().join("first.md"),
+        "# First Note\n\nНовые книги лежат на столе.",
+    )
+    .unwrap();
+    write(
+        dir.path().join("second.md"),
+        "# Second Note\n\nA general overview of the project.",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "книгой", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "first\n");
+}
+
+#[test]
+fn test_find_lexical_matches_word_inside_cjk_text() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("first.md"),
+        "# First Note\n\n院子里有一棵苹果树。",
+    )
+    .unwrap();
+    write(
+        dir.path().join("second.md"),
+        "# Second Note\n\n和平的国家。",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "苹果", "-f", "keys"]);
 
     assert!(success, "stderr: {}", stderr);
     assert_eq!(stdout, "first\n");

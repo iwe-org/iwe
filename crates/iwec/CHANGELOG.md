@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `iwe_query` lexical search matches different forms of a word in Russian, Greek, Arabic and Tamil, and in more cases for accented languages such as French, Portuguese and Turkish (previously stemming silently did nothing for non-Latin scripts)
+- `iwe_query` lexical search finds words inside Chinese, Japanese and Korean text, and no longer matches unrelated Chinese characters that sound the same
+
 ## [0.33.0](https://github.com/iwe-org/iwe/compare/iwec-v0.32.0...iwec-v0.33.0) - 2026-11-11
 
 ### Fixed
