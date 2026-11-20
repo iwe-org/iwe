@@ -13,8 +13,9 @@ the store.
 
 ## What memory has read, and what it has not
 
-Nothing reaches memory unselected: `/iwe:distill` reads with you and writes
-only what you pick, and `.iwe/claude/sessions/<id>.yaml` holds the whole of the
+`/iwe:distill` reads with you and writes only what you pick. That is how the
+skill works, not a lock on the store: any `iwe` write, the MCP server or an
+editor can still change a document directly. And `.iwe/claude/sessions/<id>.yaml` holds the whole of the
 state for one session, staged candidates included — outside the graph, so these
 are commands, not queries.
 

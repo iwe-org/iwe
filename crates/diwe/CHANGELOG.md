@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `RetrieveOptions::frontmatter` and `DocumentOutput::frontmatter`, the document's frontmatter in retrieve output, counted against `max_tokens`
+
+### Changed
+- `RetrieveOptions::exclude` also removes the excluded keys from every edge list in `DocumentOutput`
+
+### Fixed
+- `apply_changes` puts back every file it already removed, created or rewrote when a later write fails, and removes the directories it created for them (previously a failure part way through left the earlier changes on disk)
+
 ## [0.33.0](https://github.com/iwe-org/iwe/compare/diwe-v0.32.0...diwe-v0.33.0) - 2026-11-11
 
 Workspace version bump — no user-visible changes in this crate.

@@ -7,9 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `session_start.max_tokens` memory policy setting caps the whole session-start block, policy text included, by dropping listed entries from the end
+- `session_start.exclude` memory policy setting takes a filter for documents session start never lists, such as retired ones
+
+### Changed
+- `retrieve` output includes each document's frontmatter — a `frontmatter` object in JSON and YAML, nested under `frontmatter:` in the markdown header — and `--frontmatter false` leaves it out (previously frontmatter was never shown)
+- `internal claude session inbox` without a session id prints each candidate's evidence under its summary (previously only the first line of the body was shown)
+- `retrieve --exclude` also removes the excluded keys from the `includes`, `includedBy`, `references` and `referencedBy` lists (previously they were still listed there with their titles)
+- `internal claude session stage` refuses a proposal whose evidence has no double-quoted text, or quotes text that does not appear in the session transcript (previously any non-empty evidence was accepted)
+- `internal claude session complete` counts a staged candidate as offered when it settles as written or rejected, and `--offered` is only for offers that were never staged (previously distill passed the staged count, so running `complete` again counted the same offers twice)
+- Memory reflect and init texts pass `--strict` on every `create`, `update` and `delete` they suggest (previously only distill did)
+- Memory distill, init and query cookbook texts describe user selection as a rule distill follows rather than a guarantee, since other writers can still change the store (previously they said nothing reaches memory unselected)
+- `internal claude session complete --drop-pending` marks leftover proposals as `dropped` and keeps them out of the rejection list that distill and reflect learn from (previously they were recorded as rejected by the user)
+- `internal claude session adopt` records the adopted line range in the session record, and `session list` shows a session as `adopted` when its unread tail was adopted after a partial read (previously it showed as distilled)
+
 ### Fixed
 - `find --lexical` matches different forms of a word in Russian, Greek, Arabic and Tamil, and in more cases for accented languages such as French, Portuguese and Turkish (previously stemming silently did nothing for non-Latin scripts)
 - `find --lexical` finds words inside Chinese, Japanese and Korean text, and no longer matches unrelated Chinese characters that sound the same
+- Memory session start still shows the policy's `At session start` section and the distill backlog when no document matches the listing (previously the whole block was dropped)
+- Memory session start keeps each listing within its own `max_tokens` (previously the first entry was always kept, even over the limit)
+- `internal claude session complete` checks an area hub against its schema before linking a written document into it, and warns instead of writing when the hub would fail (previously the hub was written without a check)
+- `internal claude session complete` saves the session record before linking area hubs and records a repeated capture or rejection only once, so a failed run can be run again (previously a failure could leave hubs linked with no record, and a repeated run counted twice)
+- A write that fails part way through restores the files it already changed (previously the earlier changes stayed on disk)
+- `update -k <key> --content` checks `--expect` against the document (previously the flag was silently ignored in body-overwrite mode)
 
 ## [0.33.0](https://github.com/iwe-org/iwe/compare/iwe-v0.32.0...iwe-v0.33.0) - 2026-11-11
 

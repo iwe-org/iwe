@@ -1065,11 +1065,13 @@ const MEMORY_POLICY: &str = indoc! {"
     How this store is written.
 "};
 
-const KNOB_VARIABLES: [&str; 4] = [
+const KNOB_VARIABLES: [&str; 6] = [
     "IWE_DISTILL_MAX_CHUNK_SIZE",
     "IWE_DISTILL_MAX_PROPOSALS",
     "IWE_DISTILL_REMIND_AFTER_DAYS",
     "IWE_INJECTION",
+    "IWE_SESSION_START_MAX_TOKENS",
+    "IWE_SESSION_START_EXCLUDE",
 ];
 
 fn without_knob_variables(command: &mut Command) -> &mut Command {
@@ -1191,7 +1193,7 @@ fn session_start_drops_the_oldest_entries_over_the_slice_max_tokens() {
     let fixture = HookFixture::new(Some(indoc! {"
         ---
         injection:
-          - { filter: { created: { $exists: true } }, sort: created:-1, max_tokens: 20 }
+          - { filter: { created: { $exists: true } }, sort: created:-1, max_tokens: 40 }
         ---
 
         # Memory policy
@@ -1227,6 +1229,276 @@ fn session_start_drops_the_oldest_entries_over_the_slice_max_tokens() {
     );
 }
 
+#[test]
+fn session_start_lists_nothing_when_one_entry_is_over_the_slice_max_tokens() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        injection:
+          - { filter: { created: { $exists: true } }, sort: created:-1, max_tokens: 12 }
+        ---
+
+        # Memory policy
+
+        ## At session start
+
+        Offer once per turn.
+    "}));
+    fixture.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note With A Long Title\n\nBody one.\n",
+    );
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Nothing in memory matches the session-start listing yet.
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            Offer once per turn.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn session_start_drops_listed_entries_until_the_whole_block_fits() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        session_start:
+          max_tokens: 140
+        ---
+
+        # Memory policy
+
+        ## At session start
+
+        Offer once per turn.
+    "}));
+    fixture.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+    fixture.write(
+        "beta.md",
+        "---\ncreated: \"2026-08-05 11:00\"\n---\n\n# Beta Note\n\nBody two.\n",
+    );
+    fixture.write(
+        "gamma.md",
+        "---\ncreated: \"2026-08-09 12:00\"\n---\n\n# Gamma Note\n\nBody three.\n",
+    );
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Most recently recorded, newest first — titles and keys only:
+
+            - [Gamma Note](gamma) · created: 2026-08-09 12:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            Offer once per turn.
+            </iwe-memory>
+        "}
+    );
+
+    let brief = fixture.brief();
+    let injection = brief
+        .split("=== injection: what session start lists ===\n")
+        .nth(1)
+        .and_then(|rest| rest.split("\n=== ").next())
+        .expect("injection section");
+    assert_eq!(
+        injection,
+        indoc! {"
+            Most recently recorded, newest first — titles and keys only:
+
+            - [Gamma Note](gamma) · created: 2026-08-09 12:00
+
+            2 more entries left out to fit session_start.max_tokens
+        "}
+    );
+}
+
+#[test]
+fn session_start_keeps_the_policy_when_the_block_cannot_fit() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        session_start:
+          max_tokens: 1
+        ---
+
+        # Memory policy
+
+        ## At session start
+
+        Offer once per turn.
+    "}));
+    fixture.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Memory has documents for the session-start listing, but none fit within `session_start.max_tokens`.
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            Offer once per turn.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn session_start_leaves_out_what_the_exclude_filter_matches() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        session_start:
+          exclude: { superseded_by: { $exists: true } }
+        ---
+
+        # Memory policy
+
+        ## What to capture
+
+        Decisions.
+
+        ## How to write it
+
+        One note per fact.
+
+        ## Dedup and updates
+
+        Search first.
+
+        ## At session start
+
+        Offer once per turn.
+    "}));
+    fixture.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+    fixture.write(
+        "beta.md",
+        "---\ncreated: \"2026-08-05 11:00\"\nsuperseded_by: alpha\n---\n\n# Beta Note\n\nBody two.\n",
+    );
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Most recently recorded, newest first — titles and keys only:
+
+            - [Alpha Note](alpha) · created: 2026-08-01 10:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            Offer once per turn.
+            </iwe-memory>
+        "}
+    );
+
+    let brief = fixture.brief();
+    let injection = brief
+        .split("=== injection: what session start lists ===\n")
+        .nth(1)
+        .and_then(|rest| rest.split("\n=== ").next())
+        .expect("injection section");
+    assert_eq!(
+        injection,
+        indoc! {"
+            excluded: { superseded_by: { $exists: true } }
+
+            Most recently recorded, newest first — titles and keys only:
+
+            - [Alpha Note](alpha) · created: 2026-08-01 10:00
+        "}
+    );
+}
+
+#[test]
+fn brief_reports_an_unusable_session_start_exclude() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        session_start:
+          exclude: 5
+        ---
+
+        # Memory policy
+
+        ## What to capture
+
+        Decisions.
+
+        ## How to write it
+
+        One note per fact.
+
+        ## Dedup and updates
+
+        Search first.
+
+        ## At session start
+
+        Offer once per turn.
+    "}));
+    let brief = fixture.brief();
+    let check = brief
+        .split("=== policy check ===\n")
+        .nth(1)
+        .and_then(|rest| rest.split("\n=== schema: ").next())
+        .expect("policy check");
+    assert_eq!(check, "session_start.exclude: expected a mapping, got 5\n");
+}
+
+#[test]
+fn session_start_reads_the_exclude_filter_from_the_environment() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        # Memory policy
+
+        ## At session start
+
+        Offer once per turn.
+    "}));
+    fixture.write(
+        "alpha.md",
+        "---\ncreated: \"2026-08-01 10:00\"\n---\n\n# Alpha Note\n\nBody one.\n",
+    );
+    fixture.write(
+        "beta.md",
+        "---\ncreated: \"2026-08-05 11:00\"\nsuperseded_by: alpha\n---\n\n# Beta Note\n\nBody two.\n",
+    );
+
+    assert_eq!(
+        fixture.session_start_env(&[(
+            "IWE_SESSION_START_EXCLUDE",
+            "{ superseded_by: { $exists: true } }"
+        )]),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Most recently recorded, newest first — titles and keys only:
+
+            - [Alpha Note](alpha) · created: 2026-08-01 10:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            Offer once per turn.
+            </iwe-memory>
+        "}
+    );
+}
 #[test]
 fn session_start_names_the_query_cookbook_when_present() {
     let fixture = HookFixture::new(Some(MEMORY_POLICY));
@@ -1345,6 +1617,66 @@ fn session_start_injects_the_policy_at_session_start_section() {
             Offer once per turn: \"Worth remembering: <title>\".
 
             Run `example one` to record a note.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn session_start_injects_the_policy_when_nothing_is_listed() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        # Memory policy
+
+        ## At session start
+
+        Offer once per turn.
+    "}));
+    fixture.write("alpha.md", "# Alpha Note\n\nBody one.\n");
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Nothing in memory matches the session-start listing yet.
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            Offer once per turn.
+            </iwe-memory>
+        "}
+    );
+}
+
+#[test]
+fn session_start_names_the_backlog_when_nothing_is_listed() {
+    let fixture = backlog_fixture();
+    let transcripts = fixture.transcripts();
+    let transcripts = transcripts.to_str().expect("path");
+    let payload = format!(
+        r#"{{"cwd":{},"session_id":"session-one"}}"#,
+        json_string(&fixture.store().to_string_lossy())
+    );
+
+    let output = fixture.run_env(
+        &["session-start"],
+        Some(&payload),
+        &[("IWE_MEMORY_TRANSCRIPTS", transcripts), ("TZ", "UTC")],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    let index = String::from_utf8(output.stdout).expect("Valid UTF-8 output");
+
+    assert_eq!(
+        index,
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Nothing in memory matches the session-start listing yet.
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            2 sessions (12 user turns) since 2026-08-19 are not distilled — `/iwe:distill` reads them with you.
+            At the first natural pause in this session, offer to run `/iwe:distill` over that backlog — once, and not again in this session.
             </iwe-memory>
         "}
     );
@@ -2390,6 +2722,88 @@ fn complete_keeps_the_ledger_and_accumulates_across_calls() {
 }
 
 #[test]
+fn complete_run_twice_records_each_capture_and_rejection_once() {
+    let fixture = backlog_fixture();
+    fixture.write(
+        "kept-fact.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Kept fact\n\nIt holds.\n",
+    );
+    let args = [
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "kept-fact",
+        "--rejected",
+        "Phantom decision",
+    ];
+
+    fixture.session_ok(&args);
+    let first = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    fixture.session_ok(&args);
+
+    assert_eq!(fixture.read(".iwe/claude/sessions/session-one.yaml"), first);
+}
+
+#[test]
+fn staging_counts_the_offer_and_a_second_complete_keeps_it() {
+    let fixture = backlog_fixture();
+    fixture.stage_ok("session-one", A_PROPOSAL);
+    fixture.stage_ok("session-one", A_THIRD_PROPOSAL);
+    fixture.write(
+        "cache-warmup-order.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Cache warmup order\n\nWarm the index before the graph.\n",
+    );
+    let args = [
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "cache-warmup-order",
+        "--rejected",
+        "Retry budget",
+    ];
+
+    fixture.session_ok(&args);
+    fixture.session_ok(&args);
+
+    let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    assert_eq!(
+        record.lines().find(|line| line.starts_with("offered:")),
+        Some("offered: 2"),
+        "{}",
+        record
+    );
+}
+
+#[test]
+fn complete_touches_no_hub_when_the_session_record_cannot_be_read() {
+    let fixture = backlog_fixture();
+    fixture.write("postgres.md", "# Postgres\n\nThe area.\n");
+    fixture.write(
+        "postgres/pooling.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Pooling\n\nUse pgbouncer.\n",
+    );
+    fixture.write(
+        ".iwe/claude/sessions/session-one.yaml",
+        "session: [unclosed\n",
+    );
+
+    fixture.session_err(&[
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "postgres/pooling",
+    ]);
+
+    assert_eq!(fixture.read("postgres.md"), "# Postgres\n\nThe area.\n");
+}
+
+#[test]
 fn a_declined_offer_is_recorded_without_moving_anything() {
     let fixture = backlog_fixture();
 
@@ -2571,7 +2985,7 @@ const A_PROPOSAL: &str = indoc! {"
     title: Cache warmup order
     key: cache-warmup-order
     body: Warm the index before the graph.
-    evidence: lines 4-9, \"the index warms first\"
+    evidence: lines 4-9, \"line 4\"
     classification: decision
 "};
 
@@ -2579,14 +2993,14 @@ const ANOTHER_PROPOSAL: &str = indoc! {"
     title: Cache warmup ordering
     key: cache-warmup-order
     body: The index is warmed ahead of the graph.
-    evidence: lines 1-6, \"index, then graph\"
+    evidence: lines 1-6, \"line 1\"
 "};
 
 const A_THIRD_PROPOSAL: &str = indoc! {"
     title: Retry budget
     key: retry-budget
     body: Three retries, then give up.
-    evidence: lines 2-5, \"three tries is the budget\"
+    evidence: lines 2-5, \"line 2\"
 "};
 
 #[test]
@@ -2606,7 +3020,7 @@ fn stage_appends_a_pending_proposal_to_the_session_record() {
             "session: session-one\ntranscript: {}\nstarted: 2026-08-19 07:00\n\
              ended: 2026-08-19 07:11\ndistilled_lines: 0\nproposals:\n\
              - title: Cache warmup order\n  key: cache-warmup-order\n  \
-             body: Warm the index before the graph.\n  evidence: lines 4-9, \"the index warms first\"\n  \
+             body: Warm the index before the graph.\n  evidence: lines 4-9, \"line 4\"\n  \
              classification: decision\n  status: pending\n",
             fixture.transcripts().join("session-one.jsonl").display()
         )
@@ -2690,6 +3104,52 @@ fn stage_refuses_a_proposal_with_a_field_missing_or_unknown() {
 }
 
 #[test]
+fn stage_refuses_a_quote_the_transcript_does_not_carry() {
+    let fixture = backlog_fixture();
+
+    let error = fixture.stage_err(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\nevidence: 'lines 2-3, \"never said\"'\n",
+    );
+
+    assert_eq!(
+        error,
+        "error: --content: evidence quote \"never said\" does not appear in the transcript\n"
+    );
+    assert_eq!(fixture.inbox(&[]), "inbox: nothing staged\n");
+}
+
+#[test]
+fn stage_refuses_evidence_without_a_quote() {
+    let fixture = backlog_fixture();
+
+    let error = fixture.stage_err(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\nevidence: lines 2-3\n",
+    );
+
+    assert_eq!(
+        error,
+        "error: --content: evidence quotes nothing — add a short quote from the transcript in double quotes\n"
+    );
+}
+
+#[test]
+fn stage_matches_a_quote_regardless_of_case_spacing_and_quote_marks() {
+    let fixture = backlog_fixture();
+
+    let staged = fixture.stage_ok(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\nevidence: lines 2-3, \u{201c}LINE   3\u{201d}\n",
+    );
+
+    assert_eq!(
+        staged,
+        "staged \"A candidate\" as the new document a-candidate in session-one: 1 proposal(s) pending\n"
+    );
+}
+
+#[test]
 fn stage_refuses_an_update_of_a_document_the_store_does_not_have() {
     let fixture = backlog_fixture();
 
@@ -2719,14 +3179,17 @@ fn inbox_groups_the_staged_proposals_by_the_key_they_target() {
             === 1. cache-warmup-order — 2 proposal(s) from 2 session(s) ===
             Cache warmup order [decision] — session-one — new, as cache-warmup-order
               Warm the index before the graph.
+              evidence: lines 4-9, \"line 4\"
             Cache warmup ordering — session-two — new, as cache-warmup-order
               The index is warmed ahead of the graph.
+              evidence: lines 1-6, \"line 1\"
 
             === 2. retry-budget — 1 proposal(s) from 1 session(s) ===
             Retry budget — session-two — new, as retry-budget
               Three retries, then give up.
+              evidence: lines 2-5, \"line 2\"
 
-            `session inbox <id>` prints one session's staged proposals with their evidence
+            `session inbox <id>` prints one session's staged proposals in full
         "}
     );
 }
@@ -2745,7 +3208,7 @@ fn inbox_for_one_session_prints_its_entries_with_their_evidence() {
             key: cache-warmup-order
             classification: decision
             body: Warm the index before the graph.
-            evidence: lines 4-9, \"the index warms first\"
+            evidence: lines 4-9, \"line 4\"
         "}
     );
     assert_eq!(
@@ -2760,8 +3223,9 @@ fn inbox_for_one_session_prints_its_entries_with_their_evidence() {
             === 1. cache-warmup-order — 1 proposal(s) from 1 session(s) ===
             Cache warmup order [decision] — session-one — new, as cache-warmup-order
               Warm the index before the graph.
+              evidence: lines 4-9, \"line 4\"
 
-            `session inbox <id>` prints one session's staged proposals with their evidence
+            `session inbox <id>` prints one session's staged proposals in full
         "}
     );
 }
@@ -2836,7 +3300,7 @@ fn complete_settles_a_proposal_written_to_the_key_it_updates() {
     fixture.stage_ok(
         "session-one",
         "title: Cache warmup order\nkey: cache-warmup-order-2026\nbody: Index first.\n\
-         evidence: line 3\nupdates: cache-warmup-order\n",
+         evidence: 'line 3, \"line 3\"'\nupdates: cache-warmup-order\n",
     );
 
     let report = fixture.session_ok(&["complete", "session-one", "--wrote", "cache-warmup-order"]);
@@ -2872,7 +3336,7 @@ fn complete_says_what_is_still_pending_after_it_settles() {
 }
 
 #[test]
-fn drop_pending_turns_down_everything_the_selection_left_over() {
+fn drop_pending_clears_what_the_selection_left_over_without_rejecting_it() {
     let fixture = backlog_fixture();
     fixture.write(
         "cache-warmup-order.md",
@@ -2881,27 +3345,71 @@ fn drop_pending_turns_down_everything_the_selection_left_over() {
     fixture.stage_ok("session-one", A_PROPOSAL);
     fixture.stage_ok("session-one", A_THIRD_PROPOSAL);
 
-    let report = fixture.session_ok(&[
-        "complete",
-        "session-one",
-        "--lines",
-        "12",
-        "--wrote",
-        "cache-warmup-order",
-        "--offered",
-        "2",
-        "--drop-pending",
-    ]);
+    let report = fixture.session_ok_env(
+        &[
+            "complete",
+            "session-one",
+            "--lines",
+            "12",
+            "--wrote",
+            "cache-warmup-order",
+            "--drop-pending",
+        ],
+        &[("TZ", "UTC")],
+    );
 
     assert_eq!(
         report,
         "completed session-one: distilled through line 12, 1 link(s)\n\
          settled the staged proposal \"Cache warmup order\": written to cache-warmup-order\n\
-         dropped 1 staged proposal(s) nobody kept: Retry budget\n"
+         dropped 1 staged proposal(s) left without a decision: Retry budget\n"
     );
 
     let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
-    assert!(record.contains("rejected:\n- Retry budget\n"), "{}", record);
+    let undated: String = record
+        .lines()
+        .filter(|line| !line.starts_with("distilled_at:"))
+        .map(|line| match line.starts_with("- at: ") {
+            true => "- at: <now>\n".to_string(),
+            false => format!("{}\n", line),
+        })
+        .collect();
+    let transcript = fixture.transcripts().join("session-one.jsonl");
+    let size = std::fs::metadata(&transcript).expect("metadata").len();
+    let expected = [
+        "session: session-one".to_string(),
+        format!("transcript: {}", transcript.display()),
+        format!("transcript_bytes: {}", size),
+        "transcript_lines: 12".to_string(),
+        "started: 2026-08-19 07:00".to_string(),
+        "ended: 2026-08-19 07:11".to_string(),
+        "distilled_lines: 12".to_string(),
+        "offered: 1".to_string(),
+        "kept: 1".to_string(),
+        "captures:".to_string(),
+        "- at: <now>".to_string(),
+        "  through: 12".to_string(),
+        "  wrote:".to_string(),
+        "  - cache-warmup-order".to_string(),
+        "proposals:".to_string(),
+        "- title: Cache warmup order".to_string(),
+        "  key: cache-warmup-order".to_string(),
+        "  body: Warm the index before the graph.".to_string(),
+        "  evidence: lines 4-9, \"line 4\"".to_string(),
+        "  classification: decision".to_string(),
+        "  status: written".to_string(),
+        "- title: Retry budget".to_string(),
+        "  key: retry-budget".to_string(),
+        "  body: Three retries, then give up.".to_string(),
+        "  evidence: lines 2-5, \"line 2\"".to_string(),
+        "  status: dropped".to_string(),
+    ];
+    assert_eq!(undated, format!("{}\n", expected.join("\n")));
+    assert!(
+        !fixture.brief().contains("Retry budget"),
+        "{}",
+        fixture.brief()
+    );
     assert_eq!(fixture.inbox(&[]), "inbox: nothing staged\n");
 }
 
@@ -2951,12 +3459,14 @@ fn adopt_stamps_every_pending_session_without_reading_one() {
             fixture.read(&format!(".iwe/claude/sessions/{}.yaml", session)),
             format!(
                 "session: {}\ntranscript: {}\ntranscript_bytes: {}\ntranscript_lines: {}\n\
-                 started: 2026-08-19 07:00\nended: 2026-08-19 07:{:02}\ndistilled_lines: {}\n",
+                 started: 2026-08-19 07:00\nended: 2026-08-19 07:{:02}\ndistilled_lines: {}\n\
+                 adopted:\n  from: 0\n  through: {}\n",
                 session,
                 path.display(),
                 size,
                 lines,
                 lines - 1,
+                lines,
                 lines
             )
         );
@@ -2967,6 +3477,84 @@ fn adopt_stamps_every_pending_session_without_reading_one() {
     assert!(
         fixture.session_ok(&["list", "--all"]).contains("adopted"),
         "an adopted session reads as adopted, not distilled"
+    );
+}
+
+#[test]
+fn adopt_after_a_partial_read_records_only_the_unread_tail() {
+    let fixture = backlog_fixture();
+    fixture.session_ok(&["complete", "session-one", "--lines", "4"]);
+
+    fixture.session_ok(&["adopt", "session-one"]);
+
+    let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    let adopted = record
+        .split_once("adopted:\n")
+        .map(|(_, rest)| rest)
+        .expect("adopted span");
+    assert_eq!(adopted, "  from: 4\n  through: 12\n");
+    let listing = fixture.session_ok(&["list", "--all"]);
+    assert_eq!(
+        row_of(&listing, "session-one").split_whitespace().nth(9),
+        Some("adopted")
+    );
+}
+
+#[test]
+fn reading_past_an_adopted_span_keeps_it_on_record() {
+    let fixture = backlog_fixture();
+    fixture.session_ok(&["complete", "session-one", "--lines", "4"]);
+    fixture.session_ok(&["adopt", "session-one"]);
+    fixture.append("session-one", &[ONE_MORE_TURN]);
+
+    fixture.session_ok(&["complete", "session-one", "--lines", "13"]);
+
+    let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    let adopted: Vec<&str> = record
+        .lines()
+        .skip_while(|line| *line != "adopted:")
+        .skip(1)
+        .take_while(|line| line.starts_with("  "))
+        .collect();
+    assert_eq!(adopted, vec!["  from: 4", "  through: 12"]);
+}
+
+#[test]
+fn a_reset_session_read_to_its_old_adopted_line_lists_as_done() {
+    let fixture = backlog_fixture();
+    fixture.session_ok(&["adopt", "session-one"]);
+    let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    fixture.write(
+        ".iwe/claude/sessions/session-one.yaml",
+        &record.replace("distilled_lines: 12\n", "distilled_lines: 0\n"),
+    );
+
+    fixture.session_ok(&["complete", "session-one", "--lines", "12"]);
+
+    let record = fixture.read(".iwe/claude/sessions/session-one.yaml");
+    assert_eq!(
+        record.lines().find(|line| line.starts_with("adopted")),
+        None
+    );
+    let listing = fixture.session_ok(&["list", "--all"]);
+    assert_eq!(
+        row_of(&listing, "session-one").split_whitespace().nth(9),
+        Some("done")
+    );
+}
+
+#[test]
+fn stage_accepts_a_quote_with_escaped_inner_quotes() {
+    let fixture = backlog_fixture();
+
+    let staged = fixture.stage_ok(
+        "session-one",
+        "title: A candidate\nkey: a-candidate\nbody: It holds.\nevidence: 'lines 2-3, \"line \\\"3\"'\n",
+    );
+
+    assert_eq!(
+        staged,
+        "staged \"A candidate\" as the new document a-candidate in session-one: 1 proposal(s) pending\n"
     );
 }
 
@@ -4215,7 +4803,7 @@ fn session_start_charges_each_slice_its_own_max_tokens() {
     let fixture = HookFixture::new(Some(indoc! {"
         ---
         injection:
-          - { heading: \"Rules:\", filter: { kind: rule }, sort: created:-1, max_tokens: 20 }
+          - { heading: \"Rules:\", filter: { kind: rule }, sort: created:-1, max_tokens: 30 }
           - { heading: \"Traps:\", filter: { kind: trap }, sort: created:-1 }
         ---
 
@@ -4495,6 +5083,34 @@ fn complete_links_a_written_document_into_its_area_hub_once() {
         "{}",
         brief
     );
+}
+
+#[test]
+fn complete_leaves_a_hub_alone_when_the_link_would_fail_its_schema() {
+    let fixture = backlog_fixture();
+    fixture.bind_schema("note", "postgres", NOTE_SCHEMA);
+    fixture.write("postgres.md", "# Postgres\n\nThe area.\n");
+    fixture.write(
+        "postgres/pooling.md",
+        "---\ncreated: \"2026-08-19 07:00\"\n---\n\n# Pooling\n\nUse pgbouncer.\n",
+    );
+
+    let report = fixture.session_ok(&[
+        "complete",
+        "session-one",
+        "--lines",
+        "12",
+        "--wrote",
+        "postgres/pooling",
+    ]);
+
+    assert_eq!(
+        report,
+        "completed session-one: distilled through line 12, 1 link(s)\n\
+         warning: did not link postgres/pooling into its area hub postgres: the hub would fail its schema\n\
+         postgres › frontmatter: \"type\" is a required property\n"
+    );
+    assert_eq!(fixture.read("postgres.md"), "# Postgres\n\nThe area.\n");
 }
 
 #[test]

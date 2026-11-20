@@ -12,6 +12,7 @@ use liwe::model::node::{NodeIter, NodePointer};
 use liwe::model::{Key, NodeId};
 use liwe::query::{self, Filter};
 use serde::Serialize;
+use serde_yaml::Mapping;
 
 pub use liwe::query::edges::EdgeRef;
 
@@ -20,6 +21,8 @@ pub use liwe::query::edges::EdgeRef;
 pub struct DocumentOutput {
     pub key: String,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frontmatter: Option<Mapping>,
     pub content: String,
     pub references: Vec<EdgeRef>,
     pub includes: Vec<EdgeRef>,
@@ -52,6 +55,7 @@ pub struct RetrieveOptions {
     pub backlinks: bool,
     pub exclude: HashSet<Key>,
     pub children: bool,
+    pub frontmatter: bool,
     pub filter: Option<Filter>,
     pub limit: Option<usize>,
     pub max_documents: Option<usize>,
@@ -83,26 +87,7 @@ impl<'a> DocumentReader<'a> {
     }
 
     pub fn retrieve(&self, key: &Key, options: &RetrieveOptions) -> RetrieveOutput {
-        let mut documents = Vec::new();
-        let mut seen_keys = HashSet::new();
-
-        let keys_to_process = self.collect_document_keys(key, options);
-
-        for doc_key in keys_to_process {
-            if seen_keys.contains(&doc_key) || options.exclude.contains(&doc_key) {
-                continue;
-            }
-            seen_keys.insert(doc_key.clone());
-
-            let doc_output = self.build_document_output(&doc_key, options);
-            documents.push(doc_output);
-        }
-
-        let truncation = apply_document_budget(&mut documents, options);
-        RetrieveOutput {
-            documents,
-            truncation,
-        }
+        self.retrieve_seeds(std::slice::from_ref(key), options)
     }
 
     pub fn retrieve_many(&self, keys: &[Key], options: &RetrieveOptions) -> RetrieveOutput {
@@ -119,13 +104,15 @@ impl<'a> DocumentReader<'a> {
             effective_keys.truncate(cap);
         }
 
+        self.retrieve_seeds(&effective_keys, options)
+    }
+
+    fn retrieve_seeds(&self, seeds: &[Key], options: &RetrieveOptions) -> RetrieveOutput {
         let mut documents = Vec::new();
         let mut seen_keys = HashSet::new();
 
-        for key in &effective_keys {
-            let keys_to_process = self.collect_document_keys(key, options);
-
-            for doc_key in keys_to_process {
+        for seed in seeds {
+            for doc_key in self.collect_document_keys(seed, options) {
                 if seen_keys.contains(&doc_key) || options.exclude.contains(&doc_key) {
                     continue;
                 }
@@ -247,11 +234,16 @@ impl<'a> DocumentReader<'a> {
         DocumentOutput {
             key: key.to_string(),
             title,
+            frontmatter: options
+                .frontmatter
+                .then(|| self.graph.frontmatter(key).cloned())
+                .flatten()
+                .filter(|fields| !fields.is_empty()),
             content,
-            references,
-            includes,
-            referenced_by,
-            included_by,
+            references: without_excluded(references, &options.exclude),
+            includes: without_excluded(includes, &options.exclude),
+            referenced_by: without_excluded(referenced_by, &options.exclude),
+            included_by: without_excluded(included_by, &options.exclude),
         }
     }
 
@@ -406,7 +398,15 @@ fn apply_document_budget(
 }
 
 fn document_payload_tokens(doc: &DocumentOutput) -> usize {
-    count_tokens(&doc.content) + edge_tokens(doc)
+    count_tokens(&doc.content) + frontmatter_tokens(doc) + edge_tokens(doc)
+}
+
+fn frontmatter_tokens(doc: &DocumentOutput) -> usize {
+    doc.frontmatter
+        .as_ref()
+        .and_then(|fields| serde_yaml::to_string(fields).ok())
+        .map(|text| count_tokens(&text))
+        .unwrap_or(0)
 }
 
 fn edge_tokens(doc: &DocumentOutput) -> usize {
@@ -421,4 +421,11 @@ fn edge_tokens(doc: &DocumentOutput) -> usize {
     .filter_map(|edges| serde_yaml::to_string(edges).ok())
     .map(|s| count_tokens(&s))
     .sum()
+}
+
+fn without_excluded(edges: Vec<EdgeRef>, exclude: &HashSet<Key>) -> Vec<EdgeRef> {
+    edges
+        .into_iter()
+        .filter(|edge| !exclude.contains(&Key::name(&edge.key)))
+        .collect()
 }

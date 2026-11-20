@@ -6,6 +6,13 @@ This repository is an IWE workspace with durable memory: markdown documents capt
 {{ group.entries }}
 
 {% endfor %}
+{% if not groups and trimmed %}
+Memory has documents for the session-start listing, but none fit within `session_start.max_tokens`.
+
+{% elif not groups %}
+Nothing in memory matches the session-start listing yet.
+
+{% endif %}
 Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical "<terms>" --limit 5`.
 `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
 {% if queries %}
