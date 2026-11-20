@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0](https://github.com/iwe-org/iwe/compare/iwe-v0.33.0...iwe-v0.34.0) - 2026-11-19
+
 ### Added
 - `session_start.max_tokens` memory policy setting caps the whole session-start block, policy text included, by dropping listed entries from the end
 - `session_start.exclude` memory policy setting takes a filter for documents session start never lists, such as retired ones

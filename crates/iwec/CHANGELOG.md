@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0](https://github.com/iwe-org/iwe/compare/iwec-v0.33.0...iwec-v0.34.0) - 2026-11-19
+
 ### Changed
 - `iwe_retrieve` results include each document's frontmatter as a `frontmatter` object, and `frontmatter: false` leaves it out (previously frontmatter was never shown)
 - `iwe_retrieve` `exclude` also removes the excluded keys from every edge list (previously they were still listed there with their titles)

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0](https://github.com/iwe-org/iwe/compare/iwes-v0.33.0...iwes-v0.34.0) - 2026-11-19
+
 ### Fixed
 - Workspace symbol search matches different forms of a word in Russian, Greek, Arabic and Tamil, and in more cases for accented languages such as French, Portuguese and Turkish (previously stemming silently did nothing for non-Latin scripts)
 - Workspace symbol search finds words inside Chinese, Japanese and Korean text, and no longer matches unrelated Chinese characters that sound the same

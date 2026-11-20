@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0](https://github.com/iwe-org/iwe/compare/diwe-v0.33.0...diwe-v0.34.0) - 2026-11-19
+
 ### Added
 - `RetrieveOptions::frontmatter` and `DocumentOutput::frontmatter`, the document's frontmatter in retrieve output, counted against `max_tokens`
 
