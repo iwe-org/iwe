@@ -60,6 +60,10 @@ impl HookPayload {
 
 pub const SESSION_START_SECTION: &str = "At session start";
 
+pub const SESSION_START_MAX_TOKENS: &str = "session_start.max_tokens";
+
+pub const SESSION_START_EXCLUDE: &str = "session_start.exclude";
+
 pub const DEFAULT_HEADING: &str = "Most recently recorded, newest first — titles and keys only:";
 
 pub const STARTER_KNOBS: &str = "injection:\n  - { heading: \"Most recently recorded, newest first — titles and keys only:\", filter: { created: { $exists: true } }, sort: created:-1, limit: 20 }\n";
@@ -482,10 +486,13 @@ impl MemoryStore {
     }
 
     pub fn knob_int(&self, name: &str, default: usize) -> usize {
+        self.knob_count(name).unwrap_or(default)
+    }
+
+    pub fn knob_count(&self, name: &str) -> Option<usize> {
         self.knob(name)
             .and_then(|text| knob_count(&text))
             .or_else(|| knob_env(name).and_then(|text| knob_count(&text)))
-            .unwrap_or(default)
     }
 
     pub fn knob_days(&self, name: &str, default: i64) -> i64 {
@@ -522,6 +529,16 @@ impl MemoryStore {
             return slices_from_value(&value);
         }
         Ok(Slice::default_slices())
+    }
+
+    pub fn session_start_exclusion(&self) -> Result<Option<(Filter, String)>, String> {
+        if let Some(value) = self.knob_value(SESSION_START_EXCLUDE) {
+            return filter_from_value(value, SESSION_START_EXCLUDE).map(Some);
+        }
+        match knob_env(SESSION_START_EXCLUDE) {
+            Some(text) => filter_from_text(&text, SESSION_START_EXCLUDE).map(Some),
+            None => Ok(None),
+        }
     }
 
     pub fn injection_scope(&self) -> Filter {

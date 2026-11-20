@@ -36,6 +36,20 @@ frontmatter:
         anyOf:
           - required: [filter]
           - required: [sort]
+    session_start:
+      description: the block session start puts in front of every session
+      type: object
+      additionalProperties: false
+      properties:
+        max_tokens:
+          description: the token budget for the whole block, policy text included; listed entries are dropped from the end until it fits, the policy text never is
+          type: integer
+          minimum: 1
+        exclude:
+          description: the documents no slice lists, as a filter document or an inline flow-YAML string
+          anyOf:
+            - $ref: "https://iwe.md/schemas/query/draft/2026-08/schema#/$defs/filter"
+            - type: string
     distill:
       description: how /iwe:distill reads a session
       type: object

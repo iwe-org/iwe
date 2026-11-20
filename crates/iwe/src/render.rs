@@ -323,6 +323,12 @@ fn build_retrieve_frontmatter(doc: &DocumentOutput) -> Mapping {
         Value::String("title".to_string()),
         Value::String(doc.title.clone()),
     );
+    if let Some(frontmatter) = &doc.frontmatter {
+        fm.insert(
+            Value::String("frontmatter".to_string()),
+            Value::Mapping(frontmatter.clone()),
+        );
+    }
     if !doc.references.is_empty() {
         fm.insert(
             Value::String("references".to_string()),

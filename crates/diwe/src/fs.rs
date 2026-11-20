@@ -188,7 +188,7 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
         .map(|key| workspace_document_path(base_path, key.as_str(), extension))
         .collect::<std::io::Result<_>>()?;
 
-    let mut staged: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let mut staged: Vec<Staged> = Vec::new();
     for (index, (key, markdown)) in changes.creates.iter().enumerate() {
         match stage_create(
             base_path,
@@ -206,27 +206,101 @@ pub fn apply_changes(changes: &Changes, base_path: &Path, format: Format) -> std
         }
     }
 
-    for key in &changes.removes {
-        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
+    let updated: Vec<(PathBuf, &String)> = match changes
+        .updates
+        .iter()
+        .map(|(key, markdown)| {
+            workspace_document_path(base_path, key.as_str(), extension).map(|path| (path, markdown))
+        })
+        .collect::<std::io::Result<_>>()
+    {
+        Ok(updated) => updated,
+        Err(error) => {
+            discard_staged(&staged);
+            return Err(error);
+        }
+    };
+
+    let touched = removed
+        .iter()
+        .chain(staged.iter().map(|staged| &staged.file))
+        .chain(updated.iter().map(|(path, _)| path));
+    let snapshot = match snapshot_files(touched) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            discard_staged(&staged);
+            return Err(error);
+        }
+    };
+
+    let result = commit_changes(&removed, &staged, &updated, base_path);
+    if result.is_err() {
+        restore_files(&snapshot);
+        discard_staged(&staged);
+    }
+    result
+}
+
+struct Staged {
+    temp: PathBuf,
+    file: PathBuf,
+    created_dir: Option<PathBuf>,
+}
+
+fn commit_changes(
+    removed: &[PathBuf],
+    staged: &[Staged],
+    updated: &[(PathBuf, &String)],
+    base_path: &Path,
+) -> std::io::Result<()> {
+    for file_path in removed {
         if file_path.exists() {
-            fs::remove_file(&file_path)?;
+            fs::remove_file(file_path)?;
         }
         prune_empty_dirs(file_path.parent(), base_path);
     }
 
-    for (temp_path, file_path) in &staged {
-        if let Some(parent) = file_path.parent() {
+    for staged in staged {
+        if let Some(parent) = staged.file.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::rename(temp_path, file_path)?;
+        fs::rename(&staged.temp, &staged.file)?;
     }
 
-    for (key, markdown) in &changes.updates {
-        let file_path = workspace_document_path(base_path, key.as_str(), extension)?;
-        write_file_if_changed(&file_path, markdown)?;
+    for (file_path, markdown) in updated {
+        write_file_if_changed(file_path, markdown)?;
     }
 
     Ok(())
+}
+
+type Snapshot = Vec<(PathBuf, Option<Vec<u8>>)>;
+
+fn snapshot_files<'a>(paths: impl Iterator<Item = &'a PathBuf>) -> std::io::Result<Snapshot> {
+    paths
+        .map(|path| match fs::read(path) {
+            Ok(bytes) => Ok((path.clone(), Some(bytes))),
+            Err(_) if !path.exists() => Ok((path.clone(), None)),
+            Err(error) => Err(error),
+        })
+        .collect()
+}
+
+fn restore_files(snapshot: &Snapshot) {
+    for (path, content) in snapshot {
+        let restored = match content {
+            Some(bytes) if fs::read(path).is_ok_and(|current| current == *bytes) => Ok(()),
+            Some(bytes) => path
+                .parent()
+                .map_or(Ok(()), fs::create_dir_all)
+                .and_then(|_| fs::write(path, bytes)),
+            None if path.is_file() => fs::remove_file(path),
+            None => Ok(()),
+        };
+        if let Err(restore_error) = restored {
+            error!("could not restore {}: {}", path.display(), restore_error);
+        }
+    }
 }
 
 fn stage_create(
@@ -236,7 +310,7 @@ fn stage_create(
     index: usize,
     markdown: &str,
     removed: &[PathBuf],
-) -> std::io::Result<(PathBuf, PathBuf)> {
+) -> std::io::Result<Staged> {
     let file_path = workspace_document_path(base_path, key, extension)?;
     if file_path.exists()
         && !removed
@@ -249,24 +323,52 @@ fn stage_create(
         ));
     }
     let parent = file_path.parent().unwrap_or(base_path);
+    let created_dir = parent
+        .ancestors()
+        .take_while(|dir| !dir.exists())
+        .last()
+        .map(Path::to_path_buf);
     fs::create_dir_all(parent)?;
     let temp_path = parent.join(format!(".iwe-{}-{}.tmp", std::process::id(), index));
-    fs::write(&temp_path, markdown)?;
-    fs::File::create_new(&file_path)
-        .and_then(|_| fs::remove_file(&file_path))
-        .or_else(|error| match error.kind() {
-            std::io::ErrorKind::AlreadyExists => Ok(()),
-            _ => Err(error),
+    fs::write(&temp_path, markdown)
+        .and_then(|_| {
+            fs::File::create_new(&file_path)
+                .and_then(|_| fs::remove_file(&file_path))
+                .or_else(|error| match error.kind() {
+                    std::io::ErrorKind::AlreadyExists => Ok(()),
+                    _ => Err(error),
+                })
         })
         .inspect_err(|_| {
             let _ = fs::remove_file(&temp_path);
+            remove_created_dirs(parent, created_dir.as_deref());
         })?;
-    Ok((temp_path, file_path))
+    Ok(Staged {
+        temp: temp_path,
+        file: file_path,
+        created_dir,
+    })
 }
 
-fn discard_staged(staged: &[(PathBuf, PathBuf)]) {
-    for (temp_path, _) in staged {
-        let _ = fs::remove_file(temp_path);
+fn discard_staged(staged: &[Staged]) {
+    for staged in staged {
+        let _ = fs::remove_file(&staged.temp);
+    }
+    for staged in staged.iter().rev() {
+        if let Some(parent) = staged.file.parent() {
+            remove_created_dirs(parent, staged.created_dir.as_deref());
+        }
+    }
+}
+
+fn remove_created_dirs(from: &Path, created: Option<&Path>) {
+    let Some(created) = created else {
+        return;
+    };
+    for dir in from.ancestors() {
+        if fs::remove_dir(dir).is_err() || dir == created {
+            break;
+        }
     }
 }
 
@@ -322,6 +424,88 @@ mod tests {
             .collect();
         entries.sort();
         assert_eq!(entries, vec!["blocker", "source.md"]);
+    }
+
+    #[test]
+    fn failed_update_restores_every_file_touched_before_it() {
+        let base = tempfile::tempdir().unwrap();
+        std::fs::write(base.path().join("removed.md"), "# removed\n").unwrap();
+        std::fs::write(base.path().join("kept.md"), "# kept\n").unwrap();
+        std::fs::write(base.path().join("blocker"), "x").unwrap();
+        let changes = Changes {
+            creates: vec![(Key::name("created"), "# created\n".to_string())],
+            updates: vec![
+                (Key::name("kept"), "# changed\n".to_string()),
+                (Key::name("blocker/target"), "# target\n".to_string()),
+            ],
+            removes: vec![Key::name("removed")],
+        };
+
+        let result = apply_changes(&changes, base.path(), Format::Markdown);
+
+        assert!(result.is_err());
+        let mut entries: Vec<(String, String)> = std::fs::read_dir(base.path())
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (
+                    entry.file_name().to_string_lossy().to_string(),
+                    std::fs::read_to_string(entry.path()).unwrap(),
+                )
+            })
+            .collect();
+        entries.sort();
+        assert_eq!(
+            entries,
+            vec![
+                ("blocker".to_string(), "x".to_string()),
+                ("kept.md".to_string(), "# kept\n".to_string()),
+                ("removed.md".to_string(), "# removed\n".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn failed_update_removes_new_directories_and_leaves_untouched_files_alone() {
+        let base = tempfile::tempdir().unwrap();
+        std::fs::write(base.path().join("blocker"), "x").unwrap();
+        std::fs::write(base.path().join("later.md"), "# later\n").unwrap();
+        let old = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000);
+        std::fs::File::options()
+            .write(true)
+            .open(base.path().join("later.md"))
+            .unwrap()
+            .set_modified(old)
+            .unwrap();
+        let changes = Changes {
+            creates: vec![
+                (Key::name("fresh/one"), "# one\n".to_string()),
+                (Key::name("fresh/deep/two"), "# two\n".to_string()),
+                (Key::name("fresh/three"), "# three\n".to_string()),
+            ],
+            updates: vec![
+                (Key::name("blocker/target"), "# target\n".to_string()),
+                (Key::name("later"), "# changed\n".to_string()),
+            ],
+            removes: vec![],
+        };
+
+        let result = apply_changes(&changes, base.path(), Format::Markdown);
+
+        assert!(result.is_err());
+        let mut names: Vec<String> = std::fs::read_dir(base.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["blocker".to_string(), "later.md".to_string()]);
+        assert_eq!(
+            std::fs::metadata(base.path().join("later.md"))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            old
+        );
     }
 
     #[test]

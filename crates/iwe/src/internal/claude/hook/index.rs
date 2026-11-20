@@ -8,7 +8,7 @@ use minijinja::{context, Environment};
 use serde::Serialize;
 
 use crate::internal::claude::hook::store::{
-    machinery_exclusion, MemoryStore, Slice, SESSION_START_SECTION,
+    machinery_exclusion, MemoryStore, Slice, SESSION_START_MAX_TOKENS, SESSION_START_SECTION,
 };
 use crate::internal::claude::record::mark_reminded;
 use crate::internal::claude::session::{backlog_of, reminder_due, Backlog, SessionOptions};
@@ -33,11 +33,16 @@ pub fn injection_groups(store: &MemoryStore) -> Vec<Group> {
     let slices = store
         .injection_slices()
         .unwrap_or_else(|_| Slice::default_slices());
+    let excluded = store
+        .session_start_exclusion()
+        .ok()
+        .flatten()
+        .map(|(filter, _)| Filter::Nor(vec![filter]));
 
     let mut seen: HashSet<String> = HashSet::new();
     let mut groups: Vec<Group> = Vec::new();
     for slice in &slices {
-        let Some(listed) = list_slice(store, slice, &seen) else {
+        let Some(listed) = list_slice(store, slice, excluded.as_ref(), &seen) else {
             continue;
         };
         seen.extend(listed.keys);
@@ -49,31 +54,98 @@ pub fn injection_groups(store: &MemoryStore) -> Vec<Group> {
     groups
 }
 
+pub struct SessionStart {
+    pub groups: Vec<Group>,
+    pub dropped: usize,
+    pub block: String,
+}
+
 pub fn render_memory_index(store: &MemoryStore, current: Option<String>) -> Option<String> {
     let groups = injection_groups(store);
-    if groups.is_empty() {
-        return None;
-    }
-
     let backlog = backlog_of(&SessionOptions {
         transcripts: None,
         current,
     });
+    let policy = store.policy_section(SESSION_START_SECTION);
+    if groups.is_empty() && backlog.is_none() && policy.is_none() {
+        return None;
+    }
+
     let reminder = backlog.is_some() && reminder_due(store);
     if reminder {
         mark_reminded(&chrono::Local::now().format("%Y-%m-%d %H:%M").to_string());
     }
 
-    Some(render_index_block(
-        &groups,
-        store.has_document("queries"),
-        backlog.as_ref().map(backlog_line),
-        reminder,
-        store.policy_section(SESSION_START_SECTION),
-    ))
+    Some(fit_session_start(store, groups, backlog.as_ref(), reminder, policy).block)
 }
 
-fn list_slice(store: &MemoryStore, slice: &Slice, seen: &HashSet<String>) -> Option<Listed> {
+pub fn session_start_preview(store: &MemoryStore, current: Option<String>) -> SessionStart {
+    let backlog = backlog_of(&SessionOptions {
+        transcripts: None,
+        current,
+    });
+    let reminder = backlog.is_some() && reminder_due(store);
+    fit_session_start(
+        store,
+        injection_groups(store),
+        backlog.as_ref(),
+        reminder,
+        store.policy_section(SESSION_START_SECTION),
+    )
+}
+
+fn fit_session_start(
+    store: &MemoryStore,
+    mut groups: Vec<Group>,
+    backlog: Option<&Backlog>,
+    reminder: bool,
+    policy: Option<String>,
+) -> SessionStart {
+    let render = |groups: &[Group], dropped: usize| {
+        render_index_block(
+            groups,
+            dropped > 0,
+            store.has_document("queries"),
+            backlog.map(backlog_line),
+            reminder,
+            policy.clone(),
+        )
+    };
+
+    let mut dropped = 0;
+    let mut block = render(&groups, dropped);
+    if let Some(max_tokens) = store.knob_count(SESSION_START_MAX_TOKENS) {
+        while count_tokens(&block) > max_tokens && drop_last_entry(&mut groups) {
+            dropped += 1;
+            block = render(&groups, dropped);
+        }
+    }
+    SessionStart {
+        groups,
+        dropped,
+        block,
+    }
+}
+
+fn drop_last_entry(groups: &mut Vec<Group>) -> bool {
+    let Some(group) = groups.last_mut() else {
+        return false;
+    };
+    match group.entries.rfind('\n') {
+        Some(end) => group.entries.truncate(end),
+        None => {
+            groups.pop();
+        }
+    }
+    true
+}
+
+fn list_slice(
+    store: &MemoryStore,
+    slice: &Slice,
+    excluded: Option<&Filter>,
+    seen: &HashSet<String>,
+) -> Option<Listed> {
     let budget = match slice.max_tokens {
         Some(max_tokens) => Some(max_tokens.checked_sub(count_tokens(&slice.heading))?),
         None => None,
@@ -100,6 +172,7 @@ fn list_slice(store: &MemoryStore, slice: &Slice, seen: &HashSet<String>) -> Opt
         conjoin([
             Some(machinery_exclusion()),
             slice.filter.clone().map(|(filter, _)| filter),
+            excluded.cloned(),
             unseen,
         ]),
         sort,
@@ -136,6 +209,7 @@ fn backlog_line(backlog: &Backlog) -> String {
 
 fn render_index_block(
     groups: &[Group],
+    trimmed: bool,
     queries: bool,
     backlog: Option<String>,
     reminder: bool,
@@ -152,7 +226,7 @@ fn render_index_block(
         .get_template("memory-index")
         .expect("Failed to get template");
     template
-        .render(context! { groups, queries, backlog, reminder, policy })
+        .render(context! { groups, trimmed, queries, backlog, reminder, policy })
         .expect("Failed to render template")
 }
 
@@ -161,7 +235,7 @@ fn clip_to_budget(entries: &str, budget: usize) -> (String, usize) {
     let mut kept: Vec<&str> = Vec::new();
     for line in entries.lines() {
         let cost = count_tokens(line);
-        if !kept.is_empty() && used + cost > budget {
+        if used + cost > budget {
             break;
         }
         used += cost;
@@ -210,6 +284,9 @@ fn find_entries(
         Some(budget) => clip_to_budget(trimmed, budget),
         None => (trimmed.to_string(), output.keys.len()),
     };
+    if lines == 0 {
+        return None;
+    }
     let keys = output
         .keys
         .iter()

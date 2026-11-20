@@ -33,7 +33,7 @@ iwe internal claude enable
 
 That also installs `.iwe/schemas/memory.yaml`, bound to every key: a document carrying `created` must stamp it `YYYY-MM-DD HH:MM` and keep `session` a non-empty string, and nothing else is constrained — the shape "how to write it" describes is enforced by `--strict` from the first write, and a reflect session tightens it later.
 
-A bare repository that wants the starter policy with a few sentences changed still runs the flagless command and edits the result with `iwe update -k MEMORY --content -`. Passing an edited starter through `--body` is the wrong path: it installs no schema, and the starter's "how to write it" both claims one binds every key and passes `--strict`, so `enable` refuses it rather than ship a rule nothing enforces.
+A bare repository that wants the starter policy with a few sentences changed still runs the flagless command and edits the result with `iwe update -k MEMORY --strict --content -`. Passing an edited starter through `--body` is the wrong path: it installs no schema, and the starter's "how to write it" both claims one binds every key and passes `--strict`, so `enable` refuses it rather than ship a rule nothing enforces.
 
 Existing knowledge base — a store with a shape of its own must not be given the starter's, since a distill run follows the policy literally. Compose the body first, then:
 
@@ -67,7 +67,7 @@ The machinery writes one document into the workspace, `MEMORY.md`; its own state
 iwe internal claude session brief
 ```
 
-The policy check must say `ok`, the recent listing must show what the user calls memory and nothing else, the schema table must show the fields "how to write it" names, and the schemas section must bind them — a store where it says nothing binds has a policy nothing enforces. Run each dedup query as written; exercise each template with and without its optional vars (`iwe create --template <name> --strict --var title=probe`, then `iwe delete -k <key> --expect 1`); where schemas bind, submit one invalid document to confirm `--strict` rejects it. Then show the user the policy — it is theirs to edit, any time, with `iwe update -k MEMORY --content -`.
+The policy check must say `ok`, the recent listing must show what the user calls memory and nothing else, the schema table must show the fields "how to write it" names, and the schemas section must bind them — a store where it says nothing binds has a policy nothing enforces. Run each dedup query as written; exercise each template with and without its optional vars (`iwe create --template <name> --strict --var title=probe`, then `iwe delete -k <key> --strict --expect 1`); where schemas bind, submit one invalid document to confirm `--strict` rejects it. Then show the user the policy — it is theirs to edit, any time, with `iwe update -k MEMORY --strict --content -`.
 
 ## 3. Hand over the past
 
@@ -96,7 +96,7 @@ iwe internal claude session brief
 iwe internal claude session list
 ```
 
-Then tell the user: what the policy says (editing `MEMORY.md` changes what is captured, deleting it turns memory off); how much backlog is waiting and that `/iwe:distill` reads it with them; that reading a transcript can run unattended but nothing reaches memory unselected, and every document written is one they chose; that everything is uncommitted and reviewed as files; that session start shows the undistilled count and, at most weekly, offers to work it; that `/iwe:reflect` reorganizes the store once it has something to group; and to allowlist `Bash(iwe:*)`.
+Then tell the user: what the policy says (editing `MEMORY.md` changes what is captured, deleting it turns memory off); how much backlog is waiting and that `/iwe:distill` reads it with them; that reading a transcript can run unattended but distill writes only what they choose — a rule the skill keeps, not a lock, since any `iwe` write or editor can still change the store; that everything is uncommitted and reviewed as files; that session start shows the undistilled count and, at most weekly, offers to work it; that `/iwe:reflect` reorganizes the store once it has something to group; and to allowlist `Bash(iwe:*)`.
 
 ## Migrating from a `memory/` store
 
@@ -110,6 +110,6 @@ done
 iwe schema validate
 ```
 
-Then `iwe internal claude session adopt` so old transcripts are not re-read. Leave `memory/`, any `sessions/<id>` documents an earlier release kept in the store, and any `.iwe/claude-sessions/` directory for the user to delete. A policy still carrying `sweep_threshold_lines`, `max_chunks_per_sweep`, `inflight_ttl_minutes` or `max_items_per_chunk` predates manual distill; nothing reads them — offer `iwe update -k MEMORY --unset sweep_threshold_lines --expect 1`.
+Then `iwe internal claude session adopt` so old transcripts are not re-read. Leave `memory/`, any `sessions/<id>` documents an earlier release kept in the store, and any `.iwe/claude-sessions/` directory for the user to delete. A policy still carrying `sweep_threshold_lines`, `max_chunks_per_sweep`, `inflight_ttl_minutes` or `max_items_per_chunk` predates manual distill; nothing reads them — offer `iwe update -k MEMORY --strict --unset sweep_threshold_lines --expect 1`.
 
 A session marked read that nobody read is reset by setting `distilled_lines: 0` in `.iwe/claude/sessions/<id>.yaml`; the next distill run re-reads it, and writes dedup.

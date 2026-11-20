@@ -1,6 +1,6 @@
 # Reflect
 
-The interactive layer of memory maintenance, and the only one: policy and taxonomy evolution, curation as far as the policy's curation section allows, and the forget verbs on demand — all with the user. Every command is a plain `iwe` command run from the repository root. No `MEMORY.md` document means nothing to govern: say so and point at `/iwe:init`. Never commit: every change, deletions included, is a file the user reviews.
+The interactive layer of memory maintenance, and the only one: policy and taxonomy evolution, curation as far as the policy's curation section allows, and the forget verbs on demand — all with the user. Every command is a plain `iwe` command run from the repository root, and every `create`, `update` and `delete` carries `--strict`, dry runs included: it checks each written document against the schema that binds it and requires the `--expect` guards; when it fails, fix the change against the report, never drop the flag. No `MEMORY.md` document means nothing to govern: say so and point at `/iwe:init`. Never commit: every change, deletions included, is a file the user reviews.
 
 ## The MEMORY.md document is the policy
 
@@ -22,13 +22,13 @@ The body is a contract of level-two sections, read by name:
 The first three are required. Nothing caches the policy, so the next run follows the edited copy:
 
 ```bash
-iwe update -k MEMORY --content - <<'EOF'
+iwe update -k MEMORY --strict --content - <<'EOF'
 <edited body>
 EOF
-iwe update -k MEMORY --set distill.max_proposals=3 --expect 1
+iwe update -k MEMORY --strict --set distill.max_proposals=3 --expect 1
 ```
 
-The frontmatter knobs, with defaults: `distill.max_chunk_size` (25000) — how much conversation one `session read` serves; `distill.max_proposals` (5); `distill.remind_after_days` (7) — how long before session start reminds about the backlog again, `0` every session, `-1` never; and `injection` — what session start puts in front of every session, as a list of slices the binary runs in order, each a `filter` and/or a `sort: <field>:-1` with an optional `heading`, `limit` and `max_tokens`. A document listed by one slice is not repeated by a later one, and a slice with neither `limit` nor `max_tokens` lists everything it matches. A store with `kind` and `status` fields usually wants the rules and the open traps first:
+The frontmatter knobs, with defaults: `distill.max_chunk_size` (25000) — how much conversation one `session read` serves; `distill.max_proposals` (5); `distill.remind_after_days` (7) — how long before session start reminds about the backlog again, `0` every session, `-1` never; and `injection` — what session start puts in front of every session, as a list of slices the binary runs in order, each a `filter` and/or a `sort: <field>:-1` with an optional `heading`, `limit` and `max_tokens`. A document listed by one slice is not repeated by a later one, and a slice with neither `limit` nor `max_tokens` lists everything it matches. A slice's `max_tokens` is a hard cap: an entry that does not fit is left out, even the first. `session_start.max_tokens` caps the whole block, policy text included: listed entries are dropped from the end until it fits, and the `At session start` section is never cut. `session_start.exclude` is a filter no slice lists past — the documents a store keeps but no longer puts in front of a session, such as tombstones. A store with `kind` and `status` fields usually wants the rules and the open traps first:
 
 ```yaml
 distill:
@@ -42,7 +42,7 @@ injection:
 `--set` takes YAML, so a store whose notes carry a `type` lists them once:
 
 ```bash
-iwe update -k MEMORY --set 'injection=[{ filter: { type: { $in: [decision, learning, gotcha] } }, sort: created:-1, limit: 10 }]' --expect 1
+iwe update -k MEMORY --strict --set 'injection=[{ filter: { type: { $in: [decision, learning, gotcha] } }, sort: created:-1, limit: 10 }]' --expect 1
 ```
 
 Each knob has an environment twin named for its path with dots as underscores (`IWE_DISTILL_MAX_PROPOSALS`). `chunk_chars` (now `distill.max_chunk_size`), `max_proposals_per_read` (`distill.max_proposals`), `remind_every_days` (`distill.remind_after_days`) and `injection_max_tokens` (now the slice's own `max_tokens`) are the flat knobs the binary stopped reading; `sweep_threshold_lines`, `max_chunks_per_sweep`, `max_items_per_chunk` and `inflight_ttl_minutes` are dead knobs from before capture became manual. `--unset` clears one.
@@ -53,7 +53,7 @@ Requests users make without knowing the vocabulary:
 - **"stop asking me about memory"** — `distill.remind_after_days=-1`, and "at session start".
 - **"show me the rules / what is still broken when I start"** — an `injection` slice per question.
 - **"stop reorganizing my notes"** — delete the curation section.
-- **"turn it off"** — `iwe delete MEMORY --expect 1`; nothing else in the store changes.
+- **"turn it off"** — `iwe delete MEMORY --strict --expect 1`; nothing else in the store changes.
 
 ## Analyze
 
@@ -84,8 +84,8 @@ For each field the user picked, in order:
 2. **Backfill**, one mutation per value, preview first. Every bulk `update` and `delete` carries the machinery exclusion `{ $key: { $nin: [MEMORY, queries] } }` so it cannot touch the policy or the cookbook:
 
    ```bash
-   iwe update --filter '{ $and: [ <the machinery exclusion>, { $content: { $text: "postgres" } } ] }' --set component=postgres --dry-run
-   iwe update --filter '<the same filter>' --set component=postgres --expect <count from the dry run>
+   iwe update --filter '{ $and: [ <the machinery exclusion>, { $content: { $text: "postgres" } } ] }' --set component=postgres --strict --dry-run
+   iwe update --filter '<the same filter>' --set component=postgres --strict --expect <count from the dry run>
    ```
 
    `--expect` aborts if the match set moved.
@@ -96,8 +96,8 @@ For each field the user picked, in order:
 
 ```bash
 iwe find --filter '{ created: { $lt: "2026-01-01" } }' --format keys
-iwe delete --filter '{ $and: [ <the machinery exclusion>, { created: { $lt: "2026-01-01" } } ] }' --dry-run
-iwe delete --filter '<the same filter>' --expect <count from the dry run>
+iwe delete --filter '{ $and: [ <the machinery exclusion>, { created: { $lt: "2026-01-01" } } ] }' --strict --dry-run
+iwe delete --filter '<the same filter>' --strict --expect <count from the dry run>
 ```
 
 Always dry-run first and name the count. `iwe delete` cleans up inbound references, so `Updated N document(s)` counts referrer cleanups and `Updated 0` is not a no-op; never send a curation command's output to `/dev/null`. To change the policy rather than one document, edit the curation section and show the diff.
@@ -107,15 +107,15 @@ Always dry-run first and name the count. `iwe delete` cleans up inbound referenc
 Only as far as the curation section allows — no section, no merges. Keep the older document as the survivor:
 
 ```bash
-iwe update -k <survivor-key> --content - <<'EOF'
+iwe update -k <survivor-key> --strict --content - <<'EOF'
 # <title>
 
 <merged body>
 EOF
-iwe delete <duplicate-key> --expect 1
+iwe delete <duplicate-key> --strict --expect 1
 ```
 
-When the curation section declares a lifecycle field (`superseded_by`), tombstone instead: `iwe update -k <duplicate-key> --set superseded_by=<survivor-key> --expect 1`, and exclude `superseded_by: { $exists: true }` from later passes.
+When the curation section declares a lifecycle field (`superseded_by`), tombstone instead: `iwe update -k <duplicate-key> --strict --set superseded_by=<survivor-key> --expect 1`, and exclude `superseded_by: { $exists: true }` from later passes. The first tombstone also goes into the policy, so session start stops listing them: `iwe update -k MEMORY --strict --set 'session_start={ exclude: { superseded_by: { $exists: true } } }' --expect 1` — `--set` replaces the whole `session_start` mapping, so carry any `max_tokens` it already has.
 
 ## Reorganize, when the policy allows it
 
@@ -148,7 +148,7 @@ One level of `<area>/<slug>` directories and a top-level hub keyed `<area>` — 
    EOF
    ```
 
-4. **Prove it**, one query per hub; the count must equal the member count. Zero behind a full-looking hub means the links are list items — rewrite the body with `iwe update -k <area> --content -` and re-run.
+4. **Prove it**, one query per hub; the count must equal the member count. Zero behind a full-looking hub means the links are list items — rewrite the body with `iwe update -k <area> --strict --content -` and re-run.
 
    ```bash
    iwe find --filter '{ $includedBy: <area> }' -f keys
@@ -159,7 +159,7 @@ One level of `<area>/<slug>` directories and a top-level hub keyed `<area>` — 
 `iwe internal claude session complete --wrote <area>/<slug>` links a written document into hub `<area>` on its own, once. Adopting a stray is the same append, atomic and safe to repeat — already linked means the filter matches nothing and the command exits 2 with `$append expects 1 block, selected 0`:
 
 ```bash
-iwe update -k <area> \
+iwe update -k <area> --strict \
   --filter '{ $nor: [ { $includes: <area>/<slug> } ] }' \
   --append '{ $header: "<Area title>", content: "[<title>](<area>/<slug>)", expect: 1 }' \
   --expect 1
@@ -182,8 +182,8 @@ Pages for the things facts are about — a person, a release, a component, a too
 
    ```bash
    iwe update --filter '{ $and: [ <the machinery exclusion>, { $content: { $matches: "(?i)\\bsession record" } }, { $nor: [ { $references: components/session-record } ] } ] }' \
-     --append '{ content: "- [Session record](/components/session-record)" }' --dry-run
-   iwe update --filter '<the same filter>' --append '<the same append>' --expect <count from the dry run>
+     --append '{ content: "- [Session record](/components/session-record)" }' --strict --dry-run
+   iwe update --filter '<the same filter>' --append '<the same append>' --strict --expect <count from the dry run>
    ```
 
 4. **Prove it**, every count matching:

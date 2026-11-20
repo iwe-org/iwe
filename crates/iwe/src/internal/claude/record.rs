@@ -34,6 +34,8 @@ pub struct SessionRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distilled_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adopted: Option<Adoption>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub offered: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kept: Option<usize>,
@@ -43,6 +45,12 @@ pub struct SessionRecord {
     pub captures: Vec<Capture>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub proposals: Vec<Proposal>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Adoption {
+    pub from: usize,
+    pub through: usize,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -61,6 +69,7 @@ pub enum ProposalStatus {
     Pending,
     Written,
     Rejected,
+    Dropped,
 }
 
 impl ProposalStatus {
@@ -69,6 +78,7 @@ impl ProposalStatus {
             ProposalStatus::Pending => "pending",
             ProposalStatus::Written => "written",
             ProposalStatus::Rejected => "rejected",
+            ProposalStatus::Dropped => "dropped",
         }
     }
 }
@@ -134,6 +144,25 @@ impl SessionRecord {
         }
     }
 
+    pub fn adopt_through(&mut self, lines: usize) {
+        let from = match &self.adopted {
+            Some(adopted) if adopted.through == self.distilled_lines => adopted.from,
+            _ => self.distilled_lines,
+        };
+        self.adopted = Some(Adoption {
+            from,
+            through: lines,
+        });
+        self.distilled_lines = lines;
+    }
+
+    pub fn is_adopted(&self) -> bool {
+        match &self.adopted {
+            Some(adopted) => adopted.through == self.distilled_lines,
+            None => self.distilled_at.is_none() && self.distilled_lines > 0,
+        }
+    }
+
     pub fn set_size(&mut self, size: u64, lines: usize) {
         self.transcript_bytes = Some(size);
         self.transcript_lines = Some(lines);
@@ -145,13 +174,25 @@ impl SessionRecord {
         }
         for title in rejected {
             let title = title.trim();
-            if !title.is_empty() {
+            if !title.is_empty() && !self.rejected.iter().any(|known| known == title) {
                 self.rejected.push(title.to_string());
             }
         }
     }
 
     pub fn add_capture(&mut self, at: &str, through: Option<usize>, wrote: Vec<String>) {
+        let wrote: Vec<String> = wrote
+            .into_iter()
+            .filter(|key| {
+                !self
+                    .captures
+                    .iter()
+                    .any(|capture| capture.wrote.contains(key))
+            })
+            .collect();
+        if wrote.is_empty() {
+            return;
+        }
         self.kept = Some(self.kept.unwrap_or(0) + wrote.len());
         self.captures.push(Capture {
             at: at.to_string(),
@@ -201,14 +242,17 @@ impl SessionRecord {
                 });
             }
         }
+        if !settled.is_empty() {
+            self.offered = Some(self.offered.unwrap_or(0) + settled.len());
+        }
         settled
     }
 
-    pub fn reject_pending_proposals(&mut self) -> Vec<String> {
+    pub fn dismiss_pending_proposals(&mut self) -> Vec<String> {
         let mut titles = Vec::new();
         for proposal in self.proposals.iter_mut() {
             if proposal.is_pending() {
-                proposal.status = ProposalStatus::Rejected;
+                proposal.status = ProposalStatus::Dropped;
                 titles.push(proposal.title.clone());
             }
         }

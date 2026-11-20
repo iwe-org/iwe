@@ -365,6 +365,47 @@ fn strict_with_all_guards_applies() {
 }
 
 #[test]
+fn body_overwrite_honors_the_document_expect() {
+    let a = "# Alpha\n\nkeep\n";
+    let temp = setup(vec![("a", a)]);
+    let output = run_update(
+        temp.path(),
+        &[
+            "-k",
+            "a",
+            "--content",
+            "# Alpha\n\nnew\n",
+            "--expect",
+            "{ min: 2 }",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        indoc! {"
+            error: update expects at least 2 documents, matched 1
+              a › Alpha
+            hint: adjust the filter or raise expect
+        "}
+    );
+    assert_eq!(read_to_string(temp.path().join("a.md")).unwrap(), a);
+}
+
+#[test]
+fn body_overwrite_applies_when_the_document_expect_holds() {
+    let temp = setup(vec![("a", "# Alpha\n\nkeep\n")]);
+    let output = run_update(
+        temp.path(),
+        &["-k", "a", "--content", "# Alpha\n\nnew\n", "--expect", "1"],
+    );
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("a.md")).unwrap(),
+        "# Alpha\n\nnew\n"
+    );
+}
+
+#[test]
 fn body_overwrite_preserves_dot_closed_frontmatter() {
     let temp = setup(vec![("d", "---\ntype: note\n...\n\n# Doc\n\npara\n")]);
     let output = run_update(temp.path(), &["-k", "d", "--content", "# Doc\n\nnew\n"]);

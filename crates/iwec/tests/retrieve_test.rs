@@ -337,3 +337,71 @@ async fn retrieve_search_treats_unknown_keys_as_candidates() {
 
     assert_eq!(Fixture::result_json(&result), json!([]));
 }
+
+#[tokio::test]
+async fn retrieve_includes_frontmatter_by_default() {
+    let f = Fixture::with_documents(vec![
+        ("1", "---\nstatus: open\nsession: one\n---\n\n# First\n"),
+        ("2", "# Second\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({ "keys": ["1", "2"], "backlinks": false }),
+        )
+        .await;
+
+    assert_eq!(
+        Fixture::result_json(&result),
+        json!([
+            {
+                "key": "1",
+                "title": "First",
+                "frontmatter": {"status": "open", "session": "one"},
+                "content": "# First\n",
+                "references": [],
+                "includes": [],
+                "referencedBy": [],
+                "includedBy": []
+            },
+            {
+                "key": "2",
+                "title": "Second",
+                "content": "# Second\n",
+                "references": [],
+                "includes": [],
+                "referencedBy": [],
+                "includedBy": []
+            }
+        ])
+    );
+}
+
+#[tokio::test]
+async fn retrieve_frontmatter_false_leaves_it_out() {
+    let f = Fixture::with_documents(vec![("1", "---\nstatus: open\n---\n\n# First\n")]).await;
+
+    let result = f
+        .call_tool(
+            "iwe_retrieve",
+            json!({ "keys": ["1"], "frontmatter": false, "backlinks": false }),
+        )
+        .await;
+
+    assert_eq!(
+        Fixture::result_json(&result),
+        json!([
+            {
+                "key": "1",
+                "title": "First",
+                "content": "# First\n",
+                "references": [],
+                "includes": [],
+                "referencedBy": [],
+                "includedBy": []
+            }
+        ])
+    );
+}

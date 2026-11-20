@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `iwe_retrieve` results include each document's frontmatter as a `frontmatter` object, and `frontmatter: false` leaves it out (previously frontmatter was never shown)
+- `iwe_retrieve` `exclude` also removes the excluded keys from every edge list (previously they were still listed there with their titles)
+
 ### Fixed
 - `iwe_query` lexical search matches different forms of a word in Russian, Greek, Arabic and Tamil, and in more cases for accented languages such as French, Portuguese and Turkish (previously stemming silently did nothing for non-Latin scripts)
 - `iwe_query` lexical search finds words inside Chinese, Japanese and Korean text, and no longer matches unrelated Chinese characters that sound the same
+- A write that fails part way through restores the files it already changed (previously the earlier changes stayed on disk)
 
 ## [0.33.0](https://github.com/iwe-org/iwe/compare/iwec-v0.32.0...iwec-v0.33.0) - 2026-11-11
 

@@ -319,6 +319,10 @@ pub struct RetrieveParams {
     )]
     pub children: Option<bool>,
     #[schemars(
+        description = "Include each document's frontmatter as a `frontmatter` object, omitted when the document has none. Default: true"
+    )]
+    pub frontmatter: Option<bool>,
+    #[schemars(
         description = "Cap the number of seed documents kept before expansion — top-N by relevance when searching, the first N of the selection otherwise. Unlimited if omitted (0 also = unlimited)."
     )]
     pub limit: Option<usize>,
@@ -389,6 +393,7 @@ impl RetrieveParams {
                 .map(|k| Key::name(&k))
                 .collect::<HashSet<_>>(),
             children: self.children.unwrap_or(false),
+            frontmatter: self.frontmatter.unwrap_or(true),
             filter: None,
             limit: self.limit,
             max_documents: self.max_documents,

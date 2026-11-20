@@ -4,7 +4,7 @@
 
 This store uses the typed ontology: three document types, each with a template and a schema installed alongside this policy. The sections below are read by name: `/iwe:distill` follows "what to capture", "how to write it" and "dedup and updates"; `/iwe:reflect` follows "curation"; "at session start" goes in front of every session verbatim.
 
-The frontmatter carries two things, both optional: `distill`, how sessions are read — `max_chunk_size` (25000), `max_proposals` (5), `remind_after_days` (7; `-1` never, `0` every session) — and `injection`, the queries session start lists, each with an optional `heading`, `limit` and `max_tokens`, here the decisions first:
+The frontmatter carries three things, all optional: `distill`, how sessions are read — `max_chunk_size` (25000), `max_proposals` (5), `remind_after_days` (7; `-1` never, `0` every session); `session_start`, the block as a whole — `max_tokens`, a cap that drops listed entries from the end, and `exclude`, a filter for documents it never lists; and `injection`, the queries session start lists, each with an optional `heading`, `limit` and `max_tokens`, here the decisions first:
 
 ```yaml
 distill:

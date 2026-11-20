@@ -353,7 +353,7 @@ struct SessionComplete {
 
     #[clap(
         long,
-        help = "How many items were proposed to the user in this exchange"
+        help = "How many items were offered to the user without being staged; a staged candidate counts once it is written or rejected"
     )]
     offered: Option<usize>,
 
@@ -366,9 +366,8 @@ struct SessionComplete {
 
     #[clap(
         long = "drop-pending",
-        help = "Turn down every candidate still staged on this session, recording each title \
-                in the ledger. Only after the last answer: it cannot tell an unasked candidate \
-                from a skipped one."
+        help = "Drop every candidate still staged on this session without counting it as a \
+                rejection; pass what the user skipped with --rejected first."
     )]
     drop_pending: bool,
 
@@ -560,6 +559,15 @@ struct Retrieve {
 
     #[clap(long, help = "Populate the `includes` array with child document edges")]
     children: bool,
+
+    #[clap(
+        long,
+        num_args = 0..=1,
+        default_value_t = true,
+        default_missing_value = "true",
+        help = "Include each document's frontmatter (--frontmatter false to disable)"
+    )]
+    frontmatter: bool,
 
     #[clap(
         long,
@@ -1818,6 +1826,7 @@ fn retrieve_command(args: Retrieve) {
         backlinks: args.backlinks,
         exclude,
         children: args.children,
+        frontmatter: args.frontmatter,
         filter: None,
         limit: args.limit,
         max_documents: args.max_documents,
@@ -3770,6 +3779,8 @@ fn update_command(args: Update) {
 }
 
 fn update_body(args: Update) {
+    use liwe::query::block_update::check_document_expect;
+
     let config = get_configuration();
     let mut graph = load_graph(&config);
 
@@ -3789,6 +3800,13 @@ fn update_body(args: Update) {
         eprintln!("error: document '{}' not found", key_str);
         std::process::exit(1);
     }
+
+    let doc_expect = args.expect.as_deref().map(parse_cli_expect);
+    let doc_refs = build_doc_refs(&graph, std::slice::from_ref(&key));
+    check_document_expect("update", doc_expect, &doc_refs).unwrap_or_else(|e| {
+        eprintln!("error: {}", e);
+        std::process::exit(2);
+    });
 
     let raw = args.content.expect("body mode implies content present");
     let content = if raw == "-" {

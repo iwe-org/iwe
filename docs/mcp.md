@@ -135,8 +135,9 @@ The tool is **always strict**: every mutating application must carry an `expect`
 | `expand`  | Object over `includes` / `includedBy` / `references` / `referencedBy` → integer depths (`0` = unbounded, omitted key = not followed). Follows those edges out from each seed. Expansion is doc-only when omitted. |
 | `limit`   | Cap the number of seed documents kept **before** expansion — top-N by relevance when searching, the first N of the selection otherwise (`0` = unlimited). |
 | `max_documents` | Cap the number of documents returned **after** expansion, trimming periphery documents first (`0` = unlimited). |
+| `frontmatter` | Include each document's frontmatter as a `frontmatter` object, omitted for a document without one. Default `true`. |
 
-Output is seeds first (relevance order), then expansion. The edge-list toggles (`backlinks`, `children`) are unchanged. The pre-existing `depth`, `context`, and `links` parameters are **deprecated** aliases for `expand`'s `includes` / `includedBy` / `references`; passing `expand` together with any of them is an error.
+Output is seeds first (relevance order), then expansion. Keys in `exclude` are left out of the results and of every edge list. The edge-list toggles (`backlinks`, `children`) are unchanged. The pre-existing `depth`, `context`, and `links` parameters are **deprecated** aliases for `expand`'s `includes` / `includedBy` / `references`; passing `expand` together with any of them is an error.
 
 ### Refactoring
 

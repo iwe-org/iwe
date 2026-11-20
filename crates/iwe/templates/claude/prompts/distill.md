@@ -1,6 +1,6 @@
 # Distill
 
-Read sessions with the user and write what they select. Nothing reaches memory unselected: this skill is the only write path, and every document it writes was chosen by the user — by name ("remember that X") or from the candidates §5 puts to them.
+Read sessions with the user and write what they select. Every document this skill writes was chosen by the user — by name ("remember that X") or from the candidates §5 puts to them. That is a rule you keep, not one the store enforces: other `iwe` commands, the MCP server and the editor write to the same files, so never write a memory document outside this flow.
 
 Every command is a plain `iwe` command run from the repository root; the only permission needed is `Bash(iwe:*)`. A run is read → stage → select → write → record. Reading fills an **inbox** that lives on disk under `.iwe/claude/`, outside the graph: candidates go there before anyone is asked about them, and selection empties it. That is what lets a whole backlog be read once, deduped as a whole and asked about in one pass, and what lets a run that compacts or stops half-way pick up where it left off.
 
@@ -43,7 +43,7 @@ iwe internal claude session read
 
 serves a session from its distilled line, one window at a time (`distill.max_chunk_size`, 25000 characters by default); the header names `covers_from`, `covers_lines`, `transcript_lines` and `max_proposals`. Repeat with `--from <covers_lines>` until `covers_lines` reaches `transcript_lines`. `<session-id>/subagents/` directories are never read.
 
-At most `max_proposals` candidates per window, each weighed against the policy, with a **title** (a specific noun phrase, not a sentence), a **one-line body**, the **target key** in the convention "how to write it" names, whatever classification "what to capture" asks for, and the **evidence** — the line range plus a short quote. No quotable evidence, no candidate: an idea you raised and argued well is a suggestion, not a decision.
+At most `max_proposals` candidates per window, each weighed against the policy, with a **title** (a specific noun phrase, not a sentence), a **one-line body**, the **target key** in the convention "how to write it" names, whatever classification "what to capture" asks for, and the **evidence** — the line range plus a short quote. Copy the quote from the text `session read` printed, in double quotes: staging refuses a quote the transcript does not carry, ignoring only case and spacing. No quotable evidence, no candidate: an idea you raised and argued well is a suggestion, not a decision.
 
 Dedup each candidate against the store as "dedup and updates" says; when it names no query:
 
@@ -71,10 +71,10 @@ EOF
 Then close the read:
 
 ```bash
-iwe internal claude session complete <id> --lines <covers_lines> --offered <n>
+iwe internal claude session complete <id> --lines <covers_lines>
 ```
 
-`--lines now` for the current session; `<n>` counts what was staged, not what was asked. Staging writes nothing into the store and asks nobody anything.
+`--lines now` for the current session. A staged candidate counts as offered once the user's decision settles it, so nothing here counts it. Staging writes nothing into the store and asks nobody anything.
 
 **More than one session: one subagent each.** Reading is the long half and nobody has to sit through it. Give each subagent one session id, the policy's "what to capture", "how to write it" and "dedup and updates" sections, and the knowledge filter from the brief; have it run this section for its session and stop there. Each stages into its own session record, so parallel readers never collide.
 
@@ -84,7 +84,7 @@ iwe internal claude session complete <id> --lines <covers_lines> --offered <n>
 iwe internal claude session inbox
 ```
 
-Every staged candidate nobody has been asked about, grouped by the key it targets, so a fact several sessions raised shows up as one group instead of once per session. Merge each such group into a single candidate whose evidence names every contributing session and line range. `iwe internal claude session inbox <id>` prints one session's entries in full, evidence included, when a group needs a closer look.
+Every staged candidate nobody has been asked about, grouped by the key it targets, so a fact several sessions raised shows up as one group instead of once per session. Each entry carries its one-line body and its evidence. Merge each such group into a single candidate whose evidence names every contributing session and line range. `iwe internal claude session inbox <id>` prints one session's entries in full when a group needs a closer look.
 
 ## 5. Ask about each
 
@@ -94,7 +94,7 @@ The candidate is the **key**, not the staged entry: a group §4 merged is one de
 
 **Five or fewer, one at a time.** Show a single candidate in full — key, title, body, whether it is new or an update, classification, evidence — take the decision, and put up the next at once. Nothing runs between two questions: no lookup, no write. Use the host's question control with three options, `Remember`, `Skip` and `Edit`.
 
-**More than five, in batches.** Print the whole inbox first, as a numbered list, one line per candidate — number, key, one-line body, `new` or `updates <key>`, and how many sessions raised it. That list carries the detail; the questions carry only the disposition. Then ask with the host's control, up to four questions of four candidates each in one call — sixteen a round, `multiSelect` on every question, options labelled `<number>. <key>`, the one-line body as the option's description. **Checked is remember, unchecked is skip**: one pass, no third state. Say up front how many rounds it will take. Where the host has no such control, the same numbered list plus one plain-text ask does the same work in one exchange — *"reply with the numbers to keep: `1 3 7-9`, or `all` / `none`, and say anything you want changed."*
+**More than five, in batches.** Print the whole inbox first, as a numbered list, one line per candidate — number, key, one-line body, `new` or `updates <key>`, and how many sessions raised it. That list carries the detail; the questions carry only the disposition. Then ask with the host's control, up to four questions of four candidates each in one call — sixteen a round, `multiSelect` on every question, options labelled `<number>. <key>`, the one-line body as the option's description. **Checked is remember, unchecked is skip**: one pass, no third state. Every unchecked candidate is a skip the user made and goes into §7 as `--rejected "<title>"`. Say up front how many rounds it will take. Where the host has no such control, the same numbered list plus one plain-text ask does the same work in one exchange — *"reply with the numbers to keep: `1 3 7-9`, or `all` / `none`, and say anything you want changed."*
 
 **`Edit` is the free text either way** — the control's own `Other` answer, or text attached to a `Remember` or a `Skip`. It is instruction, not commentary. A corrected title, body or key, a detail to add, a different classification: apply it, say in one line what the candidate now is, and keep going — it is remembered in its edited form. An edit that changes the key means the candidate is written under the new key and the staged entry is settled in §7 as `--rejected "<title> — rewritten as <new-key>"`. A reason the candidate is wrong or unwanted makes it a skip, carried into §7 as `--rejected "<title> — <reason>"`. A remark that reaches past one candidate ("skip anything about the eval", "these two are the same fact") reshapes what is still to come: drop, merge or reword before it appears.
 
@@ -139,7 +139,7 @@ Once per session a candidate drew from, after the last answer:
 iwe internal claude session complete <id> --wrote <key> --rejected "<a title the user turned down and why>" --drop-pending --title "<short subject>" --summary "<one line on what the session was about>"
 ```
 
-`--wrote <key>` settles the staged candidate under that key, and a merged candidate settles on every session that raised it. `--rejected` settles by title, for the skips whose reason is worth keeping. `--drop-pending` then turns down whatever is left staged on that session, recording each title in the ledger — the sweep that closes the run and the whole of what `Skip all` needs. It cannot tell a candidate nobody asked about from one the user skipped, so it goes in the last call, never between rounds. Run this even when nothing was kept: the rejections are the only signal the policy loop learns from. `--wrote` and `--rejected` repeat; the command accumulates. `--wrote` is what ties a document to its session in the record; the document's own `session` field is the other direction. A written key under an area directory (`<area>/<slug>`) whose hub document `<area>` exists is linked into that hub by the command itself — it reports `linked <key> into its area hub <area>` — so a policy that groups into areas needs no separate append step. A `warning:` line naming a written key the knowledge filter does not select means that document is invisible to session start and to every query the filter scopes: fix the document or its link with the user before going on, and never leave it as written.
+`--wrote <key>` settles the staged candidate under that key, and a merged candidate settles on every session that raised it. `--rejected` settles by title, with the reason after ` — ` when the user gave one. Every candidate the user skipped is passed with `--rejected`, the unchecked ones of a batch and all of `Skip all` included. `--drop-pending` then clears whatever is still staged on that session as dropped, not rejected: it is the sweep for candidates nobody was asked about, it never reaches the ledger, and it goes in the last call, never between rounds. Run this even when nothing was kept: the rejections are the only signal the policy loop learns from, so a skip left to the sweep is a signal lost. `--wrote` and `--rejected` repeat; the command accumulates, records each key and rejected title once, so after a failure it is run again with the same `--wrote` and `--rejected` — it adds nothing twice. `--wrote` is what ties a document to its session in the record; the document's own `session` field is the other direction. A written key under an area directory (`<area>/<slug>`) whose hub document `<area>` exists is linked into that hub by the command itself — it reports `linked <key> into its area hub <area>` — so a policy that groups into areas needs no separate append step. A `warning: did not link <key> into its area hub <area>` line means the hub would fail its schema with the link added, so it was left untouched: fix the hub with the user, then run the command again. A `warning:` line naming a written key the knowledge filter does not select means that document is invisible to session start and to every query the filter scopes: fix the document or its link with the user before going on, and never leave it as written.
 
 `--lines` already advanced in §3 and is not repeated here. An offer declined mid-conversation, with nothing read, is recorded with `--offered` and `--rejected` alone: the distilled line stays put.
 

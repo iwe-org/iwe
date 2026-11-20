@@ -6,14 +6,14 @@ use std::time::SystemTime;
 
 use chrono::{DateTime, Duration, Local};
 use clap::Command;
-use diwe::schema::SchemaBindings;
+use diwe::schema::{render_reports_text, validate_pending_documents, SchemaBindings};
 use liwe::model::Key;
 use liwe::query::evaluate as evaluate_filter;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 
 use crate::internal::claude::digest::{count_user_turns, digest_claude_chunks, value_time};
-use crate::internal::claude::hook::index::injection_groups;
+use crate::internal::claude::hook::index::session_start_preview;
 use crate::internal::claude::hook::store::{
     flow_yaml, is_safe_id, non_empty_var, project_slug, MemoryStore,
 };
@@ -154,6 +154,9 @@ pub fn policy_problems(store: &MemoryStore, app: &Command) -> Vec<String> {
     if let Err(problem) = store.injection_slices() {
         problems.push(problem);
     }
+    if let Err(problem) = store.session_start_exclusion() {
+        problems.push(problem);
+    }
     problems.extend(legacy_knobs(store));
     problems.extend(unknown_invocations(app, &store.policy_body()));
     problems
@@ -201,16 +204,29 @@ pub fn session_brief(store: &MemoryStore, app: &Command) -> String {
     brief.push_str(&hub_census_text(store, &keys));
 
     brief.push_str("\n=== injection: what session start lists ===\n");
-    let groups = injection_groups(store);
-    if groups.is_empty() {
+    if let Ok(Some((_, text))) = store.session_start_exclusion() {
+        brief.push_str(&format!("excluded: {}\n\n", text));
+    }
+    let preview = session_start_preview(store, current_session());
+    if preview.groups.is_empty() && preview.dropped == 0 {
         brief.push_str("nothing listed yet\n");
     } else {
-        for (at, group) in groups.iter().enumerate() {
+        for (at, group) in preview.groups.iter().enumerate() {
             if at > 0 {
                 brief.push('\n');
             }
             brief.push_str(&format!("{}\n\n{}\n", group.heading, group.entries));
         }
+    }
+    if preview.dropped > 0 {
+        if !preview.groups.is_empty() {
+            brief.push('\n');
+        }
+        brief.push_str(&format!(
+            "{} more entr{} left out to fit session_start.max_tokens\n",
+            preview.dropped,
+            if preview.dropped == 1 { "y" } else { "ies" }
+        ));
     }
 
     let rejected = recent_rejections();
@@ -356,6 +372,9 @@ pub fn session_stage(
     }
 
     let proposal = parse_proposal(store, &stage.content)?;
+    if let Some(path) = &transcript {
+        check_evidence_quotes(path, &proposal.evidence)?;
+    }
     let title = proposal.title.clone();
     let target = match &proposal.updates {
         Some(key) => format!("an update of {}", key),
@@ -484,11 +503,13 @@ fn grouped_inbox() -> String {
             if !summary.is_empty() {
                 report.push_str(&format!("  {}\n", summary));
             }
+            let evidence = proposal.evidence.split_whitespace().collect::<Vec<_>>();
+            if !evidence.is_empty() {
+                report.push_str(&format!("  evidence: {}\n", evidence.join(" ")));
+            }
         }
     }
-    report.push_str(
-        "\n`session inbox <id>` prints one session's staged proposals with their evidence\n",
-    );
+    report.push_str("\n`session inbox <id>` prints one session's staged proposals in full\n");
     report
 }
 
@@ -564,6 +585,52 @@ fn parse_proposal(store: &MemoryStore, content: &str) -> Result<Proposal, String
     Ok(proposal)
 }
 
+fn check_evidence_quotes(transcript: &Path, evidence: &str) -> Result<(), String> {
+    let quotes = evidence_quotes(evidence);
+    if quotes.is_empty() {
+        return Err(
+            "--content: evidence quotes nothing — add a short quote from the transcript in double quotes"
+                .to_string(),
+        );
+    }
+    let chunks = digest_claude_chunks(transcript, 0, usize::MAX, 1)
+        .map_err(|error| format!("cannot read {}: {}", transcript.display(), error))?;
+    let text = chunks
+        .into_iter()
+        .map(|chunk| chunk.text)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let haystack = squeezed(&text);
+    for quote in quotes {
+        if !haystack.contains(&squeezed(&quote)) {
+            return Err(format!(
+                "--content: evidence quote \"{}\" does not appear in the transcript",
+                quote
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn evidence_quotes(evidence: &str) -> Vec<String> {
+    evidence
+        .replace(['\u{201c}', '\u{201d}'], "\"")
+        .replace("\\\"", "\"")
+        .split('"')
+        .skip(1)
+        .step_by(2)
+        .map(|quote| quote.trim().to_string())
+        .filter(|quote| !quote.is_empty())
+        .collect()
+}
+
+fn squeezed(text: &str) -> String {
+    text.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
 pub fn session_complete(
     store: &MemoryStore,
     options: &SessionOptions,
@@ -620,7 +687,6 @@ pub fn session_complete(
     };
 
     let keys = resolve_links(store, &complete.wrote)?;
-    let linked = link_into_hubs(store, &keys);
 
     let now = Local::now().format("%Y-%m-%d %H:%M").to_string();
     let mut record = load_session_record_or_new(&session)?;
@@ -630,6 +696,13 @@ pub fn session_complete(
     if let Some(lines) = advanced {
         record.distilled_lines = lines;
         record.distilled_at = Some(now.clone());
+        if record
+            .adopted
+            .as_ref()
+            .is_some_and(|adopted| distilled < adopted.through)
+        {
+            record.adopted = None;
+        }
     }
     if let Some(path) = &transcript {
         record.set_transcript(path);
@@ -640,13 +713,12 @@ pub fn session_complete(
     record.add_ledger(complete.offered.unwrap_or(0), &complete.rejected);
     let settled = record.settle_proposals(&keys, &complete.rejected);
     let swept = match complete.drop_pending {
-        true => record.reject_pending_proposals(),
+        true => record.dismiss_pending_proposals(),
         false => Vec::new(),
     };
-    record.add_ledger(0, &swept);
     let kept = keys.len();
     if kept > 0 {
-        record.add_capture(&now, advanced, keys);
+        record.add_capture(&now, advanced, keys.clone());
     }
     record.set_title_once(complete.title.as_deref());
     record.set_summary_once(complete.summary.as_deref());
@@ -658,6 +730,8 @@ pub fn session_complete(
             session
         ));
     }
+
+    let (linked, blocked) = link_into_hubs(store, &keys);
 
     if advance.is_some() {
         mark_reminded(&now);
@@ -683,12 +757,12 @@ pub fn session_complete(
                 "settled the staged proposal \"{}\": rejected\n",
                 item.title
             )),
-            ProposalStatus::Pending => {}
+            ProposalStatus::Pending | ProposalStatus::Dropped => {}
         }
     }
     if !swept.is_empty() {
         report.push_str(&format!(
-            "dropped {} staged proposal(s) nobody kept: {}\n",
+            "dropped {} staged proposal(s) left without a decision: {}\n",
             swept.len(),
             swept.join(", ")
         ));
@@ -701,6 +775,14 @@ pub fn session_complete(
     }
     for (key, area) in &linked {
         report.push_str(&format!("linked {} into its area hub {}\n", key, area));
+    }
+    for (key, area, reason) in &blocked {
+        report.push_str(&format!(
+            "warning: did not link {} into its area hub {}: the hub would fail its schema\n{}\n",
+            key,
+            area,
+            reason.trim_end()
+        ));
     }
     Ok(report)
 }
@@ -842,8 +924,14 @@ fn hub_census_text(store: &MemoryStore, keys: &[Key]) -> String {
     text
 }
 
-fn link_into_hubs(store: &MemoryStore, keys: &[String]) -> Vec<(String, String)> {
+type BlockedLink = (String, String, String);
+
+fn link_into_hubs(
+    store: &MemoryStore,
+    keys: &[String],
+) -> (Vec<(String, String)>, Vec<BlockedLink>) {
     let mut linked = Vec::new();
+    let mut blocked = Vec::new();
     for key in keys {
         let Some(area) = area_of(key) else {
             continue;
@@ -861,11 +949,26 @@ fn link_into_hubs(store: &MemoryStore, keys: &[String]) -> Vec<(String, String)>
         };
         let content = format!("{}\n\n[{}]({})\n", raw.trim_end(), title, key);
         let content = normalize_content(store.config(), &Key::name(area), &content);
+        if let Some(reason) = hub_schema_failure(store, area, &content) {
+            blocked.push((key.clone(), area.to_string(), reason));
+            continue;
+        }
         if std::fs::write(&path, content).is_ok() {
             linked.push((key.clone(), area.to_string()));
         }
     }
-    linked
+    (linked, blocked)
+}
+
+fn hub_schema_failure(store: &MemoryStore, area: &str, content: &str) -> Option<String> {
+    if store.config().schemas.is_empty() {
+        return None;
+    }
+    match validate_pending_documents(store.config(), &[(Key::name(area), content.to_string())]) {
+        Ok(run) if run.reports.is_empty() => None,
+        Ok(run) => Some(render_reports_text(&run.reports)),
+        Err(errors) => Some(errors.join("\n")),
+    }
 }
 
 pub fn session_adopt(options: &SessionOptions, sessions: &[String]) -> Result<String, String> {
@@ -936,7 +1039,7 @@ pub fn session_adopt(options: &SessionOptions, sessions: &[String]) -> Result<St
                 continue;
             }
         };
-        record.distilled_lines = row.lines;
+        record.adopt_through(row.lines);
         record.set_transcript(&row.path);
         record.set_size(row.size, row.lines);
         let dropped = record.drop_pending_proposals();
@@ -1098,9 +1201,10 @@ fn rows_of(directory: &Path, options: &SessionOptions, scan: Scan) -> Vec<Row> {
                 .as_ref()
                 .map(|record| record.distilled_lines)
                 .unwrap_or(0);
-            let distilled_at = record
+            let adopted = record
                 .as_ref()
-                .and_then(|record| record.distilled_at.clone());
+                .map(|record| record.is_adopted())
+                .unwrap_or(false);
             let remembered = record
                 .as_ref()
                 .and_then(|record| record.remembered_lines(transcript.size));
@@ -1129,9 +1233,7 @@ fn rows_of(directory: &Path, options: &SessionOptions, scan: Scan) -> Vec<Row> {
                 State::Active
             } else if behind > 0 && turns > 0 {
                 State::Pending
-            } else if distilled_at.is_some() {
-                State::Done
-            } else if distilled > 0 {
+            } else if adopted {
                 State::Adopted
             } else {
                 State::Done

@@ -2463,6 +2463,10 @@ fn test_retrieve_frontmatter_not_duplicated_in_body() {
         ````markdown #doc
         ---
         title: My Document
+        frontmatter:
+          status: draft
+          tags:
+          - rust
         ---
 
         # My Document
@@ -2962,4 +2966,140 @@ fn test_retrieve_lists_every_missing_document() {
     assert!(!success);
     assert_eq!(stdout, "");
     assert_eq!(stderr, "Error: Documents not found: 'missing', 'other'\n");
+}
+
+#[test]
+fn test_retrieve_exclude_hides_the_key_from_edge_lists() {
+    let dir = setup_workspace();
+
+    write(dir.path().join("parent.md"), "# Parent\n\n[Child](child)\n").unwrap();
+    write(
+        dir.path().join("child.md"),
+        "# Child\n\nSee [Hidden](hidden).\n",
+    )
+    .unwrap();
+    write(dir.path().join("hidden.md"), "# Hidden\n\n[Child](child)\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "child",
+            "--expand-references",
+            "--children",
+            "-e",
+            "hidden",
+            "-f",
+            "json",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(
+        stdout,
+        indoc! {r##"
+            [
+              {
+                "key": "child",
+                "title": "Child",
+                "content": "# Child\n\nSee [Hidden](hidden).\n",
+                "references": [],
+                "includes": [],
+                "referencedBy": [],
+                "includedBy": [
+                  {
+                    "key": "parent",
+                    "title": "Parent",
+                    "sectionPath": []
+                  }
+                ]
+              }
+            ]
+        "##}
+    );
+}
+
+#[test]
+fn test_retrieve_includes_frontmatter_unless_disabled() {
+    let dir = setup_workspace();
+    write(
+        dir.path().join("first.md"),
+        "---\nstatus: open\nsession: one\n---\n\n# First\n\nFirst content.\n",
+    )
+    .unwrap();
+    write(
+        dir.path().join("second.md"),
+        "# Second\n\nSecond content.\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["-k", "first", "-k", "second", "-f", "json"]);
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(
+        stdout,
+        indoc! {r##"
+            [
+              {
+                "key": "first",
+                "title": "First",
+                "frontmatter": {
+                  "status": "open",
+                  "session": "one"
+                },
+                "content": "# First\n\nFirst content.\n",
+                "references": [],
+                "includes": [],
+                "referencedBy": [],
+                "includedBy": []
+              },
+              {
+                "key": "second",
+                "title": "Second",
+                "content": "# Second\n\nSecond content.\n",
+                "references": [],
+                "includes": [],
+                "referencedBy": [],
+                "includedBy": []
+              }
+            ]
+        "##}
+    );
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "first"]);
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(
+        stdout,
+        indoc! {"
+            ````markdown #first
+            ---
+            title: First
+            frontmatter:
+              status: open
+              session: one
+            ---
+
+            # First
+
+            First content.
+            ````
+        "}
+    );
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "first", "--frontmatter", "false"]);
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(
+        stdout,
+        indoc! {"
+            ````markdown #first
+            ---
+            title: First
+            ---
+
+            # First
+
+            First content.
+            ````
+        "}
+    );
 }

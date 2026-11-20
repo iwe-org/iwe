@@ -25,8 +25,9 @@ Without `-k` (and without a search flag), reads the document key from stdin (for
 | `--expand-referenced-by [N]`   | Follow inbound reference links, pulling documents that link to this seed within `N` hops. Bare = `1`; `0` = unbounded; omitted = not followed. | not followed |
 | `--lexical <Q>`                | Seed search: BM25 full-text query on title and body. Runs a seed query and switches to the search-indexed loader.                     | none       |
 | `--fuzzy <Q>`                  | Seed search: fuzzy query on title and key. Combine with `--lexical` to fuse (RRF).                                                    | none       |
-| `-e, --exclude <KEY>`          | Exclude document key(s) from results (repeatable).                                    | none       |
+| `-e, --exclude <KEY>`          | Exclude document key(s) from results and from every edge list (repeatable).           | none       |
 | `-b, --backlinks`              | Populate the `referencedBy` edge list in output (does not add documents).             | true       |
+| `--frontmatter [BOOL]`         | Include each document's frontmatter in the output; `--frontmatter false` leaves it out. | true       |
 | `--children`                   | Populate the `includes` edge list in output (does not add documents).                 | false      |
 | `-f, --format <FMT>`           | Output format: `markdown`, `keys`, `json`, `yaml`.                                    | `markdown` |
 | `--filter <EXPR>`              | Inline YAML filter expression restricting the candidate set. See [Query Language](query-language.md). | none       |
@@ -210,29 +211,31 @@ The target document shows: `**Back links:** [Some Document](some-document)`
 
 ### Markdown Format (default)
 
-Documents are rendered with YAML frontmatter containing metadata, followed by the document content:
+Each document is rendered as a fenced block named after its key, with a YAML header containing metadata, followed by the document content:
 
-``` markdown
+`````` markdown
+````markdown #my-document
 ---
-document:
-  key: my-document
-  title: My Document
-  includedBy:
-  - key: index
-    title: Index
-  referencedBy:
-  - key: related-doc
-    title: Related Doc
+title: My Document
+frontmatter:
+  status: draft
+referencedBy:
+- key: related-doc
+  title: Related Doc
+includedBy:
+- key: index
+  title: Index
 ---
 
 # My Document
 
 Original document content preserved exactly as written.
-```
+````
+``````
 
 Each document in the result set includes:
 
-- YAML frontmatter with `key`, `title`, `includedBy`, and `referencedBy`
+- a YAML header with `title`, the document's own frontmatter under `frontmatter` (when it has any and `--frontmatter false` is not given), and the non-empty edge lists
 - Document content with original headers preserved
 - Two empty lines after each document for easy parsing
 
@@ -255,6 +258,9 @@ One key per line, suitable for piping to other commands or building exclude list
   {
     "key": "my-document",
     "title": "My Document",
+    "frontmatter": {
+      "status": "draft"
+    },
     "content": "# My Document\n\nContent here...",
     "includedBy": [
       {
