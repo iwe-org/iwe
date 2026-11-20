@@ -33,12 +33,16 @@ globset = { workspace = true, optional = true }
 csv = { workspace = true, optional = true }
 tiktoken-rs = { workspace = true, optional = true }
 bm25 = { workspace = true, optional = true }
+rust-stemmers = { workspace = true, optional = true }
+stop-words = { workspace = true, optional = true }
+unicode-segmentation = { workspace = true, optional = true }
+deunicode = { workspace = true, optional = true }
 fuzzy-matcher = { workspace = true, optional = true }
 notify = { version = "8", optional = true }
 
 [features]
 default = ["engine"]
-engine = ["dep:bm25", "dep:tiktoken-rs", "dep:fuzzy-matcher", "dep:notify", "dep:csv", "dep:globset"]
+engine = ["dep:bm25", "dep:rust-stemmers", "dep:stop-words", "dep:unicode-segmentation", "dep:deunicode", "dep:tiktoken-rs", "dep:fuzzy-matcher", "dep:notify", "dep:csv", "dep:globset"]
 
 [dev-dependencies]
 env_logger.workspace = true

@@ -4,6 +4,8 @@ pub mod file;
 pub mod find;
 pub mod fs;
 pub mod keys;
+#[cfg(feature = "engine")]
+mod lexical_tokenizer;
 pub mod loader;
 
 pub use keys::require_documents;

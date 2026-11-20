@@ -6,6 +6,8 @@ use rayon::prelude::*;
 
 use liwe::model::Key;
 
+use crate::lexical_tokenizer::LexicalTokenizer;
+
 pub use bm25::{Language, ScoredDocument};
 
 const DEFAULT_AVGDL: f32 = 256.0;
@@ -43,8 +45,29 @@ pub fn parse_language(name: &str) -> Language {
     }
 }
 
+fn fitted_embedder(language: &Language, corpus: &[&str]) -> Embedder<u32, LexicalTokenizer> {
+    EmbedderBuilder::<u32, LexicalTokenizer>::with_tokenizer_and_fit_to_corpus(
+        LexicalTokenizer::new(language),
+        corpus,
+    )
+    .k1(K1)
+    .b(B)
+    .build()
+}
+
+fn embedder_with_avgdl(language: &Language, avgdl: f32) -> Embedder<u32, LexicalTokenizer> {
+    EmbedderBuilder::<u32, LexicalTokenizer>::with_tokenizer_and_fit_to_corpus(
+        LexicalTokenizer::new(language),
+        &[],
+    )
+    .avgdl(avgdl)
+    .k1(K1)
+    .b(B)
+    .build()
+}
+
 pub struct Bm25Index {
-    embedder: Embedder<u32>,
+    embedder: Embedder<u32, LexicalTokenizer>,
     keys: Vec<Option<Key>>,
     ids: HashMap<Key, u32>,
     docs: Vec<Option<Embedding<u32>>>,
@@ -57,11 +80,7 @@ pub struct Bm25Index {
 impl Bm25Index {
     pub fn build(docs: Vec<(Key, String)>, language: Language) -> Self {
         let corpus: Vec<&str> = docs.iter().map(|(_, text)| text.as_str()).collect();
-        let embedder: Embedder<u32> =
-            EmbedderBuilder::<u32>::with_fit_to_corpus(language.clone(), &corpus)
-                .k1(K1)
-                .b(B)
-                .build();
+        let embedder = fitted_embedder(&language, &corpus);
 
         let embedded: Vec<(Key, Embedding<u32>)> = if docs.len() < PARALLEL_EMBED_THRESHOLD {
             docs.into_iter()
@@ -96,11 +115,7 @@ impl Bm25Index {
     }
 
     pub fn empty(language: Language) -> Self {
-        let embedder = EmbedderBuilder::<u32>::with_avgdl(DEFAULT_AVGDL)
-            .language_mode(language.clone())
-            .k1(K1)
-            .b(B)
-            .build();
+        let embedder = embedder_with_avgdl(&language, DEFAULT_AVGDL);
         Self {
             embedder,
             keys: Vec::new(),
@@ -169,11 +184,7 @@ impl Bm25Index {
     /// stored embedding, so this needs no document text.
     fn refit(&mut self) {
         let avgdl = self.current_avgdl();
-        self.embedder = EmbedderBuilder::<u32>::with_avgdl(avgdl)
-            .language_mode(self.language.clone())
-            .k1(K1)
-            .b(B)
-            .build();
+        self.embedder = embedder_with_avgdl(&self.language, avgdl);
 
         self.postings.clear();
         let mut docs = std::mem::take(&mut self.docs);
@@ -372,11 +383,7 @@ fn reweight(embedding: &mut Embedding<u32>, avgdl: f32) {
 
 impl Clone for Bm25Index {
     fn clone(&self) -> Self {
-        let embedder = EmbedderBuilder::<u32>::with_avgdl(self.embedder.avgdl())
-            .language_mode(self.language.clone())
-            .k1(K1)
-            .b(B)
-            .build();
+        let embedder = embedder_with_avgdl(&self.language, self.embedder.avgdl());
         Self {
             embedder,
             keys: self.keys.clone(),
@@ -434,6 +441,65 @@ mod tests {
         );
         assert_eq!(keys(&index, "weather"), vec![key("note")]);
         assert_eq!(keys(&index, "thunderstorms"), vec![key("note")]);
+    }
+
+    #[test]
+    fn inflected_query_matches_document_in_non_latin_script() {
+        let index = Bm25Index::build(
+            vec![
+                (key("first"), "Новые книги лежат на столе".to_string()),
+                (key("second"), "Общий обзор проекта".to_string()),
+            ],
+            Language::Russian,
+        );
+        assert_eq!(keys(&index, "книгой"), vec![key("first")]);
+    }
+
+    #[test]
+    fn unaccented_query_matches_accented_document() {
+        let index = Bm25Index::build(
+            vec![
+                (key("first"), "Los niños juegan".to_string()),
+                (key("second"), "Una casa grande".to_string()),
+            ],
+            Language::Spanish,
+        );
+        assert_eq!(keys(&index, "nino"), vec![key("first")]);
+    }
+
+    #[test]
+    fn cjk_query_matches_pairs_and_not_same_sounding_characters() {
+        let index = Bm25Index::build(
+            vec![
+                (key("first"), "院子里有一棵苹果树".to_string()),
+                (key("second"), "和平的国家".to_string()),
+            ],
+            Language::English,
+        );
+        assert_eq!(keys(&index, "苹果"), vec![key("first")]);
+        assert_eq!(keys(&index, "苹果树"), vec![key("first")]);
+    }
+
+    #[test]
+    fn korean_query_matches_word_with_attached_particle() {
+        let index = Bm25Index::build(
+            vec![
+                (key("first"), "사과를 먹었다".to_string()),
+                (key("second"), "새로운 책".to_string()),
+            ],
+            Language::English,
+        );
+        assert_eq!(keys(&index, "사과"), vec![key("first")]);
+    }
+
+    #[test]
+    fn upserted_and_cloned_indexes_tokenize_like_a_built_one() {
+        let mut index = Bm25Index::empty(Language::Russian);
+        index.upsert(key("first"), "Новые книги".to_string());
+        index.upsert(key("second"), "苹果树".to_string());
+        let cloned = index.clone();
+        assert_eq!(keys(&cloned, "книгой"), vec![key("first")]);
+        assert_eq!(keys(&cloned, "苹果"), vec![key("second")]);
     }
 
     #[test]
