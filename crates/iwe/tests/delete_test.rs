@@ -449,6 +449,52 @@ fn test_delete_unlinks_table_cell_links() {
     );
 }
 
+#[test]
+fn test_delete_prefers_the_key_that_keeps_its_extension() {
+    let temp_dir = setup_workspace_with_docs(vec![
+        ("page", "# Page\n"),
+        ("page.md", "# Other\n"),
+        ("linker", "# Linker\n\n[Page](page)\n"),
+    ]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["page.md"]);
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(!temp_path.join("page.md.md").exists());
+    assert_eq!(
+        read_to_string(temp_path.join("page.md")).unwrap(),
+        "# Page\n"
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("linker.md")).unwrap(),
+        "# Linker\n\n[Page](page)\n"
+    );
+}
+
+#[test]
+fn test_delete_strips_the_extension_when_no_such_key_exists() {
+    let temp_dir = setup_workspace_with_docs(vec![("page", "# Page\n"), ("other", "# Other\n")]);
+    let temp_path = temp_dir.path();
+
+    let output = run_delete_command(temp_path, &["page.md"]);
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(!temp_path.join("page.md").exists());
+    assert_eq!(
+        read_to_string(temp_path.join("other.md")).unwrap(),
+        "# Other\n"
+    );
+}
+
 fn setup_workspace_with_docs(docs: Vec<(&str, &str)>) -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let temp_path = temp_dir.path();

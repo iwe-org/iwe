@@ -247,6 +247,15 @@ impl Graph {
         self.keys.contains_key(key)
     }
 
+    pub fn resolve_existing_key(&self, name: &str) -> Key {
+        let exact = Key::from_stripped(name);
+        if self.has_key(&exact) {
+            exact
+        } else {
+            Key::name(name)
+        }
+    }
+
     pub fn refresh_ref_text(&mut self, key: &Key) {
         if !self.keys.contains_key(key) {
             self.keys_to_ref_text.remove(key);
@@ -1248,6 +1257,51 @@ mod new_api_tests {
         graph.insert_document("a".into(), "# A\n".to_string());
         assert!(graph.has_key(&"a".into()));
         assert!(!graph.has_key(&"missing".into()));
+    }
+
+    #[test]
+    fn resolve_existing_key_prefers_exact_key_with_extension() {
+        let mut graph = Graph::new();
+        graph.insert_document(Key::from_stripped("page"), "# Page\n".to_string());
+        graph.insert_document(Key::from_stripped("page.md"), "# Other\n".to_string());
+        assert_eq!(
+            graph.resolve_existing_key("page.md"),
+            Key::from_stripped("page.md")
+        );
+    }
+
+    #[test]
+    fn resolve_existing_key_prefers_exact_key_with_djot_extension() {
+        let mut graph = Graph::new();
+        graph.insert_document(Key::from_stripped("page"), "# Page\n".to_string());
+        graph.insert_document(Key::from_stripped("page.dj"), "# Other\n".to_string());
+        assert_eq!(
+            graph.resolve_existing_key("page.dj"),
+            Key::from_stripped("page.dj")
+        );
+    }
+
+    #[test]
+    fn resolve_existing_key_strips_extension_when_no_exact_key() {
+        let mut graph = Graph::new();
+        graph.insert_document(Key::from_stripped("page"), "# Page\n".to_string());
+        assert_eq!(
+            graph.resolve_existing_key("page.md"),
+            Key::from_stripped("page")
+        );
+        assert_eq!(
+            graph.resolve_existing_key("page"),
+            Key::from_stripped("page")
+        );
+    }
+
+    #[test]
+    fn resolve_existing_key_strips_extension_for_missing_document() {
+        let graph = Graph::new();
+        assert_eq!(
+            graph.resolve_existing_key("missing.md"),
+            Key::from_stripped("missing")
+        );
     }
 
     #[test]

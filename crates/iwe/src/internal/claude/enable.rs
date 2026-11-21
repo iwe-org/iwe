@@ -7,7 +7,7 @@ use serde_yaml::{Mapping, Value as YamlValue};
 use crate::init::{current_root, init_workspace, InitOptions, Overrides};
 use crate::internal::claude::hook::store::{workspace_path_of, STARTER_KNOBS};
 use crate::internal::claude::record::{ensure_state_ignore, RECORDS_DIRECTORY};
-use crate::new::{write_document, ContentOptions, DocumentCreator, IfExists};
+use crate::new::{ContentOptions, DocumentCreator, IfExists};
 
 pub const STARTER_BODY: &str = include_str!("../../../templates/claude/enable/starter.md");
 pub const TYPED_BODY: &str = include_str!("../../../templates/claude/enable/typed.md");
@@ -307,7 +307,7 @@ fn create_document(config: &diwe::config::Configuration, key: &str, content: &st
             return false;
         }
     };
-    match write_document(&prepared) {
+    match creator.write_document(&prepared) {
         Ok(_) => true,
         Err(error) => {
             eprintln!("error: {}", error);
