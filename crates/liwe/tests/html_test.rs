@@ -53,7 +53,7 @@ fn assert_update(docs: &str, yaml: &str, expected: &str) {
     let graph = Graph::import(&from_indoc(docs), MarkdownOptions::default(), None);
     let op = parse_operation(yaml, OperationKind::Update).expect("operation parses");
     match execute(&op, &graph).expect("update succeeds") {
-        Outcome::Update { changes } => {
+        Outcome::Update { changes, .. } => {
             let mut state = graph.export();
             for (key, markdown) in changes {
                 state.insert(key.to_string(), markdown);

@@ -16,10 +16,17 @@ use crate::query::update;
 
 #[derive(Debug)]
 pub enum Outcome {
-    Find { matches: Vec<FindMatch> },
+    Find {
+        matches: Vec<FindMatch>,
+    },
     Count(usize),
-    Update { changes: Vec<(Key, String)> },
-    Delete { removed: Vec<Key> },
+    Update {
+        matched: usize,
+        changes: Vec<(Key, String)>,
+    },
+    Delete {
+        removed: Vec<Key>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -207,14 +214,19 @@ fn execute_update(op: &UpdateOp, graph: &Graph) -> Result<Outcome, EvalError> {
         let keys: Vec<Key> = rows.iter().map(|(key, _)| key.clone()).collect();
         check_frontmatter_parsed(graph, &keys)?;
     }
+    let matched = rows.len();
     let mut changes = Vec::new();
-    for (key, mut mapping) in rows {
+    for (key, original) in rows {
+        let mut mapping = original.clone();
         update::apply(&op.update, &mut mapping);
         let body = bodies.as_mut().and_then(|map| map.remove(&key));
+        if body.is_none() && mapping == original {
+            continue;
+        }
         let markdown = render_with_frontmatter(graph, &key, body, mapping);
         changes.push((key, markdown));
     }
-    Ok(Outcome::Update { changes })
+    Ok(Outcome::Update { matched, changes })
 }
 
 fn execute_delete(op: &DeleteOp, graph: &Graph) -> Result<Outcome, EvalError> {

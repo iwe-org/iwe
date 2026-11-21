@@ -14,13 +14,29 @@ fn assert_update_with(options: FormatOptions, docs: &str, yaml: &str, expected: 
     let graph = Graph::import(&state, options, None);
     let op = parse_operation(yaml, OperationKind::Update).expect("operation parses");
     match execute(&op, &graph).expect("update succeeds") {
-        Outcome::Update { changes } => {
+        Outcome::Update { changes, .. } => {
             let mut new_state = graph.export();
             for (key, markdown) in changes {
                 new_state.insert(key.to_string(), markdown);
             }
             assert_str_eq!(expected, to_indoc(&new_state));
         }
+        other => panic!("expected Update, got {:?}", other),
+    }
+}
+
+fn update_changes(docs: &str, yaml: &str) -> (usize, Vec<(String, String)>) {
+    let state = from_indoc(docs);
+    let graph = Graph::import(&state, MarkdownOptions::default(), None);
+    let op = parse_operation(yaml, OperationKind::Update).expect("operation parses");
+    match execute(&op, &graph).expect("update succeeds") {
+        Outcome::Update { matched, changes } => (
+            matched,
+            changes
+                .into_iter()
+                .map(|(key, markdown)| (key.to_string(), markdown))
+                .collect(),
+        ),
         other => panic!("expected Update, got {:?}", other),
     }
 }
@@ -1234,5 +1250,50 @@ fn replace_text_parses_djot_content() {
 
             *strong* text
         "},
+    );
+}
+
+#[test]
+fn block_op_matching_nothing_leaves_document_unchanged() {
+    assert_eq!(
+        update_changes(
+            indoc! {"
+                # Doc
+
+                ```python
+                code
+                ```
+            "},
+            indoc! {"
+                filter: {}
+                update:
+                  $delete:
+                    $header: missing
+                    expect: 0
+            "},
+        ),
+        (1, vec![]),
+    );
+}
+
+#[test]
+fn block_op_matching_a_block_changes_document() {
+    assert_eq!(
+        update_changes(
+            indoc! {"
+                # Doc
+
+                keep
+
+                drop
+            "},
+            indoc! {"
+                filter: {}
+                update:
+                  $delete:
+                    $paragraph: { $text: drop }
+            "},
+        ),
+        (1, vec![("1".to_string(), "# Doc\n\nkeep\n".to_string())]),
     );
 }
