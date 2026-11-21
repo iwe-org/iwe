@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0](https://github.com/iwe-org/iwe/compare/diwe-v0.34.0...diwe-v0.35.0) - 2026-11-21
+
 ### Fixed
 - `Bm25Index` indexes every single Chinese, Japanese and Korean character alongside character pairs, so `search` finds a single character inside longer text (previously only a character standing on its own was found)
 - `start_watcher` and `start_poll_watcher` wait for a just-changed file to stop changing before reading it (previously a file caught mid-save could be reported empty or cut short)
+- `retrieve` exclusion compares edge keys exactly, so excluding a key that keeps a document extension removes only its edges (previously the edge key's extension was stripped before comparing)
 
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/diwe-v0.33.0...diwe-v0.34.0) - 2026-11-19
 

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0](https://github.com/iwe-org/iwe/compare/liwe-v0.34.0...liwe-v0.35.0) - 2026-11-21
+
+### Added
+- `Graph::resolve_existing_key` turns a user-supplied key into the key of an existing document, keeping a document extension when a document with that exact key exists
+
+### Changed
+- Ordered lists carry their start number: `OrderedList` has a `start` field, `Node::OrderedList(u64)` and `Block::OrderedList(u64, Vec<Blocks>)` take it, and `GraphBuilder::ordered_list`, `GraphBuilder::ordered_list_and` and `GraphNode::new_ordered_list` require it (previously every ordered list started at 1)
+- Key filters keep keys as written (`KeyOp` constructors, anchor constructors and `$key` parsing no longer strip `.md`/`.dj`), and `evaluate` resolves them against the graph (previously the extension was always stripped when the filter was built)
+- `Outcome::Update` gains a `matched` count, and `changes` lists only documents an operation actually changed (previously every matched document was listed)
+
+### Fixed
+- Code block text is written as is apart from the final newline (previously leading and trailing blank lines were trimmed)
+- Markdown code block whose info string contains a backtick is written with a `~~~` fence (previously it got an invalid backtick fence)
+- Block update content in `$replace`, `$insertBefore`, `$insertAfter` and `$replaceText` is parsed in the graph's format (previously always as markdown)
+
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/liwe-v0.33.0...liwe-v0.34.0) - 2026-11-19
 
 Workspace version bump — no user-visible changes in this crate.

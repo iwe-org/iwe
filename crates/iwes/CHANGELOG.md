@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0](https://github.com/iwe-org/iwe/compare/iwes-v0.34.0...iwes-v0.35.0) - 2026-11-21
+
+### Changed
+- Formatting of djot documents follows the `increment_ordered_list_bullets` setting for ordered lists (previously items were always numbered in sequence)
+
 ### Fixed
 - Workspace symbol search finds a single Chinese, Japanese or Korean character inside longer text (previously only a character standing on its own was found)
 - Files changed outside the editor are read once they finish saving (previously a file caught mid-save could be loaded empty or cut short)
+- Formatting keeps blank lines at the start and end of a code block (previously they were dropped)
+- Formatting writes a code block whose info string contains a backtick with a `~~~` fence (previously it got a backtick fence that is not valid markdown)
+- Formatting keeps the start number of an ordered list, so a list starting at `3.` stays at `3.` (previously it was renumbered from `1.`)
 
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/iwes-v0.33.0...iwes-v0.34.0) - 2026-11-19
 

@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0](https://github.com/iwe-org/iwe/compare/iwec-v0.34.0...iwec-v0.35.0) - 2026-11-21
+
 ### Fixed
 - `iwe_query` lexical search finds a single Chinese, Japanese or Korean character inside longer text (previously only a character standing on its own was found)
 - Files changed outside the server are read once they finish saving (previously a file caught mid-save could be loaded empty or cut short)
+- Written documents keep blank lines at the start and end of a code block (previously they were dropped)
+- Written documents use a `~~~` fence for a code block whose info string contains a backtick (previously it got a backtick fence that is not valid markdown)
+- Written documents keep the start number of an ordered list, so a list starting at `3.` stays at `3.` (previously it was renumbered from `1.`)
+- `iwe_query` update block content is read as djot in a djot workspace (previously it was read as markdown, so `*strong*` became `_emphasis_`)
+- Keys that keep a document extension, such as `page.md` for a file named `page.md.md`, select that document in `iwe_find`, `iwe_delete`, `iwe_retrieve`, `iwe_update`, `iwe_rename`, `iwe_attach` and other tools that take a key (previously the extension was stripped again and the tool acted on `page`)
+- `iwe_normalize` writes a document whose key keeps a document extension back to its own file (previously it could overwrite the file of the key without the extension)
+- `iwe_query` update with a block operation that matches nothing, or a `$set` to the value a field already has, leaves the document untouched and out of `changed` (previously every matched document was listed and could be rewritten with formatting changes)
+- `iwe_find` `refs_to` and `refs_from` select documents linked to a key that keeps a document extension, such as `page.md` (previously the extension was stripped and the tool used `page`)
+- `iwe_retrieve` `exclude` removes edges to exactly the excluded document when keys keep a document extension (previously edges to `page` and `page.md` were confused)
 
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/iwec-v0.33.0...iwec-v0.34.0) - 2026-11-19
 

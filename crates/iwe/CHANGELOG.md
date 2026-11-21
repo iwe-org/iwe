@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0](https://github.com/iwe-org/iwe/compare/iwe-v0.34.0...iwe-v0.35.0) - 2026-11-21
+
+### Changed
+- Djot documents follow the `increment_ordered_list_bullets` setting for ordered lists (previously items were always numbered in sequence)
+
 ### Fixed
 - `find --lexical` finds a single Chinese, Japanese or Korean character inside longer text (previously only a character standing on its own was found)
+- Code blocks keep blank lines at their start and end (previously they were dropped whenever a document was written)
+- A code block whose info string contains a backtick is written with a `~~~` fence (previously it got a backtick fence that is not valid markdown, and `normalize` then turned the block into plain text)
+- Ordered lists keep their start number, so a list starting at `3.` stays at `3.` (previously it was renumbered from `1.`)
+- `create`, `update --content`, `update` block content and `normalize -k` read djot in a djot workspace (previously the content was read as markdown, so `*strong*` became `_emphasis_`)
+- Keys that keep a document extension, such as `page.md` for a file named `page.md.md`, select that document in `find`, `delete`, `retrieve`, `update`, `rename`, `attach`, `normalize`, `$key` in `--filter` and other places that take a key (previously the extension was stripped again and the command acted on `page`)
+- `retrieve --exclude` removes edges to exactly the excluded document when keys keep a document extension, such as `page.md` for a file named `page.md.md` (previously edges to `page` and `page.md` were confused)
+- `create` and `new` with `--if-exists fail`, `skip` or `suffix` no longer overwrite a document that another process writes between the existence check and the write
+- `attach` refuses to overwrite a target file that exists but is not indexed, for example an ignored one (previously it replaced the file's content)
+- `update` with a block operation that matches nothing, or `--set` to the value a field already has, leaves the document untouched (previously it could rewrite the file with formatting changes)
+- Memory session start no longer repeats a document whose key keeps a document extension in later sections (previously it could be listed twice)
 
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/iwe-v0.33.0...iwe-v0.34.0) - 2026-11-19
 
