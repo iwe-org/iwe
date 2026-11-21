@@ -20,7 +20,7 @@ fn assert_update(docs: &str, op: UpdateOp, expected: &str) {
     let state = from_indoc(docs);
     let graph = Graph::import(&state, MarkdownOptions::default(), None);
     match execute(&update(op), &graph).expect("update succeeds") {
-        Outcome::Update { changes } => {
+        Outcome::Update { changes, .. } => {
             let mut new_state = graph.export();
             for (key, markdown) in changes {
                 new_state.insert(key.to_string(), markdown);

@@ -3990,7 +3990,7 @@ fn update_mutation(args: Update) {
     let workspace_path = get_workspace_path(&config);
     let ext = config.format.extension();
 
-    let docs: Vec<(Key, String)> = if update_doc.block_ops.is_empty() {
+    let (matched, docs): (usize, Vec<(Key, String)>) = if update_doc.block_ops.is_empty() {
         let find_op = FindOp::new().filter(filter);
         let outcome = run_op(&Operation::Find(find_op), &graph).expect("find query does not fail");
         let keys: Vec<Key> = match outcome {
@@ -4006,13 +4006,19 @@ fn update_mutation(args: Update) {
             eprintln!("error: {}", e);
             std::process::exit(2);
         });
-        keys.into_iter()
+        let matched = keys.len();
+        let docs = keys
+            .into_iter()
             .filter_map(|key| {
                 let file_path = workspace_path.join(format!("{}.{}", key, ext));
                 let raw_content = std::fs::read_to_string(&file_path).ok()?;
                 let (_, body) = split_raw_frontmatter(&raw_content);
-                let mut mapping = graph.frontmatter(&key).cloned().unwrap_or_default();
+                let original = graph.frontmatter(&key).cloned().unwrap_or_default();
+                let mut mapping = original.clone();
                 liwe::query::update::apply(&update_doc, &mut mapping);
+                if mapping == original {
+                    return None;
+                }
                 let yaml = if mapping.is_empty() {
                     String::new()
                 } else {
@@ -4021,7 +4027,8 @@ fn update_mutation(args: Update) {
                 };
                 Some((key, format!("{}{}", yaml, body)))
             })
-            .collect()
+            .collect();
+        (matched, docs)
     } else {
         let mut op = UpdateOp::new(filter, update_doc);
         if let Some(expect) = doc_expect {
@@ -4032,7 +4039,7 @@ fn update_mutation(args: Update) {
             std::process::exit(2);
         });
         match outcome {
-            Outcome::Update { changes } => changes,
+            Outcome::Update { matched, changes } => (matched, changes),
             _ => unreachable!(),
         }
     };
@@ -4041,7 +4048,7 @@ fn update_mutation(args: Update) {
         gate_pending(&config, &docs);
     }
 
-    let (matched, changed) = write_changed_documents(&workspace_path, ext, &docs, args.dry_run);
+    let changed = write_changed_documents(&workspace_path, ext, &docs, args.dry_run);
 
     if args.strict && !args.dry_run {
         let targets: Vec<Key> = docs.iter().map(|(key, _)| key.clone()).collect();
@@ -4101,7 +4108,7 @@ fn write_changed_documents(
     ext: &str,
     docs: &[(Key, String)],
     dry_run: bool,
-) -> (usize, usize) {
+) -> usize {
     let mut changed = 0;
     for (key, content) in docs {
         let file_path = workspace_path.join(format!("{}.{}", key, ext));
@@ -4117,7 +4124,7 @@ fn write_changed_documents(
         }
         changed += 1;
     }
-    (docs.len(), changed)
+    changed
 }
 
 fn report_mutation(quiet: bool, dry_run: bool, matched: usize, changed: usize) {

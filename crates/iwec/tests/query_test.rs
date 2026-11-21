@@ -214,6 +214,29 @@ async fn query_update_dry_run_does_not_write() {
 }
 
 #[tokio::test]
+async fn query_update_matching_no_blocks_reports_no_changes() {
+    let f = Fixture::with_documents(vec![("1", "# Roadmap\n\n```python\ncode\n```\n")]).await;
+
+    let result = f
+        .call_tool(
+            "iwe_query",
+            json!({
+                "operation": "update",
+                "document": indoc! {"
+                    filter: { $key: '1' }
+                    expect: 1
+                    update:
+                      $delete: { $header: Missing, expect: 0 }
+                "},
+            }),
+        )
+        .await;
+
+    let out = Fixture::result_json(&result);
+    assert_eq!(out, json!({"dry_run": false, "changed": []}));
+}
+
+#[tokio::test]
 async fn query_delete_removes_document() {
     let f = Fixture::with_documents(vec![("1", "# One\n\nbody\n"), ("2", "# Two\n\nbody\n")]).await;
 
