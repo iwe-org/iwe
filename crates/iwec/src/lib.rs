@@ -377,7 +377,7 @@ impl RetrieveParams {
         )
     }
 
-    fn base_options(&self) -> RetrieveOptions {
+    fn base_options(&self, graph: &Graph) -> RetrieveOptions {
         let (includes, included_by, references, referenced_by) = self.expansion();
         RetrieveOptions {
             includes,
@@ -390,7 +390,7 @@ impl RetrieveParams {
                 .clone()
                 .unwrap_or_default()
                 .into_iter()
-                .map(|k| Key::name(&k))
+                .map(|k| graph.resolve_existing_key(&k))
                 .collect::<HashSet<_>>(),
             children: self.children.unwrap_or(false),
             frontmatter: self.frontmatter.unwrap_or(true),
@@ -802,12 +802,16 @@ impl IweServer {
             .map_err(|e| McpError::invalid_params(e, None))?;
         let graph = self.graph.read().await;
         let reader = DocumentReader::new(&graph);
-        let mut options = params.base_options();
+        let mut options = params.base_options(&graph);
 
         let output: RetrieveOutput = if params.searching() {
             let key_filter = (!params.keys.is_empty()).then(|| {
                 Filter::Key(query::KeyOp::In(
-                    params.keys.iter().map(|k| Key::name(k)).collect(),
+                    params
+                        .keys
+                        .iter()
+                        .map(|k| graph.resolve_existing_key(k))
+                        .collect(),
                 ))
             });
             let selector_filter = params.selector.to_filter();
@@ -825,7 +829,11 @@ impl IweServer {
             let seeds = diwe::search_query::ranked(&graph, &index, &candidates, &spec);
             reader.retrieve_many(&seeds, &options)
         } else {
-            let keys: Vec<Key> = params.keys.iter().map(|k| Key::name(k)).collect();
+            let keys: Vec<Key> = params
+                .keys
+                .iter()
+                .map(|k| graph.resolve_existing_key(k))
+                .collect();
             require_documents(&graph, &keys).map_err(|e| McpError::invalid_params(e, None))?;
             options.filter = params.selector.to_filter();
             reader.retrieve_many(&keys, &options)
@@ -846,7 +854,7 @@ impl IweServer {
         let explicit_keys: Vec<Key> = params
             .keys
             .filter(|k| !k.is_empty())
-            .map(|ks| ks.iter().map(|k| Key::name(k)).collect())
+            .map(|ks| ks.iter().map(|k| graph.resolve_existing_key(k)).collect())
             .unwrap_or_default();
         require_documents(&graph, &explicit_keys).map_err(|e| McpError::invalid_params(e, None))?;
 
@@ -888,6 +896,7 @@ impl IweServer {
     ) -> Result<CallToolResult, McpError> {
         let graph = self.graph.read().await;
         if let Some(key) = params.key {
+            let key = graph.resolve_existing_key(&key).to_string();
             let all_stats = KeyStatistics::from_graph(&graph);
             let stat = all_stats
                 .into_iter()
@@ -896,7 +905,7 @@ impl IweServer {
                     McpError::invalid_params(format!("Document '{}' not found", key), None)
                 })?;
             let similar = SimilarityIndex::build(&graph, self.config.search_language())
-                .similar(&Key::name(&key));
+                .similar(&Key::from_stripped(&key));
             to_json_result(&KeyStatisticsReport {
                 stats: stat,
                 similar_pages: similar,
@@ -915,7 +924,7 @@ impl IweServer {
         Parameters(params): Parameters<SquashParams>,
     ) -> Result<CallToolResult, McpError> {
         let graph = self.graph.read().await;
-        let key = Key::name(&params.key);
+        let key = graph.resolve_existing_key(&params.key);
         let depth = params.depth.unwrap_or(2);
 
         if (&*graph).get_node_id(&key).is_none() {
@@ -1045,8 +1054,8 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<UpdateParams>,
     ) -> Result<CallToolResult, McpError> {
-        let key = Key::name(&params.key);
         let mut graph = self.graph.write().await;
+        let key = graph.resolve_existing_key(&params.key);
 
         if (&*graph).get_node_id(&key).is_none() {
             return Err(McpError::invalid_params(
@@ -1102,8 +1111,8 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<DeleteParams>,
     ) -> Result<CallToolResult, McpError> {
-        let key = Key::name(&params.key);
         let mut graph = self.graph.write().await;
+        let key = graph.resolve_existing_key(&params.key);
         let changes = op_delete(&graph, &key).map_err(op_error_to_mcp)?;
 
         self.ensure_schema_clean(&pending_from_changes(&changes))?;
@@ -1228,12 +1237,12 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<RenameParams>,
     ) -> Result<CallToolResult, McpError> {
-        let old_key = Key::name(&params.old_key);
         let new_key = Key::name(&params.new_key);
         if key_escapes_workspace(new_key.as_str()) {
             return Err(escaping_key_error(&params.new_key));
         }
         let mut graph = self.graph.write().await;
+        let old_key = graph.resolve_existing_key(&params.old_key);
         let changes = op_rename(&graph, &old_key, &new_key).map_err(op_error_to_mcp)?;
 
         self.ensure_schema_clean(&pending_from_changes(&changes))?;
@@ -1252,8 +1261,8 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<ExtractParams>,
     ) -> Result<CallToolResult, McpError> {
-        let source_key = Key::name(&params.key);
         let mut graph = self.graph.write().await;
+        let source_key = graph.resolve_existing_key(&params.key);
 
         if (&*graph).get_node_id(&source_key).is_none() {
             return Err(McpError::invalid_params(
@@ -1339,8 +1348,8 @@ impl IweServer {
         &self,
         Parameters(params): Parameters<InlineParams>,
     ) -> Result<CallToolResult, McpError> {
-        let source_key = Key::name(&params.key);
         let mut graph = self.graph.write().await;
+        let source_key = graph.resolve_existing_key(&params.key);
 
         if (&*graph).get_node_id(&source_key).is_none() {
             return Err(McpError::invalid_params(
@@ -1439,7 +1448,7 @@ impl IweServer {
         let mut updates = Changes::new();
         if self.base_path.is_some() {
             for (key_str, normalized_content) in state {
-                let key = Key::name(&key_str);
+                let key = Key::from_stripped(&key_str);
                 if self.read_file(&key).as_deref() != Some(normalized_content.as_str()) {
                     updates.add_update(key, normalized_content);
                 }
@@ -1498,7 +1507,7 @@ impl IweServer {
 
         let mut graph = self.graph.write().await;
 
-        let source_key = Key::name(source_key_str);
+        let source_key = graph.resolve_existing_key(source_key_str);
         if (&*graph).get_node_id(&source_key).is_none() {
             return Err(McpError::invalid_params(
                 format!("Document '{}' not found", source_key_str),
@@ -1529,9 +1538,13 @@ impl IweServer {
                 }
             };
 
-            let target_key = Key::name(&self.render_key_template(&attach.key_template).map_err(
-                |e| McpError::invalid_params(format!("action '{}': {}", action_name, e), None),
-            )?);
+            let target_key = graph.resolve_existing_key(
+                &self
+                    .render_key_template(&attach.key_template)
+                    .map_err(|e| {
+                        McpError::invalid_params(format!("action '{}': {}", action_name, e), None)
+                    })?,
+            );
 
             match attach_reference(&graph, &target_key, &source_key, &reference_text) {
                 AttachTarget::AlreadyAttached => continue,
@@ -1634,7 +1647,7 @@ impl IweServer {
         Parameters(args): Parameters<ReviewPromptArgs>,
     ) -> Result<GetPromptResult, McpError> {
         let graph = self.graph.read().await;
-        let key = Key::name(&args.key);
+        let key = graph.resolve_existing_key(&args.key);
         require_documents(&graph, std::slice::from_ref(&key))
             .map_err(|e| McpError::invalid_params(e, None))?;
         let reader = DocumentReader::new(&graph);
@@ -1671,7 +1684,7 @@ impl IweServer {
         Parameters(args): Parameters<RefactorPromptArgs>,
     ) -> Result<GetPromptResult, McpError> {
         let graph = self.graph.read().await;
-        let key = Key::name(&args.key);
+        let key = graph.resolve_existing_key(&args.key);
         require_documents(&graph, std::slice::from_ref(&key))
             .map_err(|e| McpError::invalid_params(e, None))?;
         let reader = DocumentReader::new(&graph);
@@ -1791,7 +1804,7 @@ impl ServerHandler for IweServer {
         }
 
         if let Some(key_str) = uri.strip_prefix("iwe://documents/") {
-            let key = Key::name(key_str);
+            let key = graph.resolve_existing_key(key_str);
             let content = graph
                 .get_document(&key)
                 .ok_or_else(|| {

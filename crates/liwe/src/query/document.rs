@@ -210,16 +210,16 @@ pub enum KeyOp {
 
 impl KeyOp {
     pub fn eq(key: impl Into<String>) -> Self {
-        KeyOp::Eq(Key::name(&key.into()))
+        KeyOp::Eq(Key::from_stripped(&key.into()))
     }
     pub fn ne(key: impl Into<String>) -> Self {
-        KeyOp::Ne(Key::name(&key.into()))
+        KeyOp::Ne(Key::from_stripped(&key.into()))
     }
     pub fn in_(keys: &[&str]) -> Self {
-        KeyOp::In(keys.iter().map(|s| Key::name(s)).collect())
+        KeyOp::In(keys.iter().map(|s| Key::from_stripped(s)).collect())
     }
     pub fn nin(keys: &[&str]) -> Self {
-        KeyOp::Nin(keys.iter().map(|s| Key::name(s)).collect())
+        KeyOp::Nin(keys.iter().map(|s| Key::from_stripped(s)).collect())
     }
     pub fn starts_with(prefix: impl Into<String>) -> Self {
         KeyOp::StartsWith(Key::name(&prefix.into()))
@@ -237,7 +237,7 @@ pub struct InclusionAnchor {
 impl InclusionAnchor {
     pub fn new(key: impl Into<String>, min_depth: u32, max_depth: u32) -> Self {
         InclusionAnchor {
-            match_filter: Filter::Key(KeyOp::Eq(Key::name(&key.into()))),
+            match_filter: Filter::Key(KeyOp::Eq(Key::from_stripped(&key.into()))),
             min_depth,
             max_depth,
             size: None,
@@ -271,7 +271,7 @@ pub struct ReferenceAnchor {
 impl ReferenceAnchor {
     pub fn new(key: impl Into<String>, min_distance: u32, max_distance: u32) -> Self {
         ReferenceAnchor {
-            match_filter: Filter::Key(KeyOp::Eq(Key::name(&key.into()))),
+            match_filter: Filter::Key(KeyOp::Eq(Key::from_stripped(&key.into()))),
             min_distance,
             max_distance,
             size: None,

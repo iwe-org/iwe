@@ -2,6 +2,8 @@ use diwe::config::{
     Configuration, Format, MarkdownOptions, NoteTemplate, Patterns, SchemaBinding, WorkspaceOptions,
 };
 use indoc::indoc;
+use iwe::new::{DocumentCreator, IfExists, PreparedDocument};
+use liwe::model::Key;
 use std::collections::HashMap;
 use std::fs::{create_dir_all, read_to_string, write};
 use std::io::Write;
@@ -63,6 +65,98 @@ fn run_piped(work_dir: &Path, args: &[&str], stdin_content: &str) -> Output {
         .write_all(stdin_content.as_bytes())
         .expect("write stdin");
     child.wait_with_output().expect("run iwe create")
+}
+
+fn prepared_note(workspace: &Path, if_exists: IfExists) -> PreparedDocument {
+    PreparedDocument {
+        key: Key::name("note"),
+        base_key: Key::name("note"),
+        path: workspace.join("note.md"),
+        content: "# New\n".to_string(),
+        if_exists,
+    }
+}
+
+fn write_prepared(workspace: &Path, if_exists: IfExists) -> Result<Option<String>, String> {
+    let config = Configuration::default();
+    let creator = DocumentCreator::new(&config, workspace.to_path_buf());
+    creator
+        .write_document(&prepared_note(workspace, if_exists))
+        .map(|created| created.map(|doc| doc.path.display().to_string()))
+}
+
+#[test]
+fn write_document_fails_when_the_file_appears_after_the_check() {
+    let temp = setup();
+    write(temp.path().join("note.md"), "# Existing\n").unwrap();
+
+    assert_eq!(
+        write_prepared(temp.path(), IfExists::Fail),
+        Err("Document 'note' already exists".to_string())
+    );
+    assert_eq!(
+        read_to_string(temp.path().join("note.md")).unwrap(),
+        "# Existing\n"
+    );
+}
+
+#[test]
+fn write_document_skips_when_the_file_appears_after_the_check() {
+    let temp = setup();
+    write(temp.path().join("note.md"), "# Existing\n").unwrap();
+
+    assert_eq!(write_prepared(temp.path(), IfExists::Skip), Ok(None));
+    assert_eq!(
+        read_to_string(temp.path().join("note.md")).unwrap(),
+        "# Existing\n"
+    );
+}
+
+#[test]
+fn write_document_suffixes_when_the_file_appears_after_the_check() {
+    let temp = setup();
+    write(temp.path().join("note.md"), "# Existing\n").unwrap();
+
+    let created = write_prepared(temp.path(), IfExists::Suffix);
+
+    let expected = temp
+        .path()
+        .join("note-1.md")
+        .canonicalize()
+        .unwrap()
+        .display()
+        .to_string();
+    assert_eq!(created, Ok(Some(expected)));
+    assert_eq!(
+        read_to_string(temp.path().join("note.md")).unwrap(),
+        "# Existing\n"
+    );
+    assert_eq!(
+        read_to_string(temp.path().join("note-1.md")).unwrap(),
+        "# New\n"
+    );
+}
+
+#[test]
+fn write_document_overrides_an_existing_file() {
+    let temp = setup();
+    write(temp.path().join("note.md"), "# Existing\n").unwrap();
+
+    let expected = temp
+        .path()
+        .join("note.md")
+        .canonicalize()
+        .unwrap()
+        .display()
+        .to_string();
+    assert_eq!(
+        write_prepared(temp.path(), IfExists::Override),
+        Ok(Some(expected))
+    );
+    assert_eq!(
+        read_to_string(temp.path().join("note.md")).unwrap(),
+        "# New\n"
+    );
 }
 
 fn stderr_of(output: &Output) -> String {

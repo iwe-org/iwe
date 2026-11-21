@@ -1389,7 +1389,7 @@ pub fn check_path_segments(segments: &[String]) -> Result<(), ParseError> {
 
 fn parse_key_op(value: &Value, op: &'static str) -> Result<KeyOp, ParseError> {
     if let Some(s) = value.as_str() {
-        return Ok(KeyOp::Eq(Key::name(s)));
+        return Ok(KeyOp::Eq(Key::from_stripped(s)));
     }
     if !value.is_mapping() {
         return Err(ParseError::GraphOpExpectedScalarOrMapping { op });
@@ -1422,10 +1422,10 @@ fn key_op_from_map(m: RawKeyOpMap, op: &'static str) -> Result<KeyOp, ParseError
         return Err(ParseError::KeyOpForbidden { op });
     }
     if let Some(s) = m.eq {
-        return Ok(KeyOp::Eq(Key::name(&s)));
+        return Ok(KeyOp::Eq(Key::from_stripped(&s)));
     }
     if let Some(s) = m.ne {
-        return Ok(KeyOp::Ne(Key::name(&s)));
+        return Ok(KeyOp::Ne(Key::from_stripped(&s)));
     }
     if let Some(list) = m.in_ {
         return Ok(KeyOp::In(string_list(list, op)?));
@@ -1449,7 +1449,7 @@ fn string_list(list: Vec<Value>, op: &'static str) -> Result<Vec<Key>, ParseErro
     list.into_iter()
         .map(|v| {
             v.as_str()
-                .map(Key::name)
+                .map(Key::from_stripped)
                 .ok_or(ParseError::OperatorExpectedString { op })
         })
         .collect()

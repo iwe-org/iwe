@@ -179,9 +179,9 @@ impl FilterArgs {
 
         match self.key.len() {
             0 => {}
-            1 => conjuncts.push(Filter::Key(KeyOp::Eq(Key::name(&self.key[0])))),
+            1 => conjuncts.push(Filter::Key(KeyOp::Eq(Key::from_stripped(&self.key[0])))),
             _ => conjuncts.push(Filter::Key(KeyOp::In(
-                self.key.iter().map(|s| Key::name(s)).collect(),
+                self.key.iter().map(|s| Key::from_stripped(s)).collect(),
             ))),
         }
 
@@ -274,8 +274,8 @@ fn parse_key_depth(s: &str) -> Result<KeyDepth, String> {
         let depth: u8 = d
             .parse()
             .map_err(|_| format!("invalid depth in '{}': depth must be 0..=255", s))?;
-        Ok(KeyDepth::with_depth(Key::name(k), depth))
+        Ok(KeyDepth::with_depth(Key::from_stripped(k), depth))
     } else {
-        Ok(KeyDepth::bare(Key::name(s)))
+        Ok(KeyDepth::bare(Key::from_stripped(s)))
     }
 }
