@@ -146,7 +146,7 @@ pub trait NodeIter<'a>: Sized {
     }
 
     fn is_ordered_list(&self) -> bool {
-        matches!(self.node(), Some(Node::OrderedList()))
+        matches!(self.node(), Some(Node::OrderedList(_)))
     }
 
     fn is_bullet_list(&self) -> bool {

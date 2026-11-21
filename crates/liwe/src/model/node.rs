@@ -13,7 +13,7 @@ pub enum Node {
     Section(Inlines),
     Quote(),
     BulletList(),
-    OrderedList(),
+    OrderedList(u64),
     Leaf(Inlines),
     Item(Option<bool>, Inlines),
     Raw(Option<String>, String),

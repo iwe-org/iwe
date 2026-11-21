@@ -74,7 +74,7 @@ impl Tree {
     }
 
     pub fn is_list(&self) -> bool {
-        matches!(self.node, Node::BulletList() | Node::OrderedList())
+        matches!(self.node, Node::BulletList() | Node::OrderedList(_))
     }
 
     pub fn is_quote(&self) -> bool {
@@ -109,8 +109,8 @@ impl Tree {
                 id: self.id,
                 line_range: self.line_range.clone(),
                 node: match &self.node {
-                    Node::BulletList() => Node::OrderedList(),
-                    Node::OrderedList() => Node::BulletList(),
+                    Node::BulletList() => Node::OrderedList(1),
+                    Node::OrderedList(_) => Node::BulletList(),
                     _ => self.node.clone(),
                 },
                 children: self.children.clone(),
@@ -891,7 +891,7 @@ mod tests {
         let ordered_list_node = Tree {
             id: 0,
             line_range: None,
-            node: Node::OrderedList(),
+            node: Node::OrderedList(1),
             children: vec![],
         };
         let non_list_node = Tree {

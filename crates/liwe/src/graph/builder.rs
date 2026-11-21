@@ -132,8 +132,8 @@ impl<'a> GraphBuilder<'a> {
         self.bullet_list_and(|_| {});
     }
 
-    pub fn ordered_list(&mut self) {
-        self.ordered_list_and(|_| {});
+    pub fn ordered_list(&mut self, start: u64) {
+        self.ordered_list_and(start, |_| {});
     }
 
     pub fn bullet_list_and<F>(&mut self, f: F)
@@ -144,12 +144,12 @@ impl<'a> GraphBuilder<'a> {
         self.add_node_and(GraphNode::new_bullet_list(self.id, new_id), f);
     }
 
-    pub fn ordered_list_and<F>(&mut self, f: F)
+    pub fn ordered_list_and<F>(&mut self, start: u64, f: F)
     where
         F: FnOnce(&mut GraphBuilder),
     {
         let new_id = self.store.new_node_id();
-        self.add_node_and(GraphNode::new_ordered_list(self.id, new_id), f);
+        self.add_node_and(GraphNode::new_ordered_list(self.id, new_id, start), f);
     }
 
     pub fn section_text(&mut self, text: &str) -> &mut Self {
@@ -303,7 +303,9 @@ impl<'a> GraphBuilder<'a> {
             }
             Node::Quote() => self.attach_node(GraphNode::new_quote(self.id, id)),
             Node::BulletList() => self.attach_node(GraphNode::new_bullet_list(self.id, id)),
-            Node::OrderedList() => self.attach_node(GraphNode::new_ordered_list(self.id, id)),
+            Node::OrderedList(start) => {
+                self.attach_node(GraphNode::new_ordered_list(self.id, id, start))
+            }
             Node::Leaf(inlines) => {
                 let line_id = self.store.add_line(inlines);
                 self.attach_node(GraphNode::new_leaf(self.id, id, line_id))

@@ -169,7 +169,7 @@ fn block_kind(node: &Node) -> BlockKind {
     match node {
         Node::Leaf(_) => BlockKind::Paragraph,
         Node::BulletList() => BlockKind::BulletList,
-        Node::OrderedList() => BlockKind::OrderedList,
+        Node::OrderedList(_) => BlockKind::OrderedList,
         Node::Raw(_, _) => BlockKind::Code,
         Node::Quote() => BlockKind::Quote,
         Node::Table(_) => BlockKind::Table,

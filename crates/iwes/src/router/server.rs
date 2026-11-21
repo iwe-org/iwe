@@ -844,7 +844,7 @@ impl Server {
                         .map(|s| format!("- {}", s));
                     (Some((end - 1) as u32), first_item_text)
                 }
-                Node::OrderedList()
+                Node::OrderedList(_)
                     if tree.children.len() > 1 && line_range.end > line_range.start + 1 =>
                 {
                     let end = self.section_end_line(tree, line_range.end);

@@ -195,7 +195,7 @@ impl<'a> SectionsBuilder<'a> {
                 self.builder.set_id(id);
             }
             OrderedList(list) => {
-                self.builder.ordered_list();
+                self.builder.ordered_list(list.start);
                 self.set_lines_range(list.line_range.clone());
                 self.builder.set_insert(true);
                 let id = self.builder.id();

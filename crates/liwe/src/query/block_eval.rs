@@ -285,7 +285,7 @@ impl BlockIndex {
                 }
                 (level + 1, p)
             }
-            Node::Quote() | Node::BulletList() | Node::OrderedList() => (1, path.to_vec()),
+            Node::Quote() | Node::BulletList() | Node::OrderedList(_) => (1, path.to_vec()),
             _ => (level, path.to_vec()),
         };
         let mut owner = i;
@@ -706,7 +706,7 @@ fn kind_of(node: &Node) -> Kind {
         Node::Leaf(_) => Kind::Paragraph,
         Node::Raw(_, _) => Kind::Code,
         Node::Quote() => Kind::Quote,
-        Node::BulletList() | Node::OrderedList() => Kind::List,
+        Node::BulletList() | Node::OrderedList(_) => Kind::List,
         Node::Table(_) => Kind::Table,
         Node::Reference(_) => Kind::Ref,
         Node::HorizontalRule() => Kind::Hr,

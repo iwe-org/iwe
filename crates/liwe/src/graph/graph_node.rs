@@ -106,6 +106,7 @@ pub struct BulletList {
 #[derive(Clone, Debug, PartialEq)]
 pub struct OrderedList {
     id: NodeId,
+    start: u64,
 
     prev: NodeId,
     next: MaybeNodeId,
@@ -128,6 +129,10 @@ impl BulletList {
 impl OrderedList {
     pub fn id(&self) -> NodeId {
         self.id
+    }
+
+    pub fn start(&self) -> u64 {
+        self.start
     }
 
     pub fn child_id(&self) -> MaybeNodeId {
@@ -623,9 +628,10 @@ impl GraphNode {
         })
     }
 
-    pub fn new_ordered_list(prev: NodeId, id: NodeId) -> GraphNode {
+    pub fn new_ordered_list(prev: NodeId, id: NodeId, start: u64) -> GraphNode {
         GraphNode::OrderedList(OrderedList {
             id,
+            start,
             prev,
             next: None,
             child: None,

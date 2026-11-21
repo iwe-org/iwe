@@ -123,7 +123,7 @@ impl DocumentBlock {
                         .map(|block| block.to_section_plain_text())
                         .collect::<Vec<String>>()
                         .join("\n");
-                    format!("{}. {}", index + 1, item_text)
+                    format!("{}. {}", ordered_list.start + index as u64, item_text)
                 })
                 .collect::<Vec<String>>()
                 .join("\n"),
@@ -515,6 +515,7 @@ pub struct BlockQuote {
 #[derive(Clone, Debug, PartialEq)]
 pub struct OrderedList {
     pub line_range: LineRange,
+    pub start: u64,
     pub items: Vec<DocumentBlocks>,
 }
 

@@ -321,9 +321,10 @@ impl DjotEventsReader {
             Container::List { kind, .. } => {
                 let line_range = self.to_line_range(range);
                 match kind {
-                    ListKind::Ordered { .. } => {
+                    ListKind::Ordered { start, .. } => {
                         self.push_block(DocumentBlock::OrderedList(OrderedList {
                             line_range,
+                            start,
                             items: vec![],
                         }));
                     }

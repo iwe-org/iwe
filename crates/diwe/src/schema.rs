@@ -6,7 +6,6 @@ use globset::{GlobBuilder, GlobMatcher};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 use liwe::graph::Graph;
-use liwe::markdown::MarkdownReader;
 use liwe::model::Key;
 use liwe::operations::Changes;
 use liwe::schema::{build_document, compile_schema, CompiledSchema, Violation};
@@ -267,7 +266,7 @@ pub fn validate_pending_documents_in(
 ) -> Result<ValidationRun, Vec<String>> {
     let mut graph = Graph::new_with_options(config.format_options());
     for (key, content) in docs {
-        graph.from_markdown(key.clone(), content, MarkdownReader::new());
+        graph.update_key(key.clone(), content);
     }
     let keys: Vec<Key> = docs.iter().map(|(key, _)| key.clone()).collect();
     validate_documents_in(dir, config, &graph, &keys)
@@ -364,6 +363,7 @@ mod tests {
 
     use std::fs::{create_dir_all, write};
 
+    use liwe::markdown::MarkdownReader;
     use liwe::schema::Crumb;
     use tempfile::TempDir;
 

@@ -128,9 +128,12 @@ impl Projector {
                         blocks.push(Block::BulletList(self.with(0).project_list_item(child)));
                     }
                 }
-                Node::OrderedList() => {
+                Node::OrderedList(start) => {
                     if let Some(child) = iter.child() {
-                        blocks.push(Block::OrderedList(self.with(0).project_list_item(child)));
+                        blocks.push(Block::OrderedList(
+                            start,
+                            self.with(0).project_list_item(child),
+                        ));
                     }
                 }
                 Node::Leaf(_) => {

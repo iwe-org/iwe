@@ -539,6 +539,59 @@ fn escaped_div_fence_stays_literal() {
 }
 
 #[test]
+fn code_block_keeps_leading_and_trailing_blank_lines() {
+    let input = indoc! {"
+        ```
+
+        let value = 1;
+
+        ```
+        "};
+    assert_eq!(input, roundtrip(input));
+    assert_eq!(input, roundtrip(&roundtrip(input)));
+}
+
+#[test]
+fn code_block_with_language_keeps_blank_lines() {
+    let input = indoc! {"
+        ``` rust
+
+        let value = 1;
+        ```
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn ordered_list_keeps_start_number() {
+    let input = indoc! {"
+        3. alpha
+        4. beta
+        "};
+    assert_eq!(input, roundtrip(input));
+}
+
+#[test]
+fn ordered_list_keeps_start_number_without_increment() {
+    assert_eq!(
+        indoc! {"
+            3. alpha
+            3. beta
+            "},
+        format_with(
+            indoc! {"
+                3. alpha
+                4. beta
+                "},
+            FormattingOptions {
+                increment_ordered_list_bullets: Some(false),
+                ..Default::default()
+            }
+        )
+    );
+}
+
+#[test]
 fn raw_block_stays_raw() {
     let input = indoc! {"
         ``` =latex
