@@ -248,6 +248,84 @@ fn noop_reports_honestly_and_does_not_rewrite() {
 }
 
 #[test]
+fn unmatched_block_op_leaves_unnormalized_document_untouched() {
+    let original = "# Doc\n\n```python\ncode\n```\n";
+    let temp = setup(vec![("d", original)]);
+    let output = run_update(
+        temp.path(),
+        &[
+            "-k",
+            "d",
+            "--delete",
+            r#"{ $header: missing, expect: 0 }"#,
+            "--expect",
+            "1",
+        ],
+    );
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "Matched 1 document(s), 0 changed\n"
+    );
+    assert_eq!(read_to_string(temp.path().join("d.md")).unwrap(), original);
+}
+
+#[test]
+fn unmatched_block_op_dry_run_reports_no_change() {
+    let original = "# Doc\n\n```python\ncode\n```\n";
+    let temp = setup(vec![("d", original)]);
+    let output = run_update(
+        temp.path(),
+        &[
+            "-k",
+            "d",
+            "--delete",
+            r#"{ $header: missing, expect: 0 }"#,
+            "--expect",
+            "1",
+            "--dry-run",
+        ],
+    );
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "Matched 1 document(s), 0 would change\n"
+    );
+    assert_eq!(read_to_string(temp.path().join("d.md")).unwrap(), original);
+}
+
+#[test]
+fn matched_block_op_rewrites_unnormalized_document() {
+    let temp = setup(vec![("d", "# Doc\n\n```python\ncode\n```\n\ndrop\n")]);
+    let output = run_update(
+        temp.path(),
+        &["-k", "d", "--delete", r#"{ $paragraph: drop, expect: 1 }"#],
+    );
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "Updated 1 document(s)\n"
+    );
+    assert_eq!(
+        read_to_string(temp.path().join("d.md")).unwrap(),
+        "# Doc\n\n``` python\ncode\n```\n"
+    );
+}
+
+#[test]
+fn set_with_same_value_does_not_rewrite() {
+    let original = "---\nstatus:   draft\n---\n# Doc\n";
+    let temp = setup(vec![("d", original)]);
+    let output = run_update(temp.path(), &["-k", "d", "--set", "status=draft"]);
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "Matched 1 document(s), 0 changed\n"
+    );
+    assert_eq!(read_to_string(temp.path().join("d.md")).unwrap(), original);
+}
+
+#[test]
 fn dry_run_does_not_write() {
     let original = indoc! {"
         # Doc

@@ -421,12 +421,9 @@ pub fn plan_and_apply(
 
     let mut out = HashMap::new();
     for (d, doc) in docs.into_iter().enumerate() {
-        let tree = if edits[d].is_empty() {
-            doc.tree
-        } else {
-            apply_edits(&doc.tree, &edits[d])
-        };
-        out.insert(doc.key, tree);
+        if !edits[d].is_empty() {
+            out.insert(doc.key, apply_edits(&doc.tree, &edits[d]));
+        }
     }
     Ok(out)
 }

@@ -1179,7 +1179,7 @@ impl IweServer {
                 let mut graph = self.graph.write().await;
                 let outcome = execute(&op, &graph)
                     .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-                let Outcome::Update { changes } = outcome else {
+                let Outcome::Update { changes, .. } = outcome else {
                     unreachable!("update operation yields an update outcome")
                 };
                 let changed: Vec<ChangeEntry> = changes
