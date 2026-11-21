@@ -1027,3 +1027,31 @@ fn normalize_outside_a_project_fails_without_writing() {
         "Title\n=====\n"
     );
 }
+
+#[test]
+fn normalize_keeps_a_tilde_fence_with_a_backtick_in_the_info_string() {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+    let document = "# Doc\n\n~~~ a`b\ncode\n~~~\n";
+    write(temp_path.join("doc.md"), document).unwrap();
+
+    let output = run_normalize_command(temp_path);
+
+    assert!(output.status.success());
+    assert_eq!(read_to_string(temp_path.join("doc.md")).unwrap(), document);
+}
+
+#[test]
+fn normalize_keeps_code_block_blank_lines_and_list_start_number() {
+    let temp_dir = TempDir::new().expect("tempdir");
+    let temp_path = temp_dir.path();
+    setup_iwe_config(temp_path);
+    let document = "# Doc\n\n```\n\nlet value = 1;\n\n```\n\n3. alpha\n4. beta\n";
+    write(temp_path.join("doc.md"), document).unwrap();
+
+    let output = run_normalize_command(temp_path);
+
+    assert!(output.status.success());
+    assert_eq!(read_to_string(temp_path.join("doc.md")).unwrap(), document);
+}

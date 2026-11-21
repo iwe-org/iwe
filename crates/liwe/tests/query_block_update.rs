@@ -1,13 +1,17 @@
 use indoc::indoc;
 use liwe::graph::Graph;
-use liwe::model::config::MarkdownOptions;
+use liwe::model::config::{DjotOptions, FormatOptions, MarkdownOptions};
 use liwe::query::{execute, parse_operation, OperationKind, Outcome};
 use liwe::state::{from_indoc, to_indoc};
 use pretty_assertions::assert_str_eq;
 
 fn assert_update(docs: &str, yaml: &str, expected: &str) {
+    assert_update_with(MarkdownOptions::default().into(), docs, yaml, expected);
+}
+
+fn assert_update_with(options: FormatOptions, docs: &str, yaml: &str, expected: &str) {
     let state = from_indoc(docs);
-    let graph = Graph::import(&state, MarkdownOptions::default(), None);
+    let graph = Graph::import(&state, options, None);
     let op = parse_operation(yaml, OperationKind::Update).expect("operation parses");
     match execute(&op, &graph).expect("update succeeds") {
         Outcome::Update { changes } => {
@@ -1151,6 +1155,84 @@ fn insert_after_header_whose_subsections_all_match_goes_below_the_header() {
             ## C
 
             new
+        "},
+    );
+}
+
+#[test]
+fn insert_after_keeps_ordered_list_start_number() {
+    assert_update(
+        indoc! {"
+            # Doc
+
+            anchor
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $paragraph: anchor
+                content: |
+                  3. one
+                  4. two
+        "},
+        indoc! {"
+            # Doc
+
+            anchor
+
+            3. one
+            4. two
+        "},
+    );
+}
+
+#[test]
+fn insert_after_parses_djot_content() {
+    assert_update_with(
+        DjotOptions::default().into(),
+        indoc! {"
+            # Doc
+
+            anchor
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $insertAfter:
+                $paragraph: anchor
+                content: \"*strong* and _emph_\"
+        "},
+        indoc! {"
+            # Doc
+
+            anchor
+
+            *strong* and _emph_
+        "},
+    );
+}
+
+#[test]
+fn replace_text_parses_djot_content() {
+    assert_update_with(
+        DjotOptions::default().into(),
+        indoc! {"
+            # Doc
+
+            old
+        "},
+        indoc! {"
+            filter: {}
+            update:
+              $replaceText:
+                $paragraph: old
+                to: \"*strong* text\"
+        "},
+        indoc! {"
+            # Doc
+
+            *strong* text
         "},
     );
 }

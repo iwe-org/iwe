@@ -306,9 +306,10 @@ impl MarkdownEventsReader {
             }
             Tag::List(num) => {
                 let line_range = self.to_line_range(range);
-                if num.is_some() {
+                if let Some(start) = num {
                     self.push_block(DocumentBlock::OrderedList(OrderedList {
                         line_range,
+                        start,
                         items: vec![],
                     }));
                 } else {
@@ -792,6 +793,7 @@ mod tests {
                 }),
                 DocumentBlock::OrderedList(OrderedList {
                     line_range: 1..2,
+                    start: 1,
                     items: vec![vec![DocumentBlock::Para(Para {
                         line_range: 1..2,
                         inlines: vec![DocumentInline::Str("line2".to_string())],

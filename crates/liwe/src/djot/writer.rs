@@ -6,7 +6,7 @@ use crate::model::inline::{
     Inlines, TextSink, TokenStream, FLATTENED_BLOCK,
 };
 use crate::model::node::ColumnAlignment;
-use crate::model::writer::{frontmatter_to_yaml, same_list_kind, Block, Blocks};
+use crate::model::writer::{code_block_body, frontmatter_to_yaml, same_list_kind, Block, Blocks};
 use crate::model::{autolink_body, is_ref_url};
 
 pub struct DjotWriter {}
@@ -51,10 +51,10 @@ fn blocks_to_djot(
             alternate = i > 0 && same_list_kind(kept[i - 1], block) && !alternate;
             match block {
                 Block::BulletList(items) if alternate => {
-                    list_to_djot(items, options, false, true, indent)
+                    list_to_djot(items, options, None, true, indent)
                 }
-                Block::OrderedList(items) if alternate => {
-                    list_to_djot(items, options, true, true, indent)
+                Block::OrderedList(start, items) if alternate => {
+                    list_to_djot(items, options, Some(*start), true, indent)
                 }
                 _ => block_to_djot(block, options, indent),
             }
@@ -93,11 +93,11 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
             format!("{}=html\n{}\n{}\n", fence, text, fence)
         }
         Block::CodeBlock(lang, text) => {
-            let body = text.trim_matches('\n');
-            let fence = "`".repeat(longest_backtick_run(body).max(2) + 1);
+            let body = code_block_body(text);
+            let fence = "`".repeat(longest_backtick_run(&body).max(2) + 1);
             match lang.clone().filter(|lang| !lang.trim().is_empty()) {
-                Some(lang) => format!("{} {}\n{}\n{}\n", fence, lang, body, fence),
-                None => format!("{}\n{}\n{}\n", fence, body, fence),
+                Some(lang) => format!("{} {}\n{}{}\n", fence, lang, body, fence),
+                None => format!("{}\n{}{}\n", fence, body, fence),
             }
         }
         Block::RawBlock(format, text) if format == UNPARSED_FRONTMATTER => {
@@ -119,8 +119,10 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
                 .join("\n");
             format!("{}\n", quoted)
         }
-        Block::BulletList(items) => list_to_djot(items, options, false, false, indent),
-        Block::OrderedList(items) => list_to_djot(items, options, true, false, indent),
+        Block::BulletList(items) => list_to_djot(items, options, None, false, indent),
+        Block::OrderedList(start, items) => {
+            list_to_djot(items, options, Some(*start), false, indent)
+        }
         Block::Table(header, alignment, rows) => table_to_djot(header, alignment, rows, options),
     }
 }
@@ -128,17 +130,24 @@ fn block_to_djot(block: &Block, options: &DjotOptions, indent: usize) -> String 
 fn list_to_djot(
     items: &[Blocks],
     options: &DjotOptions,
-    ordered: bool,
+    start: Option<u64>,
     alternate: bool,
     indent: usize,
 ) -> String {
     let mut out = String::new();
     for (index, item) in items.iter().enumerate() {
-        let marker = match (ordered, alternate) {
-            (true, false) => format!("{}.", index + 1),
-            (true, true) => format!("{})", index + 1),
-            (false, false) => "-".to_string(),
-            (false, true) => "*".to_string(),
+        let number = |start: u64| {
+            if options.formatting.increment_ordered_list_bullets() {
+                start + index as u64
+            } else {
+                start
+            }
+        };
+        let marker = match (start, alternate) {
+            (Some(start), false) => format!("{}.", number(start)),
+            (Some(start), true) => format!("{})", number(start)),
+            (None, false) => "-".to_string(),
+            (None, true) => "*".to_string(),
         };
         let (checkbox, item) = strip_item_checkbox(item);
         let pad = marker.chars().count() + 1;

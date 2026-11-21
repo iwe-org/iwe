@@ -70,8 +70,8 @@ impl CmarkTableWriter {
                 }
                 events.push(Event::End(TagEnd::List(false)));
             }
-            Block::OrderedList(items) => {
-                events.push(Event::Start(Tag::List(Some(1))));
+            Block::OrderedList(start, items) => {
+                events.push(Event::Start(Tag::List(Some(start))));
                 for blocks in items {
                     events.push(Event::Start(Tag::Item));
                     events.append(&mut self.blocks_events(blocks));

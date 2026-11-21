@@ -19,7 +19,7 @@ pub enum Block {
     CodeBlock(Option<Lang>, String),
     RawBlock(String, String),
     BlockQuote(Blocks),
-    OrderedList(Vec<Blocks>),
+    OrderedList(u64, Vec<Blocks>),
     BulletList(Vec<Blocks>),
     Header(Level, Inlines),
     HorizontalRule,
@@ -33,13 +33,13 @@ impl Block {
     fn is_sparce_list(&self) -> bool {
         match self {
             Block::BulletList(items) => items.iter().any(item_requires_blank_lines),
-            Block::OrderedList(items) => items.iter().any(item_requires_blank_lines),
+            Block::OrderedList(_, items) => items.iter().any(item_requires_blank_lines),
             _ => false,
         }
     }
 
     fn is_list(&self) -> bool {
-        matches!(self, Block::BulletList(_) | Block::OrderedList(_))
+        matches!(self, Block::BulletList(_) | Block::OrderedList(_, _))
     }
 
     fn is_paragraph(&self) -> bool {
@@ -87,33 +87,23 @@ impl Block {
                 .collect::<Vec<String>>()
                 .join("\n"),
             Block::CodeBlock(lang, text) => {
-                let token = options.formatting.code_block_token_char();
-                let mut max_run = 0;
-                let mut run = 0;
-                for ch in text.chars() {
-                    if ch == token {
-                        run += 1;
-                        max_run = max_run.max(run);
-                    } else {
-                        run = 0;
-                    }
-                }
-                let count = options.formatting.code_block_token_count().max(max_run + 1);
+                let lang = lang.clone().filter(|lang| !lang.trim().is_empty());
+                let configured = options.formatting.code_block_token_char();
+                let token = if configured == '`' && lang.as_ref().is_some_and(|l| l.contains('`')) {
+                    '~'
+                } else {
+                    configured
+                };
+                let count = options
+                    .formatting
+                    .code_block_token_count()
+                    .max(longest_run(text, token) + 1);
                 let fence = token.to_string().repeat(count);
-                lang.clone()
-                    .filter(|lang| !lang.trim().is_empty())
-                    .map(|lang| {
-                        format!(
-                            "{} {}\n{}\n{}\n",
-                            fence,
-                            lang,
-                            text.trim_matches('\n'),
-                            fence
-                        )
-                    })
-                    .unwrap_or_else(|| {
-                        format!("{}\n{}\n{}\n", fence, text.trim_matches('\n'), fence)
-                    })
+                let body = code_block_body(text);
+                match lang {
+                    Some(lang) => format!("{} {}\n{}{}\n", fence, lang, body, fence),
+                    None => format!("{}\n{}{}\n", fence, body, fence),
+                }
             }
             Block::RawBlock(format, text) if format == UNPARSED_FRONTMATTER => {
                 format!("{}\n", text.trim_end_matches('\n'))
@@ -133,21 +123,22 @@ impl Block {
                     .join("\n")
                     + "\n"
             }
-            Block::OrderedList(items) => {
+            Block::OrderedList(start, items) => {
                 let content_indent = options
                     .formatting
                     .ordered_list_content_indent()
                     .unwrap_or(0);
                 let child_indent = indent
-                    + ordered_prefix_indent(items.len(), &options.formatting).max(content_indent);
+                    + ordered_prefix_indent(*start, items.len(), &options.formatting)
+                        .max(content_indent);
                 items
                     .iter()
                     .enumerate()
                     .map(|(n, item)| {
                         let num = if options.formatting.increment_ordered_list_bullets() {
-                            n + 1
+                            start + n as u64
                         } else {
-                            1
+                            *start
                         };
                         left_pad_and_prefix_num(
                             &blocks_to_markdown_and_indented(
@@ -206,6 +197,28 @@ impl Block {
     }
 }
 
+pub(crate) fn code_block_body(text: &str) -> String {
+    if text.is_empty() || text.ends_with('\n') {
+        text.to_string()
+    } else {
+        format!("{}\n", text)
+    }
+}
+
+fn longest_run(text: &str, token: char) -> usize {
+    let mut max_run = 0;
+    let mut run = 0;
+    for ch in text.chars() {
+        if ch == token {
+            run += 1;
+            max_run = max_run.max(run);
+        } else {
+            run = 0;
+        }
+    }
+    max_run
+}
+
 fn escape_closing_hashes(text: String) -> String {
     let start = text.rfind([' ', '\t']).map(|i| i + 1).unwrap_or(0);
     let last = &text[start..];
@@ -216,11 +229,11 @@ fn escape_closing_hashes(text: String) -> String {
     }
 }
 
-fn ordered_prefix_indent(item_count: usize, formatting: &FormattingOptions) -> usize {
+fn ordered_prefix_indent(start: u64, item_count: usize, formatting: &FormattingOptions) -> usize {
     let last = if formatting.increment_ordered_list_bullets() {
-        item_count.max(1)
+        start + (item_count.max(1) as u64 - 1)
     } else {
-        1
+        start
     };
     let prefix = format!("{}{}", last, formatting.ordered_list_token_char());
     prefix.len() + 1
@@ -250,7 +263,7 @@ fn left_pad_and_prefix(text: &str, list_token: &str, content_indent: usize) -> S
 
 fn left_pad_and_prefix_num(
     text: &str,
-    num: usize,
+    num: u64,
     ordered_list_token: char,
     content_indent: usize,
 ) -> String {
@@ -372,7 +385,7 @@ pub(crate) fn same_list_kind(previous: &Block, block: &Block) -> bool {
     matches!(
         (previous, block),
         (Block::BulletList(_), Block::BulletList(_))
-            | (Block::OrderedList(_), Block::OrderedList(_))
+            | (Block::OrderedList(_, _), Block::OrderedList(_, _))
     )
 }
 
@@ -420,18 +433,21 @@ pub mod tests {
 
     #[test]
     fn test_ordered_list_to_markdown() {
-        let list = vec![Block::OrderedList(vec![
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-            vec![plain("item")],
-        ])];
+        let list = vec![Block::OrderedList(
+            1,
+            vec![
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+                vec![plain("item")],
+            ],
+        )];
         assert_eq!(
             indoc! {"
                 1. item
@@ -451,10 +467,10 @@ pub mod tests {
 
     #[test]
     fn test_ordered_list_with_para() {
-        let list = vec![Block::OrderedList(vec![vec![
-            plain("item1"),
-            plain("para"),
-        ]])];
+        let list = vec![Block::OrderedList(
+            1,
+            vec![vec![plain("item1"), plain("para")]],
+        )];
         assert_eq!(
             indoc! {"
                 1. item1

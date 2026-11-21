@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use crate::graph::{Graph, GraphContext};
-use crate::markdown::MarkdownReader;
-use crate::model::config::MarkdownOptions;
+use crate::model::config::FormatOptions;
 use crate::model::ids::alloc_node_id;
 use crate::model::inline::{text_to_inlines, Inline};
 use crate::model::node::Node;
@@ -219,6 +218,7 @@ struct DocCtx {
     key: Key,
     tree: Tree,
     index: BlockIndex,
+    format_options: FormatOptions,
 }
 
 impl DocCtx {
@@ -234,6 +234,7 @@ impl DocCtx {
             key: key.clone(),
             tree,
             index,
+            format_options: graph.format_options().clone(),
         }
     }
 
@@ -318,7 +319,7 @@ pub fn plan_and_apply(
                             "ref" => Action::SetRefText(replaced),
                             "code" | "html" => Action::SetRawContent(replaced),
                             _ => Action::SetInlines(parse_inlines(
-                                doc.index.options(),
+                                &doc.format_options,
                                 doc.index.parent_dir(),
                                 &replaced,
                             )),
@@ -328,7 +329,7 @@ pub fn plan_and_apply(
                     BlockUpdateOp::Replace { content } => {
                         if node_header && has_children {
                             let frag = parse_fragment(
-                                doc.index.options(),
+                                &doc.format_options,
                                 doc.index.parent_dir(),
                                 content,
                             );
@@ -361,7 +362,7 @@ pub fn plan_and_apply(
                     BlockUpdateOp::InsertAfter { content } => {
                         if node_header {
                             let frag = parse_fragment(
-                                doc.index.options(),
+                                &doc.format_options,
                                 doc.index.parent_dir(),
                                 content,
                             );
@@ -516,7 +517,7 @@ pub fn check_document_expect(
 }
 
 fn fragment_for(doc: &DocCtx, content: &str, list_mode: bool) -> Option<Vec<Tree>> {
-    let blocks = parse_fragment(doc.index.options(), doc.index.parent_dir(), content);
+    let blocks = parse_fragment(&doc.format_options, doc.index.parent_dir(), content);
     if list_mode {
         as_single_list(&blocks)
     } else {
@@ -526,7 +527,7 @@ fn fragment_for(doc: &DocCtx, content: &str, list_mode: bool) -> Option<Vec<Tree
 
 fn as_single_list(blocks: &[Tree]) -> Option<Vec<Tree>> {
     match blocks {
-        [only] if matches!(only.node, Node::BulletList() | Node::OrderedList()) => {
+        [only] if matches!(only.node, Node::BulletList() | Node::OrderedList(_)) => {
             Some(only.children.clone())
         }
         _ => None,
@@ -543,20 +544,20 @@ fn section_retitle(blocks: &[Tree]) -> Option<(Vec<Inline>, Vec<Tree>)> {
     }
 }
 
-fn parse_fragment(options: &MarkdownOptions, parent_dir: &str, content: &str) -> Vec<Tree> {
+fn parse_fragment(options: &FormatOptions, parent_dir: &str, content: &str) -> Vec<Tree> {
     let mut graph = Graph::new_with_options(options.clone());
     let temp = if parent_dir.is_empty() {
         Key::name("__iwe_fragment__")
     } else {
         Key::combine(parent_dir, "__iwe_fragment__")
     };
-    graph.from_markdown(temp.clone(), content, MarkdownReader::new());
+    graph.update_key(temp.clone(), content);
     let graph_ref: &Graph = &graph;
     let tree = graph_ref.collect(&temp);
     tree.children.into_iter().map(strip_ids).collect()
 }
 
-fn parse_inlines(options: &MarkdownOptions, parent_dir: &str, text: &str) -> Vec<Inline> {
+fn parse_inlines(options: &FormatOptions, parent_dir: &str, text: &str) -> Vec<Inline> {
     for block in parse_fragment(options, parent_dir, text) {
         match block.node {
             Node::Leaf(inlines) | Node::Section(inlines) | Node::Item(_, inlines) => {

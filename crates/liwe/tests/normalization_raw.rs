@@ -11,6 +11,7 @@ fn normalization_code_block() {
     compare(
         indoc! {"
         ``` rust
+
         fn main() {
             println!(\"Hello, world!\");
         }
@@ -68,14 +69,16 @@ fn normalization_inline_code() {
 }
 
 #[test]
-fn raw_trim() {
+fn raw_keeps_blank_lines() {
     setup();
     compare(
         indoc! {"
         para
 
         ```
+
         raw block
+
         ```
     "},
         indoc! {"
@@ -91,14 +94,16 @@ fn raw_trim() {
 }
 
 #[test]
-fn raw_trim_keeps_spaces() {
+fn raw_keeps_blank_lines_and_spaces() {
     setup();
     compare(
         indoc! {"
         para
 
         ```
+
          raw block
+
         ```
     "},
         indoc! {"
@@ -212,6 +217,84 @@ fn code_block_with_nested_fence_uses_longer_token() {
         nested code
         ```
         ````
+        "},
+    );
+}
+
+#[test]
+fn code_block_keeps_leading_and_trailing_blank_lines() {
+    setup();
+    compare(
+        indoc! {"
+        ``` rust
+
+        let value = 1;
+
+        ```
+        "},
+        indoc! {"
+        ``` rust
+
+        let value = 1;
+
+        ```
+        "},
+    );
+}
+
+#[test]
+fn code_block_keeps_only_blank_lines() {
+    setup();
+    compare(
+        indoc! {"
+        ```
+
+
+        ```
+        "},
+        indoc! {"
+        ```
+
+
+        ```
+        "},
+    );
+}
+
+#[test]
+fn empty_code_block_stays_empty() {
+    setup();
+    compare(
+        indoc! {"
+        ```
+        ```
+        "},
+        indoc! {"
+        ```
+        ```
+        "},
+    );
+}
+
+#[test]
+fn code_block_in_list_item_keeps_blank_lines() {
+    setup();
+    compare(
+        indoc! {"
+        - item
+
+          ```
+
+          code
+          ```
+        "},
+        indoc! {"
+        - item
+
+          ```
+
+          code
+          ```
         "},
     );
 }

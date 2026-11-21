@@ -1,5 +1,5 @@
 use diwe::config::{
-    Configuration, MarkdownOptions, NoteTemplate, Patterns, SchemaBinding, WorkspaceOptions,
+    Configuration, Format, MarkdownOptions, NoteTemplate, Patterns, SchemaBinding, WorkspaceOptions,
 };
 use indoc::indoc;
 use std::collections::HashMap;
@@ -1440,4 +1440,64 @@ fn content_mode_rejects_an_absolute_key() {
         )
     );
     assert!(!temp.path().join("absolute.md").exists());
+}
+
+#[test]
+fn content_mode_keeps_code_block_blank_lines() {
+    let temp = setup();
+    let document = "# Doc\n\n``` rust\n\nlet value = 1;\n\n```\n";
+    let output = run_piped(temp.path(), &["doc", "--content", "-"], document);
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("doc.md")).unwrap(),
+        document
+    );
+}
+
+#[test]
+fn content_mode_uses_a_tilde_fence_for_a_backtick_in_the_info_string() {
+    let temp = setup();
+    let document = "# Doc\n\n~~~ a`b\ncode\n~~~\n";
+    let output = run_piped(temp.path(), &["doc", "--content", "-"], document);
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("doc.md")).unwrap(),
+        document
+    );
+}
+
+#[test]
+fn content_mode_keeps_the_ordered_list_start_number() {
+    let temp = setup();
+    let document = "# Doc\n\n3. alpha\n4. beta\n";
+    let output = run_piped(temp.path(), &["doc", "--content", "-"], document);
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("doc.md")).unwrap(),
+        document
+    );
+}
+
+#[test]
+fn content_mode_parses_djot_in_a_djot_workspace() {
+    let temp = TempDir::new().expect("tempdir");
+    create_dir_all(temp.path().join(".iwe")).expect("mkdir .iwe");
+    write_config(
+        temp.path(),
+        Configuration {
+            format: Format::Djot,
+            ..Configuration::default()
+        },
+    );
+    let document = "# Doc\n\n*strong* and _emph_\n";
+    let output = run_piped(temp.path(), &["doc", "--content", "-"], document);
+
+    assert!(output.status.success());
+    assert_eq!(
+        read_to_string(temp.path().join("doc.dj")).unwrap(),
+        document
+    );
 }

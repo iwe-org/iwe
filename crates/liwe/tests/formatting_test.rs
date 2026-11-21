@@ -202,6 +202,109 @@ fn increment_ordered_list_bullets_false() {
 }
 
 #[test]
+fn ordered_list_keeps_start_number() {
+    compare(
+        indoc! {"
+        3. item1
+        4. item2
+        5. item3
+        "},
+        indoc! {"
+        3. item1
+        4. item2
+        5. item3
+        "},
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn ordered_list_keeps_start_number_without_increment() {
+    compare(
+        indoc! {"
+        3. item1
+        3. item2
+        3. item3
+        "},
+        indoc! {"
+        3. item1
+        4. item2
+        5. item3
+        "},
+        FormattingOptions {
+            increment_ordered_list_bullets: Some(false),
+            ..Default::default()
+        },
+    );
+}
+
+#[test]
+fn ordered_list_start_number_widens_child_indent() {
+    compare(
+        indoc! {"
+        9. item1
+        10. item2
+            - child
+        "},
+        indoc! {"
+        9. item1
+        10. item2
+            - child
+        "},
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn ordered_list_keeps_zero_start_number() {
+    compare(
+        indoc! {"
+        0. item1
+        1. item2
+        "},
+        indoc! {"
+        0. item1
+        1. item2
+        "},
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn code_block_with_backtick_in_language_uses_tilde_fence() {
+    compare(
+        indoc! {"
+        ~~~ a`b
+        code
+        ~~~
+        "},
+        indoc! {"
+        ~~~ a`b
+        code
+        ~~~
+        "},
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
+fn code_block_with_backtick_in_language_uses_longer_tilde_fence() {
+    compare(
+        indoc! {"
+        ~~~~ a`b
+        ~~~
+        ~~~~
+        "},
+        indoc! {"
+        ~~~~ a`b
+        ~~~
+        ~~~~
+        "},
+        FormattingOptions::default(),
+    );
+}
+
+#[test]
 fn code_block_with_backtick() {
     compare(
         indoc! {"

@@ -111,7 +111,7 @@ impl<'a> NodeIter<'a> for GraphNodePointer<'a> {
             }
             GraphNode::Quote(_) => Some(Node::Quote()),
             GraphNode::BulletList(_) => Some(Node::BulletList()),
-            GraphNode::OrderedList(_) => Some(Node::OrderedList()),
+            GraphNode::OrderedList(list) => Some(Node::OrderedList(list.start())),
             GraphNode::Leaf(leaf) => Some(Node::Leaf(
                 self.graph.get_line(leaf.line_id()).normalize(self.graph),
             )),

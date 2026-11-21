@@ -12,7 +12,6 @@ use diwe::config::{Configuration, NoteTemplate, DEFAULT_KEY_DATE_FORMAT};
 use diwe::fs::key_escapes_workspace;
 use liwe::graph::Graph;
 use liwe::locale::get_locale;
-use liwe::markdown::MarkdownReader;
 use liwe::model::{
     prepend_frontmatter, split_raw_frontmatter, strip_doc_extension, Frontmatter, Key,
 };
@@ -277,7 +276,7 @@ pub fn normalize_content(config: &Configuration, key: &Key, content: &str) -> St
     }
 
     let mut graph = Graph::new_with_options(config.format_options());
-    graph.from_markdown(key.clone(), body, MarkdownReader::new());
+    graph.update_key(key.clone(), body);
     let normalized = graph.to_markdown_skip_frontmatter(key);
     if normalized.trim().is_empty() {
         return content.to_string();

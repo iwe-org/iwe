@@ -387,7 +387,7 @@ impl KeyStatistics {
             Node::Section(_) => self.sections += 1,
             Node::Leaf(_) => self.paragraphs += 1,
             Node::BulletList() => self.bullet_lists += 1,
-            Node::OrderedList() => self.ordered_lists += 1,
+            Node::OrderedList(_) => self.ordered_lists += 1,
             Node::Raw(_, _) => self.code_blocks += 1,
             Node::Table(_) => self.tables += 1,
             Node::Quote() => self.quotes += 1,
