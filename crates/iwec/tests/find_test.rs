@@ -355,3 +355,27 @@ async fn find_explicit_limit_bounds_and_notes() {
     assert_eq!(note["emitted"], json!(2));
     assert_eq!(note["matched"], json!(51));
 }
+
+#[tokio::test]
+async fn find_refs_to_resolves_a_key_that_keeps_its_extension() {
+    let f = Fixture::with_documents(vec![
+        ("entry", "# Entry\n"),
+        ("entry.md", "# Other\n"),
+        ("first", "# First\n\n[Entry](entry)\n"),
+        ("second", "# Second\n\n[Other](entry.md.md)\n"),
+    ])
+    .await;
+
+    let result = f
+        .call_tool("iwe_find", json!({"refs_to": "entry.md"}))
+        .await;
+    let output = Fixture::result_json(&result);
+    let keys: Vec<&str> = output
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["key"].as_str().unwrap())
+        .collect();
+
+    assert_eq!(keys, vec!["second"]);
+}

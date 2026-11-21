@@ -259,8 +259,8 @@ impl TryFrom<FindParams> for FindOptions {
         Ok(FindOptions {
             fuzzy: p.fuzzy,
             lexical: p.lexical,
-            refs_to: p.refs_to.map(|k| Key::name(&k)),
-            refs_from: p.refs_from.map(|k| Key::name(&k)),
+            refs_to: p.refs_to.map(|k| Key::from_stripped(&k)),
+            refs_from: p.refs_from.map(|k| Key::from_stripped(&k)),
             filter: p.selector.to_filter(),
             limit: p.limit,
             sort: None,

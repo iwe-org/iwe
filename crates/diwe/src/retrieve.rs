@@ -426,6 +426,6 @@ fn edge_tokens(doc: &DocumentOutput) -> usize {
 fn without_excluded(edges: Vec<EdgeRef>, exclude: &HashSet<Key>) -> Vec<EdgeRef> {
     edges
         .into_iter()
-        .filter(|edge| !exclude.contains(&Key::name(&edge.key)))
+        .filter(|edge| !exclude.contains(&Key::from_stripped(&edge.key)))
         .collect()
 }
