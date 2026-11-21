@@ -6,13 +6,20 @@ use rust_stemmers::{Algorithm, Stemmer};
 use stop_words::LANGUAGE;
 use unicode_segmentation::UnicodeSegmentation;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TokenizerMode {
+    Document,
+    Query,
+}
+
 pub struct LexicalTokenizer {
     stemmer: Stemmer,
     stop_words: HashSet<String>,
+    mode: TokenizerMode,
 }
 
 impl LexicalTokenizer {
-    pub fn new(language: &Language) -> Self {
+    pub fn new(language: &Language, mode: TokenizerMode) -> Self {
         let stop_words = LANGUAGE::try_from(language)
             .map(|list| {
                 stop_words::get(list)
@@ -24,6 +31,7 @@ impl LexicalTokenizer {
         Self {
             stemmer: Stemmer::create(Algorithm::from(language)),
             stop_words,
+            mode,
         }
     }
 
@@ -53,7 +61,7 @@ impl Tokenizer for LexicalTokenizer {
             let end = rest.find(|c: char| is_cjk(c) != cjk).unwrap_or(rest.len());
             let (run, tail) = rest.split_at(end);
             if cjk {
-                push_bigrams(run, &mut tokens);
+                push_cjk(run, self.mode, &mut tokens);
             } else {
                 self.push_words(run, &mut tokens);
             }
@@ -63,13 +71,25 @@ impl Tokenizer for LexicalTokenizer {
     }
 }
 
-fn push_bigrams(run: &str, tokens: &mut Vec<String>) {
+fn push_cjk(run: &str, mode: TokenizerMode, tokens: &mut Vec<String>) {
     let chars: Vec<char> = run.chars().collect();
     if chars.len() == 1 {
         tokens.push(run.to_string());
         return;
     }
-    tokens.extend(chars.windows(2).map(|pair| pair.iter().collect::<String>()));
+    match mode {
+        TokenizerMode::Query => {
+            tokens.extend(chars.windows(2).map(|pair| pair.iter().collect::<String>()));
+        }
+        TokenizerMode::Document => {
+            for (position, &c) in chars.iter().enumerate() {
+                tokens.push(c.to_string());
+                if let Some(&next) = chars.get(position + 1) {
+                    tokens.push([c, next].iter().collect());
+                }
+            }
+        }
+    }
 }
 
 fn is_cjk(c: char) -> bool {
@@ -97,7 +117,11 @@ mod tests {
     use super::*;
 
     fn tokens(language: Language, text: &str) -> Vec<String> {
-        LexicalTokenizer::new(&language).tokenize(text)
+        LexicalTokenizer::new(&language, TokenizerMode::Query).tokenize(text)
+    }
+
+    fn document_tokens(language: Language, text: &str) -> Vec<String> {
+        LexicalTokenizer::new(&language, TokenizerMode::Document).tokenize(text)
     }
 
     #[test]
@@ -156,6 +180,39 @@ mod tests {
     #[test]
     fn keeps_a_lone_cjk_character_as_one_token() {
         assert_eq!(tokens(Language::English, "猫"), vec!["猫"]);
+    }
+
+    #[test]
+    fn document_mode_emits_single_characters_and_overlapping_pairs() {
+        assert_eq!(
+            document_tokens(Language::English, "苹果树"),
+            vec!["苹", "苹果", "果", "果树", "树"]
+        );
+    }
+
+    #[test]
+    fn document_mode_keeps_a_lone_cjk_character_once() {
+        assert_eq!(document_tokens(Language::English, "猫"), vec!["猫"]);
+    }
+
+    #[test]
+    fn document_mode_breaks_cjk_runs_at_punctuation_and_spaces() {
+        assert_eq!(
+            document_tokens(Language::English, "猫を。사과 먹"),
+            vec!["猫", "猫を", "を", "사", "사과", "과", "먹"]
+        );
+    }
+
+    #[test]
+    fn document_mode_leaves_non_cjk_words_unchanged() {
+        assert_eq!(
+            document_tokens(Language::English, "apples苹果 trees"),
+            vec!["appl", "苹", "苹果", "果", "tree"]
+        );
+        assert_eq!(
+            document_tokens(Language::Russian, "и книга не"),
+            tokens(Language::Russian, "и книга не")
+        );
     }
 
     #[test]

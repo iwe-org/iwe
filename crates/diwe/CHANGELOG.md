@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Bm25Index` indexes every single Chinese, Japanese and Korean character alongside character pairs, so `search` finds a single character inside longer text (previously only a character standing on its own was found)
+
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/diwe-v0.33.0...diwe-v0.34.0) - 2026-11-19
 
 ### Added
