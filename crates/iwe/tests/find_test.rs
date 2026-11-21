@@ -253,6 +253,27 @@ fn test_find_lexical_matches_word_inside_cjk_text() {
 }
 
 #[test]
+fn test_find_lexical_matches_single_character_inside_cjk_text() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("first.md"),
+        "# First Note\n\n这里有一只猫在睡觉。",
+    )
+    .unwrap();
+    write(
+        dir.path().join("second.md"),
+        "# Second Note\n\n今天天气很好。",
+    )
+    .unwrap();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["--lexical", "猫", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "first\n");
+}
+
+#[test]
 fn test_find_positional_is_fuzzy_and_warns() {
     let dir = setup_workspace();
 

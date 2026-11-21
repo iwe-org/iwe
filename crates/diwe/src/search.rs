@@ -6,7 +6,7 @@ use rayon::prelude::*;
 
 use liwe::model::Key;
 
-use crate::lexical_tokenizer::LexicalTokenizer;
+use crate::lexical_tokenizer::{LexicalTokenizer, TokenizerMode};
 
 pub use bm25::{Language, ScoredDocument};
 
@@ -47,7 +47,7 @@ pub fn parse_language(name: &str) -> Language {
 
 fn fitted_embedder(language: &Language, corpus: &[&str]) -> Embedder<u32, LexicalTokenizer> {
     EmbedderBuilder::<u32, LexicalTokenizer>::with_tokenizer_and_fit_to_corpus(
-        LexicalTokenizer::new(language),
+        LexicalTokenizer::new(language, TokenizerMode::Document),
         corpus,
     )
     .k1(K1)
@@ -57,7 +57,7 @@ fn fitted_embedder(language: &Language, corpus: &[&str]) -> Embedder<u32, Lexica
 
 fn embedder_with_avgdl(language: &Language, avgdl: f32) -> Embedder<u32, LexicalTokenizer> {
     EmbedderBuilder::<u32, LexicalTokenizer>::with_tokenizer_and_fit_to_corpus(
-        LexicalTokenizer::new(language),
+        LexicalTokenizer::new(language, TokenizerMode::Document),
         &[],
     )
     .avgdl(avgdl)
@@ -66,8 +66,20 @@ fn embedder_with_avgdl(language: &Language, avgdl: f32) -> Embedder<u32, Lexical
     .build()
 }
 
+fn query_embedder(language: &Language) -> Embedder<u32, LexicalTokenizer> {
+    EmbedderBuilder::<u32, LexicalTokenizer>::with_tokenizer_and_fit_to_corpus(
+        LexicalTokenizer::new(language, TokenizerMode::Query),
+        &[],
+    )
+    .avgdl(DEFAULT_AVGDL)
+    .k1(K1)
+    .b(B)
+    .build()
+}
+
 pub struct Bm25Index {
     embedder: Embedder<u32, LexicalTokenizer>,
+    query_embedder: Embedder<u32, LexicalTokenizer>,
     keys: Vec<Option<Key>>,
     ids: HashMap<Key, u32>,
     docs: Vec<Option<Embedding<u32>>>,
@@ -100,6 +112,7 @@ impl Bm25Index {
 
         let mut index = Self {
             embedder,
+            query_embedder: query_embedder(&language),
             keys: Vec::new(),
             ids: HashMap::new(),
             docs: Vec::new(),
@@ -118,6 +131,7 @@ impl Bm25Index {
         let embedder = embedder_with_avgdl(&language, DEFAULT_AVGDL);
         Self {
             embedder,
+            query_embedder: query_embedder(&language),
             keys: Vec::new(),
             ids: HashMap::new(),
             docs: Vec::new(),
@@ -231,7 +245,7 @@ impl Bm25Index {
     }
 
     pub fn search(&self, query: &str) -> Vec<ScoredDocument<Key>> {
-        let embedding = self.embedder.embed(query);
+        let embedding = self.query_embedder.embed(query);
         let scores = self.accumulate(&embedding);
         let mut results: Vec<ScoredDocument<Key>> = scores
             .into_iter()
@@ -253,7 +267,7 @@ impl Bm25Index {
     }
 
     pub fn has_query_terms(&self, query: &str) -> bool {
-        !self.embedder.embed(query).is_empty()
+        !self.query_embedder.embed(query).is_empty()
     }
 
     pub fn scores(&self, query: &str) -> HashMap<Key, f32> {
@@ -386,6 +400,7 @@ impl Clone for Bm25Index {
         let embedder = embedder_with_avgdl(&self.language, self.embedder.avgdl());
         Self {
             embedder,
+            query_embedder: query_embedder(&self.language),
             keys: self.keys.clone(),
             ids: self.ids.clone(),
             docs: self.docs.clone(),
@@ -478,6 +493,40 @@ mod tests {
         );
         assert_eq!(keys(&index, "苹果"), vec![key("first")]);
         assert_eq!(keys(&index, "苹果树"), vec![key("first")]);
+    }
+
+    #[test]
+    fn single_cjk_character_query_matches_it_inside_longer_text() {
+        let index = Bm25Index::build(
+            vec![
+                (key("first"), "这里有一只猫在睡觉。".to_string()),
+                (key("second"), "今天天气很好".to_string()),
+            ],
+            Language::English,
+        );
+        assert_eq!(keys(&index, "猫"), vec![key("first")]);
+        assert_eq!(keys(&index, "一只"), vec![key("first")]);
+    }
+
+    #[test]
+    fn multi_character_cjk_query_does_not_match_a_single_shared_character() {
+        let index = Bm25Index::build(
+            vec![
+                (key("first"), "院子里有一棵苹果树".to_string()),
+                (key("second"), "这是一棵大树".to_string()),
+            ],
+            Language::English,
+        );
+        assert_eq!(keys(&index, "苹果树"), vec![key("first")]);
+        assert_eq!(keys(&index, "果树"), vec![key("first")]);
+    }
+
+    #[test]
+    fn upserted_document_matches_a_single_cjk_character_query() {
+        let mut index = Bm25Index::empty(Language::English);
+        index.upsert(key("first"), "这里有一只猫在睡觉".to_string());
+        assert_eq!(keys(&index, "猫"), vec![key("first")]);
+        assert_eq!(keys(&index.clone(), "猫"), vec![key("first")]);
     }
 
     #[test]

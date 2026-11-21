@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `iwe_query` lexical search finds a single Chinese, Japanese or Korean character inside longer text (previously only a character standing on its own was found)
+
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/iwec-v0.33.0...iwec-v0.34.0) - 2026-11-19
 
 ### Changed
