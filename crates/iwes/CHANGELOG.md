@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Workspace symbol search finds a single Chinese, Japanese or Korean character inside longer text (previously only a character standing on its own was found)
+- Files changed outside the editor are read once they finish saving (previously a file caught mid-save could be loaded empty or cut short)
 
 ## [0.34.0](https://github.com/iwe-org/iwe/compare/iwes-v0.33.0...iwes-v0.34.0) - 2026-11-19
 

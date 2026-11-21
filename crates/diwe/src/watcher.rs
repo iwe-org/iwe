@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, SystemTime};
 
 use liwe::model::Key;
 use notify::{Config, Event, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher};
@@ -10,6 +11,53 @@ use crate::fs::{read_md_file, PathFilter};
 pub enum FsChange {
     Update(Key, String),
     Remove(Key),
+}
+
+const SETTLE_INTERVAL: Duration = Duration::from_millis(20);
+const SETTLE_MAX_CHECKS: usize = 50;
+
+#[derive(PartialEq)]
+struct FileSnapshot {
+    len: u64,
+    modified: Option<SystemTime>,
+}
+
+fn file_snapshot(path: &Path) -> Option<FileSnapshot> {
+    let metadata = std::fs::metadata(path).ok()?;
+    Some(FileSnapshot {
+        len: metadata.len(),
+        modified: metadata.modified().ok(),
+    })
+}
+
+fn changed_recently(snapshot: &FileSnapshot) -> bool {
+    snapshot.modified.is_none_or(|modified| {
+        SystemTime::now()
+            .duration_since(modified)
+            .map_or(true, |age| age < SETTLE_INTERVAL)
+    })
+}
+
+fn wait_until_file_settles(path: &Path) {
+    wait_until_settled(|| file_snapshot(path), || thread::sleep(SETTLE_INTERVAL));
+}
+
+fn wait_until_settled(mut snapshot: impl FnMut() -> Option<FileSnapshot>, mut pause: impl FnMut()) {
+    let mut previous = snapshot();
+    if previous
+        .as_ref()
+        .is_none_or(|snapshot| !changed_recently(snapshot))
+    {
+        return;
+    }
+    for _ in 0..SETTLE_MAX_CHECKS {
+        pause();
+        let current = snapshot();
+        if current == previous {
+            return;
+        }
+        previous = current;
+    }
 }
 
 fn path_to_key(path: &Path, base_path: &Path, format: Format) -> Option<Key> {
@@ -48,11 +96,14 @@ fn dispatch<H: Fn(FsChange)>(
         }
 
         match event.kind {
-            EventKind::Create(_) | EventKind::Modify(_) => match read_md_file(path) {
-                Some(content) => handler(FsChange::Update(key, content)),
-                None if !path.exists() => handler(FsChange::Remove(key)),
-                None => {}
-            },
+            EventKind::Create(_) | EventKind::Modify(_) => {
+                wait_until_file_settles(path);
+                match read_md_file(path) {
+                    Some(content) => handler(FsChange::Update(key, content)),
+                    None if !path.exists() => handler(FsChange::Remove(key)),
+                    None => {}
+                }
+            }
             EventKind::Remove(_) => {
                 handler(FsChange::Remove(key));
             }
@@ -210,6 +261,80 @@ mod tests {
             }
             FsChange::Remove(_) => panic!("expected an update change"),
         }
+    }
+
+    fn recent(len: u64) -> Option<FileSnapshot> {
+        Some(FileSnapshot {
+            len,
+            modified: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(10_000_000_000)),
+        })
+    }
+
+    fn pauses_until_settled(script: Vec<Option<FileSnapshot>>) -> usize {
+        let mut script = script.into_iter();
+        let mut pauses = 0;
+        wait_until_settled(
+            || script.next().expect("a scripted snapshot"),
+            || pauses += 1,
+        );
+        pauses
+    }
+
+    #[test]
+    fn settling_waits_until_two_checks_in_a_row_match() {
+        assert_eq!(
+            pauses_until_settled(vec![recent(4), recent(8), recent(8)]),
+            2
+        );
+    }
+
+    #[test]
+    fn settling_keeps_waiting_while_the_file_keeps_growing() {
+        assert_eq!(
+            pauses_until_settled(vec![
+                recent(0),
+                recent(4),
+                recent(8),
+                recent(12),
+                recent(12)
+            ]),
+            4
+        );
+    }
+
+    #[test]
+    fn settling_skips_the_wait_for_a_file_changed_long_ago() {
+        let old = Some(FileSnapshot {
+            len: 8,
+            modified: Some(SystemTime::now() - Duration::from_secs(3600)),
+        });
+
+        assert_eq!(pauses_until_settled(vec![old]), 0);
+    }
+
+    #[test]
+    fn settling_skips_the_wait_for_a_missing_file() {
+        assert_eq!(pauses_until_settled(vec![None]), 0);
+    }
+
+    #[test]
+    fn settling_gives_up_after_the_maximum_number_of_checks() {
+        let script = (0..=SETTLE_MAX_CHECKS as u64).map(recent).collect();
+
+        assert_eq!(pauses_until_settled(script), SETTLE_MAX_CHECKS);
+    }
+
+    #[test]
+    fn a_file_changed_long_ago_is_not_considered_recent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_modified(SystemTime::now() - Duration::from_secs(3600))
+            .unwrap();
+
+        let snapshot = file_snapshot(&path).unwrap();
+
+        assert!(!changed_recently(&snapshot));
     }
 
     #[test]
