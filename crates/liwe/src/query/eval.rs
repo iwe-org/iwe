@@ -13,12 +13,12 @@ use crate::query::document::{
     CountPred, FieldOp, FieldPath, Filter, InclusionAnchor, KeyOp, ReferenceAnchor,
 };
 use crate::query::filter::{match_field_op, resolve_path, Resolution};
-use crate::query::graph_match::match_key_op;
+use crate::query::graph_match::{match_key_op, resolve_filter_keys};
 
 const PARALLEL_THRESHOLD: usize = 64;
 
 pub fn evaluate(filter: &Filter, graph: &Graph) -> Vec<Key> {
-    let set = eval(filter, graph, None);
+    let set = eval(&resolve_filter_keys(filter, graph), graph, None);
     let mut keys: Vec<Key> = set.into_iter().collect();
     keys.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
     keys

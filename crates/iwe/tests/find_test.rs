@@ -2474,3 +2474,43 @@ fn test_find_filter_empty_mapping_matches_only_literal_empty_mapping() {
     assert!(success, "{}", stderr);
     assert_eq!(stdout, "first\n");
 }
+
+fn setup_extension_key_workspace() -> TempDir {
+    let dir = setup_workspace();
+    write(dir.path().join("page.md"), "# Page\n").unwrap();
+    write(dir.path().join("page.md.md"), "# Other\n\n[Child](child)\n").unwrap();
+    write(dir.path().join("child.md"), "# Child\n").unwrap();
+    dir
+}
+
+#[test]
+fn test_find_key_flag_selects_a_key_that_keeps_its_extension() {
+    let dir = setup_extension_key_workspace();
+
+    let (stdout, stderr, success) = run_iwe(dir.path(), &["-k", "page.md", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "page.md\n");
+}
+
+#[test]
+fn test_find_filter_key_selects_a_key_that_keeps_its_extension() {
+    let dir = setup_extension_key_workspace();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--filter", "$key: page.md", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "page.md\n");
+}
+
+#[test]
+fn test_find_included_by_resolves_a_key_that_keeps_its_extension() {
+    let dir = setup_extension_key_workspace();
+
+    let (stdout, stderr, success) =
+        run_iwe(dir.path(), &["--included-by", "page.md", "-f", "keys"]);
+
+    assert!(success, "stderr: {}", stderr);
+    assert_eq!(stdout, "child\n");
+}

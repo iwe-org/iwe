@@ -935,3 +935,41 @@ fn includes_size_conjunction_with_frontmatter() {
         &["2"],
     );
 }
+
+const EXTENSION_KEY_DOCS: &[(&str, &str)] = &[
+    ("page", "# Page\n"),
+    ("page.md", "# Other\n\n[Child](child)\n"),
+    ("child", "# Child\n"),
+];
+
+#[test]
+fn key_eq_prefers_a_key_that_keeps_its_extension() {
+    assert_named_keys(EXTENSION_KEY_DOCS, filter(key_eq("page.md")), &["page.md"]);
+}
+
+#[test]
+fn key_eq_strips_the_extension_when_no_such_key_exists() {
+    assert_named_keys(
+        &[("page", "# Page\n"), ("other", "# Other\n")],
+        filter(key_eq("page.md")),
+        &["page"],
+    );
+}
+
+#[test]
+fn key_nin_excludes_only_the_key_that_keeps_its_extension() {
+    assert_named_keys(
+        EXTENSION_KEY_DOCS,
+        filter(key_nin(&["page.md"])),
+        &["child", "page"],
+    );
+}
+
+#[test]
+fn included_by_resolves_an_anchor_key_that_keeps_its_extension() {
+    assert_named_keys(
+        EXTENSION_KEY_DOCS,
+        filter(included_by(InclusionAnchor::with_max("page.md", 1))),
+        &["child"],
+    );
+}

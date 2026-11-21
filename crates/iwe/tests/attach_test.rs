@@ -152,6 +152,29 @@ fn attach_with_malformed_document_template_exits_without_panic() {
     assert_eq!(output.status.code(), Some(1));
 }
 
+#[test]
+fn attach_refuses_to_overwrite_an_unindexed_target() {
+    let temp_dir = setup_workspace(
+        vec![("target", "pin", "# Target\n\n{{content}}\n")],
+        vec![("source", "# Source\n")],
+        vec![("target", "# Existing\n\nKept content\n")],
+    );
+    let temp_path = temp_dir.path();
+    write(temp_path.join(".gitignore"), "target.md\n").expect("Should write ignore file");
+
+    let output = run_attach(temp_path, &["--to", "pin", "-k", "source"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error: 'target' exists but is not indexed; refusing to overwrite it\n"
+    );
+    assert_eq!(
+        read_to_string(temp_path.join("target.md")).unwrap(),
+        "# Existing\n\nKept content\n"
+    );
+}
+
 fn setup_workspace(
     actions: Vec<(&str, &str, &str)>,
     sources: Vec<(&str, &str)>,
