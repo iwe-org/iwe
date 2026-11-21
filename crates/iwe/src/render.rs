@@ -445,7 +445,7 @@ fn is_empty_collection(v: &Value) -> bool {
 }
 
 fn render_body(graph: &Graph, options: &MarkdownOptions, key: &str) -> String {
-    let key = Key::name(key);
+    let key = graph.resolve_existing_key(key);
     let blocks = render_content(graph, &key);
     blocks_to_markdown_sparce_skip_frontmatter(&blocks, options)
 }

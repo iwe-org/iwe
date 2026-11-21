@@ -43,7 +43,7 @@ use iwe::internal::claude::{
     EnableOptions, SessionOptions, StageOptions,
 };
 use iwe::new::{
-    normalize_content, read_stdin, read_stdin_if_available, write_document, ContentOptions,
+    normalize_content, read_stdin, read_stdin_if_available, write_new_file, ContentOptions,
     CreateOptions, DocumentCreator, IfExists, PreparedDocument, Variables, BODY_VARIABLE,
     LEGACY_BODY_VARIABLE, RESERVED_VARIABLES, TITLE_VARIABLE,
 };
@@ -1816,8 +1816,11 @@ fn retrieve_command(args: Retrieve) {
     };
 
     let expansion = resolve_expansion(&args);
-    let exclude: std::collections::HashSet<Key> =
-        args.exclude.iter().map(|s| Key::name(s)).collect();
+    let exclude: std::collections::HashSet<Key> = args
+        .exclude
+        .iter()
+        .map(|s| graph.resolve_existing_key(s))
+        .collect();
     let mut options = RetrieveOptions {
         includes: expansion.includes,
         included_by: expansion.included_by,
@@ -1876,7 +1879,10 @@ fn retrieve_command(args: Retrieve) {
             explicit_keys
         };
 
-        let keys: Vec<Key> = key_strings.iter().map(|k| Key::name(k)).collect();
+        let keys: Vec<Key> = key_strings
+            .iter()
+            .map(|k| graph.resolve_existing_key(k))
+            .collect();
         exit_on_missing_documents(&graph, &keys);
 
         options.filter = resolve_filter(&args.selector, &graph);
@@ -2162,8 +2168,9 @@ fn new_command(args: New) {
     };
 
     match creator.prepare(options) {
-        Ok(Some(prepared)) => match write_document(&prepared) {
-            Ok(doc) => {
+        Ok(Some(prepared)) => match creator.write_document(&prepared) {
+            Ok(None) => {}
+            Ok(Some(doc)) => {
                 println!("{}", doc.path.display());
 
                 if args.edit {
@@ -2218,8 +2225,9 @@ fn create_command(args: Create) {
         gate_pending(&config, &[(prepared.key.clone(), prepared.content.clone())]);
     }
 
-    match write_document(&prepared) {
-        Ok(doc) => {
+    match creator.write_document(&prepared) {
+        Ok(None) => {}
+        Ok(Some(doc)) => {
             println!("{}", doc.path.display());
 
             if args.edit {
@@ -2495,7 +2503,12 @@ fn tree_command(args: TreeArgs) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let explicit_keys: Vec<Key> = args.selector.key.iter().map(|k| Key::name(k)).collect();
+    let explicit_keys: Vec<Key> = args
+        .selector
+        .key
+        .iter()
+        .map(|k| graph.resolve_existing_key(k))
+        .collect();
     exit_on_missing_documents(&graph, &explicit_keys);
     let other_selectors = args.selector.has_non_key_clauses();
     let filter_for_narrowing = if other_selectors {
@@ -2725,7 +2738,19 @@ fn normalize_command(args: Normalize) {
 
     let workspace_path = get_workspace_path(&configuration);
     for key_str in &args.key {
-        let key = Key::name(key_str);
+        let exact_key = Key::from_stripped(key_str);
+        let key = if workspace_path
+            .join(format!(
+                "{}.{}",
+                exact_key,
+                configuration.format.extension()
+            ))
+            .is_file()
+        {
+            exact_key
+        } else {
+            Key::name(key_str)
+        };
         if key_escapes_workspace(key.as_str()) {
             eprintln!(
                 "Error: Key '{}' must stay inside the workspace: no leading '/' and no '..' segments",
@@ -2760,7 +2785,7 @@ fn normalize_command(args: Normalize) {
 fn squash_command(args: Squash) {
     let config = get_configuration();
     let graph = &load_graph(&config);
-    let key = Key::name(&args.key);
+    let key = graph.resolve_existing_key(&args.key);
     if graph.get_node_id(&key).is_none() {
         eprintln!("Error: Document '{}' not found", args.key);
         std::process::exit(1);
@@ -2768,9 +2793,9 @@ fn squash_command(args: Squash) {
     let mut patch = graph.new_patch();
     let squashed = graph.squash(&key, args.depth);
 
-    patch.build_key_from_iter(&args.key.clone().into(), TreeIter::new(&squashed));
+    patch.build_key_from_iter(&key, TreeIter::new(&squashed));
 
-    print!("{}", patch.export_key(&args.key.into()).unwrap_or_default())
+    print!("{}", patch.export_key(&key).unwrap_or_default())
 }
 
 fn write_graph(graph: Graph, configuration: &Configuration) {
@@ -2873,7 +2898,7 @@ fn parse_sort_dir(value: &str) -> Option<SortDir> {
 }
 
 fn resolve_filter(args: &FilterArgs, graph: &Graph) -> Option<Filter> {
-    let base = args.to_filter().unwrap_or_else(|e| {
+    let base = args.to_filter(graph).unwrap_or_else(|e| {
         eprintln!("error: {}", e);
         std::process::exit(2);
     });
@@ -3070,7 +3095,7 @@ fn stats_command(args: Stats) {
     }
 
     if let Some(key_str) = args.key {
-        let normalized_key = Key::name(&key_str).to_string();
+        let normalized_key = graph.resolve_existing_key(&key_str).to_string();
         let key_stats = diwe::stats::KeyStatistics::from_graph(&graph);
         let entry = key_stats.into_iter().find(|s| s.key == normalized_key);
         match entry {
@@ -3079,7 +3104,7 @@ fn stats_command(args: Stats) {
                     Vec::new()
                 } else {
                     SimilarityIndex::build(&graph, config.search_language())
-                        .similar(&Key::name(&s.key))
+                        .similar(&Key::from_stripped(&s.key))
                 };
                 match args.format {
                     StatsFormat::Markdown => {
@@ -3169,7 +3194,12 @@ fn export_command(args: Export) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let explicit_keys: Vec<Key> = args.selector.key.iter().map(|s| Key::name(s)).collect();
+    let explicit_keys: Vec<Key> = args
+        .selector
+        .key
+        .iter()
+        .map(|s| graph.resolve_existing_key(s))
+        .collect();
     exit_on_missing_documents(&graph, &explicit_keys);
     let filter_for_narrowing = if args.selector.has_non_key_clauses() {
         let mut s = args.selector.clone();
@@ -3216,7 +3246,7 @@ fn rename_command(args: Rename) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let old_key = Key::name(&args.old_key);
+    let old_key = graph.resolve_existing_key(&args.old_key);
     let new_key = Key::name(&args.new_key);
     if key_escapes_workspace(new_key.as_str()) {
         eprintln!(
@@ -3350,7 +3380,7 @@ fn delete_command(args: Delete) {
 fn resolve_delete_targets(args: &Delete, graph: &Graph) -> Vec<Key> {
     let mut targets: Vec<Key> = Vec::new();
     if let Some(k) = args.key.as_ref().or(args.key_flag.as_ref()) {
-        targets.push(Key::name(k));
+        targets.push(graph.resolve_existing_key(k));
     }
     if let Some(expr) = &args.filter {
         let filter = liwe::query::parse_filter_expression(expr).unwrap_or_else(|e| {
@@ -3427,7 +3457,7 @@ fn extract_command(args: Extract) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let source_key = Key::name(&args.key);
+    let source_key = graph.resolve_existing_key(&args.key);
 
     if (&graph).get_node_id(&source_key).is_none() {
         eprintln!("Error: Document '{}' not found", args.key);
@@ -3536,7 +3566,7 @@ fn inline_command(args: Inline) {
     let config = get_configuration();
     let graph = load_graph(&config);
 
-    let source_key = Key::name(&args.key);
+    let source_key = graph.resolve_existing_key(&args.key);
 
     if (&graph).get_node_id(&source_key).is_none() {
         eprintln!("Error: Document '{}' not found", args.key);
@@ -3795,7 +3825,7 @@ fn update_body(args: Update) {
             std::process::exit(1);
         }
     };
-    let key = Key::name(&key_str);
+    let key = graph.resolve_existing_key(&key_str);
     if (&graph).get_node_id(&key).is_none() {
         eprintln!("error: document '{}' not found", key_str);
         std::process::exit(1);
@@ -3903,7 +3933,11 @@ fn update_mutation(args: Update) {
     if let Some(parsed) = parsed_filter {
         conjuncts.push(parsed);
     }
-    let named_keys: Vec<Key> = args.key.iter().map(|k| Key::name(k)).collect();
+    let named_keys: Vec<Key> = args
+        .key
+        .iter()
+        .map(|k| graph.resolve_existing_key(k))
+        .collect();
     exit_on_missing_documents(&graph, &named_keys);
     match named_keys.len() {
         0 => {}
@@ -4170,9 +4204,8 @@ fn attach_command(args: Attach) {
         eprintln!("Error: --key is required when not in --list mode");
         std::process::exit(1)
     });
-    let source_key = Key::name(&source_key_str);
-
     let graph = load_graph(&config);
+    let source_key = graph.resolve_existing_key(&source_key_str);
     if (&graph).get_node_id(&source_key).is_none() {
         eprintln!("Error: Source document '{}' not found", source_key_str);
         std::process::exit(1);
@@ -4204,22 +4237,22 @@ fn attach_command(args: Attach) {
                 std::process::exit(1);
             }
         };
-        let target_key = Key::name(&target_key_str);
+        let target_key = graph.resolve_existing_key(&target_key_str);
 
-        let new_content = match attach_reference(&graph, &target_key, &source_key, &reference_text)
-        {
-            AttachTarget::AlreadyAttached => continue,
-            AttachTarget::Update(content) => content,
-            AttachTarget::Create(body) => {
-                match render_document_template(&attach.document_template, &body, &config) {
-                    Ok(content) => content,
-                    Err(e) => {
-                        eprintln!("Error: action '{}': {}", action_name, e);
-                        std::process::exit(1);
+        let (new_content, creating) =
+            match attach_reference(&graph, &target_key, &source_key, &reference_text) {
+                AttachTarget::AlreadyAttached => continue,
+                AttachTarget::Update(content) => (content, false),
+                AttachTarget::Create(body) => {
+                    match render_document_template(&attach.document_template, &body, &config) {
+                        Ok(content) => (content, true),
+                        Err(e) => {
+                            eprintln!("Error: action '{}': {}", action_name, e);
+                            std::process::exit(1);
+                        }
                     }
                 }
-            }
-        };
+            };
 
         if args.dry_run {
             if !args.quiet {
@@ -4233,7 +4266,25 @@ fn attach_command(args: Attach) {
         if let Some(parent) = target_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }
-        std::fs::write(&target_path, new_content).expect("Failed to write target file");
+        let written = if creating {
+            write_new_file(&target_path, &new_content)
+        } else {
+            std::fs::write(&target_path, &new_content)
+        };
+        match written {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                eprintln!(
+                    "Error: '{}' exists but is not indexed; refusing to overwrite it",
+                    target_key
+                );
+                std::process::exit(1);
+            }
+            Err(e) => {
+                eprintln!("Error: Failed to write '{}': {}", target_path.display(), e);
+                std::process::exit(1);
+            }
+        }
 
         if !args.quiet {
             println!(

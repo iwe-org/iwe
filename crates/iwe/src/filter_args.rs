@@ -1,5 +1,6 @@
 use clap::Args;
 
+use liwe::graph::Graph;
 use liwe::model::Key;
 use liwe::query::{parse_filter_expression, Filter, InclusionAnchor, KeyOp, ReferenceAnchor};
 
@@ -23,15 +24,31 @@ impl KeyDepth {
         }
     }
 
-    fn inclusion_anchor(&self, default_depth: Option<u8>) -> InclusionAnchor {
+    fn inclusion_anchor(&self, graph: &Graph, default_depth: Option<u8>) -> InclusionAnchor {
         let max = resolve_depth(self.depth, default_depth);
-        InclusionAnchor::with_max(self.key.to_string(), max)
+        inclusion_anchor_to(graph, self.key.as_str(), max)
     }
 
-    fn reference_anchor(&self, default_depth: Option<u8>) -> ReferenceAnchor {
+    fn reference_anchor(&self, graph: &Graph, default_depth: Option<u8>) -> ReferenceAnchor {
         let max = resolve_depth(self.depth, default_depth);
-        ReferenceAnchor::with_max(self.key.to_string(), max)
+        reference_anchor_to(graph, self.key.as_str(), max)
     }
+}
+
+fn inclusion_anchor_to(graph: &Graph, key: &str, max_depth: u32) -> InclusionAnchor {
+    InclusionAnchor::with_match(
+        Filter::Key(KeyOp::Eq(graph.resolve_existing_key(key))),
+        1,
+        max_depth,
+    )
+}
+
+fn reference_anchor_to(graph: &Graph, key: &str, max_distance: u32) -> ReferenceAnchor {
+    ReferenceAnchor::with_match(
+        Filter::Key(KeyOp::Eq(graph.resolve_existing_key(key))),
+        1,
+        max_distance,
+    )
 }
 
 fn resolve_depth(explicit: Option<u8>, default: Option<u8>) -> u32 {
@@ -158,7 +175,7 @@ impl FilterArgs {
             && self.max_distance.is_none()
     }
 
-    pub fn to_filter(&self) -> Result<Option<Filter>, String> {
+    pub fn to_filter(&self, graph: &Graph) -> Result<Option<Filter>, String> {
         if self.is_empty() {
             return Ok(None);
         }
@@ -179,37 +196,42 @@ impl FilterArgs {
 
         match self.key.len() {
             0 => {}
-            1 => conjuncts.push(Filter::Key(KeyOp::Eq(Key::name(&self.key[0])))),
+            1 => conjuncts.push(Filter::Key(KeyOp::Eq(
+                graph.resolve_existing_key(&self.key[0]),
+            ))),
             _ => conjuncts.push(Filter::Key(KeyOp::In(
-                self.key.iter().map(|s| Key::name(s)).collect(),
+                self.key
+                    .iter()
+                    .map(|s| graph.resolve_existing_key(s))
+                    .collect(),
             ))),
         }
 
         for kd in &self.includes {
             conjuncts.push(Filter::Includes(Box::new(
-                kd.inclusion_anchor(self.max_depth),
+                kd.inclusion_anchor(graph, self.max_depth),
             )));
         }
         for kd in &self.included_by {
             conjuncts.push(Filter::IncludedBy(Box::new(
-                kd.inclusion_anchor(self.max_depth),
+                kd.inclusion_anchor(graph, self.max_depth),
             )));
         }
         for kd in &self.references {
             conjuncts.push(Filter::References(Box::new(
-                kd.reference_anchor(self.max_distance),
+                kd.reference_anchor(graph, self.max_distance),
             )));
         }
         for kd in &self.referenced_by {
             conjuncts.push(Filter::ReferencedBy(Box::new(
-                kd.reference_anchor(self.max_distance),
+                kd.reference_anchor(graph, self.max_distance),
             )));
         }
 
         for kd in &self.in_ {
             eprintln!("warning: --in is deprecated; use --included-by");
             conjuncts.push(Filter::IncludedBy(Box::new(
-                kd.inclusion_anchor(self.max_depth),
+                kd.inclusion_anchor(graph, self.max_depth),
             )));
         }
         if !self.in_any.is_empty() {
@@ -220,7 +242,8 @@ impl FilterArgs {
                 self.in_any
                     .iter()
                     .map(|k| {
-                        Filter::IncludedBy(Box::new(InclusionAnchor::with_max(
+                        Filter::IncludedBy(Box::new(inclusion_anchor_to(
+                            graph,
                             k,
                             LEGACY_ALIAS_DEPTH,
                         )))
@@ -233,21 +256,21 @@ impl FilterArgs {
                 "warning: --not-in is deprecated; use --filter '$nor: [{{ $includedBy: ... }}]'"
             );
             conjuncts.push(Filter::Nor(vec![Filter::IncludedBy(Box::new(
-                InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH),
+                inclusion_anchor_to(graph, k, LEGACY_ALIAS_DEPTH),
             ))]));
         }
         if let Some(k) = &self.refs_to {
             eprintln!("warning: --refs-to is deprecated; use --references");
             conjuncts.push(Filter::Or(vec![
-                Filter::Includes(Box::new(InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
-                Filter::References(Box::new(ReferenceAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
+                Filter::Includes(Box::new(inclusion_anchor_to(graph, k, LEGACY_ALIAS_DEPTH))),
+                Filter::References(Box::new(reference_anchor_to(graph, k, LEGACY_ALIAS_DEPTH))),
             ]));
         }
         if let Some(k) = &self.refs_from {
             eprintln!("warning: --refs-from is deprecated; use --referenced-by");
             conjuncts.push(Filter::Or(vec![
-                Filter::IncludedBy(Box::new(InclusionAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
-                Filter::ReferencedBy(Box::new(ReferenceAnchor::with_max(k, LEGACY_ALIAS_DEPTH))),
+                Filter::IncludedBy(Box::new(inclusion_anchor_to(graph, k, LEGACY_ALIAS_DEPTH))),
+                Filter::ReferencedBy(Box::new(reference_anchor_to(graph, k, LEGACY_ALIAS_DEPTH))),
             ]));
         }
 
@@ -274,8 +297,8 @@ fn parse_key_depth(s: &str) -> Result<KeyDepth, String> {
         let depth: u8 = d
             .parse()
             .map_err(|_| format!("invalid depth in '{}': depth must be 0..=255", s))?;
-        Ok(KeyDepth::with_depth(Key::name(k), depth))
+        Ok(KeyDepth::with_depth(Key::from_stripped(k), depth))
     } else {
-        Ok(KeyDepth::bare(Key::name(s)))
+        Ok(KeyDepth::bare(Key::from_stripped(s)))
     }
 }

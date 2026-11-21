@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::path::PathBuf;
 
 use chrono::Local;
@@ -23,7 +23,7 @@ pub const RESERVED_VARIABLES: [&str; 4] = ["slug", "today", "now", "id"];
 
 pub type Variables = BTreeMap<String, serde_yaml::Value>;
 
-#[derive(Debug, Clone, Default, clap::ValueEnum)]
+#[derive(Debug, Clone, Default, PartialEq, clap::ValueEnum)]
 pub enum IfExists {
     #[default]
     Suffix,
@@ -61,8 +61,10 @@ pub struct ContentOptions {
 
 pub struct PreparedDocument {
     pub key: Key,
+    pub base_key: Key,
     pub path: PathBuf,
     pub content: String,
+    pub if_exists: IfExists,
 }
 
 pub struct CreatedDocument {
@@ -99,7 +101,8 @@ impl<'a> DocumentCreator<'a> {
         relative_key: &str,
         empty_key_error: &str,
         if_exists: &IfExists,
-    ) -> Result<Option<(Key, PathBuf)>, String> {
+        content: String,
+    ) -> Result<Option<PreparedDocument>, String> {
         let base_key = Key::name(relative_key);
         if base_key.as_str().is_empty() {
             return Err(empty_key_error.to_string());
@@ -136,13 +139,19 @@ impl<'a> DocumentCreator<'a> {
                 return Err(format!("Document '{}' already exists", base_key))
             }
             IfExists::Suffix => self.find_available_key(&base_key),
-            IfExists::Override | IfExists::Skip | IfExists::Fail => base_key,
+            IfExists::Override | IfExists::Skip | IfExists::Fail => base_key.clone(),
         };
 
         let file_path = self
             .workspace_path
             .join(final_key.to_path(self.config.format));
-        Ok(Some((final_key, file_path)))
+        Ok(Some(PreparedDocument {
+            key: final_key,
+            base_key,
+            path: file_path,
+            content,
+            if_exists: if_exists.clone(),
+        }))
     }
 
     pub fn prepare_content(
@@ -156,14 +165,12 @@ impl<'a> DocumentCreator<'a> {
             ));
         }
 
-        match self.locate(&options.key, "Provided key is empty.", &options.if_exists)? {
-            Some((key, path)) => Ok(Some(PreparedDocument {
-                key,
-                path,
-                content: options.content,
-            })),
-            None => Ok(None),
-        }
+        self.locate(
+            &options.key,
+            "Provided key is empty.",
+            &options.if_exists,
+            options.content,
+        )
     }
 
     pub fn prepare(&self, options: CreateOptions) -> Result<Option<PreparedDocument>, String> {
@@ -258,14 +265,69 @@ impl<'a> DocumentCreator<'a> {
             &options.empty_key_error
         };
 
-        match self.locate(&relative_key, empty_key_error, &options.if_exists)? {
-            Some((key, path)) => Ok(Some(PreparedDocument {
-                key,
-                path,
-                content: document_content,
-            })),
-            None => Ok(None),
+        self.locate(
+            &relative_key,
+            empty_key_error,
+            &options.if_exists,
+            document_content,
+        )
+    }
+
+    pub fn write_document(
+        &self,
+        prepared: &PreparedDocument,
+    ) -> Result<Option<CreatedDocument>, String> {
+        if prepared.if_exists == IfExists::Override {
+            create_parent_dirs(&prepared.path)?;
+            std::fs::write(&prepared.path, &prepared.content)
+                .map_err(|e| format!("Failed to write file: {}", e))?;
+            return Ok(Some(created_document(&prepared.path)));
         }
+
+        let mut path = prepared.path.clone();
+        let mut counter = 1;
+        loop {
+            create_parent_dirs(&path)?;
+            match write_new_file(&path, &prepared.content) {
+                Ok(()) => return Ok(Some(created_document(&path))),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                    match prepared.if_exists {
+                        IfExists::Skip => return Ok(None),
+                        IfExists::Suffix => {
+                            let key = Key::name(&format!("{}-{}", prepared.base_key, counter));
+                            path = self.workspace_path.join(key.to_path(self.config.format));
+                            counter += 1;
+                        }
+                        IfExists::Fail | IfExists::Override => {
+                            return Err(format!("Document '{}' already exists", prepared.key))
+                        }
+                    }
+                }
+                Err(e) => return Err(format!("Failed to write file: {}", e)),
+            }
+        }
+    }
+}
+
+fn create_parent_dirs(path: &std::path::Path) -> Result<(), String> {
+    match path.parent() {
+        Some(parent) if !parent.exists() => std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create parent directories: {}", e)),
+        _ => Ok(()),
+    }
+}
+
+pub fn write_new_file(path: &std::path::Path, content: &str) -> std::io::Result<()> {
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)?;
+    file.write_all(content.as_bytes())
+}
+
+fn created_document(path: &std::path::Path) -> CreatedDocument {
+    CreatedDocument {
+        path: path.canonicalize().unwrap_or_else(|_| path.to_path_buf()),
     }
 }
 
@@ -286,25 +348,6 @@ pub fn normalize_content(config: &Configuration, key: &Key, content: &str) -> St
         Some(front) => format!("{}\n\n{}", front.trim_end_matches('\n'), normalized),
         None => normalized,
     }
-}
-
-pub fn write_document(prepared: &PreparedDocument) -> Result<CreatedDocument, String> {
-    if let Some(parent) = prepared.path.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create parent directories: {}", e))?;
-        }
-    }
-
-    std::fs::write(&prepared.path, &prepared.content)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
-
-    Ok(CreatedDocument {
-        path: prepared
-            .path
-            .canonicalize()
-            .unwrap_or_else(|_| prepared.path.clone()),
-    })
 }
 
 pub fn read_stdin_if_available() -> String {
