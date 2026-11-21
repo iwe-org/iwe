@@ -5426,3 +5426,45 @@ fn policy_refuses_a_directory_without_memory() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn session_start_does_not_repeat_a_key_that_keeps_its_extension() {
+    let fixture = HookFixture::new(Some(indoc! {"
+        ---
+        injection:
+          - { heading: \"Rules this store keeps:\", filter: { kind: rule }, limit: 5 }
+          - { heading: \"Most recently recorded:\", filter: { created: { $exists: true } }, sort: created:-1 }
+        ---
+
+        # Memory policy
+
+        How this store is written.
+    "}));
+    fixture.write(
+        "entry.md.md",
+        "---\ncreated: \"2026-08-05 10:00\"\nkind: rule\n---\n\n# Rule Entry\n\nNever do X.\n",
+    );
+    fixture.write(
+        "entry.md",
+        "---\ncreated: \"2026-08-09 10:00\"\nkind: trap\n---\n\n# Trap Entry\n\nIt failed.\n",
+    );
+
+    assert_eq!(
+        fixture.session_start(None),
+        indoc! {"
+            <iwe-memory>
+            This repository is an IWE workspace with durable memory: markdown documents captured from past sessions, kept as ordinary files in the store.
+            Rules this store keeps:
+
+            - [Rule Entry](entry.md)
+
+            Most recently recorded:
+
+            - [Trap Entry](entry) · created: 2026-08-09 10:00
+
+            Read one with `iwe retrieve -k <key>`; search with `iwe find --lexical \"<terms>\" --limit 5`.
+            `MEMORY.md` says what this store keeps and how it is written: `iwe retrieve -k MEMORY`.
+            </iwe-memory>
+        "}
+    );
+}

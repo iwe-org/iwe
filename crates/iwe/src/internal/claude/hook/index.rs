@@ -154,7 +154,9 @@ fn list_slice(
         let mut keys: Vec<&String> = seen.iter().collect();
         keys.sort();
         Filter::Key(KeyOp::Nin(
-            keys.into_iter().map(|key| Key::name(key)).collect(),
+            keys.into_iter()
+                .map(|key| Key::from_stripped(key))
+                .collect(),
         ))
     });
     let sort = slice.sort.as_ref().map(|(name, dir)| QuerySort {

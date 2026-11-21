@@ -3103,3 +3103,60 @@ fn test_retrieve_includes_frontmatter_unless_disabled() {
         "}
     );
 }
+
+#[test]
+fn test_retrieve_exclude_keeps_an_edge_that_only_shares_the_stripped_key() {
+    let dir = setup_workspace();
+
+    write(
+        dir.path().join("parent.md"),
+        indoc! {"
+            # Parent
+
+            [Entry](entry)
+
+            [Other](entry.md.md)
+        "},
+    )
+    .unwrap();
+    write(dir.path().join("entry.md"), "# Entry\n").unwrap();
+    write(dir.path().join("entry.md.md"), "# Other\n").unwrap();
+
+    let (stdout, stderr, success) = run_iwe(
+        dir.path(),
+        &[
+            "-k",
+            "parent",
+            "-d",
+            "0",
+            "--children",
+            "-e",
+            "entry.md",
+            "-f",
+            "json",
+        ],
+    );
+
+    assert!(success, "stderr: {}", stderr);
+    let expected = indoc! {r##"
+        [
+          {
+            "key": "parent",
+            "title": "Parent",
+            "content": "# Parent\n\n[Entry](entry)\n\n[Other](entry.md)\n",
+            "references": [],
+            "includes": [
+              {
+                "key": "entry",
+                "title": "Entry",
+                "sectionPath": []
+              }
+            ],
+            "referencedBy": [],
+            "includedBy": []
+          }
+        ]
+    "##};
+
+    assert_eq!(stdout, expected);
+}
