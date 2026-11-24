@@ -40,6 +40,7 @@ use liwe::query::{
     OperationKind, Outcome, ProjectionBase,
 };
 use minijinja::{context, Environment};
+use rmcp::handler::server::tool::ToolCallContext;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
 use rmcp::schemars::JsonSchema;
@@ -1713,9 +1714,72 @@ impl IweServer {
     }
 }
 
+const UNPUBLISHED_ARGUMENTS: &[(&str, &[&str])] =
+    &[("iwe_create", &["template", "variables", "frontmatter"])];
+
+fn declared_arguments(tool: &Tool) -> Vec<&str> {
+    let mut declared: Vec<&str> = tool
+        .input_schema
+        .get("properties")
+        .and_then(|properties| properties.as_object())
+        .map(|properties| properties.keys().map(String::as_str).collect())
+        .unwrap_or_default();
+    declared.sort_unstable();
+    declared
+}
+
+fn accepts_any_argument(tool: &Tool) -> bool {
+    tool.input_schema
+        .get("additionalProperties")
+        .is_some_and(|value| value != &serde_json::Value::Bool(false))
+}
+
+fn reject_undeclared_arguments(tool: &Tool, arguments: &JsonObject) -> Result<(), McpError> {
+    if accepts_any_argument(tool) {
+        return Ok(());
+    }
+    let declared = declared_arguments(tool);
+    let unpublished = UNPUBLISHED_ARGUMENTS
+        .iter()
+        .find(|(name, _)| *name == tool.name)
+        .map_or(&[][..], |(_, arguments)| *arguments);
+    let mut undeclared: Vec<&str> = arguments
+        .keys()
+        .map(String::as_str)
+        .filter(|argument| !declared.contains(argument) && !unpublished.contains(argument))
+        .collect();
+    if undeclared.is_empty() {
+        return Ok(());
+    }
+    undeclared.sort_unstable();
+    Err(McpError::invalid_params(
+        format!(
+            "{} does not accept argument(s) {}; accepted: {}",
+            tool.name,
+            undeclared.join(", "),
+            declared.join(", ")
+        ),
+        None,
+    ))
+}
+
 #[tool_handler]
 #[prompt_handler]
 impl ServerHandler for IweServer {
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, McpError> {
+        let router = Self::tool_router();
+        if let (Some(tool), Some(arguments)) = (router.get(&request.name), &request.arguments) {
+            reject_undeclared_arguments(tool, arguments)?;
+        }
+        router
+            .call(ToolCallContext::new(self, request, context))
+            .await
+    }
+
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(
             ServerCapabilities::builder()
