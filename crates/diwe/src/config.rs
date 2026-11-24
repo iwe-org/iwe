@@ -21,6 +21,7 @@ pub use liwe::model::config::{
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 pub const IWE_MARKER: &str = ".iwe";
+const CURRENT_CONFIG_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -220,7 +221,7 @@ pub struct SchemaBinding {
 impl Default for Configuration {
     fn default() -> Self {
         Self {
-            version: Some(1),
+            version: Some(CURRENT_CONFIG_VERSION),
             format: Default::default(),
             markdown: Default::default(),
             djot: Default::default(),
@@ -249,10 +250,7 @@ impl Configuration {
     }
 
     pub fn template() -> Self {
-        let mut template = Self {
-            version: Some(4),
-            ..Default::default()
-        };
+        let mut template = Self::default();
 
         template.commands.insert(
             "default".into(),
@@ -583,13 +581,13 @@ fn migrate(config: &str) -> Result<String, String> {
         config_path.push(CONFIG_FILE_NAME);
 
         debug!("updating configuration file");
-        std::fs::write(&config_path, &updated).map_err(|e| {
-            format!(
-                "Failed to write config file '{}': {}",
+        if let Err(e) = std::fs::write(&config_path, &updated) {
+            eprintln!(
+                "warning: config file '{}' is from an older iwe version and could not be updated ({}); using the updated settings without saving them",
                 config_path.display(),
                 e
-            )
-        })?;
+            );
+        }
     }
 
     Ok(updated)

@@ -154,9 +154,9 @@ fn test_config_with_extract_action_parses_correctly() {
 }
 
 #[test]
-fn test_default_configuration_has_version_1() {
+fn test_default_configuration_has_the_current_version() {
     let config = Configuration::default();
-    assert_eq!(config.version, Some(1));
+    assert_eq!(config.version, Some(4));
 }
 
 #[test]

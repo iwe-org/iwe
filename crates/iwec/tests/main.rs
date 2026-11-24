@@ -2,6 +2,7 @@
 
 mod fixture;
 
+mod argument_test;
 mod attach_test;
 mod extract_test;
 mod find_test;
