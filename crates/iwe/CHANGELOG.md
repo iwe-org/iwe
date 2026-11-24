@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.1](https://github.com/iwe-org/iwe/compare/iwe-v0.35.0...iwe-v0.35.1) - 2026-11-24
+
+### Fixed
+- A config file from an older version that can't be updated (read-only, or owned by another user) is now used as-is with a warning (previously every command failed)
+
 ## [0.35.0](https://github.com/iwe-org/iwe/compare/iwe-v0.34.0...iwe-v0.35.0) - 2026-11-21
 
 ### Changed

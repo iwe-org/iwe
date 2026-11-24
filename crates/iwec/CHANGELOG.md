@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.1](https://github.com/iwe-org/iwe/compare/iwec-v0.35.0...iwec-v0.35.1) - 2026-11-24
+
+### Fixed
+- Tools refuse arguments they don't declare and list the accepted ones (previously a misspelled argument was ignored, so `iwe_retrieve` with `key` instead of `keys` returned an empty result)
+- A config file from an older version that can't be updated (read-only, or owned by another user) is now used as-is with a warning (previously the server failed to start)
+
 ## [0.35.0](https://github.com/iwe-org/iwe/compare/iwec-v0.34.0...iwec-v0.35.0) - 2026-11-21
 
 ### Fixed

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.1](https://github.com/iwe-org/iwe/compare/diwe-v0.35.0...diwe-v0.35.1) - 2026-11-24
+
+### Changed
+- `Configuration::default()` is at the current config version (previously version 1, so a config written from it was migrated on the next load)
+- `load_config` warns and keeps the migrated settings in memory when the config file can't be updated (previously it returned an error)
+
 ## [0.35.0](https://github.com/iwe-org/iwe/compare/diwe-v0.34.0...diwe-v0.35.0) - 2026-11-21
 
 ### Fixed
