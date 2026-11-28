@@ -1,4 +1,4 @@
-use crate::model::config::RefsPath;
+use crate::model::config::{Format, RefsPath};
 use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::model::inline::{prepend_checkbox, Inline, Inlines};
 use crate::model::node::{Node, NodeIter, Reference, ReferenceType, Target};
@@ -8,23 +8,41 @@ pub struct Projector {
     header_level: usize,
     parent: String,
     refs_path: RefsPath,
+    refs_extension: String,
+    format: Format,
 }
 
 impl Projector {
-    pub fn project<'a>(iter: impl NodeIter<'a>, parent: &str, refs_path: RefsPath) -> Vec<Block> {
+    pub fn project<'a>(
+        iter: impl NodeIter<'a>,
+        parent: &str,
+        refs_path: RefsPath,
+        refs_extension: &str,
+        format: Format,
+    ) -> Vec<Block> {
         Projector {
             header_level: 0,
             parent: parent.to_string(),
             refs_path,
+            refs_extension: refs_extension.to_string(),
+            format,
         }
         .project_node(iter)
     }
 
-    pub fn resolve(parent: &str, refs_path: RefsPath, inlines: Inlines) -> Inlines {
+    pub fn resolve(
+        parent: &str,
+        refs_path: RefsPath,
+        refs_extension: &str,
+        format: Format,
+        inlines: Inlines,
+    ) -> Inlines {
         Projector {
             header_level: 0,
             parent: parent.to_string(),
             refs_path,
+            refs_extension: refs_extension.to_string(),
+            format,
         }
         .resolve_inlines(inlines)
     }
@@ -34,13 +52,20 @@ impl Projector {
             header_level,
             parent: self.parent.clone(),
             refs_path: self.refs_path,
+            refs_extension: self.refs_extension.clone(),
+            format: self.format,
         }
     }
 
     fn reference_url(&self, reference: &Reference) -> String {
         match (&reference.target, reference.reference_type) {
             (Target::Path { key, fragment }, ReferenceType::Regular) => {
-                let base = key.link_url(&self.parent, self.refs_path);
+                let base = key.document_link_url(
+                    &self.parent,
+                    self.refs_path,
+                    &self.refs_extension,
+                    self.format,
+                );
                 match fragment {
                     Some(fragment) => format!("{base}#{fragment}"),
                     None => base,

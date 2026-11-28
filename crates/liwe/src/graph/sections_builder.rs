@@ -161,7 +161,7 @@ impl<'a> SectionsBuilder<'a> {
                 if block.is_ref() {
                     let ref_type = block.ref_type().unwrap();
                     let url = block.url().unwrap();
-                    let target = Target::from_link_url(&url, &self.key.parent(), ref_type);
+                    let target = Target::from_document_link(&url, &self.key.parent(), ref_type);
                     let inlines = block
                         .ref_inlines()
                         .map(|inlines| to_graph_inlines(inlines, &self.key.parent()))

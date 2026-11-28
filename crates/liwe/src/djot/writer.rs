@@ -1,13 +1,13 @@
-use crate::model::config::DjotOptions;
+use crate::model::config::{DjotOptions, Format};
 use crate::model::document::{LinkType, MathType};
 use crate::model::frontmatter::UNPARSED_FRONTMATTER;
 use crate::model::inline::{
-    append_refs_extension, detect_and_strip_checkbox, push_verbatim_lines, Attributes, Inline,
-    Inlines, TextSink, TokenStream, FLATTENED_BLOCK,
+    detect_and_strip_checkbox, push_verbatim_lines, Attributes, Inline, Inlines, TextSink,
+    TokenStream, FLATTENED_BLOCK,
 };
 use crate::model::node::ColumnAlignment;
 use crate::model::writer::{code_block_body, frontmatter_to_yaml, same_list_kind, Block, Blocks};
-use crate::model::{autolink_body, is_ref_url};
+use crate::model::{autolink_body, document_url};
 
 pub struct DjotWriter {}
 
@@ -449,20 +449,18 @@ fn render_inline_djot<S: TextSink>(
                 out.push(">");
                 return;
             }
-            let final_url = if is_ref_url(url) {
-                append_refs_extension(url, &options.refs_extension)
-            } else {
-                url.to_string()
-            };
             out.push("[");
             render_inlines_djot(inlines, options, out, false);
             out.push("](");
-            out.push(&final_url);
+            out.push(url);
             out.push(")");
         }
         Inline::Reference(reference) => {
-            let url =
-                append_refs_extension(&reference.target.unresolved_url(), &options.refs_extension);
+            let url = document_url(
+                &reference.target.unresolved_url(),
+                &options.refs_extension,
+                Format::Djot,
+            );
             out.push("[");
             render_inlines_djot(&reference.inlines, options, out, false);
             out.push("](");

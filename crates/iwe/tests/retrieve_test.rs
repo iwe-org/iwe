@@ -3143,7 +3143,7 @@ fn test_retrieve_exclude_keeps_an_edge_that_only_shares_the_stripped_key() {
           {
             "key": "parent",
             "title": "Parent",
-            "content": "# Parent\n\n[Entry](entry)\n\n[Other](entry.md)\n",
+            "content": "# Parent\n\n[Entry](entry)\n\n[Other](entry.md.md)\n",
             "references": [],
             "includes": [
               {

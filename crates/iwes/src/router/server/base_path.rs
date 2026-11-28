@@ -100,7 +100,7 @@ impl BasePath {
             .path_segments()
             .and_then(|s| s.last())
             .unwrap_or("");
-        if !last.is_empty() && !last.ends_with(&self.dot_extension()) {
+        if !last.is_empty() {
             let decoded = percent_decode_str(last).decode_utf8_lossy().into_owned();
             resolved
                 .path_segments_mut()
@@ -254,10 +254,17 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_relative_url_doubles_md_suffix_when_link_has_md_extension() {
+    fn test_resolve_relative_url_appends_extension_to_document_path() {
+        let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
+        let url = base_path.resolve_relative_url("one", "");
+        assert_eq!(url.to_string(), file_url("basepath/one.md"));
+    }
+
+    #[test]
+    fn test_resolve_relative_url_keeps_md_in_key_name() {
         let base_path = BasePath::from_path(&abs_path("basepath"), Format::Markdown);
         let url = base_path.resolve_relative_url("one.md", "");
-        assert_eq!(url.to_string(), file_url("basepath/one.md"));
+        assert_eq!(url.to_string(), file_url("basepath/one.md.md"));
     }
 
     #[test]

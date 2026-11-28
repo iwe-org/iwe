@@ -483,6 +483,8 @@ fn render_content(graph: &Graph, key: &Key) -> Vec<Block> {
         TreeIter::new(&annotated),
         &key.parent(),
         graph.format_options().refs_path(),
+        graph.format_options().refs_extension(),
+        graph.format_options().format(),
     )
 }
 

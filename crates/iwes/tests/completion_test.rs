@@ -219,6 +219,34 @@ fn completion_relative_test_with_refs_extension() {
 }
 
 #[test]
+fn completion_of_dotted_key_adds_document_extension() {
+    Fixture::with_options_and_client(
+        vec![(
+            "notes.draft".to_string(),
+            indoc! {"
+                # draft
+            "}
+            .to_string(),
+        )]
+        .into_iter()
+        .collect(),
+        no_min_prefix(),
+        "",
+        None,
+    )
+    .completion(
+        uri_from("notes.draft").to_completion_params(2, 0),
+        completion_list(vec![completion_item(
+            "🔗 draft",
+            "[draft](notes.draft.md)",
+            "draft",
+            "draft",
+            empty_range(2, 0),
+        )]),
+    );
+}
+
+#[test]
 fn completion_after_file_deleted() {
     Fixture::with_options_and_client(
         vec![

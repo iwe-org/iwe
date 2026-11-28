@@ -165,8 +165,11 @@ impl Server {
     }
 
     fn resolve_link_key(&self, url: &str, relative_to: &str, reference_type: ReferenceType) -> Key {
-        self.graph
-            .target_key(&Target::from_link_url(url, relative_to, reference_type))
+        self.graph.target_key(&Target::from_document_link(
+            url,
+            relative_to,
+            reference_type,
+        ))
     }
 
     fn ref_type_at(&self, key: &Key, position: liwe::model::Position) -> ReferenceType {
@@ -392,7 +395,7 @@ impl Server {
 
         let location_url = match self.ref_type_at(&key, position.to_model()) {
             ReferenceType::Regular => {
-                if key_escapes_workspace(Key::from_rel_link_url(&url, &relative_to).as_str()) {
+                if key_escapes_workspace(Key::from_rel_document_link(&url, &relative_to).as_str()) {
                     return DefinitionResult::Internal(GotoDefinitionResponse::Array(vec![]));
                 }
                 self.base_path.resolve_relative_url(&url, &relative_to)

@@ -449,24 +449,30 @@ impl DjotEventsReader {
                 }),
                 self.to_line_range(range),
             ),
-            Container::Link(url, link_type) => self.push_inline(
-                DocumentInline::Link(Link {
-                    inlines: vec![],
-                    target: Target {
-                        url: if link_type == jotdown::LinkType::Email {
-                            email_autolink_url(url.as_ref())
-                        } else {
-                            normalize_url(url.as_ref(), &self.options.refs_extension)
-                        },
-                        title: String::new(),
+            Container::Link(url, link_type) => {
+                let (url, document) = match link_type {
+                    jotdown::LinkType::Email => (email_autolink_url(url.as_ref()), false),
+                    _ => match document_link_path(url.as_ref(), &self.options.refs_extension) {
+                        Some(path) => (path, true),
+                        None => (url.to_string(), false),
                     },
-                    title: String::new(),
-                    attr: Default::default(),
-                    inline_range: self.to_inline_range(range.clone()),
-                    link_type: document::LinkType::Markdown,
-                }),
-                self.to_line_range(range),
-            ),
+                };
+                self.push_inline(
+                    DocumentInline::Link(Link {
+                        inlines: vec![],
+                        target: Target {
+                            url,
+                            title: String::new(),
+                        },
+                        document,
+                        title: String::new(),
+                        attr: Default::default(),
+                        inline_range: self.to_inline_range(range.clone()),
+                        link_type: document::LinkType::Markdown,
+                    }),
+                    self.to_line_range(range),
+                );
+            }
             Container::Image(url, _) => self.push_inline(
                 DocumentInline::Image(Image {
                     inlines: vec![],
