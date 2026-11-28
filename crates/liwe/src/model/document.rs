@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Mapping;
 
 use super::{InlineRange, Position};
-use crate::model;
 use crate::model::inline::Inline;
 use crate::model::node::ColumnAlignment;
 use crate::model::reference::{Reference, ReferenceType, Target as RefTarget};
@@ -632,9 +631,9 @@ impl DocumentInline {
             DocumentInline::LineBreak(_) => Inline::LineBreak,
             DocumentInline::Link(link) => {
                 let inlines = to_graph_inlines(&link.inlines, relative_to);
-                if model::is_document_url(&link.target.url) {
+                if link.document {
                     Inline::Reference(Reference {
-                        target: RefTarget::from_link_url(
+                        target: RefTarget::from_document_link(
                             &link.target.url,
                             relative_to,
                             link.link_type.to_ref_type(),
@@ -701,7 +700,7 @@ impl DocumentInline {
 
     fn is_ref(&self) -> bool {
         match self {
-            DocumentInline::Link(link) => model::is_document_url(&link.target.url),
+            DocumentInline::Link(link) => link.document,
             _ => false,
         }
     }
@@ -858,6 +857,7 @@ impl LinkType {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     pub target: Target,
+    pub document: bool,
     pub attr: Attributes,
     pub inlines: DocumentInlines,
     pub title: String,

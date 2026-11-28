@@ -150,7 +150,21 @@ impl Key {
         let decoded = percent_decode_str(without_fragment)
             .decode_utf8_lossy()
             .into_owned();
-        let key = strip_doc_extension(&decoded);
+        Self::from_rel_link_path(strip_doc_extension(&decoded), relative_to)
+    }
+
+    pub fn from_rel_document_link(path: &str, relative_to: &str) -> Self {
+        let without_fragment = match path.split_once('#') {
+            Some((path, _)) => path,
+            None => path,
+        };
+        let decoded = percent_decode_str(without_fragment)
+            .decode_utf8_lossy()
+            .into_owned();
+        Self::from_rel_link_path(&decoded, relative_to)
+    }
+
+    fn from_rel_link_path(key: &str, relative_to: &str) -> Self {
         let base = if key.starts_with('/') {
             ""
         } else {
@@ -195,6 +209,16 @@ impl Key {
             RefsPath::Absolute => format!("/{}", self.to_workspace_url()),
         };
         url.replace('#', "%23")
+    }
+
+    pub fn document_link_url(
+        &self,
+        relative_to: &str,
+        refs_path: RefsPath,
+        extension: &str,
+        format: config::Format,
+    ) -> String {
+        document_url(&self.link_url(relative_to, refs_path), extension, format)
     }
 
     pub fn last_url_segment(&self) -> String {
@@ -301,6 +325,7 @@ pub fn is_document_url(url: &str) -> bool {
         && !path.ends_with('/')
         && last != "."
         && last != ".."
+        && !strip_doc_extension(last).is_empty()
         && (strip_doc_extension(last) != last || !has_file_extension(last))
 }
 
@@ -340,23 +365,49 @@ pub(crate) fn autolink_body<'a>(url: &'a str, text: &str) -> Option<&'a str> {
         .filter(|address| text.eq_ignore_ascii_case(address))
 }
 
-pub fn normalize_url(url: &str, extension: &str) -> String {
+pub fn document_link_path(url: &str, extension: &str) -> Option<String> {
     if !is_ref_url(url) {
-        return url.to_string();
+        return None;
     }
-    match url.split_once('#') {
-        Some((path, fragment)) => format!(
-            "{}#{}",
-            path.strip_suffix(extension).unwrap_or(path),
-            fragment
-        ),
-        None => url.strip_suffix(extension).unwrap_or(url).to_string(),
+    let (path, fragment) = match url.split_once('#') {
+        Some((path, fragment)) => (path, Some(fragment)),
+        None => (url, None),
+    };
+    let stripped = path
+        .strip_suffix(extension)
+        .filter(|stripped| {
+            !extension.is_empty() && !stripped.is_empty() && !stripped.ends_with('/')
+        })
+        .or_else(|| is_document_url(url).then(|| strip_doc_extension(path)))?;
+    Some(match fragment {
+        Some(fragment) => format!("{}#{}", stripped, fragment),
+        None => stripped.to_string(),
+    })
+}
+
+pub fn document_url(url: &str, extension: &str, format: config::Format) -> String {
+    let (path, fragment) = match url.split_once('#') {
+        Some((path, fragment)) => (path, Some(fragment)),
+        None => (url, None),
+    };
+    let path = if !extension.is_empty() {
+        format!("{}{}", path, extension)
+    } else if document_link_path(path, extension).as_deref() == Some(path) {
+        path.to_string()
+    } else {
+        format!("{}.{}", path, format.extension())
+    };
+    match fragment {
+        Some(fragment) => format!("{}#{}", path, fragment),
+        None => path,
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{is_document_url, is_ref_url, normalize_url, Key, RefsPath};
+    use super::{
+        config, document_link_path, document_url, is_document_url, is_ref_url, Key, RefsPath,
+    };
 
     #[test]
     fn tel_url_is_external() {
@@ -434,12 +485,114 @@ mod test {
     }
 
     #[test]
-    fn normalize_url_leaves_scheme_urls_untouched() {
-        assert_eq!("tel:+15551234", normalize_url("tel:+15551234", ".md"));
+    fn scheme_urls_are_not_document_links() {
+        assert_eq!(None, document_link_path("tel:+15551234", ".md"));
     }
 
     #[test]
-    fn normalize_url_strips_extension_from_paths() {
-        assert_eq!("folder/file", normalize_url("folder/file.md", ".md"));
+    fn refs_extension_is_stripped_from_document_links() {
+        assert_eq!(
+            Some("folder/file".to_string()),
+            document_link_path("folder/file.md", ".md")
+        );
+        assert_eq!(Some("a.b".to_string()), document_link_path("a.b.md", ".md"));
+        assert_eq!(
+            Some("a.b#part".to_string()),
+            document_link_path("a.b.md#part", ".md")
+        );
+        assert_eq!(
+            Some("a.b".to_string()),
+            document_link_path("a.b.html", ".html")
+        );
+    }
+
+    #[test]
+    fn links_without_refs_extension_are_read_by_their_own_extension() {
+        assert_eq!(Some("a.b".to_string()), document_link_path("a.b.md", ""));
+        assert_eq!(
+            Some("a.b#part".to_string()),
+            document_link_path("a.b.md#part", "")
+        );
+        assert_eq!(Some("a".to_string()), document_link_path("a", ".md"));
+        assert_eq!(Some("v1.2".to_string()), document_link_path("v1.2", ".md"));
+        assert_eq!(None, document_link_path("a.b", ".md"));
+        assert_eq!(None, document_link_path("image.png", ""));
+        assert_eq!(None, document_link_path("#part", ".md"));
+        assert_eq!(None, document_link_path(".md", ".md"));
+        assert_eq!(None, document_link_path("dir/.md", ""));
+    }
+
+    #[test]
+    fn document_url_puts_extension_before_fragment() {
+        assert_eq!(
+            "a.b.dj#part",
+            document_url("a.b#part", "", config::Format::Djot)
+        );
+        assert_eq!(
+            "notes.html#part",
+            document_url("notes#part", ".html", config::Format::Markdown)
+        );
+        assert_eq!(
+            "notes#part",
+            document_url("notes#part", "", config::Format::Markdown)
+        );
+    }
+
+    #[test]
+    fn document_link_round_trips_for_every_key_and_extension() {
+        let keys = [
+            "notes",
+            "a.b",
+            "v1.2",
+            "a.b.c",
+            "dir/a.b",
+            "my page",
+            "C#",
+            "dir/sub/notes",
+            "a.md",
+            "dir/a.dj",
+        ];
+        for format in [config::Format::Markdown, config::Format::Djot] {
+            for extension in ["", ".md", ".dj", ".html"] {
+                for refs_path in [RefsPath::Relative, RefsPath::Absolute] {
+                    for key in keys {
+                        let key = Key::from_stripped(key);
+                        let url = key.document_link_url("dir", refs_path, extension, format);
+                        let path = document_link_path(&url, extension).unwrap_or_default();
+                        assert_eq!(
+                            (key.clone(), true),
+                            (Key::from_rel_document_link(&path, "dir"), !path.is_empty()),
+                            "{url} with refs_extension {extension:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn document_link_url_reads_back_as_a_document() {
+        let key = Key::name("dir/a.b");
+        assert_eq!(
+            "a.b.md",
+            key.document_link_url("dir", RefsPath::Relative, "", config::Format::Markdown)
+        );
+        assert_eq!(
+            "/dir/a.b.dj",
+            key.document_link_url("", RefsPath::Absolute, "", config::Format::Djot)
+        );
+        assert_eq!(
+            "a.b.html",
+            key.document_link_url("dir", RefsPath::Relative, ".html", config::Format::Markdown)
+        );
+        assert_eq!(
+            "plain",
+            Key::name("plain").document_link_url(
+                "",
+                RefsPath::Relative,
+                "",
+                config::Format::Markdown
+            )
+        );
     }
 }

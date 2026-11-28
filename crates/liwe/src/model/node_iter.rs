@@ -20,12 +20,24 @@ pub trait NodeIter<'a>: Sized {
     }
 
     fn to_text(self, parent: &str, format: &FormatOptions) -> String {
-        let blocks = Projector::project(self, parent, format.refs_path());
+        let blocks = Projector::project(
+            self,
+            parent,
+            format.refs_path(),
+            format.refs_extension(),
+            format.format(),
+        );
         crate::format::write_document(&blocks, format)
     }
 
     fn to_text_skip_frontmatter(self, parent: &str, format: &FormatOptions) -> String {
-        let blocks = Projector::project(self, parent, format.refs_path());
+        let blocks = Projector::project(
+            self,
+            parent,
+            format.refs_path(),
+            format.refs_extension(),
+            format.format(),
+        );
         crate::format::write_document_skip_frontmatter(&blocks, format)
     }
 

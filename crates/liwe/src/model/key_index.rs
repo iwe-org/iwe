@@ -624,8 +624,8 @@ mod test {
         let index = index(&["notes/target"]);
         assert_eq!(
             Key::name("notes/Target"),
-            index.target_key(&Target::from_link_url(
-                "Target.md",
+            index.target_key(&Target::from_document_link(
+                "Target",
                 "notes",
                 ReferenceType::Regular
             ))
@@ -637,7 +637,7 @@ mod test {
         let index = index(&["notes/Target"]);
         assert_eq!(
             Key::name("notes/Target"),
-            index.target_key(&Target::from_link_url(
+            index.target_key(&Target::from_document_link(
                 "target",
                 "notes",
                 ReferenceType::WikiLink

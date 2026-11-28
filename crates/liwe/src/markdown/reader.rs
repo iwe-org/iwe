@@ -382,20 +382,32 @@ impl MarkdownEventsReader {
                 link_type,
                 id: _,
             } => {
+                let (url, document) = match link_type {
+                    LinkType::Email => (email_autolink_url(dest_url.as_ref()), false),
+                    LinkType::WikiLink { .. } => (
+                        document_link_path(
+                            dest_url.as_ref(),
+                            &self.markdown_options.refs_extension,
+                        )
+                        .unwrap_or_else(|| dest_url.to_string()),
+                        true,
+                    ),
+                    _ => match document_link_path(
+                        dest_url.as_ref(),
+                        &self.markdown_options.refs_extension,
+                    ) {
+                        Some(path) => (path, true),
+                        None => (dest_url.to_string(), false),
+                    },
+                };
                 self.push_inline(
                     DocumentInline::Link(Link {
                         inlines: vec![],
                         target: Target {
-                            url: if link_type == LinkType::Email {
-                                email_autolink_url(dest_url.as_ref())
-                            } else {
-                                normalize_url(
-                                    dest_url.as_ref(),
-                                    &self.markdown_options.refs_extension,
-                                )
-                            },
+                            url,
                             title: title.to_string(),
                         },
+                        document,
                         title: title.to_string(),
                         attr: Default::default(),
                         inline_range: self.to_inline_range(range.clone()),
@@ -624,6 +636,7 @@ mod tests {
                     url: "to".to_string(),
                     title: String::default(),
                 },
+                document: true,
                 attr: Default::default(),
                 title: String::default(),
                 inline_range: InlineRange {
@@ -669,6 +682,7 @@ mod tests {
                             url: "to".to_string(),
                             title: String::default(),
                         },
+                        document: true,
                         attr: Default::default(),
                         title: String::default(),
                         inline_range: InlineRange {
@@ -715,6 +729,7 @@ mod tests {
                             url: "to".to_string(),
                             title: String::default(),
                         },
+                        document: true,
                         attr: Default::default(),
                         title: String::default(),
                         inline_range: InlineRange {
@@ -756,6 +771,7 @@ mod tests {
                         url: "to".to_string(),
                         title: String::default(),
                     },
+                    document: true,
                     attr: Default::default(),
                     title: String::default(),
                     inline_range: InlineRange {
@@ -872,6 +888,7 @@ mod tests {
                             url: "to".to_string(),
                             title: String::default(),
                         },
+                        document: true,
                         attr: Default::default(),
                         title: String::default(),
                         inline_range: InlineRange {

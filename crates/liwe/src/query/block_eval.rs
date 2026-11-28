@@ -1,7 +1,7 @@
 use serde_yaml::{Mapping, Value};
 
 use crate::graph::{Graph, GraphContext};
-use crate::model::config::MarkdownOptions;
+use crate::model::config::{Format, MarkdownOptions};
 use crate::model::ids::alloc_node_id;
 use crate::model::inline::{
     collect_comments, inlines_to_markdown, to_plain_text, without_comments,
@@ -312,6 +312,8 @@ impl BlockIndex {
                     &Projector::resolve(
                         &self.parent_dir,
                         self.options.refs_path,
+                        &self.options.refs_extension,
+                        Format::Markdown,
                         without_comments(inlines),
                     ),
                     &self.options,
@@ -328,6 +330,8 @@ impl BlockIndex {
                             Projector::resolve(
                                 &self.parent_dir,
                                 self.options.refs_path,
+                                &self.options.refs_extension,
+                                Format::Markdown,
                                 without_comments(cell),
                             )
                         })
@@ -342,6 +346,8 @@ impl BlockIndex {
                                     Projector::resolve(
                                         &self.parent_dir,
                                         self.options.refs_path,
+                                        &self.options.refs_extension,
+                                        Format::Markdown,
                                         without_comments(cell),
                                     )
                                 })
@@ -559,6 +565,8 @@ impl BlockIndex {
                         Projector::resolve(
                             &self.parent_dir,
                             self.options.refs_path,
+                            &self.options.refs_extension,
+                            Format::Markdown,
                             inlines.clone(),
                         ),
                     ));
@@ -575,6 +583,8 @@ impl BlockIndex {
                         TreeIter::new(&tree),
                         &self.parent_dir,
                         self.options.refs_path,
+                        &self.options.refs_extension,
+                        Format::Markdown,
                     ));
                 }
                 i = j;

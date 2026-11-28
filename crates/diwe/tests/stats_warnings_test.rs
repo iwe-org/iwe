@@ -153,6 +153,29 @@ fn broken_links_covers_both_edge_kinds_and_skips_external() {
 }
 
 #[test]
+fn broken_links_skip_wiki_links_to_files() {
+    let graph = graph_with(&[
+        (
+            "doc",
+            "# Doc\n\nSee [[gone]], [[report.pdf]], [[notes.draft]] and [path](missing.draft.md).\n",
+        ),
+        ("notes.draft", "# Draft\n"),
+    ]);
+
+    let links: Vec<(String, String)> = broken_links(&graph)
+        .iter()
+        .map(|link| (link.source_key.to_string(), link.target_key.to_string()))
+        .collect();
+    assert_eq!(
+        links,
+        vec![
+            ("doc".to_string(), "gone".to_string()),
+            ("doc".to_string(), "missing.draft".to_string()),
+        ]
+    );
+}
+
+#[test]
 fn similar_pages_flags_mutual_near_identical_pair() {
     let graph = graph_with(&[("alpha", ALPHA), ("beta", BETA), ("distinct", DISTINCT)]);
 

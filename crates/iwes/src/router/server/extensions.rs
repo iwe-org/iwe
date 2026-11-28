@@ -392,12 +392,12 @@ pub impl Key {
         relative_to: &str,
         refs_extension: &str,
         refs_path: RefsPath,
+        format: Format,
     ) -> String {
         format!(
-            "[{}]({}{})",
+            "[{}]({})",
             text,
-            self.link_url(relative_to, refs_path),
-            refs_extension
+            self.document_link_url(relative_to, refs_path, refs_extension, format)
         )
     }
 
@@ -419,12 +419,24 @@ pub impl Key {
 
         let new_text = match completion_context.bracket_prefix.as_str() {
             "[[" if wiki_links => format!("[[{}]]", key_index.wiki_target(self, wiki_link_path)),
-            "[" => self.to_link(ref_text.clone(), relative_to, refs_extension, refs_path),
+            "[" => self.to_link(
+                ref_text.clone(),
+                relative_to,
+                refs_extension,
+                refs_path,
+                format_options.format(),
+            ),
             _ => match completion_options.link_format {
                 Some(LinkType::WikiLink) if wiki_links => {
                     format!("[[{}]]", key_index.wiki_target(self, wiki_link_path))
                 }
-                _ => self.to_link(ref_text.clone(), relative_to, refs_extension, refs_path),
+                _ => self.to_link(
+                    ref_text.clone(),
+                    relative_to,
+                    refs_extension,
+                    refs_path,
+                    format_options.format(),
+                ),
             },
         };
 

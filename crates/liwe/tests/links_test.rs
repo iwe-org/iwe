@@ -951,6 +951,125 @@ fn rename_rewrites_wiki_link_with_different_case() {
     );
 }
 
+#[test]
+fn rename_finds_dotted_key_link_with_md_refs_extension() {
+    assert_eq!(
+        vec![(Key::name("note"), "[text](notes.final.md)\n".to_string())],
+        rename_updates(
+            ".md",
+            "[text](notes.draft.md)\n",
+            "notes.draft",
+            "notes.final"
+        )
+    );
+}
+
+#[test]
+fn rename_finds_dotted_key_link_with_custom_refs_extension() {
+    assert_eq!(
+        vec![(Key::name("note"), "[text](notes.final.html)\n".to_string())],
+        rename_updates(
+            ".html",
+            "[text](notes.draft.html)\n",
+            "notes.draft",
+            "notes.final"
+        )
+    );
+}
+
+#[test]
+fn rename_to_dotted_key_writes_refs_extension() {
+    assert_eq!(
+        vec![(Key::name("note"), "[text](notes.draft.md)\n".to_string())],
+        rename_updates(".md", "[text](draft.md)\n", "draft", "notes.draft")
+    );
+}
+
+#[test]
+fn rename_to_dotted_key_writes_document_extension_without_refs_extension() {
+    assert_eq!(
+        vec![(Key::name("note"), "[text](notes.draft.md)\n".to_string())],
+        rename_updates("", "[text](draft)\n", "draft", "notes.draft")
+    );
+}
+
+#[test]
+fn rename_to_numeric_dotted_key_keeps_link_without_extension() {
+    assert_eq!(
+        vec![(Key::name("note"), "[text](v1.2)\n".to_string())],
+        rename_updates("", "[text](draft)\n", "draft", "v1.2")
+    );
+}
+
+#[test]
+fn rename_finds_wiki_links_to_dotted_key() {
+    assert_eq!(
+        vec![(
+            Key::name("note"),
+            "[[notes.final]] and [[notes.final|text]]\n".to_string()
+        )],
+        rename_updates(
+            "",
+            "[[notes.draft]] and [[notes.draft|text]]\n",
+            "notes.draft",
+            "notes.final"
+        )
+    );
+}
+
+#[test]
+fn wiki_link_to_file_is_preserved() {
+    setup();
+
+    let content = "[[report.pdf]] and [[report.pdf|text]]\n";
+    let mut graph = Graph::new_with_options(MarkdownOptions::default());
+    graph.from_markdown(Key::name("note"), content, MarkdownReader::new());
+
+    assert_str_eq!(content, graph.to_markdown(&Key::name("note")));
+}
+
+#[test]
+fn dotted_key_link_with_md_refs_extension_round_trips() {
+    setup();
+
+    let content = "[text](notes.draft.md)\n";
+    let mut graph = Graph::new_with_options(MarkdownOptions {
+        refs_extension: ".md".to_string(),
+        ..Default::default()
+    });
+    graph.from_markdown(Key::name("note"), content, MarkdownReader::new());
+
+    assert_eq!(
+        vec![Key::name("notes.draft")],
+        graph.inclusion_edge_target_keys()
+    );
+    assert_str_eq!(content, graph.to_markdown(&Key::name("note")));
+}
+
+fn rename_updates(extension: &str, link: &str, from: &str, to: &str) -> Vec<(Key, String)> {
+    setup();
+
+    let state: State = vec![
+        ("note".to_string(), link.to_string()),
+        (from.to_string(), "# Target\n".to_string()),
+    ]
+    .into_iter()
+    .collect();
+
+    let graph = Graph::import(
+        &state,
+        MarkdownOptions {
+            refs_extension: extension.to_string(),
+            ..Default::default()
+        },
+        None,
+    );
+
+    rename(&graph, &Key::name(from), &Key::name(to))
+        .expect("rename should succeed")
+        .updates
+}
+
 fn normalize(expected: &str, denormalized: &str) {
     setup();
 

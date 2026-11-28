@@ -115,6 +115,7 @@ impl LinkAction {
         relative_to: &str,
         refs_extension: &str,
         refs_path: RefsPath,
+        format: Format,
     ) -> String {
         let link_text = match link_type {
             Some(ConfigLinkType::WikiLink) => {
@@ -122,10 +123,9 @@ impl LinkAction {
             }
             Some(ConfigLinkType::Markdown) | None => {
                 format!(
-                    "[{}]({}{})",
+                    "[{}]({})",
                     word,
-                    new_key.link_url(relative_to, refs_path),
-                    refs_extension
+                    new_key.document_link_url(relative_to, refs_path, refs_extension, format)
                 )
             }
         };
@@ -233,6 +233,7 @@ impl ActionProvider for LinkAction {
                 &key.parent(),
                 format_options.refs_extension(),
                 format_options.refs_path(),
+                format_options.format(),
             );
 
             let updated_markdown = lines

@@ -82,12 +82,16 @@ impl Target {
         }
     }
 
-    pub fn from_link_url(url: &str, relative_to: &str, reference_type: ReferenceType) -> Target {
+    pub fn from_document_link(
+        url: &str,
+        relative_to: &str,
+        reference_type: ReferenceType,
+    ) -> Target {
         if reference_type.is_wiki() {
             return Target::name(url);
         }
         Target::Path {
-            key: Key::from_rel_link_url(url, relative_to),
+            key: Key::from_rel_document_link(url, relative_to),
             fragment: url
                 .split_once('#')
                 .map(|(_, fragment)| fragment.to_string()),

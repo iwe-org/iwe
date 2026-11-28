@@ -7,9 +7,9 @@ use serde::Serialize;
 
 use liwe::graph::basic_iter::GraphNodePointer;
 use liwe::graph::{Graph, GraphContext};
-use liwe::model::is_ref_url;
 use liwe::model::node::{Node, NodeIter, NodePointer};
 use liwe::model::Key;
+use liwe::model::{is_document_url, is_ref_url, NodeId};
 
 use crate::search::{Bm25Index, Language};
 use crate::search_query::corpus_text;
@@ -44,6 +44,15 @@ fn serialize_keys<S: serde::Serializer>(keys: &[Key], serializer: S) -> Result<S
     seq.end()
 }
 
+fn links_to_note(graph: &Graph, node_id: NodeId, target_key: &Key) -> bool {
+    graph
+        .graph_node(node_id)
+        .targets(graph)
+        .iter()
+        .filter(|target| graph.target_key(target) == *target_key)
+        .any(|target| target.written_name().is_none_or(is_document_url))
+}
+
 pub fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
     let existing_keys: HashSet<Key> = graph.keys().into_iter().collect();
     let mut seen = HashSet::new();
@@ -51,7 +60,11 @@ pub fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
 
     for target_key in graph.inclusion_edge_target_keys() {
         if !existing_keys.contains(&target_key) {
-            for node_id in graph.get_inclusion_edges_to(&target_key) {
+            for node_id in graph
+                .get_inclusion_edges_to(&target_key)
+                .into_iter()
+                .filter(|node_id| links_to_note(graph, *node_id, &target_key))
+            {
                 let source_key = graph.key_of(node_id);
                 if seen.insert((source_key.clone(), target_key.clone())) {
                     broken.push(BrokenLink {
@@ -65,7 +78,11 @@ pub fn broken_links(graph: &Graph) -> Vec<BrokenLink> {
 
     for target_key in graph.reference_edge_target_keys() {
         if !existing_keys.contains(&target_key) && is_ref_url(&target_key.to_string()) {
-            for node_id in graph.get_reference_edges_to(&target_key) {
+            for node_id in graph
+                .get_reference_edges_to(&target_key)
+                .into_iter()
+                .filter(|node_id| links_to_note(graph, *node_id, &target_key))
+            {
                 let source_key = graph.key_of(node_id);
                 if seen.insert((source_key.clone(), target_key.clone())) {
                     broken.push(BrokenLink {

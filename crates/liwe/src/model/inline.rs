@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use super::document::LinkType;
-use crate::model;
 use crate::model::autolink_body;
-use crate::model::config::MarkdownOptions;
+use crate::model::config::{Format, MarkdownOptions};
 use crate::model::document::{DocumentInline, DocumentInlines, MathType};
 use crate::model::reference::{Reference, ReferenceType, Target};
-use crate::model::{has_file_extension, InlinesContext, Lang, Title, WorkspaceUrl};
+use crate::model::{document_url, InlinesContext, Lang, Title, WorkspaceUrl};
 
 pub type Inlines = Vec<Inline>;
 
@@ -667,7 +666,14 @@ fn render_inline<S: TextSink>(
             LinePos::Mid
         }
         Inline::Reference(reference) => {
-            let url = reference.target.unresolved_url();
+            let url = match reference.reference_type {
+                ReferenceType::Regular => document_url(
+                    &reference.target.unresolved_url(),
+                    &options.refs_extension,
+                    Format::Markdown,
+                ),
+                _ => reference.target.unresolved_url(),
+            };
             emit_link(
                 &url,
                 "",
@@ -987,15 +993,10 @@ fn emit_link<S: TextSink>(
             out.push("]]");
         }
         LinkType::Markdown => {
-            let final_url = if model::is_document_url(url) {
-                append_refs_extension(url, &options.refs_extension)
-            } else {
-                url.to_string()
-            };
             out.push("[");
             render_inlines(inlines, options, out, ctx.within_link_text(), LinePos::Mid);
             out.push("](");
-            out.push(&link_destination(&final_url));
+            out.push(&link_destination(url));
             push_link_title(title, out);
             out.push(")");
         }
@@ -1342,24 +1343,6 @@ pub fn inlines_to_markdown(content: &Inlines, options: &MarkdownOptions) -> Stri
     let ctx = EscapeCtx::for_inlines(content, options, LineKind::Inline);
     render_inlines(content, options, &mut out, ctx, LinePos::Mid);
     out
-}
-
-pub(crate) fn append_refs_extension(url: &str, extension: &str) -> String {
-    let (path, fragment) = match url.split_once('#') {
-        Some((p, f)) => (p, Some(f)),
-        None => (url, None),
-    };
-
-    let new_path = if path.is_empty() || path.ends_with('/') || has_file_extension(path) {
-        path.to_string()
-    } else {
-        format!("{path}{extension}")
-    };
-
-    match fragment {
-        Some(f) => format!("{new_path}#{f}"),
-        None => new_path,
-    }
 }
 
 pub fn to_graph_inlines(content: &DocumentInlines, relative_to: &str) -> Vec<Inline> {
