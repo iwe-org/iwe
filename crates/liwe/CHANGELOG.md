@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0](https://github.com/iwe-org/iwe/compare/liwe-v0.35.1...liwe-v0.36.0) - 2026-11-27
+
+### Added
+- `Link.document` field saying whether a link points to a note, decided when the document is read
+- `document_link_path`, `document_url`, `Key::document_link_url` and `Key::from_rel_document_link` for reading and writing note links
+
+### Changed
+- `reference::Target::from_link_url` renamed to `Target::from_document_link` and expects the stored key path, without the file extension
+- `Projector::project` and `Projector::resolve` take `refs_extension` and the document `Format`
+- `is_document_url` no longer treats a bare `.md` or `.dj` as a note
+
+### Fixed
+- Wiki links are always note references, so dotted names like `[[notes.draft]]` resolve (previously they were taken for file links and ignored)
+
+### Removed
+- `normalize_url`, replaced by `document_link_path`
+
 ## [0.35.1](https://github.com/iwe-org/iwe/compare/liwe-v0.35.0...liwe-v0.35.1) - 2026-11-24
 
 Workspace version bump — no user-visible changes in this crate.

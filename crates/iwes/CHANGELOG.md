@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0](https://github.com/iwe-org/iwe/compare/iwes-v0.35.1...iwes-v0.36.0) - 2026-11-27
+
+### Fixed
+- Link completions and the link action add the file extension for notes with a letter after the last dot in the name, so the inserted link points to the note (previously the link had no extension and did not lead to the note)
+- Wiki links to notes with a dot in the name are recognized as links to those notes (previously they were taken for file links)
+- Go to definition opens the right file for notes whose own name ends in `.md` (previously it opened the note without the `.md`)
+
 ## [0.35.1](https://github.com/iwe-org/iwe/compare/iwes-v0.35.0...iwes-v0.35.1) - 2026-11-24
 
 ### Fixed

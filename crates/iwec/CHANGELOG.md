@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0](https://github.com/iwe-org/iwe/compare/iwec-v0.35.1...iwec-v0.36.0) - 2026-11-27
+
+### Fixed
+- Renaming a note updates links and wiki links to notes with a dot in the name (previously some of them were not found)
+
 ## [0.35.1](https://github.com/iwe-org/iwe/compare/iwec-v0.35.0...iwec-v0.35.1) - 2026-11-24
 
 ### Fixed

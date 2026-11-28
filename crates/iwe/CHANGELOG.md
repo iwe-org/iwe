@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0](https://github.com/iwe-org/iwe/compare/iwe-v0.35.1...iwe-v0.36.0) - 2026-11-27
+
+### Changed
+- Links to notes with a letter after the last dot in the name (like `notes.draft`) are written with `.md` when `refs_extension` is empty (previously without an extension, so IWE could not read them back)
+
+### Fixed
+- `iwe rename` updates links to notes with a letter after the last dot in the name when `refs_extension` is set (previously the links were not found and were left broken)
+- `iwe rename` updates wiki links to notes with a dot in the name, like `[[notes.draft]]` (previously they were not found)
+- Links to a note whose own name ends in `.md` resolve to that note (previously they pointed at the note without the `.md`)
+
 ## [0.35.1](https://github.com/iwe-org/iwe/compare/iwe-v0.35.0...iwe-v0.35.1) - 2026-11-24
 
 ### Fixed
